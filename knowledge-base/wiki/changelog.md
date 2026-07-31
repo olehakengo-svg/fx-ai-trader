@@ -1,6 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
-## 2026-07-29 — docs(KB): 初 live fill 検証記録 + BE_LOCK §8 per-strategy 追補 (rule:R3 文書化、live 変更なし)
+## 2026-07-31 — fix(live): Grail #19 ny_close_reversal live 経路撤去 + shadow 含む全数 quant-eval (rule:R2)
+
+- **quant-eval 全数監査** ([[quant-eval-2026-07-31]] = `raw/trade-logs/`): post-cutoff closed **14,329 行**を 3 バケット分解 (live 565 / shadow 13,758 / other 6)。live 月次 = 04:−230.7 / 05:**+14.8** / 06:−281.9 / 07:−84.4p。**7 月 live 反実仮想: 修正済みバグ経路 + ny_close + vix を除くと −7.6p** = M1 (月次符号転換) の残存出血源を特定
+- **Grail #19 撤去 (rule:R2)**: ny_close_reversal live 経路 (N=4 登録根拠、2026-04-25) が live 0W/4L −9.7p + shadow 両ペア負 → `_GRAIL_CANDIDATES`/`_check_grail_filter` から撤去。shadow emit 継続 (原則3)。pin `tests/test_grail19_ny_close_removal_pin.py`。詳細: [[grail19-ny-close-removal-2026-07-31]]
+- **勝ちセル抽出** (Bonferroni m=102): WR vs BEV 二項検定 PASS = sr_anti_hunt_bounce×EUR_JPY (p=2.2e-11) / donchian×NZD_USD (4.2e-6) / ema200_trend_rev×USD_JPY (2.6e-6) / orb_trap×GBP_USD (3.0e-4、EV t 検定も PASS)。**横断勝ち条件 = 方向片側性 + Overlap (12-16 UTC)**。母集団レベルでは confidence≥70 が WR+5.0pp (Bonf PASS、04-22 分析の負相関から反転 — KB 矛盾として記録)
+- **vix pilot 証拠更新 (live 変更なし)**: shadow エッジ減衰 (05〜07 累計 −216p) + live 月次 3/4 負 → 早期 demote 推奨を戦略カードに追記、**user 決裁待ち** (07-07 裁定準拠)
+- **評価への影響**: live 送信経路 −1 (ny_close Grail)。lot/tier/Kelly 不変更。shadow 蓄積は全戦略不変
 
 - **🎉 3.5 ヶ月ぶりの初 live fill (07-29 04:44 UTC)**: price_shock_rev_aud_jpy×AUD_JPY → OANDA #549235 BUY 1000u @113.466 slip+0.8p。経路検証全クリーン — agg-Kelly BYPASS ログ実射 (D-c-1 carve-out 作動) / broker SL #549237 @112.467 (=2×ATR) + TP 付帯の二層防御 / dedup・slot 正常 / BE_LOCK・ATR-BE 不作動。**§7 免除 deploy (04:22) 後の fill = 完全な LOCK 設計 estimand 下の第 1 号** (戦略カード 現況に記録)。副次観測: broker TP に Quick-Harvest ×0.85 が適用される (988p→840p、horizon 12h では非拘束 — §7 スコープ外として記録)
 - **[[mfe-be-lock-design-2026-06-03]] §8 追補**: per-strategy 詳細表 (57d 再計測、適格 9 戦略 **0/9 pass**、Bonferroni p 全 1.0、aggregate ΔEV −0.006 p=0.975) — §8 verdict FAIL の per-strategy 粒度での確定。**評価への影響: なし (記録のみ)**

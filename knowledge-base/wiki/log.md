@@ -672,6 +672,6 @@
 ## 2026-07-31 EA Landscape Sweep (user 指示「勝てている EA を全力で大規模調査 → エッジ探索」、rule:R3)
 - **方法**: 31-agent workflow — 13 ソース並列 Web スイープ (MQL5/Myfxbook/FX Blue/Darwinex/海外フォーラム/Reddit-HN/クオンツ blog/国内 GogoJungle/学術 2020-26/prop firm/GitHub OSS/SMC-ICT/生存率研究) → 113 findings → 上位 18 を敵対的検証 (banned 19 + LOCKED 4 隣接判定 / 生存バイアス・マーチン偽装 / OANDA headroom 10×)。詳細: [[ea-landscape-sweep-2026-07-31]] / raw: `raw/analysis/ea-landscape-sweep-2026-07-31.json`
 - **構造的結論**: multi-year verified の勝者は 2 アーキタイプに収斂 — (a) ナイトスキャルパー MR = 機構実在だがブローカーのスプレッド政策で回収済み (cohort 2022-23 フラット化)、OANDA 移植構造的不能 (gotobi #13 同型 + デスゾーン自己矛盾)、(b) コモディティ三角クロス (AUD_NZD/AUD_CAD/NZD_CAD) = グリッド表層は RISK-ILLUSION、per-position 核は内部未検証 (session-mr-cross-wave1 BLOCKED_DATA を supersede)
-- **台帳追記**: **#20 commodity_cross_range_mr (queued、G0=OANDA 3 クロス RT 実測が必須事前ゲート)** / **#21 equity_curve_shadow_gating (queued、内部 shadow ログのみで counterfactual 検証可の低 prior・低コスト枠)**。THA (Darwinex 首位) は LOCKED E7 と同一 estimand → E7 prior 加点として記録のみ
+- **台帳追記**: **#21 commodity_cross_range_mr (queued、G0=OANDA 3 クロス RT 実測が必須事前ゲート)** / **#22 equity_curve_shadow_gating (queued、内部 shadow ログのみで counterfactual 検証可の低 prior・低コスト枠)** (※#20 は並行セッションの composite_weak_signal_portfolio が先取 → renumber 済み)。THA (Darwinex 首位) は LOCKED E7 と同一 estimand → E7 prior 加点として記録のみ
 - **副産物**: 生存率ベースレート割引関数 (マーケ BT ≈0-5% / verified 3y+ 非負スキュー ×0.3-0.5 上限 / WR>90% は破産確率評価) を KB 化。weekend gap persistent の外部独立確認 (Robot Wealth) = live wg×3 と整合。トレンドフォロー/news/gold/SMC に 3y+ verified 代表個体ゼロ
-- **live/shadow 変更なし**。次アクション = #20 G0 摩擦実測 (シグナル計算ゼロ・pre-reg スロット非消費) + #21 explore pre-reg 起案
+- **live/shadow 変更なし**。次アクション = #21 G0 摩擦実測 (シグナル計算ゼロ・pre-reg スロット非消費) + #22 explore pre-reg 起案
