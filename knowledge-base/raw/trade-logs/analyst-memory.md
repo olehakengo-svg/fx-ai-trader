@@ -3249,6 +3249,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 **NO ACTION推奨（積極エントリー不推奨）**
 - OANDA Live Rate = **0%**（50件中0件送信）。agg_kelly = −0.367 < 0 でKellyゲートが閉まっており、システム自体が現在のリスク環境を否定的に評価している
 
+### 2026-07-31 (Post-London Report)
+| PnL | **0.0 pips** |
+| 勝率（WR） | **N/A** |
+- EUR/JPY ATR%ile **71%**・GBP/JPY **74%**・USD/JPY **83%** —— いずれも VOLATILE レジームで、DTおよびScalp戦略が動作すべき環境水準にあったにもかかわらず、一件も約定しなかった。
+- **シグナル生成の不発** がフィルター手前で起きているか、スプレッドガード等で全件 SKIP された可能性が高い。
+| PnL | 0.0 pips | 0.0 pips |
+| WR | N/A | N/A |
+### 推奨戦略配分
+| **GBP_USD系** | — | RANGING判定のためDT系は見送り推奨 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
