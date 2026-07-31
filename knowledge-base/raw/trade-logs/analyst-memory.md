@@ -3239,6 +3239,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - VIX急変に反応したキャリー巻き戻し戦略が、その後の相場反転に飲まれた可能性
 - この単発損失がデイリーロスリミット（−20.0pip）を超過 → OANDAブロック理由 `daily_loss_limit(-30.1pip<=-20.0pip)` が2件計上
 
+### 2026-07-31 (Post-Tokyo Report)
+| PnL | 0.0 pips |
+| WR | — |
+- **VOLATILE レジーム（USD/JPY ATR%ile 83%、GBP/JPY 74%）** 下でスキャルプ系がフィルターを通過しなかった可能性が高い
+- spread_guard が高ボラティリティ時間帯に多く発動していた可能性（block_reasons に spread 系は今回未計上だが、Scalp閾値30%・DT閾値20%との競合が推定される）
+### 推奨戦略配分
+| 戦略 | ペア | 推奨 | 根拠 |
+**NO ACTION推奨（積極エントリー不推奨）**
+- OANDA Live Rate = **0%**（50件中0件送信）。agg_kelly = −0.367 < 0 でKellyゲートが閉まっており、システム自体が現在のリスク環境を否定的に評価している
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
