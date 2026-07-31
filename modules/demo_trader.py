@@ -8450,7 +8450,7 @@ class DemoTrader:
             # の P1 補足調査参照。
             ("streak_reversal", "scalp_inline"),
             ("dual_sr_bounce", "daytrade_inline"),
-            ("ny_close_reversal", "daytrade_inline"),  # _GRAIL_CANDIDATES 登録、本番で散発発火
+            ("ny_close_reversal", "daytrade_inline"),  # 2026-07-31 GRAIL 撤去済 (rule:R2)、shadow のみ継続
         ]
         try:
             for inline_name, inline_cat in _INLINE_STRATEGIES:
@@ -9409,7 +9409,15 @@ class DemoTrader:
         # bypass)。Live London 実証は損 (2026-06-15: +1.3/+1.6/-9.0p)。vix は
         # _PAIR_PROMOTED の Overlap pilot のみで発火させる (1000u 固定、上記 fixed-lot)。
         # "vix_carry_unwind",     # was: USD_JPY × London × TREND_BEAR N=4 Wlo=15%
-        "ny_close_reversal",      # USD_JPY × NY × RANGE: N=4 Wlo=51% EV=+2.15 PF=4.58
+        # REMOVED 2026-07-31 (rule:R2): ny_close_reversal × NY後半。登録根拠は
+        # N=4 (Wlo=51%) の TP-hit deep-mining クラスタだったが、post-cutoff live
+        # 実績は 0W/4L −9.7p (07-06/07-08/07-15 含む)、shadow も GBP_USD −41p /
+        # USD_JPY −4p と両ペア負。quant-eval-2026-07-31 の 3 バケット全数調査で
+        # 7 月 live 出血経路の一角と特定 (詳細:
+        # knowledge-base/wiki/decisions/grail19-ny-close-removal-2026-07-31.md)。
+        # shadow emit は継続 (原則3) — 再 live 化は R1 (forward shadow N≥30 +
+        # Bonferroni + pre-reg LOCK)。
+        # "ny_close_reversal",    # was: USD_JPY × NY × RANGE N=4 Wlo=51% EV=+2.15
     }
 
     # ── 2026-04-27: C1-PROMOTE candidates (Q1' Cell Edge Audit, rule:R1) ──
@@ -10318,11 +10326,11 @@ class DemoTrader:
         # 到達不能だが、5/13 Overlap pilot の demote した負けセルを延命する経路を
         # 残さないため filter からも撤去。vix は Overlap pilot (1000u) のみ。
         #   was: hour 7-11 ∧ range_tight ∧ squeeze → True (観測 N=4 Wlo=15%)
-        # Grail #19: ny_close_reversal × NY後半 × RANGE
-        # 観測 N=4 TP=4 Wlo=51% EV=+2.15 PF=4.58 (TP-rate 100%, 小利)
-        if (entry_type == "ny_close_reversal"
-                and 17 <= hour_utc < 22):
-            return True
+        # Grail #19 (REMOVED 2026-07-31 rule:R2): ny_close_reversal × NY後半。
+        # _GRAIL_CANDIDATES から除外済 — entry_type not in 判定で既に到達不能
+        # だが、Grail #2 撤去 (2026-06-15) と同様に負けセルを延命する経路を
+        # 残さないため filter からも撤去。live 0W/4L −9.7p + shadow 両ペア負。
+        #   was: 17 <= hour_utc < 22 → True (観測 N=4 Wlo=51%)
         return False
 
     def _check_c1_promote_filter(self, entry_type, instrument, mode,
