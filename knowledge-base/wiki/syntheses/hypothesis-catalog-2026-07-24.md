@@ -79,6 +79,19 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 
 | 18 | level_failed_break_d1 (wave-4 L-a) | **explore 完了 2026-07-31 (同日)** — [[level-failed-break-d1-explore-prereg-2026-07-31]] (🔒 凍結コミット 5ea2d4dc 後に測定。敵対的検証 12 条件解決済み) | ❌ **FAIL クローズ** — primary pooled fade 5d **−4.91p (符号逆)** p=0.702 (N=290、週 block perm、knife-edge 圏外)。年次 3/8・LOYO 7/8 負・net EV −8.8p。**同型再試行禁止 = 長 lookback 極値の D1 close 確定失敗ブレイク×fade×multi-day 全変種。継続方向も p≈0.30 n.s. — 事後符号反転主張禁止 (holiday レグ c 前例)**。htf_fb 機構は D1/55d へ外挿不能と実証 (#11 には影響なし)。**正の副産物 = Gate A 8/8: D1 イベント系 headroom (MFE5d p50 51-92p ≥ 10×RT) は実在 — 律速は摩擦でなく signal**。QA 2 件 (Monday bar UTC 誤ラベル修正 / cross-check 7 ペア符号・量級一致)。OOS 非接触。`reports/level-fb-d1-explore-2026-07-31.md` |
 | 19 | round_number_major_level (wave-4 L-b) | **explore 完了 2026-07-31 (同日)** — [[round-number-level-explore-prereg-2026-07-31]] (🔒 凍結コミット 7bc04410 後に測定。敵対的検証 12 条件解決済み) | ❌ **FAIL クローズ** — primary pooled 反転 3d **+6.34p (方向正) p=0.117** (N=1,088/実効 326 週、knife-edge 圏外) + 年次 5/8。net EV 点推定 +2.9p 正だが null と区別不能 — **「方向は合うが弱い」死型 3 例目 (ppp/quote-spread 同型)**。headroom 6/6 (62-89p)・LOYO 8/8 正・Brexit 週 31%・#18 重複 13.5%。**同型再試行禁止 = 00 grid fresh-approach×D1 反転×固定ホライズン全変種。事後スライス (S サイド/GBPUSD/USDJPY/5d 切り出し) は winner's curse 再演として禁止 — 再挑戦は新 family + 事前差分節のみ**。Osler 機構の D1 外挿は認定不能と実証、rnb_usdjpy には設計参照のみ供給。OOS 非接触。`reports/round-number-explore-2026-07-31.md`。**→ wave-4 全 family 決着: 平行線 3 候補 = 敵対的検証 KILL / 水平線 2 候補 = explore FAIL ×2 — 「ページのライン→エッジ」差分空間も全滅で完全クローズ** |
+| 20 | commodity_cross_range_mr (wave-5 EA-a) | **queued 2026-07-31** — [[ea-landscape-sweep-2026-07-31]] §4.1 (31-agent EA 大規模調査の敵対的検証 GO、score 63/56)。**G0 = OANDA 3 クロス (AUD_NZD/AUD_CAD/NZD_CAD) RT 実測 ≥1 週間 (rollover 込み) がシグナル計算前の必須ゲート** — RT 未収載ペアで最尤 kill 点。G0 通過時のみ explore pre-reg 起案 | — (未測定)。per-position 単発のみ (grid/averaging 評価対象外)、v1 純価格アンカー限定 (金利差調整変種は E20 隣接で禁止)、M5/15m 形態禁止。session-mr-cross-wave1 (05-11 BLOCKED_DATA) を supersede。負の prior: 「方向は合うが弱い」死型 3 例の家系 + RBA/RBNZ デシンク窓 (2014-15/2022-24) を OOS 敵対窓に必須組込 |
+| 21 | equity_curve_shadow_gating (wave-5 EA-b) | **queued 2026-07-31** — [[ea-landscape-sweep-2026-07-31]] §4.2 (同調査 GO、score 55)。**シグナル族でなくメタ配分層** (自戦略 shadow P&L の短期持続性で live 転送を gate する counterfactual)。次アクション = explore pre-reg 起案 (K∈{5,10,20} 凍結・閾値 0 固定・watchdog/R2 交絡遮断・Bonferroni セル×3) | — (未測定)。検証は内部 shadow closed P&L のみで完結 (新規データ/摩擦ゼロ、LOCKED 非接触)。学術 prior mixed〜negative の低 prior・低コスト枠。R2 損失停止/watchdog は片側 ad hoc 先行実装 — 差分明示必須。live gate 化は R1 + user 承認 |
+
+## wave-5 候補 triage (2026-07-31、敵対的検証済み — `raw/analysis/ea-landscape-sweep-2026-07-31.json`)
+
+**発端**: user 指示 2026-07-31「勝てている EA を全力で海外 WEB 含め大規模調査 → 勝てるエッジ探索」。
+方法 = 31-agent workflow (13 ソース並列スイープ 113 findings → 上位 18 敵対的検証)。詳細: [[ea-landscape-sweep-2026-07-31]]。
+verdict: GO 3 (実質 2 family = #20/#21) / ADJACENT-BANNED 3 / RISK-ILLUSION 2 / NOT-FEASIBLE-RETAIL 10:
+
+- **ナイトスキャルパー家系 (Night Hunter Pro/SFE/White Bear 等、5 重複検出)**: ❌ NOT-FEASIBLE — 機構実在 (板崩壊 overshoot→東京回帰) だがエッジはブローカーの overnight スプレッド封筒内側にあり政策変更で回収済み (cohort 2022-23 フラット化)。グロス 5-15p < headroom 要求 21.4p + 発火窓 = デスゾーン (実測 RT 2-3 倍) と自己矛盾。gotobi (#13) 同型。**再入場 = 執行コスト構造の変化なしに不可**
+- **Thales/THA (Darwinex 首位 event-driven)**: ⚠️ LOCKED E7 と同一 estimand 衝突 — 処分 = **E7 prior 加点として記録** (verdict 08-28 の解釈材料)。残余 = 中銀声明テキスト差分モダリティは 08-28 後に新 family として再評価可
+- **グリッド/ナンピン形態 (Waka Waka/NoPain 等)**: ❌ RISK-ILLUSION — negative-skew 変形、per-position 核のみ #20 に分離。**グリッド形態での再提案は archetype として不可**
+- parked: NY cut オプション期日ボード条件付き (prior 6、#14 隣接差分 = expiry notional 条件を pre-reg で固定要) / Osler stop-cascade 貫通継続 (velocity 条件付き — #4/#14 との差分は貫通側のみ) / momentum-decay trailing exit (一本勝ち型 — exit 側は T2+stage-2 完全否定の negative prior、正 EV ホスト不在で mafe exit と同棚)
 
 ## wave-4 候補 triage (2026-07-31、敵対的検証済み — `raw/analysis/level-family-adversarial-verification-2026-07-31.md`)
 
