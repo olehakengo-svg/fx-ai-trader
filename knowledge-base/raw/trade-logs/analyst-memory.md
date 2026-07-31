@@ -3259,6 +3259,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 ### 推奨戦略配分
 | **GBP_USD系** | — | RANGING判定のためDT系は見送り推奨 |
 
+### 2026-07-31 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **-30.1 pips** |
+| 全体WR | **0.0%** |
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: 全戦略 N<10 → **「データなし」扱い**。EV・WR の数値は現時点で意思決定根拠として使用不可。N=30 まで最低27件不足。
+| 1 | `vix_carry_unwind` がSL_HIT → EV=-30.1（N=1） | データ不足で戦略評価不能 |
+- `vix_carry_unwind` は N=1 であるため、今日追加されるシグナルを蓄積する段階。評価保留。
+- OANDA NAV/Balance が `None` の原因は接続または権限の問題と推定される。ライブ昇格判断に影響するため、状態確認を優先。
+- エントリー数の少なさは VOLATILE レジームでのフィルター強化効果と見ることもできる。現段階では観察継続。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
