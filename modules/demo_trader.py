@@ -5159,7 +5159,7 @@ class DemoTrader:
         # アジア時間帯(UTC 21-06)はGBPの流動性が極端に低い
         # Spread/SL Gateでは防げないテールリスク → 静的ブロック（原則#3の例外）
         _now_h = datetime.now(timezone.utc).hour
-        if "GBP" in instrument and (_now_h >= 21 or _now_h < 6):
+        if self._gbp_asia_flash_crash_blocked(entry_type, instrument, _now_h):
             if not _is_shadow_eligible:
                 _block(f"gbp_asia_flash_crash(UTC{_now_h})")
                 return
@@ -5879,6 +5879,35 @@ class DemoTrader:
                         f"{_spread_pips:.2f}p > {_wg_cap:.1f}p → shadow record")
                     print(f"[WEEKEND_GAP] {instrument} SPREAD_SKIP "
                           f"{_spread_pips:.2f}p > {_wg_cap:.1f}p", flush=True)
+            # ══════════════════════════════════════════════════════════
+            # ── P-S1(a) AMENDMENT: sweep LATE 窓 cell-scoped spread cap ──
+            # (user 決裁待ち — 07-24 承認スコープ外。packet §8.1)
+            # 静的 per-pair limit (EUR_GBP 1.5p) は LATE rollover 実測
+            # (5.4-16.6p、rescued shadow 全 8 発火が超過) を 100% hard block し
+            # live/shadow とも行が残らない。weekend_gap pre-reg §2.2 と同型の
+            # 専用 cap 置換: cap 内 = live、cap 超過 = shadow row 記録 (分母保存)。
+            # worst tail は本 cap + 動的 spread_sl_gate (35%、維持) の二段で遮断。
+            # _sweep_reversion_eurgbp_live_eligible に連動 — pin 再無効化 (R2 stop)
+            # 時は本 cap 経路も自動で不活性化する (fail-closed 連成)。
+            # ══════════════════════════════════════════════════════════
+            _ps1a_sweep_entry = self._sweep_reversion_eurgbp_live_eligible(
+                entry_type, instrument)
+            if _ps1a_sweep_entry:
+                from strategies.daytrade.sweep_reversion_eurgbp_late import (
+                    PS1A_SWEEP_SPREAD_CAP_PIPS as _ps1a_cap,
+                    ps1a_sweep_spread_cap_skip as _ps1a_cap_skip,
+                )
+                if _ps1a_cap_skip(_spread_pips):
+                    _is_shadow = True
+                    reasons.append(
+                        f"[PS1A_SWEEP_SPREAD_SKIP] quoted spread "
+                        f"{_spread_pips:.2f}p > cap {_ps1a_cap:.1f}p → live skip, "
+                        f"shadow row (分母保存)")
+                    self._add_log(
+                        f"[PS1A_SWEEP] {instrument} spread cap skip: "
+                        f"{_spread_pips:.2f}p > {_ps1a_cap:.1f}p → shadow record")
+                    print(f"[PS1A_SWEEP] {instrument} SPREAD_SKIP "
+                          f"{_spread_pips:.2f}p > {_ps1a_cap:.1f}p", flush=True)
             # ── 通貨ペア別スプレッド閾値 (pips) — 本番乖離解消 ──
             _SPREAD_LIMITS = {
                 "USD_JPY": 1.0,
@@ -5902,7 +5931,9 @@ class DemoTrader:
             # spread過大エントリーはSpread/SL Gate(line 3212)で最終防御される
             # weekend_gap_fade は上の専用 cap 10.0p で置換済み (pre-reg §2.2) —
             # 標準 per-pair limit は適用しない (他 entry_type は従来どおり)。
-            if _spread_pips > _spread_limit and not _is_shadow_eligible and not _wg_entry:
+            # P-S1(a) sweep×EUR_GBP も同型の専用 cap で置換 (packet §8.1 AMENDMENT)。
+            if (_spread_pips > _spread_limit and not _is_shadow_eligible
+                    and not _wg_entry and not _ps1a_sweep_entry):
                 _block(f"spread_wide({_spread_pips:.1f}pip>{_spread_limit})")
                 return
 
@@ -5917,7 +5948,11 @@ class DemoTrader:
             _expected_profit_pips = abs(_sig_tp - _sig_entry) * (100 if _is_jpy_or_xau_sg else 10000) if _sig_tp else 0
             # weekend_gap_fade: TP なし (sentinel TP のみ) のため spread/TP 比は
             # 定義不能 — E1 置換 (専用 cap) の一部としてスキップ (pre-reg §2.2)。
-            if _expected_profit_pips > 0 and not _wg_entry:
+            # P-S1(a) sweep×EUR_GBP: TP=6xATR は tail-cap (稀にしか触れない設計、
+            # 一次 exit は 12h time-stop) のため spread/TP 比は estimand として
+            # 誤指定 — LATE 実測 spread では構造的に全 block になる。摩擦制御は
+            # 専用 cap + 動的 spread_sl_gate に委譲 (packet §8.1 AMENDMENT)。
+            if _expected_profit_pips > 0 and not _wg_entry and not _ps1a_sweep_entry:
                 _spread_cost_ratio = (_spread_pips * 2) / _expected_profit_pips  # 往復スプレッド
                 # DT/1H: 20%閾値 (エリート戦略のエッジ防御), scalp: 30%
                 _base_mode_sg = _get_base_mode(mode)
@@ -9685,6 +9720,28 @@ class DemoTrader:
     # SHADOW_MODE/Phase0/_OANDA_MODE_BLOCKED(daytrade_eurgbp) を bypass。
     # 12y grid 唯一の Bonferroni 生存 cell (N=543 t=4.46)。MIN lot 1000u 固定済。
     # pre-reg LOCK: knowledge-base/wiki/decisions/sweep-reversion-eurgbp-late-live-2026-06-12.md
+    # ── P-S1(a) AMENDMENT: gbp_asia_flash_crash cell-scoped 免除 (user 決裁待ち) ──
+    # v8.6 静的ゲート (UTC 21-06 × "GBP" in instrument) は本 cell の LATE 窓
+    # (21-24 UTC) を 100% 内包し、sweep は shadow-eligible 集合外のため hard block
+    # (第 3 の estimand ブロッカー、2026-07-31 発見 — T8 期は上流 HTF gate が emit を
+    # 全て削っていたため一度も観測されていない)。12.4y grid pre-reg にアジア時間
+    # フィルタは存在しない — 免除は HTF exemption と同型の BT/本番統一の回復。
+    # GBP フラッシュクラッシュ tail の防御は本 cell では 1000u 固定 lot +
+    # SL -4xATR + 動的 spread_sl_gate が担う。他 cell / ゲート本体は不変 (原則3)。
+    # 決裁: decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md §8.1
+    _GBP_ASIA_FLASH_CRASH_EXEMPT_CELLS = frozenset({
+        ("sweep_reversion_eurgbp_late", "EUR_GBP"),
+    })
+
+    @classmethod
+    def _gbp_asia_flash_crash_blocked(cls, entry_type, instrument, hour):
+        """v8.6 GBP アジア静的ブロックの適用判定 (cell-scoped 免除込み)。"""
+        if "GBP" not in (instrument or ""):
+            return False
+        if not (hour >= 21 or hour < 6):
+            return False
+        return (entry_type, instrument) not in cls._GBP_ASIA_FLASH_CRASH_EXEMPT_CELLS
+
     # 2026-07-06 T8 R2 STOP (code pin): 初週 pre-reg ゲート①抵触 (24日 live fill 0、
     # HTF hard gate が emit を 100% silent drop)。decisions/t8-week1-gate-breach-2026-07-06.md
     # P-S1(a) Option B 執行 (pin 解除): user 条件付き承認 2026-07-24 — 執行条件

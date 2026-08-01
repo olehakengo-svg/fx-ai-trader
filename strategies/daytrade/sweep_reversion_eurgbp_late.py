@@ -46,6 +46,26 @@ import pandas as pd
 from strategies.base import Candidate, StrategyBase
 from strategies.context import SignalContext
 
+# ── P-S1(a) AMENDMENT: LATE 窓 cell-scoped spread 執行定数 (user 決裁待ち) ──
+# 静的 per-pair limit (EUR_GBP 1.5p) は LATE rollover の実測 quoted spread
+# (rescued shadow 全 8 発火で 5.4-16.6p、中央値 6.6p) を 100% hard block し、
+# live どころか shadow 行も残らない (第 4 の estimand ブロッカー、2026-07-31 発見)。
+# weekend_gap pre-reg §2.2 と同型の entry_type-scoped 置換: cap 内 = live 送信、
+# cap 超過 = shadow row 記録 (分母保存)。worst tail (実測 16.6p 級) は本 cap +
+# 維持される動的 spread_sl_gate (spread/SL>35%) の二段で遮断する。
+# 決裁: knowledge-base/wiki/decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md §8.1
+PS1A_SWEEP_SPREAD_CAP_PIPS = 10.0
+
+
+def ps1a_sweep_spread_cap_skip(spread_pips: float) -> bool:
+    """True when the quoted spread exceeds the frozen 10.0p live cap.
+
+    Cell-scoped replacement (packet §8.1): this cap applies ONLY to
+    sweep_reversion_eurgbp_late × EUR_GBP; all other entry_types keep the
+    standard per-pair spread filter.
+    """
+    return float(spread_pips) > PS1A_SWEEP_SPREAD_CAP_PIPS
+
 
 class SweepReversionEurgbpLate(StrategyBase):
 

@@ -259,8 +259,10 @@ def test_e1_cap_is_entry_type_scoped_not_blanket():
     # scoped cap branch exists ...
     assert "weekend_gap_spread_cap" in src
     # ... and the standard E1 block for all other entry_types survives,
-    # scoped away from wg only via `not _wg_entry`
-    assert "_spread_pips > _spread_limit and not _is_shadow_eligible and not _wg_entry" in src
+    # scoped away only via `not _wg_entry` (+ P-S1(a) sweep×EUR_GBP の同型
+    # cell-scoped 置換 `not _ps1a_sweep_entry` — packet §8.1 AMENDMENT)
+    assert ("_spread_pips > _spread_limit and not _is_shadow_eligible" in src
+            and "and not _wg_entry and not _ps1a_sweep_entry" in src)
     # standard per-pair limits untouched
     assert '"USD_JPY": 1.0,' in src
     assert '"EUR_USD": 1.2,' in src
