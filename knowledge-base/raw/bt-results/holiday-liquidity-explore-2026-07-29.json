@@ -1,0 +1,151 @@
+{
+ "explore": {
+  "stage": "explore",
+  "frozen_doc": "knowledge-base/wiki/analyses/holiday-liquidity-explore-prereg-2026-07-29.md",
+  "seed": 20260729,
+  "n_perm": 20000,
+  "bh_q": 0.1,
+  "m": 2,
+  "legs_tested": [
+   "a",
+   "c"
+  ],
+  "counts": {
+   "leg_a_events": 131,
+   "leg_a_overlap_excluded": [
+    "2013-12-31",
+    "2014-12-31",
+    "2015-12-31",
+    "2016-12-30",
+    "2017-11-22",
+    "2017-12-29",
+    "2018-12-31",
+    "2019-12-31"
+   ],
+   "leg_c_events": 63
+  },
+  "leg_a": {
+   "n_obs": 545,
+   "n_blocks": 74,
+   "pooled_mean_pips": 7.8914,
+   "perm_p": 0.01629918504074796,
+   "perm_p_raw": 0.01629918504074796,
+   "two_sided": true,
+   "gate_min_effect": "True",
+   "headroom_median": 11.24,
+   "gate_headroom": true,
+   "headroom_median_floor_rt": 25.08,
+   "loyo_means": {
+    "2014": 9.111,
+    "2015": 7.754,
+    "2016": 4.162,
+    "2017": 8.055,
+    "2018": 7.845,
+    "2019": 8.707,
+    "2020": 9.569
+   },
+   "gate_loyo": true,
+   "gate_bh": true,
+   "verdict": "PASS"
+  },
+  "leg_c": {
+   "n_obs": 397,
+   "n_blocks": 50,
+   "pooled_mean_pips": -7.6146,
+   "perm_p": 0.9729013549322534,
+   "perm_p_raw": 0.9729013549322534,
+   "two_sided": false,
+   "gate_min_effect": "True",
+   "headroom_median": 8.31,
+   "gate_headroom": false,
+   "headroom_median_floor_rt": 19.15,
+   "loyo_means": {
+    "2014": -8.495,
+    "2015": -8.621,
+    "2016": -9.048,
+    "2017": -9.321,
+    "2018": -6.445,
+    "2019": -7.391,
+    "2020": -3.982
+   },
+   "gate_loyo": true,
+   "gate_bh": false,
+   "verdict": "FAIL"
+  },
+  "diagnostics": {
+   "leg_a_mean_US": 6.309,
+   "leg_a_n_US": 419,
+   "leg_a_mean_JP": 13.155,
+   "leg_a_n_JP": 126,
+   "leg_a_per_pair": {
+    "USD_JPY": 4.256,
+    "EUR_USD": 15.195,
+    "GBP_USD": 11.027,
+    "AUD_USD": 8.564,
+    "NZD_USD": 8.058,
+    "USD_CAD": -0.135,
+    "USD_CHF": -4.578,
+    "EUR_JPY": 19.154
+   },
+   "leg_a_raw_quote_mean": -7.919,
+   "leg_a_range_ratio_median": 1.043,
+   "leg_c_abs_rh_median": 15.0,
+   "leg_c_small_rh_share_lt5p": 0.207,
+   "leg_a_mean_ex_backfill": 7.75,
+   "leg_a_n_ex_backfill": 541,
+   "leg_c_mean_ex_backfill": -7.615,
+   "leg_c_n_ex_backfill": 397,
+   "leg_c_weekend_gap_mean": -0.68,
+   "leg_c_no_gap_mean": -9.23,
+   "leg_c_halfday_d1_mean": -9.57,
+   "leg_c_halfday_d1_n": 53,
+   "leg_a_mean_48h": 5.282,
+   "leg_c_mean_48h": -4.246
+  }
+ },
+ "oos": {
+  "stage": "oos",
+  "frozen_doc": "knowledge-base/wiki/analyses/holiday-liquidity-explore-prereg-2026-07-29.md",
+  "seed": 20260729,
+  "n_perm": 20000,
+  "bh_q": 0.1,
+  "m": 1,
+  "legs_tested": [
+   "a"
+  ],
+  "counts": {
+   "leg_a_events": 111,
+   "leg_a_overlap_excluded": [
+    "2020-12-31",
+    "2022-12-30",
+    "2023-11-22",
+    "2023-12-29",
+    "2024-12-31",
+    "2025-12-31"
+   ]
+  },
+  "leg_a": {
+   "n_obs": 508,
+   "n_blocks": 63,
+   "pooled_mean_pips": 2.0589,
+   "perm_p": 0.3144842757862107,
+   "perm_p_raw": 0.3144842757862107,
+   "two_sided": false,
+   "gate_min_effect": "False",
+   "headroom_median": 13.61,
+   "gate_headroom": true,
+   "headroom_median_floor_rt": 29.81,
+   "loyo_means": {
+    "2021": 1.838,
+    "2022": 0.674,
+    "2023": 4.733,
+    "2024": 4.916,
+    "2025": -0.047,
+    "2026": 0.335
+   },
+   "gate_loyo": false,
+   "gate_bh": false,
+   "verdict": "FAIL"
+  }
+ }
+}

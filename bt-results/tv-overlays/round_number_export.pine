@@ -1,0 +1,104 @@
+//@version=5
+// round_number_major_level (台帳 #19) per-event export — pre-reg FROZEN 2026-07-31
+// knowledge-base/wiki/decisions/round-number-level-explore-prereg-2026-07-31.md
+// pass-1 (PASS2=false): date|side|level|entry|mfe3
+// pass-2 (PASS2=true):  date|side|level|entry|net1|net3|net5|mfe3|mae3
+indicator("RN_LEVEL_EXPORT", overlay=true, max_bars_back=500)
+
+bool PASS2 = input.bool(false, "pass2_full_export")
+
+int FRESH = 20
+int EXPLORE_START = timestamp("UTC", 2014, 1, 1, 0, 0)
+int EXPLORE_END = timestamp("UTC", 2021, 12, 31, 23, 59)
+
+bool isJpy = str.contains(syminfo.ticker, "JPY")
+float STEP = isJpy ? 1.0 : 0.01
+float pip = syminfo.mintick * 10
+
+// trading-day label = bar close day in NY tz (#18 QA-fixed convention, inherited unchanged)
+int dow = dayofweek(time_close, "America/New_York")
+bool isWknd = dow == dayofweek.saturday or dow == dayofweek.sunday
+var int wkndCount = 0
+if isWknd
+    wkndCount += 1
+
+var int firstTime = na
+if bar_index == 0
+    firstTime := time
+
+// per-level last-touch registry (keys = level index, vals = last touch bar_index)
+var array<int> regKey = array.new_int()
+var array<int> regBar = array.new_int()
+
+var array<float> evEntry = array.new_float()
+var array<int> evDir = array.new_int()
+var array<int> evBar = array.new_int()
+var array<float> evLvl = array.new_float()
+var array<string> evDate = array.new_string()
+var array<bool> evDone = array.new_bool()
+var array<string> rows = array.new_string()
+
+if not isWknd and bar_index > 1
+    int kLo = int(math.ceil(low / STEP - 1e-9))
+    int kHi = int(math.floor(high / STEP + 1e-9))
+    if kHi >= kLo
+        // 1) evaluate freshness BEFORE updating registry (touch history = prior bars only)
+        float bestLvl = na
+        float bestDist = 1e18
+        for k = kLo to kHi
+            int idx = array.indexof(regKey, k)
+            bool fresh = idx == -1 or bar_index - array.get(regBar, idx) > FRESH
+            float L = k * STEP
+            if fresh and close[1] != L
+                float d = math.abs(L - close[1])
+                if d < bestDist
+                    bestDist := d
+                    bestLvl := L
+        // 2) record event (nearest fresh level to prev close, 1 per pair-day)
+        if not na(bestLvl) and time >= EXPLORE_START and time <= EXPLORE_END
+            int dir = close[1] < bestLvl ? -1 : 1
+            array.push(evEntry, close)
+            array.push(evDir, dir)
+            array.push(evBar, bar_index)
+            array.push(evLvl, bestLvl)
+            array.push(evDate, str.format_time(time_close, "yyyy-MM-dd", "America/New_York"))
+            array.push(evDone, false)
+        // 3) update registry for ALL crossed levels
+        for k = kLo to kHi
+            int idx2 = array.indexof(regKey, k)
+            if idx2 == -1
+                array.push(regKey, k)
+                array.push(regBar, bar_index)
+            else
+                array.set(regBar, idx2, bar_index)
+
+// finalize events exactly once when 5 bars elapsed
+int nEv = array.size(evBar)
+if nEv > 0
+    for i = 0 to nEv - 1
+        if not array.get(evDone, i) and bar_index - array.get(evBar, i) == 5
+            int dir = array.get(evDir, i)
+            float entry = array.get(evEntry, i)
+            float net1 = dir * (close[4] - entry) / pip
+            float net3 = dir * (close[2] - entry) / pip
+            float net5 = dir * (close - entry) / pip
+            float hi3 = math.max(high[4], high[3], high[2])
+            float lo3 = math.min(low[4], low[3], low[2])
+            float mfe3 = dir == 1 ? (hi3 - entry) / pip : (entry - lo3) / pip
+            float mae3 = dir == 1 ? (entry - lo3) / pip : (hi3 - entry) / pip
+            string base = array.get(evDate, i) + "|" + (dir == 1 ? "L" : "S") + "|" + str.tostring(array.get(evLvl, i), format.mintick) + "|" + str.tostring(entry, format.mintick)
+            string row = PASS2 ? base + "|" + str.tostring(net1, "#.##") + "|" + str.tostring(net3, "#.##") + "|" + str.tostring(net5, "#.##") + "|" + str.tostring(mfe3, "#.##") + "|" + str.tostring(mae3, "#.##") : base + "|" + str.tostring(mfe3, "#.##")
+            array.push(rows, row)
+            array.set(evDone, i, true)
+
+var table t = table.new(position.top_right, 4, 100, bgcolor=color.new(color.white, 100))
+if barstate.islast
+    int n = array.size(rows)
+    string meta = "META|" + syminfo.ticker + "|first=" + str.format_time(firstTime, "yyyy-MM-dd", "UTC") + "|last=" + str.format_time(time, "yyyy-MM-dd", "UTC") + "|bars=" + str.tostring(bar_index + 1) + "|wknd=" + str.tostring(wkndCount) + "|events=" + str.tostring(n) + "|pass2=" + str.tostring(PASS2) + "|step=" + str.tostring(STEP) + "|fresh=20"
+    table.cell(t, 0, 0, meta, text_size=size.tiny, text_color=color.black)
+    if n > 0
+        for i = 0 to n - 1
+            int idx = i + 1
+            int col = idx / 99
+            int r = idx % 99
+            table.cell(t, col, r, array.get(rows, i), text_size=size.tiny, text_color=color.black)

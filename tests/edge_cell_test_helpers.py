@@ -54,12 +54,18 @@ def fixed_datetime(hour: int):
 
 
 def make_trader(tmp_path, monkeypatch, *, hour: int):
+    import modules.data as data_mod
     import modules.demo_trader as demo_trader_mod
     from modules.demo_trader import DemoTrader
 
     logs = []
     monkeypatch.setattr(demo_trader_mod, "datetime", fixed_datetime(hour))
     monkeypatch.setattr(demo_trader_mod, "classify_prime", lambda *_args, **_kwargs: None)
+    # _tick_entry は modules.data.fetch_oanda_bid_ask で実勢 bid/ask を引く。
+    # suite 内で app が import 済みだと (.env ロード経由で) 実ネットワークの
+    # 価格が返り、fixture の entry/tp/sl と実勢価格の乖離次第で rr_floor 等の
+    # 手前の gate に落ちてテスト結果が市場価格依存になる。常に None に固定。
+    monkeypatch.setattr(data_mod, "fetch_oanda_bid_ask", lambda *_a, **_k: None)
 
     trader = DemoTrader.__new__(DemoTrader)
     trader._db = DemoDB(str(tmp_path / "edge-e2e.db"))

@@ -1,0 +1,48 @@
+{
+  "generated": "2026-07-29",
+  "source": "wave-3 hypothesis generation (Stage 2 of edge-dev session 2026-07-29). Lenses per postmortem §6: 非価格モダリティ = 蓄積系/有料系/マイクロストラクチャ状態系/機関 flow 系。無料日次×カレンダー系は wave-1/2 + holiday family (#15 FAIL 本日) で枯渇確認済み",
+  "grounding_facts_verified_today": {
+    "massive_api_surface": "Polygon 互換 api.massive.com。FX tick BBO quotes (/v3/quotes/C:*) が現行プランで取得可能、深度 2010-01 以前から (2010/2014/2016 全て HTTP200 実測)。fields = bid_price/ask_price/participant_timestamp。rate limit なし (12req/10s 全 200 実測)。options/stocks aggs は直近のみ entitled (2024 は 403 'timeframe'、2026-07 は 200)、indices (I:VIX) は 403 NOT_AUTHORIZED。fx grouped daily = 1202 tickers",
+    "cot_panel": "data/external/cot_fx_panel.parquet は noncomm_long/short/net + open_interest + net_pct_oi のみ (commercial 列なし)。tools/build_cot_panel.py は deacot{YYYY}.zip (CFTC 公式、2010-2026) から抽出 — legacy 形式に commercial 列が存在し rebuild で追加可能。release-lag 規約 (report Tue +3bd = Fri 公表、entry 翌週月曜 open) と lookahead assert は cot_spec explore で実証済み",
+    "e12_status": "CME FX 先物 volume (yfinance 60m、730d 窓)。backfill 済み first_bar 2024-02-27 + go-forward 蓄積中 (2026-07-18〜)。台帳 #10 蓄積待ち。explore 2014-2021/OOS 2022+ split は原理的に不能 (歴史 2024-02 以前が存在しない)",
+    "vol_state_registry_occupancy": "RV5/RV21 閾値 1 の split は htf_fb×AUD_JPY と weekend_gap の 2 registry で占有 (診断専用)。新候補はこの軸・ホストと重複禁止"
+  },
+  "candidates": [
+    {
+      "name": "[W3-1] cot_commercial_dnet_flow_weekly (COT commercial/Δnet flow、明示 carve-out family)",
+      "mechanism": "commercial hedger (輸出入実需) は価格非感応の強制フロー。彼らの『フロー』(Δnet, 4w) の極性は実体経済ヘッジ圧力の変化を反映し、spec 主導の価格トレンドの持続/反転を条件付ける。hedging-pressure risk premium は先物クロスセクションで文献あり (De Roon+ 1998 系)。cot_spec_extreme FAIL は『net_pct_oi レベル極値』の estimand であり、flow・commercial 側は台帳 #5 verdict が明示的に『新 family として可』と刻んだ carve-out",
+      "data": "in-reach: deacot{YYYY}.zip 2010-2026 (CFTC 公式、取得実証済み)。panel rebuild で commercial_long/short/net 追加 (parse 拡張のみ)。週次、release-lag 規約実証済み",
+      "estimand_sketch": "週次 Δnet_commercial (4w flow, OI 正規化) × fwd {1w,2w,4w} exit-free。primary は pre-reg で 1 本に凍結 (flow tercile onset か continuous IC か — 凍結時決定、grid なし)。explore 2010(14)-2021 / OOS 2022+ (cot_spec は spec レベル極値のみ接触、commercial flow は未接触)",
+      "headroom_est": "1-4w ホライズンの移動 100-300p vs RT 2.0-4.5p = 25-75x (weekly 系で headroom は非拘束)",
+      "banned_adjacency": "cot_spec_extreme (#5 FAIL) — ban は『net_pct_oi レベル極値×週次』限定。差分: (i) 母集団 = commercial (別 counterparty)、(ii) 変換 = Δflow (レベルでなく変化)、(iii) percentile レベル極値 onset を一切使わない。E20 carry (金利シグナル) とは入力直交。pre-reg に明示差分節必須",
+      "score": {"prior": 55, "headroom": 85, "testability": 90, "independence": 60, "composite": 62},
+      "kill_expectations": "cot_spec の死因 (点推定 incoherent、単一イベント支配) が commercial 側にも出る可能性は高い。SNB 2015 型の単一イベント支配ガードと年次一貫性ゲートを凍結必須"
+    },
+    {
+      "name": "[W3-2] fx_quote_spread_state (MASSIVE tick BBO 2010+、本日実在確認した新モダリティ)",
+      "mechanism": "スプレッド急拡大 (トレーリング同時刻 baseline 対比の異常、時計条件でなく異常条件) = ディーラーのリスク退避・流動性退出。live 側では本プロジェクト自身が『デスゾーン = スプレッド異常』として防御に使う実証済み状態変数だが、エッジ (事後の方向構造) としては未検証。event: spread z > k ∧ |price move| < 閾値 (price_shock との分離 = 純粋な流動性退出)。fwd 4-24h 両側スクリーン",
+      "data": "NEW — /v3/quotes 2010+ 実測確認。取得はサンプリング必須 (tick 全量は不可): 例 = 各 UTC 時刻 8 点 × limit 200 quotes → hourly spread パネル、3 ペア × 12y ≈ 84k requests ≈ 19h @1.2req/s (rate limit なし実測)。feed QA 必須 (price_shock 監査で MASSIVE 土曜行/不良プリント汚染の前科)",
+      "estimand_sketch": "hourly spread パネル → spread anomaly onset (同 UTC 時刻の trailing 60d median 対比、diurnal 除去) ∧ 実現 |ret| 小 → fwd 4h/24h 方向 (両側) + MFE/MAE。explore 2014-2021 / OOS 2022+",
+      "headroom_est": "⚠️ 構造リスク: イベント時点の実効 RT はまさにスプレッド拡大で悪化する — headroom gate はイベント条件付き実測スプレッドで計算しなければ自己欺瞞 (baseline RT 使用は禁止)。これが 10x を通るかは不明 = 最大の kill 候補",
+      "banned_adjacency": "session/hour バケット (REJECT) — サンプリング格子は時計だが estimand は同時刻 baseline 対比の異常条件付け (時計効果は構成で除去)。price_shock (live 5 席) — |price move| < 閾値の分離条件で差分。VIX onset kill — VIX 不使用。デスゾーン防御 (live) の弱体化なし (explore only)",
+      "score": {"prior": 50, "headroom": 35, "testability": 45, "independence": 90, "composite": 48},
+      "kill_expectations": "event-conditional friction が headroom を殺す公算が相応にある。それ自体が『デスゾーン防御の正当性の定量化』として KB 価値あり (負の場所知識は一度も覆っていない)"
+    },
+    {
+      "name": "[W3-3] e12_cme_volume_forward_prereg (登録アクションのみ、測定なし)",
+      "mechanism": "E12 (台帳 #10) の観測前デザイン pre-reg を蓄積完了前に書く = 前倒し。データを一切見ずに estimand/gates を凍結 → 蓄積が検定力に達した時点で機械執行。MoF forward 型の時限設計",
+      "data": "蓄積中 (yfinance 60m go-forward)。歴史 unlock は Databento 有料 (user 決裁事項として記録のみ)",
+      "estimand_sketch": "scan-round2 の S1 設計 (unsigned abnormal volume primary + incremental-IC vs price momentum 必須) を観測前に凍結",
+      "score": {"prior": 60, "headroom": 60, "testability": 20, "independence": 70, "composite": "n/a (registration action, BH 非消費)"},
+      "kill_expectations": "測定なしのため kill なし。リスクは設計の陳腐化のみ"
+    }
+  ],
+  "rejected_at_generation": [
+    {"name": "options/futures OI modality", "reason": "実在確認の結果 = 直近のみ entitled (歴史 403)。explore/OOS split 構築不能 = move_bondvol と同じ死因を事前確認。data-blocked として記録、Databento 等の有料 unlock は user 決裁事項"},
+    {"name": "weekend_gap 同型異所", "reason": "FX に真の市場クローズは週末のみ (祝日は開場 — その日次系は本日 #15 で ban)。フラッシュ解消は price_shock live 5 席が占有。レンズ枯渇を正直に記録"},
+    {"name": "MASSIVE tick volume 系 (E13 変種)", "reason": "E13 棄却済み (『tick volume は弱 proxy』、E12 が上位互換)。unsigned state 変種も同 verdict の射程内と判断"},
+    {"name": "FX 広域クロスセクション (grouped 1202 tickers)", "reason": "クロスセクション古典因子は全滅済み (xs_momentum deprecate / E20 carry kill / ppp value kill #14)。エキゾチッククロスはスプレッド構造的 sub-friction (EUR_GBP 前例)"},
+    {"name": "intraday vol-state 単独 estimand", "reason": "wave-2 verdict どおり『正 EV ホスト不在の構造ブロッカー』。RV5/RV21 split は registry 2 件で占有済み"}
+  ],
+  "instructions_to_verifier": "各候補について (a) ban/falsified 隣接の照合 (MEMORY 再試行禁止リスト + hypothesis-catalog 台帳 + wave-2 verdict + 本日 #15 holiday ban)、(b) データ主張の妥当性 (grounding_facts の参照ファイル確認)、(c) 設計の DoF 漏れ・自己欺瞞リスク、(d) score の正直さ、を敵対的に検証し、GO / GO-WITH-CONDITIONS / KILL を返すこと。生存は最大 2 本。"
+}

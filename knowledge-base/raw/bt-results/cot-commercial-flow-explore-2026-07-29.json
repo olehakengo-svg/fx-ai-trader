@@ -1,0 +1,100 @@
+{
+ "explore": {
+  "stage": "explore",
+  "frozen_doc": "knowledge-base/wiki/analyses/cot-commercial-flow-explore-prereg-2026-07-29.md",
+  "seed": 20260729,
+  "n_boot": 10000,
+  "alpha": 0.05,
+  "m": 1,
+  "n_obs": 2479,
+  "n_weeks": 414,
+  "skips": {
+   "entry_guard": 23,
+   "no_exit_bar": 0,
+   "nan_flow": 0
+  },
+  "ic": 0.0186,
+  "p": 0.5652434756524347,
+  "p_raw": 0.5652434756524347,
+  "one_sided_sign": null,
+  "gates": {
+   "i_pvalue": false,
+   "ii_quintile": true,
+   "iii_loyo": true,
+   "iv_side_split": false,
+   "v_headroom": true,
+   "vi_level_neutral": true
+  },
+  "gate_detail": {
+   "quintile": {
+    "quintile_means": [
+     -20.864,
+     -4.69,
+     5.012,
+     -14.787,
+     -10.379
+    ],
+    "adjacent_violations": 1,
+    "spread_sign_ok": true,
+    "pass": true
+   },
+   "loyo": {
+    "loyo_ics": {
+     "2014": 0.0292,
+     "2015": 0.0208,
+     "2016": 0.0253,
+     "2017": 0.0033,
+     "2018": 0.0173,
+     "2019": 0.0127,
+     "2020": 0.0304,
+     "2021": 0.0133
+    },
+    "sign_stable": true,
+    "max_year_share": 0.351,
+    "ic_ex_snb": 0.0199,
+    "pass": true
+   },
+   "side_split": {
+    "ic_flow_pos": -0.013,
+    "ic_flow_neg": 0.0757,
+    "pass": false
+   },
+   "headroom": {
+    "headroom_median": 33.11,
+    "n_extreme": 992,
+    "pass": true
+   },
+   "headroom_floor_rt": {
+    "headroom_median": 79.46,
+    "n_extreme": 992,
+    "pass": true
+   },
+   "level_neutral": {
+    "ic_level_neutral": 0.0093,
+    "retention": 0.502,
+    "pass": true
+   }
+  },
+  "verdict": "FAIL",
+  "diagnostics": {
+   "ic_AUD": 0.0349,
+   "ic_CAD": -0.0388,
+   "ic_CHF": 0.0301,
+   "ic_EUR": -0.0212,
+   "ic_GBP": 0.03,
+   "ic_JPY": 0.0953,
+   "ic_year_2014": -0.0326,
+   "ic_year_2015": 0.0024,
+   "ic_year_2016": -0.0253,
+   "ic_year_2017": 0.1361,
+   "ic_year_2018": 0.0529,
+   "ic_year_2019": 0.084,
+   "ic_year_2020": 0.0279,
+   "ic_year_2021": 0.0819,
+   "ic_5bd": 0.0125,
+   "ic_20bd": 0.0112,
+   "corr_dcomm_vs_neg_dnoncomm": 0.9325,
+   "rates_ffilled_beyond_n": 0
+  }
+ }
+}

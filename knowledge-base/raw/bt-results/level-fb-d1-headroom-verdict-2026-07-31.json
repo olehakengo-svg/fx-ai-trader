@@ -1,0 +1,80 @@
+{
+ "status": "OK",
+ "pairs": {
+  "AUDJPY": {
+   "n": 32,
+   "mfe5_p50": 88.43,
+   "need": 30.0,
+   "pass": true,
+   "floor_need": 13.0,
+   "floor_pass": true
+  },
+  "AUDUSD": {
+   "n": 40,
+   "mfe5_p50": 63.83,
+   "need": 25.0,
+   "pass": true,
+   "floor_need": 13.0,
+   "floor_pass": true
+  },
+  "EURJPY": {
+   "n": 32,
+   "mfe5_p50": 89.03,
+   "need": 25.0,
+   "pass": true,
+   "floor_need": 13.0,
+   "floor_pass": true
+  },
+  "EURUSD": {
+   "n": 36,
+   "mfe5_p50": 51.3,
+   "need": 20.0,
+   "pass": true,
+   "floor_need": 13.0,
+   "floor_pass": true
+  },
+  "GBPUSD": {
+   "n": 40,
+   "mfe5_p50": 91.85,
+   "need": 45.3,
+   "pass": true,
+   "floor_need": 13.0,
+   "floor_pass": true
+  },
+  "NZDUSD": {
+   "n": 44,
+   "mfe5_p50": 58.0,
+   "need": 30.0,
+   "pass": true,
+   "floor_need": 13.0,
+   "floor_pass": true
+  },
+  "USDCAD": {
+   "n": 41,
+   "mfe5_p50": 72.85,
+   "need": 28.0,
+   "pass": true,
+   "floor_need": 13.0,
+   "floor_pass": true
+  },
+  "USDJPY": {
+   "n": 25,
+   "mfe5_p50": 57.3,
+   "need": 21.4,
+   "pass": true,
+   "floor_need": 13.0,
+   "floor_pass": true
+  }
+ },
+ "surviving_pairs": [
+  "AUDJPY",
+  "AUDUSD",
+  "EURJPY",
+  "EURUSD",
+  "GBPUSD",
+  "NZDUSD",
+  "USDCAD",
+  "USDJPY"
+ ],
+ "family": "PROCEED(pass-2 on surviving pairs)"
+}
