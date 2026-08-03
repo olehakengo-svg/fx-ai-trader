@@ -1,8 +1,9 @@
 # 敵対的検証: equity_curve_shadow_gating forward pre-reg DRAFT (2026-08-03)
 
+> **status: 非規範 (archival)** — 検証対象の DRAFT は SUPERSEDED-NEVER-LOCKED (並行セッションの v2 forward LOCK が PR #155 で main 先着)。#22 の SSOT = [[equity-curve-shadow-gating-explore-prereg-2026-08-03]]。race 記録: `raw/analysis/ec-gating-race-cross-audit-2026-08-03.md` (本検証が見落とした K1 型攻撃の記録含む)。
 > 検証者: 独立 subagent (ファイル渡し、main セッションと独立にソース精読 + cutoff/eligibility 独自検算)。
 > 対象: `raw/analysis/equity-curve-shadow-gating-prereg-draft-2026-08-03.json` (LOCK 前 DRAFT)
-> 帰結: REQUIRED #1-#8 は LOCK 版 (`wiki/decisions/equity-curve-shadow-gating-forward-prereg-2026-08-03.md`) に全反映済み。
+> 帰結: REQUIRED #1-#8 は DRAFT に全反映されたが、LOCK は撤回。REQUIRED #1-#8 の論点 (cutoff 算数一致・null 再連結仕様・censoring 保守性・P-10 whitelist 設計) は SSOT v2 の first look 執行時にも参照価値あり。
 
 ## verdict: SURVIVES-WITH-REQUIRED-AMENDMENTS
 

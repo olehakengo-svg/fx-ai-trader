@@ -1,7 +1,7 @@
 {
   "_meta": {
     "family": "#22 equity_curve_shadow_gating (wave-6 EA-b)",
-    "status": "LOCKED-FORWARD (敵対的検証 REQUIRED #1-#8 反映済み — 2026-08-03 self-LOCK)",
+    "status": "SUPERSEDED-NEVER-LOCKED (2026-08-03) — 並行セッションの v2 forward pre-reg が PR #155 で main 先着 (first-to-main 原則)。#22 の SSOT = wiki/decisions/equity-curve-shadow-gating-explore-prereg-2026-08-03.md (first look 2026-11-06)。本 JSON は独立収束の証跡としてのみ残置。race 記録と cross-audit: raw/analysis/ec-gating-race-cross-audit-2026-08-03.md",
     "drafted": "2026-08-03",
     "adversarial_verification": "knowledge-base/raw/analysis/ec-gating-adversarial-verification-2026-08-03.md (verdict: SURVIVES-WITH-REQUIRED-AMENDMENTS、#1-#8 全反映 + OPTIONAL 5 件採用)",
     "rule": "R3 (explore, 読むだけ)。live gate 化は R1 フル手続き + user 承認 (§4.2 凍結規律)",
