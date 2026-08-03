@@ -26,9 +26,24 @@ def _normalize_index(df: pd.DataFrame) -> pd.DataFrame:
     return out.sort_index()
 
 
+def merge_never_shorten(existing: pd.DataFrame, fresh: pd.DataFrame) -> pd.DataFrame:
+    """既存キャッシュと新規取得のマージ。既存行が重複時に勝ち、head は保持される。
+
+    短い --days のフル取得が長い歴史キャッシュを上書きで消す事故
+    (2026-07: E15/E7 plain 15m が 11/13 ペアで台帳再現不能化) の恒久ガード。
+    既存行を書き換えないため、凍結台帳 (rows/coverage/first) の再現性を壊さない。
+    """
+    existing = _normalize_index(existing)
+    fresh = _normalize_index(fresh)
+    combined = pd.concat([existing, fresh])
+    combined = combined[~combined.index.duplicated(keep="first")]
+    return combined.sort_index()
+
+
 def audit_frame(df: pd.DataFrame, tf: str) -> dict:
     data = _normalize_index(df)
-    minutes = {"5m": 5, "1h": 60, "4h": 240, "1d": 1440}.get(tf)
+    minutes = {"1m": 1, "5m": 5, "15m": 15, "30m": 30,
+               "1h": 60, "4h": 240, "1d": 1440}.get(tf)
     if data.empty or minutes is None:
         return {
             "rows": int(len(data)),
@@ -67,13 +82,23 @@ def audit_frame(df: pd.DataFrame, tf: str) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pair", required=True)
-    parser.add_argument("--tf", required=True, choices=["5m", "1h", "4h", "1d"])
+    parser.add_argument("--tf", required=True,
+                        choices=["1m", "5m", "15m", "30m", "1h", "4h", "1d"])
     parser.add_argument("--days", type=int, default=395)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--overwrite", action="store_true",
+                        help="既存キャッシュとマージせず全置換 (never-shorten ガード無効化)")
     args = parser.parse_args()
 
     out = Path(args.out)
     df = fetch_ohlcv_massive(args.pair, args.tf, args.days)
+    rows_fetched = int(len(df))
+    merged_with_existing = False
+    if out.exists() and not args.overwrite:
+        existing = pd.read_parquet(out)
+        if len(existing) > 0:
+            df = merge_never_shorten(existing, df)
+            merged_with_existing = True
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(out)
     audit = {
@@ -81,6 +106,8 @@ def main() -> int:
         "tf": args.tf,
         "days_requested": args.days,
         "source": "MASSIVE",
+        "rows_fetched": rows_fetched,
+        "merged_with_existing": merged_with_existing,
         **audit_frame(df, args.tf),
     }
     audit_path = out.with_suffix(".audit.json")
