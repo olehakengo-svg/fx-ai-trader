@@ -675,3 +675,9 @@
 - **台帳追記**: **#21 commodity_cross_range_mr (queued、G0=OANDA 3 クロス RT 実測が必須事前ゲート)** / **#22 equity_curve_shadow_gating (queued、内部 shadow ログのみで counterfactual 検証可の低 prior・低コスト枠)** (※#20 は並行セッションの composite_weak_signal_portfolio が先取 → renumber 済み)。THA (Darwinex 首位) は LOCKED E7 と同一 estimand → E7 prior 加点として記録のみ
 - **副産物**: 生存率ベースレート割引関数 (マーケ BT ≈0-5% / verified 3y+ 非負スキュー ×0.3-0.5 上限 / WR>90% は破産確率評価) を KB 化。weekend gap persistent の外部独立確認 (Robot Wealth) = live wg×3 と整合。トレンドフォロー/news/gold/SMC に 3y+ verified 代表個体ゼロ
 - **live/shadow 変更なし**。次アクション = #21 G0 摩擦実測 (シグナル計算ゼロ・pre-reg スロット非消費) + #22 explore pre-reg 起案
+
+## 2026-08-03 wave-6 着手 (#21 G0 実測 + #22 forward pre-reg LOCK、rule:R3)
+- **#21 commodity_cross_range_mr G0 = ✅ PASS 3/3** — [[commodity-cross-g0-rt-freeze-2026-08-03]] (🔒 凍結コミット 981ae119 後に測定)。stressed_RT_primary: AUD_NZD 3.80p / AUD_CAD 3.70p / NZD_CAD 3.90p (全て ≤5.0p 閾値)。60 営業日 M5 BA candles、アンカー妥当性 OK。**副次発見 = 21:00 UTC 帯は spread 毒窓 (p75 12-18p) だが 23:00 UTC 以降 2.7-2.9p に正常化 → explore pre-reg は執行 23:00 UTC 凍結必須**。次 = explore pre-reg 起案。`reports/commodity-cross-rt-g0-2026-08-03.md`
+- **#22 equity_curve_shadow_gating = forward pre-reg 🔒 LOCKED (v2)** — [[equity-curve-shadow-gating-explore-prereg-2026-08-03]]。遡及 explore 案 (v1) は敵対的検証 3 レンズ (統計/lookahead・衛生/交絡) で **KILL 3 件**: 一度きりの構造ブレークで偽陽性 100% (合成データ実証) + 週層化は真の検出力も殺す = 遡及窓で識別不能 + retired セルの outcome-conditioned truncation + Fidelity Cutoff 前汚染。→ **#4 MoF/#10 E12 前例の forward 化で構造解決**。first look 2026-11-06 (registry `ecg-forward-first-look`)、primary = active 4 セル × K{5,10,20} (m=12)、epoch 層化 permutation、遡及窓は未測定保存 (burn なし)
+- **横断教訓**: 敵対的検証は「ハーネスの関数を import して合成データで偽陽性率を実測する」段階まで踏むと、文言レビューでは見えない識別不能性を検出できる (今回の KILL は全てこの型)
+- 環境注記: ローカル OANDA token は生存確認 (candles BA HTTP 200) — 07-14 の「失効」記録は book エンドポイント 401 の誤帰属 ([[e1-positioning-ingest-2026-07-14]] §8 と整合)
