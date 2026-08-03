@@ -183,3 +183,28 @@ python3 tools/event_modality_explore.py discovery
 6. 成果物: `raw/bt-results/e7/` (import CSV ×2 + manifest + BLS ledger + 意味論検証 json)。生 snapshot (R4F dump 5.5MB + BLS 76 ページ) は data/cache/rates/raw/ (sha256 は manifest/ledger に凍結)。
 
 **残 = phase-1 本体のみ**: discovery+候補凍結 2026-08-21 → OOS verdict 2026-08-28 (registry `e15-e7-event-prereg-phase1-verdict` 監視継続)。データ側の前提は本日で完結。
+
+---
+
+## 🔧 2026-07-29 — phase-1 データ前提修理: plain 15m parquet の台帳再現復元 (rule:R3)
+
+**発見**: MASSIVE ベンダー欠損 backfill (PR #131) の影響調査中に、coverage 台帳 (`e15_e7_pair_coverage.json`) が参照する plain `{pair}_15m.parquet` が **11/13 ペアで台帳再現不能**と判明 (USD_JPY は 2024-05 開始に短縮、NZD_USD/USD_CAD/NZD_JPY は 2025-04 開始、EUR_AUD は消失など。再現 OK は EUR_JPY / EUR_GBP のみ)。原因 = 各種 explore の短い `--days` フル取得が plain path を無条件上書き (WS3 round-2 prep 2026-07-09 等、複数回)。このままでは phase-1 discovery (08-21) / OOS verdict (08-28) が `load_and_verify_bars` で **BLOCKED** になる。
+
+**復元 (byte-exact)**:
+1. phase-0 実行 worktree **`e15-oos-20260722`** に原本 13 本が現存し、**phase-0 verdict `data_ledger` の sha256 と 13/13 完全一致**を確認。
+2. `tools/e15_e7_data_refreeze.py --restore-from <worktree>/data/cache/massive` で sha256 照合付き復元 → 13/13 `RESTORED_BYTE_EXACT` (旧ファイルは `.bak-pre-refreeze-2026-07-29` 退避)。
+3. 判定器の実コード `load_and_verify_bars` で **13/13 GREEN** を実証 (errors=[])。
+
+**凍結コピー (clobber 再発保険)**: `data/cache/massive/e15_e7_frozen/` に 13 本コピー + sha256 manifest = `raw/bt-results/e15_e7_frozen_manifest_2026-07-29.json` (**verdict data_ledger と同一 sha256** = provenance 連鎖が閉じる)。
+
+**ベンダー不安定性の実測 (副産物)**: MASSIVE fresh 再取得 (days=4675) では USD_JPY/EUR_USD/GBP_USD が 3 点一致した一方、**AUD_USD は台帳比 −25 行の drift** (07-21 に存在したバーがベンダーから消えた)。→ **MASSIVE 歴史バー集合は不変ではない**。凍結が必要な pre-reg データは「plain cache 参照 + 行数 pin」ではなく**ファイル実体の凍結コピー + sha256** で守ること (本件の教訓)。
+
+**phase-1 実行手順への追加 (08-21 / 08-28 の pre-flight)**:
+```
+python3 tools/e15_e7_data_refreeze.py --verify-only            # 13/13 OK を確認してから discovery/verdict
+python3 tools/e15_e7_data_refreeze.py --restore-from-frozen data/cache/massive/e15_e7_frozen   # clobber 時
+```
+
+**再発防止**: `tools/fetch_massive_data.py` に never-shorten merge ガード (既存行優先・head 保持・tail 延長のみ、`--overwrite` で明示解除) + `tests/test_massive_cache_never_shorten.py` 8 tests。
+
+**§10-1 遵守**: 本修理は価格ファイルの復元・検証のみ (first/coverage/行数/sha256)。イベント×リターン結合統計は一切未計算。live/shadow/Kelly/tier 不変更。
