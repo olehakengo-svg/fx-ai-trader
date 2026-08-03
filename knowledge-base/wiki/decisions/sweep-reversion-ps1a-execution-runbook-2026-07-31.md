@@ -14,7 +14,8 @@
 - spaced EV≤0 → Option C (retire、T8 DEFER 機械規定)
 - unique/spaced で EV 符号が割れたら → 機械執行せず user 再決裁 (パケット §6-2)
 - 2026-09-30 に unique N<5 → retire (R2)
-- ⚠️ **AMENDMENT (§2.5) 未決裁なら §3 に進まず停止** — commit 1 のみの merge は禁止
+- ✅ **AMENDMENT (§2.5) は user 承認済み (2026-08-03「進めて」、パケット §8 決裁記録)** —
+  トリガ成立時は §3 へ直行し commit 1+2 で執行。commit 1 のみの merge は引き続き禁止
 
 ## 1. トリガ検知 (自動)
 
@@ -35,7 +36,7 @@ python3 tools/ps1a_execution_check.py
   `tests/test_ps1a_execution_check.py` の 12 pin でテスト固定済み。2026-07-31 本番
   dry-run でパケット §1.1 と完全一致を確認済み (row +2.13 / unique +3.14 / spaced +2.47)
 
-## 2.5 ⚠️ 既知の追加ブロッカー 2 件 — AMENDMENT (user 決裁必要)
+## 2.5 既知の追加ブロッカー 2 件 — AMENDMENT (✅ user 承認済み 2026-08-03)
 
 **発見 (2026-07-31 準備セッション、コード実測)**: パケット §3.2 の guard chain 宣言に
 網羅漏れがあり、承認済み Option B (§3.3) をそのまま merge しても発火しない:
@@ -48,7 +49,7 @@ python3 tools/ps1a_execution_check.py
 T8 期 (06-12〜07-06) にこれらが観測されなかったのは、上流 HTF Hard Block が emit を
 100% 削っており下流ゲートが一度もテストされていないため。
 
-**AMENDMENT 実装 (draft branch commit 2 = `dfec4343`、user 決裁待ち)**:
+**AMENDMENT 実装 (draft branch commit 2 = `dfec4343`、✅ user 承認 2026-08-03)**:
 1. `_GBP_ASIA_FLASH_CRASH_EXEMPT_CELLS = {("sweep_reversion_eurgbp_late", "EUR_GBP")}` —
    HTF exemption と同一の estimand 論 (12.4y grid pre-reg にアジア時間フィルタは存在せず、
    cell 定義が全部ブロック帯内 = gate 維持は発火 0 の恒久化)。GBP フラッシュクラッシュ
@@ -61,13 +62,12 @@ T8 期 (06-12〜07-06) にこれらが観測されなかったのは、上流 HT
    LIVE 側 winning-location フィルタ設計は他戦略に対し維持)。cap 経路は
    `_sweep_reversion_eurgbp_live_eligible` に連動 — pin 再無効化 (R2 stop) で自動不活性化
 
-**執行時の分岐**:
-- user が AMENDMENT を承認済み → commit 1+2 を含む PR で執行 (§3)
-- 未決裁 → **執行を停止し、本セクション + パケット §8.1 を添えて user に決裁を求める**
+**執行時の分岐 (2026-08-03 決裁で確定)**: commit 1+2 を含む PR で執行 (§3)。
+旧分岐 (未決裁時の停止) は解消済み — パケット §8 決裁記録参照。
 
 ## 3. Option B 執行 (単一 PR、パケット §3.3)
 
-前提: §2 verdict = OPTION_B_EXECUTE ∧ §2.5 AMENDMENT 決裁済み
+前提: §2 verdict = OPTION_B_EXECUTE (AMENDMENT は 2026-08-03 決裁済みのため追加前提なし)
 
 1. draft branch `draft/ps1a-option-b-20260731` (origin push 済み) を main に rebase
    (`prereg-trigger-registry.json` が conflict したら draft 側の t8-sweep エントリ置換を採る)
@@ -94,7 +94,7 @@ branch: `draft/ps1a-option-b-20260731` (origin push 済み)
 | commit | 内容 | 決裁状態 |
 |---|---|---|
 | `8272f994` (commit 1) | §3.3-1〜4: order 層 12-bar min-spacing (専用 reason key `order_min_spacing`、hydration 3h、違反は shadow 降格) / HTF exemption (`DaytradeEngine.HTF_HARD_BLOCK_EXEMPT_CELLS`) / pin 解除 + テスト追随 / registry 置換 (`ps1a-sweep-live-withdrawal-watch`) / pin tests `tests/test_ps1a_option_b_gates.py` | ✅ 承認済みスコープ (2026-07-24) |
-| `dfec4343` (commit 2) | §2.5 AMENDMENT: gbp_asia cell 免除 + 専用 spread cap 10.0p + 比 gate 置換 / pin tests `tests/test_ps1a_late_window_amendment.py` | ⚠️ **user 決裁待ち** |
+| `dfec4343` (commit 2) | §2.5 AMENDMENT: gbp_asia cell 免除 + 専用 spread cap 10.0p + 比 gate 置換 / pin tests `tests/test_ps1a_late_window_amendment.py` | ✅ **user 承認済み (2026-08-03「進めて」)** — commit 内コメントの「決裁待ち」表記は commit 3 で更新済み |
 
 両 commit とも pre-commit full pytest green + check.py 9/9 通過。
 
