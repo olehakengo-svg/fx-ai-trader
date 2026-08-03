@@ -12,7 +12,7 @@
 > ③ **exit 整合 = 案 (i) 既定** (本番 exit のまま復帰、live N≥10 蓄積後に (ii) を再決裁)
 > ④ **監視修正の実行** — §1.5 の undercount バグは同日修正済み (下記)。修正後実測で N=8/10 正常報告を確認
 
-関連: [[sweep-reversion-eurgbp-late-live-2026-06-12]] (pre-reg LOCK) / [[sweep-hull-live-week1-prereg-2026-06-12]] (初週ゲート) / [[sweep_reversion_eurgbp_late]] (戦略カード) / [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §3
+関連: [[sweep-reversion-eurgbp-late-live-2026-06-12]] (pre-reg LOCK) / [[sweep-hull-live-week1-prereg-2026-06-12]] (初週ゲート) / [[sweep_reversion_eurgbp_late]] (戦略カード) / [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §3 / **[[sweep-reversion-ps1a-execution-runbook-2026-07-31]] (執行手順書 — §8 準備完了、AMENDMENT 決裁待ち)**
 
 ---
 
@@ -272,3 +272,71 @@ curl -s "https://fx-ai-trader.onrender.com/api/demo/trades?status=all&date_from=
 - §2.5 の exit-free 再検証: `tools/sweep_reversion_exitfree_reverify.py` (決定論、seed=20260724、bootstrap n=10,000)。
   weekend 跨ぎ ~13.3% は本パケット更新時の独立概算 (トリガ近似再現 N=639 — swing_lo/ATR 定義差により
   凍結 tool の N=543 と一致しないが、weekday 分布の推定には十分)
+
+## 8. 執行準備 (2026-07-31 追記 — user 指示「トリガ成立日に機械的に完遂できる状態にする」)
+
+**状態: N=8/10 のまま (07-24 から新規発火 0、最終発火 07-15)。準備は完了、執行はトリガ待ち。**
+
+| 準備物 | 場所 |
+|---|---|
+| 執行条件判定器 (凍結文言 dry-run) | `tools/ps1a_execution_check.py` + pin tests 12 件。2026-07-31 本番実測で §1.1 と完全一致 (row +2.13 / unique +3.14 / spaced +2.47) を確認済み |
+| Option B 実装 (§3.3-1〜4) | draft branch `draft/ps1a-option-b-20260731` **commit `8272f994`** (マージ禁止、origin push 済み、pre-commit full pytest green) |
+| §8.1 AMENDMENT 実装 | 同 branch **commit `dfec4343`** (user 決裁待ち) |
+| 執行手順書 | [[sweep-reversion-ps1a-execution-runbook-2026-07-31]] — トリガ成立日はこれを上から実行するだけ |
+| 機械監視 | `t8-sweep-defer-decision` N=8/10 正常報告 + Tier A cron (00:20 UTC) → Discord 配線確認済み |
+
+### 8.1 ⚠️ 新発見: 第 3・第 4 の estimand ブロッカー (user 決裁事項)
+
+§3.2 の guard chain 宣言にはゲート網羅の漏れがあった。2026-07-31 準備セッションのコード
+実測で、承認済み Option B (§3.3) をそのまま merge しても**発火しない**ことを確認:
+
+1. **第 3 ブロッカー — `gbp_asia_flash_crash`** (v8.6 静的、`_tick_entry`: "GBP" in
+   instrument ∧ UTC 21-06): 本 cell の LATE 窓 (21-24 UTC) を 100% 内包。sweep は
+   `_is_shadow_eligible_full` (FORCE_DEMOTED ∪ SCALP/UNIVERSAL_SENTINEL ∪ trendline-v2)
+   の**全て非該当**のため hard block (`_block` + return、行も残らない)。さらに fallback
+   (`elif _kalman_live_pre and not _is_shadow`) は先行ゲートの shadow 降格を live に
+   戻さないため、仮に shadow-eligible でも live 送信は不可能だった
+2. **第 4 ブロッカー — 静的 per-pair spread limit + spread/TP 比 gate**:
+   `_SPREAD_LIMITS["EUR_GBP"] = 1.5p` に対し LATE rollover 実測 quoted spread は
+   5.4〜16.6p (§1.3 の全 8 発火が超過) → `spread_wide` hard block。spread/TP 比 gate
+   (20%) も TP=6×ATR tail-cap 設計 (一次 exit は 12h time-stop で TP は稀にしか
+   触れない) に対し比の分母が過小 → 構造的に全 block
+
+**帰結**: Option B (commit 1) 単独 merge は (1) live fill 0 の再演 (ゲート①と同型) に
+加え、(2) **HTF exemption が rescue 経路を外すため shadow 蓄積まで消滅** (htf=bear:
+現状 = rescue → shadow 行 / commit 1 後 = primary → 上記ゲートで hard block → 行なし)。
+4原則#3 違反 + Withdrawal trigger 監視の母数消滅。**T8 期にこれらが未観測だったのは
+上流 HTF Hard Block が emit を 100% 削っており、下流ゲートが一度もテストされて
+いないため** (ゲート積層の shadowing — 教訓化対象)。
+
+**AMENDMENT 提案 (07-24 承認スコープ外 — user 決裁必要、commit `dfec4343` 実装済み)**:
+- (a) `_GBP_ASIA_FLASH_CRASH_EXEMPT_CELLS = frozenset({("sweep_reversion_eurgbp_late",
+  "EUR_GBP")})` — §3.2 と同一の estimand 論 (12.4y grid pre-reg にアジア時間フィルタは
+  存在せず、cell 定義が全部ブロック帯内 = gate 維持は発火 0 の恒久化)。GBP フラッシュ
+  クラッシュ tail の防御は本 cell では 1000u 固定 lot + SL −4×ATR + 動的 spread_sl_gate が担う
+- (b) 専用 spread cap **10.0p** — [[weekend-gap-stage2-execution-prereg-2026-07-24]] §2.2
+  の前例と同型・同値。cap 内 = live / cap 超過 = shadow row 記録 (分母保存)。静的 limit と
+  比 gate は本 cell のみ置換。**動的 spread_sl_gate (spread/SL>35%) は維持** — §4-2 の
+  「デスゾーン = 動的検出」防御はそのまま。実測 8 発火中 7 が cap 内 (worst 16.6p は遮断)
+- blast radius = 本 cell のみ (ゲート本体・他戦略は不変 = 原則3 の LIVE 側
+  winning-location フィルタ設計は維持)。cap 経路は `_sweep_reversion_eurgbp_live_eligible`
+  連動で pin 再無効化 (R2 stop) 時に自動不活性化
+- **摩擦論との整合**: cap 10p 採用は「spread 5-17p での約定を意図的に受ける」ことを意味
+  する。§4-1 の摩擦計算 (RT 中央値 ~4.0p vs gross +7.72p → 残余 +3.7p、worst tail 負) が
+  その根拠で、worst tail は cap + 動的 gate の二段で遮断。**live 実測での摩擦再推定こそが
+  exemption で得るべきデータ** (§4-1) という本パケットの結論と一貫
+
+**執行規律**: AMENDMENT 未決裁のままトリガが成立した場合、commit 1 のみの執行は禁止
+(上記帰結)。runbook §2.5 が執行を停止し user 決裁を要求する構造にしてある。
+
+### 8.2 残余の観測ポイント (執行後初週、runbook §5 に反映済み)
+
+- **select_best 競争**: exemption 後は rescue (blocked 候補を無条件退避) と違い同 bar の
+  他候補との score 競争に入るが、sweep は select_best side-channel 登録済み (2026-06-12
+  Codex review I-3 同型) のため理論上取り逃しなし — 初週の頻度帯監視 (spaced 0.3〜2.6/週)
+  で実証する
+- **confidence gate**: sweep candidate は confidence=65 固定 — threshold 通過見込み、
+  初週 block_counts で確認
+- **spread_sl_gate (維持)**: SL=4×ATR ≈ 16-27p に対し spread 中央値 6.6p → ratio ~25-40%
+  で閾値 35% 近傍。中央値帯は通過、worst tail は遮断される見込み — block_counts の
+  `spread_sl_gate` sweep 行で実測する

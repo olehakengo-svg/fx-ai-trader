@@ -1,0 +1,407 @@
+{
+ "stage": "explore",
+ "coverage": {
+  "per_pair": {
+   "EUR_USD": {
+    "2013": {
+     "samples": 528,
+     "valid": 513,
+     "valid_share": 0.9716
+    },
+    "2014": {
+     "samples": 2088,
+     "valid": 2057,
+     "valid_share": 0.9852
+    },
+    "2015": {
+     "samples": 2088,
+     "valid": 2068,
+     "valid_share": 0.9904
+    },
+    "2016": {
+     "samples": 2086,
+     "valid": 2077,
+     "valid_share": 0.9957
+    },
+    "2017": {
+     "samples": 2082,
+     "valid": 2066,
+     "valid_share": 0.9923
+    },
+    "2018": {
+     "samples": 2088,
+     "valid": 2062,
+     "valid_share": 0.9875
+    },
+    "2019": {
+     "samples": 2088,
+     "valid": 2055,
+     "valid_share": 0.9842
+    },
+    "2020": {
+     "samples": 2096,
+     "valid": 1940,
+     "valid_share": 0.9256
+    },
+    "2021": {
+     "samples": 2086,
+     "valid": 2045,
+     "valid_share": 0.9803
+    },
+    "2022": {
+     "samples": 161,
+     "valid": 160,
+     "valid_share": 0.9938
+    }
+   },
+   "GBP_USD": {
+    "2013": {
+     "samples": 528,
+     "valid": 513,
+     "valid_share": 0.9716
+    },
+    "2014": {
+     "samples": 2088,
+     "valid": 2065,
+     "valid_share": 0.989
+    },
+    "2015": {
+     "samples": 2088,
+     "valid": 2068,
+     "valid_share": 0.9904
+    },
+    "2016": {
+     "samples": 2086,
+     "valid": 2075,
+     "valid_share": 0.9947
+    },
+    "2017": {
+     "samples": 2082,
+     "valid": 2070,
+     "valid_share": 0.9942
+    },
+    "2018": {
+     "samples": 2088,
+     "valid": 2066,
+     "valid_share": 0.9895
+    },
+    "2019": {
+     "samples": 2088,
+     "valid": 2063,
+     "valid_share": 0.988
+    },
+    "2020": {
+     "samples": 2096,
+     "valid": 1939,
+     "valid_share": 0.9251
+    },
+    "2021": {
+     "samples": 2086,
+     "valid": 2039,
+     "valid_share": 0.9775
+    },
+    "2022": {
+     "samples": 161,
+     "valid": 160,
+     "valid_share": 0.9938
+    }
+   },
+   "USD_JPY": {
+    "2013": {
+     "samples": 528,
+     "valid": 513,
+     "valid_share": 0.9716
+    },
+    "2014": {
+     "samples": 2088,
+     "valid": 2051,
+     "valid_share": 0.9823
+    },
+    "2015": {
+     "samples": 2088,
+     "valid": 2058,
+     "valid_share": 0.9856
+    },
+    "2016": {
+     "samples": 2086,
+     "valid": 2077,
+     "valid_share": 0.9957
+    },
+    "2017": {
+     "samples": 2082,
+     "valid": 2068,
+     "valid_share": 0.9933
+    },
+    "2018": {
+     "samples": 2088,
+     "valid": 2065,
+     "valid_share": 0.989
+    },
+    "2019": {
+     "samples": 2088,
+     "valid": 1941,
+     "valid_share": 0.9296
+    },
+    "2020": {
+     "samples": 2096,
+     "valid": 1862,
+     "valid_share": 0.8884
+    },
+    "2021": {
+     "samples": 2086,
+     "valid": 2045,
+     "valid_share": 0.9803
+    },
+    "2022": {
+     "samples": 161,
+     "valid": 160,
+     "valid_share": 0.9938
+    }
+   }
+  },
+  "explore_pass_pairs": [
+   "EUR_USD",
+   "GBP_USD",
+   "USD_JPY"
+  ],
+  "skipped_years": {
+   "EUR_USD": [],
+   "GBP_USD": [],
+   "USD_JPY": []
+  },
+  "pass": true
+ },
+ "frozen": {
+  "onset_ratio": 3.0,
+  "onset_elev_pips": 1.0,
+  "persist_ratio": 2.0,
+  "norm_ratio": 1.5,
+  "move_small_mult": 2.0,
+  "entry_max_wait": 16,
+  "headroom_min": 10.0,
+  "min_events": 30,
+  "seed": 20260729,
+  "n_boot": 10000,
+  "alpha": 0.05,
+  "m": 1,
+  "kb_rt": {
+   "EUR_USD": 2.0,
+   "GBP_USD": 4.53,
+   "USD_JPY": 2.14
+  },
+  "kb_spread": {
+   "EUR_USD": 0.7,
+   "GBP_USD": 1.3,
+   "USD_JPY": 0.7
+  },
+  "horizon": "24h (same NY slot, next trading day)",
+  "convention": "short-pair pooled (risk-off +)"
+ },
+ "headroom_gate": {
+  "per_pair": {
+   "EUR_USD": {
+    "n_events": 28,
+    "median_headroom": 19.27,
+    "pass": true
+   },
+   "GBP_USD": {
+    "n_events": 27,
+    "median_headroom": 10.73,
+    "pass": true
+   },
+   "USD_JPY": {
+    "n_events": 10,
+    "median_headroom": 14.09,
+    "pass": true
+   }
+  },
+  "pooled_median_headroom": 13.5,
+  "surviving_pairs": [
+   "EUR_USD",
+   "GBP_USD",
+   "USD_JPY"
+  ],
+  "pass": true,
+  "n_usable_events": 65,
+  "n_dropped_no_normalization": 4,
+  "counterfactual_onset_rt": {
+   "EUR_USD": 7.25,
+   "GBP_USD": 9.47,
+   "USD_JPY": 5.87
+  }
+ },
+ "n_events_detected": 69,
+ "primary": {
+  "n": 65,
+  "mean_ret_std": -0.23701,
+  "mean_ret_pips": -9.463,
+  "p": 0.3227677232276772,
+  "n_null": 10000
+ },
+ "gates": {
+  "gate_ii_terciles": {
+   "means": [
+    -0.333,
+    -0.3688,
+    -0.0306
+   ],
+   "pass": true
+  },
+  "gate_iii_concentration": {
+   "loyo_means": {
+    "2016": -0.2824,
+    "2017": -0.1805,
+    "2018": -0.2262,
+    "2019": -0.1924,
+    "2020": -0.269,
+    "2021": -0.2909
+   },
+   "max_year_abs_share": 0.352,
+   "loo_top_event_mean": -0.3139,
+   "snb_excl_mean": -0.237,
+   "pass": true
+  },
+  "gate_iv_pairs": {
+   "leave_one_pair_out": {
+    "EUR_USD": -0.2395,
+    "GBP_USD": -0.2076,
+    "USD_JPY": -0.2557
+   },
+   "pair_means": {
+    "EUR_USD": -0.2337,
+    "GBP_USD": -0.2784,
+    "USD_JPY": -0.1344
+   },
+   "pass": true
+  },
+  "gate_v_realized_headroom": {
+   "median_abs_move_pips": 32.4,
+   "median_rt_event": 2.14,
+   "ratio": 15.1,
+   "pass": true
+  },
+  "gate_vi_yearend": {
+   "share": 0.308,
+   "pass": true
+  }
+ },
+ "gate_i_p": {
+  "p": 0.3227677232276772,
+  "pass": false
+ },
+ "verdict": "FAIL",
+ "knife_edge_band": false,
+ "events_sample": [
+  {
+   "pair": "EUR_USD",
+   "onset_ts": "2016-04-10 22:00:00+00:00",
+   "onset_ratio": 3.1249999999994795,
+   "peak_ratio": 3.1249999999994795,
+   "onset_spread_pips": 2.4999999999986144,
+   "onset_base_pips": 0.7999999999996898,
+   "year": 2016,
+   "normalized": true,
+   "entry_ts": "2016-04-11 04:00:00+00:00",
+   "entry_date": "2016-04-11",
+   "entry_slot": 0,
+   "entry_ratio": 1.3333333333358004,
+   "entry_spread_pips": 0.40000000000040004,
+   "entry_scale24": 31.74999999999928,
+   "wait_h": 6.0,
+   "rt_event": 2.233,
+   "headroom": 14.22,
+   "ret_pips": 6.500000000000394,
+   "ret_std": 0.20472440944883596,
+   "scale": 31.74999999999928
+  },
+  {
+   "pair": "EUR_USD",
+   "onset_ts": "2016-12-25 23:00:00+00:00",
+   "onset_ratio": 9.863636363631501,
+   "peak_ratio": 11.666666666679003,
+   "onset_spread_pips": 10.850000000000026,
+   "onset_base_pips": 1.100000000000545,
+   "year": 2016,
+   "normalized": true,
+   "entry_ts": "2016-12-27 02:00:00+00:00",
+   "entry_date": "2016-12-26",
+   "entry_slot": 21,
+   "entry_ratio": 1.0000000000055511,
+   "entry_spread_pips": 0.40000000000040004,
+   "entry_scale24": 42.40000000000022,
+   "wait_h": 27.0,
+   "rt_event": 2.0,
+   "headroom": 21.2,
+   "ret_pips": -34.199999999997566,
+   "ret_std": -0.806603773584844,
+   "scale": 42.40000000000022
+  },
+  {
+   "pair": "EUR_USD",
+   "onset_ts": "2017-01-01 23:00:00+00:00",
+   "onset_ratio": 8.086956521739719,
+   "peak_ratio": 19.250000000038163,
+   "onset_spread_pips": 9.299999999998754,
+   "onset_base_pips": 1.1499999999997623,
+   "year": 2017,
+   "normalized": true,
+   "entry_ts": "2017-01-03 02:00:00+00:00",
+   "entry_date": "2017-01-02",
+   "entry_slot": 21,
+   "entry_ratio": 1.249999999999306,
+   "entry_spread_pips": 0.4999999999988347,
+   "entry_scale24": 41.249999999999346,
+   "wait_h": 27.0,
+   "rt_event": 2.175,
+   "headroom": 18.97,
+   "ret_pips": 82.94999999999942,
+   "ret_std": 2.0109090909091085,
+   "scale": 41.249999999999346
+  },
+  {
+   "pair": "EUR_USD",
+   "onset_ts": "2017-04-13 22:00:00+00:00",
+   "onset_ratio": 3.722222222226334,
+   "peak_ratio": 8.999999999933387,
+   "onset_spread_pips": 3.3500000000008523,
+   "onset_base_pips": 0.8999999999992347,
+   "year": 2017,
+   "normalized": true,
+   "entry_ts": "2017-04-17 01:00:00+00:00",
+   "entry_date": "2017-04-16",
+   "entry_slot": 21,
+   "entry_ratio": 0.9999999999888978,
+   "entry_spread_pips": 0.1999999999990898,
+   "entry_scale24": 26.125000000000178,
+   "wait_h": 75.0,
+   "rt_event": 2.0,
+   "headroom": 13.06,
+   "ret_pips": -22.800000000000598,
+   "ret_std": -0.8727272727272897,
+   "scale": 26.125000000000178
+  },
+  {
+   "pair": "EUR_USD",
+   "onset_ts": "2017-09-04 19:00:00+00:00",
+   "onset_ratio": 7.499999999944489,
+   "peak_ratio": 7.499999999944489,
+   "onset_spread_pips": 1.4999999999987246,
+   "onset_base_pips": 0.20000000000131024,
+   "year": 2017,
+   "normalized": true,
+   "entry_ts": "2017-09-05 01:00:00+00:00",
+   "entry_date": "2017-09-04",
+   "entry_slot": 21,
+   "entry_ratio": 0.5,
+   "entry_spread_pips": 0.10000000000065512,
+   "entry_scale24": 36.775000000001114,
+   "wait_h": 6.0,
+   "rt_event": 1.65,
+   "headroom": 22.29,
+   "ret_pips": -22.099999999998232,
+   "ret_std": -0.6009517335145497,
+   "scale": 36.775000000001114
+  }
+ ],
+ "n_usable": 65
+}

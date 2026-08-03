@@ -1,0 +1,57 @@
+{
+ "status": "OK",
+ "mof_explore_interventions": 0,
+ "pairs": {
+  "AUDJPY": {
+   "n": 180,
+   "mfe3_p50": 71.0,
+   "need": 30.0,
+   "pass": true,
+   "floor_pass": true
+  },
+  "AUDUSD": {
+   "n": 148,
+   "mfe3_p50": 62.4,
+   "need": 25.0,
+   "pass": true,
+   "floor_pass": true
+  },
+  "EURJPY": {
+   "n": 191,
+   "mfe3_p50": 82.0,
+   "need": 25.0,
+   "pass": true,
+   "floor_pass": true
+  },
+  "EURUSD": {
+   "n": 169,
+   "mfe3_p50": 62.3,
+   "need": 20.0,
+   "pass": true,
+   "floor_pass": true
+  },
+  "GBPUSD": {
+   "n": 227,
+   "mfe3_p50": 89.0,
+   "need": 45.3,
+   "pass": true,
+   "floor_pass": true
+  },
+  "USDJPY": {
+   "n": 173,
+   "mfe3_p50": 65.35,
+   "need": 21.4,
+   "pass": true,
+   "floor_pass": true
+  }
+ },
+ "surviving_pairs": [
+  "AUDJPY",
+  "AUDUSD",
+  "EURJPY",
+  "EURUSD",
+  "GBPUSD",
+  "USDJPY"
+ ],
+ "family": "PROCEED(pass-2 on surviving pairs)"
+}

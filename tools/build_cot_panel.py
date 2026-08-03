@@ -59,6 +59,9 @@ COL_CODE = "CFTC Contract Market Code"
 COL_OI = "Open Interest (All)"
 COL_NC_LONG = "Noncommercial Positions-Long (All)"
 COL_NC_SHORT = "Noncommercial Positions-Short (All)"
+# Commercial side (wave-3 W3-1 carve-out family; exact legacy names asserted).
+COL_C_LONG = "Commercial Positions-Long (All)"
+COL_C_SHORT = "Commercial Positions-Short (All)"
 
 
 def download_year(year: int, force: bool = False) -> Path:
@@ -101,7 +104,8 @@ def parse_year_zip(zip_path: Path) -> pd.DataFrame:
     )
     df.columns = [c.strip() for c in df.columns]
 
-    required = [COL_MARKET, COL_DATE, COL_CODE, COL_OI, COL_NC_LONG, COL_NC_SHORT]
+    required = [COL_MARKET, COL_DATE, COL_CODE, COL_OI, COL_NC_LONG, COL_NC_SHORT,
+                COL_C_LONG, COL_C_SHORT]
     missing = [c for c in required if c not in df.columns]
     if missing:
         raise RuntimeError(f"{zip_path.name}: missing columns {missing}")
@@ -131,6 +135,8 @@ def parse_year_zip(zip_path: Path) -> pd.DataFrame:
         "currency": fx["currency"],
         "noncomm_long": pd.to_numeric(fx[COL_NC_LONG]).astype("int64"),
         "noncomm_short": pd.to_numeric(fx[COL_NC_SHORT]).astype("int64"),
+        "comm_long": pd.to_numeric(fx[COL_C_LONG]).astype("int64"),
+        "comm_short": pd.to_numeric(fx[COL_C_SHORT]).astype("int64"),
         "open_interest": pd.to_numeric(fx[COL_OI]).astype("int64"),
     })
     return out
@@ -166,15 +172,18 @@ def build_panel(start_year: int, end_year: int, force_download: bool) -> pd.Data
         panel = panel.drop_duplicates(subset=["report_date", "currency"], keep="last")
 
     panel["noncomm_net"] = panel["noncomm_long"] - panel["noncomm_short"]
+    panel["comm_net"] = panel["comm_long"] - panel["comm_short"]
     zero_oi = int((panel["open_interest"] <= 0).sum())
     if zero_oi:
         print(f"  [warn] {zero_oi} rows with open_interest <= 0 (net_pct_oi -> NaN)")
     oi = panel["open_interest"].where(panel["open_interest"] > 0)
     panel["net_pct_oi"] = 100.0 * panel["noncomm_net"] / oi
+    panel["comm_net_pct_oi"] = 100.0 * panel["comm_net"] / oi
 
     panel = panel[[
         "report_date", "currency", "noncomm_long", "noncomm_short",
-        "noncomm_net", "open_interest", "net_pct_oi",
+        "noncomm_net", "comm_long", "comm_short", "comm_net",
+        "open_interest", "net_pct_oi", "comm_net_pct_oi",
     ]].sort_values(["currency", "report_date"]).reset_index(drop=True)
     return panel
 

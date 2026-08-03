@@ -88,8 +88,8 @@
    "n_decide": 10,
    "n_floor": 5,
    "deadline": "2026-09-30",
-   "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
-   "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-09-30 に N<5 なら retire (R2)。計数 = dedup_violation!=1 (packet §1.4)",
+   "doc": "knowledge-base/wiki/decisions/sweep-reversion-ps1a-execution-runbook-2026-07-31.md",
+   "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-09-30 に N<5 なら retire (R2)。計数 = dedup_violation!=1 (packet §1.4)。TRIGGERED 時: tools/ps1a_execution_check.py で凍結判定を dry-run → runbook (doc) を上から実行。⚠️ AMENDMENT (runbook §2.5、第3/第4 ブロッカー) が user 未決裁なら執行停止して決裁を求める。Option B 実装は draft/ps1a-option-b-20260731 に準備済み (2026-07-31)",
    "mode": "daytrade_eurgbp",
    "count_basis": "unique"
   },
@@ -282,6 +282,22 @@
    "deadline": "2026-08-11",
    "doc": "knowledge-base/wiki/decisions/track-c-capital-plumbing-decision-packet-2026-07-28.md",
    "message": "price_shock_rev ×5 carve-out (D-c-1, user 承認 2026-07-28) 復帰初週再ゲート — live fill 発生後に (a) AGG_KELLY BYPASS ログ実確認 (b) exit 分布が horizon 系か (BE_LOCK OFF 実効) (c) watchdog/promote evaluator の estimand 整合を監査。live N≥10 で EV<−0.5p なら R2 demote"
+  },
+  {
+   "id": "e12-volume-prereg-staleness-review",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-11-30",
+   "doc": "knowledge-base/wiki/decisions/e12-volume-forward-prereg-2026-07-29.md",
+   "message": "E12 volume forward pre-reg (🔒 LOCKED 2026-07-29、台帳 #10、W3-3 登録アクション) の陳腐化 review 期日 — (a) ingest 健全性 (yfinance 60m 経路生存、7 契約 capture 継続 = r3-market-data-ingest-freshness green) (b) 設計前提の戦略的地位 (supersede する上位データ/決裁の有無) を review。許容 outcome = 継続 or クローズ (data-blocked/superseded) のみ。設計変更・volume×価格ジョイント look・トリガー前倒しは禁止 (prereg §8)"
+  },
+  {
+   "id": "e12-volume-first-look-deadline",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2027-02-05",
+   "doc": "knowledge-base/wiki/decisions/e12-volume-forward-prereg-2026-07-29.md",
+   "message": "E12 volume forward pre-reg (🔒 LOCKED 2026-07-29、台帳 #10) の first look 執行期日 — データ cutoff 2027-01-31 (OOS = bar_time_utc ≥2026-07-30、~26 週)。validity gate: OOS 非ゼロ volume bar ≥2500/契約 を ≥6/7 契約 (不成立は DATA-BLOCKED、事後緩和禁止)。執行 = explore (2024-02-27〜2026-07-29 凍結窓) → gates 通過時のみ candidate 凍結追記 → OOS 単一接触、同一手続き内 (prereg §4-6)。期日前の前倒し執行は peeking として禁止。UNDERPOWERED (OOS pooled event <100) なら second look 1 回限り (cutoff 2027-04-30 / verdict 2027-05-07)"
   }
  ]
 }
