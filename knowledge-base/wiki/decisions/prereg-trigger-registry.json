@@ -292,6 +292,22 @@
    "message": "E12 volume forward pre-reg (🔒 LOCKED 2026-07-29、台帳 #10、W3-3 登録アクション) の陳腐化 review 期日 — (a) ingest 健全性 (yfinance 60m 経路生存、7 契約 capture 継続 = r3-market-data-ingest-freshness green) (b) 設計前提の戦略的地位 (supersede する上位データ/決裁の有無) を review。許容 outcome = 継続 or クローズ (data-blocked/superseded) のみ。設計変更・volume×価格ジョイント look・トリガー前倒しは禁止 (prereg §8)"
   },
   {
+   "id": "ec-gating-prereg-staleness-review",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2027-01-15",
+   "doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-forward-prereg-2026-08-03.md",
+   "message": "#22 equity_curve_shadow_gating forward pre-reg (🔒 LOCKED 2026-08-03) の陳腐化 review 期日 — (a) セル別 N/span 蓄積軌道 (b) R2 demote 執行形態 (env 除去=戦略単位 or shadow_demote_registry=セル単位) と eligible 予測 3-7 への影響 (c) supersede 決裁の有無。メタデータのみ、許容 outcome = 継続 or クローズ。設計変更・trailing-K gate 条件付き look・前倒し禁止 (prereg s7)"
+  },
+  {
+   "id": "ec-gating-first-look-deadline",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2027-05-13",
+   "doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-forward-prereg-2026-08-03.md",
+   "message": "#22 equity_curve_shadow_gating forward pre-reg (🔒 LOCKED 2026-08-03) の first look 執行期日 — データ cutoff 2027-05-06 (= shadow epoch 2026-04-08 + 28d + 365d、機械導出)。eligibility: window 548d 内 N>=300 & span>=365d & p95 hold<=24h、セル = entry_type×instrument (生文字列)。Bonferroni m = eligible×3。eligible<2 なら UNDERPOWERED-BLOCKED (re-arm 1 回限り cutoff 2027-11-06)。期日前執行は peeking 禁止。判定手続きは raw/analysis/equity-curve-shadow-gating-prereg-draft-2026-08-03.json s4 凍結仕様に完全準拠"
+  },
+  {
    "id": "e12-volume-first-look-deadline",
    "active": true,
    "type": "deadline_info",
