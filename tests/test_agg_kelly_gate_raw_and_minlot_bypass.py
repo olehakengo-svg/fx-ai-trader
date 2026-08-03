@@ -257,6 +257,12 @@ def test_vix_overlap_pilot_minlot_bypasses_gate_e2e(monkeypatch, tmp_path):
     trader._strategy_n_cache = {"vix_carry_unwind": 20}
     trader._PAIR_PROMOTED = frozenset({("vix_carry_unwind", "USD_JPY")})
     trader._PAIR_SESSION_FILTER = {}
+    # 2026-08-03 (rule:R2): vix は本番で PAIR_DEMOTED 復帰済み
+    # (vix-pilot-early-demote-2026-08-03.md)。本テストは min-lot bypass
+    # *機構* の検証なので、demote を合成的に外して機構カバレッジを維持する
+    # (demote 自体の pin は tests/test_vix_pilot_demote_pin.py)。
+    trader._PAIR_DEMOTED = frozenset(
+        t for t in trader._PAIR_DEMOTED if t != ("vix_carry_unwind", "USD_JPY"))
     trader._get_aggregate_kelly = lambda: -0.25  # gate is firing
 
     trader._tick_entry(

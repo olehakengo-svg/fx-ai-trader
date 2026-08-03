@@ -47,13 +47,13 @@ Stage 7: ELITE_LIVE   — 全ペア自動通過、ELITE_LIVE核戦略
 | Vol spike mean-reversion | [[vol-spike-mr]] | Osler 2003 | v8.8: BT JPY PF=1.92★, N蓄積中 |
 | Doji breakout follow | [[doji-breakout]] | Mandelbrot 1963 | v8.8: BT JPY PF=1.28, N蓄積中 |
 | Gotobi fix USD/JPY BUY | [[gotobi-fix]] | Bessho 2023 | v8.5: 発火窓=月6日, N蓄積待ち |
-| VIX carry unwind | [[vix-carry-unwind]] | Brunnermeier 2009 | v8.5: 低頻度(年2-5回), N蓄積待ち |
 | XS momentum + dispersion | [[xs-momentum-dispersion]] | Menkhoff 2012 | v8.5: JPY PAIR_DEMOTED |
 | HMM regime filter | [[hmm-regime-overlay]] | Nystrup 2024 | v8.5: 防御オーバーレイ |
 
 **Priority C — 保留/棄却**
 | Edge | Status | Reason |
 |------|--------|--------|
+| VIX carry unwind ([[vix-carry-unwind]]) | PAIR_DEMOTED (2026-08-03, rule:R2 user 決裁) | live N=26 −46.9p + shadow エッジ崩壊 (05〜07 −216p)。再昇格 R1 のみ ([[vix-pilot-early-demote-2026-08-03]]) |
 | Vol smile forecasting | REJECTED | 機関データ必要 |
 | NLP news spillover | REJECTED | NLPインフラ過大 |
 | Dealer inventory | THEORETICAL | リテールでフロー情報なし |
