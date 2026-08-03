@@ -3279,6 +3279,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - Block Countsの構造が主因：**rnb_usdjpy:direction_filter（107件）**が最大ブロック要因 — これ単体で「USD_JPYが方向性フィルターを連続否決している」ことを示す。USD_JPYはATR%ile **93%（最高水準）**でVOLATILEレジームにあり、rnb（Range-and-Break）戦略が想定するレンジ環境と根本的に乖離している可能性が高い
 - **daytrade:hedge_block（76件）** — ヘッジポジション検知によるブロックが2番目。オープントレードなし（OANDA Open Trades=0）にもかかわらずhedge_blockが多発している点は構造的に注目すべき
 
+### 2026-08-03 (Pre-Tokyo Briefing)
+前日は全セッション（東京・ロンドン・NY）を通じてトレード実行数 **0件**。PnL = ¥0、WR = N/A。Cutoff後の累積有効データは **N=2 / WR=0.0% / EV=−76.65p/t（平均）/ PnL=−153.3p** という極めて乏しい状態が継続。
+| Strategy | Pair | N | WR% | EV (p/t) | PnL | 判定 |
+- `order_bar_dedup`の多発 → VOLATILE相場でシグナル密度が上昇しているが、これは**意図的フィルターの正常作動**。対処不要。
+- `direction_filter`（rnb_usdjpy×20） → USD_JPYのATR%ile=93%は極端なVOLATILE状態。レンジバウンド戦略が全遮断されるのは**設計通りの正常挙動**。
+- `r2_shadow_demoted_cell` → 降格セルの自動除外機能が稼働。Scalp系の供給ラインが細っている点は**構造的懸念**として継続監視。
+- **Daytrade系**: VOLATILE環境は本来DT有利のはずだが、`order_bar_dedup`が密集シグナルを大量排除している。実質的に「見ているが入れない」状態。
+- **Scalp系**: スプレッド拡大（`spread_gate` 6件）＋`r2_shadow_demoted_cell`の二重抑制。VOLATILE相場でのScalp系は摩擦コストが上昇しており、フィルター強化は妥当。
+- **RnB（rnb_usdjpy）**: ATR93%でdirection_filterが完全作動。VOLATILE相場が解消するまで実質的に機能停止。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
