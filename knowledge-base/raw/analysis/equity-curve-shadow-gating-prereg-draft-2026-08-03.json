@@ -1,0 +1,189 @@
+{
+  "_meta": {
+    "family": "#22 equity_curve_shadow_gating (wave-6 EA-b)",
+    "status": "SUPERSEDED-NEVER-LOCKED (2026-08-03) — 並行セッションの v2 forward pre-reg が PR #155 で main 先着 (first-to-main 原則)。#22 の SSOT = wiki/decisions/equity-curve-shadow-gating-explore-prereg-2026-08-03.md (first look 2026-11-06)。本 JSON は独立収束の証跡としてのみ残置。race 記録と cross-audit: raw/analysis/ec-gating-race-cross-audit-2026-08-03.md",
+    "drafted": "2026-08-03",
+    "adversarial_verification": "knowledge-base/raw/analysis/ec-gating-adversarial-verification-2026-08-03.md (verdict: SURVIVES-WITH-REQUIRED-AMENDMENTS、#1-#8 全反映 + OPTIONAL 5 件採用)",
+    "rule": "R3 (explore, 読むだけ)。live gate 化は R1 フル手続き + user 承認 (§4.2 凍結規律)",
+    "primary_sources": [
+      "knowledge-base/wiki/research/ea-landscape-sweep-2026-07-31.md §4.2 (testable form 凍結元 — 2026-07-31、内部データ非接触で凍結)",
+      "knowledge-base/wiki/syntheses/hypothesis-catalog-2026-07-24.md #22 行 + 運用ルール",
+      "knowledge-base/raw/audits/shadow-promote-r2-alert-2026-08-03-0236.md (フィルタ規約参照)"
+    ],
+    "template_precedents": [
+      "e12-volume-forward-prereg-2026-07-29.md (forward 型 / P-10 計算 ban / registry 機械監視)",
+      "mof-intervention-forward-prereg-2026-07-24.md (観測前 LOCK の file-drawer 窓閉鎖)"
+    ],
+    "lock_doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-forward-prereg-2026-08-03.md"
+  },
+
+  "s0_inventory_finding_and_form_conversion": {
+    "title": "セル在庫調査の帰結: §4.2 凍結 eligibility は本日充足不能 → forward-completing 化 (分析パラメータ無変更)",
+    "inventory_2026_08_03": {
+      "method": "Render 本番 /api/demo/trades?status=closed を全量ページング (15,008 行)。フィルタ (s2 と同一規約) 適用後 11,197 行。セル = entry_type × instrument で N / first_exit / last_exit / span のみ集計 (メタデータ look — trailing-window gate 条件付き量には非接触)",
+      "shadow_book_epoch": "最古 closed exit = 2026-04-02 (Fidelity Cutoff 2026-04-08 と同一 epoch)。demo_trades に purge/retention 機構なし (コード grep で DELETE 経路ゼロ) = append-only、履歴は前方にのみ延伸",
+      "max_cell_span_months": 4.04,
+      "cells_n300_any_span": 5,
+      "cells_n300_span_ge_12mo": 0,
+      "n300_cells_detail": [
+        {"cell": "ema_trend_scalp x USD_JPY", "n": 518, "span_mo": 0.95, "alive": false},
+        {"cell": "engulfing_bb x EUR_USD", "n": 349, "span_mo": 3.67, "alive": true, "note": "R2 CRITICAL demote 候補 (2026-08-03 alert)"},
+        {"cell": "session_time_bias x GBP_USD", "n": 328, "span_mo": 3.5, "alive": true},
+        {"cell": "ema_trend_scalp x EUR_USD", "n": 314, "span_mo": 0.9, "alive": false},
+        {"cell": "bb_rsi_reversion x USD_JPY", "n": 313, "span_mo": 1.85, "alive": false, "note": "bb_rsi は 06-12 shadow 全停止 (code pin)"}
+      ],
+      "raw_artifact": "knowledge-base/raw/analysis/ec-gating-cell-inventory-2026-08-03.json (N/span メタデータのみ、P&L 非含有 — 敵対的検証で実査確認済み)"
+    },
+    "kb_contradiction": "§4.2 は「各セル closed shadow N≥300・12-18 ヶ月」を暗黙にデータ既存と仮定していたが、shadow book 全長は 4.04 ヶ月。凍結 eligibility を満たすセルは 0 = 本日の単一実行は不成立",
+    "rejected_alternative": "span 床を 4 ヶ月に緩めて本日実行する案は棄却: (a) 凍結 form の事後緩和で K/閾値凍結の信頼性ごと毀損、(b) N≥300 の 5 セル中 3 つは運用者が drawdown を見て emission 停止した censored series — 『運用者の equity-curve 停止』で打ち切られた系列上で equity-curve gating を測るのは条件付けの自己言及 (敵対的検証 G 追認: 4mo 版は生存条件付けの歪みが span 比で最大化)、(c) 単一レジーム期 (2026-04〜08) のみで regime 持続性仮説の検定力が構造的に不足、(d) family の単一クリーンショットを underpowered 実行で焼却する (E15 phase-0 C5 教訓)",
+    "conversion": "観測 (execution) を eligibility が物理的に充足可能になる first look へ繰り延べる forward 設計に転換。§4.2 の分析パラメータ (K grid / 閾値 0 / uplift 定義 / block null / Bonferroni セル×3 / N≥300 / span 12-18mo) は一切変更しない",
+    "forward_completing_disclosure": "【REQUIRED #7】本設計は E12 の純 forward (OOS = LOCK 時未生成バーのみ) と非同型である。first look window (548d) のうち約 4 ヶ月分 (~30%) は LOCK 時点で既実現であり、その既実現部分は R2 alert の 30d 集計 EV として反復観測済み・demote 判断にも使用済み。それでも観測前性が成立する根拠: (1) 分析パラメータは 2026-07-31 の EA sweep で内部データ非接触のまま凍結済み = 候補選択の自由度が構造的に存在しない、(2) 既実現部への look は 30d aggregate とメタデータのみで、gate 条件付き量 (trailing-K 条件付き平均・uplift) はいかなる主体も未計算 (s7 attestation)、(3) 本 LOCK で s7 の計算 ban が first look まで有効化される。正確な呼称 = forward-completing (観測前 LOCK + 部分既実現 window)",
+    "registration_action_only": "本 LOCK は登録アクションのみで測定ゼロ (BH/wave スロット非消費、E12 W3-3 裁定と同型 — 本件の相当裁定は敵対的検証 E 節)。台帳 #22 は queued → LOCKED-FORWARD に遷移"
+  },
+
+  "s1_hypothesis": {
+    "h1": "セル (entry_type × instrument) の shadow 損益系列には短期持続性があり、『直近 K closed shadow trades の合計 pips > 0』条件下の次トレード期待 pnl は無条件期待を上回る (uplift > 0)。機構 = 戦略リターンの regime 持続性 (セルが勝てる市場状態の自己相関)。市場エッジではなく露出配分層 = 他者と競合せず裁定で消えない",
+    "h0": "gate_on 条件は次トレード pnl に対して無情報 (uplift = 0、日ブロック単位で系列は交換可能)",
+    "prior": "学術 prior は mixed〜negative (戦略リターンの系列相関は通常 ≈0、gate は回復局面を取り逃す) — 低 prior・低コスト枠として登録 (§4.2 の自認をそのまま凍結)。期待値ではなく検証コストの安さが正当化根拠"
+  },
+
+  "s2_data_and_filters_frozen": {
+    "source": "Render 本番 https://fx-ai-trader.onrender.com/api/demo/trades?status=closed (limit=2000 ページング、全量取得)。Python BT 系列は使用禁止 (BE/Trail +20pp 教訓)。ローカル DB 不使用",
+    "row_filters": [
+      "status = CLOSED",
+      "is_shadow = 1",
+      "pnl_pips IS NOT NULL",
+      "dedup_violation != 1",
+      "instrument に XAU を含まない",
+      "hold = exit_time - entry_time >= 5 秒 (seed/backfill replay 除外、demo_db _SEED_EXCLUSION_SQL 規約)"
+    ],
+    "filter_provenance": "shadow-promote-r2-alert 規約 (is_shadow=1 / pnl_pips NOT NULL / dedup_violation!=1 / XAU 除外) + demo_db seed 除外。フィルタは抽出時点の列値で適用",
+    "cell_definition": "entry_type × instrument (R2 alert と同一粒度)。【OPTIONAL 採用】entry_type は抽出時の生文字列で固定 — 改名・分割された系列の合成 (別名セルのマージ) は禁止 (m 操作の芽を摘む)",
+    "pnl_definition": "pnl_net = shadow book の pnl_pips 記録値そのまま。追加の摩擦調整なし — uplift は同一 book 内の対比 (gate_on vs all) であり、book 共通の摩擦モデル差は対比で相殺される。live 転送時の実 RT 差は stage-2 (R1) の責務で explore の estimand 外",
+    "extraction_reproducibility": "執行時に抽出全量を raw アーティファクトとして保存し sha256 を verdict 追記に凍結 (E15/E7 refreeze 型)。shadow DB は append-only だが flag_drift_backfilled 等の後方 backfill が存在するため、抽出時点スナップショットを正とする"
+  },
+
+  "s3_eligibility_frozen": {
+    "measurement_window": "cutoff から遡る 548 日 (18 ヶ月上限 — §4.2 の 12-18 ヶ月レンジ上限)",
+    "cell_eligibility": [
+      "window 内の filtered closed trades N >= 300 (§4.2 凍結値、変更禁止)",
+      "window 内 series span = last_exit - first_exit >= 365 日 (§4.2 の 12 ヶ月床、変更禁止)",
+      "【REQUIRED #2(iii)】セルの保有時間 p95 <= 24h (day-block null の妥当性条件 — 保有 ≪ 1 日の暗黙仮定の明文化。P&L 非条件付きのメタデータ規則)。不充足セルは primary 検定から除外し secondary 記述に落とす (m にも数えない)"
+    ],
+    "eligibility_evaluated_at": "first look データ cutoff 時に機械評価。emission 停止 (R2 shadow demote 等) で span が 365 日未満のまま凍結したセルは規則により自然に不適格 — 例外なし",
+    "bonferroni": "m = eligible セル数 × 3 (K 3 点)。α_bonf = 0.05 / m。§4.2 凍結式そのまま。degenerate な (cell,K) 組 (gate_on n < 30 または gate_off n < 30) は検定不能として PASS 不可能なだけで、m からは除外しない (保守方向)",
+    "projection_metadata_only": "【敵対的検証 F の独自検算で下方修正】cutoff 時 eligible は demote 執行シナリオ依存で 3-7 セルが現実的 (楽観 6-12 から修正)。demote 非対象の堅い 3 = session_time_bias×GBP_USD (~1,200)/×EUR_USD (~1,000)、dual_sr_bounce×EUR_JPY (~460)。demote が env 除去 (戦略単位) でなく registry (セル単位) なら xs_momentum×GBP_USD/USD_JPY、sr_break_retest×USD_JPY/GBP_JPY が加わる",
+    "power_sketch_descriptive": "【OPTIONAL 採用 — FAIL 時の power不足 vs 効果不在の切り分け用、判定に不使用】n≈460-1,200・σ≈8p・gate_on≈50%・m≈9-21 想定で SE(uplift)≈0.23-0.37p、α_bonf 片側 z≈3.0-3.3 → 検出可能 uplift ≈ 0.7-1.2p (power 50%) / 1.0-1.6p (power 80%)。典型 shadow セル EV 振幅 (±1-3p) に対し意味のある分解能"
+  },
+
+  "s4_gate_and_statistic_frozen": {
+    "ordering": "セル内 closed trades を exit_time 昇順 (tie は id 昇順)",
+    "gate_inputs_realtime": "トレード i の gate 入力 = exit_time(j) < entry_time(i) を満たすトレードのうち exit_time 降順の直近 K 件。entry 時点で完全にクローズ済みの情報のみ = 実装可能かつ保有期間オーバーラップ由来の機械的相関を gate 入力から定義レベルで排除",
+    "gate_rule": "gate_on(i) ⟺ 直近 K 件の pnl_net 合計 > 0 (閾値 0 固定、厳密不等号、変更禁止)",
+    "k_grid": [5, 10, 20],
+    "k_discipline": "K は 3 点のみ。追加 K・閾値 grid・重み付き和・EMA 等の変種は全面禁止 (§4.2 最適化禁止をそのまま凍結)",
+    "analysis_set": "gate 入力が K 件確保できるトレードのみ (系列先頭の K 件未満期は除外)。baseline『all』も同一 analysis set",
+    "primary_statistic": "uplift(cell, K) = mean(pnl_net | gate_on) - mean(pnl_net | all)。§4.2 凍結式そのまま",
+    "null_specification": {
+      "name": "within-cell 日ブロック置換 (block-shuffle) null",
+      "algorithm": "セル内トレードを entry_time の UTC 暦日でブロック化 → ブロック順序を一様ランダムに置換 (非復元、全ブロック使用) → 【REQUIRED #2(i) 再連結凍結】置換されたブロックを元カレンダーの active 日スロット (元系列に取引が存在した暦日の昇順列) へ置換順に 1:1 割当、ブロック内の相対時刻と各トレードの保有時間を保存して合成タイムスタンプを構成 → 合成時刻で real-time gate を再計算 → uplift を再計算",
+      "n_perm": 5000,
+      "seed": 20260803,
+      "p_value": "片側 (uplift > 0)、add-one: p = (1 + #{uplift_perm >= uplift_obs}) / (n_perm + 1)",
+      "rationale": "§4.2 の『block-bootstrap null』の実装仕様化 (概念凍結 → アルゴリズム具体化であり検定思想の変更ではない — 敵対的検証 A 認定)。日内ブロック保存により同日オーバーラップ・イントラデイ集中の機械的構造は null 側にも保存され (保守方向)、破壊されるのは日跨ぎの持続性 = 検定対象の仮説そのもの。置換 (permutation) を採るのは復元抽出 bootstrap が null 分布でなく観測値周りの標本分布を近似してしまうため。p95 hold ≤ 24h の eligibility (s3) が cross-day 保有オーバーラップの残余漏れを床から抑える"
+    },
+    "verdict_rule": {
+      "pass": ">=1 (cell, K) 組で uplift > 0 かつ p < α_bonf、かつ knife-edge 4 点通過",
+      "fail": "上記ゼロ。family クローズ、『自己 shadow P&L trailing-window gate × shadow book』の全変種再試行禁止を台帳記録",
+      "knife_edge": [
+        "(1) 隣接 K 整合: 同一セルの隣接 K のうち少なくとも 1 つで uplift > 0",
+        "(2) top-1 除去: |pnl| 最大の 1 トレード除去で uplift 符号が flip せず p < 2×α_bonf を維持",
+        "(3) 時間半割: window を暦時間で半割した両半分の uplift が両方 >= 0 (【OPTIONAL 採用】強化版 — E12 年次符号一致と同型、decay 混入防御)",
+        "(4) 【REQUIRED #2(ii)】block 長頑健性: 7 日 (暦週、ISO 週境界) block permutation (n_perm 5000、seed 20260804、同一再連結規則) で p < 2×α_bonf を維持 — multi-day 相関残余と低周波 EV drift の双方への防御"
+      ]
+    },
+    "secondary_descriptive_non_claimable": [
+      "sequence-gate 版 uplift (exit 順で直前 K 行、オーバーラップ含む) — 実装形との感度対比のみ",
+      "K 別 pooled 等重み平均 uplift (セル横断)",
+      "gate_on 比率・gate 遷移回数 (セル×K 別)",
+      "mode (scalp/daytrade/1h/swing) 別分解",
+      "emission gap > 7 日を跨ぐ gate 窓を持つトレードを除外した感度再計算",
+      "p95 hold > 24h で primary 除外となったセルの記述的 uplift (検定なし)"
+    ]
+  },
+
+  "s5_schedule_and_triggers": {
+    "first_look_cutoff": "2027-05-06T00:00:00Z",
+    "first_look_verdict_deadline": "2027-05-13",
+    "cutoff_derivation": "【REQUIRED #1 修復 — 宣言規則と期日の一致】機械規則: cutoff = shadow epoch (Fidelity Cutoff 2026-04-08) + 28 日 + 365 日 = 2027-05-06。意味: epoch から 4 週間以内 (≤2026-05-06) に series が始まった全セルが span 365 日床に到達可能になる最早日。検算: 2026-04-08 + 28d = 2026-05-06、+365d = 2027-05-06。堅い 3 セルの series start (04-13〜04-15) は admission 境界 05-06 の内側",
+    "no_early_execution": "期日前執行は peeking として禁止 (E12 §6 と同文)。DATA-BLOCKED / 陳腐化 review のみが期日前分岐",
+    "staleness_review": {
+      "date": "2027-01-15",
+      "scope": "メタデータのみ: (a) 蓄積軌道 (セル別 N/span 予測)、(b) 【REQUIRED #8】R2 demote の執行形態の記録 — env var 除去 (戦略単位、非 CRITICAL 同戦略セルも emission 停止) か shadow_demote_registry (セル単位) かの別と eligible 予測への影響、(c) 戦略的地位 (supersede する上位決裁の有無)。許容 outcome = 継続 or クローズのみ。設計変更・gate 条件付き look・前倒しは禁止",
+      "registry_id": "ec-gating-prereg-staleness-review"
+    },
+    "registry_entries_on_lock": [
+      {
+        "id": "ec-gating-prereg-staleness-review",
+        "active": true,
+        "type": "deadline_info",
+        "deadline": "2027-01-15",
+        "doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-forward-prereg-2026-08-03.md",
+        "message": "#22 equity_curve_shadow_gating forward pre-reg (🔒 LOCKED 2026-08-03) の陳腐化 review 期日 — (a) セル別 N/span 蓄積軌道 (b) R2 demote 執行形態 (env 除去=戦略単位 or registry=セル単位) と eligible 予測 3-7 への影響 (c) supersede 決裁の有無。メタデータのみ、許容 outcome = 継続 or クローズ。設計変更・trailing-K gate 条件付き look・前倒し禁止 (prereg s7)"
+      },
+      {
+        "id": "ec-gating-first-look-deadline",
+        "active": true,
+        "type": "deadline_info",
+        "deadline": "2027-05-13",
+        "doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-forward-prereg-2026-08-03.md",
+        "message": "#22 equity_curve_shadow_gating forward pre-reg (🔒 LOCKED 2026-08-03) の first look 執行期日 — データ cutoff 2027-05-06 (= epoch 2026-04-08 + 28d + 365d、機械導出)。eligibility: window 548d 内 N>=300 & span>=365d & p95 hold<=24h、セル = entry_type×instrument (生文字列)。Bonferroni m = eligible×3。eligible<2 なら UNDERPOWERED-BLOCKED (re-arm 1 回限り cutoff 2027-11-06)。期日前執行は peeking 禁止。判定手続きは prereg 本文 s4 凍結仕様に完全準拠"
+      }
+    ],
+    "underpowered_branch": "cutoff 時 eligible セル < 2 → UNDERPOWERED-BLOCKED: 1 回限りの re-arm (cutoff 2027-11-06 = +6 暦月 / verdict 2027-11-13、新自由度ゼロ)。再 re-arm 不可 — 2 回目も < 2 なら family を正直クローズ。【OPTIONAL 採用・根拠】単一セルの family PASS は cell 固有 artifact と識別不能で、配分層仮説 (セル横断で機構が存在する) の主張として脆弱なため床 2 とする",
+    "data_blocked_branch": "API 障害・DB 整合性破綻 (dedup backfill の大規模再走等) で抽出が凍結規約を満たせない場合 → DATA-BLOCKED、設計変更禁止の stale review のみ",
+    "oos_on_pass": "PASS 時: second look = first look cutoff 直後 90 日の shadow forward (2027-05-06, 2027-08-04]。対象 = PASS した (cell,K) 組のみ、m_oos = PASS 組数、片側 α = 0.05/m_oos、同一 gate・同一統計量・同一 null 仕様・新自由度ゼロ。verdict 2027-08-11。§4.2 の『次の 90d shadow forward を second look』をそのまま凍結"
+  },
+
+  "s6_confound_isolation": {
+    "requirement_source": "§4.2 交絡遮断規定 (pre-reg 必須項目)",
+    "live_transfer_confound": "watchdog/R2 停止・carve-out・agg-Kelly gate 等が live 転送を変えた期間の影響は、本測定に構造的に混入しない: 測定対象は shadow book の closed P&L のみで、shadow の emission と pnl 計上は live 転送状態と独立に走る。§4.2 の『shadow book 側でのみ counterfactual 計算』は設計自体で充足",
+    "shadow_emission_gaps": "R2 shadow demote / redesign wave / deploy 由来の emission 空白: gate は real-time 定義 (クローズ済み直近 K 件) なので gap 後最初のトレードは gap 前のクローズ分を参照する。gap の分布はセル別に verdict へ記録し、gap > 7 日跨ぎ除外の感度を secondary で併記 (s4)",
+    "operator_stop_censoring": "【REQUIRED #3 修正 — 独立性主張を撤回しバイアス方向で置換】運用停止で打ち切られた系列も eligibility を満たせば含める。ただし R2 stop のトリガー変数 (trailing 30d EV) は gate 変数 (trailing-K 和) と同族であり、『系列が 365d 生き残った』ことへの条件付けは交換可能性を破る — i.i.d. 系列でもこの生存条件付けの下では gate_off 直後の pnl が上方に歪む (生存に必要だったため)。バイアス方向は uplift 押し下げ = H1 に対して保守的: type-I error は保たれ、power が犠牲になる。この文言を verdict 解釈節に固定で転記すること",
+    "existing_one_sided_mechanisms": "R2 損失停止 / watchdog stage 減衰 / shadow_demote_registry は『片側 (損失側)・恒久・ad hoc』の先行実装。本 pre-reg との差分 = (a) 対称 (gate は on/off を毎トレード再評価し回復で自動復帰)、(b) 事前登録 (K/閾値/検定凍結)、(c) counterfactual 測定 (live に一切触れず shadow book 内で対比)。この差分明示により二重ゲート交絡を遮断: 既存機構は emission/転送の実状態を変えるが、本測定は『emission された shadow トレードの系列内対比』であり、既存機構の作動は gap/censoring 経路としてのみ影響する (上 2 項で処理)",
+    "survivorship_scope": "eligible セルは『12 ヶ月以上 emission が維持されたセル』に偏る (R2 demote を免れた = 相対的にマシな EV のセル)。これは estimand の scope 限定 (gating が意味を持つのは存続セルのみ) であり、検定バイアスではない — verdict の解釈節に固定文言で記載"
+  },
+
+  "s7_p10_computation_ban_and_attestation": {
+    "ban": "【REQUIRED #4 精密化】本 LOCK から first look 執行まで、いかなる主体 (main セッション / subagent / autopilot / Codex) も、shadow book 上の以下を計算してはならない: (a) セル別 trailing-K (または任意の <90 日 rolling 窓) の直近損益和を条件とする条件付き P&L 統計、(b) uplift 型対比 (gate_on vs all/gate_off の平均差)、(c) gate 状態系列そのもの。禁止対象はこの限定列挙であり、系列順序に条件付けない集計 (期間合計・平均 EV・WR・PF・Wilson・DD 集計) は対象外",
+    "whitelist_named": [
+      "tools/shadow_promote_r2_alert.py (R2 shadow-promote alert cron): 30d 窓の集計 EV/WR/Wilson/PF — 系列順序非条件付き。継続可",
+      "watchdog / promote evaluator / tier sync: 集計ベース。継続可",
+      "/api/risk/dashboard (modules/risk_analytics.py): VaR/CVaR/Kelly/MC/DD — live book のみ (is_shadow=0 filtered、modules/risk_analytics.py:532-544 で確認済み)。shadow セル粒度に非接触。継続可",
+      "quant-eval / 週次・月次監査: 集計統計。継続可",
+      "メタデータ監視 (セル別 N / first / last / span / 発火頻度、registry shadow_count 系トリガー) 。継続可",
+      "staleness review (2027-01-15) のメタデータ look。可"
+    ],
+    "prior_looks_attestation": [
+      {"date": "2026-08-03", "actor": "本セッション (在庫調査)", "look": "全量ページング取得 (15,008 行、per-trade pnl_pips 込み) + セル別 N/first/last/span 集計のみ。trailing-K・gate 条件付き量は未計算。【REQUIRED #5(iii)】生トレード抽出は LOCK コミット前に scratchpad から削除済み — first look 時は fresh 抽出 + sha256 凍結 (s2) のみを正とする", "joint_quantity_touched": false},
+      {"date": "2026-05-07 以降 (反復クラス)", "actor": "R2 shadow-promote alert cron (tools/shadow_promote_r2_alert.py)", "look": "349 回実行 (raw/audits/shadow-promote-r2-alert-*.md)。統計量 = 30d 窓の per-cell 集計 EV/WR/Wilson/PF — 系列順序・trailing-K に非条件付き", "joint_quantity_touched": false},
+      {"date": "2026-07-31", "actor": "quant-eval 全数監査 (project_quant_eval_grail19_removal_2026_07_31)", "look": "7 月 live 出血源分解 + shadow 集計 — 期間集計ベース (Bonferroni セル検定含む) で trailing-window gate 条件付き量は非接触", "joint_quantity_touched": false},
+      {"date": "2026-07-31", "actor": "EA sweep (31-agent)", "look": "外部文献のみ、内部データ非接触 (sweep 自身の attestation)", "joint_quantity_touched": false}
+    ],
+    "note": "watchdog stage 減衰・R2 損失停止は『直近損失に基づく one-sided 減衰』を live 側で既に実装しているが、これらは gate 条件付き uplift の測定ではなく、本 attestation の対象 (研究側 joint look) に該当しない"
+  },
+
+  "s8_scope_and_prohibitions": {
+    "no_live_change": "本 pre-reg の全工程 (LOCK・first look・OOS) で live パラメータ・コード・shadow 構成・Kelly・tier の変更ゼロ。PASS ≠ edge claim ≠ live 昇格",
+    "live_gating_is_r1": "live 転送 gate 化は stage-2 として別 pre-reg + Rule 1 全段 + user 最終承認 (§4.2 凍結規律)。4原則 #3 の LIVE 側ドクトリン (勝てる場所で勝つ条件だけ転送) との整合はその段で設計。live 転送時の実摩擦差もその段の責務",
+    "no_design_change_after_lock": "LOCK 後の K 追加・閾値変更・window 変更・null 変更・eligibility 緩和は全面禁止。verdict 後の再計算・grid 拡張も禁止 (exit-repair §7 拘束と同文)",
+    "retry_ban_on_fail": "FAIL 時: 自己 shadow P&L trailing-window gating family の全変種 (K 変更・閾値変更・重み付け・equity-curve 移動平均等の着せ替え) を再試行禁止として台帳記録"
+  },
+
+  "s9_ledger_hard_condition_exemptions": {
+    "requirement_source": "【REQUIRED #6】hypothesis-catalog 運用ルール『全 pre-reg 共通ハード条件』からの明示差分節",
+    "exit_free_fixed_horizon": "非適用。当該条件は市場シグナル族の exit-artifact 排除 (BE/Trail +20pp 教訓) を目的とするが、本 family の estimand は『実 book の配分 counterfactual』であり、実運用 exit 込みの closed pnl_net がまさに測定対象。exit 機構を外した固定ホライズン化は estimand を破壊する",
+    "headroom_10x": "非適用。当該条件は新規シグナルの摩擦 headroom 実証を目的とするが、本 family は新規トレード・新規摩擦ゼロ (既存 shadow トレードの選別のみ)。live gate 化時の摩擦・執行差は stage-2 R1 の責務 (s8)",
+    "applied_conditions": "multi-week swap 規定 = 対象外 (トレード単位は既存 book のまま)。E1/E7 ロック窓非接触 = 充足 (shadow book 内部 P&L のみ)。banned 隣接差分節 = 敵対的検証 E 節で衝突なし認定 (19 banned は全てシグナル族、本件は配分層)"
+  }
+}
