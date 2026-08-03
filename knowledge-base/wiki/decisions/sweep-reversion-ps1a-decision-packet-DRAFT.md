@@ -275,6 +275,13 @@ curl -s "https://fx-ai-trader.onrender.com/api/demo/trades?status=all&date_from=
 
 ## 8. 執行準備 (2026-07-31 追記 — user 指示「トリガ成立日に機械的に完遂できる状態にする」)
 
+> **AMENDMENT 決裁記録 (2026-08-01)**: §8.1 の提示 (第3/第4 ブロッカー + gbp_asia cell 免除
+> + 専用 spread cap 10.0p の提案) に対し user 「進めて」。以下を承認として記録:
+> **AMENDMENT (commit `dfec4343`) 承認** — トリガ成立日は commit 1+2 を含む単一 PR で
+> 再決裁なしに執行可 (runbook §2.5 の停止分岐は解除)。**執行条件 (unique N≥10 ∧
+> spaced EV>0) 自体は不変** — 決裁時点の再実測 N=8/10 (最終発火 07-15、18.1 日静止、
+> spaced EV +2.47p) で未成立のため live 変更は未実施。
+
 **状態: N=8/10 のまま (07-24 から新規発火 0、最終発火 07-15)。準備は完了、執行はトリガ待ち。**
 
 | 準備物 | 場所 |
@@ -309,7 +316,7 @@ curl -s "https://fx-ai-trader.onrender.com/api/demo/trades?status=all&date_from=
 上流 HTF Hard Block が emit を 100% 削っており、下流ゲートが一度もテストされて
 いないため** (ゲート積層の shadowing — 教訓化対象)。
 
-**AMENDMENT 提案 (07-24 承認スコープ外 — user 決裁必要、commit `dfec4343` 実装済み)**:
+**AMENDMENT 提案 (07-24 承認スコープ外 → ✅ user 承認 2026-08-01「進めて」、commit `dfec4343` 実装済み)**:
 - (a) `_GBP_ASIA_FLASH_CRASH_EXEMPT_CELLS = frozenset({("sweep_reversion_eurgbp_late",
   "EUR_GBP")})` — §3.2 と同一の estimand 論 (12.4y grid pre-reg にアジア時間フィルタは
   存在せず、cell 定義が全部ブロック帯内 = gate 維持は発火 0 の恒久化)。GBP フラッシュ
@@ -326,8 +333,10 @@ curl -s "https://fx-ai-trader.onrender.com/api/demo/trades?status=all&date_from=
   その根拠で、worst tail は cap + 動的 gate の二段で遮断。**live 実測での摩擦再推定こそが
   exemption で得るべきデータ** (§4-1) という本パケットの結論と一貫
 
-**執行規律**: AMENDMENT 未決裁のままトリガが成立した場合、commit 1 のみの執行は禁止
-(上記帰結)。runbook §2.5 が執行を停止し user 決裁を要求する構造にしてある。
+**執行規律**: ~~AMENDMENT 未決裁のままトリガが成立した場合、commit 1 のみの執行は禁止
+(上記帰結)。runbook §2.5 が執行を停止し user 決裁を要求する構造にしてある。~~
+→ **2026-08-01 決裁で解消** — トリガ成立時は commit 1+2 で §3.3 単一 PR を直接執行
+(commit 1 単独 merge の禁止は引き続き有効)。
 
 ### 8.2 残余の観測ポイント (執行後初週、runbook §5 に反映済み)
 
