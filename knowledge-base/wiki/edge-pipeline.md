@@ -29,7 +29,7 @@
 | xs_momentum | GBP,EUR | 0 | — | Eriksen 2019, PAIR_PROMOTED×GBP/EUR (JPY PAIR_DEMOTED) |
 | ema_pullback | USD_JPY | 14 | 42.9% | EV=+1.09, FORCE_DEMOTED+PAIR_PROMOTED×JPY復活 |
 | fib_reversal | EUR_USD | 32 | 40.6% | FORCE_DEMOTED+PAIR_PROMOTED×EUR (BT 1m EV=+0.426) |
-| vix_carry_unwind | USD_JPY | 0 | — | PAIR_PROMOTED×JPY (BT EV=+0.212 N=49) |
+| vix_carry_unwind | USD_JPY | 0 | — | **PAIR_DEMOTED (2026-08-03 早期 demote, rule:R2 user 決裁)** — live N=26 −46.9p + shadow エッジ崩壊 (05〜07 累計 −216p)。BT 正値 (EV=+0.212 N=49) は forward で反証。再昇格 R1 のみ ([[vix-pilot-early-demote-2026-08-03]]) |
 | doji_breakout | GBP,JPY | 0 | — | PAIR_PROMOTED (BT GBP WR=78.3%, JPY WR=61.9%) |
 | bb_squeeze_breakout | JPY,EUR,GBP_JPY | 0 | — | PAIR_PROMOTED (JPY 5m EV=+1.030最強) |
 | post_news_vol | GBP,EUR | 0 | — | PAIR_PROMOTED (BT GBP EV=+1.762) |

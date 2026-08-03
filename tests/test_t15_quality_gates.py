@@ -125,11 +125,17 @@ def test_resend_gate_blocks_negative_aggregate_kelly(monkeypatch):
 
 
 def test_resend_gate_kelly_minlot_bypass_preserved(monkeypatch):
-    """1000u 固定契約 (pre-reg bypass) は主経路同様に agg Kelly gate を免除。"""
+    """1000u 固定契約 (pre-reg bypass) は主経路同様に agg Kelly gate を免除。
+
+    2026-08-03: `next(iter(set))` は member 選択が非決定で、demote 済み member
+    (vix_carry_unwind、PAIR_DEMOTED_GATE が Kelly 判定より先に発火) を掴むと
+    偽 FAIL する。live-capable な weekend_gap_fade を明示指定して Kelly bypass
+    機構のみを検証する。"""
     trader = _bare_trader(monkeypatch, agg_kelly=-0.25)
     monkeypatch.setattr(demo_trader_mod, "_q4_should_shadow",
                         lambda _et, _c: False)
-    bypass_type = next(iter(DemoTrader._AGG_KELLY_GATE_MINLOT_BYPASS_TYPES))
+    bypass_type = "weekend_gap_fade"
+    assert bypass_type in DemoTrader._AGG_KELLY_GATE_MINLOT_BYPASS_TYPES
     assert trader._resend_promote_gate_block_reason(
         bypass_type, "USD_JPY", "scalp", confidence=80) is None
 

@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-03 — fix(live): vix_carry_unwind×USD_JPY Overlap pilot 早期 demote (rule:R2, user 決裁)
+
+- **決裁**: 2026-07-31 quant-eval の早期 demote 推奨を user「進めて」承認 (2026-08-03)。07-07 継続裁定の「demote は user 決裁」要件を充足、checkpoint (live SELL N≥20 or 08-31、registry `vix-sell-pilot-recheck`) を待たず執行
+- **根拠 (production 実測)**: live N=26 PnL=−46.9p PF=0.66 EV=−1.80 (月次 3/4 負、07-30 −30.1p) + **shadow エッジ崩壊** 04:+537p → 05〜07 累計 −216p/n=139 → 08-01〜03 −17p/n=7。365d BT 正値 (EV=+0.506 / Overlap cell N=22 EV=+1.297) は forward で反証 — 止血判定は EV 軸・Live>BT の規律に従い demotion に新規 BT 不要 (再昇格 R1 側で要求)
+- **執行**: `_PAIR_PROMOTED` 除外 (22→21) + `_PAIR_DEMOTED` 復帰 + `_PAIR_SESSION_FILTER`/`_PAIR_LOT_BOOST` 撤去 (inert だが code consistency)。MIN-lot 1000u 契約 code / agg-Kelly min-lot bypass は再昇格時のため残置。**shadow emit 不変更 (原則3)**。registry resolved 化。pin `tests/test_vix_pilot_demote_pin.py` (5 tests)、session-filter/agg-Kelly 機構テストは合成メンバーシップ化で絶縁
+- **評価への影響**: 現役 live 送信経路から最大の出血源 (7月 −34.3p) を除去。残る live 経路 = wg×3 + ps×5 + Grail #1/#4 (監視中)。詳細: [[vix-pilot-early-demote-2026-08-03]]
+
 ## 2026-07-31 — fix(live): Grail #19 ny_close_reversal live 経路撤去 + shadow 含む全数 quant-eval (rule:R2)
 
 - **quant-eval 全数監査** ([[quant-eval-2026-07-31]] = `raw/trade-logs/`): post-cutoff closed **14,329 行**を 3 バケット分解 (live 565 / shadow 13,758 / other 6)。live 月次 = 04:−230.7 / 05:**+14.8** / 06:−281.9 / 07:−84.4p。**7 月 live 反実仮想: 修正済みバグ経路 + ny_close + vix を除くと −7.6p** = M1 (月次符号転換) の残存出血源を特定
