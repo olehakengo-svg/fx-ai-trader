@@ -1,0 +1,54 @@
+{
+ "AUD_JPY": {
+  "bytes": 8763817,
+  "sha256": "bc6c9da7fab9d70c90cb26b1ec153814587ab1ec49aa14ba8a8e157119c76242"
+ },
+ "AUD_USD": {
+  "bytes": 7019006,
+  "sha256": "6ae839726235b24352866908c7725d542da4bd826d2c836b28cbec51b222065a"
+ },
+ "EUR_AUD": {
+  "bytes": 7700858,
+  "sha256": "fb8e4121ef5a179f96b1e4ebc325da6c87475d9e831ea54ef5af3f48519279e0"
+ },
+ "EUR_GBP": {
+  "bytes": 6741275,
+  "sha256": "bf585a5218a0cec07c12834d0dfaf83497574842fe2cbdac721f8a1261860f02"
+ },
+ "EUR_JPY": {
+  "bytes": 9126631,
+  "sha256": "23b9f31a90a996c88c9391a20bc00ba43159b955f42c5584adc0df6c66de0ab0"
+ },
+ "EUR_USD": {
+  "bytes": 7342306,
+  "sha256": "20c62d18946221b28ef870d738f5e27b7c3fe2def017b537ee260add199118e6"
+ },
+ "GBP_JPY": {
+  "bytes": 9674612,
+  "sha256": "86361b28f08350a096052002758eec8eb97ac7a4ab465c6a47397c52524e311b"
+ },
+ "GBP_USD": {
+  "bytes": 7897981,
+  "sha256": "312ffc33e1388aad89ddb78ce6d8c47cc4264de9500c120bc7612d810387981c"
+ },
+ "NZD_JPY": {
+  "bytes": 9056845,
+  "sha256": "e7a905b7ac4adffd39bab2c49ffac85445bb23df47372a959915ab976de765c8"
+ },
+ "NZD_USD": {
+  "bytes": 6935354,
+  "sha256": "793d7d3ee5c99c859ffa8ccfe8dd059ff934ece9b3625024c855a98f401e8133"
+ },
+ "USD_CAD": {
+  "bytes": 7322194,
+  "sha256": "194b2c8901f7028c527eab50440c815d75604cde15bcf157cb1fc347f1809423"
+ },
+ "USD_CHF": {
+  "bytes": 6964355,
+  "sha256": "463f8b9537d5c0435e2d41c2e37908a0e4c2f37d469d43708a156a0bee03a31c"
+ },
+ "USD_JPY": {
+  "bytes": 8530675,
+  "sha256": "ddfdfb43c7beff3557154cc7f4c34b32e2bb8a60be6761641516c457dafeb697"
+ }
+}

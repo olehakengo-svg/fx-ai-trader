@@ -17,6 +17,13 @@
 
 - **🎉 3.5 ヶ月ぶりの初 live fill (07-29 04:44 UTC)**: price_shock_rev_aud_jpy×AUD_JPY → OANDA #549235 BUY 1000u @113.466 slip+0.8p。経路検証全クリーン — agg-Kelly BYPASS ログ実射 (D-c-1 carve-out 作動) / broker SL #549237 @112.467 (=2×ATR) + TP 付帯の二層防御 / dedup・slot 正常 / BE_LOCK・ATR-BE 不作動。**§7 免除 deploy (04:22) 後の fill = 完全な LOCK 設計 estimand 下の第 1 号** (戦略カード 現況に記録)。副次観測: broker TP に Quick-Harvest ×0.85 が適用される (988p→840p、horizon 12h では非拘束 — §7 スコープ外として記録)
 - **[[mfe-be-lock-design-2026-06-03]] §8 追補**: per-strategy 詳細表 (57d 再計測、適格 9 戦略 **0/9 pass**、Bonferroni p 全 1.0、aggregate ΔEV −0.006 p=0.975) — §8 verdict FAIL の per-strategy 粒度での確定。**評価への影響: なし (記録のみ)**
+## 2026-07-29 — fix(data): E15/E7 phase-1 データ前提修理 — plain 15m 台帳再現を 13/13 byte-exact 復元 + never-shorten ガード (rule:R3)
+
+- **発見**: coverage 台帳 (`e15_e7_pair_coverage.json`, 07-21 凍結) が参照する plain `{pair}_15m.parquet` が **11/13 ペアで台帳再現不能** (各種 explore の短い `--days` フル取得による無条件上書きが原因、EUR_AUD は消失)。このままでは phase-1 discovery (08-21) / OOS verdict (08-28) が `load_and_verify_bars` で BLOCKED
+- **復元**: phase-0 実行 worktree `e15-oos-20260722` に原本が現存、**phase-0 verdict data_ledger の sha256 と 13/13 完全一致** → `tools/e15_e7_data_refreeze.py --restore-from` で byte-exact 復元 + 判定器実コードで 13/13 GREEN 実証。凍結コピー `data/cache/massive/e15_e7_frozen/` + manifest `raw/bt-results/e15_e7_frozen_manifest_2026-07-29.json` (verdict と同一 sha256 = provenance 連鎖が閉じる)
+- **副産物 (重要)**: MASSIVE fresh 再取得で **AUD_USD が台帳比 −25 行 drift** = ベンダー歴史バー集合は不変ではない。pre-reg データ凍結は「cache 参照 + 行数 pin」でなく**ファイル実体コピー + sha256** で行うこと
+- **再発防止**: `tools/fetch_massive_data.py` に never-shorten merge ガード (既存行優先・head 保持・tail 延長のみ) + tests 8 本。phase-1 pre-flight = `--verify-only` (runbook `e15_phase0_execution_status.md` 2026-07-29 節)
+- **評価への影響: なし** — 価格ファイルの復元のみ、イベント×リターン統計未計算 (§10-1 遵守)、live/shadow/Kelly/tier 不変更
 
 ## 2026-07-29 — fix(data): MASSIVE ベンダー欠損 2 区間 (2019-09/2020-10) を OANDA v20 で backfill — 45 ファイル +61,709 行 (rule:R3)
 
