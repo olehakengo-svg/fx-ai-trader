@@ -3289,6 +3289,15 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - **Scalp系**: スプレッド拡大（`spread_gate` 6件）＋`r2_shadow_demoted_cell`の二重抑制。VOLATILE相場でのScalp系は摩擦コストが上昇しており、フィルター強化は妥当。
 - **RnB（rnb_usdjpy）**: ATR93%でdirection_filterが完全作動。VOLATILE相場が解消するまで実質的に機能停止。
 
+### 2026-08-03 (Post-London Report)
+| PnL | **0.0 pips** |
+| PnL | 0 | 0 |
+### 推奨戦略配分
+**NYセッション：NO ACTION推奨**
+| PnL | 0 | 0 | **0 pips** |
+**OANDA転送率0%（50/50スキップ）＋agg_kelly=-0.469**という組み合わせは、Kelly基準がシステム全体に対して現在のセル群のEVを「負」と評価していることを意味する。これは防御の成功ではなく、**エッジを持つエントリー候補が存在しないことの確認**である。
+**推奨アクション（判断のみ）**: NYセッションはNO ACTION維持。ただし「今日のゼロ」をKBの月次M1進捗として正式記録し、USD_JPYのATR%ile低下（93%→60%台以下）を条件に次のrnb_usdjpy稼働評価タイミングを設定することが優先度高い。agg_kelly負の状態でのエントリー解禁は現時点では支持しない。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
