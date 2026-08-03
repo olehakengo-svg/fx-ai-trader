@@ -91,7 +91,7 @@
       "n_floor": 5,
       "deadline": "2026-09-30",
       "doc": "knowledge-base/wiki/decisions/sweep-reversion-ps1a-execution-runbook-2026-07-31.md",
-      "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-09-30 に N<5 なら retire (R2)。計数 = dedup_violation!=1 (packet §1.4)。TRIGGERED 時: tools/ps1a_execution_check.py で凍結判定を dry-run → runbook (doc) を上から実行。⚠️ AMENDMENT (runbook §2.5、第3/第4 ブロッカー) が user 未決裁なら執行停止して決裁を求める。Option B 実装は draft/ps1a-option-b-20260731 に準備済み (2026-07-31)",
+      "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-09-30 に N<5 なら retire (R2)。計数 = dedup_violation!=1 (packet §1.4)。TRIGGERED 時: tools/ps1a_execution_check.py で凍結判定を dry-run → runbook (doc) を上から実行。AMENDMENT (runbook §2.5、第3/第4 ブロッカー修正) は user 承認済み (2026-08-03「進めて」、packet §8 決裁記録) — commit 1+2 で直接執行可。Option B 実装は draft/ps1a-option-b-20260731 に準備済み",
       "mode": "daytrade_eurgbp",
       "count_basis": "unique"
     },
@@ -300,6 +300,14 @@
       "deadline": "2027-02-05",
       "doc": "knowledge-base/wiki/decisions/e12-volume-forward-prereg-2026-07-29.md",
       "message": "E12 volume forward pre-reg (🔒 LOCKED 2026-07-29、台帳 #10) の first look 執行期日 — データ cutoff 2027-01-31 (OOS = bar_time_utc ≥2026-07-30、~26 週)。validity gate: OOS 非ゼロ volume bar ≥2500/契約 を ≥6/7 契約 (不成立は DATA-BLOCKED、事後緩和禁止)。執行 = explore (2024-02-27〜2026-07-29 凍結窓) → gates 通過時のみ candidate 凍結追記 → OOS 単一接触、同一手続き内 (prereg §4-6)。期日前の前倒し執行は peeking として禁止。UNDERPOWERED (OOS pooled event <100) なら second look 1 回限り (cutoff 2027-04-30 / verdict 2027-05-07)"
+    },
+    {
+      "id": "ecg-forward-first-look",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-06",
+      "doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-explore-prereg-2026-08-03.md",
+      "message": "ECG forward pre-reg (🔒 LOCKED 2026-08-03 v2、台帳 #22) の first look 執行期日 — forward 窓 = shadow closed entry_time [2026-08-04, 2026-11-01)、13週。primary = active 4 cells × K{5,10,20} (m=12)、epoch層化permutation、primary p は unique-spaced 系列。参加条件 = forward N≥150/セル (全セル未達なら UNDERPOWERED → second look cutoff 2027-01-31 1回のみ)。**期日前の gate×outcome ジョイント計算は P-10 型で全面禁止** (蓄積センサス件数のみ可)。執行 = 新規スナップショット取得 → tools/equity_curve_gating_explore.py --snapshot <path> (n_perm 10000 固定、ハーネスが期日前実行を拒否)。PASS でも live gate R1 は forward 再現後のみ"
     }
   ]
 }
