@@ -13921,6 +13921,22 @@ def api_oanda_status():
     return jsonify(status)
 
 
+@app.route("/api/g0/cc_rt")
+def api_g0_cc_rt():
+    """台帳 #21 G0: コモディティ 3 クロス RT 実測 snapshot (read-only 計測、verdict なし).
+
+    tools/commodity_cross_g0_rt.collect() を web の資格情報で実行する診断
+    エンドポイント。GH Actions cc-g0-rt.yml が日次取得し KB へ永続化する。
+    シグナル計算・fwd return・発注系への接触ゼロ。
+    """
+    from modules.oanda_client import OandaClient
+    from tools.commodity_cross_g0_rt import collect
+    _g0_client = OandaClient()
+    if not _g0_client.configured:
+        return jsonify({"error": "OANDA credentials not configured"}), 503
+    return jsonify(collect(_g0_client))
+
+
 @app.route("/api/oanda/modes", methods=["GET", "POST"])
 def api_oanda_modes():
     """OANDA連携モード取得・切替
