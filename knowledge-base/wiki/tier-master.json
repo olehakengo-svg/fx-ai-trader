@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-28T07:26:18.261052+00:00",
+  "generated_at": "2026-08-03T05:56:43.909984+00:00",
   "elite_live": [],
   "force_demoted": [
     "atr_regime_break",
@@ -117,10 +117,6 @@
     [
       "squeeze_release_momentum",
       "EUR_USD"
-    ],
-    [
-      "vix_carry_unwind",
-      "USD_JPY"
     ],
     [
       "vol_momentum_scalp",
@@ -278,6 +274,10 @@
     ],
     [
       "v_reversal",
+      "USD_JPY"
+    ],
+    [
+      "vix_carry_unwind",
       "USD_JPY"
     ],
     [
