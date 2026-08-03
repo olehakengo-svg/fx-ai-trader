@@ -63,6 +63,18 @@
 
 ## イベントログ
 
+### 2026-08-02 (日) — 第 2 イベント: qualify → OANDA FOK 不成立 → fail-closed shadow (設計どおり)
+
+| pair | gap | 判定 | 結果 | 備考 |
+|---|---|---|---|---|
+| USD_JPY | **−22.5p ≥ 21.4p** | qualify → BUY fade | **live 送信 → FOK キャンセル → shadow row (id 14996)** | 経路は完走: Kelly BYPASS → [SENT] 1000u SL 155.646 / TP なし → OANDA `orderCreateTransaction` #549257 生成、しかし**日曜オープンの激動で FOK 不成立 (tradeID なし)**。pre-reg §2.2「成行 1 回・リトライなし」どおり fail-closed shadow 化 (分母保存)。shadow 追跡結果 = **disaster_sl −182.7p** — fill されていれば実損 ≈ −¥1,600〜1,800 で、fill 失敗が結果的に回避。**live 執行分母 (G1/G2) には fill なしのため入らない** |
+| EUR_USD | +17.5p < 20.0p | no-qualify | 不発 (正常) | 07-28 追加の週末 gap 診断ログが正常動作 |
+| AUD_USD | +23.0p < 25.0p | no-qualify | 不発 (正常) | 同上 |
+
+- 背景: 週末を挟む大規模 JPY 買いイベント (USD_JPY 160.5→155.6 の急落局面)。gap fade BUY は逆行し shadow で disaster SL (signal open −150p = 155.646) 到達
+- **観測 (N=1、変更提案なし)**: FOK は「激しい gap ほど不成立になりやすい」可能性があり、実現 live 系列が OOS estimand (bar open fill 仮定) から fill-rate 選択でずれ得る。**執行方式の変更は estimand 破壊 = R1 事項** — 現時点は記録のみ、G3 (N=30) 審査時に fill 失敗率を並記して評価する
+- live fill N は依然 0 (07-26 バグ / 08-02 FOK)。G1/G2 未起動
+
 ### 2026-07-26 (日) — 初回 qualifying イベント
 
 | pair | gap | 判定 | 結果 | 備考 |
