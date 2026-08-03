@@ -1,6 +1,7 @@
 """P-S1(a) AMENDMENT pin テスト: LATE 窓 cell-scoped 執行修正 (第 3/第 4 ブロッカー)。
 
-⚠️ この commit は 2026-07-24 条件付き承認のスコープ外 — user 決裁前の merge 禁止。
+✅ user 承認済み (2026-08-03「進めて」、packet §8 決裁記録) — merge はトリガ成立日の
+Option B 単一 PR (commit 1+2) で。
 
 背景 (2026-07-31 準備セッションで発見した estimand ブロッカー 2 件):
 (3) v8.6 gbp_asia_flash_crash ("GBP" in instrument ∧ UTC 21-06) は

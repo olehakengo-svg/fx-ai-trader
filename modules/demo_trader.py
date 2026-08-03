@@ -5881,7 +5881,7 @@ class DemoTrader:
                           f"{_spread_pips:.2f}p > {_wg_cap:.1f}p", flush=True)
             # ══════════════════════════════════════════════════════════
             # ── P-S1(a) AMENDMENT: sweep LATE 窓 cell-scoped spread cap ──
-            # (user 決裁待ち — 07-24 承認スコープ外。packet §8.1)
+            # (✅ user 承認 2026-08-03「進めて」 — packet §8.1/§8 決裁記録)
             # 静的 per-pair limit (EUR_GBP 1.5p) は LATE rollover 実測
             # (5.4-16.6p、rescued shadow 全 8 発火が超過) を 100% hard block し
             # live/shadow とも行が残らない。weekend_gap pre-reg §2.2 と同型の
@@ -9720,7 +9720,8 @@ class DemoTrader:
     # SHADOW_MODE/Phase0/_OANDA_MODE_BLOCKED(daytrade_eurgbp) を bypass。
     # 12y grid 唯一の Bonferroni 生存 cell (N=543 t=4.46)。MIN lot 1000u 固定済。
     # pre-reg LOCK: knowledge-base/wiki/decisions/sweep-reversion-eurgbp-late-live-2026-06-12.md
-    # ── P-S1(a) AMENDMENT: gbp_asia_flash_crash cell-scoped 免除 (user 決裁待ち) ──
+    # ── P-S1(a) AMENDMENT: gbp_asia_flash_crash cell-scoped 免除 ──
+    # (✅ user 承認 2026-08-03「進めて」 — packet §8 決裁記録。merge はトリガ成立日のみ)
     # v8.6 静的ゲート (UTC 21-06 × "GBP" in instrument) は本 cell の LATE 窓
     # (21-24 UTC) を 100% 内包し、sweep は shadow-eligible 集合外のため hard block
     # (第 3 の estimand ブロッカー、2026-07-31 発見 — T8 期は上流 HTF gate が emit を
@@ -9728,7 +9729,7 @@ class DemoTrader:
     # フィルタは存在しない — 免除は HTF exemption と同型の BT/本番統一の回復。
     # GBP フラッシュクラッシュ tail の防御は本 cell では 1000u 固定 lot +
     # SL -4xATR + 動的 spread_sl_gate が担う。他 cell / ゲート本体は不変 (原則3)。
-    # 決裁: decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md §8.1
+    # 決裁: decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md §8.1/§8
     _GBP_ASIA_FLASH_CRASH_EXEMPT_CELLS = frozenset({
         ("sweep_reversion_eurgbp_late", "EUR_GBP"),
     })

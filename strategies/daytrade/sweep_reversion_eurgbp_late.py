@@ -46,7 +46,8 @@ import pandas as pd
 from strategies.base import Candidate, StrategyBase
 from strategies.context import SignalContext
 
-# ── P-S1(a) AMENDMENT: LATE 窓 cell-scoped spread 執行定数 (user 決裁待ち) ──
+# ── P-S1(a) AMENDMENT: LATE 窓 cell-scoped spread 執行定数 ──
+# (✅ user 承認 2026-08-03「進めて」 — packet §8 決裁記録。merge はトリガ成立日のみ)
 # 静的 per-pair limit (EUR_GBP 1.5p) は LATE rollover の実測 quoted spread
 # (rescued shadow 全 8 発火で 5.4-16.6p、中央値 6.6p) を 100% hard block し、
 # live どころか shadow 行も残らない (第 4 の estimand ブロッカー、2026-07-31 発見)。
