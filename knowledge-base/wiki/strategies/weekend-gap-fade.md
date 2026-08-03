@@ -73,6 +73,20 @@
 
 **フォローアップ (2026-07-28 rule:R3)**: ① `_is_xau_inst` スコープ修正 + regression pin `tests/test_preserve_types_tick_entry.py` (preserve 全型を送信判定直前まで通す統合テスト)、② wg tick error handler に traceback 追加、③ **データソース**: AUD_USD を `_MASSIVE_SYMBOLS` に追加 — 凍結統計は Massive parquet ベースであり **Massive が estimand 正** (従来 AUD_USD だけ live が OANDA fallback でソース不一致だった)。
 
+### 2026-08-02 (日) — 第 2 回 qualifying イベント (2026-08-03 診断、Render ログ + oanda_audit + 口座実査)
+
+| pair | gap | 判定 | 結果 | 備考 |
+|---|---|---|---|---|
+| USD_JPY | **−22.5p ≥ 21.4p** | qualify → BUY fade 発火、**live 送信は正常実行** (agg-Kelly carve-out BYPASS 作動、1000u FOK SL=155.646) | **OANDA order 作成 (tx 549257, 21:01:27.9Z) だが fill transaction なし = tradeID 未取得、ポジション不成立** | oanda_audit = `sent` のまま。口座実査 (08-03): openTrades 0 / balance==NAV = **実損ゼロ・orphan なし**。FOK cancel が最有力 (Sunday open +87 秒)。cancel reason は応答 JSON がログ 300 字切り詰めで未確定 — 確定には本番からの transactions idrange 549257-549259 照会が必要 (followup) |
+| EUR_USD | +17.5p < 20.0p | no-qualify | 不発 (正常) | 07-28 R3 の gap 診断ログが設計どおり作動 |
+| AUD_USD | +23.0p < 25.0p | no-qualify | 不発 (正常) | — |
+
+**counterfactual (shadow book)**: USD_JPY shadow row は **disaster_sl −182.7p** — 週末リスクオフ (JPY 急騰) で gap は fade せず走った。fill されていた場合の live 損失 ≈ −182p × 1000u ≈ −1,800 JPY (disaster SL は設計どおり機能した想定)。**no-fill は結果的に得だったが、これは執行設計の検証ではない**。
+
+**分母の扱い**: 「送信 OK・FOK 不成立」は pre-reg §2.2 (no-retry) の執行契約内の正当な未執行 = **G1/G2/G3 の live N には入れない** (07-26 のバグ未送信とは区別: あちらはインフラ障害)。live 執行 N = **0/2 イベント**。
+
+**⚠️ 執行設計への実測疑義 (R1 決裁事項として記録、変更は未実施)**: stage-2 執行 pre-reg は Sunday open での fill 可能性を前提とするが、2 イベント連続で live fill ゼロ。FOK→IOC 変更・retry 追加・entry 時刻繰り下げ (spread 正常化 22:01 以降) はいずれも**凍結執行契約の変更 = R1 全段 + user 承認が必要**。次イベント 2026-08-09 (日) 前に user 決裁を仰ぐこと。
+
 ## テスト
 
 `tests/test_weekend_gap_fade.py` (29 tests): 検出 (qualify/非qualify/方向/ガード/窓/凍結閾値) / cap 境界とスコープ / latch dedup + fail-closed / G1/G2 発火・境界・**非再武装** / 1000u・horizon・disaster SL・no-TP・登録 4 点 pin。
