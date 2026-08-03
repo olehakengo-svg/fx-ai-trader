@@ -1,5 +1,24 @@
 # FX AI Trader - Changelog
 
+## 2026-07-31 — feat(tools): P-S1(a) 執行パケット完全準備 — 判定器 + Option B draft branch + 第3/第4 ブロッカー発見 (rule:R1 準備、live 変更なし)
+
+- **目的**: sweep_reversion_eurgbp_late (12.4y Bonferroni 唯一生存 cell) の P-S1(a) 執行を
+  トリガ成立日 (unique N≥10 ∧ spaced EV>0、user 条件付き承認 2026-07-24) に機械的に完遂
+  できる状態にする。現況 N=8/10 (最終発火 07-15)、spaced EV +2.47p>0
+- `tools/ps1a_execution_check.py` — 凍結文言 (三基準/spacing 境界 ≥3h/判定分岐/retire 期日)
+  の dry-run リプレイ判定器 + pin tests 12 件。本番実測でパケット §1.1 と完全一致を確認
+- **Option B 実装を draft branch に準備** (`draft/ps1a-option-b-20260731`、マージ禁止):
+  commit 1 (承認済みスコープ) = order 層 12-bar min-spacing + HTF exemption + pin 解除 +
+  registry 置換 / commit 2 (⚠️ AMENDMENT、user 決裁待ち) = gbp_asia cell 免除 + 専用
+  spread cap 10.0p (wg §2.2 前例と同型)
+- **第3/第4 estimand ブロッカー発見** ([[sweep-reversion-ps1a-decision-packet-DRAFT]] §8.1):
+  gbp_asia_flash_crash (UTC21-06) が LATE 窓を 100% 内包 + 静的 spread limit 1.5p が実測
+  5.4-16.6p を全 block — **承認済み Option B 単独 merge は live 0 のまま shadow 蓄積まで
+  殺す** (HTF exemption が rescue を外すため)。T8 期は上流 HTF gate の shadowing で未観測
+- 執行手順書: [[sweep-reversion-ps1a-execution-runbook-2026-07-31]] (トリガ成立日に読んで
+  実行するだけ)。registry message も判定器 + runbook 参照へ更新
+- **評価への影響: なし** — live/shadow/Kelly/tier 一切不変更 (draft branch は未マージ)
+
 ## 2026-07-28 — feat(exit): price_shock_rev ×5 exit estimand 復元 + BE_LOCK A/B 実験クローズ (rule:R1)
 
 - **決裁執行**: [[preserve-exit-overlay-2026-07-28]] §5 パケット (user 委任 + 「進めて」決裁、
