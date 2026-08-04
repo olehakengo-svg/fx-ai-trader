@@ -3328,6 +3328,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 | USD/JPY | VOLATILE | **91%** | −0.00256（強下降） | 円高圧力強い。157.195は節目圏。ブレイク注意 |
 | GBP/USD | VOLATILE | **67%** | +0.00153（上昇） | USD安バイアス。EUR/GBPとの逆相関に注意 |
 
+### 2026-08-04 (Post-London Report)
+| PnL | **0 pips / 0円** |
+| WR | **N/A** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**現時点での推奨: NO ACTION（静観）推奨**
+- **daytrade_gbpusd / daytrade_gbpjpy** — 現在のhedge_blockはポジション0の状態でも発動しているため、NY序盤にブロック理由が変化するか否かを監視。263件という件数は過剰な可能性がある。
+| 累計PnL | **0 pips** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
