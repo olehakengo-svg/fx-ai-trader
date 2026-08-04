@@ -3338,6 +3338,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - **daytrade_gbpusd / daytrade_gbpjpy** — 現在のhedge_blockはポジション0の状態でも発動しているため、NY序盤にブロック理由が変化するか否かを監視。263件という件数は過剰な可能性がある。
 | 累計PnL | **0 pips** |
 
+### 2026-08-04 (Pre-Tokyo Briefing)
+| 前日 PnL | **-** |
+| 全体 WR | **-** |
+前日は完全なトレードゼロ日。システムは稼働中だが、シグナル発火なし。唯一の有効トレード記録（Cutoff後全期間）は `price_shock_rev_aud_jpy_h1_long / AUD_JPY` の N=1 / PnL=−123.2p のみ。
+| Strategy | Pair | N | WR% | EV (p/t) | PnL |
+> N<10 につき「データなし」扱い。EV −123.20 は一点観測のノイズであり、戦略の期待値を語れる水準にない。
+- **課題A**: レジーム状況（後述）と照合し、現在 VOLATILE 環境が daytrade_1h 系フィルターと整合しているか確認。特に USD_JPY / EUR_JPY のATR91%ile がスプレッドガード（DT=20%閾値）に抵触していないか確認を優先する
+- **課題B**: NAV=None のままでは Kelly計算の信頼性も損なわれる。OANDA接続の実態把握を急ぐ（コード変更なし、状況把握のみ）
+- **課題C**: `shadow_tracking` 19件が SKIP の主因。シャドウ期間中のトレードは本番未転送が構造仕様であることは既知。現在は "shadow が明けるまで本番実績が積み上がらない" ループに入っている
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
