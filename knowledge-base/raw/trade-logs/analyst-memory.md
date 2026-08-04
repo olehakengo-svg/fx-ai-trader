@@ -3308,6 +3308,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - Block Countsにある `daytrade_eur:hedge_block (9件)` および `rnb_usdjpy:direction_filter (7件)` が、潜在的エントリー候補を遮断した主因
 - **Scalp系に最も不利**（spread_guardが頻繁に発動する帯域）
 
+### 2026-08-04 (Pre-Tokyo Briefing)
+前日（2026-08-03）はトレード**ゼロ**。Cutoff後累積でもN=2（うちどちらも判断不可水準）に留まり、PnL合計は**−153.3**。全モードが稼働中にもかかわらず、実質的にシステムはトレードを生成していない状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: N=2はいずれも「データなし」扱い。EVの数値は参考値に過ぎず、昇格・降格いずれの判断も不可。Sentinel N=30達成まで残り**28件**。
+- 27モードが`ON`状態だが実行数は0。Block Countsを見ると**hedge_block・direction_filter・r2_shadow_demoted_cell・order_bar_dedup**が主因として計合計**310件以上**の阻止が発生している。システムはシグナルを生成しているが、多重フィルターが出口を塞いでいる構造。
+- `hedge_block`（合計95件: EUR70 + EURJPY25）→ 現在のUSD_JPY急落局面（SMA20 Slope −0.00256）でEUR/GBP系が逆方向に引っ張られ、ヘッジロック状態が長期化していると推定
+- `r2_shadow_demoted_cell`（合計104件）→ シャドウトラッキングが広範な戦略セルを降格済み状態に維持。これがN蓄積の最大障壁
+- `direction_filter`（69件）→ RnB_USDJPYがVOLATILEレジーム（ATR%ile 91%）でほぼ機能停止
+- 上記は**コード変更なし**の前提で静観継続。VOLATILE相場が落ち着き、direction_filterとhedge_blockの解除条件が揃うのを待つ。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
