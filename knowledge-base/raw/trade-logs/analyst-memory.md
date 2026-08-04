@@ -3318,6 +3318,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - `direction_filter`（69件）→ RnB_USDJPYがVOLATILEレジーム（ATR%ile 91%）でほぼ機能停止
 - 上記は**コード変更なし**の前提で静観継続。VOLATILE相場が落ち着き、direction_filterとhedge_blockの解除条件が揃うのを待つ。
 
+### 2026-08-04 (Post-Tokyo Report)
+| PnL | 0.0p |
+| 勝率（WR） | N/A |
+- **Fidelity Cutoff後の蓄積N=0**（本日セッション）— 統計的判断の材料が存在しない
+- OANDA転送率 **0%（50/50がSKIP）** — 全トレードがshadow_trackingによりデモ専用。Live実績なし
+- DD防御モード（**DD=100.01%バリア突破後 held**）発動中 — このフェーズでのパラメータ調整は混線要因
+- 現状の問題はパラメータではなくhedge_blockによる執行機会そのものの消失。これはパラメータ変更で解決する性質のものではない
+| USD/JPY | VOLATILE | **91%** | −0.00256（強下降） | 円高圧力強い。157.195は節目圏。ブレイク注意 |
+| GBP/USD | VOLATILE | **67%** | +0.00153（上昇） | USD安バイアス。EUR/GBPとの逆相関に注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
