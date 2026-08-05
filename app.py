@@ -13900,6 +13900,31 @@ def api_oanda_accounts():
     return jsonify({"error": data}), 500
 
 
+@app.route("/api/oanda/transactions")
+def api_oanda_transactions():
+    """OANDA transactions idrange 照会 (read-only 観測性、range 上限 100)。
+
+    2026-08-03 rule:R3: wg 08-02 FOK 不成立の cancel reason 確定 (weekend-gap-fade
+    カード followup) など、broker 側 transaction の forensic を API 経由で可能にする。
+    live 挙動への影響なし (純 read)。
+    """
+    from flask import request as _req
+    try:
+        _from = int(_req.args.get("from", "0"))
+        _to = int(_req.args.get("to", "0"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "from/to must be integers"}), 400
+    if _from <= 0 or _to < _from:
+        return jsonify({"error": "invalid range"}), 400
+    if _to - _from > 100:
+        return jsonify({"error": "range too wide (max 100)"}), 400
+    ok, data = _demo_trader._oanda._client.get_transactions_id_range(
+        str(_from), str(_to))
+    if ok:
+        return jsonify(data)
+    return jsonify({"error": data}), 500
+
+
 @app.route("/api/oanda/status")
 def api_oanda_status():
     """OANDA連携ステータス + アカウント情報 + ヘルスチェック + 実行監査サマリー"""
