@@ -23,9 +23,35 @@ def test_r2_critical_cells_are_demoted():
         ("london_breakout", "USD_CHF"),
         ("three_bar_reversal", "USD_CHF"),
         ("vol_surge_detector", "USD_CHF"),
+        # 2026-08-05 (rule:R2): persistent-CRITICAL batch, see
+        # wiki/decisions/r2-shadow-demote-2026-08-05.md
+        ("dt_sr_channel_reversal", "AUD_JPY"),
+        ("engulfing_bb", "EUR_USD"),
+        ("london_breakout", "GBP_USD"),
+        ("ma_regime_switch", "USD_JPY"),
+        ("sr_break_retest", "EUR_JPY"),
+        ("sr_break_retest", "GBP_JPY"),
+        ("sr_break_retest", "GBP_USD"),
+        ("vol_momentum_scalp", "GBP_USD"),
+        ("vol_momentum_scalp", "USD_JPY"),
+        ("xs_momentum", "EUR_USD"),
     }
 
     assert expected == SHADOW_DEMOTED_CELLS
+
+
+def test_r2_batch_2026_08_05_deferred_cells_not_demoted():
+    # 24h-persistence rule: xs_momentum GBP_USD/USD_JPY flipped sign within
+    # 5h of the 08-04 19:28 alert (PF 0.89/0.98, knife-edge) — deferred, not
+    # demoted. This test documents the deferral; if a later batch demotes
+    # them after persistence is confirmed, update BOTH the registry and the
+    # expected set above, then flip these assertions.
+    assert not is_shadow_demoted("xs_momentum", "GBP_USD")
+    assert not is_shadow_demoted("xs_momentum", "USD_JPY")
+    # Cell-level stop must not leak to the strategies' healthy pairs.
+    assert not is_shadow_demoted("vol_momentum_scalp", "EUR_USD")
+    assert not is_shadow_demoted("sr_break_retest", "AUD_JPY")
+    assert not is_shadow_demoted("engulfing_bb", "GBP_USD")
 
 
 def test_usdchf_hourly_bleeder_cells_demoted():
@@ -38,8 +64,9 @@ def test_usdchf_hourly_bleeder_cells_demoted():
     assert is_shadow_demoted("engulfing_bb", "USD_CHF")
     # Per-cell stop, not a strategy retirement: the same strategies stay
     # alive on their other pairs (vol_surge_detector is SCALP_SENTINEL
-    # live on USD_JPY).
-    assert not is_shadow_demoted("london_breakout", "GBP_USD")
+    # live on USD_JPY). london_breakout x GBP_USD moved to the demoted set
+    # in the 2026-08-05 batch, so the leak-check example is EUR_USD now.
+    assert not is_shadow_demoted("london_breakout", "EUR_USD")
     assert not is_shadow_demoted("vol_surge_detector", "USD_JPY")
     assert not is_shadow_demoted("three_bar_reversal", "EUR_USD")
 

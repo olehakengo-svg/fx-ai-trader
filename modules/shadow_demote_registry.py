@@ -67,6 +67,26 @@ SHADOW_RETIRED_STRATEGIES = frozenset({
 
 
 SHADOW_DEMOTED_CELLS = frozenset({
+    # 2026-08-05 (rule:R2): R2 shadow-promote alert batch. 10 cells CRITICAL
+    # (N>=30, EV<0, 30d) persistently across the 2026-08-03..08-05 alert
+    # series (sr_break_retest x GBP_JPY entered CRITICAL 08-04 on N-crossing
+    # with EV -6.3..-7.4 throughout). Cell-level stop chosen over strategy
+    # env-var removal: the same strategies keep emitting on their
+    # non-CRITICAL pairs, and env KV toggles are not durable pins.
+    # xs_momentum x GBP_USD / x USD_JPY were CRITICAL only in the last two
+    # alerts (~7h apart, sign flipped from positive within 5h, PF 0.89/0.98)
+    # — deferred under the 24h-persistence rule; demote next cycle if still
+    # CRITICAL. Ref: wiki/decisions/r2-shadow-demote-2026-08-05.md
+    ("dt_sr_channel_reversal", "AUD_JPY"),
+    ("engulfing_bb", "EUR_USD"),
+    ("london_breakout", "GBP_USD"),
+    ("ma_regime_switch", "USD_JPY"),
+    ("sr_break_retest", "EUR_JPY"),
+    ("sr_break_retest", "GBP_JPY"),
+    ("sr_break_retest", "GBP_USD"),
+    ("vol_momentum_scalp", "GBP_USD"),
+    ("vol_momentum_scalp", "USD_JPY"),
+    ("xs_momentum", "EUR_USD"),
     ("bb_rsi_reversion", "EUR_USD"),
     ("bb_rsi_reversion", "GBP_USD"),
     ("bb_rsi_reversion", "USD_JPY"),
