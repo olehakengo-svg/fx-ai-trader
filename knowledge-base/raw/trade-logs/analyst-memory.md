@@ -3368,6 +3368,16 @@ Cutoff後の有効データは `price_shock_rev_aud_jpy_h1_long / AUD_JPY` の N
 - Cutoff後の累計データも蓄積途上（N=30基準に対し本日N=1）
 - 現在 **DD=100.01%（100%バリア突破後 held）** → DD防御0.2xモード継続中
 
+### 2026-08-05 (Post-London Report)
+| WR | — |
+| PnL (pips) | **0.0** |
+| WR | 100% (N=1) | — |
+| PnL | +29.0 pips | 0.0 pips |
+- 本日累計 N=1 / +29.0 pips は**東京早朝の単発ヒット**によるもの
+- ロンドンでの完全沈黙は東京比でトレード機会が0に収縮
+- ATR91%ile（EUR/JPY・USD/JPY）はロンドン開幕時点で既にピーク水準に達しており、spread拡大によるguard発動が最も有力な沈黙要因
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
