@@ -3378,6 +3378,16 @@ Cutoff後の有効データは `price_shock_rev_aud_jpy_h1_long / AUD_JPY` の N
 - ATR91%ile（EUR/JPY・USD/JPY）はロンドン開幕時点で既にピーク水準に達しており、spread拡大によるguard発動が最も有力な沈黙要因
 ### 推奨戦略配分
 
+### 2026-08-05 (Pre-Tokyo Briefing)
+2026-08-04（前日）は**トレードゼロ**。PnL合計 ¥0、トレード数 0、WR 算出不可。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> ⚠️ **N=2はシステム全体として「データなし」に等しい。** 両戦略ともN<10のため統計的判断は不能。EV・WRは参考値として記録するに留める。
+- Total=50、SENT=0、SKIP=50 → Live Rate **0%**
+- 50件全てがshadow_trackingまたはagg_kellyによりブロック → 本番口座への影響ゼロ、NAV変動なし（NAV=¥277,782）
+- エントリー条件が成立しない原因がレジーム側（Volatile偏重）にあるか、シグナル生成側にあるかを、本日のBlock Counts推移で判別する。現時点のBlock TOP3はすべて件数が少ない（最大4件）ため、hedge_blockや direction_filter による抑制も限定的。問題は「そもそもシグナルまで到達していない」可能性が高い。
+| EUR_USD | RANGING | 52% | +0.00224 | 1.15534 | DayTrade_eurには低ボラ帯。scalp_eur系はspreadがEVを圧迫しやすい |
+- USD_JPY ATR91%ile は過熱水準。**急速なATR収縮（RANGING化）**が起きると、現在のVOLATILE前提のシグナルがミスマッチを起こす可能性。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
