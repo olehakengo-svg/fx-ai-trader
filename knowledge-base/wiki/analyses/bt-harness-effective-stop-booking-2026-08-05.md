@@ -60,7 +60,7 @@ d. **optimistic モードの 0.6×TP WIN credit** — legacy 比較専用、defa
 ## 6. 過去 verdict への影響監査
 
 - **08-05 cell BT (raw/bt-results/sr-anti-hunt-eurjpy-cell-bt-2026-08-05.json)**: gate FAIL の結論は維持 (forward 枠転換済み) だが、**EV_R=−8.30 という数値は今後一切引用禁止** (phantom-loss 産物)。WR 0% も §5-a により evidence 能力なし
-- **05-05 shadow-redesign-v2 BT**: WR84.9%/EV+2.95 は optimistic 虚構。当時の用途は shadow 昇格判定のみ (RECOMMEND_SHADOW) で live 判断には未使用 — [[audit-past-verdicts]] 恒久指示の実例として追記対象
+- **05-05 shadow-redesign-v2 BT**: WR84.9%/EV+2.95 は optimistic 虚構。当時の用途は shadow 昇格判定のみ (RECOMMEND_SHADOW) で live 判断には未使用 — MEMORY `feedback_audit_past_verdicts_2026_08_05` (過去 verdict 自体を疑え) の実例
 - **d87d5b6c 以降の daytrade/scalp BT 全般**: decay 退出を含む LOSS の EV は sl_m に比例して過大悲観。**構成間の相対比較** (exit-repair grid 等、同一記帳規則下) は方向性有効だが、**絶対 EV の gate 判定**は本修正後の再計測が必要
 - forward 枠 `sr-anti-hunt-eurjpy-buy-forward-confirm` (fresh N≥40) は**影響なし** — shadow 実データ基準であり BT 非依存
 
