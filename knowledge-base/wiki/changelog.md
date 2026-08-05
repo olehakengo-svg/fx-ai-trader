@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-05 — docs(KB): ロット階段 R1 パケット標準テンプレ事前凍結 + 計算ツール (rule:R3、live 変更ゼロ)
+
+- **セル・ポートフォリオ論 (user 合意 2026-08-05) 執行項目②**: G3 到達セルの lot 昇格手続きを事前凍結 — [[lot-ladder-template-2026-08]]。標準階段 L0 1000u → L1 5000u → L2 10000u → L3 30000u、昇格 = 段ごと R1 + user 承認 (SLA 48h) / 降格 = R2 自動 (D1 slippage / D2 at-rung 出血 / D3 disaster / D4 合成 DD 4/6/8% NAV / D5 Wilson gate 割れ) の非対称を凍結
+- **推奨 lot = min(6 上限)**: half-Kelly 2 基底 (本番 `kelly_fraction` 式同期) / worst-case イベント損失 ≤2.5% NAV / 証拠金 worst-case 同時 ≤40% NAV (25x) / exposure 20k cap / MC P(セル DD>2% NAV, 12mo)≤5% (`monte_carlo_ruin` JPY 建て)。台帳は broker 実約定 JPY のみ (D-a/D-e 整合)
+- **計算ツール**: `tools/lot_ladder_calc.py` (§8 パケット機械生成、手計算禁止) + `tests/test_lot_ladder_calc.py` (25 tests、テンプレ worked example を数値 pin)
+- **wg 事前充填の主発見**: ① Wilson gate (D-d 拘束) は wg 級統計で **N_required=41 > G3 の 30** = G3 到達≠即増額、② wg の binding constraint は Kelly でなく **disaster SL 150p** (U_cellDD ≈ 5.4k → L1 が実質上限 @NAV 326k)、③ 3 ペア同時セルの L2+ は exposure 20k cap 改定 R1 同梱必須。単一セル垂直増額では thesis に届かない = セル 2〜5 本の合成が必要という算数を再確認
+- **評価への影響: なし** — 全セル lot/tier/live 経路不変更。第 1 適用は wg G3 到達時 (fill 修復前提、ETA 2027-05 @現ペース)
+
 ## 2026-08-05 — fix(risk): dashboard MC ruin の資本整合 (D-b 完結) + 549250 事故 disposition (rule:R3)
 
 - **「MC ruin 0%→100% 反転」(08-04 daily) の解剖**: gate 側 (`_get_ruin_probability`、実際に live 送信を止める方) の実測 = **ruin 0.0** (post-cutoff 全 N=566 + JPY 整合資本 5,801p、audit に mc_ruin block ゼロ) — **運用凍結は起きていない**。100% は dashboard 専用の三重 artifact (30d n=10 窓 × 資本 1000p ハードコード取り残し × 単位不均一 pip 系列)
