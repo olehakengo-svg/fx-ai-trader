@@ -82,6 +82,21 @@
       "message": "WS3 T11 診断 (2026-07-11): sr_anti_hunt_bounce×USD_JPY は探索窓で順行 MFE/MAE 非対称 1.71 (h24-48, 持続型・母集団上位2-3%) だが N=19<30 で underpowered。shadow 累積 N>=30 到達で round-1/round-2 と同一の OOS スクリーン (非診断窓 ratio 再計測 + block bootstrap + BH-FDR + first-touch EV レグ + ナイフエッジ3点) を1回限り実施。他4ペア + gbp_deep_pullback×GBP_USD は entry 劣化で close 済み。期日到達で N<30 なら stale レビュー"
     },
     {
+      "id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+      "active": true,
+      "type": "shadow_count_decision",
+      "entry_type": "sr_anti_hunt_bounce",
+      "instrument": "EUR_JPY",
+      "direction": "BUY",
+      "since": "2026-08-05",
+      "n_decide": 40,
+      "n_floor": 40,
+      "dedup_violation": 0,
+      "deadline": "2027-02-28",
+      "doc": "knowledge-base/wiki/decisions/sr-anti-hunt-eurjpy-r1-verdict-2026-08-05.md",
+      "message": "R1 昇格 NO-GO (2026-08-05) → forward 確認枠。セル凍結 = EUR_JPY×BUY、母集団 = dedup_violation=0 の shadow 新規 (2026-08-05 以降)。fresh N>=40 到達で 1 回限り判定: EV>0 (片側 t p<0.05) AND Wilson_lo>38.7% (BEV+5pp) AND 凍結後月次符号>=3/4。全通過で R1 パケット再起案 (BT ハーネス修復済みが前提)、不通過でセル クローズ。それまで本セル×outcome の中間再計算禁止 (P-10 型)。起案動機の p=2.2e-11 は dedup 後 EV n.s. + 5月一山型に減衰した経緯に注意"
+    },
+    {
       "id": "t8-sweep-defer-decision",
       "active": true,
       "type": "shadow_count_decision",
