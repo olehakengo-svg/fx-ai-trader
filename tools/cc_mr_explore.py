@@ -61,7 +61,9 @@ H_PRIMARY = 5                 # evening-grid nodes
 H_SECONDARY = 10
 EXPLORE_SIG_START = pd.Timestamp("2014-01-01")
 EXPLORE_SIG_END = pd.Timestamp("2021-12-31")
-HORIZON_CAP = pd.Timestamp("2022-01-31", tz="UTC")  # completion cap for Dec-2021 onsets
+# completion cap for Dec-2021 onsets; tz-naive because grid close_t values are
+# UTC-naive datetime64 after DataFrame construction
+HORIZON_CAP = pd.Timestamp("2022-01-31")
 DESPIKE_MULT = 8.0
 DESPIKE_WIN = 49              # centered rolling median, min_periods 25
 STD_FLOOR = 1e-6
