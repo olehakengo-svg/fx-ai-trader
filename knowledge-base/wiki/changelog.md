@@ -7,6 +7,21 @@
 - **判定への影響**: 08-05 cell BT の **EV_R=−8.30 は引用禁止** (gate FAIL 結論と forward 枠は不変)。05-05 の WR84.9% は optimistic 虚構 (BE 退出→+0.6×TP credit) で同じく引用禁止。**ablated BT の WR は wide-TP (≳3ATR) 戦略で構造的 ≈0 → wilson_lo 型 R1 ゲートは TP≲2ATR geometry 限定、wide-TP は TV Pine / shadow live で判定**。d87d5b6c 以降の daytrade/scalp BT 絶対 EV は decay-LOSS 比率×sl_m に比例して過大悲観 (相対比較は方向性有効)。詳細: [[bt-harness-effective-stop-booking-2026-08-05]]
 - **評価への影響**: live/shadow/tier/lot/Kelly 全て不変更 (BT 評価ロジックのみ)
 
+## 2026-08-05 — docs(KB): ロット階段 R1 パケット標準テンプレ事前凍結 + 計算ツール (rule:R3、live 変更ゼロ)
+
+- **セル・ポートフォリオ論 (user 合意 2026-08-05) 執行項目②**: G3 到達セルの lot 昇格手続きを事前凍結 — [[lot-ladder-template-2026-08]]。標準階段 L0 1000u → L1 5000u → L2 10000u → L3 30000u、昇格 = 段ごと R1 + user 承認 (SLA 48h) / 降格 = R2 自動 (D1 slippage / D2 at-rung 出血 / D3 disaster / D4 合成 DD 4/6/8% NAV / D5 Wilson gate 割れ) の非対称を凍結
+- **推奨 lot = min(6 上限)**: half-Kelly 2 基底 (本番 `kelly_fraction` 式同期) / worst-case イベント損失 ≤2.5% NAV / 証拠金 worst-case 同時 ≤40% NAV (25x) / exposure 20k cap / MC P(セル DD>2% NAV, 12mo)≤5% (`monte_carlo_ruin` JPY 建て)。台帳は broker 実約定 JPY のみ (D-a/D-e 整合)
+- **計算ツール**: `tools/lot_ladder_calc.py` (§8 パケット機械生成、手計算禁止) + `tests/test_lot_ladder_calc.py` (25 tests、テンプレ worked example を数値 pin)
+- **wg 事前充填の主発見**: ① Wilson gate (D-d 拘束) は wg 級統計で **N_required=41 > G3 の 30** = G3 到達≠即増額、② wg の binding constraint は Kelly でなく **disaster SL 150p** (U_cellDD ≈ 5.4k → L1 が実質上限 @NAV 326k)、③ 3 ペア同時セルの L2+ は exposure 20k cap 改定 R1 同梱必須。単一セル垂直増額では thesis に届かない = セル 2〜5 本の合成が必要という算数を再確認
+- **評価への影響: なし** — 全セル lot/tier/live 経路不変更。第 1 適用は wg G3 到達時 (fill 修復前提、ETA 2027-05 @現ペース)
+
+## 2026-08-05 — fix(risk): dashboard MC ruin の資本整合 (D-b 完結) + 549250 事故 disposition (rule:R3)
+
+- **「MC ruin 0%→100% 反転」(08-04 daily) の解剖**: gate 側 (`_get_ruin_probability`、実際に live 送信を止める方) の実測 = **ruin 0.0** (post-cutoff 全 N=566 + JPY 整合資本 5,801p、audit に mc_ruin block ゼロ) — **運用凍結は起きていない**。100% は dashboard 専用の三重 artifact (30d n=10 窓 × 資本 1000p ハードコード取り残し × 単位不均一 pip 系列)
+- **修復**: `/api/risk/dashboard` の `compute_risk_dashboard` に gate 側と同一式の `initial_capital` (OANDA_EQ_BASE_JPY/OANDA_JPY_PER_PIP_AVG) を接続 + n<20 低信頼フラグ。同一 n=10 系列で ruin **1.0→0.0**。D-b (Track C) が gate 側だけ直して dashboard 側が取り残された「同じ事実の片方欠落」の完結。pin `tests/test_mc_ruin_dashboard_capital_align.py`
+- **549250 (−123.2p) disposition**: 実損 ¥1,232 = NAV 0.34%、設計 horizon exit の範囲内。#4 tp=151.25 は placeholder 設計 (バグ非該当、R3 チェック完了)。#2 live_tier_exempt は pre-reg 承認済み estimand (regime veto 追加は Post-hoc tune 禁止に抵触、変更は R1)。#7 wg 非約定 = MARKET_HALTED 確定済み (2cf940f7)。**#3 ps demote 可否は user 決裁材料として整理 (推奨: LOCK の watchdog に委ねる / 代替: horizon 損失 cap の R1 amendment)**。詳細: [[mc-ruin-dashboard-artifact-2026-08-05]]
+- **評価への影響**: 表示計量の修正のみ — live/tier/lot/gate 閾値は全て不変更 (Gate2-4 は他条件で引き続き閉)
+
 ## 2026-08-05 — docs(KB): sr_anti_hunt_bounce×EUR_JPY R1 昇格判定 NO-GO → forward 確認 pre-reg (rule:R1 手続き、live 変更なし)
 
 - **user「進めて」(2026-08-05) による R1 パケット起案を精査の結果 NO-GO 裁定**: ①起案動機 p=2.2e-11 は dedup_violation 除去 (23/67 重複 emit) 後 **EV t p≈0.094 = n.s.** に減衰、②累計 +272.4p は 2026-05 単月依存 (5月除外で −53.3p)、③live N=4 符号逆、④事前宣言ゲート付き 365d cell BT は **ハーネス整合破綻を検出** (同一ハーネスが 05-05: WR84.9% → 08-05: WR0.0%、9ヶ月重複窓で反転 = app BT パスとの機械的不整合、R3 調査タスク発行) で評価不能。vix pilot 失敗構図より弱い証拠での昇格を回避

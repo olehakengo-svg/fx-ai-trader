@@ -15343,7 +15343,26 @@ def api_risk_dashboard():
         except Exception:
             dd_lot_mult = 1.0
 
-        dashboard = compute_risk_dashboard(closed, lot_multiplier=dd_lot_mult)
+        # Track C D-b 完結 (2026-08-05, rule:R3): MC の資本を gate 側
+        # (_get_ruin_probability の _ruin_capital_pips) と同一式で JPY 整合。
+        # D-b は gate 側だけ直し dashboard 側に旧 1000.0 デフォルトが残った
+        # 「同じ事実の片方欠落」— 単一 wide-stop JPY-cross fill (549250,
+        # −123.2p = ¥1,232 = NAV 0.34%) で ruin 表示が 0%→100% に反転した
+        # artifact の出所 (gate 側実測は ruin=0.0 で live 送信は無影響)。
+        # 詳細: knowledge-base/wiki/analyses/mc-ruin-dashboard-artifact-2026-08-05.md
+        _ruin_capital_pips = max(
+            float(os.environ.get("OANDA_EQ_BASE_JPY", "359109.0"))
+            / max(float(os.environ.get("OANDA_JPY_PER_PIP_AVG", "61.9")), 1.0),
+            1000.0,
+        )
+        dashboard = compute_risk_dashboard(
+            closed, initial_capital=_ruin_capital_pips,
+            lot_multiplier=dd_lot_mult)
+        # 30d rolling 窓は n が縮む (08-04 実測 n=10)。gate 側の
+        # _MIN_RUIN_TRADES=20 と同じ床で低信頼フラグを付す (値は残す —
+        # 表示消去は「見えない指標はゼロ」誤認を生むため)。
+        if isinstance(dashboard.get("monte_carlo"), dict):
+            dashboard["monte_carlo"]["small_sample_lowconf"] = len(closed) < 20
         dashboard["_filters"] = {
             "effective_date_from": effective_date_from,
             "all_time": all_time,
