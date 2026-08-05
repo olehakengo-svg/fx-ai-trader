@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-05 — fix(risk): dashboard MC ruin の資本整合 (D-b 完結) + 549250 事故 disposition (rule:R3)
+
+- **「MC ruin 0%→100% 反転」(08-04 daily) の解剖**: gate 側 (`_get_ruin_probability`、実際に live 送信を止める方) の実測 = **ruin 0.0** (post-cutoff 全 N=566 + JPY 整合資本 5,801p、audit に mc_ruin block ゼロ) — **運用凍結は起きていない**。100% は dashboard 専用の三重 artifact (30d n=10 窓 × 資本 1000p ハードコード取り残し × 単位不均一 pip 系列)
+- **修復**: `/api/risk/dashboard` の `compute_risk_dashboard` に gate 側と同一式の `initial_capital` (OANDA_EQ_BASE_JPY/OANDA_JPY_PER_PIP_AVG) を接続 + n<20 低信頼フラグ。同一 n=10 系列で ruin **1.0→0.0**。D-b (Track C) が gate 側だけ直して dashboard 側が取り残された「同じ事実の片方欠落」の完結。pin `tests/test_mc_ruin_dashboard_capital_align.py`
+- **549250 (−123.2p) disposition**: 実損 ¥1,232 = NAV 0.34%、設計 horizon exit の範囲内。#4 tp=151.25 は placeholder 設計 (バグ非該当、R3 チェック完了)。#2 live_tier_exempt は pre-reg 承認済み estimand (regime veto 追加は Post-hoc tune 禁止に抵触、変更は R1)。#7 wg 非約定 = MARKET_HALTED 確定済み (2cf940f7)。**#3 ps demote 可否は user 決裁材料として整理 (推奨: LOCK の watchdog に委ねる / 代替: horizon 損失 cap の R1 amendment)**。詳細: [[mc-ruin-dashboard-artifact-2026-08-05]]
+- **評価への影響**: 表示計量の修正のみ — live/tier/lot/gate 閾値は全て不変更 (Gate2-4 は他条件で引き続き閉)
+
 ## 2026-08-05 — docs(KB): sr_anti_hunt_bounce×EUR_JPY R1 昇格判定 NO-GO → forward 確認 pre-reg (rule:R1 手続き、live 変更なし)
 
 - **user「進めて」(2026-08-05) による R1 パケット起案を精査の結果 NO-GO 裁定**: ①起案動機 p=2.2e-11 は dedup_violation 除去 (23/67 重複 emit) 後 **EV t p≈0.094 = n.s.** に減衰、②累計 +272.4p は 2026-05 単月依存 (5月除外で −53.3p)、③live N=4 符号逆、④事前宣言ゲート付き 365d cell BT は **ハーネス整合破綻を検出** (同一ハーネスが 05-05: WR84.9% → 08-05: WR0.0%、9ヶ月重複窓で反転 = app BT パスとの機械的不整合、R3 調査タスク発行) で評価不能。vix pilot 失敗構図より弱い証拠での昇格を回避
