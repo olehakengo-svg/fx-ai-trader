@@ -77,7 +77,7 @@
 
 | pair | gap | 判定 | 結果 | 備考 |
 |---|---|---|---|---|
-| USD_JPY | **−22.5p ≥ 21.4p** | qualify → BUY fade 発火、**live 送信は正常実行** (agg-Kelly carve-out BYPASS 作動、1000u FOK SL=155.646) | **OANDA order 作成 (tx 549257, 21:01:27.9Z) だが fill transaction なし = tradeID 未取得、ポジション不成立** | oanda_audit = `sent` のまま。口座実査 (08-03): openTrades 0 / balance==NAV = **実損ゼロ・orphan なし**。FOK cancel が最有力 (Sunday open +87 秒)。cancel reason は応答 JSON がログ 300 字切り詰めで未確定 — 確定には本番からの transactions idrange 549257-549259 照会が必要 (followup) |
+| USD_JPY | **−22.5p ≥ 21.4p** | qualify → BUY fade 発火、**live 送信は正常実行** (agg-Kelly carve-out BYPASS 作動、1000u FOK SL=155.646) | **OANDA order 作成 (tx 549257, 21:01:27.9Z) だが fill transaction なし = tradeID 未取得、ポジション不成立** | oanda_audit = `sent` のまま。口座実査 (08-03): openTrades 0 / balance==NAV = **実損ゼロ・orphan なし**。**✅ cancel reason 実測確定 (08-05、`/api/oanda/transactions` 照会): tx 549258 ORDER_CANCEL reason=`MARKET_HALTED`** — FOK の流動性/価格バウンド問題ではなく、**日曜オープンの激動で OANDA 側が USD_JPY 市場を halt していた** (21:01:27.9Z、order 作成と同 ms)。含意: (i) FOK→IOC 変更は無効 (halt 中は注文タイプ無関係) (ii) 有効な候補は entry 繰り下げ (halt 解除後) or 限定 retry のみ (iii) 08-09 観測ではエントリー時点の halt 状態 (`tradeable`/halted) も記録すること |
 | EUR_USD | +17.5p < 20.0p | no-qualify | 不発 (正常) | 07-28 R3 の gap 診断ログが設計どおり作動 |
 | AUD_USD | +23.0p < 25.0p | no-qualify | 不発 (正常) | — |
 
@@ -86,6 +86,8 @@
 **分母の扱い**: 「送信 OK・FOK 不成立」は pre-reg §2.2 (no-retry) の執行契約内の正当な未執行 = **G1/G2/G3 の live N には入れない** (07-26 のバグ未送信とは区別: あちらはインフラ障害)。live 執行 N = **0/2 イベント**。
 
 **⚠️ 執行設計への実測疑義 (R1 決裁事項として記録、変更は未実施)**: stage-2 執行 pre-reg は Sunday open での fill 可能性を前提とするが、2 イベント連続で live fill ゼロ。FOK→IOC 変更・retry 追加・entry 時刻繰り下げ (spread 正常化 22:01 以降) はいずれも**凍結執行契約の変更 = R1 全段 + user 承認が必要**。次イベント 2026-08-09 (日) 前に user 決裁を仰ぐこと。
+
+**決裁記録 (2026-08-03)**: user 決裁「推奨で進めて」= **現状維持 (凍結執行契約のまま) で 08-09 イベントを追加観測**。根拠: live fill 失敗 N は実質 1 (07-26 はインフラ障害で執行設計の証拠にならない)、「大 gap ほど FOK 不成立」仮説の証拠不足、執行方式変更は estimand 破壊のため counterfactual (FOK vs IOC の約定率・スリッページ差) 定量化を前提とする。counterfactual の第一材料 = 08-02 cancel reason の確定 (`/api/oanda/transactions?from=549256&to=549260` — 本決裁と同 PR で追加した read-only 照会エンドポイント)。08-09 も不成立なら fill-rate 選択バイアスの証拠が N=2 になり、執行契約変更パケット (R1) を正式起案する。
 
 ## テスト
 
