@@ -44,6 +44,7 @@
 - gap なし退出でも `actual_sl_m = |ep − 実効stop| / ATR` を**必ず**設定 (planned sl_m への silent fallback を排除)
 - `time_exit_*` は sl_m を実測距離へ rebase 済みのため対象外、`signal_reverse` も従来通り対象外
 - 併発バグ修正: tools/sr_anti_hunt_bounce_shadow_bt.py `_pnl_r` の `or 1.0` falsy ガードが**正当な actual_sl_m=0.0 を 1.0 に coerce** (None ガードは `is None` で行うこと — 教訓「0 は falsy」)
+- 防御: 同型の `or` ガードは **tools/*_shadow_bt.py 65+ 本にコピペ展開** + app.py chunk-BT API 層 (`t.get("actual_sl_m") or ...`) にも存在。全書き換えは conflict/provenance リスクが大きいため、**発生源で actual_sl_m に 0.001 floor** (≈0.01pip、friction 0.05-0.15 比で無視可能) を敷き、下流の falsy ガードを構造的に無害化 (defense-in-depth)。新規 harness の `_pnl_r` は is None 判定で書くこと
 - 回帰 pin: `tests/test_effective_stop_loss_booking.py` (AST 構造、4 tests)。全 suite 2521 passed
 - 修正後 180d 再実行 (実測): ablated EV_R **−8.43 → −0.605** (N=28 / WR 0% は不変 — decay 退出は −friction 級 LOSS のままが正しく、残る負値は gap-through 実損と signal_reverse −4.1R)。optimistic 側は EV_R +3.50 — WIN credit 虚構は不変 (legacy 比較モード、default 到達不能)
 
