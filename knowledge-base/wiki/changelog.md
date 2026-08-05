@@ -1,5 +1,11 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-05 — docs(KB): sr_anti_hunt_bounce×EUR_JPY R1 昇格判定 NO-GO → forward 確認 pre-reg (rule:R1 手続き、live 変更なし)
+
+- **user「進めて」(2026-08-05) による R1 パケット起案を精査の結果 NO-GO 裁定**: ①起案動機 p=2.2e-11 は dedup_violation 除去 (23/67 重複 emit) 後 **EV t p≈0.094 = n.s.** に減衰、②累計 +272.4p は 2026-05 単月依存 (5月除外で −53.3p)、③live N=4 符号逆、④事前宣言ゲート付き 365d cell BT は **ハーネス整合破綻を検出** (同一ハーネスが 05-05: WR84.9% → 08-05: WR0.0%、9ヶ月重複窓で反転 = app BT パスとの機械的不整合、R3 調査タスク発行) で評価不能。vix pilot 失敗構図より弱い証拠での昇格を回避
+- **forward 確認枠 LOCK**: セル凍結 = EUR_JPY×BUY / dedup=0 / 2026-08-05 以降 fresh N≥40 で 1 回限り判定 (EV>0 ∧ Wilson_lo>38.7% ∧ 月次符号≥3/4)。registry `sr-anti-hunt-eurjpy-buy-forward-confirm` (期限 2027-02-28)。中間再計算禁止 (P-10 型)。詳細: [[sr-anti-hunt-eurjpy-r1-verdict-2026-08-05]]
+- **評価への影響: なし** — live/tier/lot/shadow 全て不変更。成果物 = 決裁 doc + registry + BT runner (`tools/sr_anti_hunt_eurjpy_cell_bt_2026_08_05.py`) + BT 乖離証拠 (raw/bt-results/)
+
 ## 2026-08-03 — fix(live): vix_carry_unwind×USD_JPY Overlap pilot 早期 demote (rule:R2, user 決裁)
 
 - **決裁**: 2026-07-31 quant-eval の早期 demote 推奨を user「進めて」承認 (2026-08-03)。07-07 継続裁定の「demote は user 決裁」要件を充足、checkpoint (live SELL N≥20 or 08-31、registry `vix-sell-pilot-recheck`) を待たず執行
