@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-05 — fix(bt): daytrade/scalp BT phantom-loss 記帳修正 — LOSS を実効ストップ基準に (rule:R3)
+
+- **R3 調査完結**: sr_anti_hunt×EUR_JPY BT の 05-05 WR84.9% → 08-05 WR0.0% 反転は **regime ではなく `d87d5b6c` (2026-05-15) の `_BT_ABLATE_BE_TRAIL` default 反転**が直接原因。加えて **phantom-loss 記帳バグ**を発見: time-decay tightening (MAX_HOLD×50%) で entry まで引き上げた stop の退出 (実損≈0) を、`actual_sl_m` が「fut_close >元 SL 時のみ設定」のため planned `sl_m` のフル損失で計上。anti-hunt 系は BT の SL 再計算 (QH 前 TP距離/1.2) で sl_m=6.5〜11 ATR となり **1 件 −8.3R 級の架空損失** (trade dump で bars_held 12-17 集中 + actual_sl_m: null 全件を実証)
+- **修正**: daytrade/scalp 両エンジンの LOSS 記帳を実効ストップ (`_dt_current_sl`/`_current_sl`) 基準化 + gap なし分岐でも actual_sl_m 必須設定。tools/sr_anti_hunt_bounce_shadow_bt.py `_pnl_r` の `or 1.0` falsy ガードが正当な 0.0 を coerce するバグも修正。run_backtest(1H)=非発現 / run_1h_backtest=既に close-based で対象外。回帰 pin `tests/test_effective_stop_loss_booking.py` (4 tests)、全 suite 2521 passed
+- **判定への影響**: 08-05 cell BT の **EV_R=−8.30 は引用禁止** (gate FAIL 結論と forward 枠は不変)。05-05 の WR84.9% は optimistic 虚構 (BE 退出→+0.6×TP credit) で同じく引用禁止。**ablated BT の WR は wide-TP (≳3ATR) 戦略で構造的 ≈0 → wilson_lo 型 R1 ゲートは TP≲2ATR geometry 限定、wide-TP は TV Pine / shadow live で判定**。d87d5b6c 以降の daytrade/scalp BT 絶対 EV は decay-LOSS 比率×sl_m に比例して過大悲観 (相対比較は方向性有効)。詳細: [[bt-harness-effective-stop-booking-2026-08-05]]
+- **評価への影響**: live/shadow/tier/lot/Kelly 全て不変更 (BT 評価ロジックのみ)
+
 ## 2026-08-05 — docs(KB): sr_anti_hunt_bounce×EUR_JPY R1 昇格判定 NO-GO → forward 確認 pre-reg (rule:R1 手続き、live 変更なし)
 
 - **user「進めて」(2026-08-05) による R1 パケット起案を精査の結果 NO-GO 裁定**: ①起案動機 p=2.2e-11 は dedup_violation 除去 (23/67 重複 emit) 後 **EV t p≈0.094 = n.s.** に減衰、②累計 +272.4p は 2026-05 単月依存 (5月除外で −53.3p)、③live N=4 符号逆、④事前宣言ゲート付き 365d cell BT は **ハーネス整合破綻を検出** (同一ハーネスが 05-05: WR84.9% → 08-05: WR0.0%、9ヶ月重複窓で反転 = app BT パスとの機械的不整合、R3 調査タスク発行) で評価不能。vix pilot 失敗構図より弱い証拠での昇格を回避
