@@ -544,7 +544,8 @@ def run_pass2() -> int:
         if ou is not None and pd.Timestamp(ev_["onset"]) <= ou:
             continue
         keep.append(i)
-        open_until[ev_["pair"]] = pd.Timestamp(ev_["exit5_ts"])
+        ex = pd.Timestamp(ev_["exit5_ts"])
+        open_until[ev_["pair"]] = ex.tz_localize(None) if ex.tzinfo else ex
     diag["skip_version"] = {"n": len(keep), "mean_net5": round(float(sv.loc[keep, "net5"].mean()), 3)}
     ov = 0
     for pair in survivors:

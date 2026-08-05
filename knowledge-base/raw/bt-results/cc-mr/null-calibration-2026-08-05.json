@@ -1,0 +1,10 @@
+{
+ "n_sims": 400,
+ "sims_with_events": 400,
+ "events_per_sim_mean": 67.7,
+ "null_mean_fade_net5_pips": -0.865,
+ "null_sd_of_sim_means": 10.664,
+ "se_of_grand_mean": 0.533,
+ "verdict": "estimator unbiased under driftless RW",
+ "provenance": "post-freeze non-binding diagnostic, synthetic GBM only (no market data), seed 99920260805; question raised by ceding wave-6 session 2026-08-05"
+}
