@@ -8736,7 +8736,14 @@ class DemoTrader:
         # N=22 EV=+1.30 と direction-of-evidence 収束.
         # → _PAIR_PROMOTED + _PAIR_SESSION_FILTER + _PAIR_LOT_BOOST=0.05 へ移動.
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
-        # ("vix_carry_unwind", "USD_JPY"),
+        # 2026-08-03 (rule:R2, user 決裁「進めて」): Overlap pilot 早期 demote で復帰。
+        # 07-07 継続裁定の根拠 (shadow 正 EV) が崩壊 — shadow 月次 04:+537p →
+        # 05〜07 累計 -216p/n=139 (April regime の遺産)。live 累計 N=26 PnL=-46.9p
+        # PF=0.66 (月次 3/4 負、07-30 に -30.1p SL_HIT)。checkpoint (live SELL
+        # N>=20 or 08-31) を待たず quant-eval-2026-07-31 の証拠悪化で執行。
+        # 再昇格は R1 (365d cell BT + Bonferroni + pre-reg LOCK + user 承認)。
+        # 詳細: knowledge-base/wiki/decisions/vix-pilot-early-demote-2026-08-03.md
+        ("vix_carry_unwind", "USD_JPY"),
         ("streak_reversal", "USD_JPY"),
         # 2026-05-27 (rule:R2 + R1-EXCEPTION pair): donchian × NZD revival に伴い
         # 漏れ出る他 pair を個別遮断 (Shadow 蓄積継続)。Shadow EV<-3p or N<5:
@@ -8839,7 +8846,11 @@ class DemoTrader:
         # Gate: _PAIR_SESSION_FILTER={"Overlap"}, lot=0.05x (defensive min).
         # Demote: Cell-Live N>=10 AND (EV<0 OR Wilson_LB<34.4%) → auto re-demote.
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
-        ("vix_carry_unwind", "USD_JPY"),       # Overlap-only pilot, 0.05x lot
+        # REMOVED 2026-08-03 (rule:R2, user 決裁): Overlap pilot 早期 demote →
+        # _PAIR_DEMOTED へ復帰。live N=26 -46.9p PF=0.66 + shadow エッジ減衰
+        # (05-07 累計 -216p)。詳細:
+        # knowledge-base/wiki/decisions/vix-pilot-early-demote-2026-08-03.md
+        # ("vix_carry_unwind", "USD_JPY"),     # was: Overlap-only pilot
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
         # REMOVED 2026-06-12 (rule:R2) Edge Factor Audit #5: promotion basis
         # (shadow N=39 EV=+1.35) overturned at N=132 → EV=-1.66. LIVE GBP_USD
@@ -9017,7 +9028,11 @@ class DemoTrader:
     # 2026-05-13 (rule:R2 pilot): vix_carry_unwind×USD_JPY Overlap-only pilot.
     # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
     _PAIR_SESSION_FILTER = {
-        ("vix_carry_unwind", "USD_JPY"): {"Overlap"},  # 12 <= UTC hour < 16
+        # REMOVED 2026-08-03 (rule:R2): paired with _PAIR_PROMOTED removal above.
+        # Overlap pilot 早期 demote (vix-pilot-early-demote-2026-08-03.md)。
+        # filter は PAIR_PROMOTED なしでは inert だが code consistency のため撤去
+        # (session_time_bias 2026-06-07/07-02 と同型)。
+        # ("vix_carry_unwind", "USD_JPY"): {"Overlap"},  # 12 <= UTC hour < 16
         # 2026-05-29 (rule:R2 cell forensic):
         # session_time_bias × EUR_USD now cell-conditional. Shadow cells:
         #   London   N=58 WR=44.8% Wlo=0.327 EV=+1.44 PF=1.41 ✅ edge
@@ -9066,7 +9081,10 @@ class DemoTrader:
         #       (tools/volume_live_promotion_watchdog.py, Live N≥10 EV<0 で自動 demote).
         # 旧 0.05x pre-reg: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
         # 新 1.0x pre-reg:  knowledge-base/wiki/decisions/vix-1x-intentional-exception-2026-05-21.md
-        ("vix_carry_unwind", "USD_JPY"): 1.0,
+        # REMOVED 2026-08-03 (rule:R2): paired with _PAIR_PROMOTED removal —
+        # Overlap pilot 早期 demote (vix-pilot-early-demote-2026-08-03.md)。
+        # boost は PAIR_PROMOTED なしでは inert だが code consistency のため撤去。
+        # ("vix_carry_unwind", "USD_JPY"): 1.0,
         # 2026-05-28 (rule:R1-EXCEPTION): user judgment, Kalman D7 trio mid-tier sizing.
         # 0.1x (UNIVERSAL_SENTINEL default) → 0.5x. Live N=0 (8 日 silent drop 修正後).
         # 3 variant 同時発火: 1 PO-UP transition で v17/v18f/v18e 全部発注 → 合計 1.5× exposure.

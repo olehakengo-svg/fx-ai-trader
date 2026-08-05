@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-07-28 07:26 UTC
+**最終更新**: 2026-08-03 06:17 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -13,7 +13,7 @@
 | # | 戦略名 | 365d BT JPY EV | EUR EV | GBP EV |
 |---|---|---|---|---|
 
-### A-2. PAIR_PROMOTED（22エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（21エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -32,13 +32,12 @@
 | 13 | price_shock_rev_nzd_jpy_h1_long | NZD_JPY | — |
 | 14 | price_shock_rev_usd_cad_h1_long | USD_CAD | — |
 | 15 | squeeze_release_momentum | EUR_USD | — |
-| 16 | vix_carry_unwind | USD_JPY | +0.506 |
-| 17 | vol_momentum_scalp | EUR_JPY | — |
-| 18 | vsg_jpy_reversal | EUR_JPY | — |
-| 19 | weekend_gap_fade | AUD_USD | — |
-| 20 | weekend_gap_fade | EUR_USD | — |
-| 21 | weekend_gap_fade | USD_JPY | — |
-| 22 | xs_momentum_rsi | USD_JPY | — |
+| 16 | vol_momentum_scalp | EUR_JPY | — |
+| 17 | vsg_jpy_reversal | EUR_JPY | — |
+| 18 | weekend_gap_fade | AUD_USD | — |
+| 19 | weekend_gap_fade | EUR_USD | — |
+| 20 | weekend_gap_fade | USD_JPY | — |
+| 21 | xs_momentum_rsi | USD_JPY | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
@@ -103,11 +102,11 @@
 | 17 | squeeze_release_momentum | EUR_USD |
 | 18 | sr_weighted_bounce | なし |
 | 19 | sr_weighted_break | なし |
-| 20 | vix_carry_unwind | USD_JPY |
+| 20 | vix_carry_unwind | なし |
 | 21 | vol_spike_mr | なし |
 | 22 | weekend_gap_fade | AUD_USD, EUR_USD, USD_JPY |
 
-### B-4. PAIR_DEMOTED（40エントリ — 特定ペアのみ強制Shadow）
+### B-4. PAIR_DEMOTED（41エントリ — 特定ペアのみ強制Shadow）
 
 | # | 戦略名 | ペア |
 |---|---|---|
@@ -144,13 +143,14 @@
 | 31 | trendline_sweep | EUR_USD |
 | 32 | trendline_sweep | GBP_USD |
 | 33 | v_reversal | USD_JPY |
-| 34 | vol_surge_detector | EUR_JPY |
-| 35 | vol_surge_detector | USD_JPY |
-| 36 | vwap_mean_reversion | GBP_USD |
-| 37 | wick_imbalance_reversion | GBP_USD |
-| 38 | xs_momentum | EUR_USD |
-| 39 | xs_momentum | GBP_USD |
-| 40 | xs_momentum | USD_JPY |
+| 34 | vix_carry_unwind | USD_JPY |
+| 35 | vol_surge_detector | EUR_JPY |
+| 36 | vol_surge_detector | USD_JPY |
+| 37 | vwap_mean_reversion | GBP_USD |
+| 38 | wick_imbalance_reversion | GBP_USD |
+| 39 | xs_momentum | EUR_USD |
+| 40 | xs_momentum | GBP_USD |
+| 41 | xs_momentum | USD_JPY |
 
 ### B-5. Phase B-1 Shadow candidate pairs
 
