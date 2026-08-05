@@ -18,9 +18,12 @@ def test_demoted_shadow_emit_cell_is_removed():
 
 
 def test_non_demoted_pair_still_emits():
+    # engulfing_bb x EUR_USD joined the demoted set in the 2026-08-05 R2
+    # batch (persistent CRITICAL) — GBP_USD is the still-emitting example
+    # cell for this strategy now (WARN, below the demote gate).
     emits = [{"entry_type": "engulfing_bb", "signal": "BUY"}]
 
-    assert _filter_shadow_emits(emits, "EUR_USD") == emits
+    assert _filter_shadow_emits(emits, "GBP_USD") == emits
 
 
 def test_retired_sr_fib_gbpusd_is_shadow_demoted():
