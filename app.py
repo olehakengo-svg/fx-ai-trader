@@ -6273,11 +6273,18 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                               "exit_friction_m": round(_exit_friction_m, 4),
                               "exit_reason": _exit_reason,
                               "_is_range_tp_override": _is_range_tp_override}
-                if outcome == "LOSS" and _exit_reason != "signal_reverse":
-                    if sig == "BUY" and fut_close < sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
-                    elif sig == "SELL" and fut_close > sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
+                # R3 2026-08-05: LOSS は実効ストップ (_current_sl) 基準で記帳
+                # (daytrade 側と同一の phantom-loss 修正、KB 同 doc 参照)。
+                if outcome == "LOSS" and _exit_reason == "tp_sl":
+                    # 0.001 floor: daytrade 側と同じ falsy-coerce 防御
+                    _atr7_safe_sc = max(atr7, 1e-6)
+                    if ((sig == "BUY" and fut_close < _current_sl)
+                            or (sig == "SELL" and fut_close > _current_sl)):
+                        trade_dict["actual_sl_m"] = max(round(
+                            min(abs(fut_close - ep) / _atr7_safe_sc, sl_m * 1.2), 3), 0.001)
+                    else:
+                        trade_dict["actual_sl_m"] = max(round(
+                            abs(ep - _current_sl) / _atr7_safe_sc, 3), 0.001)
                 trades.append(trade_dict)
 
         # ── Phase 5: 摩擦込みPnL関数 (EV計算リベース) ──
@@ -7222,11 +7229,23 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 "entry_friction": round(_spread / 2 + _slip_dt, 6),
                                 "exit_friction": round(_exit_friction_dt, 6),
                                 "_is_range_tp_override": _is_range_tp_override}
-                if outcome == "LOSS" and _exit_reason_dt != "signal_reverse":
-                    if sig == "BUY" and fut_close < sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
-                    elif sig == "SELL" and fut_close > sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
+                # R3 2026-08-05: LOSS は実効ストップ (_dt_current_sl) 基準で記帳。
+                # time-decay で entry 付近へ引き上げた stop の退出 (実損≈0) を
+                # planned sl_m のフル損失 (anti-hunt 系で 6-11 ATR) として計上する
+                # phantom-loss を排除。time_exit_* は sl_m を実測距離へ rebase 済み
+                # のため対象外。ref: wiki/analyses/bt-harness-effective-stop-booking-2026-08-05.md
+                if outcome == "LOSS" and _exit_reason_dt == "tp_sl":
+                    # 0.001 floor: 下流 harness の `or` 型 falsy ガード (tools/*_shadow_bt
+                    # の _pnl_r 等 65+ 箇所) が正当な 0.0 を planned sl_m に coerce して
+                    # phantom-loss を復活させるのを発生源で防ぐ
+                    _atr_safe_dt = max(atr, 1e-6)
+                    if ((sig == "BUY" and fut_close < _dt_current_sl)
+                            or (sig == "SELL" and fut_close > _dt_current_sl)):
+                        trade_dict["actual_sl_m"] = max(round(
+                            min(abs(fut_close - ep) / _atr_safe_dt, sl_m * 1.2), 3), 0.001)
+                    else:
+                        trade_dict["actual_sl_m"] = max(round(
+                            abs(ep - _dt_current_sl) / _atr_safe_dt, 3), 0.001)
                 trades.append(trade_dict)
 
         # ── Phase 5: 摩擦込みPnL関数 (EV計算リベース) ──
