@@ -77,7 +77,7 @@
 
 | pair | gap | 判定 | 結果 | 備考 |
 |---|---|---|---|---|
-| USD_JPY | **−22.5p ≥ 21.4p** | qualify → BUY fade 発火、**live 送信は正常実行** (agg-Kelly carve-out BYPASS 作動、1000u FOK SL=155.646) | **OANDA order 作成 (tx 549257, 21:01:27.9Z) だが fill transaction なし = tradeID 未取得、ポジション不成立** | oanda_audit = `sent` のまま。口座実査 (08-03): openTrades 0 / balance==NAV = **実損ゼロ・orphan なし**。FOK cancel が最有力 (Sunday open +87 秒)。cancel reason は応答 JSON がログ 300 字切り詰めで未確定 — 確定には本番からの transactions idrange 549257-549259 照会が必要 (followup) |
+| USD_JPY | **−22.5p ≥ 21.4p** | qualify → BUY fade 発火、**live 送信は正常実行** (agg-Kelly carve-out BYPASS 作動、1000u FOK SL=155.646) | **OANDA order 作成 (tx 549257, 21:01:27.9Z) だが fill transaction なし = tradeID 未取得、ポジション不成立** | oanda_audit = `sent` のまま。口座実査 (08-03): openTrades 0 / balance==NAV = **実損ゼロ・orphan なし**。**✅ cancel reason 実測確定 (08-05、`/api/oanda/transactions` 照会): tx 549258 ORDER_CANCEL reason=`MARKET_HALTED`** — FOK の流動性/価格バウンド問題ではなく、**日曜オープンの激動で OANDA 側が USD_JPY 市場を halt していた** (21:01:27.9Z、order 作成と同 ms)。含意: (i) FOK→IOC 変更は無効 (halt 中は注文タイプ無関係) (ii) 有効な候補は entry 繰り下げ (halt 解除後) or 限定 retry のみ (iii) 08-09 観測ではエントリー時点の halt 状態 (`tradeable`/halted) も記録すること |
 | EUR_USD | +17.5p < 20.0p | no-qualify | 不発 (正常) | 07-28 R3 の gap 診断ログが設計どおり作動 |
 | AUD_USD | +23.0p < 25.0p | no-qualify | 不発 (正常) | — |
 
