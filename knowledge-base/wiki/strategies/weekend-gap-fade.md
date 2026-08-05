@@ -87,6 +87,8 @@
 
 **⚠️ 執行設計への実測疑義 (R1 決裁事項として記録、変更は未実施)**: stage-2 執行 pre-reg は Sunday open での fill 可能性を前提とするが、2 イベント連続で live fill ゼロ。FOK→IOC 変更・retry 追加・entry 時刻繰り下げ (spread 正常化 22:01 以降) はいずれも**凍結執行契約の変更 = R1 全段 + user 承認が必要**。次イベント 2026-08-09 (日) 前に user 決裁を仰ぐこと。
 
+**決裁記録 (2026-08-03)**: user 決裁「推奨で進めて」= **現状維持 (凍結執行契約のまま) で 08-09 イベントを追加観測**。根拠: live fill 失敗 N は実質 1 (07-26 はインフラ障害で執行設計の証拠にならない)、「大 gap ほど FOK 不成立」仮説の証拠不足、執行方式変更は estimand 破壊のため counterfactual (FOK vs IOC の約定率・スリッページ差) 定量化を前提とする。counterfactual の第一材料 = 08-02 cancel reason の確定 (`/api/oanda/transactions?from=549256&to=549260` — 本決裁と同 PR で追加した read-only 照会エンドポイント)。08-09 も不成立なら fill-rate 選択バイアスの証拠が N=2 になり、執行契約変更パケット (R1) を正式起案する。
+
 ## テスト
 
 `tests/test_weekend_gap_fade.py` (29 tests): 検出 (qualify/非qualify/方向/ガード/窓/凍結閾値) / cap 境界とスコープ / latch dedup + fail-closed / G1/G2 発火・境界・**非再武装** / 1000u・horizon・disaster SL・no-TP・登録 4 点 pin。
