@@ -3398,6 +3398,16 @@ Cutoff後の有効データは `price_shock_rev_aud_jpy_h1_long / AUD_JPY` の N
 - `order_bar_dedup` (daytrade計50件) → 同バーでの重複が多発。レジームが不規則な短期動意を繰り返している兆候として観察継続。
 - **Daytrade系（JPYクロス）**: VOLATILE環境はATRが広いため方向性フィルタが頻発ヒット。エントリー条件が厳しくなりブロック増加は合理的。逆に抜けた場合のペイオフは大きくなる可能性。
 
+### 2026-08-06 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+- **`hedge_block` (最多・3戦略一致):** EUR_JPY/GBP_JPY/USD_JPY がいずれもATR%ile **84–91%（VOLATILE）** かつSMA20 Slope がマイナス（円高方向へのトレンド）。ヘッジポジションが既存または潜在的に検出され、新規エントリーを全ブロック。JPY系ペアが高ボラ環境で一方向性圧力を受けている状況下で設計通り機能している。
+- **`order_bar_dedup` × GBP_JPY (17件):** 同バー内の重複注文抑制。GBP_JPYのATR%ile 84%という高ボラ環境で短時間内に複数シグナルが重複発生しているとみられる。
+- **`direction_filter` × rnb_usdjpy (17件):** USD_JPY がVOLATILE + Slope −0.00608（本日最大の円高傾斜）。レンジブレイク戦略のディレクション条件と相反する方向性が継続判定されたと解釈。
+- **`r2_shadow_demoted_cell` × scalp系 (16件):** Shadow demotion済みセルへの到達が継続。これはv6.3以降の構造的フィルタが機能している正常動作であり、エラーではない。
+- **`agg_kelly<0` (−0.426):** Kelly推定がマイナスでOANDA Bridgeがブロック。現在のEV構造がliveエントリーに耐えない水準。
+- ブロックは全て既存ロジックの**設計通りの動作**（hedge_block、dedup、direction_filter）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
