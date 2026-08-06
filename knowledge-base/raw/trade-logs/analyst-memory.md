@@ -3388,6 +3388,16 @@ Cutoff後の有効データは `price_shock_rev_aud_jpy_h1_long / AUD_JPY` の N
 | EUR_USD | RANGING | 52% | +0.00224 | 1.15534 | DayTrade_eurには低ボラ帯。scalp_eur系はspreadがEVを圧迫しやすい |
 - USD_JPY ATR91%ile は過熱水準。**急速なATR収縮（RANGING化）**が起きると、現在のVOLATILE前提のシグナルがミスマッチを起こす可能性。
 
+### 2026-08-06 (Pre-Tokyo Briefing)
+前日（2026-08-05）は **1トレード、WR 100%、PnL +29.0p** にて終了。
+ただし Cutoff後累計では **N=2 / WR=50% / EV=−47.1p**（1件目の AUD_JPY −123.2pが大きく足を引く）と、累計EV は依然マイナス圏。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的判断**: 全戦略 N<10 → いずれも「データなし」扱い。EV・WRは現時点で判断根拠なし。
+- `rnb_usdjpy:direction_filter` (81件) が最大ブロック要因 → USD_JPYが VOLATILE 91%ile の中でフィルタが連続発動している可能性。本日も同一レジームが継続する見込みのため、**rnb_usdjpyのエントリー頻度は引き続き低い前提で計画**。
+- `r2_shadow_demoted_cell` 系（scalp合計146件）→ shadowセルがデモシグナルを押さえている構造。**スキャルプ系の実質的な供給源はほぼ枯渇状態**であることを認識した上で監視。
+- `order_bar_dedup` (daytrade計50件) → 同バーでの重複が多発。レジームが不規則な短期動意を繰り返している兆候として観察継続。
+- **Daytrade系（JPYクロス）**: VOLATILE環境はATRが広いため方向性フィルタが頻発ヒット。エントリー条件が厳しくなりブロック増加は合理的。逆に抜けた場合のペイオフは大きくなる可能性。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
