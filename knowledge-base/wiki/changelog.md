@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-06 — fix(risk): DD 台帳が broker 決済 (OANDA_SL_TP) を計上していなかった構造バグ (rule:R3)
+
+- **バグ**: `_sync_oanda_closures()` (broker 側 SL/TP 約定の同期クローズ経路) が Equity 台帳を**一切更新していなかった**。台帳更新は内部決済パスにインライン実装されており sync 経路から到達不能。DD 台帳は defensive lot multiplier の **SSOT** (Track C D-b) なので、表示バグではなく**サイジング入力が実 book から乖離**していた
+- **恒等式による証明**: 台帳 anchor 以降の KV 実測 delta **−1,527.00 JPY** = 内部経路 3 件 (−152.7p × ¥10) と**完全一致**、broker 経路の +29.0p (¥290) の寄与は**ちょうどゼロ**。誤差でも丸めでもない一度も計上していない証拠
+- **欠落母集団の規模と符号** (本番実測、`oanda_trade_id != ''` ∧ 非 XAU ∧ 非 shadow): 計上済 n=37 / −319.3p (mean −8.63) vs **欠落 n=21 / +28.0p (mean +1.33、WR 85.7%)**。欠落が全決済の **36.2%** を占め**正 EV 側に偏る** — broker TP 約定は sync 経由でしか観測されない一方、損失は demo 側 SL 判定が先に発火するため。**台帳は実 book より構造的に悪い DD を報告し防御 multiplier を過剰に絞っていた** (原則 4 に反する方向)
+- **修正**: 台帳更新を `_apply_equity_ledger_close()` に集約し内部/broker 両経路が同一 helper を通る形へ正規化 (加算箇所の本数をテストで pin = インライン再実装の再発防止)。欠落分は定数でなく **DB から再導出**する一度きり backfill `_backfill_broker_close_ledger_gap()` (KV フラグで冪等、anchor 以前は D-a 実測に吸収済みのため対象外)。pin `tests/test_dd_ledger_broker_close.py` (12 tests、中核 2 件は修正前コードで実際に FAIL することを確認)
+- **評価への影響**: **live lot 不変** — 補正で DD 9.56%→9.48%、`DD_LOT_TIERS` の 8% 境界を跨がず 0.20x 維持 (tier 中立性もテスト pin)。純粋な会計是正であり防御緩和ではない。ただし**今後は broker TP 約定が正しく計上され DD 回復経路が実 book どおりに進む** (従来は勝ちが台帳に載らず 0.40x 復帰が構造的に遠のいていた)。詳細: [[dd-ledger-broker-close-gap-2026-08-06]]
+
 ## 2026-08-05 — fix(bt): daytrade/scalp BT phantom-loss 記帳修正 — LOSS を実効ストップ基準に (rule:R3)
 
 - **R3 調査完結**: sr_anti_hunt×EUR_JPY BT の 05-05 WR84.9% → 08-05 WR0.0% 反転は **regime ではなく `d87d5b6c` (2026-05-15) の `_BT_ABLATE_BE_TRAIL` default 反転**が直接原因。加えて **phantom-loss 記帳バグ**を発見: time-decay tightening (MAX_HOLD×50%) で entry まで引き上げた stop の退出 (実損≈0) を、`actual_sl_m` が「fut_close >元 SL 時のみ設定」のため planned `sl_m` のフル損失で計上。anti-hunt 系は BT の SL 再計算 (QH 前 TP距離/1.2) で sl_m=6.5〜11 ATR となり **1 件 −8.3R 級の架空損失** (trade dump で bars_held 12-17 集中 + actual_sl_m: null 全件を実証)

@@ -1082,6 +1082,13 @@ class DemoTrader:
             except Exception:
                 self._eq_peak_jpy = 0.0
                 self._eq_current_jpy = 0.0
+        # ── 2026-08-06 (rule:R3): broker 決済パス欠落分の一度きり backfill ──
+        # `_sync_oanda_closures()` が台帳 helper を呼んでいなかったため、
+        # close_reason='OANDA_SL_TP' の決済が anchor 以降まるごと未計上。
+        # 定数ではなく DB から再導出する (欠落母集団は「eligible ∧
+        # close_reason='OANDA_SL_TP' ∧ exit_time >= anchor」で決定論的に確定)。
+        self._backfill_broker_close_ledger_gap()
+
         # JPY 台帳が有効な場合は起動時に multiplier を JPY DD で整合させる
         if self._eq_peak_jpy > 0:
             _dd_jpy_pct = (self._eq_peak_jpy - self._eq_current_jpy) / max(
@@ -2437,6 +2444,150 @@ class DemoTrader:
 
         return 0
 
+    # 台帳 anchor (Track C D-b, eq_jpy_ledger_v1) の再基準化日。D-a 実測は
+    # broker `oanda_trades.realized_pl` 由来なので、これ**以前**の欠落は
+    # anchor 値に既に吸収済み。backfill 対象は anchor 以降のみ。
+    _LEDGER_BROKER_BACKFILL_CUTOFF = "2026-07-28T00:00:00"
+    _LEDGER_BROKER_BACKFILL_FLAG = "eq_ledger_broker_close_backfill_v1"
+
+    def _backfill_broker_close_ledger_gap(self) -> float:
+        """broker 決済パス欠落分を一度きり台帳へ計上する (2026-08-06, rule:R3)。
+
+        `_sync_oanda_closures()` が `_apply_equity_ledger_close` を呼ばない
+        構造バグにより、`close_reason='OANDA_SL_TP'` の決済が anchor 以降
+        まるごと未計上だった。欠落母集団は決定論的に確定できる (当該経路は
+        **一度も**計上していないため、「計上済みか」の状態を持つ必要がない)。
+
+        本番実測 (2026-08-06): 対象 1 件 = +29.0p (¥290、oid 549260)。
+        補正後 DD 9.56% → 9.48% で **DD tier (≥8% → 0.20x) は不変** =
+        live lot への影響なしの純粋な会計修正。
+
+        Returns:
+            計上した JPY 額 (実行済み or 対象なしなら 0.0)。
+        """
+        try:
+            if self._db.get_system_kv(self._LEDGER_BROKER_BACKFILL_FLAG, "0") == "1":
+                return 0.0
+            # anchor 未確立 (JPY 台帳 OFF) なら何もしない — anchor 側が先。
+            if not (self._eq_peak_jpy > 0):
+                return 0.0
+            _missed = [
+                t for t in self._db.get_all_closed()
+                if (t.get("close_reason") or "") == "OANDA_SL_TP"
+                and (t.get("exit_time") or "") >= self._LEDGER_BROKER_BACKFILL_CUTOFF
+                and bool(t.get("oanda_trade_id"))
+                and not t.get("is_shadow", 0)
+                and "XAU" not in (t.get("instrument", "") or "")
+            ]
+            _sum_pips = 0.0
+            _sum_jpy = 0.0
+            for _t in _missed:
+                _p = float(_t.get("pnl_pips", 0) or 0)
+                _sum_pips += _p
+                _sum_jpy += _p * pip_value_jpy(
+                    _t.get("instrument", "") or "",
+                    _t.get("units", 0), self._rate_mid)
+            self._eq_current += _sum_pips
+            if self._eq_current > self._eq_peak:
+                self._eq_peak = self._eq_current
+            self._eq_current_jpy += _sum_jpy
+            if self._eq_current_jpy > self._eq_peak_jpy:
+                self._eq_peak_jpy = self._eq_current_jpy
+            self._db.set_system_kv("eq_peak", str(round(self._eq_peak, 2)))
+            self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
+            self._db.set_system_kv("eq_peak_jpy", str(round(self._eq_peak_jpy, 2)))
+            self._db.set_system_kv("eq_current_jpy", str(round(self._eq_current_jpy, 2)))
+            self._db.set_system_kv(self._LEDGER_BROKER_BACKFILL_FLAG, "1")
+            print(f"[track-c] broker-close ledger backfill: n={len(_missed)} "
+                  f"{_sum_pips:+.1f}p / {_sum_jpy:+.0f}JPY -> "
+                  f"current_jpy={self._eq_current_jpy:.2f}", flush=True)
+            return _sum_jpy
+        except Exception as _be:
+            print(f"[track-c] broker-close ledger backfill failed: {_be}", flush=True)
+            return 0.0
+
+    def _apply_equity_ledger_close(self, trade, pnl) -> bool:
+        """決済 1 件を Equity 台帳 (pip / JPY) に計上し DD multiplier を更新する。
+
+        2026-08-06 (rule:R3) 構造バグ修復: 本処理は内部決済パスに**インライン**で
+        書かれており、broker 側 SL/TP 約定を検知する `_sync_oanda_closures()`
+        からは呼ばれていなかった。結果 `close_reason='OANDA_SL_TP'` の決済が
+        DD 台帳に一切計上されず、multiplier の SSOT である JPY 台帳が broker
+        book から乖離した (KB lesson「同じ事実を表す複数列は同じ statement で
+        更新する」の再発)。
+
+        本番実測 (2026-08-06、`oanda_trade_id != ''` ∧ 非 XAU ∧ 非 shadow):
+          台帳計上済 n=37 / −319.3p (mean −8.63)
+          台帳欠落   n=21 / **+28.0p** (mean +1.33、WR 85.7%)
+        欠落側が 36.2% を占め、かつ**正 EV に偏る** — broker TP 約定は sync
+        経由でしか観測されないのに対し、損失は demo 側 SL 判定が先に発火する
+        ため。よって台帳は実 book より構造的に悪い DD を報告し、防御
+        multiplier を過剰に絞る (原則 4「攻撃は最大の防御」に反する方向)。
+
+        恒等式による確認: 台帳 anchor (2026-07-28) 以降の KV 実測 delta
+        −1527.00 JPY は計上済 3 件 (−152.7p × ¥10) と**完全一致**し、欠落した
+        +29.0p (¥290) の寄与はゼロ。
+
+        Returns:
+            台帳に計上したら True、母集団外 (shadow / 非 OANDA / XAU) なら False。
+        """
+        # Track C D-b (2026-07-28): 母集団 = broker 実約定 (oanda_trade_id) 限定
+        # (遡及 shadow 化・KV 再現不能残差 −335.3p の汚染を構造排除)。
+        # multiplier の SSOT は JPY 台帳。pip 台帳は継続監視用に併記維持。
+        _is_eq_eligible = (
+            bool(trade.get("oanda_trade_id"))
+            and not trade.get("is_shadow", 0)
+            and "XAU" not in (trade.get("instrument", "") or "")
+        )
+        if not _is_eq_eligible:
+            return False
+
+        # legacy pip 台帳 (継続監視用 — multiplier には使わない)
+        self._eq_current += pnl
+        if self._eq_current > self._eq_peak:
+            self._eq_peak = self._eq_current
+        _eq_dd = self._eq_peak - self._eq_current
+
+        # JPY 台帳 (SSOT): pnl_pips × units × pip価値(JPY)
+        _pnl_jpy = pnl * pip_value_jpy(
+            trade.get("instrument", "") or "",
+            trade.get("units", 0), self._rate_mid)
+        self._eq_current_jpy += _pnl_jpy
+        if self._eq_current_jpy > self._eq_peak_jpy:
+            self._eq_peak_jpy = self._eq_current_jpy
+        _eq_dd_jpy = self._eq_peak_jpy - self._eq_current_jpy
+        _eq_dd_pct = _eq_dd_jpy / max(self._EQ_BASE_CAPITAL_JPY, 1.0)
+        _prev_dd_mult = self._dd_lot_mult
+        _new_dd_mult = get_dd_lot_multiplier(_eq_dd_pct)
+        self._dd_lot_mult = _new_dd_mult
+        # v7.0: backward compat flag (True if any DD reduction active)
+        self._defensive_mode = _new_dd_mult < 1.0
+
+        if _new_dd_mult < _prev_dd_mult:
+            self._add_log(
+                f"🛡️ DD REDUCTION: DD={_eq_dd_jpy:.0f}JPY ({_eq_dd_pct:.1%}, "
+                f"pip台帳 {_eq_dd:.1f}p) "
+                f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
+            )
+        elif _new_dd_mult > _prev_dd_mult:
+            self._add_log(
+                f"🟢 DD RECOVERY: DD={_eq_dd_jpy:.0f}JPY ({_eq_dd_pct:.1%}, "
+                f"pip台帳 {_eq_dd:.1f}p) "
+                f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
+            )
+
+        # ── v7.0: Equity state DB永続化 (deploy survive) ──
+        try:
+            self._db.set_system_kv("eq_peak", str(round(self._eq_peak, 2)))
+            self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
+            self._db.set_system_kv("eq_peak_jpy", str(round(self._eq_peak_jpy, 2)))
+            self._db.set_system_kv("eq_current_jpy", str(round(self._eq_current_jpy, 2)))
+            self._db.set_system_kv("defensive_mode", "1" if self._defensive_mode else "0")
+            self._db.set_system_kv("dd_lot_mult", str(round(self._dd_lot_mult, 2)))
+        except Exception:
+            pass  # DB書き込み失敗は決済処理をブロックしない
+        return True
+
     def _sync_oanda_closures(self):
         """OANDA側で決済済みだがデモ側OPENのトレードを同期クローズ"""
         if not self._oanda.active:
@@ -2504,6 +2655,10 @@ class DemoTrader:
                         pnl = result.get("pnl_pips", 0)
                         outcome = result.get("outcome", "?")
                         icon = "✅" if outcome == "WIN" else "❌"
+                        # ── Equity 台帳 (2026-08-06, rule:R3) ──
+                        # broker 側 SL/TP 約定はこの経路でしか観測されない。
+                        # 内部決済パスと同一 helper を通す (欠落バグの修復)。
+                        self._apply_equity_ledger_close(demo_trade, pnl)
                         self._add_log(
                             f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "
                             f"{demo_trade['direction']} @ {demo_trade['entry_price']:.3f} → {close_price:.3f} | "
@@ -3348,59 +3503,10 @@ class DemoTrader:
                         _fr_str += "⚠️"  # 摩擦がPnL超過
 
                 # ── Equity Curve Protector: 段階的DDロット縮小 v7.0 ──
-                # Track C D-b (2026-07-28): 母集団 = broker 実約定 (oanda_trade_id) 限定
-                # (遡及 shadow 化・KV 再現不能残差 −335.3p の汚染を構造排除)。
-                # multiplier の SSOT は JPY 台帳。pip 台帳は継続監視用に併記維持。
-                _is_eq_eligible = (
-                    bool(trade.get("oanda_trade_id"))
-                    and not trade.get("is_shadow", 0)
-                    and "XAU" not in (trade.get("instrument", "") or "")
-                )
-                if _is_eq_eligible:
-                    # legacy pip 台帳 (継続監視用 — multiplier には使わない)
-                    self._eq_current += pnl
-                    if self._eq_current > self._eq_peak:
-                        self._eq_peak = self._eq_current
-                    _eq_dd = self._eq_peak - self._eq_current
-
-                    # JPY 台帳 (SSOT): pnl_pips × units × pip価値(JPY)
-                    _pnl_jpy = pnl * pip_value_jpy(
-                        trade.get("instrument", "") or "",
-                        trade.get("units", 0), self._rate_mid)
-                    self._eq_current_jpy += _pnl_jpy
-                    if self._eq_current_jpy > self._eq_peak_jpy:
-                        self._eq_peak_jpy = self._eq_current_jpy
-                    _eq_dd_jpy = self._eq_peak_jpy - self._eq_current_jpy
-                    _eq_dd_pct = _eq_dd_jpy / max(self._EQ_BASE_CAPITAL_JPY, 1.0)
-                    _prev_dd_mult = self._dd_lot_mult
-                    _new_dd_mult = get_dd_lot_multiplier(_eq_dd_pct)
-                    self._dd_lot_mult = _new_dd_mult
-                    # v7.0: backward compat flag (True if any DD reduction active)
-                    self._defensive_mode = _new_dd_mult < 1.0
-
-                    if _new_dd_mult < _prev_dd_mult:
-                        self._add_log(
-                            f"🛡️ DD REDUCTION: DD={_eq_dd_jpy:.0f}JPY ({_eq_dd_pct:.1%}, "
-                            f"pip台帳 {_eq_dd:.1f}p) "
-                            f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
-                        )
-                    elif _new_dd_mult > _prev_dd_mult:
-                        self._add_log(
-                            f"🟢 DD RECOVERY: DD={_eq_dd_jpy:.0f}JPY ({_eq_dd_pct:.1%}, "
-                            f"pip台帳 {_eq_dd:.1f}p) "
-                            f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
-                        )
-
-                    # ── v7.0: Equity state DB永続化 (deploy survive) ──
-                    try:
-                        self._db.set_system_kv("eq_peak", str(round(self._eq_peak, 2)))
-                        self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
-                        self._db.set_system_kv("eq_peak_jpy", str(round(self._eq_peak_jpy, 2)))
-                        self._db.set_system_kv("eq_current_jpy", str(round(self._eq_current_jpy, 2)))
-                        self._db.set_system_kv("defensive_mode", "1" if self._defensive_mode else "0")
-                        self._db.set_system_kv("dd_lot_mult", str(round(self._dd_lot_mult, 2)))
-                    except Exception:
-                        pass  # DB書き込み失敗は決済処理をブロックしない
+                # 2026-08-06 (rule:R3): 台帳更新は _apply_equity_ledger_close へ
+                # 集約。broker 決済パス (_sync_oanda_closures) と**同じ helper**
+                # を通すことで「片方の経路だけ計上」の再発を構造的に封じる。
+                self._apply_equity_ledger_close(trade, pnl)
 
                 self._add_log(
                     f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "
