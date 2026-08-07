@@ -3408,6 +3408,16 @@ Cutoff後の有効データは `price_shock_rev_aud_jpy_h1_long / AUD_JPY` の N
 - **`agg_kelly<0` (−0.426):** Kelly推定がマイナスでOANDA Bridgeがブロック。現在のEV構造がliveエントリーに耐えない水準。
 - ブロックは全て既存ロジックの**設計通りの動作**（hedge_block、dedup、direction_filter）。
 
+### 2026-08-07 (Pre-Tokyo Briefing)
+前日（2026-08-06）のPnL合計・トレード数・WRを算出するソースデータがいずれも欠落しています。「トレード0件」と「APIタイムアウト/接続障害」の区別もこの時点では確認できません。
+| 戦略 | N | WR | EV | 判定 |
+- clean live 30d: N=93 / -245.0p / payoff 0.274
+- 摩擦調整EV: 全セルで負（最良TPでも -2.96p/t）
+- 昇格基準（N≥30 & EV≥1.0）達成戦略: **なし（直近確認時点）**
+**課題B: 摩擦調整EV の構造的負値（継続）**
+KB確定事項: exit-repair verdict ❌ FAIL（2026-07-08）。WS3 stage-2 barrier/EV も FAIL（2026-07-10）。外部仮説スクリーンフェーズ（2026-07-13〜）へ移行済みですが、現時点で正のEVセルは確認されていません。
+0.2xロット制限下では、たとえ正のEVシグナルが出ても収益貢献が構造的に制限されます。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
