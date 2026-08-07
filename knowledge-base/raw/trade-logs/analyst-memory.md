@@ -3418,6 +3418,16 @@ Cutoff後の有効データは `price_shock_rev_aud_jpy_h1_long / AUD_JPY` の N
 KB確定事項: exit-repair verdict ❌ FAIL（2026-07-08）。WS3 stage-2 barrier/EV も FAIL（2026-07-10）。外部仮説スクリーンフェーズ（2026-07-13〜）へ移行済みですが、現時点で正のEVセルは確認されていません。
 0.2xロット制限下では、たとえ正のEVシグナルが出ても収益貢献が構造的に制限されます。
 
+### 2026-08-07 (Pre-Tokyo Briefing)
+前日（2026-08-06）はトレードゼロ。Cutoff後の累積では N=2、PnL=-94.2、WR=50.0%。システムは稼働中だが実質的に執行停止状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: N=2は「データなし」水準（統計的閾値N=10未満）。EV・WRともに参考値にすら達していない。両戦略とも判断保留。
+- **direction_filter(78)**：USD_JPY VOLATILEレジーム（ATR%ile 93%）下でrnb戦略の方向性フィルターが強く機能している。この抑制はレジーム整合的であり、**介入不要**と判断。
+- **hedge_block(76)**：JPY全般の強い方向性バイアス（USD_JPY/EUR_JPY/GBP_JPY全てVOLATILE×下落スロープ）がヘッジブロックを多発させている。**現状維持が適切**。
+- **r2_shadow_demoted_cell(計100超)**：scalp系の実行可能セルが枯渇状態。Shadow蓄積が進むまで待機が必要。**N=30到達まで強制的にトレードは増えない構造**。
+- **gbp_asia_flash_crash(54)**：GBP_JPY ATR%ile 86%という高ボラ環境への正常応答。**保護機能として肯定的に評価**。
+- **USD_JPY ATR%ile=93%**：これ以上のVOLATILE深化は限定的だが、158円台サポート割れならレジーム転換（Trending化）の可能性。rnb戦略の方向性フィルターがさらに強化される方向。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
