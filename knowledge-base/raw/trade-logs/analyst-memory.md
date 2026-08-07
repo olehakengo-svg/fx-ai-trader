@@ -3448,6 +3448,16 @@ KB確定事項: exit-repair verdict ❌ FAIL（2026-07-08）。WS3 stage-2 barri
 - JPY系はNY入りでUSD主導の動きが加速する可能性。ATRパーセンタイル93%はすでに極限域にあり、**平均回帰（ATR縮小）リスクが高い**。
 - EUR/GBP系はRANGINGが継続する可能性が高く、ブレイクアウト戦略には不向き。
 
+### 2026-08-07 (Post-NY Report)
+| PnL | **+0.0p** |
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **最良セッション**: なし（全セッション同値）
+- **最悪セッション**: なし（同上）
+- **稼働モード数**: 25モード ON、2モード OFF（daytrade_xau、scalp_xau、scalp_eurjpy）
+- ヘッジブロックが継続中かどうかをblock_counts冒頭で確認
+- hedge_block件数が前日比で減少していればレジーム転換のシグナル
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
