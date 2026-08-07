@@ -3434,7 +3434,19 @@ class DemoTrader:
                             t for t in self._total_losses_window if t[0] > _cutoff]
 
                 # ── SL狩り対策: SL_HIT履歴記録（カスケード防御 + Fast-SL検出用）──
-                if close_reason == "SL_HIT":
+                # 2026-08-07 (rule:R3): `outcome != "WIN"` を追加。close_reason
+                # "SL_HIT" は「現在の SL に価格が触れた」の意味しかなく、BE-lock /
+                # トレーリング / Profit Extender が SL を entry より利益側へ動かした
+                # 後の**利確 exit** も同じラベルになる。本番実測 (N=3308, 2026-08-07):
+                # SL_HIT の 54.2% が outcome=WIN (SL が利益側 1894 本のうち 97.6% が
+                # 正 PnL、中央値 +2.00p / MFE 中央値 5.70p)。ガード無しでは
+                #   - cascade_cd (L5427): 勝ちトレール決済が同ペア全戦略を 45-600s ブロック
+                #   - Fast-SL 適応防御 (L6178): 勝ち決済が次エントリーの SL を ATR×0.3 拡大
+                # となり、原則1「攻める」/原則4 に反する。直前の cooldown 記録ブロック
+                # (L3421 `if outcome != "WIN"`) は同じ「SL 後の再エントリー防止」目的で
+                # 既に WIN を除外済み — 同一意図の 2 ブロックで扱いが非対称だったのが本バグ。
+                # 根拠: wiki/analyses/sl-hit-label-collision-2026-08-07.md
+                if close_reason == "SL_HIT" and outcome != "WIN":
                     _hold_s = 9999
                     try:
                         _et = datetime.fromisoformat(trade.get("entry_time", ""))
