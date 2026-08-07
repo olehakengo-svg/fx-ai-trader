@@ -3428,6 +3428,16 @@ KB確定事項: exit-repair verdict ❌ FAIL（2026-07-08）。WS3 stage-2 barri
 - **gbp_asia_flash_crash(54)**：GBP_JPY ATR%ile 86%という高ボラ環境への正常応答。**保護機能として肯定的に評価**。
 - **USD_JPY ATR%ile=93%**：これ以上のVOLATILE深化は限定的だが、158円台サポート割れならレジーム転換（Trending化）の可能性。rnb戦略の方向性フィルターがさらに強化される方向。
 
+### 2026-08-07 (Post-Tokyo Report)
+| PnL | — |
+| 勝率 (WR) | — |
+- 東京セッションN=0のため統計的判断根拠なし
+- OANDA転送率0%（50件中SENT=0）は全トレードがシャドートラッキング中であることを示す — これは**意図通りの挙動**（DD防御フェーズ + shadow_tracking=18）
+- `agg_kelly=-0.426<0` ×2のOANDAブロックは Kelly基準によるリスク抑制が正常動作していることを示す
+- 現在DD=100.01%（100%バリア突破後 held / no new high）のDefensive Mode継続中 — パラメータ変更でリスクを動かすタイミングではない
+### 推奨戦略配分
+**→ NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
