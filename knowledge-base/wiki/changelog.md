@@ -1,5 +1,16 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-07 — fix(live): `SL_HIT` ラベル衝突 — 勝ち決済が SL 狩り防御を発火させていた (rule:R3)
+
+- **08-05 daily 提起の「`SL_HIT` の 46.2% が正 PnL」を解決。汚染ではなく「ラベル衝突」**: `close_reason="SL_HIT"` は「**現在の** SL に価格が触れた」の意味しかなく、BE-lock / トレーリング / Profit Extender が SL を entry より利益側へ動かした後の**利確 exit** も同じラベルになる。データは正しく、名前と下流の解釈が誤っていた
+- **本番実測 (N=3308, `/api/demo/trades`)**: SL が**利益側** 1894 本 → 97.6% が正 PnL (中央値 +2.00p / MFE 中央値 5.70p) / **リスク側** 1414 本 → 99.6% が負 PnL (中央値 −6.95p / MFE 0.00p)。**誤分類 1.5%** = SL 位置は事実上完全な判別子。`outcome` 内訳 = **WIN 1792 (54.2%)** / LOSS 1441 / BE 75。08-05 の 46.2% は小標本 (106本) ゆえの**過小評価**だった
+- **実害 (live 挙動)**: `_sl_hit_history` を消費する防御 2 本が「ストップ狩りに遭った」前提で動く — ① **cascade cooldown** = 同一ペアの**全戦略**を 45–600s ブロック、② **Fast-SL 適応防御** = 次エントリーの SL を ATR×0.3 拡大。**発火イベントの 54.2% が勝ち由来の誤発火** (Fast-SL 側は 315 件中 180 = 57.1%)。誤発火は USD_JPY 494 / GBP_USD 444 / EUR_USD 306 と**主力ペアに集中**し、4原則 #1「攻める」/ #4 に反していた
+- **Rule 3 根拠 = 設計の内部矛盾**: 同じ close 経路の**直前**のブロック (`if outcome != "WIN":` → `_last_exit` / `_total_losses_window`) が「SL 後の再エントリー防止」という**同一目的で既に WIN を除外**しており、隣接する 2 ブロックが非対称に書かれていた。統計的新規主張ではないため 365日BT 不要
+- **修正**: ① `demo_trader.py` の履歴記録を `close_reason=="SL_HIT" and outcome != "WIN"` に (BE 75 本は逆行スイープの証拠として**防御に残す**ため `=="LOSS"` ではなく `!="WIN"`)、② `learning_engine.sl_losses` / ③ `daily_review.sl_hits` を `outcome=="LOSS"` で絞る — 両者は「SLヒット率 >60/70% → **SL幅拡大検討**」を焚く advisory で、生カウントでは **82.7%** (真の損切り率 **36.0%**) となり勝ちの多い book に SL 拡大を勧めていた。④ 回帰 pin `tests/test_sl_hit_history_win_guard.py` (4 tests、修正前ソースで落ちる負のコントロール検証済)
+- **意図的に見送り**: `close_reason` の改名 (`TRAIL_EXIT` 等) は既存 3308 行と全 BT/分析ハーネスの estimand を非可換に壊すため**しない** — ラベル据え置き・消費者側を正す方針。shadow 行の混入是非 (誤発火 1792 件中 1786 が `is_shadow=1`) は scope 外で継続課題
+- **波及**: `shadow_demote_registry.py:40` の demote 根拠「SL_HIT 56.2%」は本汚染値そのもの → 再検討要 (保守側ゆえ緊急性なし、R2 で別途)。**今後 `close_reason` 起点の分析は `outcome` 分割を前提とすること**。MEMORY `project_be_trail_inflates_python_bt_wr` と同一機構が live 側にも出ていた
+- **評価への影響**: tier/lot/live 送信可否は**不変更**。変わるのは防御の誤発火が消える点のみ (エントリー機会の回復方向)。詳細: [[sl-hit-label-collision-2026-08-07]]
+
 ## 2026-08-05 — fix(bt): daytrade/scalp BT phantom-loss 記帳修正 — LOSS を実効ストップ基準に (rule:R3)
 
 - **R3 調査完結**: sr_anti_hunt×EUR_JPY BT の 05-05 WR84.9% → 08-05 WR0.0% 反転は **regime ではなく `d87d5b6c` (2026-05-15) の `_BT_ABLATE_BE_TRAIL` default 反転**が直接原因。加えて **phantom-loss 記帳バグ**を発見: time-decay tightening (MAX_HOLD×50%) で entry まで引き上げた stop の退出 (実損≈0) を、`actual_sl_m` が「fut_close >元 SL 時のみ設定」のため planned `sl_m` のフル損失で計上。anti-hunt 系は BT の SL 再計算 (QH 前 TP距離/1.2) で sl_m=6.5〜11 ATR となり **1 件 −8.3R 級の架空損失** (trade dump で bars_held 12-17 集中 + actual_sl_m: null 全件を実証)
