@@ -53,6 +53,40 @@
 **行動指針**: 既存の値を無視して別経路で取り直しているコードを見たら、
 その場で「元の経路は壊れているのか?」を確認する。回避策はバグ報告である。
 
+### 2.5. sentinel 値は「ありえない値」にする — もっともらしい既定値は回避策を無効化する
+
+本件で最も一般化できる教訓。`ema200_reversal.py:36-48` は**正しい形の回避策**を持っていた:
+
+```python
+def _hour_utc(self, ctx):
+    if ctx.bar_time is not None and hasattr(ctx.bar_time, "hour"):
+        return int(ctx.bar_time.hour)
+    hour = getattr(ctx, "hour_utc", None)
+    if hour is not None:          # ← ここで 12 を「有効な値」として受理してしまう
+        return int(hour)
+    try:
+        return int(ctx.df.index[-1].hour)   # ← 本来はここに落ちてほしかった
+    except Exception:
+        pass
+    return 12
+```
+
+live では `ctx.bar_time is None` かつ `ctx.hour_utc == 12` (None ではない) のため、
+**`df.index` へのフォールバックに到達できない**。この戦略の作者は多段フォールバックを
+正しく書いていたのに、上流の sentinel が `None` ではなく**値域内のもっともらしい整数 12**
+だったせいで回避策が無効化された。
+
+- `hour_utc: int = 12` (dataclass default) は「未設定」と「本当に 12 時」を**区別不能**にする
+- 12 は UTC 0-23 の値域内なので、どの `is not None` / `if hour:` チェックも通過する
+- しかも 12 は「昼」= 一見それらしいので、ログを読んでも違和感が出にくい
+
+**行動指針**: 「未設定」を表す既定値は `None` にするか、値域外の番兵 (`-1`) にするか、
+未設定アクセスで例外を投げる。**値域内のもっともらしい値を既定にしてはいけない** —
+下流の防御的フォールバックを全て黙って素通りさせる。
+`SignalContext.hour_utc` は現状 `int = 12` のままだが、本 PR で live の供給元を修正したため
+実害は解消済み。将来 `Optional[int] = None` へ移す場合は全消費者の `is not None` 分岐を
+同時に見直すこと (今回は scope 外)。
+
 ### 3. 「一度直したバグ」は回帰テストが無ければ必ず戻る
 
 `london_session_breakout.py:71` のコメントが証拠を残していた:
