@@ -2549,8 +2549,35 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     # DT用SignalContext構築（ema_score + 蓄積reasonsを渡す）
     # bar_time からセッション情報を導出（TNM/LSB等の時間帯フィルター用）
-    _dt_hour_utc = bar_time.hour if bar_time and hasattr(bar_time, 'hour') else 12
-    _dt_is_friday = bar_time.weekday() == 4 if bar_time and hasattr(bar_time, 'weekday') else False
+    #
+    # 2026-08-09 [rule:R3] 構造バグ修正: 旧実装は bar_time が無いとき hour=12 /
+    # is_friday=False の固定値にフォールバックしていた。bar_time が渡るのは BT 経路
+    # (app.py の backtest ループ) だけで、**live 経路 (demo_trader._tick →
+    # compute_fn(df, tf, sr, symbol)) は bar_time を渡さない** ため、live では
+    # DT 全戦略の ctx.hour_utc が常に 12 に凍結されていた。
+    #   - h=12 で落ちる窓を持つ戦略 (kalman_d7 / pd_eurjpy_h20 / tokyo_range_breakout
+    #     / london_ny_swing / tokyo_nakane) は live で構造的に発火不能
+    #   - h=12 を通す窓を持つ戦略 (trendline_sweep / squeeze_release_momentum /
+    #     inducement_ob / liquidity_sweep 等) は時間帯ゲートが常時開放され、
+    #     BT 検証窓の外でも live 発火していた (実測 35.0% が窓外)
+    #   - is_friday も常に False → 金曜ブロックが live で一度も効いていなかった
+    # 分母/分子の実測と統計的根拠: knowledge-base/wiki/analyses/
+    #   dt-ctx-hour-utc-live-freeze-2026-08-09.md
+    # 同関数内の is_trade_prohibited(bar_time=...) は当初から now(UTC) フォール
+    # バックを持っており、その挙動に揃える (BT=バー時刻 / live=直近バー時刻)。
+    if bar_time is not None and hasattr(bar_time, 'hour'):
+        _dt_bar_dt = bar_time
+    elif getattr(df, "index", None) is not None and len(df.index) and hasattr(df.index[-1], 'hour'):
+        # live: 直近バーのタイムスタンプ (SignalContext.from_df / scalp 経路と同一の基準)
+        _dt_bar_dt = df.index[-1]
+    else:
+        _dt_bar_dt = datetime.now(timezone.utc)
+    if getattr(_dt_bar_dt, 'tzinfo', None) is None:
+        _dt_bar_dt = _dt_bar_dt.replace(tzinfo=timezone.utc)   # naive index は UTC 扱い
+    else:
+        _dt_bar_dt = _dt_bar_dt.astimezone(timezone.utc)
+    _dt_hour_utc = _dt_bar_dt.hour
+    _dt_is_friday = _dt_bar_dt.weekday() == 4
     _dt_prev_row = df.iloc[-2] if len(df) >= 2 else row
 
     # Perfect Order regime (M15 限定 — Kalman D7 etc).

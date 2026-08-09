@@ -1,5 +1,18 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-09 — fix(live): DT `ctx.hour_utc` が live で 12 に凍結 — 全DT戦略の時間帯ゲートが BT と別物だった (rule:R3)
+
+- **`t9-kalman-d7-fire-info` の 0-fire (実測 0.00/週 vs 期待 3.9/週) の分母調査から発見**。`compute_daytrade_signal` の DT 用 `SignalContext` 構築が `bar_time` 不在時に `hour_utc=12` / `is_friday=False` へ固定フォールバックしていた。**`bar_time` を渡すのは BT 経路のみ** (`app.py:6679/7121`)、**live 経路 (`demo_trader._tick` → `compute_fn(df, tf, sr, symbol)`) は渡さない** → live の DT 全戦略が「常に UTC 12:00・常に金曜でない」前提で時間帯ゲートを評価していた。潜伏 **123 日** (`9c849cef` 2026-04-08 の DT構造改革で再混入。2026-04-04 に同型バグを一度修正済み = **回帰**)
+- **証拠 3 系統**: ① code derivation (live 呼び出しが位置引数 4 つ)、② **本番 QUALBAR 実測** — `[kalman_d7] QUALBAR` 12 行が実バー 03:00〜21:15 UTC に散らばるのに**全行 `hour=12`**、③ **自然実験** — `ctx.hour_utc` 直読み群は BT 窓外発火 **83/237 = 35.0%**、`df.index` から自前導出する回避策を持つ群 (turtle_soup / london_session_breakout の redesign_v2) は **0/28 = 0.0%**、**Fisher exact one-sided p = 1.32e-05**
+- **実害**: (a) h=12 が窓の穴に落ちる戦略 = **live 発火が構造的に不可能** — kalman_d7×3 variant (LIVE 化から **73 日 0 fire**)、pd_eurjpy_h20 (h==20)、tokyo_range_breakout (7-9)、london_ny_swing (13-17)、tokyo_nakane (00:45-01:15) は shadow N すらゼロ = **探索母集団から消えていた**。(b) h=12 を通す戦略 = 時間帯ゲート常時開放 — squeeze_release_momentum は発火の **86.7%** が BT 窓外、liquidity_sweep 50.0% / inducement_ob 26.7% / trendline_sweep 8.4%。(c) `is_friday` が常に False → **金曜ブロック (`FRIDAY_BLOCK_HOUR` 13〜18) が live で一度も作動していなかった**
+- **Rule 3 根拠 = 同一関数内の内部矛盾**: 4 行上の `is_trade_prohibited` は当初から `bar_time if bar_time else datetime.now(timezone.utc)` と正しく降りており、scalp が使う `SignalContext.from_df` も `bar_time → row.name → now()` と正しい。**壊れていたのは DT 経路の直接コンストラクタ呼び出しだけ**。統計的新規主張ではないため 365日BT 不要
+- **修正**: DT ctx の時刻導出を `bar_time → df.index[-1] → now(UTC)` に統一 (naive は UTC 扱い / aware は UTC 正規化)。`modules/data.py` が fetch 経路 index を UTC 正規化済みのため live の `df.index[-1].hour` は UTC 時刻。**BT 経路の契約は不変** (明示 `bar_time` が最優先)
+- **監視配線バグも同時修正**: 退避条件を載せようとした `prereg_trigger_watch` の `live_count_decision` が `match: prefix` を `fetch_live_count` へ渡しておらず、kalman (1セル=3 entry_type) の live 件数が**恒久的に 0 = 監視が沈黙**する状態だった (T5 の 18 日執行ギャップと同型)。`count_live_matching(prefix=)` を shadow 側と同契約に
+- **回帰 pin**: `tests/test_dt_ctx_hour_utc_live.py` (9 tests、**修正前ソースで 7 件が落ちることを検証済**) + `test_prereg_trigger_watch.py` に prefix/配線テスト 2 件。全 suite 2561 passed / `check.py` 全9チェック通過
+- **修正の作用方向**: 制限側 (trendline_sweep / squeeze_release_momentum / inducement_ob / liquidity_sweep / post_news_vol / ema200_reversal) = **BT 検証済み設計への復帰で安全**。開放側の大半は shadow のみ = **N 蓄積の回復** (原則4)。唯一 **kalman_d7 は `KALMAN_D7_LIVE_ENABLE=1` (本番 effective) のため live 発火が始まる** — ただし 2026-05-28 に user が option B で明示決裁した設計 (lot 0.5×) を初めて実際に動かすものであり新規昇格ではない (Rule 1 対象外)。決裁時の退避条件を機械監視に載せるため registry に `t9-kalman-d7-live-n10-ev-check` (live N≥10 で EV 判定、期日 2026-11-30) を新設
+- **既存判定の訂正**: [[pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28]] §6.5 の「INCONCLUSIVE = 設計対象外局面」は**誤診**と確定 (DIST fail は事実だが、通過していても session gate で必ず落ちていた)。**live/shadow 発火数に依拠した過去判断は本バグの影響を受ける**が、BT/探索側の verdict (WS3 の lfr / htf_fb / T10 / T11 等) は `bar_time` を持つため**影響なし**
+- **評価への影響**: tier/lot/live 送信可否は**不変更**。clean live 負エッジ (−242.6p / payoff 0.274) の説明変数が 1 つ増えた (エッジ消滅ではなく執行窓の逸脱による寄与) — 分離定量は修正デプロイ後の N 蓄積待ち。詳細: [[dt-ctx-hour-utc-live-freeze-2026-08-09]]
+
 ## 2026-08-07 — fix(live): `SL_HIT` ラベル衝突 — 勝ち決済が SL 狩り防御を発火させていた (rule:R3)
 
 - **08-05 daily 提起の「`SL_HIT` の 46.2% が正 PnL」を解決。汚染ではなく「ラベル衝突」**: `close_reason="SL_HIT"` は「**現在の** SL に価格が触れた」の意味しかなく、BE-lock / トレーリング / Profit Extender が SL を entry より利益側へ動かした後の**利確 exit** も同じラベルになる。データは正しく、名前と下流の解釈が誤っていた
