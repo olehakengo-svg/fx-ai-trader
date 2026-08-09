@@ -239,11 +239,16 @@ def paginate_closed_trades(fetch_page, page_size: int = 500,
 
 
 def count_live_matching(trades: list, entry_type: str, instrument: str,
-                        direction: str) -> int:
-    """clean live 件数: oanda_trade_id 非空 ∧ dedup_violation != 1 ∧ セル一致。"""
+                        direction: str, prefix: bool = False) -> int:
+    """clean live 件数: oanda_trade_id 非空 ∧ dedup_violation != 1 ∧ セル一致。
+
+    prefix=True で entry_type を前方一致にする (kalman_d7 の 3 variant 等、
+    1 セル = 複数 entry_type の合算監視用)。shadow 側 count_matching と同じ契約。
+    """
     n = 0
     for t in trades:
-        if t.get("entry_type") != entry_type:
+        _et = t.get("entry_type") or ""
+        if (not _et.startswith(entry_type)) if prefix else (_et != entry_type):
             continue
         if instrument and t.get("instrument") != instrument:
             continue
@@ -305,13 +310,14 @@ def fetch_trades_window(since: str, app_base: str, mode: str = "") -> list | Non
 
 
 def fetch_live_count(entry_type: str, instrument: str, direction: str,
-                     since: str, app_base: str) -> int | None:
+                     since: str, app_base: str, prefix: bool = False) -> int | None:
     # 2026-07-24: 単発 limit=8000 (2026-07-07 の暫定拡大) を pagination 全量取得に
     # 置換 — emit 量が伸びると同じ undercount が再発するため。
     trades = fetch_trades_window(since, app_base)
     if trades is None:
         return None
-    return count_live_matching(trades, entry_type, instrument, direction)
+    return count_live_matching(trades, entry_type, instrument, direction,
+                               prefix=prefix)
 
 
 def fetch_shadow_count(entry_type: str, since: str, app_base: str,
@@ -372,7 +378,8 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
     elif ttype == "live_count_decision":
         res = evaluate_live_count_decision(
             fetch_live_count(trig["entry_type"], trig.get("instrument", ""),
-                             trig.get("direction", ""), trig["since"], app_base),
+                             trig.get("direction", ""), trig["since"], app_base,
+                             prefix=trig.get("match") == "prefix"),
             int(trig["n_decide"]), trig["deadline"], today)
     elif ttype == "deadline_info":
         res = evaluate_deadline_info(trig["deadline"], today)
