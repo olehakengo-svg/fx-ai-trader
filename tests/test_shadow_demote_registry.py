@@ -35,23 +35,48 @@ def test_r2_critical_cells_are_demoted():
         ("vol_momentum_scalp", "GBP_USD"),
         ("vol_momentum_scalp", "USD_JPY"),
         ("xs_momentum", "EUR_USD"),
+        # 2026-08-10 (rule:R2): batch 2, see
+        # wiki/decisions/r2-shadow-demote-2026-08-10.md
+        ("engulfing_bb", "GBP_USD"),
+        ("xs_momentum", "GBP_USD"),
+        ("xs_momentum", "USD_JPY"),
     }
 
     assert expected == SHADOW_DEMOTED_CELLS
 
 
-def test_r2_batch_2026_08_05_deferred_cells_not_demoted():
-    # 24h-persistence rule: xs_momentum GBP_USD/USD_JPY flipped sign within
-    # 5h of the 08-04 19:28 alert (PF 0.89/0.98, knife-edge) — deferred, not
-    # demoted. This test documents the deferral; if a later batch demotes
-    # them after persistence is confirmed, update BOTH the registry and the
-    # expected set above, then flip these assertions.
-    assert not is_shadow_demoted("xs_momentum", "GBP_USD")
-    assert not is_shadow_demoted("xs_momentum", "USD_JPY")
-    # Cell-level stop must not leak to the strategies' healthy pairs.
+def test_r2_batch_2026_08_10_deferred_cells_resolved_to_demote():
+    # The 08-05 batch deferred xs_momentum GBP_USD/USD_JPY under the
+    # 24h-persistence rule (sign flipped within 5h, PF 0.89/0.98). The frozen
+    # next-cycle rule resolved to DEMOTE: CRITICAL in all 17 alerts from
+    # 08-06 02:23 through 08-10 01:38 UTC, EV never returning positive.
+    assert is_shadow_demoted("xs_momentum", "GBP_USD")
+    assert is_shadow_demoted("xs_momentum", "USD_JPY")
+    # N-crossing type, same batch: WARN with EV <= -0.79 across 08-03..08-05,
+    # CRITICAL from 08-05 14:03 onward.
+    assert is_shadow_demoted("engulfing_bb", "GBP_USD")
+    # Cell-level stop must not leak to the strategies' healthy pairs. The
+    # engulfing_bb example moved into the demoted set in this batch, so the
+    # leak-check uses cells that are still accumulating (WARN/OK in the
+    # 08-10 alert): dt_sr_channel_reversal x USD_JPY, three_bar_reversal x
+    # USD_JPY.
     assert not is_shadow_demoted("vol_momentum_scalp", "EUR_USD")
     assert not is_shadow_demoted("sr_break_retest", "AUD_JPY")
-    assert not is_shadow_demoted("engulfing_bb", "GBP_USD")
+    assert not is_shadow_demoted("dt_sr_channel_reversal", "USD_JPY")
+    assert not is_shadow_demoted("three_bar_reversal", "USD_JPY")
+
+
+def test_engulfing_bb_and_xs_momentum_stay_cell_level_not_retired():
+    # Both strategies now have every currently-emitting cell demoted, but
+    # they are deliberately NOT added to SHADOW_RETIRED_STRATEGIES: that set
+    # is reserved for edge-factor-audit retirements (N>=450 with a mechanism
+    # verdict), whereas this batch is the alert-gate machine rule. The
+    # consequence is a known leak surface — a future mode adding a new pair
+    # would resume emission — tracked in the 08-10 decision doc.
+    assert "engulfing_bb" not in SHADOW_RETIRED_STRATEGIES
+    assert "xs_momentum" not in SHADOW_RETIRED_STRATEGIES
+    assert not is_shadow_demoted("engulfing_bb", "AUD_JPY")
+    assert not is_shadow_demoted("xs_momentum", "AUD_JPY")
 
 
 def test_usdchf_hourly_bleeder_cells_demoted():
