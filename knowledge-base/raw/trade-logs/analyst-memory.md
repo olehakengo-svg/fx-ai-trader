@@ -3468,6 +3468,16 @@ KB確定事項: exit-repair verdict ❌ FAIL（2026-07-08）。WS3 stage-2 barri
 - `regime_squeeze_mr`(計32件: gbpjpy22+eurjpy10)はVOLATILE判定が逆説的にMR系をスクイーズしている
 - Block構造はコードではなく**現在のレジーム環境が主因**と判断。本日も同様のブロック継続を想定し、稼働状況を受容モードで監視する
 
+### 2026-08-10 (Post-Tokyo Report)
+UTC 00:00–06:00の範囲でクローズされたトレードはゼロ。本日累計は参考値として N=1 / WR=100% / +63.7pips が存在するが、東京セッション時間帯外のものと判断される。システムは全主要モード稼働中（daytrade_xau / scalp_xau / scalp_eurjpy はOFF）、ポジション保有なし。
+- 東京セッションN=0のため統計的判断材料がない
+- 本日累計N=1は「データなし」扱い（N<10基準）
+- ブロック機構は設計通り作動しており、異常ではない
+- DD防御モード（DD=100.01%、defensive 0.2x）継続中であり、追加リスクテイクの状況にない
+| USD_JPY | VOLATILE | 91% | ATR91%ile、SMA-0.007で最も強いJPY買いシグナル。スプレッド拡大に注意 |
+| EUR_USD | RANGING | 59% | レンジ中位。+SMAスロープでUSD弱含み。Scalpには適度な環境だがEV確認必要 |
+**JPY系3ペアが一斉VOLATILE（ATR 84–91%ile）** は通貨リスク集中の観点で要注意。同方向JPY買いポジションが重なった場合の相関リスクが高い。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
