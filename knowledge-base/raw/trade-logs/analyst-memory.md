@@ -3458,6 +3458,16 @@ KB確定事項: exit-repair verdict ❌ FAIL（2026-07-08）。WS3 stage-2 barri
 - ヘッジブロックが継続中かどうかをblock_counts冒頭で確認
 - hedge_block件数が前日比で減少していればレジーム転換のシグナル
 
+### 2026-08-10 (Pre-Tokyo Briefing)
+前日（2026-08-09）はトレード**ゼロ**。PnL: ±0、WR: N/A。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: N=1は「データなし」扱い。WR100%・EV+29.00は参考値にすら値しない。
+> 昇格基準（N≥30 & EV≥1.0）まで残り**29件**。降格判断も不可能な段階。
+- `direction_filter`(66件)は最多。現在のJPY系VOLATILE環境で方向が定まらず、フィルタが方向性を全拒絶している可能性が高い
+- `r2_shadow_demoted_cell`(計96件: scalp56+scalp_eur26+scalp_5m14)はシャドウ降格が実質的にscalp系を無効化している
+- `regime_squeeze_mr`(計32件: gbpjpy22+eurjpy10)はVOLATILE判定が逆説的にMR系をスクイーズしている
+- Block構造はコードではなく**現在のレジーム環境が主因**と判断。本日も同様のブロック継続を想定し、稼働状況を受容モードで監視する
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
