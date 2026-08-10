@@ -33,7 +33,8 @@
       "symbol": "USDJPY=X",
       "threshold": 159.5,
       "doc": "knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md",
-      "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — 介入再確認と合わせ user 判断 (lot 1.0x 復帰は KB 記録 + テスト変更 PR 必須)"
+      "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — ただし復帰は AND 条件。第2要件 (介入観測 or 当局の 160 防衛言及の再確認) は **MoF 公式開示/当局公式言及 (外部一次情報) のみ**で認定すること。価格シグネチャからの介入日推定は mof-intervention-forward-prereg-2026-07-24 (#4) の凍結識別 rule と同一で 2026 窓 OOS を burn するため禁止。lot 1.0x 復帰は R1 = user 決裁 (KB 記録 + テスト変更 PR 必須)。評価記録: t5-restore-eval-and-carrydip-revival-2026-08-10.md (2026-08-10 時点 執行せず)",
+      "eval_record": "knowledge-base/wiki/decisions/t5-restore-eval-and-carrydip-revival-2026-08-10.md"
     },
     {
       "id": "ws3-stage2-lock-decision-stale",
@@ -336,6 +337,14 @@
       "deadline": "2026-11-06",
       "doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-explore-prereg-2026-08-03.md",
       "message": "ECG forward pre-reg (🔒 LOCKED 2026-08-03 v2、台帳 #22) の first look 執行期日 — forward 窓 = shadow closed entry_time [2026-08-04, 2026-11-01)、13週。primary = active 4 cells × K{5,10,20} (m=12)、epoch層化permutation、primary p は unique-spaced 系列。参加条件 = forward N≥150/セル (全セル未達なら UNDERPOWERED → second look cutoff 2027-01-31 1回のみ)。**期日前の gate×outcome ジョイント計算は P-10 型で全面禁止** (蓄積センサス件数のみ可)。執行 = 新規スナップショット取得 → tools/equity_curve_gating_explore.py --snapshot <path> (n_perm 10000 固定、ハーネスが期日前実行を拒否)。PASS でも live gate R1 は forward 再現後のみ"
+    },
+    {
+      "id": "carry-dip-v3-revival-watch",
+      "active": true,
+      "type": "info",
+      "doc": "knowledge-base/wiki/decisions/t5-restore-eval-and-carrydip-revival-2026-08-10.md",
+      "deadline": "2026-11-30",
+      "message": "usdjpy_carry_dip_accumulator は 2026-07-31 に dormancy 解除 (H1 closed close < 159.50)、live 稼働中。事前規定 R2: deduped LIVE N>=10 かつ EV<0 -> lot 下げ or LIVE 停止 (shadow 継続)。単一トレード損失 <= -150p が 2 件 -> テールキャップ R3 監査。判定規律 (凍結): dedup_violation!=1 で dedup / close_reason ではなく outcome・pnl_pips で勝敗 / LIVE (oanda_trade_id!='') と shadow を混ぜない。backstop 2026-11-30 に N<10 なら低頻度=構造的の再確認のみ"
     }
   ]
 }
