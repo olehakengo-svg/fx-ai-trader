@@ -555,6 +555,11 @@ _OANDA_SYMBOLS = {
     "AUDJPY=X": "AUD_JPY", "NZDJPY=X": "NZD_JPY",
     "AUDUSD=X": "AUD_USD", "NZDUSD=X": "NZD_USD",
     "EURAUD=X": "EUR_AUD",
+    # 2026-08-11 rule:R1: USDCAD=X 追加 — 席供給監査で USD_CAD だけ OANDA
+    # fallback からも漏れて yfinance に落ちていた (品質最下位)。MASSIVE 統一後の
+    # 二段目 fallback として整合させる。USD_CHF にも同じ穴があるが price_shock
+    # 席ではないためスコープ外 (audit §9 に記録)。
+    "USDCAD=X": "USD_CAD",
     "XAUUSD=X": "XAU_USD",  # Gold
 }
 
@@ -922,6 +927,15 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
         # ソース不一致だった。凍結統計は Massive ベース = estimand 整合
         # (BT/live データソース統一原則)。
         "AUDUSD=X",
+        # 2026-08-11 rule:R1: price_shock_rev 4 ペア追加 (AUDUSD 前例と同型) —
+        # 席供給監査で live feed が三分裂していた (EUR_GBP のみ MASSIVE、
+        # AUD_JPY/NZD_JPY/EUR_AUD は OANDA、USD_CAD は yfinance)。凍結統計
+        # (12.3y MASSIVE grid) とのソース統一。同 symbol の他 TF mode も
+        # MASSIVE に切替わる (影響列挙は price-shock-seat-supply-audit §9)。
+        "AUDJPY=X",
+        "NZDJPY=X",
+        "EURAUD=X",
+        "USDCAD=X",
     }
     _MASSIVE_INTERVALS = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
     if (df is None and

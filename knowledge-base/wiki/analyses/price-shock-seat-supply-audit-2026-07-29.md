@@ -119,6 +119,26 @@ USD_CAD N=247 66.4% / EUR_AUD N=262 67.6% / EUR_GBP N=239 72.8%、07-24 exit-fre
   - **USD_CHF は同じ yfinance 穴が残る** — ps 席ではないためスコープ外 (別途 cosmetic/整合タスク)
 - pin: `TestFeedUnificationPins` (source pin + `_OANDA_SYMBOLS` 直接検査)
 
+### 敵対的レビューで確定した副作用と対処 (実装前 3 レンズ × 検証、CONFIRMED 2 件)
+
+1. **DMB JPY SELL の解錠 (feed 切替の非自明な副作用)**: OANDA (864 bars/60d 要求) → MASSIVE (63 暦日フル)
+   への切替で D1 リサンプル行数が ~44-45 → ~54 になり、`_compute_1h_htf_bias` の `len(d1) >= 50` 閾値を
+   跨ぐ。これまで d1_ema50_falling が恒久 False で**構造的に不可能だった DMB JPY SELL が AUD_JPY/NZD_JPY
+   で候補化可能**になる。primary としては SCORE_GATE (SELL×正 score misalign) が block するため row なし
+   (従来と同じ) だが、**(a) の席優先が作る displaced-guest 経路は SCORE_GATE を共有しておらず**、
+   `_open_shadow_emit_trade` 経由で最大 18h の shadow SELL が開き、hedge gate (shadow も計数) が
+   後続の席 BUY を live/shadow とも block し得た — multi-crash-bar 連鎖 (席の狙う局面そのもの) で
+   2 大席の再抑制ベクトルになる
+   → **対処: shadow_emit ループに primary SCORE_GATE のミラーを実装** (sentinel bypass 込みの同一条件、
+   `demo_trader.py` — 「bypass 経路は guard chain の共有を明示」教訓の適用)。これにより displaced
+   DMB SELL は row 化せず (primary 時と同じ帰結)、**guest の観測系列は正味不変**が回復する
+2. **_MASSIVE_SYMBOLS の substring pin がコメントアウトで素通り** (mutation 実証)
+   → **対処: 機能的 dispatch テストに置換** (`test_massive_live_dispatch_for_price_shock_pairs` —
+   provider を monkeypatch し 4 symbol × 1h の初手が massive であることを直接検証)
+3. **残存 (スコープ外記録)**: hedge gate が shadow ポジションを live 席 entry に対して計数する挙動自体は
+   既存仕様 (例: 15m 系 shadow SELL による audjpy hedge_block 56 件/5.5h 実測)。§8 の
+   hedge_block 寄与分離で定量し、必要なら別パケット化
+
 ### 検証計画 (deploy 後)
 1. 次の design signal bar (family どのペアでも) で row 化を確認 — 特に eur_aud / usd_cad の初 row
 2. displaced DMB の shadow row 継続を確認

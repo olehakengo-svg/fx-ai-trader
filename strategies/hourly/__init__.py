@@ -16,6 +16,7 @@ logger = logging.getLogger("hourly_engine")
 from strategies.hourly.keltner_squeeze_breakout import KeltnerSqueezeBreakout
 from strategies.hourly.donchian_momentum_breakout import DonchianMomentumBreakout
 from strategies.hourly.ob_retest import ObRetestH1
+from strategies.hourly.price_shock_reversion_base import PriceShockReversionBase
 from strategies.hourly.price_shock_rev_eur_gbp_h1_long import PriceShockRevEurGbpH1Long
 from strategies.hourly.price_shock_rev_eur_aud_h1_long import PriceShockRevEurAudH1Long
 from strategies.hourly.price_shock_rev_usd_cad_h1_long import PriceShockRevUsdCadH1Long
@@ -101,10 +102,35 @@ class HourlyEngine:
             logger.debug(f"[HourlyEngine] 全戦略None: {', '.join(_rejected)}")
         return candidates
 
+    def _seat_priority_types(self) -> frozenset[str]:
+        """price_shock_rev 席 (Phase B-1 surface slot の pre-reg seat owner) の entry_type 集合。
+
+        instance から導出することで family 追加/削除に自動追従する
+        (demo_trader.PRICE_SHOCK_REV_TIER1_TYPES を import すると循環参照になるため)。
+        """
+        return frozenset(
+            s.name for s in self.strategies
+            if isinstance(s, PriceShockReversionBase) and s.enabled
+        )
+
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:
-        """最高スコアの候補を選択。"""
+        """最高スコアの候補を選択。
+
+        席優先 (2026-08-11 rule:R1, price-shock-seat-supply-audit-2026-07-29 §7(a)):
+        daytrade_1h_* surface slot は price_shock_rev の pre-reg 席。winner-take-all
+        の score 非対称 (guest DMB/KSB base 5.0+ vs seat ps 1.0 固定) により、crash bar
+        で構造的に共起する guest が席の候補を silent drop し、family 供給が design の
+        ~31% に絞られていた。席の候補が存在する tick では席が primary emit を取る。
+        displaced guest (DMB/KSB) は _shadow_always 経由の shadow emit に自動的に
+        流れる (split_shadow_always は best 以外の shadow_always 候補を返すため、
+        本変更で guest の shadow 系列は途切れない)。
+        """
         if not candidates:
             return None
+        seat_types = self._seat_priority_types()
+        seat = [c for c in candidates if c.entry_type in seat_types]
+        if seat:
+            return max(seat, key=lambda c: c.score)
         return max(candidates, key=lambda c: c.score)
 
     def split_shadow_always(self, candidates: list[Candidate],
