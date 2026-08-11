@@ -3518,6 +3518,16 @@ Cutoff後累計はN=2、PnL +92.7pと極めて小規模。全モードでOANDA�
 ### 推奨戦略配分
 | daytrade_eurjpy / gbpjpy | EUR/JPY・GBP/JPY | **回避推奨** | ATR%ile 86–90%の VOLATILE 環境 + JPY 下落トレンド継続。DT spread_guard 20% 閾値での遮断が頻発する可能性 |
 
+### 2026-08-11 (Post-London Report)
+| PnL | **0 pips / 0円** |
+| 勝率（WR） | **計測不能（N=0）** |
+| PnL | 0 | 0 |
+### 推奨戦略配分
+> **⚠️ NO ACTION推奨（条件付き）**
+- EUR_USD RANGING確認後 → `scalp_eur`（RANGING×中ATRは最も相性良）
+- JPY系VOLATILE収束確認後 → `daytrade_eurjpy`再試行（ただしhege_block解除確認必須）
+| 累計PnL | **0 pips** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
