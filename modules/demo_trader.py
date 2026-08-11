@@ -4316,6 +4316,29 @@ class DemoTrader:
                         f"{_se_entry_type} x {instrument}"
                     )
                     continue
+                # 2026-08-11 (rule:R1, price-shock-seat-supply-audit §9): primary 側
+                # SCORE_GATE (direction-aware misalign) のミラー。shadow_emit 経路は
+                # このゲートを共有していなかったため、席優先 select で displaced した
+                # guest の SELL (正 score = primary なら SCORE_GATE block、row なし) が
+                # shadow row 化し、hedge_block 経由で席の BUY を最大 18h 再抑制し得た。
+                # 「bypass 経路は primary の guard chain のどれを共有するか明示する」
+                # 教訓に従い、primary と同一条件 (sentinel bypass 込み) を適用する。
+                _se_score_pre = float(_se.get("score") or 0)
+                _se_misaligned = (
+                    (_se_signal == "BUY" and _se_score_pre < 0)
+                    or (_se_signal == "SELL" and _se_score_pre > 0)
+                )
+                _se_sentinel_bypass = (
+                    _se_entry_type in self._SCALP_SENTINEL
+                    or _se_entry_type in self._UNIVERSAL_SENTINEL
+                )
+                if _se_misaligned and not _se_sentinel_bypass:
+                    self._add_log(
+                        f"[SCORE_GATE] shadow_emit mirror blocked: {_se_entry_type} "
+                        f"score={_se_score_pre:.2f} misaligned with "
+                        f"signal={_se_signal} | {instrument} {mode}"
+                    )
+                    continue
                 _se_entry = float(_se.get("entry") or sig.get("entry") or 0)
                 if _se_entry <= 0:
                     continue

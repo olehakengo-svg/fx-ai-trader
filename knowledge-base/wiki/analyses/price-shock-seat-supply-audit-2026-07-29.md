@@ -92,6 +92,71 @@ weekend_gap の AUDUSD=X 追加 (2026-07-28 rule:R3、`modules/data.py` コメ�
 - AUD_JPY hedge_block (15m SELL 由来) の寄与分離 — (a) 後も残る抑制要因の見積もり
 - 再起動 blackout の頻度実測 (deploy 回数/日 × warmup 時間) — 恒常的な取りこぼし率の床
 
+## 9. 執行記録 (2026-08-11 — rule:R1、user 決裁「進めて」2026-08-03/08-11)
+
+§7 の (a)+(c) を執行。**(b) は非推奨のまま不採用。** 変更根拠 = 新エッジではなく、BT 検証済み席
+(昇格 grid 12.3y MASSIVE BH-FDR m=3744: AUD_JPY N=426 WR 63.8% / NZD_JPY N=303 64.0% /
+USD_CAD N=247 66.4% / EUR_AUD N=262 67.6% / EUR_GBP N=239 72.8%、07-24 exit-free 監査全席 p=0.0001)
+の**供給経路の回復**。リスク面: 全席 Sentinel 1000u 固定 + ps watchdog (4h cron) + firstweek-regate 併設。
+
+### (a) 席優先 select (`strategies/hourly/__init__.py`)
+- `select_best`: ps 候補が存在する tick では ps が primary emit を取る。席集合は instance から導出
+  (`_seat_priority_types`、循環 import 回避 + family 追随)
+- **影響列挙 (凍結)**:
+  - 変化する tick = ps 候補と guest (DMB/KSB) 候補が**共起した tick のみ** (family 発火 ~0.33%/bar × 共起率)
+  - displaced guest は `split_shadow_always` 経由で shadow emit 継続 (pin: `test_displaced_guest_still_flows_to_shadow`) — **DMB/KSB の shadow 系列は途切れない**
+  - DMB の live 送信は Track C D-c-2 で carve-out 除外中 (shadow のみ) のため **live 挙動の変化はゼロ**。将来 DMB×NZD_JPY を carve-out に入れる場合、共起 tick では ps 優先となる — その時点の再決裁事項としてここに明記
+  - ps 候補が出ない slot (usdchf / audusd / nzdusd / USDJPY / eur) は完全不変。ob_retest は disabled、usdjpy_carry は USDJPY のみで共存なし
+- pin: `tests/test_price_shock_seat_priority.py` (smoking-gun 再現ケース含む 6 tests)
+
+### (c) live feed 統一 (`modules/data.py`)
+- `_MASSIVE_SYMBOLS` (live set) に AUDJPY=X / NZDJPY=X / EURAUD=X / USDCAD=X を追加 (AUDUSD=X R3 前例と同型)
+- `_OANDA_SYMBOLS` に USDCAD=X 追加 (yfinance 落ちの fallback 穴修復)
+- **影響列挙 (凍結)**:
+  - live feed が MASSIVE に切替わる mode: daytrade_1h_{audjpy,nzdjpy,euraud,usdcad} + **daytrade_audjpy (15m)** + 同 symbol の HTF (4h) 取得。15m 切替は BT (MASSIVE parquet) との整合方向 = データソース統一原則
+  - MASSIVE 障害時の fallback は OANDA (USDCAD=X 含む) → 従来チェーン
+  - MASSIVE fetch 対象 symbol 8→12 (~1.5×、paid 契約 + 既存キャッシュ)
+  - **USD_CHF は同じ yfinance 穴が残る** — ps 席ではないためスコープ外 (別途 cosmetic/整合タスク)
+- pin: `TestFeedUnificationPins` (source pin + `_OANDA_SYMBOLS` 直接検査)
+
+### 敵対的レビューで確定した副作用と対処 (実装前 3 レンズ × 検証、CONFIRMED 2 件)
+
+1. **DMB JPY SELL の解錠 (feed 切替の非自明な副作用)**: OANDA (864 bars/60d 要求) → MASSIVE (63 暦日フル)
+   への切替で D1 リサンプル行数が ~44-45 → ~54 になり、`_compute_1h_htf_bias` の `len(d1) >= 50` 閾値を
+   跨ぐ。これまで d1_ema50_falling が恒久 False で**構造的に不可能だった DMB JPY SELL が AUD_JPY/NZD_JPY
+   で候補化可能**になる。primary としては SCORE_GATE (SELL×正 score misalign) が block するため row なし
+   (従来と同じ) だが、**(a) の席優先が作る displaced-guest 経路は SCORE_GATE を共有しておらず**、
+   `_open_shadow_emit_trade` 経由で最大 18h の shadow SELL が開き、hedge gate (shadow も計数) が
+   後続の席 BUY を live/shadow とも block し得た — multi-crash-bar 連鎖 (席の狙う局面そのもの) で
+   2 大席の再抑制ベクトルになる
+   → **対処: shadow_emit ループに primary SCORE_GATE のミラーを実装** (sentinel bypass 込みの同一条件、
+   `demo_trader.py` — 「bypass 経路は guard chain の共有を明示」教訓の適用)。これにより displaced
+   DMB SELL は row 化せず (primary 時と同じ帰結)、**guest の観測系列は正味不変**が回復する
+2. **_MASSIVE_SYMBOLS の substring pin がコメントアウトで素通り** (mutation 実証)
+   → **対処: 機能的 dispatch テストに置換** (`test_massive_live_dispatch_for_price_shock_pairs` —
+   provider を monkeypatch し 4 symbol × 1h の初手が massive であることを直接検証)
+3. **残存 (スコープ外記録)**: hedge gate が shadow ポジションを live 席 entry に対して計数する挙動自体は
+   既存仕様 (例: 15m 系 shadow SELL による audjpy hedge_block 56 件/5.5h 実測)。§8 の
+   hedge_block 寄与分離で定量し、必要なら別パケット化
+
+### 検証計画 (deploy 後)
+1. 次の design signal bar (family どのペアでも) で row 化を確認 — 特に eur_aud / usd_cad の初 row
+2. displaced DMB の shadow row 継続を確認
+3. `[Massive/1h] AUDJPY=X` 等の feed 切替ログ実測
+4. **30d 後に供給率を再計測** (§2 と同手法、design 期待 vs 観測) — 目標 capture ≥80%。未達なら §8 の補足検証 (hedge_block 寄与 / blackout 床) を精査
+
+## 10. 追補: WEEKEND_CLOSE 残存逸脱の初実射と counterfactual verdict (2026-08-11)
+
+id=14900 (aud_jpy shadow、2026-07-31 金 13:31 entry) で WEEKEND_CLOSE (金 21:45 強制 close) が初めて material に bind:
+- realized: **−126.5p** (WEEKEND_CLOSE)
+- design counterfactual (bar-index 週末跨ぎ保有、exit = Close[i+12] = 月曜 02:00、SL 距離 287.7p 非発火): **−191.0p**
+- **Δ = WEEKEND_CLOSE が +64.5p 保護的に働いた** (週末ギャップ AUD_JPY 続落)
+
+**verdict: WEEKEND_CLOSE 免除は非推奨で確定** — (i) N=1 ながら初実射が保護方向、(ii) 週末跨ぎ保有は
+ポートフォリオ全体のギャップリスクポリシー事項で、席単独の estimand 整合より上位、(iii) 免除の期待値改善の
+evidence がない。preserve-exit-overlay §7 の「既知の残存逸脱」ステータスを維持し、G-gate 解釈時に
+金曜午後 entry のみ WEEKEND_CLOSE ラベルが混じる点を注記する。
+
 ## 関連
 - [[preserve-exit-overlay-2026-07-28]] §6.6-5 (発端) / §7 (exit 側是正)
 - [[price-shock-reversion]] / [[price-shock-rev-promote-criteria-2026-05-18]]

@@ -1,5 +1,23 @@
 # FX AI Trader - Changelog
 
+## 2026-08-11 — feat(supply): price_shock_rev 席供給の是正 — (a) 席優先 select + (c) live feed MASSIVE 統一 (rule:R1)
+
+- **決裁執行**: [[price-shock-seat-supply-audit-2026-07-29]] §7 パケット (user「進めて」2026-08-03/08-11)。
+  winner-take-all × score 非対称 (guest DMB/KSB base 5.0+ vs seat ps 1.0) で family 供給が
+  design の ~31% (eur_aud/usd_cad は 0%) に絞られていた構造バグの修正
+- **(a)** `HourlyEngine.select_best` に席優先: ps 候補が存在する tick では ps が primary emit。
+  displaced guest は shadow_always 経由で shadow 継続 (系列不断)。DMB live は D-c-2 carve-out
+  除外中のため live 挙動の変化ゼロ。席集合は instance 導出で family 追随
+- **(c)** `_MASSIVE_SYMBOLS` (live) に AUDJPY/NZDJPY/EURAUD/USDCAD 追加 (AUDUSD R3 前例と同型、
+  凍結統計 12.3y MASSIVE とのソース統一) + `_OANDA_SYMBOLS` に USDCAD=X (yfinance 落ち穴修復)。
+  daytrade_audjpy 15m も MASSIVE 化 (影響列挙 = audit §9)。USD_CHF の同穴はスコープ外記録
+- **§10 追補**: WEEKEND_CLOSE 初実射 (id=14900 −126.5p) の counterfactual = design 保有なら
+  −191.0p → **免除非推奨で確定** (+64.5p 保護的、週末ギャップはポートフォリオ政策事項)
+- 根拠 (BT): 昇格 grid 12.3y MASSIVE BH-FDR m=3744 (AUD_JPY N=426 WR63.8% / NZD_JPY N=303 /
+  USD_CAD N=247 / EUR_AUD N=262 / EUR_GBP N=239) + 07-24 exit-free 監査全席 p=0.0001。
+  全席 Sentinel 1000u + ps watchdog R2 併設。検証計画 = §9 (30d 供給率再計測、capture ≥80% 目標)
+- tests: `tests/test_price_shock_seat_priority.py` (席優先 6 + feed pin 2)
+
 ## 2026-07-31 — feat(tools): P-S1(a) 執行パケット完全準備 — 判定器 + Option B draft branch + 第3/第4 ブロッカー発見 (rule:R1 準備、live 変更なし)
 
 - **目的**: sweep_reversion_eurgbp_late (12.4y Bonferroni 唯一生存 cell) の P-S1(a) 執行を
