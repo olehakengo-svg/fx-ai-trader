@@ -246,7 +246,13 @@ class DailyReviewEngine:
                 cr = t.get("close_reason", "unknown")
                 close_reasons[cr] = close_reasons.get(cr, 0) + 1
 
-            sl_hits = close_reasons.get("SL_HIT", 0)
+            # 2026-08-07 (rule:R3): "SL_HIT" は BE-lock/トレーリングで SL が利益側へ
+            # 動いた後の利確 exit も含む (本番実測 54.2% が WIN) ため、そのまま数えると
+            # 「SL幅拡大検討」を勝ちトレードで焚きつける。損切りのみを数える。
+            # 根拠: wiki/analyses/sl-hit-label-collision-2026-08-07.md
+            sl_hits = sum(1 for t in trades
+                          if t.get("close_reason") == "SL_HIT"
+                          and t.get("outcome") == "LOSS")
             tp_hits = close_reasons.get("TP_HIT", 0)
             if trades_today > 0:
                 sl_rate = sl_hits / trades_today * 100

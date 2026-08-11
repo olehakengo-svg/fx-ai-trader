@@ -3434,7 +3434,19 @@ class DemoTrader:
                             t for t in self._total_losses_window if t[0] > _cutoff]
 
                 # ── SL狩り対策: SL_HIT履歴記録（カスケード防御 + Fast-SL検出用）──
-                if close_reason == "SL_HIT":
+                # 2026-08-07 (rule:R3): `outcome != "WIN"` を追加。close_reason
+                # "SL_HIT" は「現在の SL に価格が触れた」の意味しかなく、BE-lock /
+                # トレーリング / Profit Extender が SL を entry より利益側へ動かした
+                # 後の**利確 exit** も同じラベルになる。本番実測 (N=3308, 2026-08-07):
+                # SL_HIT の 54.2% が outcome=WIN (SL が利益側 1894 本のうち 97.6% が
+                # 正 PnL、中央値 +2.00p / MFE 中央値 5.70p)。ガード無しでは
+                #   - cascade_cd (L5427): 勝ちトレール決済が同ペア全戦略を 45-600s ブロック
+                #   - Fast-SL 適応防御 (L6178): 勝ち決済が次エントリーの SL を ATR×0.3 拡大
+                # となり、原則1「攻める」/原則4 に反する。直前の cooldown 記録ブロック
+                # (L3421 `if outcome != "WIN"`) は同じ「SL 後の再エントリー防止」目的で
+                # 既に WIN を除外済み — 同一意図の 2 ブロックで扱いが非対称だったのが本バグ。
+                # 根拠: wiki/analyses/sl-hit-label-collision-2026-08-07.md
+                if close_reason == "SL_HIT" and outcome != "WIN":
                     _hold_s = 9999
                     try:
                         _et = datetime.fromisoformat(trade.get("entry_time", ""))
@@ -8450,7 +8462,7 @@ class DemoTrader:
             # の P1 補足調査参照。
             ("streak_reversal", "scalp_inline"),
             ("dual_sr_bounce", "daytrade_inline"),
-            ("ny_close_reversal", "daytrade_inline"),  # _GRAIL_CANDIDATES 登録、本番で散発発火
+            ("ny_close_reversal", "daytrade_inline"),  # 2026-07-31 GRAIL 撤去済 (rule:R2)、shadow のみ継続
         ]
         try:
             for inline_name, inline_cat in _INLINE_STRATEGIES:
@@ -8736,7 +8748,14 @@ class DemoTrader:
         # N=22 EV=+1.30 と direction-of-evidence 収束.
         # → _PAIR_PROMOTED + _PAIR_SESSION_FILTER + _PAIR_LOT_BOOST=0.05 へ移動.
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
-        # ("vix_carry_unwind", "USD_JPY"),
+        # 2026-08-03 (rule:R2, user 決裁「進めて」): Overlap pilot 早期 demote で復帰。
+        # 07-07 継続裁定の根拠 (shadow 正 EV) が崩壊 — shadow 月次 04:+537p →
+        # 05〜07 累計 -216p/n=139 (April regime の遺産)。live 累計 N=26 PnL=-46.9p
+        # PF=0.66 (月次 3/4 負、07-30 に -30.1p SL_HIT)。checkpoint (live SELL
+        # N>=20 or 08-31) を待たず quant-eval-2026-07-31 の証拠悪化で執行。
+        # 再昇格は R1 (365d cell BT + Bonferroni + pre-reg LOCK + user 承認)。
+        # 詳細: knowledge-base/wiki/decisions/vix-pilot-early-demote-2026-08-03.md
+        ("vix_carry_unwind", "USD_JPY"),
         ("streak_reversal", "USD_JPY"),
         # 2026-05-27 (rule:R2 + R1-EXCEPTION pair): donchian × NZD revival に伴い
         # 漏れ出る他 pair を個別遮断 (Shadow 蓄積継続)。Shadow EV<-3p or N<5:
@@ -8839,7 +8858,11 @@ class DemoTrader:
         # Gate: _PAIR_SESSION_FILTER={"Overlap"}, lot=0.05x (defensive min).
         # Demote: Cell-Live N>=10 AND (EV<0 OR Wilson_LB<34.4%) → auto re-demote.
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
-        ("vix_carry_unwind", "USD_JPY"),       # Overlap-only pilot, 0.05x lot
+        # REMOVED 2026-08-03 (rule:R2, user 決裁): Overlap pilot 早期 demote →
+        # _PAIR_DEMOTED へ復帰。live N=26 -46.9p PF=0.66 + shadow エッジ減衰
+        # (05-07 累計 -216p)。詳細:
+        # knowledge-base/wiki/decisions/vix-pilot-early-demote-2026-08-03.md
+        # ("vix_carry_unwind", "USD_JPY"),     # was: Overlap-only pilot
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
         # REMOVED 2026-06-12 (rule:R2) Edge Factor Audit #5: promotion basis
         # (shadow N=39 EV=+1.35) overturned at N=132 → EV=-1.66. LIVE GBP_USD
@@ -9017,7 +9040,11 @@ class DemoTrader:
     # 2026-05-13 (rule:R2 pilot): vix_carry_unwind×USD_JPY Overlap-only pilot.
     # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
     _PAIR_SESSION_FILTER = {
-        ("vix_carry_unwind", "USD_JPY"): {"Overlap"},  # 12 <= UTC hour < 16
+        # REMOVED 2026-08-03 (rule:R2): paired with _PAIR_PROMOTED removal above.
+        # Overlap pilot 早期 demote (vix-pilot-early-demote-2026-08-03.md)。
+        # filter は PAIR_PROMOTED なしでは inert だが code consistency のため撤去
+        # (session_time_bias 2026-06-07/07-02 と同型)。
+        # ("vix_carry_unwind", "USD_JPY"): {"Overlap"},  # 12 <= UTC hour < 16
         # 2026-05-29 (rule:R2 cell forensic):
         # session_time_bias × EUR_USD now cell-conditional. Shadow cells:
         #   London   N=58 WR=44.8% Wlo=0.327 EV=+1.44 PF=1.41 ✅ edge
@@ -9066,7 +9093,10 @@ class DemoTrader:
         #       (tools/volume_live_promotion_watchdog.py, Live N≥10 EV<0 で自動 demote).
         # 旧 0.05x pre-reg: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
         # 新 1.0x pre-reg:  knowledge-base/wiki/decisions/vix-1x-intentional-exception-2026-05-21.md
-        ("vix_carry_unwind", "USD_JPY"): 1.0,
+        # REMOVED 2026-08-03 (rule:R2): paired with _PAIR_PROMOTED removal —
+        # Overlap pilot 早期 demote (vix-pilot-early-demote-2026-08-03.md)。
+        # boost は PAIR_PROMOTED なしでは inert だが code consistency のため撤去。
+        # ("vix_carry_unwind", "USD_JPY"): 1.0,
         # 2026-05-28 (rule:R1-EXCEPTION): user judgment, Kalman D7 trio mid-tier sizing.
         # 0.1x (UNIVERSAL_SENTINEL default) → 0.5x. Live N=0 (8 日 silent drop 修正後).
         # 3 variant 同時発火: 1 PO-UP transition で v17/v18f/v18e 全部発注 → 合計 1.5× exposure.
@@ -9409,7 +9439,15 @@ class DemoTrader:
         # bypass)。Live London 実証は損 (2026-06-15: +1.3/+1.6/-9.0p)。vix は
         # _PAIR_PROMOTED の Overlap pilot のみで発火させる (1000u 固定、上記 fixed-lot)。
         # "vix_carry_unwind",     # was: USD_JPY × London × TREND_BEAR N=4 Wlo=15%
-        "ny_close_reversal",      # USD_JPY × NY × RANGE: N=4 Wlo=51% EV=+2.15 PF=4.58
+        # REMOVED 2026-07-31 (rule:R2): ny_close_reversal × NY後半。登録根拠は
+        # N=4 (Wlo=51%) の TP-hit deep-mining クラスタだったが、post-cutoff live
+        # 実績は 0W/4L −9.7p (07-06/07-08/07-15 含む)、shadow も GBP_USD −41p /
+        # USD_JPY −4p と両ペア負。quant-eval-2026-07-31 の 3 バケット全数調査で
+        # 7 月 live 出血経路の一角と特定 (詳細:
+        # knowledge-base/wiki/decisions/grail19-ny-close-removal-2026-07-31.md)。
+        # shadow emit は継続 (原則3) — 再 live 化は R1 (forward shadow N≥30 +
+        # Bonferroni + pre-reg LOCK)。
+        # "ny_close_reversal",    # was: USD_JPY × NY × RANGE N=4 Wlo=51% EV=+2.15
     }
 
     # ── 2026-04-27: C1-PROMOTE candidates (Q1' Cell Edge Audit, rule:R1) ──
@@ -10318,11 +10356,11 @@ class DemoTrader:
         # 到達不能だが、5/13 Overlap pilot の demote した負けセルを延命する経路を
         # 残さないため filter からも撤去。vix は Overlap pilot (1000u) のみ。
         #   was: hour 7-11 ∧ range_tight ∧ squeeze → True (観測 N=4 Wlo=15%)
-        # Grail #19: ny_close_reversal × NY後半 × RANGE
-        # 観測 N=4 TP=4 Wlo=51% EV=+2.15 PF=4.58 (TP-rate 100%, 小利)
-        if (entry_type == "ny_close_reversal"
-                and 17 <= hour_utc < 22):
-            return True
+        # Grail #19 (REMOVED 2026-07-31 rule:R2): ny_close_reversal × NY後半。
+        # _GRAIL_CANDIDATES から除外済 — entry_type not in 判定で既に到達不能
+        # だが、Grail #2 撤去 (2026-06-15) と同様に負けセルを延命する経路を
+        # 残さないため filter からも撤去。live 0W/4L −9.7p + shadow 両ペア負。
+        #   was: 17 <= hour_utc < 22 → True (観測 N=4 Wlo=51%)
         return False
 
     def _check_c1_promote_filter(self, entry_type, instrument, mode,

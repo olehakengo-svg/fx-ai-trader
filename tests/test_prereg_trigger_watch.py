@@ -123,6 +123,65 @@ def test_count_live_matching_filters_cell_and_dedup():
     assert count_live_matching(trades, "vix_carry_unwind", "USD_JPY", "SELL") == 1
 
 
+def test_count_live_matching_prefix_for_multi_variant_cell():
+    """t9-kalman-d7-live-n10-ev-check (2026-08-09): live 側も match=prefix を
+    honor すること。
+
+    kalman D7 は 1 セル = 3 entry_type (po_dn_flip / ema75_break / trail_atr)。
+    prefix 非対応のままだと entry_type=="kalman_d7" に完全一致する行が存在せず
+    count が恒久的に 0 になり、監視エントリが**沈黙して**退避条件が発火しない
+    (T5 の 18 日執行ギャップと同型の失敗モード)。
+    """
+    from tools.prereg_trigger_watch import count_live_matching
+    trades = [
+        {"entry_type": "kalman_d7_po_dn_flip", "instrument": "USD_JPY",
+         "oanda_trade_id": "1", "dedup_violation": 0},
+        {"entry_type": "kalman_d7_ema75_break", "instrument": "USD_JPY",
+         "oanda_trade_id": "2", "dedup_violation": 0},
+        # shadow / dedup 汚染 / 別戦略 は prefix でも除外される
+        {"entry_type": "kalman_d7_trail_atr", "instrument": "USD_JPY",
+         "oanda_trade_id": "", "dedup_violation": 0},
+        {"entry_type": "kalman_d7_trail_atr", "instrument": "USD_JPY",
+         "oanda_trade_id": "3", "dedup_violation": 1},
+        {"entry_type": "trendline_sweep", "instrument": "USD_JPY",
+         "oanda_trade_id": "4", "dedup_violation": 0},
+    ]
+    assert count_live_matching(trades, "kalman_d7", "USD_JPY", "",
+                               prefix=True) == 2
+    # 既定 (prefix=False) は完全一致のまま — 既存エントリの契約を壊さない
+    assert count_live_matching(trades, "kalman_d7", "USD_JPY", "") == 0
+    assert count_live_matching(trades, "trendline_sweep", "USD_JPY", "") == 1
+
+
+def test_registry_kalman_live_check_entry_is_wired():
+    """registry の t9-kalman-d7-live-n10-ev-check が実際に評価経路へ届くこと。
+
+    entry_type が prefix 前提で書かれているのに type 側が prefix を渡さない、
+    という配線ミス (2026-08-09 に実際に踏んだ) を固定する。
+    """
+    import json
+    from pathlib import Path
+    p = (Path(__file__).resolve().parents[1]
+         / "knowledge-base/wiki/decisions/prereg-trigger-registry.json")
+    reg = json.loads(p.read_text())
+    hit = [t for t in reg["triggers"]
+           if t["id"] == "t9-kalman-d7-live-n10-ev-check"]
+    assert hit, "kalman live 退避条件の監視エントリが registry から消えている"
+    trig = hit[0]
+    assert trig["active"] is True
+    assert trig["match"] == "prefix", "3 variant 合算には prefix 必須"
+    assert trig["type"] == "live_count_decision"
+
+    import inspect
+    from tools import prereg_trigger_watch as w
+    src = inspect.getsource(w.evaluate_trigger)
+    live_branch = src.split('ttype == "live_count_decision"')[1].split("elif")[0]
+    assert 'prefix=trig.get("match")' in live_branch, (
+        "live_count_decision が match=prefix を fetch_live_count へ渡していない "
+        "— 監視が沈黙する"
+    )
+
+
 def test_count_matching_instrument_filter_for_cell_granularity():
     """ws3-stage2-underpowered-recheck (2026-07-10): instrument 指定でセル
     (戦略×ペア) 粒度に絞れること — 無指定だと全ペア合算で過大計上する。"""

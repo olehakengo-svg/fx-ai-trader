@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "date": "2026-07-31",
+    "wave": "wave-4 (level-family: horizontal + parallel lines differential space)",
+    "charter": "user delegation 2026-07-30: '並行チャネル、水平線でエッジ開発できないか。時間軸・やり方は任せる。TVで色々試して勝てる方向性を探す'. Reinforced 2026-07-31: user believes prior falsifications may reflect analyst capability, asks to 'ちゃんと調べて出来るまでやる' for BOTH 平行線 and 水平線. Orchestrator interpretation (frozen): this does NOT license p-hacking or threshold relaxation (CLAUDE.md カーブフィッティング禁止, frozen session discipline '健全な候補が残らなければ全滅と正直に記録'). It licenses EXHAUSTIVE coverage of the genuinely untested differential space with properly powered measurement. The verifier must judge candidates on evidence, not on user desire for a PASS.",
+    "orchestrator_position_on_capability_claim": "The 3 falsifications (H4 swing×touch, regression±2σ/swing-parallel channel, horizontal sweep&reclaim — all ×15m hold) were massive-N IC studies (N=10k-59k/pair, Bonferroni) re-confirmed by the 13-agent adversarial postmortem 2026-07-24. 'Weak analyst' does not explain flat IC at that N on those estimands. What IS true: the tested space was narrow (15m holds, swing-derived levels, continuous scanning). The untested differential axes are real: (1) level+hold timeframe D1/W1, (2) non-swing level generation (round numbers, anchored constructs), (3) low-frequency event conditioning instead of continuous scanning.",
+    "survival_prior": "postmortem §3 success shape = low-frequency + event/LEVEL-ANCHORED + long hold. htf_false_breakout×AUD_JPY (1H SR false-break fade, h24, OOS ratio 1.82 p=0.0118) is the only 2-stage-screen survivor and is the nearest living mechanism to this family.",
+    "ledger_state": "active non-locked lines: 0 (wave-3 closed 2/2 FAIL). Locked/passive: E1 (first look 10-15), E7 phase-1 (08-28), E12 forward (2027-02-05), MoF forward (Q2 disclosure), htf_fb recheck (passive), sr_anti_hunt N>=30 (passive), weekend_gap stage-2 (pre-reg drafting). Parallel active cap = 3. Next ledger # = 18.",
+    "frozen_measurement_protocol": "TV primary (tv_launch -> pine_set_source -> pine_smart_compile -> data_get_pine_tables; wave1 per-event table export harness ~15min/family reusable: bt-results/tv-overlays/wave1_*.pine + tools/wave1_tv_explore_stats.py). explore 2014-01-01..2021-12-31 / OOS 2022+ single-touch after freeze. Exit-free fixed horizons only. Event-block bootstrap, BH-FDR q=0.10 family-wide. headroom >= 10x per-pair RT (USD_JPY 2.14p / EUR_USD 2.00p / GBP_USD 4.53p / EUR_JPY 2.50p / AUD_JPY 3.00p / AUD_USD 2.50p / NZD_USD 3.00p / USD_CAD 2.80p, floor 1.30p sensitivity). Multi-day holds must net swap into EV. Kill rules + knife-edge 3-point inspection declared at freeze. Worktree parquet is PARTIAL (15m AND 1h) — any local-data fallback must use main checkout data/cache/massive/.",
+    "verifier_deliverable": "Write verdict report to knowledge-base/raw/analysis/level-family-adversarial-verification-2026-07-31.md. Per candidate: GO / GO-WITH-CONDITIONS (enumerated LOCK-前 conditions) / KILL (triage) / BANNED (identity with a falsified form). Then: recommended family structure (which survivors share one BH family, m for primaries), execution order, and score honesty audit. Precedents to follow: wave3-adversarial-verification-2026-07-29.md, new-angle-adversarial-verification-2026-07-28.md."
+  },
+  "cross_cutting_verified_facts": [
+    "E12 P-10 ban scope verified against e12-volume-forward-prereg-2026-07-29.md §7: prohibition is 'cme volume × spot price joint quantities'. FX tick-volume×price joints are NOT covered by its letter, but E2 verdict 'tick volume は弱 proxy' and the E13 ban (MASSIVE tick volume, re-entry only if E12 unsigned PASS) are adjacent — candidate L-c must be judged against these.",
+    "rnb_usdjpy shadow strategy exists (wiki/strategies/rnb-usdjpy.md): USD_JPY round-number barrier, SHADOW data-collection, no BT data, live-forward only. Catalog precedent (ny-cut-pin-release-roundnumber, ADJACENT-CAUTION) requires any round-number pre-reg to differentiate vs the 3 corpses AND reconcile with the rnb_usdjpy track.",
+    "ny-cut-pin-release-roundnumber (catalog, not waved): honest headroom 3-6x < 10x, direction is the weak part. L-b below is a DIFFERENT estimand (D1-scale level events, multi-day holds, no expiry clock) but the verifier should check whether L-b silently inherits its weaknesses.",
+    "trendline_sweep 12y verdict (postmortem §1/§2): 365d WR73-81% -> 12y 41-44%, p=0.88-1.0, gross sub-friction +0.94p. The 06-25 memory claim 'liquidity-hunt is diagonal-TL-specific' predates this and is now weaker evidence than it reads.",
+    "TV OANDA D1 depth: majors have D1 history well before 2014 (to be asserted per-pair at measurement; coverage assert failure = data-blocked close per W3-2 precedent, no post-hoc relaxation).",
+    "Prior falsified forms (identity ban, NOT differential): (i) H4 swing×touch levels ×15m hold (project_h4_level_edge_falsified), (ii) regression±2σ + swing-parallel channels ×15m (project_channel_edge_falsified), (iii) horizontal sweep&reclaim / stop-hunt of PDH-PDL/recent extremes ×15m (project_sweep_reclaim_horizontal_falsified), (iv) 15m continuous-bar scanning in general (postmortem)."
+  ],
+  "candidates": [
+    {
+      "id": "L-a",
+      "name": "htf_level_failed_break_d1w1",
+      "family_side": "horizontal",
+      "mechanism": "False breakout of a D1/W1-scale horizontal extreme: D1 close beyond a long-lookback extreme traps breakout traders and triggers stops; failure to hold (close back inside within confirmation window) forces unwind, producing multi-day reversion toward the pre-break range. Same mechanism class as the surviving htf_false_breakout (1H SR false-break fade) generalized one-to-two timeframe levels up.",
+      "proposed_frozen_definition": {
+        "level": "rolling 55-trading-day Donchian extreme (prior quarter high/low), computed on D1 closes-excluded standard OHLC (level = max/min of prior 55 D1 highs/lows, excluding current bar). Rationale for 55d: quarter-scale institutional reference; single DoF, declared here, no variants.",
+        "event": "D1 close breaks beyond the level (close > prior 55d high, or close < prior 55d low), THEN within <=3 subsequent D1 bars a close back inside the level. Event bar = the re-close bar. Direction = fade (short after failed upside break, long after failed downside break).",
+        "dedup": "one event per side per 10 trading days (event-block).",
+        "horizons_exit_free": "{1d, 3d, 5d, 10d} forward from event-bar close; PRIMARY = 5d (single), others diagnostic.",
+        "pairs": "EUR_USD, USD_JPY, GBP_USD, AUD_USD, USD_CAD, EUR_JPY, AUD_JPY, NZD_USD (8; pooled primary like weekend_gap arm-B precedent, per-pair diagnostic)"
+      },
+      "expected_frequency": "roughly 4-10 events/pair/year (to be asserted in explore; if <40 pooled events in explore window -> underpowered, declare before test)",
+      "headroom_estimate": "D1 5d holds: typical |move| 40-120p vs RT 2.0-4.5p -> nominal 10-30x. Must be confirmed on event-conditional MFE p50 in explore BEFORE forward-return look (W3-2 precedent: headroom gate fwd-non-contact).",
+      "prior": "medium-high (highest in this set): direct generalization of the only surviving 2-stage screen mechanism; postmortem success-shape 3/3 (low-freq, level-anchored, long hold).",
+      "banned_adjacency_and_differential": "Ban (i) was H4 swing-pivot×touch-count wall levels with 15m holds, continuous scanning. Differential: (1) level generation = deterministic long-lookback extreme, not swing-pivot×touch; (2) hold = 1-10 D1 bars, not 15m; (3) low-frequency close-confirmed events, not per-bar scanning. Ban (iii) horizontal sweep&reclaim ×15m: that was WICK-penetration reclaim intraday; here breach must be a D1 CLOSE (not wick) and reversion horizon is days. MUST also declare relation to ledger #11 htf_fb recheck: proposed = separate family (different level TF, hold, and instrument set), with explicit cross-reference; verifier to confirm or overrule.",
+      "swap_accounting": "5-10d holds: net swap into EV using frozen per-pair swap estimates; declare in pre-reg.",
+      "known_risks": "Donchian-extreme false breaks may cluster in trending regimes (event-block bootstrap must be regime-robust; LOYO check); 55d choice is a DoF — frozen at proposal time, no scan."
+    },
+    {
+      "id": "L-b",
+      "name": "round_number_major_level_behavior",
+      "family_side": "horizontal (non-swing level generation)",
+      "mechanism": "Osler (2003, J. Finance): with real order data, take-profit limit orders cluster AT round numbers, stop-loss orders cluster just BEYOND them. Prediction 1: approaches to major round numbers reverse more than chance (limit cluster). Prediction 2: confirmed breaches accelerate (stop cascade). Institutional/real-money mechanism with published order-flow evidence — the only candidate whose level generation owes nothing to swing/price-action geometry.",
+      "proposed_frozen_definition": {
+        "level": "major round numbers only: integer 00 levels for JPY crosses (e.g., 150.00, 151.00), 100-pip 00 levels for USD-quoted pairs (e.g., 1.1000, 1.1100). No 50-levels in primary (fewer, cleaner events; 50-levels = declared non-tested, not a variant to scan).",
+        "event": "first D1 touch of a given round number after >=20 trading days without touching it ('fresh approach'). Touch = D1 high/low crosses the level. Direction hypothesis (PRIMARY, one-sided): reversal — forward return moves away from the level relative to approach direction.",
+        "dedup": "per level per 20 trading days by construction.",
+        "horizons_exit_free": "{1d, 3d, 5d} from touch-day close; PRIMARY = 3d (single).",
+        "pairs": "USD_JPY, EUR_JPY, AUD_JPY, EUR_USD, GBP_USD, AUD_USD (6)"
+      },
+      "expected_frequency": "fresh approaches to major levels: ~6-15/pair/year estimate; to be asserted.",
+      "headroom_estimate": "3d holds: typical |move| 30-80p vs RT 2.0-4.5p -> nominal ~10-25x; event-conditional confirmation required pre-look.",
+      "prior": "medium: published mechanism (Osler) but published-anomaly decay ~50% (McLean-Pontiff) and FX-intraday evidence base; D1 multi-day version is in-repo untested.",
+      "banned_adjacency_and_differential": "Round numbers are horizontal levels — the 3/3 dead lineage warning from catalog ny-cut entry applies. Differential: (1) exogenous level generation (no swing detection at all — corpses (i)/(iii) were swing/recent-extreme levels); (2) D1 events + multi-day holds (corpses were ×15m); (3) low-frequency 'fresh approach' conditioning (not continuous). vs ny-cut-pin-release: no expiry clock, D1 horizon — different estimand, and that entry was never measured (triage headroom fail on +1h/+4h horizons; our multi-day horizons change the headroom math). vs rnb_usdjpy shadow: that is a live-forward USD_JPY data track with no historical claim; this explore is historical and measurement-only — reconciliation statement to be included in pre-reg (no duplication of live collection, results feed that track's design).",
+      "swap_accounting": "3-5d holds: net swap into EV.",
+      "known_risks": "JPY crosses' 00-levels correlate with MoF intervention zones (2022/2024 USD_JPY 150-152-160) — OOS window contamination by intervention events must be a declared diagnostic; explore window 2014-2021 is intervention-free for USD_JPY. Level-density differs by pair regime (fast trends touch many levels: 'fresh approach' filter handles)."
+    },
+    {
+      "id": "L-c",
+      "name": "anchored_vwap_deviation_reversion",
+      "family_side": "parallel/dynamic line",
+      "mechanism": "Anchored VWAP from institutional anchor dates (year start / quarter start) is a benchmark for institutional execution; extreme deviation implies benchmark-chasing rebalance pressure back toward the anchor line. In-repo untested.",
+      "proposed_frozen_definition": {
+        "anchor": "quarter start (Jan/Apr/Jul/Oct first trading day), D1 bars.",
+        "signal": "deviation of close from anchored VWAP in ATR(20,D1) units; event = |dev| crosses 3.0 ATR for first time in that quarter; direction = reversion toward AVWAP.",
+        "horizons_exit_free": "{3d, 5d, 10d}; PRIMARY = 5d.",
+        "pairs": "EUR_USD, USD_JPY, GBP_USD, AUD_USD (4)"
+      },
+      "expected_frequency": "~2-4 events/pair/year (thin; power concern to be asserted).",
+      "headroom_estimate": "5-10d reversion from 3-ATR extremes: nominal 10x+ plausible but unverified.",
+      "prior": "low-medium: practitioner-popular, thin academic FX evidence.",
+      "banned_adjacency_and_differential": "HONEST FLAGS FOR VERIFIER: (1) VWAP requires volume; FX spot has only tick volume — E2 verdict 'tick volume は弱 proxy' and E13 ban are adjacent; the institutional-benchmark mechanism is diluted under tick-volume weighting (TV FX volume = feed tick count). E12 P-10 letter does not cover it (CME volume only) but spirit-adjacency should be ruled on. (2) Without meaningful volume weighting AVWAP degenerates toward an anchored average price -> deviation-reversion becomes slow mean-reversion, adjacent to ppp FAIL type ('direction right but weak') and D1 channel-reversion family. Orchestrator expects KILL or heavy conditions; included for completeness of the parallel-line side.",
+      "swap_accounting": "5-10d holds: net swap.",
+      "known_risks": "as above; also quarter-anchored events are calendar-clustered (bootstrap blocking)."
+    },
+    {
+      "id": "L-d",
+      "name": "d1_regression_channel_reversion",
+      "family_side": "parallel",
+      "mechanism": "D1 regression channel (e.g., 60d linear regression ±2σ) bound touch -> reversion, held multi-day. The literal 'parallel channel' at the untested timeframe.",
+      "proposed_frozen_definition": {
+        "channel": "60 D1-bar linear regression ±2σ.",
+        "event": "first D1 close outside ±2σ after >=10 days inside; direction = reversion to centerline.",
+        "horizons_exit_free": "{3d, 5d, 10d}; PRIMARY = 5d.",
+        "pairs": "EUR_USD, USD_JPY, GBP_USD, AUD_USD (4)"
+      },
+      "expected_frequency": "~4-8 events/pair/year.",
+      "headroom_estimate": "unverified; 2σ D1 extremes are large (often 100p+), nominal 10x+ plausible.",
+      "prior": "weakest in set: the same estimand at 15m was IC-null at N=48-59k/pair (corpse (ii)); the only differential is timeframe + event conditioning + multi-day hold. ppp FAIL showed D1+ slow reversion tends to 'direction right, too weak'.",
+      "banned_adjacency_and_differential": "Corpse (ii) ban text: '回帰±2σ・swing平行 定義は null 確定・再試行禁止' — the falsification memory scopes the study to 15m (production-page channels), but the verifier must rule whether the ban is TF-scoped or definition-global. If definition-global -> BANNED, record honestly and drop. Orchestrator does not argue for survival; included because user explicitly asked for the parallel-channel side and the TF-scope question deserves an explicit on-record ruling rather than silent omission.",
+      "swap_accounting": "net swap.",
+      "known_risks": "regression channels repaint as window slides; event definition must use frozen-window (no lookahead) computation."
+    },
+    {
+      "id": "L-e",
+      "name": "d1_diagonal_trendline_sweep",
+      "family_side": "parallel/diagonal",
+      "mechanism": "Sweep (wick-penetration + close-back) of a D1-scale diagonal trendline drawn from D1 swing points — the structure of trendline_sweep (the only line-based strategy that ever showed live WR80%) lifted from 15m to D1 anchors with multi-day holds.",
+      "proposed_frozen_definition": {
+        "trendline": "connect two most recent D1 swing lows (fractal 3/3) for up-line, swing highs for down-line, line must have >=15 trading days span; active while price above (up-line) / below (down-line).",
+        "event": "D1 bar penetrates line intraday (low < line for up-line) but closes back on the original side; direction = with-line (long at up-line sweep).",
+        "horizons_exit_free": "{1d, 3d, 5d}; PRIMARY = 3d.",
+        "pairs": "EUR_USD, GBP_USD, USD_JPY, AUD_JPY (4)"
+      },
+      "expected_frequency": "~5-12 events/pair/year.",
+      "headroom_estimate": "unverified; D1 sweep bars are 50p+ range days, nominal 10x plausible at 3-5d.",
+      "prior": "low-medium and HONESTLY DEGRADED: postmortem 12y verdict collapsed 15m trendline_sweep to sub-friction gross (+0.94p, p=0.88-1.0 favorable-BT reversal). The 'diagonal-specific liquidity-hunt' memory (06-25) predates that verdict. D1 anchors untested, but mechanism's only support is now weak.",
+      "banned_adjacency_and_differential": "Not identical to any corpse: (i)/(iii) are horizontal; (ii) is parallel-channel regression/swing-parallel — a single diagonal TL sweep is the trendline_sweep structure, which is not banned (it is a live-demoted strategy, not a falsified family). Differential vs 15m trendline_sweep: level TF, hold, event frequency. Verifier should weigh whether this duplicates a de-facto-dead strategy rather than exploring new space.",
+      "swap_accounting": "net swap.",
+      "known_risks": "swing-fractal + line-construction DoF is the largest in this set (repaint / selection); Pine implementation must freeze construction exactly; this is the hardest to keep honest — verifier may KILL on DoF grounds alone."
+    }
+  ],
+  "verifier_questions": [
+    "Family/BH structure: one wave-4 family-wide BH q=0.10 across survivors' primaries (m = #survivors), or singles? Precedent: wave-1 m=2 died partly of multiplicity; wave-3 ran singles.",
+    "L-a ledger relation to #11 htf_fb recheck: separate family with cross-reference, or same-family extension (which would change the recheck's Bonferroni denominator)?",
+    "Are 8-pair pooled primaries (L-a) acceptable given weekend_gap arm-B pooled precedent, or should pair count be cut for cleaner blocks?",
+    "Swap netting source: frozen per-pair swap table needs a source (OANDA current financing rates as of freeze date, applied uniformly) — acceptable, or does multi-day EV need historical swap series?",
+    "Is TV D1 per-event table export adequate as the sole measurement instrument for D1 events (wave-1 precedent was D1-equivalent monthly/event exports), with main-checkout parquet as cross-check only?"
+  ]
+}

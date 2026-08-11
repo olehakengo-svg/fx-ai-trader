@@ -1,9 +1,81 @@
 # Changelog — バージョン別変更と評価基準日
 
-## 2026-07-29 — docs(KB): 初 live fill 検証記録 + BE_LOCK §8 per-strategy 追補 (rule:R3 文書化、live 変更なし)
+## 2026-08-09 — fix(live): DT `ctx.hour_utc` が live で 12 に凍結 — 全DT戦略の時間帯ゲートが BT と別物だった (rule:R3)
+
+- **`t9-kalman-d7-fire-info` の 0-fire (実測 0.00/週 vs 期待 3.9/週) の分母調査から発見**。`compute_daytrade_signal` の DT 用 `SignalContext` 構築が `bar_time` 不在時に `hour_utc=12` / `is_friday=False` へ固定フォールバックしていた。**`bar_time` を渡すのは BT 経路のみ** (`app.py:6679/7121`)、**live 経路 (`demo_trader._tick` → `compute_fn(df, tf, sr, symbol)`) は渡さない** → live の DT 全戦略が「常に UTC 12:00・常に金曜でない」前提で時間帯ゲートを評価していた。潜伏 **123 日** (`9c849cef` 2026-04-08 の DT構造改革で再混入。2026-04-04 に同型バグを一度修正済み = **回帰**)
+- **証拠 3 系統**: ① code derivation (live 呼び出しが位置引数 4 つ)、② **本番 QUALBAR 実測** — `[kalman_d7] QUALBAR` 12 行が実バー 03:00〜21:15 UTC に散らばるのに**全行 `hour=12`**、③ **自然実験** — `ctx.hour_utc` 直読み群は BT 窓外発火 **83/237 = 35.0%**、`df.index` から自前導出する回避策を持つ群 (turtle_soup / london_session_breakout の redesign_v2) は **0/28 = 0.0%**、**Fisher exact one-sided p = 1.32e-05**
+- **実害**: (a) h=12 が窓の穴に落ちる戦略 = **live 発火が構造的に不可能** — kalman_d7×3 variant (LIVE 化から **73 日 0 fire**)、pd_eurjpy_h20 (h==20)、tokyo_range_breakout (7-9)、london_ny_swing (13-17)、tokyo_nakane (00:45-01:15) は shadow N すらゼロ = **探索母集団から消えていた**。(b) h=12 を通す戦略 = 時間帯ゲート常時開放 — squeeze_release_momentum は発火の **86.7%** が BT 窓外、liquidity_sweep 50.0% / inducement_ob 26.7% / trendline_sweep 8.4%。(c) `is_friday` が常に False → **金曜ブロック (`FRIDAY_BLOCK_HOUR` 13〜18) が live で一度も作動していなかった**
+- **Rule 3 根拠 = 同一関数内の内部矛盾**: 4 行上の `is_trade_prohibited` は当初から `bar_time if bar_time else datetime.now(timezone.utc)` と正しく降りており、scalp が使う `SignalContext.from_df` も `bar_time → row.name → now()` と正しい。**壊れていたのは DT 経路の直接コンストラクタ呼び出しだけ**。統計的新規主張ではないため 365日BT 不要
+- **修正**: DT ctx の時刻導出を `bar_time → df.index[-1] → now(UTC)` に統一 (naive は UTC 扱い / aware は UTC 正規化)。`modules/data.py` が fetch 経路 index を UTC 正規化済みのため live の `df.index[-1].hour` は UTC 時刻。**BT 経路の契約は不変** (明示 `bar_time` が最優先)
+- **監視配線バグも同時修正**: 退避条件を載せようとした `prereg_trigger_watch` の `live_count_decision` が `match: prefix` を `fetch_live_count` へ渡しておらず、kalman (1セル=3 entry_type) の live 件数が**恒久的に 0 = 監視が沈黙**する状態だった (T5 の 18 日執行ギャップと同型)。`count_live_matching(prefix=)` を shadow 側と同契約に
+- **回帰 pin**: `tests/test_dt_ctx_hour_utc_live.py` (9 tests、**修正前ソースで 7 件が落ちることを検証済**) + `test_prereg_trigger_watch.py` に prefix/配線テスト 2 件。全 suite 2561 passed / `check.py` 全9チェック通過
+- **修正の作用方向**: 制限側 (trendline_sweep / squeeze_release_momentum / inducement_ob / liquidity_sweep / post_news_vol / ema200_reversal) = **BT 検証済み設計への復帰で安全**。開放側の大半は shadow のみ = **N 蓄積の回復** (原則4)。唯一 **kalman_d7 は `KALMAN_D7_LIVE_ENABLE=1` (本番 effective) のため live 発火が始まる** — ただし 2026-05-28 に user が option B で明示決裁した設計 (lot 0.5×) を初めて実際に動かすものであり新規昇格ではない (Rule 1 対象外)。決裁時の退避条件を機械監視に載せるため registry に `t9-kalman-d7-live-n10-ev-check` (live N≥10 で EV 判定、期日 2026-11-30) を新設
+- **既存判定の訂正**: [[pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28]] §6.5 の「INCONCLUSIVE = 設計対象外局面」は**誤診**と確定 (DIST fail は事実だが、通過していても session gate で必ず落ちていた)。**live/shadow 発火数に依拠した過去判断は本バグの影響を受ける**が、BT/探索側の verdict (WS3 の lfr / htf_fb / T10 / T11 等) は `bar_time` を持つため**影響なし**
+- **評価への影響**: tier/lot/live 送信可否は**不変更**。clean live 負エッジ (−242.6p / payoff 0.274) の説明変数が 1 つ増えた (エッジ消滅ではなく執行窓の逸脱による寄与) — 分離定量は修正デプロイ後の N 蓄積待ち。詳細: [[dt-ctx-hour-utc-live-freeze-2026-08-09]]
+
+## 2026-08-07 — fix(live): `SL_HIT` ラベル衝突 — 勝ち決済が SL 狩り防御を発火させていた (rule:R3)
+
+- **08-05 daily 提起の「`SL_HIT` の 46.2% が正 PnL」を解決。汚染ではなく「ラベル衝突」**: `close_reason="SL_HIT"` は「**現在の** SL に価格が触れた」の意味しかなく、BE-lock / トレーリング / Profit Extender が SL を entry より利益側へ動かした後の**利確 exit** も同じラベルになる。データは正しく、名前と下流の解釈が誤っていた
+- **本番実測 (N=3308, `/api/demo/trades`)**: SL が**利益側** 1894 本 → 97.6% が正 PnL (中央値 +2.00p / MFE 中央値 5.70p) / **リスク側** 1414 本 → 99.6% が負 PnL (中央値 −6.95p / MFE 0.00p)。**誤分類 1.5%** = SL 位置は事実上完全な判別子。`outcome` 内訳 = **WIN 1792 (54.2%)** / LOSS 1441 / BE 75。08-05 の 46.2% は小標本 (106本) ゆえの**過小評価**だった
+- **実害 (live 挙動)**: `_sl_hit_history` を消費する防御 2 本が「ストップ狩りに遭った」前提で動く — ① **cascade cooldown** = 同一ペアの**全戦略**を 45–600s ブロック、② **Fast-SL 適応防御** = 次エントリーの SL を ATR×0.3 拡大。**発火イベントの 54.2% が勝ち由来の誤発火** (Fast-SL 側は 315 件中 180 = 57.1%)。誤発火は USD_JPY 494 / GBP_USD 444 / EUR_USD 306 と**主力ペアに集中**し、4原則 #1「攻める」/ #4 に反していた
+- **Rule 3 根拠 = 設計の内部矛盾**: 同じ close 経路の**直前**のブロック (`if outcome != "WIN":` → `_last_exit` / `_total_losses_window`) が「SL 後の再エントリー防止」という**同一目的で既に WIN を除外**しており、隣接する 2 ブロックが非対称に書かれていた。統計的新規主張ではないため 365日BT 不要
+- **修正**: ① `demo_trader.py` の履歴記録を `close_reason=="SL_HIT" and outcome != "WIN"` に (BE 75 本は逆行スイープの証拠として**防御に残す**ため `=="LOSS"` ではなく `!="WIN"`)、② `learning_engine.sl_losses` / ③ `daily_review.sl_hits` を `outcome=="LOSS"` で絞る — 両者は「SLヒット率 >60/70% → **SL幅拡大検討**」を焚く advisory で、生カウントでは **82.7%** (真の損切り率 **36.0%**) となり勝ちの多い book に SL 拡大を勧めていた。④ 回帰 pin `tests/test_sl_hit_history_win_guard.py` (4 tests、修正前ソースで落ちる負のコントロール検証済)
+- **意図的に見送り**: `close_reason` の改名 (`TRAIL_EXIT` 等) は既存 3308 行と全 BT/分析ハーネスの estimand を非可換に壊すため**しない** — ラベル据え置き・消費者側を正す方針。shadow 行の混入是非 (誤発火 1792 件中 1786 が `is_shadow=1`) は scope 外で継続課題
+- **波及**: `shadow_demote_registry.py:40` の demote 根拠「SL_HIT 56.2%」は本汚染値そのもの → 再検討要 (保守側ゆえ緊急性なし、R2 で別途)。**今後 `close_reason` 起点の分析は `outcome` 分割を前提とすること**。MEMORY `project_be_trail_inflates_python_bt_wr` と同一機構が live 側にも出ていた
+- **評価への影響**: tier/lot/live 送信可否は**不変更**。変わるのは防御の誤発火が消える点のみ (エントリー機会の回復方向)。詳細: [[sl-hit-label-collision-2026-08-07]]
+
+## 2026-08-05 — fix(bt): daytrade/scalp BT phantom-loss 記帳修正 — LOSS を実効ストップ基準に (rule:R3)
+
+- **R3 調査完結**: sr_anti_hunt×EUR_JPY BT の 05-05 WR84.9% → 08-05 WR0.0% 反転は **regime ではなく `d87d5b6c` (2026-05-15) の `_BT_ABLATE_BE_TRAIL` default 反転**が直接原因。加えて **phantom-loss 記帳バグ**を発見: time-decay tightening (MAX_HOLD×50%) で entry まで引き上げた stop の退出 (実損≈0) を、`actual_sl_m` が「fut_close >元 SL 時のみ設定」のため planned `sl_m` のフル損失で計上。anti-hunt 系は BT の SL 再計算 (QH 前 TP距離/1.2) で sl_m=6.5〜11 ATR となり **1 件 −8.3R 級の架空損失** (trade dump で bars_held 12-17 集中 + actual_sl_m: null 全件を実証)
+- **修正**: daytrade/scalp 両エンジンの LOSS 記帳を実効ストップ (`_dt_current_sl`/`_current_sl`) 基準化 + gap なし分岐でも actual_sl_m 必須設定。tools/sr_anti_hunt_bounce_shadow_bt.py `_pnl_r` の `or 1.0` falsy ガードが正当な 0.0 を coerce するバグも修正。run_backtest(1H)=非発現 / run_1h_backtest=既に close-based で対象外。回帰 pin `tests/test_effective_stop_loss_booking.py` (4 tests)、全 suite 2521 passed
+- **判定への影響**: 08-05 cell BT の **EV_R=−8.30 は引用禁止** (gate FAIL 結論と forward 枠は不変)。05-05 の WR84.9% は optimistic 虚構 (BE 退出→+0.6×TP credit) で同じく引用禁止。**ablated BT の WR は wide-TP (≳3ATR) 戦略で構造的 ≈0 → wilson_lo 型 R1 ゲートは TP≲2ATR geometry 限定、wide-TP は TV Pine / shadow live で判定**。d87d5b6c 以降の daytrade/scalp BT 絶対 EV は decay-LOSS 比率×sl_m に比例して過大悲観 (相対比較は方向性有効)。詳細: [[bt-harness-effective-stop-booking-2026-08-05]]
+- **評価への影響**: live/shadow/tier/lot/Kelly 全て不変更 (BT 評価ロジックのみ)
+
+## 2026-08-05 — docs(KB): ロット階段 R1 パケット標準テンプレ事前凍結 + 計算ツール (rule:R3、live 変更ゼロ)
+
+- **セル・ポートフォリオ論 (user 合意 2026-08-05) 執行項目②**: G3 到達セルの lot 昇格手続きを事前凍結 — [[lot-ladder-template-2026-08]]。標準階段 L0 1000u → L1 5000u → L2 10000u → L3 30000u、昇格 = 段ごと R1 + user 承認 (SLA 48h) / 降格 = R2 自動 (D1 slippage / D2 at-rung 出血 / D3 disaster / D4 合成 DD 4/6/8% NAV / D5 Wilson gate 割れ) の非対称を凍結
+- **推奨 lot = min(6 上限)**: half-Kelly 2 基底 (本番 `kelly_fraction` 式同期) / worst-case イベント損失 ≤2.5% NAV / 証拠金 worst-case 同時 ≤40% NAV (25x) / exposure 20k cap / MC P(セル DD>2% NAV, 12mo)≤5% (`monte_carlo_ruin` JPY 建て)。台帳は broker 実約定 JPY のみ (D-a/D-e 整合)
+- **計算ツール**: `tools/lot_ladder_calc.py` (§8 パケット機械生成、手計算禁止) + `tests/test_lot_ladder_calc.py` (25 tests、テンプレ worked example を数値 pin)
+- **wg 事前充填の主発見**: ① Wilson gate (D-d 拘束) は wg 級統計で **N_required=41 > G3 の 30** = G3 到達≠即増額、② wg の binding constraint は Kelly でなく **disaster SL 150p** (U_cellDD ≈ 5.4k → L1 が実質上限 @NAV 326k)、③ 3 ペア同時セルの L2+ は exposure 20k cap 改定 R1 同梱必須。単一セル垂直増額では thesis に届かない = セル 2〜5 本の合成が必要という算数を再確認
+- **評価への影響: なし** — 全セル lot/tier/live 経路不変更。第 1 適用は wg G3 到達時 (fill 修復前提、ETA 2027-05 @現ペース)
+
+## 2026-08-05 — fix(risk): dashboard MC ruin の資本整合 (D-b 完結) + 549250 事故 disposition (rule:R3)
+
+- **「MC ruin 0%→100% 反転」(08-04 daily) の解剖**: gate 側 (`_get_ruin_probability`、実際に live 送信を止める方) の実測 = **ruin 0.0** (post-cutoff 全 N=566 + JPY 整合資本 5,801p、audit に mc_ruin block ゼロ) — **運用凍結は起きていない**。100% は dashboard 専用の三重 artifact (30d n=10 窓 × 資本 1000p ハードコード取り残し × 単位不均一 pip 系列)
+- **修復**: `/api/risk/dashboard` の `compute_risk_dashboard` に gate 側と同一式の `initial_capital` (OANDA_EQ_BASE_JPY/OANDA_JPY_PER_PIP_AVG) を接続 + n<20 低信頼フラグ。同一 n=10 系列で ruin **1.0→0.0**。D-b (Track C) が gate 側だけ直して dashboard 側が取り残された「同じ事実の片方欠落」の完結。pin `tests/test_mc_ruin_dashboard_capital_align.py`
+- **549250 (−123.2p) disposition**: 実損 ¥1,232 = NAV 0.34%、設計 horizon exit の範囲内。#4 tp=151.25 は placeholder 設計 (バグ非該当、R3 チェック完了)。#2 live_tier_exempt は pre-reg 承認済み estimand (regime veto 追加は Post-hoc tune 禁止に抵触、変更は R1)。#7 wg 非約定 = MARKET_HALTED 確定済み (2cf940f7)。**#3 ps demote 可否は user 決裁材料として整理 (推奨: LOCK の watchdog に委ねる / 代替: horizon 損失 cap の R1 amendment)**。詳細: [[mc-ruin-dashboard-artifact-2026-08-05]]
+- **評価への影響**: 表示計量の修正のみ — live/tier/lot/gate 閾値は全て不変更 (Gate2-4 は他条件で引き続き閉)
+
+## 2026-08-05 — docs(KB): sr_anti_hunt_bounce×EUR_JPY R1 昇格判定 NO-GO → forward 確認 pre-reg (rule:R1 手続き、live 変更なし)
+
+- **user「進めて」(2026-08-05) による R1 パケット起案を精査の結果 NO-GO 裁定**: ①起案動機 p=2.2e-11 は dedup_violation 除去 (23/67 重複 emit) 後 **EV t p≈0.094 = n.s.** に減衰、②累計 +272.4p は 2026-05 単月依存 (5月除外で −53.3p)、③live N=4 符号逆、④事前宣言ゲート付き 365d cell BT は **ハーネス整合破綻を検出** (同一ハーネスが 05-05: WR84.9% → 08-05: WR0.0%、9ヶ月重複窓で反転 = app BT パスとの機械的不整合、R3 調査タスク発行) で評価不能。vix pilot 失敗構図より弱い証拠での昇格を回避
+- **forward 確認枠 LOCK**: セル凍結 = EUR_JPY×BUY / dedup=0 / 2026-08-05 以降 fresh N≥40 で 1 回限り判定 (EV>0 ∧ Wilson_lo>38.7% ∧ 月次符号≥3/4)。registry `sr-anti-hunt-eurjpy-buy-forward-confirm` (期限 2027-02-28)。中間再計算禁止 (P-10 型)。詳細: [[sr-anti-hunt-eurjpy-r1-verdict-2026-08-05]]
+- **評価への影響: なし** — live/tier/lot/shadow 全て不変更。成果物 = 決裁 doc + registry + BT runner (`tools/sr_anti_hunt_eurjpy_cell_bt_2026_08_05.py`) + BT 乖離証拠 (raw/bt-results/)
+
+## 2026-08-03 — fix(live): vix_carry_unwind×USD_JPY Overlap pilot 早期 demote (rule:R2, user 決裁)
+
+- **決裁**: 2026-07-31 quant-eval の早期 demote 推奨を user「進めて」承認 (2026-08-03)。07-07 継続裁定の「demote は user 決裁」要件を充足、checkpoint (live SELL N≥20 or 08-31、registry `vix-sell-pilot-recheck`) を待たず執行
+- **根拠 (production 実測)**: live N=26 PnL=−46.9p PF=0.66 EV=−1.80 (月次 3/4 負、07-30 −30.1p) + **shadow エッジ崩壊** 04:+537p → 05〜07 累計 −216p/n=139 → 08-01〜03 −17p/n=7。365d BT 正値 (EV=+0.506 / Overlap cell N=22 EV=+1.297) は forward で反証 — 止血判定は EV 軸・Live>BT の規律に従い demotion に新規 BT 不要 (再昇格 R1 側で要求)
+- **執行**: `_PAIR_PROMOTED` 除外 (22→21) + `_PAIR_DEMOTED` 復帰 + `_PAIR_SESSION_FILTER`/`_PAIR_LOT_BOOST` 撤去 (inert だが code consistency)。MIN-lot 1000u 契約 code / agg-Kelly min-lot bypass は再昇格時のため残置。**shadow emit 不変更 (原則3)**。registry resolved 化。pin `tests/test_vix_pilot_demote_pin.py` (5 tests)、session-filter/agg-Kelly 機構テストは合成メンバーシップ化で絶縁
+- **評価への影響**: 現役 live 送信経路から最大の出血源 (7月 −34.3p) を除去。残る live 経路 = wg×3 + ps×5 + Grail #1/#4 (監視中)。詳細: [[vix-pilot-early-demote-2026-08-03]]
+
+## 2026-07-31 — fix(live): Grail #19 ny_close_reversal live 経路撤去 + shadow 含む全数 quant-eval (rule:R2)
+
+- **quant-eval 全数監査** ([[quant-eval-2026-07-31]] = `raw/trade-logs/`): post-cutoff closed **14,329 行**を 3 バケット分解 (live 565 / shadow 13,758 / other 6)。live 月次 = 04:−230.7 / 05:**+14.8** / 06:−281.9 / 07:−84.4p。**7 月 live 反実仮想: 修正済みバグ経路 + ny_close + vix を除くと −7.6p** = M1 (月次符号転換) の残存出血源を特定
+- **Grail #19 撤去 (rule:R2)**: ny_close_reversal live 経路 (N=4 登録根拠、2026-04-25) が live 0W/4L −9.7p + shadow 両ペア負 → `_GRAIL_CANDIDATES`/`_check_grail_filter` から撤去。shadow emit 継続 (原則3)。pin `tests/test_grail19_ny_close_removal_pin.py`。詳細: [[grail19-ny-close-removal-2026-07-31]]
+- **勝ちセル抽出** (Bonferroni m=102): WR vs BEV 二項検定 PASS = sr_anti_hunt_bounce×EUR_JPY (p=2.2e-11) / donchian×NZD_USD (4.2e-6) / ema200_trend_rev×USD_JPY (2.6e-6) / orb_trap×GBP_USD (3.0e-4、EV t 検定も PASS)。**横断勝ち条件 = 方向片側性 + Overlap (12-16 UTC)**。母集団レベルでは confidence≥70 が WR+5.0pp (Bonf PASS、04-22 分析の負相関から反転 — KB 矛盾として記録)
+- **vix pilot 証拠更新 (live 変更なし)**: shadow エッジ減衰 (05〜07 累計 −216p) + live 月次 3/4 負 → 早期 demote 推奨を戦略カードに追記、**user 決裁待ち** (07-07 裁定準拠)
+- **評価への影響**: live 送信経路 −1 (ny_close Grail)。lot/tier/Kelly 不変更。shadow 蓄積は全戦略不変
 
 - **🎉 3.5 ヶ月ぶりの初 live fill (07-29 04:44 UTC)**: price_shock_rev_aud_jpy×AUD_JPY → OANDA #549235 BUY 1000u @113.466 slip+0.8p。経路検証全クリーン — agg-Kelly BYPASS ログ実射 (D-c-1 carve-out 作動) / broker SL #549237 @112.467 (=2×ATR) + TP 付帯の二層防御 / dedup・slot 正常 / BE_LOCK・ATR-BE 不作動。**§7 免除 deploy (04:22) 後の fill = 完全な LOCK 設計 estimand 下の第 1 号** (戦略カード 現況に記録)。副次観測: broker TP に Quick-Harvest ×0.85 が適用される (988p→840p、horizon 12h では非拘束 — §7 スコープ外として記録)
 - **[[mfe-be-lock-design-2026-06-03]] §8 追補**: per-strategy 詳細表 (57d 再計測、適格 9 戦略 **0/9 pass**、Bonferroni p 全 1.0、aggregate ΔEV −0.006 p=0.975) — §8 verdict FAIL の per-strategy 粒度での確定。**評価への影響: なし (記録のみ)**
+## 2026-07-29 — fix(data): E15/E7 phase-1 データ前提修理 — plain 15m 台帳再現を 13/13 byte-exact 復元 + never-shorten ガード (rule:R3)
+
+- **発見**: coverage 台帳 (`e15_e7_pair_coverage.json`, 07-21 凍結) が参照する plain `{pair}_15m.parquet` が **11/13 ペアで台帳再現不能** (各種 explore の短い `--days` フル取得による無条件上書きが原因、EUR_AUD は消失)。このままでは phase-1 discovery (08-21) / OOS verdict (08-28) が `load_and_verify_bars` で BLOCKED
+- **復元**: phase-0 実行 worktree `e15-oos-20260722` に原本が現存、**phase-0 verdict data_ledger の sha256 と 13/13 完全一致** → `tools/e15_e7_data_refreeze.py --restore-from` で byte-exact 復元 + 判定器実コードで 13/13 GREEN 実証。凍結コピー `data/cache/massive/e15_e7_frozen/` + manifest `raw/bt-results/e15_e7_frozen_manifest_2026-07-29.json` (verdict と同一 sha256 = provenance 連鎖が閉じる)
+- **副産物 (重要)**: MASSIVE fresh 再取得で **AUD_USD が台帳比 −25 行 drift** = ベンダー歴史バー集合は不変ではない。pre-reg データ凍結は「cache 参照 + 行数 pin」でなく**ファイル実体コピー + sha256** で行うこと
+- **再発防止**: `tools/fetch_massive_data.py` に never-shorten merge ガード (既存行優先・head 保持・tail 延長のみ) + tests 8 本。phase-1 pre-flight = `--verify-only` (runbook `e15_phase0_execution_status.md` 2026-07-29 節)
+- **評価への影響: なし** — 価格ファイルの復元のみ、イベント×リターン統計未計算 (§10-1 遵守)、live/shadow/Kelly/tier 不変更
 
 ## 2026-07-29 — fix(data): MASSIVE ベンダー欠損 2 区間 (2019-09/2020-10) を OANDA v20 で backfill — 45 ファイル +61,709 行 (rule:R3)
 

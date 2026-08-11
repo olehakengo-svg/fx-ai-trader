@@ -2549,8 +2549,35 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     # DT用SignalContext構築（ema_score + 蓄積reasonsを渡す）
     # bar_time からセッション情報を導出（TNM/LSB等の時間帯フィルター用）
-    _dt_hour_utc = bar_time.hour if bar_time and hasattr(bar_time, 'hour') else 12
-    _dt_is_friday = bar_time.weekday() == 4 if bar_time and hasattr(bar_time, 'weekday') else False
+    #
+    # 2026-08-09 [rule:R3] 構造バグ修正: 旧実装は bar_time が無いとき hour=12 /
+    # is_friday=False の固定値にフォールバックしていた。bar_time が渡るのは BT 経路
+    # (app.py の backtest ループ) だけで、**live 経路 (demo_trader._tick →
+    # compute_fn(df, tf, sr, symbol)) は bar_time を渡さない** ため、live では
+    # DT 全戦略の ctx.hour_utc が常に 12 に凍結されていた。
+    #   - h=12 で落ちる窓を持つ戦略 (kalman_d7 / pd_eurjpy_h20 / tokyo_range_breakout
+    #     / london_ny_swing / tokyo_nakane) は live で構造的に発火不能
+    #   - h=12 を通す窓を持つ戦略 (trendline_sweep / squeeze_release_momentum /
+    #     inducement_ob / liquidity_sweep 等) は時間帯ゲートが常時開放され、
+    #     BT 検証窓の外でも live 発火していた (実測 35.0% が窓外)
+    #   - is_friday も常に False → 金曜ブロックが live で一度も効いていなかった
+    # 分母/分子の実測と統計的根拠: knowledge-base/wiki/analyses/
+    #   dt-ctx-hour-utc-live-freeze-2026-08-09.md
+    # 同関数内の is_trade_prohibited(bar_time=...) は当初から now(UTC) フォール
+    # バックを持っており、その挙動に揃える (BT=バー時刻 / live=直近バー時刻)。
+    if bar_time is not None and hasattr(bar_time, 'hour'):
+        _dt_bar_dt = bar_time
+    elif getattr(df, "index", None) is not None and len(df.index) and hasattr(df.index[-1], 'hour'):
+        # live: 直近バーのタイムスタンプ (SignalContext.from_df / scalp 経路と同一の基準)
+        _dt_bar_dt = df.index[-1]
+    else:
+        _dt_bar_dt = datetime.now(timezone.utc)
+    if getattr(_dt_bar_dt, 'tzinfo', None) is None:
+        _dt_bar_dt = _dt_bar_dt.replace(tzinfo=timezone.utc)   # naive index は UTC 扱い
+    else:
+        _dt_bar_dt = _dt_bar_dt.astimezone(timezone.utc)
+    _dt_hour_utc = _dt_bar_dt.hour
+    _dt_is_friday = _dt_bar_dt.weekday() == 4
     _dt_prev_row = df.iloc[-2] if len(df) >= 2 else row
 
     # Perfect Order regime (M15 限定 — Kalman D7 etc).
@@ -6273,11 +6300,18 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                               "exit_friction_m": round(_exit_friction_m, 4),
                               "exit_reason": _exit_reason,
                               "_is_range_tp_override": _is_range_tp_override}
-                if outcome == "LOSS" and _exit_reason != "signal_reverse":
-                    if sig == "BUY" and fut_close < sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
-                    elif sig == "SELL" and fut_close > sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
+                # R3 2026-08-05: LOSS は実効ストップ (_current_sl) 基準で記帳
+                # (daytrade 側と同一の phantom-loss 修正、KB 同 doc 参照)。
+                if outcome == "LOSS" and _exit_reason == "tp_sl":
+                    # 0.001 floor: daytrade 側と同じ falsy-coerce 防御
+                    _atr7_safe_sc = max(atr7, 1e-6)
+                    if ((sig == "BUY" and fut_close < _current_sl)
+                            or (sig == "SELL" and fut_close > _current_sl)):
+                        trade_dict["actual_sl_m"] = max(round(
+                            min(abs(fut_close - ep) / _atr7_safe_sc, sl_m * 1.2), 3), 0.001)
+                    else:
+                        trade_dict["actual_sl_m"] = max(round(
+                            abs(ep - _current_sl) / _atr7_safe_sc, 3), 0.001)
                 trades.append(trade_dict)
 
         # ── Phase 5: 摩擦込みPnL関数 (EV計算リベース) ──
@@ -7222,11 +7256,23 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 "entry_friction": round(_spread / 2 + _slip_dt, 6),
                                 "exit_friction": round(_exit_friction_dt, 6),
                                 "_is_range_tp_override": _is_range_tp_override}
-                if outcome == "LOSS" and _exit_reason_dt != "signal_reverse":
-                    if sig == "BUY" and fut_close < sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
-                    elif sig == "SELL" and fut_close > sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
+                # R3 2026-08-05: LOSS は実効ストップ (_dt_current_sl) 基準で記帳。
+                # time-decay で entry 付近へ引き上げた stop の退出 (実損≈0) を
+                # planned sl_m のフル損失 (anti-hunt 系で 6-11 ATR) として計上する
+                # phantom-loss を排除。time_exit_* は sl_m を実測距離へ rebase 済み
+                # のため対象外。ref: wiki/analyses/bt-harness-effective-stop-booking-2026-08-05.md
+                if outcome == "LOSS" and _exit_reason_dt == "tp_sl":
+                    # 0.001 floor: 下流 harness の `or` 型 falsy ガード (tools/*_shadow_bt
+                    # の _pnl_r 等 65+ 箇所) が正当な 0.0 を planned sl_m に coerce して
+                    # phantom-loss を復活させるのを発生源で防ぐ
+                    _atr_safe_dt = max(atr, 1e-6)
+                    if ((sig == "BUY" and fut_close < _dt_current_sl)
+                            or (sig == "SELL" and fut_close > _dt_current_sl)):
+                        trade_dict["actual_sl_m"] = max(round(
+                            min(abs(fut_close - ep) / _atr_safe_dt, sl_m * 1.2), 3), 0.001)
+                    else:
+                        trade_dict["actual_sl_m"] = max(round(
+                            abs(ep - _dt_current_sl) / _atr_safe_dt, 3), 0.001)
                 trades.append(trade_dict)
 
         # ── Phase 5: 摩擦込みPnL関数 (EV計算リベース) ──
@@ -13900,6 +13946,31 @@ def api_oanda_accounts():
     return jsonify({"error": data}), 500
 
 
+@app.route("/api/oanda/transactions")
+def api_oanda_transactions():
+    """OANDA transactions idrange 照会 (read-only 観測性、range 上限 100)。
+
+    2026-08-03 rule:R3: wg 08-02 FOK 不成立の cancel reason 確定 (weekend-gap-fade
+    カード followup) など、broker 側 transaction の forensic を API 経由で可能にする。
+    live 挙動への影響なし (純 read)。
+    """
+    from flask import request as _req
+    try:
+        _from = int(_req.args.get("from", "0"))
+        _to = int(_req.args.get("to", "0"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "from/to must be integers"}), 400
+    if _from <= 0 or _to < _from:
+        return jsonify({"error": "invalid range"}), 400
+    if _to - _from > 100:
+        return jsonify({"error": "range too wide (max 100)"}), 400
+    ok, data = _demo_trader._oanda._client.get_transactions_id_range(
+        str(_from), str(_to))
+    if ok:
+        return jsonify(data)
+    return jsonify({"error": data}), 500
+
+
 @app.route("/api/oanda/status")
 def api_oanda_status():
     """OANDA連携ステータス + アカウント情報 + ヘルスチェック + 実行監査サマリー"""
@@ -13919,6 +13990,22 @@ def api_oanda_status():
         "live_ratio": f"{_live_count / max(len(_audit), 1):.0%}",
     }
     return jsonify(status)
+
+
+@app.route("/api/g0/cc_rt")
+def api_g0_cc_rt():
+    """台帳 #21 G0: コモディティ 3 クロス RT 実測 snapshot (read-only 計測、verdict なし).
+
+    tools/commodity_cross_g0_rt.collect() を web の資格情報で実行する診断
+    エンドポイント。GH Actions cc-g0-rt.yml が日次取得し KB へ永続化する。
+    シグナル計算・fwd return・発注系への接触ゼロ。
+    """
+    from modules.oanda_client import OandaClient
+    from tools.commodity_cross_g0_rt import collect
+    _g0_client = OandaClient()
+    if not _g0_client.configured:
+        return jsonify({"error": "OANDA credentials not configured"}), 503
+    return jsonify(collect(_g0_client))
 
 
 @app.route("/api/oanda/modes", methods=["GET", "POST"])
@@ -15283,7 +15370,26 @@ def api_risk_dashboard():
         except Exception:
             dd_lot_mult = 1.0
 
-        dashboard = compute_risk_dashboard(closed, lot_multiplier=dd_lot_mult)
+        # Track C D-b 完結 (2026-08-05, rule:R3): MC の資本を gate 側
+        # (_get_ruin_probability の _ruin_capital_pips) と同一式で JPY 整合。
+        # D-b は gate 側だけ直し dashboard 側に旧 1000.0 デフォルトが残った
+        # 「同じ事実の片方欠落」— 単一 wide-stop JPY-cross fill (549250,
+        # −123.2p = ¥1,232 = NAV 0.34%) で ruin 表示が 0%→100% に反転した
+        # artifact の出所 (gate 側実測は ruin=0.0 で live 送信は無影響)。
+        # 詳細: knowledge-base/wiki/analyses/mc-ruin-dashboard-artifact-2026-08-05.md
+        _ruin_capital_pips = max(
+            float(os.environ.get("OANDA_EQ_BASE_JPY", "359109.0"))
+            / max(float(os.environ.get("OANDA_JPY_PER_PIP_AVG", "61.9")), 1.0),
+            1000.0,
+        )
+        dashboard = compute_risk_dashboard(
+            closed, initial_capital=_ruin_capital_pips,
+            lot_multiplier=dd_lot_mult)
+        # 30d rolling 窓は n が縮む (08-04 実測 n=10)。gate 側の
+        # _MIN_RUIN_TRADES=20 と同じ床で低信頼フラグを付す (値は残す —
+        # 表示消去は「見えない指標はゼロ」誤認を生むため)。
+        if isinstance(dashboard.get("monte_carlo"), dict):
+            dashboard["monte_carlo"]["small_sample_lowconf"] = len(closed) < 20
         dashboard["_filters"] = {
             "effective_date_from": effective_date_from,
             "all_time": all_time,

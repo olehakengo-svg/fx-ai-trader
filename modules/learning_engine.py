@@ -176,7 +176,12 @@ class LearningEngine:
         # ── 4. SL幅 / 5. TP幅 — Advisory only (2026-04-05 audit fix) ──
         if sample >= 20:
             closed = self._db.get_all_closed()
-            sl_losses = [t for t in closed if t["close_reason"] == "SL_HIT"]
+            # 2026-08-07 (rule:R3): close_reason "SL_HIT" は BE-lock/トレーリングが
+            # SL を利益側へ動かした後の**利確 exit** も含む (本番実測 54.2% が WIN)。
+            # 変数名どおり「損切り」だけを数えるため outcome で絞る。
+            # 根拠: wiki/analyses/sl-hit-label-collision-2026-08-07.md
+            sl_losses = [t for t in closed
+                         if t["close_reason"] == "SL_HIT" and t.get("outcome") == "LOSS"]
             total_closed = len(closed)
             if len(sl_losses) >= 10 and total_closed > 0:
                 # BUG FIX: denominator must be total_closed (same population as

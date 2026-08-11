@@ -1,0 +1,69 @@
+{
+ "meta": {
+  "date": "2026-08-05",
+  "wave": "wave-6 EA-a (#21 commodity_cross_range_mr) — explore pre-reg DRAFT for adversarial verification",
+  "charter": "Ledger #21 G0 PASS 3/3 (2026-08-03, freeze 981ae119, stressed_RT AUD_NZD 3.80 / AUD_CAD 3.70 / NZD_CAD 3.90p, all <= 5.0p). Per ea-landscape-sweep §4.1 and ledger: G0 pass -> explore pre-reg 起案. This payload is the DRAFT design; the verifier must arbitrate every unfrozen DoF before LOCK. Live changes prohibited; PASS -> OOS pre-reg DRAFT -> user approval stop.",
+  "estimand": "Exit-free fixed-horizon directional edge of per-position single-entry range-MR on the 3 commodity crosses (AUD_NZD/AUD_CAD/NZD_CAD): D1-scale z-score extreme onset -> fade, net move at fixed horizon, friction/swap-adjusted. v1 PURE PRICE ANCHOR only (rate-differential anchoring banned as E20-adjacent). Grid/averaging forms are OUT of estimand permanently.",
+  "frozen_constraints_inherited": [
+   "ea-landscape-sweep §4.1: per-position single-entry only / v1 pure price anchor / M5-15m forms banned / explore-OOS time split / event-block bootstrap / D1 weekday label trap countermeasures / kill = explore IC sign inverted OR stressed-net EV <= 0 -> close, no re-skinning",
+   "G0 freeze doc §4: entry execution time must be frozen OUTSIDE the 21:00-22:59 UTC poison window (rollover p75 11.6-12.7p); 23:00 UTC onward spreads normalize to 2.7-2.9p",
+   "catalog 凍結探索プロトコル: explore = 2014-01-01..2021-12-31 / OOS = 2022-01-01..2026-06-30 single touch after freeze + user approval",
+   "negative prior (must stay in freeze doc verbatim): slow-MR family = 「方向は合うが弱い」死型 3 例の家系 (ppp/quote-spread/round-number); RBA/RBNZ policy desync windows (2014-15 explore 内 / 2022-24 OOS 内) = documented regime-kill risk (2024 Waka user 破綻); AUDNZD MR は機関 RV デスク定番でリテール残余のみの可能性"
+  ],
+  "ledger_state": "#21 active (G0 passed consumes no slot; explore pre-reg = 1 active slot, currently 0-1/3 used depending on #22 forward LOCK classification — verifier to confirm). #22 = forward pre-reg LOCKED (first look 2026-11-06, P-10 ban on gate×outcome joint computation — this family does NOT touch shadow P&L so no interaction). E7 verdict 08-28 / E1 10-15 / E12 2027-02-05 / MoF Q2+10d unaffected.",
+  "verifier_deliverable": "Write verdict (GO / GO-WITH-CONDITIONS numbered / KILL / data-blocked) to knowledge-base/raw/analysis/wave6-cc-mr-adversarial-verification-2026-08-05.md, matching level-family/wave-5 verification rigor: grounding-facts audit vs primary sources, ban-adjacency arbitration, DoF freeze audit, statistics arbitration, power/headroom audit, score honesty audit."
+ },
+ "proposed_frozen_design": {
+  "variant_choice": "PRIMARY = variant A (D1 z-score fade). Variant B (H1 range-percentile + D1 trend veto) = declared NON-TESTED (no variant scan; B has strictly more DoF: percentile window, veto definition, H1 granularity). Rationale: A matches the postmortem survival shape (low-frequency, level-anchored, multi-day hold) with minimal DoF; §4.1 requires freezing to 1 primary at pre-reg time.",
+  "signal": "z(t) = (close_D1(t) − SMA200_D1(t)) / std60_D1(t), computed on NY17:00-boundary D1 closes reconstructed from 1h bars (weekend bars excluded, bars/week≈5 assert — wave-4/#18 QA convention). SMA200 = simple mean of prior 200 D1 closes (current bar excluded); std60 = sample std of prior 60 D1 closes (current bar excluded). No warmup shortcuts: first 200 D1 bars of each series emit no signals.",
+  "event": "ONSET crossing only: |z(t)| >= 2.0 AND |z(t−1)| < 2.0. Direction = fade: z >= +2.0 -> SHORT, z <= −2.0 -> LONG. One event per excursion (no re-entry while |z| stays >= 2.0). 1 pair 1 open hypothetical position at a time (if an event fires while a prior hold is open, skip and count skips as diagnostic).",
+  "entry_proxy": "Same trading day 23:00 UTC 1h bar close (G0 execution freeze — outside the 21:00-22:59 poison window). If the 23:00 UTC bar is missing (holiday), skip the event (count reported).",
+  "horizons": "PRIMARY = net move in fade direction at +5 trading days (23:00 UTC to 23:00 UTC). Diagnostic = +10 trading days, MFE/MAE within 5d. No other horizons.",
+  "pairs": "AUD_NZD, AUD_CAD, NZD_CAD (pip 1e-4).",
+  "windows": "explore 2014-01-01..2021-12-31 (measure now) / OOS 2022-01-01..2026-06-30 (single touch, only after explore PASS + OOS pre-reg + user approval). OOS contains the 2022-24 RBA/RBNZ desync adversarial window by construction.",
+  "statistics_gates_draft": {
+   "gate_A_headroom": "Per-pair fade-direction MFE(5d) p50 >= 10 × G0 stressed_RT (38.0 / 37.0 / 39.0p). Measured BEFORE any forward-return look via two-pass staging (#19 §4 pattern). Pairs failing are excluded at freeze time only; <2 surviving pairs -> family KILL.",
+   "gate_B_power": "Poisson-derived floor: expected onset rate ~6-15/pair/yr -> pooled explore N ≈ 150-360. Floor = 120 (below -> UNDERPOWERED verdict, not PASS/FAIL). MDE at N=150, per-event sd ≈ 45p (5d, low-vol crosses): ~9.1p one-sided α=0.05 power 0.8 — verifier to re-derive.",
+   "gate_C_primary": "Pooled (surviving pairs, both sides) mean fade net5d > 0, ISO-week event-block sign-flip permutation 10,000 draws seed 20260805, one-sided p < 0.05 (single family m=1). NOTE FOR VERIFIER: §4.1 says '3 ペア × 2 サイド Bonferroni' — orchestrator proposes pooled primary (precedent #19) + per-pair/per-side coherence as gate G below, NOT 6-cell Bonferroni (which needs p<0.0083 and murders power). Arbitrate.",
+   "gate_D_stressed_net": "Pooled mean net5d − per-pair G0 stressed_RT − swap_net > 0. Swap = derived policy-rate differentials from e20_carry_level.csv (AUD_NZD = AUD_USD_col − NZD_USD_col; AUD_CAD = AUD_USD_col − USD_CAD_col*(−1)? — VERIFIER MUST AUDIT THE SIGN CONVENTION of USD_CAD column before freeze), hold 5 trading days = 7 calendar days, markup 0.50%/yr ±50% sens. Cross-check vs live OANDA financing snapshots (cc-g0-rt daily since 08-03; NOTE: AUD_CAD/AUD_NZD snapshots show longRate=shortRate=0 — anomaly unresolved, verifier to arbitrate treatment).",
+   "gate_E_concentration": "Max single ISO-week |contribution| <= 50% of total.",
+   "gate_F_consistency": "Explore yearly sign >= 6/8 positive + LOYO 8/8 positive. Plus 2014-15 desync sub-window mean reported (diagnostic, non-binding — but if the entire effect lives outside desync AND OOS is mostly desync, the report must say so honestly).",
+   "gate_G_coherence": "Per-pair mean sign positive >= 2/3 AND side-split (L vs S) both reported with neither side sign-negative beyond noise (binding form to be arbitrated — incoherent side-splits killed #5/#16).",
+   "knife_edge": "Only if ALL gates pass, never for selection: z threshold {1.75, 2.25}; SMA {160, 240}; std window {45, 75}; entry {00:00 UTC next day}. Primary sign flip in any -> FAIL."
+  },
+  "kill_rules_inherited": "explore primary sign inverted -> FAIL close (no post-hoc continuation claim — holiday leg-c precedent); stressed-net EV <= 0 -> FAIL close; no re-skinning retries."
+ },
+ "data_prerequisites": {
+  "status": "LOCAL DATA INSUFFICIENT AS OF PAYLOAD TIME: main-checkout 1h parquets for the 3 crosses cover only 2025-04-08+ (measured, wave-5 lesson applied — no unverified price_source claims). 12y backfill via tools/fetch_massive_data.py (merge_never_shorten guard, PR #138) LAUNCHED in background at payload time; freeze REQUIRES post-fetch verification.",
+  "conditions_before_freeze": [
+   "coverage assert per pair: first 1h bar <= 2014-01-01, else data-blocked close (no post-hoc window relaxation — W3-2 precedent)",
+   "weekend-row exclusion + NY17:00 D1 reconstruction convention (plain _1d parquet prohibited — wave-5 finding: weekend rows + UTC boundaries)",
+   "sha256 pin of the 3 parquets + e20 csv + harness in the freeze commit (MASSIVE drift lesson)",
+   "MASSIVE vendor-gap check: known vendor holes 2019-09/2020-10 (memory) — verify presence/absence in the 3 crosses and declare handling (OANDA backfill like 07-29, or gap-tolerant measurement with holes reported) BEFORE freeze",
+   "cross-check: TV OANDA D1 spot-check of event counts + pooled sign on >= 1 pair (Live > TV > Python BT canon — local parquet is the measurement body but TV anchors sanity)"
+  ]
+ },
+ "ban_adjacency_diff_clauses": [
+  "#3 regression/swing channel (falsified 15m): that estimand = channel geometry × 15m continuous scan × 1-12h holds. This = fixed-window z-score on D1 × onset events × 5d holds. The 06-25 decision's re-entry clause requires IC-first directional check for new definitions — discharged by this exit-free measurement-only design. ADJACENT, not identity.",
+  "#14 ppp (falsified): monthly 5y-z macro anchor × 21-63bd. This = 200d price anchor × 5d. Different anchor, frequency, horizon. ADJACENT via 'slow MR' family resemblance — negative prior stated, not a ban violation.",
+  "E20 (frozen): carry-rank/mom63 rate signals. v1 uses NO rate inputs anywhere in the signal (pure price). Swap accounting uses rates for COST only, not signal. NOT adjacent by design; rate-anchored variants remain banned.",
+  "price_shock (live family): H1 shock reversion (fast, large single-bar move). This = slow 200d-anchor extreme. Event-week overlap diagnostic to be reported; expected low.",
+  "session-mr-cross-wave1 (2026-05-11 BLOCKED_DATA): 5m session-window MR, never measured. Superseded per §4.1 — this D1 design is a different estimand; no data or verdict reused.",
+  "wave-5 composite (#20 PARKED): no interaction — this is a single-family explore, standard path."
+ ],
+ "orchestrator_honesty": [
+  "Frequency estimate 6-15/pair/yr for z>=2 onsets is an oracle guess, not measured — the two-pass staging measures event counts before forward returns; if pooled N < 120 -> UNDERPOWERED, no threshold tinkering.",
+  "The 0/0 financing anomaly on AUD_CAD/AUD_NZD could hide material swap costs; treating swap as ~0 for those pairs on snapshot evidence would bias gate D PASS-ward. Verifier must set the conservative rule.",
+  "Explore window 2014-2021 includes the 2014-15 desync (bad regime for MR) — this is honest hard-mode, but yearly-sign gate F could fail on regime alone; that is the intended discipline, not a reason to carve the window.",
+  "GO doc's '3×2 Bonferroni' vs pooled-primary conflict is real and material to power; orchestrator lean = pooled primary + coherence gate, but the verifier owns this call and must record the rationale on-record."
+ ],
+ "verifier_questions": [
+  "Q1 Pooled primary (m=1) + coherence gate vs 6-cell Bonferroni per §4.1 letter — which, and why, on-record.",
+  "Q2 Entry proxy 23:00 UTC same day: signal is known at NY17:00 close (21/22:00 UTC) — the 1-2h delay is friction-motivated (G0). Is the delay itself a look/DoF risk, and should net move be measured close-to-close (D1) with 23:00 execution as separate friction adjustment instead?",
+  "Q3 e20 derived swap sign conventions (USD_CAD is USD-base — deriving AUD_CAD differential needs sign care). Audit and freeze the exact formula per pair.",
+  "Q4 Poisson floor and MDE re-derivation with honest per-event sd for these low-vol crosses (daily ATR ~30-50p).",
+  "Q5 Should gate G side-split be binding (kill on one-side-negative) or diagnostic? #5/#16 incoherence precedent vs power cost.",
+  "Q6 MASSIVE 12y quality for these crosses is UNVERIFIED (vendor gaps, early-year fidelity). What minimum QA must pass before freeze (bars/week distribution, gap census, spike-revert print scan per price_shock audit)?",
+  "Q7 Hold-collision rule (skip events during open hold) — is skip-and-report sufficient, or does it bias event selection toward post-quiet periods? Alternative: allow overlapping measurement (no position semantics) since this is exit-free measurement, not a book. Arbitrate which is the cleaner estimand."
+ ]
+}

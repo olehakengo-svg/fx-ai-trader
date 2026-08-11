@@ -18,9 +18,31 @@ def test_demoted_shadow_emit_cell_is_removed():
 
 
 def test_non_demoted_pair_still_emits():
-    emits = [{"entry_type": "engulfing_bb", "signal": "BUY"}]
+    # engulfing_bb x GBP_USD joined the demoted set in the 2026-08-10 R2
+    # batch (N-crossing type), so engulfing_bb has no still-emitting cell
+    # left. The per-cell stop must nonetheless stay per-cell: a strategy
+    # with a healthy pair keeps emitting there.
+    # (dt_sr_channel_reversal x USD_JPY: WARN in the 08-10 alert, below the
+    # CRITICAL demote gate.)
+    emits = [{"entry_type": "dt_sr_channel_reversal", "signal": "BUY"}]
 
-    assert _filter_shadow_emits(emits, "EUR_USD") == emits
+    assert _filter_shadow_emits(emits, "USD_JPY") == emits
+
+
+def test_demoted_xs_momentum_cells_stop_but_rsi_variant_survives():
+    # 2026-08-10 R2 batch: xs_momentum x GBP_USD / USD_JPY demoted. The
+    # registry key is (entry_type, instrument), so the live PAIR_PROMOTED
+    # variant xs_momentum_rsi x USD_JPY is a different entry_type and must
+    # not be caught by the cell stop.
+    assert _filter_shadow_emits(
+        [{"entry_type": "xs_momentum", "signal": "BUY"}], "GBP_USD"
+    ) == []
+    assert _filter_shadow_emits(
+        [{"entry_type": "xs_momentum", "signal": "BUY"}], "USD_JPY"
+    ) == []
+
+    rsi = [{"entry_type": "xs_momentum_rsi", "signal": "BUY"}]
+    assert _filter_shadow_emits(rsi, "USD_JPY") == rsi
 
 
 def test_retired_sr_fib_gbpusd_is_shadow_demoted():

@@ -29,6 +29,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-frozen-telemetry-value-2026-08-09]]
+**発見日**: 2026-08-09 | **修正**: rule:R3 (同コミット)
+- 問題: live の DT `ctx.hour_utc` が定数 12 に凍結し、全 DT 戦略の時間帯ゲートが BT と別物になっていた (潜伏 123 日)。うち 34 日は原因を映す QUALBAR ログが本番に出続けていたのに読み飛ばされた
+- 症状: kalman_d7 が LIVE 化から 73 日 0 fire (h=12 は session 窓の唯一の穴)。逆に窓が h=12 を含む戦略は BT 窓外で発火 (実測 35.0%)、金曜ブロックは live で一度も作動せず
+- 原因: ① `bar_time` を渡すのは BT 経路のみで live は渡さない → 固定フォールバック 12 が常用、② 0-fire 判定表に「計装値が定数に張り付いていないか」の欄が無く、breakdown を見ても入力値の妥当性まで届かなかった、③ 2026-04-04 に同型バグを修正済みだったが回帰テストが無く 4 日後に再混入
+- 修正: DT ctx の時刻導出を `bar_time → df.index[-1] → now(UTC)` に統一 + 回帰 pin 9 件 (旧ソースで 7 件落ちることを検証)。併せて `prereg_trigger_watch` の live 側 prefix 未配線 (監視が沈黙する) も修正
+- 教訓: **テレメトリを足すときは「この値が定数だったら異常」という不変条件を判定表に同梱する。本来変動する量が N バー連続同値なら市場ではなくコードを疑う。既存値を無視して別経路で取り直しているコードは基盤バグの症状であり、回避策はバグ報告である**
+
 ### [[lesson-freeze-rule-topEV-selects-overfit-2026-07-14]]
 **発見日**: 2026-07-14 | **出典**: WS3 round-3 divergence-reversion verdict
 - 問題: 探索→OOS の候補凍結を「first-touch EV 降順 top-8」で行った結果、最も過学習したセル (GBP_JPY W120 z2.5、2024 円 carry-unwind regime で EV amplify) を優先的に凍結し、OOS で 8/8 反転。一方、凍結対象外だった EUR_USD/EUR_JPY は OOS 生存 (post-hoc・claimable 不可)。

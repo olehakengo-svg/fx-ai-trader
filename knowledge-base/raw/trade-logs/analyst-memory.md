@@ -3170,6 +3170,344 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 | GBP_JPY | RANGING | 45% | EUR系同様、ロンドン初動でのブレイク試行に注意 |
 ### 推奨戦略配分
 
+### 2026-07-29 (Post-London Report)
+| PnL (pips) | **0.0** |
+| PnL | +0.6 pips | 0.0 pips |
+| WR | 100%（N=1） | N/A |
+### 推奨戦略配分
+【NO ACTION推奨】
+**全体として**: 現在オープントレード0・hedge_block多発状態ではNYセッションも同様のブロック継続が想定される。**特定のブロック解除シグナルが観測されない限り、NY前半はNO ACTION維持が合理的。**
+| 本日累計PnL | **+0.6 pips** |
+
+### 2026-07-29 (Pre-Tokyo Briefing)
+前日（2026-07-29）のPnL・トレード数・WRは本APIからは取得不能。ただし、KBの直近文脈（DD=100.01%、defensive mode継続中）と照合すると、**システムは引き続き「ドローダウン防御0.2x縮退モード」下にある**と推定される。新高値更新なし。
+| 戦略 | N（Cutoff後） | WR | EV | 判定 |
+| 摩擦調整EV | **全セル負**（T2 exit-repair FAIL確定） |
+→ N=93は「判断可能」水準だが、EV構造は依然として負。**昇格候補ゼロの状態が継続している可能性が高い。**
+| 3 | **DD=100.01%バリア突破後の防御継続** | 新高値なし。defensive mode（0.2x）が続いており、EV回収の機会が構造的に制限されている |
+- **新規ポジションに対する積極的判断は保留** — データが見えない状態での追加リスクテイクは禁忌
+- **外部仮説スクリーン（KB: external-hypothesis-scan-2026-07-13の後続フェーズ）の進捗確認を優先**
+- APIが復旧次第、Cutoff後のN・EV・block_countsを即時確認する
+
+### 2026-07-30 (Pre-Tokyo Briefing)
+前日（2026-07-29）の約定は **1件のみ**。`price_shock_rev_aud_jpy_h1_long` / AUD_JPY BUY → WIN / PnL **+0.6pip**。
+システム全体WR = 100%（N=1）、PnL合計 = **+0.6pip**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- hedge_blockの多発は相場構造（後述のRANGING環境）に起因する可能性が高く、今日も継続する蓋然性が高い。同条件での約定は引き続き困難と見込む
+- r2_shadow_demoted_cellブロックについては、対象セルが「本当に死んでいるか」の定期レビューが必要だが、N蓄積がないため現時点では静観が妥当
+- **デイトレード戦略**：トレンドフォロー型の要素を持つため、RANGING環境では誤シグナルが増加しhedge_blockが多発する正のフィードバックループが形成されている
+- **スキャルプ戦略**：spread_guardが機能しやすい環境だが、r2_shadow_demoted_cellブロックにより供給自体が枯渇
+- **rnb_usdjpy**：direction_filterで85件ブロック。USD_JPYのATR%ile=67%は高いが、SMAスロープが明確なトレンドを示さず、方向判定が定まらない状態
+
+### 2026-07-30 (Post-Tokyo Report)
+| PnL | 0 pips |
+| WR | N/A |
+- **hedge_block が東京セッション最大の約定阻止要因（42件/TOP15合計=89件の47%）**。GBP_USD（17件）・EUR_JPY（13件）・GBP_JPY（12件）の3ペアに集中しており、これらペアでヘッジ方向のシグナルが逆張り的に連発したことを示す。
+- **direction_filter（rnb_usdjpy 16件）** は、USD_JPY ATR%ile=67%・SMA Slope+0.00248 というRANGING-Upper Bandの環境下でRnBロジックが方向を絞り込めていない状態を反映。
+- **r2_shadow_demoted_cell（16件）** はshadow tracking中のセルが本番昇格未完のまま信号を出し続けていることを示す。
+- 本日セッションN=0 のため統計的判断の基礎なし。
+- block_countsはすべてシステム設計内の保護ロジック（hedge_block、direction_filter、shadow demote）が正常作動した結果であり、誤作動ではない。
+- OANDA転送率0%は「約定ゼロ」の結果であって、Bridge自体の異常ではない（shadow_tracking 19件 + agg_kelly=-0.343<0 の1件のみ）。
+
+### 2026-07-30 (Post-London Report)
+| WR | 0.0% |
+| PnL | **-30.1 pips** |
+本日累計データ（N=1, WR=0.0%, PnL=-30.1）がそのままロンドンセッション値と一致していることから、**東京セッションはゼロトレード**だったと判断される。
+| WR | — | 0.0% |
+| PnL | 0 | -30.1 |
+### 推奨戦略配分
+**NO ACTION推奨（条件付き）**
+| 累計WR | 0.0% |
+
+### 2026-07-30 (Pre-Tokyo Briefing)
+前日（2026-07-29）は**トレード1件、PnL +0.6pip、WR 100%**。
+`price_shock_rev_aud_jpy_h1_long / AUD_JPY / BUY / WIN`。Cutoff後累計はN=2、PnL=-29.5pip（前日の`vix_carry_unwind`による-30.1pipの損失が残存）。実質的にはほぼ無活動日。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- 前々日（または当日初動）の`vix_carry_unwind / USD_JPY`が-30.1pipを記録。
+- これが`daily_loss_limit(-30.1pip <= -20.0pip)`トリガーとなり、**3件のBridgeブロックが連鎖発生**。
+- 本日の注視点：daily_loss_limitはリセットされたか（UTC 00:00リセット想定）。**本日は新日付での制限下でトレード可能なはず**。
+- Cutoff後N=2は28日以上経過していると仮定すると、**1日あたり平均0.07件**。
+- 全27モードが稼働しているにもかかわらずシグナルがほぼ発火していない。
+
+### 2026-07-31 (Pre-Tokyo Briefing)
+- PnL: **−30.1 pip** | トレード数: **1件** | 全体WR: **0.0%**
+- 唯一の執行 `vix_carry_unwind / USD_JPY SELL` がSL_HIT（−30.1 pip）。前日を通じてシステムは実質的に「休眠状態」であり、活発な戦略稼働は確認されない。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: N=2はデータなし（N<10は「データなし」扱い）。個別EVは参考値に過ぎず、昇格・降格の判断材料にはならない。
+- USD_JPY SELL方向でSL_HIT（−30.1pip）
+- USD_JPYのATR%ile=83%（VOLATILE上位）の環境での逆張り系エントリーと推定
+- VIX急変に反応したキャリー巻き戻し戦略が、その後の相場反転に飲まれた可能性
+- この単発損失がデイリーロスリミット（−20.0pip）を超過 → OANDAブロック理由 `daily_loss_limit(-30.1pip<=-20.0pip)` が2件計上
+
+### 2026-07-31 (Post-Tokyo Report)
+| PnL | 0.0 pips |
+| WR | — |
+- **VOLATILE レジーム（USD/JPY ATR%ile 83%、GBP/JPY 74%）** 下でスキャルプ系がフィルターを通過しなかった可能性が高い
+- spread_guard が高ボラティリティ時間帯に多く発動していた可能性（block_reasons に spread 系は今回未計上だが、Scalp閾値30%・DT閾値20%との競合が推定される）
+### 推奨戦略配分
+| 戦略 | ペア | 推奨 | 根拠 |
+**NO ACTION推奨（積極エントリー不推奨）**
+- OANDA Live Rate = **0%**（50件中0件送信）。agg_kelly = −0.367 < 0 でKellyゲートが閉まっており、システム自体が現在のリスク環境を否定的に評価している
+
+### 2026-07-31 (Post-London Report)
+| PnL | **0.0 pips** |
+| 勝率（WR） | **N/A** |
+- EUR/JPY ATR%ile **71%**・GBP/JPY **74%**・USD/JPY **83%** —— いずれも VOLATILE レジームで、DTおよびScalp戦略が動作すべき環境水準にあったにもかかわらず、一件も約定しなかった。
+- **シグナル生成の不発** がフィルター手前で起きているか、スプレッドガード等で全件 SKIP された可能性が高い。
+| PnL | 0.0 pips | 0.0 pips |
+| WR | N/A | N/A |
+### 推奨戦略配分
+| **GBP_USD系** | — | RANGING判定のためDT系は見送り推奨 |
+
+### 2026-07-31 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **-30.1 pips** |
+| 全体WR | **0.0%** |
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: 全戦略 N<10 → **「データなし」扱い**。EV・WR の数値は現時点で意思決定根拠として使用不可。N=30 まで最低27件不足。
+| 1 | `vix_carry_unwind` がSL_HIT → EV=-30.1（N=1） | データ不足で戦略評価不能 |
+- `vix_carry_unwind` は N=1 であるため、今日追加されるシグナルを蓄積する段階。評価保留。
+- OANDA NAV/Balance が `None` の原因は接続または権限の問題と推定される。ライブ昇格判断に影響するため、状態確認を優先。
+- エントリー数の少なさは VOLATILE レジームでのフィルター強化効果と見ることもできる。現段階では観察継続。
+
+### 2026-08-03 (Pre-Tokyo Briefing)
+- **前日（2026-08-02）トレード数: 0件** — 全セッション（東京・ロンドン・NY）通じてトレードなし
+- **PnL: ±0 / WR: N/A** — エントリー機会自体が発生しなかった、または全ブロックされた
+- Cutoff後累積（全期間）: **N=3、WR=33.3%、EV=−74.5（加重平均）、PnL=−152.7**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的評価不能**: N=3（全戦略合計）はサンプルサイズ基準（N≥10=「傾向」）を大幅に下回る。EV・WRの数値は参考値に過ぎず、判断材料としては使用不可。
+- 前日の東京・ロンドン・NY 全セッションでエントリーゼロ
+- Block Countsの構造が主因：**rnb_usdjpy:direction_filter（107件）**が最大ブロック要因 — これ単体で「USD_JPYが方向性フィルターを連続否決している」ことを示す。USD_JPYはATR%ile **93%（最高水準）**でVOLATILEレジームにあり、rnb（Range-and-Break）戦略が想定するレンジ環境と根本的に乖離している可能性が高い
+- **daytrade:hedge_block（76件）** — ヘッジポジション検知によるブロックが2番目。オープントレードなし（OANDA Open Trades=0）にもかかわらずhedge_blockが多発している点は構造的に注目すべき
+
+### 2026-08-03 (Pre-Tokyo Briefing)
+前日は全セッション（東京・ロンドン・NY）を通じてトレード実行数 **0件**。PnL = ¥0、WR = N/A。Cutoff後の累積有効データは **N=2 / WR=0.0% / EV=−76.65p/t（平均）/ PnL=−153.3p** という極めて乏しい状態が継続。
+| Strategy | Pair | N | WR% | EV (p/t) | PnL | 判定 |
+- `order_bar_dedup`の多発 → VOLATILE相場でシグナル密度が上昇しているが、これは**意図的フィルターの正常作動**。対処不要。
+- `direction_filter`（rnb_usdjpy×20） → USD_JPYのATR%ile=93%は極端なVOLATILE状態。レンジバウンド戦略が全遮断されるのは**設計通りの正常挙動**。
+- `r2_shadow_demoted_cell` → 降格セルの自動除外機能が稼働。Scalp系の供給ラインが細っている点は**構造的懸念**として継続監視。
+- **Daytrade系**: VOLATILE環境は本来DT有利のはずだが、`order_bar_dedup`が密集シグナルを大量排除している。実質的に「見ているが入れない」状態。
+- **Scalp系**: スプレッド拡大（`spread_gate` 6件）＋`r2_shadow_demoted_cell`の二重抑制。VOLATILE相場でのScalp系は摩擦コストが上昇しており、フィルター強化は妥当。
+- **RnB（rnb_usdjpy）**: ATR93%でdirection_filterが完全作動。VOLATILE相場が解消するまで実質的に機能停止。
+
+### 2026-08-03 (Post-London Report)
+| PnL | **0.0 pips** |
+| PnL | 0 | 0 |
+### 推奨戦略配分
+**NYセッション：NO ACTION推奨**
+| PnL | 0 | 0 | **0 pips** |
+**OANDA転送率0%（50/50スキップ）＋agg_kelly=-0.469**という組み合わせは、Kelly基準がシステム全体に対して現在のセル群のEVを「負」と評価していることを意味する。これは防御の成功ではなく、**エッジを持つエントリー候補が存在しないことの確認**である。
+**推奨アクション（判断のみ）**: NYセッションはNO ACTION維持。ただし「今日のゼロ」をKBの月次M1進捗として正式記録し、USD_JPYのATR%ile低下（93%→60%台以下）を条件に次のrnb_usdjpy稼働評価タイミングを設定することが優先度高い。agg_kelly負の状態でのエントリー解禁は現時点では支持しない。
+
+### 2026-08-03 (Pre-Tokyo Briefing)
+| 前日 PnL | ±0 |
+| 前日 WR | N/A |
+前日（2026-08-02）はシステム全体でトレードゼロ。Cutoff後の累計実績はN=2、PnL=−153.3pipsと極めて薄い。実質的に**稼働しているが取引が発生しない状態**が続いている。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的ステータス**: 両戦略ともN=1。「データなし」扱い。EVの絶対値に惑わされてはならない。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<−0.5）のいずれにも到達していない。
+- daytrade系15モード・scalp系5モード・rnb_usdjpy、すべてエントリー条件未成立
+- Block Countsにある `daytrade_eur:hedge_block (9件)` および `rnb_usdjpy:direction_filter (7件)` が、潜在的エントリー候補を遮断した主因
+- **Scalp系に最も不利**（spread_guardが頻繁に発動する帯域）
+
+### 2026-08-04 (Pre-Tokyo Briefing)
+前日（2026-08-03）はトレード**ゼロ**。Cutoff後累積でもN=2（うちどちらも判断不可水準）に留まり、PnL合計は**−153.3**。全モードが稼働中にもかかわらず、実質的にシステムはトレードを生成していない状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: N=2はいずれも「データなし」扱い。EVの数値は参考値に過ぎず、昇格・降格いずれの判断も不可。Sentinel N=30達成まで残り**28件**。
+- 27モードが`ON`状態だが実行数は0。Block Countsを見ると**hedge_block・direction_filter・r2_shadow_demoted_cell・order_bar_dedup**が主因として計合計**310件以上**の阻止が発生している。システムはシグナルを生成しているが、多重フィルターが出口を塞いでいる構造。
+- `hedge_block`（合計95件: EUR70 + EURJPY25）→ 現在のUSD_JPY急落局面（SMA20 Slope −0.00256）でEUR/GBP系が逆方向に引っ張られ、ヘッジロック状態が長期化していると推定
+- `r2_shadow_demoted_cell`（合計104件）→ シャドウトラッキングが広範な戦略セルを降格済み状態に維持。これがN蓄積の最大障壁
+- `direction_filter`（69件）→ RnB_USDJPYがVOLATILEレジーム（ATR%ile 91%）でほぼ機能停止
+- 上記は**コード変更なし**の前提で静観継続。VOLATILE相場が落ち着き、direction_filterとhedge_blockの解除条件が揃うのを待つ。
+
+### 2026-08-04 (Post-Tokyo Report)
+| PnL | 0.0p |
+| 勝率（WR） | N/A |
+- **Fidelity Cutoff後の蓄積N=0**（本日セッション）— 統計的判断の材料が存在しない
+- OANDA転送率 **0%（50/50がSKIP）** — 全トレードがshadow_trackingによりデモ専用。Live実績なし
+- DD防御モード（**DD=100.01%バリア突破後 held**）発動中 — このフェーズでのパラメータ調整は混線要因
+- 現状の問題はパラメータではなくhedge_blockによる執行機会そのものの消失。これはパラメータ変更で解決する性質のものではない
+| USD/JPY | VOLATILE | **91%** | −0.00256（強下降） | 円高圧力強い。157.195は節目圏。ブレイク注意 |
+| GBP/USD | VOLATILE | **67%** | +0.00153（上昇） | USD安バイアス。EUR/GBPとの逆相関に注意 |
+
+### 2026-08-04 (Post-London Report)
+| PnL | **0 pips / 0円** |
+| WR | **N/A** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**現時点での推奨: NO ACTION（静観）推奨**
+- **daytrade_gbpusd / daytrade_gbpjpy** — 現在のhedge_blockはポジション0の状態でも発動しているため、NY序盤にブロック理由が変化するか否かを監視。263件という件数は過剰な可能性がある。
+| 累計PnL | **0 pips** |
+
+### 2026-08-04 (Pre-Tokyo Briefing)
+| 前日 PnL | **-** |
+| 全体 WR | **-** |
+前日は完全なトレードゼロ日。システムは稼働中だが、シグナル発火なし。唯一の有効トレード記録（Cutoff後全期間）は `price_shock_rev_aud_jpy_h1_long / AUD_JPY` の N=1 / PnL=−123.2p のみ。
+| Strategy | Pair | N | WR% | EV (p/t) | PnL |
+> N<10 につき「データなし」扱い。EV −123.20 は一点観測のノイズであり、戦略の期待値を語れる水準にない。
+- **課題A**: レジーム状況（後述）と照合し、現在 VOLATILE 環境が daytrade_1h 系フィルターと整合しているか確認。特に USD_JPY / EUR_JPY のATR91%ile がスプレッドガード（DT=20%閾値）に抵触していないか確認を優先する
+- **課題B**: NAV=None のままでは Kelly計算の信頼性も損なわれる。OANDA接続の実態把握を急ぐ（コード変更なし、状況把握のみ）
+- **課題C**: `shadow_tracking` 19件が SKIP の主因。シャドウ期間中のトレードは本番未転送が構造仕様であることは既知。現在は "shadow が明けるまで本番実績が積み上がらない" ループに入っている
+
+### 2026-08-05 (Pre-Tokyo Briefing)
+前日（2026-08-04）は**トレード完全ゼロ**。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後の有効データは `price_shock_rev_aud_jpy_h1_long / AUD_JPY` の N=1（EV=-123.20）のみ、実質的に統計的判断が不可能な水準。システムはONだが、全27モードで発注には至っていない状態が継続。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全戦略共通**: N=1のみ。統計的判断の閾値（N≥10）に到達していない。本レポート内のEV=-123.20は「1回の結果」に過ぎず、期待値として解釈してはならない。
+- **hedge_block多発環境の継続**を前提に、発注期待値を低めに設定する
+- **GBP系ペアはフラッシュクラッシュフィルターが引き続き高感度で作動**することを想定
+- 発注があった場合、N蓄積の貴重な1件として記録の完全性を確認する
+- **Daytrade系（JPY絡み）**: ATR%ile 84-91%は本来DT系が得意とする値幅環境だが、円高トレンドとの組み合わせでhedge_blockが多発。「値幅はあるが方向が偏っている」状態。
+
+### 2026-08-05 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+| 本日累計 | N=1 / WR 100% / +29.0 pips |
+東京セッション中の約定はゼロ。本日累計の1件（+29.0p, 100%WR）はセッション外（UTC 00:00以前）のもの。
+本日唯一のトレード（+29.0pips）はセッション外記録であり属性詳細は本レポートスコープ外。参考として「正のPnL」を達成した事実のみ記録。
+- 東京N=0で統計的判断材料が皆無
+- Cutoff後の累計データも蓄積途上（N=30基準に対し本日N=1）
+- 現在 **DD=100.01%（100%バリア突破後 held）** → DD防御0.2xモード継続中
+
+### 2026-08-05 (Post-London Report)
+| WR | — |
+| PnL (pips) | **0.0** |
+| WR | 100% (N=1) | — |
+| PnL | +29.0 pips | 0.0 pips |
+- 本日累計 N=1 / +29.0 pips は**東京早朝の単発ヒット**によるもの
+- ロンドンでの完全沈黙は東京比でトレード機会が0に収縮
+- ATR91%ile（EUR/JPY・USD/JPY）はロンドン開幕時点で既にピーク水準に達しており、spread拡大によるguard発動が最も有力な沈黙要因
+### 推奨戦略配分
+
+### 2026-08-05 (Pre-Tokyo Briefing)
+2026-08-04（前日）は**トレードゼロ**。PnL合計 ¥0、トレード数 0、WR 算出不可。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> ⚠️ **N=2はシステム全体として「データなし」に等しい。** 両戦略ともN<10のため統計的判断は不能。EV・WRは参考値として記録するに留める。
+- Total=50、SENT=0、SKIP=50 → Live Rate **0%**
+- 50件全てがshadow_trackingまたはagg_kellyによりブロック → 本番口座への影響ゼロ、NAV変動なし（NAV=¥277,782）
+- エントリー条件が成立しない原因がレジーム側（Volatile偏重）にあるか、シグナル生成側にあるかを、本日のBlock Counts推移で判別する。現時点のBlock TOP3はすべて件数が少ない（最大4件）ため、hedge_blockや direction_filter による抑制も限定的。問題は「そもそもシグナルまで到達していない」可能性が高い。
+| EUR_USD | RANGING | 52% | +0.00224 | 1.15534 | DayTrade_eurには低ボラ帯。scalp_eur系はspreadがEVを圧迫しやすい |
+- USD_JPY ATR91%ile は過熱水準。**急速なATR収縮（RANGING化）**が起きると、現在のVOLATILE前提のシグナルがミスマッチを起こす可能性。
+
+### 2026-08-06 (Pre-Tokyo Briefing)
+前日（2026-08-05）は **1トレード、WR 100%、PnL +29.0p** にて終了。
+ただし Cutoff後累計では **N=2 / WR=50% / EV=−47.1p**（1件目の AUD_JPY −123.2pが大きく足を引く）と、累計EV は依然マイナス圏。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的判断**: 全戦略 N<10 → いずれも「データなし」扱い。EV・WRは現時点で判断根拠なし。
+- `rnb_usdjpy:direction_filter` (81件) が最大ブロック要因 → USD_JPYが VOLATILE 91%ile の中でフィルタが連続発動している可能性。本日も同一レジームが継続する見込みのため、**rnb_usdjpyのエントリー頻度は引き続き低い前提で計画**。
+- `r2_shadow_demoted_cell` 系（scalp合計146件）→ shadowセルがデモシグナルを押さえている構造。**スキャルプ系の実質的な供給源はほぼ枯渇状態**であることを認識した上で監視。
+- `order_bar_dedup` (daytrade計50件) → 同バーでの重複が多発。レジームが不規則な短期動意を繰り返している兆候として観察継続。
+- **Daytrade系（JPYクロス）**: VOLATILE環境はATRが広いため方向性フィルタが頻発ヒット。エントリー条件が厳しくなりブロック増加は合理的。逆に抜けた場合のペイオフは大きくなる可能性。
+
+### 2026-08-06 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+- **`hedge_block` (最多・3戦略一致):** EUR_JPY/GBP_JPY/USD_JPY がいずれもATR%ile **84–91%（VOLATILE）** かつSMA20 Slope がマイナス（円高方向へのトレンド）。ヘッジポジションが既存または潜在的に検出され、新規エントリーを全ブロック。JPY系ペアが高ボラ環境で一方向性圧力を受けている状況下で設計通り機能している。
+- **`order_bar_dedup` × GBP_JPY (17件):** 同バー内の重複注文抑制。GBP_JPYのATR%ile 84%という高ボラ環境で短時間内に複数シグナルが重複発生しているとみられる。
+- **`direction_filter` × rnb_usdjpy (17件):** USD_JPY がVOLATILE + Slope −0.00608（本日最大の円高傾斜）。レンジブレイク戦略のディレクション条件と相反する方向性が継続判定されたと解釈。
+- **`r2_shadow_demoted_cell` × scalp系 (16件):** Shadow demotion済みセルへの到達が継続。これはv6.3以降の構造的フィルタが機能している正常動作であり、エラーではない。
+- **`agg_kelly<0` (−0.426):** Kelly推定がマイナスでOANDA Bridgeがブロック。現在のEV構造がliveエントリーに耐えない水準。
+- ブロックは全て既存ロジックの**設計通りの動作**（hedge_block、dedup、direction_filter）。
+
+### 2026-08-07 (Pre-Tokyo Briefing)
+前日（2026-08-06）のPnL合計・トレード数・WRを算出するソースデータがいずれも欠落しています。「トレード0件」と「APIタイムアウト/接続障害」の区別もこの時点では確認できません。
+| 戦略 | N | WR | EV | 判定 |
+- clean live 30d: N=93 / -245.0p / payoff 0.274
+- 摩擦調整EV: 全セルで負（最良TPでも -2.96p/t）
+- 昇格基準（N≥30 & EV≥1.0）達成戦略: **なし（直近確認時点）**
+**課題B: 摩擦調整EV の構造的負値（継続）**
+KB確定事項: exit-repair verdict ❌ FAIL（2026-07-08）。WS3 stage-2 barrier/EV も FAIL（2026-07-10）。外部仮説スクリーンフェーズ（2026-07-13〜）へ移行済みですが、現時点で正のEVセルは確認されていません。
+0.2xロット制限下では、たとえ正のEVシグナルが出ても収益貢献が構造的に制限されます。
+
+### 2026-08-07 (Pre-Tokyo Briefing)
+前日（2026-08-06）はトレードゼロ。Cutoff後の累積では N=2、PnL=-94.2、WR=50.0%。システムは稼働中だが実質的に執行停止状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: N=2は「データなし」水準（統計的閾値N=10未満）。EV・WRともに参考値にすら達していない。両戦略とも判断保留。
+- **direction_filter(78)**：USD_JPY VOLATILEレジーム（ATR%ile 93%）下でrnb戦略の方向性フィルターが強く機能している。この抑制はレジーム整合的であり、**介入不要**と判断。
+- **hedge_block(76)**：JPY全般の強い方向性バイアス（USD_JPY/EUR_JPY/GBP_JPY全てVOLATILE×下落スロープ）がヘッジブロックを多発させている。**現状維持が適切**。
+- **r2_shadow_demoted_cell(計100超)**：scalp系の実行可能セルが枯渇状態。Shadow蓄積が進むまで待機が必要。**N=30到達まで強制的にトレードは増えない構造**。
+- **gbp_asia_flash_crash(54)**：GBP_JPY ATR%ile 86%という高ボラ環境への正常応答。**保護機能として肯定的に評価**。
+- **USD_JPY ATR%ile=93%**：これ以上のVOLATILE深化は限定的だが、158円台サポート割れならレジーム転換（Trending化）の可能性。rnb戦略の方向性フィルターがさらに強化される方向。
+
+### 2026-08-07 (Post-Tokyo Report)
+| PnL | — |
+| 勝率 (WR) | — |
+- 東京セッションN=0のため統計的判断根拠なし
+- OANDA転送率0%（50件中SENT=0）は全トレードがシャドートラッキング中であることを示す — これは**意図通りの挙動**（DD防御フェーズ + shadow_tracking=18）
+- `agg_kelly=-0.426<0` ×2のOANDAブロックは Kelly基準によるリスク抑制が正常動作していることを示す
+- 現在DD=100.01%（100%バリア突破後 held / no new high）のDefensive Mode継続中 — パラメータ変更でリスクを動かすタイミングではない
+### 推奨戦略配分
+**→ NO ACTION推奨**
+
+### 2026-08-07 (Post-London Report)
+| PnL | **0.0 pips / 0円** |
+| 勝率 (WR) | **N/A** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+**OANDA転送率0%の背景**: 全50件がデモ専用（SKIP）。agg_Kelly負値（−0.426）はポートフォリオ全体の期待値がマイナス評価である状態を示しており、これ自体は**リスクゲートの正常作動**。ただし、この状態が恒常化しているならば昇格基準（EV≥1.0）を満たすセルが存在しない状況が継続していることを意味する。
+### NYセッション予測と推奨配分
+- JPY系はNY入りでUSD主導の動きが加速する可能性。ATRパーセンタイル93%はすでに極限域にあり、**平均回帰（ATR縮小）リスクが高い**。
+- EUR/GBP系はRANGINGが継続する可能性が高く、ブレイクアウト戦略には不向き。
+
+### 2026-08-07 (Post-NY Report)
+| PnL | **+0.0p** |
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **最良セッション**: なし（全セッション同値）
+- **最悪セッション**: なし（同上）
+- **稼働モード数**: 25モード ON、2モード OFF（daytrade_xau、scalp_xau、scalp_eurjpy）
+- ヘッジブロックが継続中かどうかをblock_counts冒頭で確認
+- hedge_block件数が前日比で減少していればレジーム転換のシグナル
+
+### 2026-08-10 (Pre-Tokyo Briefing)
+前日（2026-08-09）はトレード**ゼロ**。PnL: ±0、WR: N/A。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: N=1は「データなし」扱い。WR100%・EV+29.00は参考値にすら値しない。
+> 昇格基準（N≥30 & EV≥1.0）まで残り**29件**。降格判断も不可能な段階。
+- `direction_filter`(66件)は最多。現在のJPY系VOLATILE環境で方向が定まらず、フィルタが方向性を全拒絶している可能性が高い
+- `r2_shadow_demoted_cell`(計96件: scalp56+scalp_eur26+scalp_5m14)はシャドウ降格が実質的にscalp系を無効化している
+- `regime_squeeze_mr`(計32件: gbpjpy22+eurjpy10)はVOLATILE判定が逆説的にMR系をスクイーズしている
+- Block構造はコードではなく**現在のレジーム環境が主因**と判断。本日も同様のブロック継続を想定し、稼働状況を受容モードで監視する
+
+### 2026-08-10 (Post-Tokyo Report)
+UTC 00:00–06:00の範囲でクローズされたトレードはゼロ。本日累計は参考値として N=1 / WR=100% / +63.7pips が存在するが、東京セッション時間帯外のものと判断される。システムは全主要モード稼働中（daytrade_xau / scalp_xau / scalp_eurjpy はOFF）、ポジション保有なし。
+- 東京セッションN=0のため統計的判断材料がない
+- 本日累計N=1は「データなし」扱い（N<10基準）
+- ブロック機構は設計通り作動しており、異常ではない
+- DD防御モード（DD=100.01%、defensive 0.2x）継続中であり、追加リスクテイクの状況にない
+| USD_JPY | VOLATILE | 91% | ATR91%ile、SMA-0.007で最も強いJPY買いシグナル。スプレッド拡大に注意 |
+| EUR_USD | RANGING | 59% | レンジ中位。+SMAスロープでUSD弱含み。Scalpには適度な環境だがEV確認必要 |
+**JPY系3ペアが一斉VOLATILE（ATR 84–91%ile）** は通貨リスク集中の観点で要注意。同方向JPY買いポジションが重なった場合の相関リスクが高い。
+
+### 2026-08-10 (Post-London Report)
+| 勝率（WR） | 100.0% |
+| セッションPnL | **+63.7 pips** |
+| 平均EV/trade | +63.70 |
+| 戦略 | ペア | PnL | 方向 | 決済 |
+- **モード稼働数**: 27モード中 25モードがONであったにもかかわらず、成立トレードは1件のみ
+- `daytrade_xau`・`scalp_xau`・`scalp_eurjpy` は**OFF状態**で機会寄与なし
+- EUR_JPY（ATR 91%）・GBP_JPY（ATR 84%）のVOLATILEペアでデイトレードモードが稼働中にもかかわらず**無発火** — シグナル条件未成立または後述のブロック要因によるフィルタリングの可能性
+| WR | — | 100% | — |
+
+### 2026-08-10 (Post-NY Report)
+| PnL | **0.0 pips** |
+| WR | **— (N=0)** |
+### セッションPnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+- **本日合計**: N=1、WR=100%、PnL=+63.7 pips
+- **最良セッション**: Londonセッション（唯一のトレード、1勝0敗）
+- **最悪セッション**: 定義上「不活性」であるTokyo・NYは損失ゼロだが、機会コスト的には劣後
+**評価**: 全50件がSKIPされており、本番OANDA口座への発注はゼロ。`shadow_tracking`（17件）は意図的なシャドー追跡モードであり異常ではない。`agg_kelly<0`（3件）はポートフォリオ全体のEVが負の局面でのゲート遮断であり、**リスク管理として正常機能している**。NAV/Balanceが`None`であることはOANDA接続の読み取りに課題を示唆するが、発注ゼロのため実害なし。
+
+### 2026-08-11 (Pre-Tokyo Briefing)
+前日（2026-08-10）は **1トレード、PnL +63.7p、WR 100%**。
+Cutoff後累計はN=2、PnL +92.7pと極めて小規模。全モードでOANDA転送率は **0%（50件全SKIP）**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注意**: N=2はデータとして成立しない（統計的有意性ゼロ）。EV +46.35は参考値に過ぎず、昇格判断には使用不可。N=30到達まで判断保留が原則。
+| EUR_USD | RANGING | 60% | +0.00287 | daytrade_1h_eur、scalp_eur向けには比較的安定。ただしRANGINGでは方向性シグナルの精度低下に注意 |
+- **hedge_block（計94件、daytrade_eur=40/daytrade=34/daytrade_1h_nzdjpy=20）**: 最大の機会損失源。既存ポジションとのヘッジ判定によるブロック。ポジションが閉じるまで継続的に発生する構造的ブロック。
+- **order_bar_dedup（計66件）**: 同一バー内での重複シグナルを除外。正常動作だが、シグナル過多の可能性も示唆。
+- **r2_shadow_demoted_cell（計60件）**: scalp/scalp_5m_gbp/scalp_eurで多発。これらのセルがシャドウデモート済みであり、本番昇格条件未達のためスキップされている。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

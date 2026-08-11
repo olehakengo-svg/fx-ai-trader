@@ -1,6 +1,6 @@
 # VIX Carry Unwind — VIX急騰キャリー巻き戻し
 
-## Stage: SENTINEL (v8.5, 低頻度 年2-5回)
+## Stage: PAIR_DEMOTED (2026-08-03 Overlap pilot 早期 demote — 下記参照。shadow 蓄積は継続)
 
 > ⚠️ **2026-07-02 zero-fire 診断 (Overlap pilot)**: 06-18 GRAIL 撤去以降 Overlap live fill 0 の原因は **Overlap 窓にシグナル自体が来ていない**こと (05-13〜07-02 で Overlap 4/54 件 = 7.4%、シグナルは London 63% / NY 26% にクラスタ)。session filter は `_is_promoted` 内で実行時評価され正常動作 (窓外→shadow を本番実証済み)。ただし「窓内→live」の現行コード実証は N=0 (旧コードで 05-20 の 1 件のみ)。期待レート月 ~2 件 → demote gate (N≥10) 到達に ~5 ヶ月。副次発見: Aggregate Kelly Gate は max(0,·) クリップで死にゲート (P1)。
 > 詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]]
@@ -56,3 +56,23 @@ Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
 4. 1000u floor でのコストは −19p/30d ≈ 実損軽微、live N 蓄積の情報価値が上回る
 
 **再評価 checkpoint**: live SELL N≥20 or 2026-08-31 (registry `vix-sell-pilot-recheck`、live_count_decision で毎日監視)。再評価時に EV/Wilson_lo/BEV を再判定し、demote する場合は user 決裁。
+
+## 2026-07-31 証拠更新 (quant-eval 全数監査) — 早期 demote 推奨、user 決裁待ち
+checkpoint (live SELL N≥20) は未達 (N≈14) だが、07-07 継続裁定の根拠 2 点が悪化:
+1. **live**: 累計 N=26 PnL=−46.9p PF=0.66、月次 3/4 負 (04:−21.3 / 05:+27.7 / 06:−19.0 / 07:−34.3)。
+   07-30 に −30.1p (SL_HIT) を追加
+2. **shadow エッジの減衰** (07-07 裁定の根拠 3「shadow 正 EV」が崩壊): 04 月 +537p (n=40) →
+   05 月 −98p (n=35) → 06 月 +5p (n=20) → 07 月 **−123p (n=84)**。05〜07 累計 −216p/n=139 =
+   post-April の shadow は一貫して負。全期間集計 +320p は April regime の遺産
+3. 7 月 live 出血 −84.4p のうち vix 単独で −34.3p (最大の現役出血源、[[quant-eval-2026-07-31]] §1)
+
+**推奨**: checkpoint を待たず demote (Overlap pilot 撤去 + PAIR_DEMOTED 復帰)。07-07 裁定
+「demote する場合は user 決裁」に従い執行は保留 — user 承認で即実装可。
+
+## 2026-08-03 早期 demote 執行 (rule:R2, user 決裁「進めて」)
+上記推奨を user 承認 → **PAIR_DEMOTED 復帰を執行**。`_PAIR_PROMOTED` 除外 /
+`_PAIR_SESSION_FILTER`・`_PAIR_LOT_BOOST` 撤去 / MIN-lot 1000u 契約 code は再昇格時のため残置 /
+shadow emit 不変更 (原則3)。registry `vix-sell-pilot-recheck` は resolved 化 (checkpoint 消化)。
+追加証拠: 08-01〜03 shadow n=7 −17p (減衰継続)。
+再昇格 = R1 (直近 90d shadow N≥30 EV>0 ∧ Wilson_lo>34.4% ∧ Bonferroni ∧ 365d cell BT ∧ pre-reg + user 承認)。
+pin: `tests/test_vix_pilot_demote_pin.py` / 詳細: [[vix-pilot-early-demote-2026-08-03]]

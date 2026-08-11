@@ -668,3 +668,28 @@
 
 ## 2026-07-29 wiki-lint (massive-gap-backfill 変更分)
 - ⚠️ [[holiday-calendar-verification-2026-07-29]] は意図的な前方参照 — 発見元 doc は branch `claude/hopeful-kapitsa-417e40` (未マージ) 上。同 branch land 後に解消。他のリンク・参照ファイルは全て解決済み
+
+## 2026-07-31 EA Landscape Sweep (user 指示「勝てている EA を全力で大規模調査 → エッジ探索」、rule:R3)
+- **方法**: 31-agent workflow — 13 ソース並列 Web スイープ (MQL5/Myfxbook/FX Blue/Darwinex/海外フォーラム/Reddit-HN/クオンツ blog/国内 GogoJungle/学術 2020-26/prop firm/GitHub OSS/SMC-ICT/生存率研究) → 113 findings → 上位 18 を敵対的検証 (banned 19 + LOCKED 4 隣接判定 / 生存バイアス・マーチン偽装 / OANDA headroom 10×)。詳細: [[ea-landscape-sweep-2026-07-31]] / raw: `raw/analysis/ea-landscape-sweep-2026-07-31.json`
+- **構造的結論**: multi-year verified の勝者は 2 アーキタイプに収斂 — (a) ナイトスキャルパー MR = 機構実在だがブローカーのスプレッド政策で回収済み (cohort 2022-23 フラット化)、OANDA 移植構造的不能 (gotobi #13 同型 + デスゾーン自己矛盾)、(b) コモディティ三角クロス (AUD_NZD/AUD_CAD/NZD_CAD) = グリッド表層は RISK-ILLUSION、per-position 核は内部未検証 (session-mr-cross-wave1 BLOCKED_DATA を supersede)
+- **台帳追記**: **#21 commodity_cross_range_mr (queued、G0=OANDA 3 クロス RT 実測が必須事前ゲート)** / **#22 equity_curve_shadow_gating (queued、内部 shadow ログのみで counterfactual 検証可の低 prior・低コスト枠)** (※#20 は並行セッションの composite_weak_signal_portfolio が先取 → renumber 済み)。THA (Darwinex 首位) は LOCKED E7 と同一 estimand → E7 prior 加点として記録のみ
+- **副産物**: 生存率ベースレート割引関数 (マーケ BT ≈0-5% / verified 3y+ 非負スキュー ×0.3-0.5 上限 / WR>90% は破産確率評価) を KB 化。weekend gap persistent の外部独立確認 (Robot Wealth) = live wg×3 と整合。トレンドフォロー/news/gold/SMC に 3y+ verified 代表個体ゼロ
+- **live/shadow 変更なし**。次アクション = #21 G0 摩擦実測 (シグナル計算ゼロ・pre-reg スロット非消費) + #22 explore pre-reg 起案
+
+## 2026-08-03 wave-6 着手 (#21 G0 実測 + #22 forward pre-reg LOCK、rule:R3)
+- **#21 commodity_cross_range_mr G0 = ✅ PASS 3/3** — [[commodity-cross-g0-rt-freeze-2026-08-03]] (🔒 凍結コミット 981ae119 後に測定)。stressed_RT_primary: AUD_NZD 3.80p / AUD_CAD 3.70p / NZD_CAD 3.90p (全て ≤5.0p 閾値)。60 営業日 M5 BA candles、アンカー妥当性 OK。**副次発見 = 21:00 UTC 帯は spread 毒窓 (p75 12-18p) だが 23:00 UTC 以降 2.7-2.9p に正常化 → explore pre-reg は執行 23:00 UTC 凍結必須**。次 = explore pre-reg 起案。`reports/commodity-cross-rt-g0-2026-08-03.md`
+- **#22 equity_curve_shadow_gating = forward pre-reg 🔒 LOCKED (v2)** — [[equity-curve-shadow-gating-explore-prereg-2026-08-03]]。遡及 explore 案 (v1) は敵対的検証 3 レンズ (統計/lookahead・衛生/交絡) で **KILL 3 件**: 一度きりの構造ブレークで偽陽性 100% (合成データ実証) + 週層化は真の検出力も殺す = 遡及窓で識別不能 + retired セルの outcome-conditioned truncation + Fidelity Cutoff 前汚染。→ **#4 MoF/#10 E12 前例の forward 化で構造解決**。first look 2026-11-06 (registry `ecg-forward-first-look`)、primary = active 4 セル × K{5,10,20} (m=12)、epoch 層化 permutation、遡及窓は未測定保存 (burn なし)
+- **横断教訓**: 敵対的検証は「ハーネスの関数を import して合成データで偽陽性率を実測する」段階まで踏むと、文言レビューでは見えない識別不能性を検出できる (今回の KILL は全てこの型)
+- 環境注記: ローカル OANDA token は生存確認 (candles BA HTTP 200) — 07-14 の「失効」記録は book エンドポイント 401 の誤帰属 ([[e1-positioning-ingest-2026-07-14]] §8 と整合)
+- **#22 race 追記 (並行セッション sharp-pike)**: 同日独立に在庫調査 (shadow book 全長 4.04mo、§4.2 遡及 eligibility 充足 0 セル) → 別設計 forward pre-reg + 敵対的検証まで進めたが、push 前確認で v2 先着を検出し**競合 LOCK を撤回** (first-to-main)。独立 2 系統が「遡及不成立 → forward 化」に収束 = 判定の corroboration。cross-audit (v2 vs §4.2 凍結 form の差分 on-record、day-block null の K1 脆弱性 = 敗着分析、P-10 整合 attestation) = `raw/analysis/ec-gating-race-cross-audit-2026-08-03.md`、228 セル census = `raw/analysis/ec-gating-cell-inventory-2026-08-03.json`
+
+## 2026-08-07 `SL_HIT` ラベル衝突の解決 (rule:R3、autopilot)
+- **08-05 daily 提起 → 2日繰越だった「`SL_HIT` の 46.2% が正 PnL」を決着**: 汚染 (labeller 欠陥) ではなく**ラベル衝突**。`close_reason="SL_HIT"` は「**現在の** SL に触れた」の意味しかなく、BE-lock/トレーリング/Profit Extender が SL を利益側へ動かした後の**利確 exit** も同ラベル。**データは正しい / 名前と下流の解釈が誤っていた**
+- **本番実測 N=3308**: SL 利益側 1894 本 → **97.6% が正 PnL** (中央値 +2.00p、MFE 中央値 5.70p) / SL リスク側 1414 本 → **99.6% が負** (中央値 −6.95p、MFE 0.00p)。**誤分類 1.5%** = SL 位置は事実上完全な判別子。`outcome` 内訳 WIN **1792 (54.2%)** — 08-05 の 46.2% (N=106) は過小評価
+- 🔴 **実害 = 防御 2 本が勝ちで発火**: cascade cooldown (同ペア**全戦略**を 45–600s ブロック) と Fast-SL 適応防御 (次 SL を ATR×0.3 拡大) がともに `_sl_hit_history` を「ストップ狩りに遭った」前提で消費。**発火の 54.2% が誤発火** (Fast-SL 側は 315 件中 180 = **57.1%**)、誤発火は USD_JPY 494 / GBP_USD 444 / EUR_USD 306 と主力ペア集中。4原則 #1「攻める」/ #4 に反していた
+- **Rule 3 の根拠**: 直前の隣接ブロック (`if outcome != "WIN":` → `_last_exit` / `_total_losses_window`) が「SL 後の再エントリー防止」という**同一目的で既に WIN を除外**済み。同一意図の 2 ブロックが非対称 = 設計の内部矛盾ゆえ 365日BT 不要
+- **修正**: `demo_trader` 履歴記録に `outcome != "WIN"` (BE 75 本は逆行スイープの証拠として意図的に残す) / `learning_engine.sl_losses` / `daily_review.sl_hits` を `outcome=="LOSS"` 化 (生カウントの SLヒット率 82.7% → 真値 **36.0%**、勝ちの多い book に「SL幅拡大検討」を焚いていた) / 回帰 pin 4 tests
+- **やらなかったこと**: `close_reason` の改名は既存 3308 行と全 BT ハーネスの estimand を壊すため見送り (ラベル据え置き・消費者側を正す)。shadow 行混入の是非 (誤発火 1792 件中 1786 が shadow) は継続課題
+- **横断教訓**: 「同一目的の隣接ブロックで扱いが非対称」は構造バグの強いシグナル。`_is_xau_inst` (3.5ヶ月 live kill)・DTE mixed gate no-op に続く 3 例目
+- **次の作業候補**: cascade_cd / Fast-SL の block 実数は audit に出ない = 本修正の効果 (誤発火 −54%) を実測できない。**block カウンタの輸出**が要る — 08-06 daily の「シグナル供給 5 session 連続半減」の候補要因でもある
+- 詳細: [[sl-hit-label-collision-2026-08-07]]
