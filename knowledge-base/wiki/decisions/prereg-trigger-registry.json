@@ -133,6 +133,16 @@
       "message": "kalman D7 発火数 (3 variant 前方一致合算) vs BT 期待 3.9/週。分子ゼロが続く場合は Render ログの [kalman_d7] QUALBAR 行 (分母) と突合して 0-fire の原因を判定"
     },
     {
+      "id": "ecg-stb-postfix-fire-info",
+      "active": true,
+      "type": "shadow_count_info",
+      "entry_type": "session_time_bias",
+      "since": "2026-08-09",
+      "expected_per_week": 4.0,
+      "doc": "knowledge-base/wiki/analyses/ecg-forward-primary-emission-census-2026-08-11.md",
+      "message": "session_time_bias の hour_utc 凍結修復後 (PR #168 deploy 2026-08-09T01:47Z) の shadow 発火数監視。歴史 ~21/週/セルは常時開放ゲートの artifact — 真窓 (LONDON 07:30-14:00 UTC = 27%) での実レートを観測する。~0/週が続く場合: (a) ECG #22 first look (2026-11-06) の all-UNDERPOWERED 早期確定材料 (b) session_time_bias 自体の歴史実績が artifact だった確定 → 戦略 R2 レビュー材料。counts のみ = ECG P-10 ban と整合"
+    },
+    {
       "id": "t9-kalman-d7-live-n10-ev-check",
       "active": true,
       "type": "live_count_decision",
