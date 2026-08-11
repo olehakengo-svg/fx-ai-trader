@@ -3528,6 +3528,16 @@ Cutoff後累計はN=2、PnL +92.7pと極めて小規模。全モードでOANDA�
 - JPY系VOLATILE収束確認後 → `daytrade_eurjpy`再試行（ただしhege_block解除確認必須）
 | 累計PnL | **0 pips** |
 
+### 2026-08-11 (Post-NY Report)
+| PnL | **+0.0p** |
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **合計PnL**: +0.0p
+- **合計トレード数**: 0
+- **WR**: 算出不能
+### 推奨アクション判断
+> **NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
