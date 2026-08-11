@@ -3508,6 +3508,16 @@ Cutoff後累計はN=2、PnL +92.7pと極めて小規模。全モードでOANDA�
 - **order_bar_dedup（計66件）**: 同一バー内での重複シグナルを除外。正常動作だが、シグナル過多の可能性も示唆。
 - **r2_shadow_demoted_cell（計60件）**: scalp/scalp_5m_gbp/scalp_eurで多発。これらのセルがシャドウデモート済みであり、本番昇格条件未達のためスキップされている。
 
+### 2026-08-11 (Post-Tokyo Report)
+| セッション PnL | 0.0 pips |
+| 勝率 (WR) | N/A |
+- セッション N=0 のため統計的根拠が一切存在しない
+- 調整判断に必要な最低 N=10 すら未達
+- VOLATILE レジーム（EUR/JPY・USD/JPY・GBP/JPY 全て ATR%ile 86–90%）における無トレードは、spread_guard・ボラティリティフィルタが設計通り機能している可能性が高い
+- DD防御モード（DD=100.01%、defensive mode 継続中）下では保守的不作為を肯定的に評価すべき局面
+### 推奨戦略配分
+| daytrade_eurjpy / gbpjpy | EUR/JPY・GBP/JPY | **回避推奨** | ATR%ile 86–90%の VOLATILE 環境 + JPY 下落トレンド継続。DT spread_guard 20% 閾値での遮断が頻発する可能性 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
