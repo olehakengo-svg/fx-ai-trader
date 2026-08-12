@@ -1,5 +1,11 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-12 — docs(KB): ps_aud_jpy demote 可否 user 決裁 — 見送り採択、LOCK watchdog に委任 (rule:R2 手続きクローズ)
+
+- **user「進めて」(2026-08-12) で推奨案採択**: 549250 (−123.2p) 事故起点の demote 提案 ([[mc-ruin-dashboard-artifact-2026-08-05]] #3) は **demote 見送り** — LOCK 済み基準 (watchdog Live N≥10 EV<0 / N=15 Wilson<0.40 / 2週連続 EV<0 / catastrophic SL率>30%) が唯一の判定器。horizon 損失 cap の R1 amendment は起案しない
+- 決裁時状態: 08-04 以降 ps 発火ゼロ (live N=2 のまま、前提不変) / watchdog cron 稼働中 (監視主体併設要件充足)。以後の ps 判定は完全自動 — これで 549250 事故の全 disposition がクローズ
+- **評価への影響: なし** (live/tier/lot 全て不変更 — 現状維持の正式化)
+
 ## 2026-08-12 — docs(KB): ps carve-out 復帰初週 再ゲート disposition — 席枯渇で初週窓は無効、#172 後へ再アンカー (rule:R3)
 
 - **registry `ps-carveout-firstweek-regate` (期日 08-11 超過で stale 点灯) を決着**。**demote せず** — pre-reg 条件 live N≥10 に対し実測 **N=2**。N ゲートを事後に下げることはしない。詳細: [[ps-carveout-firstweek-regate-disposition-2026-08-12]]
