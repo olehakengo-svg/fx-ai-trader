@@ -144,6 +144,7 @@ USD_CAD N=247 66.4% / EUR_AUD N=262 67.6% / EUR_GBP N=239 72.8%、07-24 exit-fre
 2. displaced DMB の shadow row 継続を確認
 3. `[Massive/1h] AUDJPY=X` 等の feed 切替ログ実測
 4. **30d 後に供給率を再計測** (§2 と同手法、design 期待 vs 観測) — 目標 capture ≥80%。未達なら §8 の補足検証 (hedge_block 寄与 / blackout 床) を精査
+   → **監視主体併設済み (2026-08-12)**: registry `ps-seat-supply-remeasure-30d` (shadow_count_decision、since 08-11 / N≥15 早期実施 / 期日 09-10) — 「pre-reg には監視主体を必ず併設」教訓 (T5) 準拠。daily の prereg_trigger_watch → Discord レポートに載る
 
 ## 10. 追補: WEEKEND_CLOSE 残存逸脱の初実射と counterfactual verdict (2026-08-11)
 

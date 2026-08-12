@@ -345,6 +345,20 @@
       "doc": "knowledge-base/wiki/decisions/t5-restore-eval-and-carrydip-revival-2026-08-10.md",
       "deadline": "2026-11-30",
       "message": "usdjpy_carry_dip_accumulator は 2026-07-31 に dormancy 解除 (H1 closed close < 159.50)、live 稼働中。事前規定 R2: deduped LIVE N>=10 かつ EV<0 -> lot 下げ or LIVE 停止 (shadow 継続)。単一トレード損失 <= -150p が 2 件 -> テールキャップ R3 監査。判定規律 (凍結): dedup_violation!=1 で dedup / close_reason ではなく outcome・pnl_pips で勝敗 / LIVE (oanda_trade_id!='') と shadow を混ぜない。backstop 2026-11-30 に N<10 なら低頻度=構造的の再確認のみ"
+    },
+    {
+      "id": "ps-seat-supply-remeasure-30d",
+      "active": true,
+      "type": "shadow_count_decision",
+      "entry_type": "price_shock_rev",
+      "match": "prefix",
+      "count_basis": "unique",
+      "since": "2026-08-11",
+      "n_decide": 15,
+      "n_floor": 15,
+      "deadline": "2026-09-10",
+      "doc": "knowledge-base/wiki/analyses/price-shock-seat-supply-audit-2026-07-29.md",
+      "message": "席供給是正 (PR #172, 08-11 deploy) の 30d 供給率再計測 — §9 検証計画。N>=15 で早期実施可 (design レート ~0.4/日 x 30d ≈ 12-14 = capture ~100% 相当)、期日 09-10 に N<15 なら capture<80% 濃厚 = §8 補足検証 (hedge_block 寄与/blackout 床) を精査。再計測手法 = audit §2 と同一 (MASSIVE design 期待 vs 観測 rows、tools/price_shock_exit_counterfactual.py の population 取得を流用可)"
     }
   ]
 }
