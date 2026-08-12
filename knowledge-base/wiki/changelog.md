@@ -1,5 +1,18 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-12 — research(E7): phase-1 pre-flight — サプライズパネル凍結と power 開示 (θ=1.0 の 12 combo が結果観測前に脱落) (rule:R1)
+
+- **pre-reg §11 の 2026-08-14 マイルストン (FF gap scrape + データ付録凍結) を 2 日前倒しで完了確認**。§3.3c として追記 ([[e15-e7-event-modality-prereg-2026-07-18]])。**価格データ非接触・イベント×リターン結合統計は未計算** (§10-1 遵守) = 結果観測前の記録
+- **価格側 pre-flight**: `e15_e7_data_refreeze.py --verify-only --root <repo>` = **13/13 OK** (台帳 3 点再現)。discovery (08-21) / OOS verdict (08-28) の BLOCKED 要因なし
+- **サプライズパネル新設** `tools/e7_surprise_panel.py` — §6 の z = (actual − consensus)/σ_trailing (直近 24 releases、strictly trailing) を機械化。canonical NFP 149 / CPI 149 × R4F forecast × actual (R4F 231 + BLS first print 66、**欠落ゼロ**)。成果物 = `raw/bt-results/e7/e7_surprise_panel.csv` + `e7_surprise_coverage.json`
+- **block 実測 (block = イベント、primary 7 ペアが同時発火 → N ≈ blocks×7)**: NFP discovery θ0.5 **41** / θ1.0 22、CPI discovery **62** / 31、NFP OOS **19** / 8、CPI OOS **16** / 5
+- **帰結 1 — θ=1.0 の 12 combo は結果を見る前に構造的脱落**: 4 セル全てで §5b(iii) ≥40 も §5c B(d) ≥15 も不達。選抜の必須条件なので**凍結候補にすらならない** → 実効候補空間 **24→12 combo (θ=0.5 のみ)**。**grid/θ/ゲート/α 会計の定義は一切変更していない** (§10-2 遵守、これは可用性の開示であって設計変更ではない)
+- **帰結 2 — NFP θ=0.5 discovery は knife-edge (41 vs ゲート 40)**: イベント 1 件の増減で NFP 系 6 combo が消える。ゲート値は凍結済みなので動かさず、凍結表に脆さを併記する規約を宣言
+- **帰結 3 — modal 予想を事前記録**: OOS blocks 19/16 → 検出可能平均効果 ≈ 0.33σ_h (NFP) / 0.36σ_h (CPI) = 大効果のみ。**phase-1 の modal outcome も C3 (UNDERPOWERED) または C5** と今宣言 (結果後の言い訳封鎖、phase-0 §9 と同規律)
+- **σ_trailing warm-up の帰結 (規則から機械的、裁量ゼロ)**: 各系列の最初の 24 イベント (2014-01〜2015-12) は z 不定で discovery から自動脱落 (120→96)。R4F データ開始が 2014-01 のため pre-2014 充当は不可能
+- **除外は宣言済み 1 件のみ**: CPI/OOS の 2025-12-18 (forecast 欠落、§3.3b-6(i) で観測前宣言)。事後裁量による除外ゼロ。§8 DEFERRED 条件は不発 (13/13 ペア OK)
+- **test pin** `tests/test_e7_surprise_panel.py` (7 tests): 単位規約 / strictly-trailing σ / **look-ahead canary (未来 release 差し替えで過去 z 不変)** / block ゲート / 実測 block 数の回帰 pin。live/shadow/Kelly/tier は**一切不変更** (純研究)
+
 ## 2026-08-09 — fix(live): DT `ctx.hour_utc` が live で 12 に凍結 — 全DT戦略の時間帯ゲートが BT と別物だった (rule:R3)
 
 - **`t9-kalman-d7-fire-info` の 0-fire (実測 0.00/週 vs 期待 3.9/週) の分母調査から発見**。`compute_daytrade_signal` の DT 用 `SignalContext` 構築が `bar_time` 不在時に `hour_utc=12` / `is_friday=False` へ固定フォールバックしていた。**`bar_time` を渡すのは BT 経路のみ** (`app.py:6679/7121`)、**live 経路 (`demo_trader._tick` → `compute_fn(df, tf, sr, symbol)`) は渡さない** → live の DT 全戦略が「常に UTC 12:00・常に金曜でない」前提で時間帯ゲートを評価していた。潜伏 **123 日** (`9c849cef` 2026-04-08 の DT構造改革で再混入。2026-04-04 に同型バグを一度修正済み = **回帰**)

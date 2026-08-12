@@ -1,0 +1,107 @@
+{
+ "tool": "e7_surprise_panel",
+ "prereg": "e15-e7-event-modality-prereg-2026-07-18 §6/§3.3b/§3.4",
+ "price_data_contact": false,
+ "trailing_n": 24,
+ "thetas": [
+  0.5,
+  1.0
+ ],
+ "windows": {
+  "discovery_end": "2023-12-31",
+  "oos": [
+   "2024-01-01",
+   "2026-06-30"
+  ]
+ },
+ "actual_provenance": {
+  "r4f_actual": 231,
+  "bls_actual": 66,
+  "no_actual": 0,
+  "no_r4f_row": 1
+ },
+ "coverage": {
+  "NFP/discovery": {
+   "events_in_window": 120,
+   "z_usable": 96,
+   "excluded": {
+    "warmup_lt_24_prior": 24
+   },
+   "by_theta": {
+    "0.5": {
+     "blocks": 41,
+     "n_pooled_est": 287,
+     "block_gate": 40,
+     "gate_pass": true
+    },
+    "1.0": {
+     "blocks": 22,
+     "n_pooled_est": 154,
+     "block_gate": 40,
+     "gate_pass": false
+    }
+   }
+  },
+  "NFP/oos": {
+   "events_in_window": 29,
+   "z_usable": 29,
+   "excluded": {},
+   "by_theta": {
+    "0.5": {
+     "blocks": 19,
+     "n_pooled_est": 133,
+     "block_gate": 15,
+     "gate_pass": true
+    },
+    "1.0": {
+     "blocks": 8,
+     "n_pooled_est": 56,
+     "block_gate": 15,
+     "gate_pass": false
+    }
+   }
+  },
+  "CPI/discovery": {
+   "events_in_window": 120,
+   "z_usable": 96,
+   "excluded": {
+    "warmup_lt_24_prior": 24
+   },
+   "by_theta": {
+    "0.5": {
+     "blocks": 62,
+     "n_pooled_est": 434,
+     "block_gate": 40,
+     "gate_pass": true
+    },
+    "1.0": {
+     "blocks": 31,
+     "n_pooled_est": 217,
+     "block_gate": 40,
+     "gate_pass": false
+    }
+   }
+  },
+  "CPI/oos": {
+   "events_in_window": 29,
+   "z_usable": 28,
+   "excluded": {
+    "missing_forecast": 1
+   },
+   "by_theta": {
+    "0.5": {
+     "blocks": 16,
+     "n_pooled_est": 112,
+     "block_gate": 15,
+     "gate_pass": true
+    },
+    "1.0": {
+     "blocks": 5,
+     "n_pooled_est": 35,
+     "block_gate": 15,
+     "gate_pass": false
+    }
+   }
+  }
+ }
+}
