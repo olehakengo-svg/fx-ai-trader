@@ -3538,6 +3538,16 @@ Cutoff後累計はN=2、PnL +92.7pと極めて小規模。全モードでOANDA�
 ### 推奨アクション判断
 > **NO ACTION推奨**
 
+### 2026-08-12 (Pre-Tokyo Briefing)
+前日（2026-08-11）は**トレードゼロ**。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_JPY` の **N=2のみ**（EV=+46.35、PnL=+92.7）。
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+> **注記**: N=2は統計的に「データなし」水準。WR 100%・EV+46.35 はいずれも解釈不可能。昇格基準（N≥30 & EV≥1.0）まで残り**28件**が必要。
+- `r2_shadow_demoted_cell`の累積件数がスキャルプ系全戦略で高水準であることを認識し、**シャドウセルの回復状況を継続モニタリング**すること
+- `gbp_asia_flash_crash`ブロック（80件）はGBP/JPYの特殊ガードが継続発動中。**現在のGBP/JPY（ATR86%ile・RANGING）においてこのガードが適切に機能しているか**を確認することを推奨
+- `direction_filter`主導のブロックはレジームと整合しており、現時点では**フィルタが意図通り機能している**と判断できる
+- 全5ペアが**RANGING判定**（USD/JPYのみVOLATILE）。しかしATR%ileが90%に達するペアが複数あり、「RANGING×高ATR」という矛盾した環境が生じている。これはトレンドの方向性が定まらないまま値動きの振れ幅だけが大きい**混乱レジーム**を示す。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
