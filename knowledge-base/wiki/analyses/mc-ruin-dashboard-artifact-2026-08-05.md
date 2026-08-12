@@ -54,6 +54,16 @@ Gate 2-4 は引き続き全て閉 (lot 拡大は発生しない)。
    amendment** が estimand 温存的な代替案
 判断はいずれも live 変更のため保留 — user 指示があれば即実装。
 
+### ✅ DECIDED (2026-08-12, user「進めて」)
+**推奨案採択 = demote 見送り、LOCK 済み watchdog 基準に委ねる。** 決裁時の状態確認:
+- 08-04 以降 ps 発火ゼロ (live/shadow とも、rare-event 設計通り) — live N=2 のまま、
+  demote 基準の前提は 08-05 提示時から不変
+- 監視主体 (T5 lesson 要件): `fx-ai-price-shock-rev-watchdog` cron (17 */4 * * *、
+  Live N≥10 EV<0 or Wilson_lo<0.40 で auto demote + runtime gate 遮断) が稼働中 =
+  以後の判定は自動。手動介入の余地なし (再介入は watchdog 発動時 or user 新指示のみ)
+- horizon 損失 cap の R1 amendment (代替案 4) は**起案しない** — user が推奨案側を採択
+- 参考: 8 月 live は usdjpy_carry_dip +63.7p (08-09) / +29.0p (08-05) で M1 方向に推移中
+
 ## 残タスク (chips)
 - wiki-daily の audit 取得窓 (limit=30 → date filter / limit≥500) — daily report 自身の提言
 - MC/VaR の pnl 系列の per-trade JPY 換算 (単位不均一の根治。DB に units 列が無く
