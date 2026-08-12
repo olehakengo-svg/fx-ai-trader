@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-12 — docs(KB): ps carve-out 復帰初週 再ゲート disposition — 席枯渇で初週窓は無効、#172 後へ再アンカー (rule:R3)
+
+- **registry `ps-carveout-firstweek-regate` (期日 08-11 超過で stale 点灯) を決着**。**demote せず** — pre-reg 条件 live N≥10 に対し実測 **N=2**。N ゲートを事後に下げることはしない。詳細: [[ps-carveout-firstweek-regate-disposition-2026-08-12]]
+- **実測 (本番 `/api/demo/trades`、date_from=07-28 の 1,427 行)**: ps 行 **8** (全て `price_shock_rev_aud_jpy_h1_long` / AUD_JPY / BUY)、うち **clean live 2** (`oanda_trade_id != '' ∧ dedup_violation != 1`) / shadow 6。他 4 セルは発火ゼロ。live 実績 = 07-29 **+0.6 (WIN)** / 07-31 **−123.2 (LOSS)** = 計 −122.6p
+- **(a) AGG_KELLY BYPASS 監査 → carve-out は機能、初週の律速は「席」**: Render app ログ (07-29〜08-01) に AGG_KELLY block はゼロ。支配的なのは `[SHADOW] Slot bypass: price_shock_rev_aud_jpy_h1_long ... (live=1/1 shadow=1/2 → shadow)` で **13 分間に 16 行** = live 席が埋まり ps が shadow へ迂回。**初週の N 不足は carve-out の失敗ではなく席供給の枯渇** → **PR #172 (merged 08-11) で是正済み**。よって初週窓 (07-28〜08-11) は carve-out の EV を測る窓として**無効**と判定し、評価窓を #172 後へ再アンカー
+- **(b) exit 分布 → ✅ BE_LOCK OFF 実効**: clean live 2 件は**両方 `close_reason=horizon`** (早期 BE/trail exit なし)。N=2 のため「2/2 一致」水準の証拠と明記。`SL_HIT` ラベル衝突 (2026-08-07) の影響圏外
+- **(c) estimand 整合 → ⚠️ 潜在的不整合・現時点の影響ゼロ**: `price_shock_rev_live_watchdog.py` (N≥10 で auto DEMOTE) と `price_shock_rev_promote_evaluator.py` (N≥30 で lot ramp 提案) は非 canonical な **`is_shadow=0`** で live 判定し `dedup_violation` 除外を持たない (KB 規約は `oanda_trade_id != ''`)。**ただし実測乖離ゼロ** — 06-01 以降 7,761 行で `is_shadow=0 ∧ oanda_trade_id 空` = **0 件**、`dedup_violation=1` は shadow 側のみ。**バグとして起票せず**、canonical 判定へのハードニングは別タスク (auto-demote を握るため単独 PR + test pin)
+- **registry**: 初週エントリを resolved 化 + 後継 **`ps-carveout-regate-post-172`** 新設 (`live_count_decision`、prefix 一致、since 2026-08-11、N≥10 で EV/Wilson 再判定、backstop 2026-09-30。期日で N<10 なら供給側の別問題として stale レビュー)
+- **live パラメータ / tier / lot は一切不変更**。M1 見通しも不変 (wg + ps の live N 蓄積待ち)
+
 ## 2026-08-12 — research(E7): phase-1 pre-flight — サプライズパネル凍結と power 開示 (θ=1.0 の 12 combo が結果観測前に脱落) (rule:R1)
 
 - **pre-reg §11 の 2026-08-14 マイルストン (FF gap scrape + データ付録凍結) を 2 日前倒しで完了確認**。§3.3c として追記 ([[e15-e7-event-modality-prereg-2026-07-18]])。**価格データ非接触・イベント×リターン結合統計は未計算** (§10-1 遵守) = 結果観測前の記録
