@@ -3568,6 +3568,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **USD_JPY（VOLATILE 90%ile）** はNY時間に入り米経済指標（CPI/PPI系の余波 or 指標なし日でも短期流動性増加）でボラ継続が予想される。SMA Slopeの下向き（−0.00585）はNY初動でも圧力が残存する可能性。
 - **EUR/GBP系（RANGING 62–90%ile）** はロンドン・フィックスを通過済みのため、NY時間は方向感が薄れやすい。レンジ・スキャルプには一定の機会があるが、ATR高水準でスプレッド比が悪化しやすい点に注意。
 
+### 2026-08-12 (Post-NY Report)
+| WR | — |
+| PnL | **±0.0 pips** |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+- **合計PnL**: -13.3 pips（N=1、WR=0.0%）
+- **最良セッション**: Tokyo / NY（±0、トレードなし）
+- **最悪セッション**: London（唯一の執行で-13.3pips喪失）
+- **特記**: Londonセッションの1件のみが本日全ての損益を決定。戦略・ペアの詳細はAPIに記録なし（セッション内トレード詳細=空）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
