@@ -5080,7 +5080,21 @@ class DemoTrader:
         # Spread/SL Gateでは防げないテールリスク → 静的ブロック（原則#3の例外）
         _now_h = datetime.now(timezone.utc).hour
         if "GBP" in instrument and (_now_h >= 21 or _now_h < 6):
-            if not _is_shadow_eligible:
+            # 2026-08-12 (rule:R3 zero-fire forensic): sweep_reversion_eurgbp_late は
+            # cell 定義 (LATE 21-24 UTC × EUR_GBP) がこのブロック帯に 100% 内包される。
+            # 7月は上流 HTF Hard Block → HTF_BLOCK_SHADOW_RESCUE 経由で shadow row が
+            # 残っていたが、EUR_GBP の HTF regime が range 化して HTF block が外れた
+            # 07-16 以降は本 gate の hard block (_block+return) に落ち、行が一切残らず
+            # P-S1(a) トリガ (unique N>=10) の分母が silent 枯渇した (実測: 07-26/07-29/
+            # 08-06/08-09 の 4 イベント消失、Render logs で 07-29/08-06 の
+            # SENTINEL_BLOCK_DIAG gbp_asia_flash_crash を確認)。4原則#3 (Shadow 蓄積は
+            # 削らない) 違反の構造バグにつき、当該 cell のみ shadow 退避 (is_shadow=1、
+            # OANDA 送信なし — live 例外は P-S1(a) Option B の user 決裁事項のまま)。
+            # 詳細: knowledge-base/wiki/analyses/sweep-zero-fire-forensic-2026-08-12.md
+            _gbp_asia_shadow_rescue = (
+                (entry_type, instrument) in self._GBP_ASIA_SHADOW_RESCUE_CELLS
+            )
+            if not _is_shadow_eligible and not _gbp_asia_shadow_rescue:
                 _block(f"gbp_asia_flash_crash(UTC{_now_h})")
                 return
             else:
@@ -9740,6 +9754,17 @@ class DemoTrader:
     # ══════════════════════════════════════════════════════════════
     # ── v6.4 SHIELD + 非対称攻撃 ──────────────────────────────
     # ══════════════════════════════════════════════════════════════
+    # 2026-08-12 (rule:R3 zero-fire forensic): gbp_asia_flash_crash gate の
+    # rowless hard block から shadow 退避 (is_shadow=1、OANDA 送信なし) に切り替える
+    # cell 集合。HTF_BLOCK_SHADOW_RESCUE (strategies/daytrade/__init__.py) と同一の
+    # 原則3設計 — 12.4y Bonferroni 生存 cell (N=543 WR=59.7% +6.22p t=4.46) の
+    # P-S1(a) トリガ分母 (unique N>=10) が silent 枯渇するのを防ぐ。live 送信の
+    # 例外化は P-S1(a) Option B (user 決裁) のみ — 本集合は記録専用で live に影響しない。
+    # 詳細: knowledge-base/wiki/analyses/sweep-zero-fire-forensic-2026-08-12.md
+    _GBP_ASIA_SHADOW_RESCUE_CELLS = frozenset({
+        ("sweep_reversion_eurgbp_late", "EUR_GBP"),
+    })
+
     _OANDA_LOT_CAP = 10000          # 絶対上限 (19000u災害防止)
     _OANDA_MODE_BLOCKED = frozenset({
         "daytrade_eur",              # EUR_USD DT 15m: OANDA WR=29.2%

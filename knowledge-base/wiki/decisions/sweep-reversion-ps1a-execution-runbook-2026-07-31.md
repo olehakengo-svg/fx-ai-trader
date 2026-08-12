@@ -134,3 +134,13 @@ spaced EV≤0 の場合のみ。draft branch は使わず:
 - spaced EV 現況: **+2.47 p/t (>0)** — 今 N=10 に到達すれば Option B 側
 - 発火頻度の解釈: 期待 3-4 件/月、直近 16 日ゼロは Poisson で P≈15% (lumpy の範囲内)。
   エッジの 2021+ regime 集中 (LOCK Caveat) を踏まえ、trigger 5 は kill でなく forensic
+
+### 7.1 zero-fire forensic 結果 (2026-08-12 追記 — trigger 5 は期日前に解決済み)
+
+**「発火していないのではなく、行が消されていた」** — [[../analyses/sweep-zero-fire-forensic-2026-08-12]]。
+EUR_GBP の HTF regime range 化 (07-16〜) で HTF rescue 経路が外れ、§2.5 第3ブロッカー
+(gbp_asia gate) が **rowless hard block** で 4 実イベント (07-26/07-29/08-06/08-09、replay +
+Render ログ確認) を削っていた。記録経路は R3 修復済み (`_GBP_ASIA_SHADOW_RESCUE_CELLS`、
+shadow 退避のみ・live 不変)。再構成 unique N=12 ≥10 / spaced EV >0 だが、**凍結トリガへの
+再構成イベント算入可否・retire 期日 (09-30) の 28 日繰り延べ・日曜イベント恒久欠測 (~15-30%)
+の頻度帯割引は user 決裁事項** (forensic doc §4)。決裁までは修復後の fresh 蓄積で N カウント継続。
