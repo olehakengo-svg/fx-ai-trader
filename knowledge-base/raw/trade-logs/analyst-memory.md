@@ -3548,6 +3548,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - `direction_filter`主導のブロックはレジームと整合しており、現時点では**フィルタが意図通り機能している**と判断できる
 - 全5ペアが**RANGING判定**（USD/JPYのみVOLATILE）。しかしATR%ileが90%に達するペアが複数あり、「RANGING×高ATR」という矛盾した環境が生じている。これはトレンドの方向性が定まらないまま値動きの振れ幅だけが大きい**混乱レジーム**を示す。
 
+### 2026-08-12 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+- `scalp系`: `r2_shadow_demoted_cell`によるフィルタリングが正常作動（13+12+6+3+2=36件）
+- `daytrade系`: `hedge_block`が複数ペアで発動（EUR_JPY/USD/GBP_USDで計58件）
+- 東京セッションN=0、判断に必要な統計的根拠が存在しない
+- `hedge_block`・`r2_shadow_demoted_cell`はリスク管理機能として**正常作動**しており、誤動作ではない
+- OANDA転送率0%はshadow_tracking（19件）が全件を説明しており、システム異常ではない
+- DD防御モード（DD=100.01%、0.2x防御）継続中であり、パラメータ介入の優先度は低
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
