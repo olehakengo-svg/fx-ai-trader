@@ -1,0 +1,213 @@
+//@version=5
+indicator("ZZ Spec Visualizer v1", "ZZSPEC", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ============================================================
+// ZZ Spec Visualizer v1.1 — user 裁量手法のスペック可視化 (2026-08-11)
+// (1) zigzag 頂点/底の「確定ラグ」可視化 (チャートの後知恵を除去)
+// (2) 過去の頂点・底からの水平線/平行線
+// (3) 確定時の逆張り方向 + 最寄り目処ラインまでの距離
+// 統計テーブルは全ロード履歴で集計。描画は直近 N イベントのみ。
+// これは測定ハーネスではない。user がスペックを目視承認するための道具。
+// TV 保存名: "My script2" (title = ZZ Spec Visualizer v1)
+// 初回実測 (USDJPY 1H, ATR×2, N=2360): 確定ラグ中央値 3本 /
+//   確定までの逆行中央値 44.1p / 目処までの距離中央値 25.9p
+// ============================================================
+
+// ── Inputs ──
+grpZ = "ZigZag (頂点/底の確定)"
+devMode = input.string("ATR", "反転しきい値モード", options=["ATR", "PCT"], group=grpZ)
+devAtr  = input.float(2.0, "反転幅 = ATR ×", minval=0.25, step=0.25, group=grpZ)
+devPct  = input.float(0.30, "反転幅 = 価格の %", minval=0.02, step=0.02, group=grpZ)
+atrLen  = input.int(14, "ATR 期間", group=grpZ)
+
+grpL = "水平線 (過去の頂点・底)"
+levelsN = input.int(10, "直近 N 個のピボットから水平線", minval=2, maxval=40, group=grpL)
+
+grpP = "平行線 (大枠)"
+showPar = input.bool(true, "直近2頂点 / 2底のラインを引く", group=grpP)
+
+grpS = "メカニズム可視化"
+showLag   = input.bool(true, "確定ラグ (頂点→確定バー) を表示", group=grpS)
+showSetup = input.bool(true, "確定時の逆張り矢印 + 目処までの距離", group=grpS)
+showLastN = input.int(20, "描画する直近イベント数", minval=5, maxval=100, group=grpS)
+
+// ── State ──
+pip  = syminfo.mintick * 10
+atrV = ta.atr(atrLen)
+thr  = devMode == "ATR" ? atrV * devAtr : close * devPct / 100.0
+
+var int   dir  = 0
+var float extP = na
+var int   extB = na
+
+var pvP = array.new_float()
+var pvB = array.new_int()
+var pvH = array.new_bool()
+
+var lagBarsA = array.new_float()
+var lagPipsA = array.new_float()
+var tgtPipsA = array.new_float()
+
+// 描画オブジェクトの FIFO 管理 (直近 N のみ表示)
+var zzLines  = array.new_line()
+var lagLines = array.new_line()
+var lagLbls  = array.new_label()
+var tgtLines = array.new_line()
+var tgtLbls  = array.new_label()
+var pivLbls  = array.new_label()
+
+f_keepLine(arr, ln, cap) =>
+    array.push(arr, ln)
+    if array.size(arr) > cap
+        line.delete(array.shift(arr))
+
+f_keepLabel(arr, lb, cap) =>
+    array.push(arr, lb)
+    if array.size(arr) > cap
+        label.delete(array.shift(arr))
+
+// ── ZigZag detection (確定ベース・非リペイント) ──
+bool  confirmed = false
+bool  cIsHigh   = false
+float cPrice    = na
+int   cBar      = na
+
+if na(extP)
+    extP := high
+    extB := bar_index
+    dir  := 1
+else
+    if dir == 1
+        if high > extP
+            extP := high
+            extB := bar_index
+        else if extP - low >= thr
+            confirmed := true
+            cIsHigh   := true
+            cPrice    := extP
+            cBar      := extB
+            dir       := -1
+            extP      := low
+            extB      := bar_index
+    else
+        if low < extP
+            extP := low
+            extB := bar_index
+        else if high - extP >= thr
+            confirmed := true
+            cIsHigh   := false
+            cPrice    := extP
+            cBar      := extB
+            dir       := 1
+            extP      := high
+            extB      := bar_index
+
+// ── 確定イベントで描画 ──
+if confirmed
+    // zigzag 線 (直前ピボット → 今回ピボット)
+    if array.size(pvP) > 0
+        pP = array.get(pvP, array.size(pvP) - 1)
+        pB = array.get(pvB, array.size(pvB) - 1)
+        f_keepLine(zzLines, line.new(pB, pP, cBar, cPrice, color=color.new(color.orange, 0), width=2), 150)
+    // ピボットマーカー
+    f_keepLabel(pivLbls, label.new(cBar, cPrice, cIsHigh ? "頂点" : "底", style=cIsHigh ? label.style_label_down : label.style_label_up, color=cIsHigh ? color.new(color.red, 20) : color.new(color.teal, 20), textcolor=color.white, size=size.tiny), showLastN * 2)
+
+    // 確定ラグ (統計は全履歴、描画は直近 N)
+    lagB = bar_index - cBar
+    lagP = math.abs(cPrice - close) / pip
+    array.push(lagBarsA, lagB)
+    array.push(lagPipsA, lagP)
+    if showLag
+        f_keepLine(lagLines, line.new(cBar, cPrice, bar_index, close, color=color.new(color.gray, 30), style=line.style_dotted), showLastN)
+        f_keepLabel(lagLbls, label.new(bar_index, close, "確定 +" + str.tostring(lagB) + "本 / 逆行 " + str.tostring(lagP, "#.#") + "p", style=cIsHigh ? label.style_label_upper_right : label.style_label_lower_right, color=color.new(color.gray, 40), textcolor=color.white, size=size.tiny), showLastN)
+
+    // 逆張りセットアップのプレビュー: 最寄りの反対側ピボット水準 = 目処
+    if showSetup
+        int n = array.size(pvP)
+        if n > 0
+            float tgt = na
+            int cnt = 0
+            for i = n - 1 to 0
+                if cnt >= levelsN
+                    break
+                cnt := cnt + 1
+                lp = array.get(pvP, i)
+                lh = array.get(pvH, i)
+                if cIsHigh
+                    if not lh and lp < close
+                        if na(tgt) or lp > tgt
+                            tgt := lp
+                else
+                    if lh and lp > close
+                        if na(tgt) or lp < tgt
+                            tgt := lp
+            if not na(tgt)
+                dPips = math.abs(close - tgt) / pip
+                array.push(tgtPipsA, dPips)
+                f_keepLine(tgtLines, line.new(bar_index, close, bar_index + 20, tgt, color=cIsHigh ? color.new(color.red, 0) : color.new(color.teal, 0), style=line.style_dashed), showLastN)
+                f_keepLabel(tgtLbls, label.new(bar_index + 20, tgt, (cIsHigh ? "SELL目処 " : "BUY目処 ") + str.tostring(tgt, format.mintick) + " (" + str.tostring(dPips, "#.#") + "p)", style=label.style_label_left, color=cIsHigh ? color.new(color.red, 55) : color.new(color.teal, 55), textcolor=color.white, size=size.tiny), showLastN)
+
+    // ピボットを保存 (プレビュー計算の後 = 因果性維持)
+    array.push(pvP, cPrice)
+    array.push(pvB, cBar)
+    array.push(pvH, cIsHigh)
+
+// ── 水平線 + 平行線 (最終バーで再描画) ──
+var hLines = array.new_line()
+var pLines = array.new_line()
+if barstate.islast
+    while array.size(hLines) > 0
+        line.delete(array.pop(hLines))
+    while array.size(pLines) > 0
+        line.delete(array.pop(pLines))
+    int n = array.size(pvP)
+    if n > 0
+        int cnt = 0
+        for i = n - 1 to 0
+            if cnt >= levelsN
+                break
+            cnt := cnt + 1
+            lp = array.get(pvP, i)
+            lb = array.get(pvB, i)
+            lh = array.get(pvH, i)
+            array.push(hLines, line.new(lb, lp, bar_index, lp, extend=extend.right, color=lh ? color.new(color.red, 45) : color.new(color.teal, 45), width=1))
+        if showPar
+            int hA = -1
+            int hB = -1
+            int lA = -1
+            int lB = -1
+            for i = n - 1 to 0
+                if array.get(pvH, i)
+                    if hA == -1
+                        hA := i
+                    else if hB == -1
+                        hB := i
+                else
+                    if lA == -1
+                        lA := i
+                    else if lB == -1
+                        lB := i
+                if hB != -1 and lB != -1
+                    break
+            if hB != -1
+                array.push(pLines, line.new(array.get(pvB, hB), array.get(pvP, hB), array.get(pvB, hA), array.get(pvP, hA), extend=extend.right, color=color.new(color.red, 25), width=2))
+            if lB != -1
+                array.push(pLines, line.new(array.get(pvB, lB), array.get(pvP, lB), array.get(pvB, lA), array.get(pvP, lA), extend=extend.right, color=color.new(color.teal, 25), width=2))
+
+// ── 統計テーブル (確定ラグの実測コスト・全ロード履歴) ──
+var table t = table.new(position.top_right, 2, 7, bgcolor=color.new(color.black, 15), border_width=1, border_color=color.new(color.gray, 60))
+if barstate.islast
+    table.cell(t, 0, 0, "ZZ SPEC 統計", text_color=color.yellow, text_size=size.small)
+    table.cell(t, 1, 0, syminfo.ticker + " " + timeframe.period, text_color=color.yellow, text_size=size.small)
+    table.cell(t, 0, 1, "確定ピボット数", text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 1, str.tostring(array.size(pvP)), text_color=color.white, text_size=size.tiny)
+    table.cell(t, 0, 2, "反転しきい値", text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 2, devMode == "ATR" ? "ATR x " + str.tostring(devAtr, "#.##") + " (今 " + str.tostring(thr / pip, "#.#") + "p)" : str.tostring(devPct, "#.##") + "% (今 " + str.tostring(thr / pip, "#.#") + "p)", text_color=color.white, text_size=size.tiny)
+    table.cell(t, 0, 3, "確定ラグ 中央値 (本)", text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 3, array.size(lagBarsA) > 0 ? str.tostring(array.median(lagBarsA), "#.#") : "-", text_color=color.white, text_size=size.tiny)
+    table.cell(t, 0, 4, "確定までの逆行 中央値", text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 4, array.size(lagPipsA) > 0 ? str.tostring(array.median(lagPipsA), "#.#") + " p" : "-", text_color=color.orange, text_size=size.tiny)
+    table.cell(t, 0, 5, "目処までの距離 中央値", text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 5, array.size(tgtPipsA) > 0 ? str.tostring(array.median(tgtPipsA), "#.#") + " p" : "-", text_color=color.aqua, text_size=size.tiny)
+    table.cell(t, 0, 6, "目処ありセットアップ数", text_color=color.white, text_size=size.tiny)
+    table.cell(t, 1, 6, str.tostring(array.size(tgtPipsA)), text_color=color.white, text_size=size.tiny)
