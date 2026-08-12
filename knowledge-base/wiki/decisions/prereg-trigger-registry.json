@@ -318,11 +318,13 @@
     },
     {
       "id": "ps-carveout-firstweek-regate",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-08-11",
       "doc": "knowledge-base/wiki/decisions/track-c-capital-plumbing-decision-packet-2026-07-28.md",
-      "message": "price_shock_rev ×5 carve-out (D-c-1, user 承認 2026-07-28) 復帰初週再ゲート — live fill 発生後に (a) AGG_KELLY BYPASS ログ実確認 (b) exit 分布が horizon 系か (BE_LOCK OFF 実効) (c) watchdog/promote evaluator の estimand 整合を監査。live N≥10 で EV<−0.5p なら R2 demote"
+      "message": "price_shock_rev ×5 carve-out (D-c-1, user 承認 2026-07-28) 復帰初週再ゲート — live fill 発生後に (a) AGG_KELLY BYPASS ログ実確認 (b) exit 分布が horizon 系か (BE_LOCK OFF 実効) (c) watchdog/promote evaluator の estimand 整合を監査。live N≥10 で EV<−0.5p なら R2 demote",
+      "resolved": "2026-08-12",
+      "resolution": "監査完了 (期日 08-11 の 1 日超過で執行、rule:R3)。(a) AGG_KELLY BYPASS ログ 2/2 一次証拠一致 (07-29 04:44:29Z / 07-31 08:57:19Z、同時刻の非 bypass 戦略 block で選択性も実証) (b) exit 2/2 horizon (BE_LOCK OFF 実効、overlay 汚染なし) (c) watchdog estimand 整合 — 潜在乖離 1 件記録 (is_shadow=0 判定 vs 正規 oanda_trade_id、監査窓では一致)。live N=2 (EV -61.3p、-123.2p 単発支配) < 10 で R2 demote 規則非発動。発火レート実測 4.3/月 (packet 想定 24.5/月 の ~18%)、N>=10 到達 ~2026-10 見込み。後続 = 既存 ps watchdog (4h cron auto-demote state)。詳細: wiki/decisions/ps-carveout-firstweek-regate-2026-08-12.md"
     },
     {
       "id": "e12-volume-prereg-staleness-review",
