@@ -95,3 +95,10 @@ aggregate 一括解除の禁止を再確認。解除はセル単位 live N≥30 
 D-a 実測追記 → user 決裁 (D-b/D-c) → 単一 PR (carve-out + exit 決裁反映 + 表示修正 + テスト
 [gate bypass unit test / tests/test_preserve_types_tick_entry.py 整合] + KB 同一コミット) →
 復帰初週ゲート監視 (registry 登録)
+
+## 事後 (2026-08-12 追記)
+**復帰初週ゲートは decision 済み** → [[ps-carveout-firstweek-regate-disposition-2026-08-12]]。
+demote せず (live N=2 < pre-reg 10)。初週の律速は agg-Kelly ではなく **live 席の枯渇**
+(`Slot bypass ... live=1/1 → shadow`) で、PR #172 (merged 08-11) の席供給是正後の窓へ
+評価を再アンカー (registry `ps-carveout-regate-post-172`、N≥10 / backstop 2026-09-30)。
+BE_LOCK OFF は live 2/2 が `close_reason=horizon` で実効を確認。
