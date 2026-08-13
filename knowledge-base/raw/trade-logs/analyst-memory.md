@@ -3608,6 +3608,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 ### 推奨戦略配分
 **⚠️ NO ACTION推奨（条件付き）**
 
+### 2026-08-13 (Post-NY Report)
+| PnL | **+0.0p** |
+| Session | N | WR% | PnL |
+- **本日合計PnL**: +0.0
+- **本日合計トレード数**: 0
+- **本日合計WR**: 測定不能
+- **最良セッション**: なし（全セッションノートレード）
+- **最悪セッション**: なし（同上）
+> **NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
