@@ -3598,6 +3598,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 | GBP_USD | RANGING | 43% | 中ATR×RANGINGは相対的に安定。ただし東京でhedge_block+dedupが発生しており引き続き注意 |
 - EUR_JPY・GBP_JPY・USD_JPYのATR90%ile水準は、ロンドン初動（UTC 07:00–08:00）でスプレッドが一時拡大する局面と重なりやすい。spread_guardブロックが追加発生する可能性がある。
 
+### 2026-08-13 (Post-London Report)
+| PnL | **0 pips / 0円** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+- **USD_JPY VOLATILE継続見込み**：ATR90%ile + SMA slope急落（−0.00520）は構造的な円高圧力の継続を示唆。NYオープン時のドル売り加速リスクあり。
+- **EUR/GBP系**：RANGINGが継続する可能性が高い。ロンドンフィックス（UTC 16:00）通過済みのため、一時的な方向性の発生は期待薄。
+- **ATRの方向**：USD_JPY・EUR_JPY・GBP_JPYの高ATRは、NYセッション序盤に継続する可能性あり。ただしRANGINGラベルの中での高ATRは「往復」の危険性も内包。
+### 推奨戦略配分
+**⚠️ NO ACTION推奨（条件付き）**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
