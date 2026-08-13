@@ -3578,6 +3578,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **最悪セッション**: London（唯一の執行で-13.3pips喪失）
 - **特記**: Londonセッションの1件のみが本日全ての損益を決定。戦略・ペアの詳細はAPIに記録なし（セッション内トレード詳細=空）
 
+### 2026-08-13 (Pre-Tokyo Briefing)
+| 前日PnL | **−13.3p** |
+| 全体WR | **0.0%** (1/1 LOSS) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- Cutoff後の有効データは**N=2のみ**。「昇格基準（N≥30 & EV≥1.0）」「降格基準（N≥30 & EV<−0.5）」いずれにも到達不能。
+- 前日1件で累計N=2に到達した点は記録するが、EV±25は極めて不安定な推定値であり参照価値はない。
+- `hedge_block`がdaytrade系を566件ブロック。現在のレジーム（RANGING多数 + USD_JPY VOLATILE）において、ヘッジ判定が過敏に反応している可能性が高い
+- `r2_shadow_demoted_cell`による294件ブロックは、scalp系がシャドウ降格セルのまま復帰していないことを示す。これは意図的な品質フィルタとして機能しているが、同時にスループットをほぼ消滅させている
+- `gbp_asia_flash_crash`：GBP_JPYのATR90%ile（高ボラ）が継続中のため、このフィルタは正当に発動していると判断
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
