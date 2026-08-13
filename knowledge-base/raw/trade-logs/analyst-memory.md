@@ -3588,6 +3588,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - `r2_shadow_demoted_cell`による294件ブロックは、scalp系がシャドウ降格セルのまま復帰していないことを示す。これは意図的な品質フィルタとして機能しているが、同時にスループットをほぼ消滅させている
 - `gbp_asia_flash_crash`：GBP_JPYのATR90%ile（高ボラ）が継続中のため、このフィルタは正当に発動していると判断
 
+### 2026-08-13 (Post-Tokyo Report)
+| PnL | 0.0p |
+| WR | N/A |
+- `hedge_block`が最大因子（全体ブロックの最多カテゴリ）。GBP/EUR/AUD系DT戦略でヘッジ状態が継続しており、新規エントリーを全面封鎖。
+- `order_bar_dedup`はGBPUSD・GBPJPYで頻発——同一バーに複数シグナルが集中する価格帯への到達が繰り返されているが、重複排除で吸収されている。
+- `r2_shadow_demoted_cell`の計22件は、scalp_5m系がシャドーR2評価でセル降格を受けていることを示す。ライブ昇格前の品質フィルターとして機能中。
+- `rnb_usdjpy`の`direction_filter`16件は、USD/JPY VOLATILE + SMA20 Slope -0.00520（下降方向）のレジーム下でlong方向シグナルが連続ブロックされている可能性が高い。
+| GBP_USD | RANGING | 43% | 中ATR×RANGINGは相対的に安定。ただし東京でhedge_block+dedupが発生しており引き続き注意 |
+- EUR_JPY・GBP_JPY・USD_JPYのATR90%ile水準は、ロンドン初動（UTC 07:00–08:00）でスプレッドが一時拡大する局面と重なりやすい。spread_guardブロックが追加発生する可能性がある。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
