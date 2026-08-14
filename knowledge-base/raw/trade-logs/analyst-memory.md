@@ -3628,6 +3628,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **r2 demotedセル問題は短期解消の見込み薄**（157件 / 継続的ブロック）
 - 現在：N=2 / 目標：N=30
 
+### 2026-08-14 (Post-Tokyo Report)
+| PnL | 0 pips |
+- 本日のブロックはシステム設計通りの動作（シャドウセル降格・ヘッジブロック・dedupは意図的フィルター）
+- コード変更禁止原則に加え、現データからパラメータ調整を正当化するN≥30の統計的根拠が存在しない
+- EUR/JPY・GBP/JPYともにヘッジポジション由来のブロックであり、手動介入より次シグナルを待つのが合理的
+### 推奨戦略配分
+- daytrade_1h_eurusd / daytrade_eurusd
+- scalp_5m_gbp（GBP/USD）
+- daytrade_1h_gbpusd
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
