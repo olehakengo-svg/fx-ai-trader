@@ -3638,6 +3638,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - scalp_5m_gbp（GBP/USD）
 - daytrade_1h_gbpusd
 
+### 2026-08-14 (Post-London Report)
+| 勝率（WR） | 100.0% |
+| PnL | +0.8 pips |
+| 戦略 | ペア | 方向 | PnL | 決済理由 |
+**成功要因**: USD_JPY がVOLATILE/ATR90%ile環境にもかかわらず、carry dip accumulator がディップ押し目を捕捉し、設計通りSL/TPで決済完了。スプレッド0.8に対してネットPnL+0.8は摩擦調整後ほぼゼロ利益圏であり、「勝利」と呼ぶには過剰評価に注意。
+東京セッションの記録が本データセットに存在しないため、直接比較は不可。ただし本日累計N=1・PnL=+0.8pipsという数値が東京+ロンドン全体を表している点から推定：
+| WR変化 | 比較不能（東京データなし） |
+| PnL変化 | 東京N=0 → ロンドンN=1(+0.8p)で初トレード発生 |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
