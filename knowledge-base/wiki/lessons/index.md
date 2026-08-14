@@ -29,6 +29,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-rolling-window-cache-overwrite-2026-08-14]]
+**発見日**: 2026-08-14 | **修正**: rule:R3 (同 PR)
+- 問題: ① `modules/yield_data.py` が rolling 窓 API (yfinance) の結果でキャッシュを無条件 overwrite していた ② registry `ws3-round4-eur-divergence-conditional` の発火条件に到達する経路 (キャッシュを伸ばすジョブ) が存在しなかった
+- 症状: ZN=F 1h キャッシュが 2026-05-15 で停止 (12,760 行)。`interval="1h"` の呼び出しは period=60d を選ぶため、一度実行すれば 1,162 行に潰れる。**2024-02-18→2024-03-21 の約 1 ヶ月は既に yfinance 窓外 = ファイルにしか存在しない**。トリガは毎日 "watching" と表示され続けていたが実体はゼロ
+- 原因: overwrite 実装が「取得できる期間 = 保有できる期間」を暗黙に仮定。rolling API ではこの仮定は常に偽。加えて条件付きトリガ登録時に到達経路の実在検査をしていなかった
+- 修正: `merge_bar_cache()` で union-merge 化 (行数単調非減少) + 1h period を 730d へ + test pin 7 件 + `.github/workflows/zn-cache-refresh.yml` (週次) で伸長経路を新設。キャッシュは 14,175 行 / 右端 2026-08-14 へ回復
+- 教訓: **rolling 窓 API のキャッシュは union-merge が既定。overwrite は偽の仮定を含む。そして条件付き registry トリガは「条件を書く」と「条件が起こりうる」が別物 — 登録時に到達経路 (どのジョブが状態を進めるか) を message に明記し、`watching` 表示を健全性の証拠と誤読しない**
+
 ### [[lesson-frozen-telemetry-value-2026-08-09]]
 **発見日**: 2026-08-09 | **修正**: rule:R3 (同コミット)
 - 問題: live の DT `ctx.hour_utc` が定数 12 に凍結し、全 DT 戦略の時間帯ゲートが BT と別物になっていた (潜伏 123 日)。うち 34 日は原因を映す QUALBAR ログが本番に出続けていたのに読み飛ばされた
