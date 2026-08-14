@@ -3618,6 +3618,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **最悪セッション**: なし（同上）
 > **NO ACTION推奨**
 
+### 2026-08-14 (Pre-Tokyo Briefing)
+**2026-08-13（前日）：トレードゼロ**。PnL = ¥0、N = 0、WR = N/A。全27モードが稼働中にもかかわらず、一件の約定も発生しなかった。Cutoff後累積では N=2 / WR=50% / EV=+25.20p（USD_JPY carry戦略のみ）と、統計的判断に足るサンプルは皆無の状態が続いている。
+| Strategy | Pair | N | WR% | EV (p/t) | PnL | 判定 |
+> **昇格基準（N≥30 & EV≥1.0）達成戦略：なし**
+> **降格基準（N≥30 & EV<-0.5）該当戦略：なし**
+- **USD/JPYが159.5付近を維持 → VOLATILE継続** → 本日もゼロトレード日の公算大
+- **USD/JPY 160超え回復 or 158割れ安定化 → VOLATILE→RANGING遷移** → hedge_block解除、carry戦略ゲート再開の可能性
+- **r2 demotedセル問題は短期解消の見込み薄**（157件 / 継続的ブロック）
+- 現在：N=2 / 目標：N=30
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
