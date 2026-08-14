@@ -1,5 +1,20 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-14 — research(scan): 月次外部仮説スキャン第3次 + 四半期モダリティ棚卸し + ZN=F キャッシュ構造欠陥修復 (rule:R3)
+
+- **月次スキャン第3次を期日 (08-18) の 4 日前倒しで実行** ([[external-hypothesis-scan-round3-2026-08-14]])。起動理由 = WIP 原則は名目 3 系統で充足していたが、**実態は 5 系統すべて calendar-lock 待ちで探索アクティブ枠 0/3** が 9 日間継続していた。「在庫はあるが着手可能な仕事がゼロ」は WIP 原則が防ごうとしている状態そのものと判定
+- **裁定**: 採用 2 / 保留 1 / 棄却 2 — **E21 human_signal_stream (user 手動実績の帰属分解、S2 診断枠)** + **E22 通貨 VRP (IV−RV、explore 枠 1/3・条件付き)** / 保留 E23 中銀声明テキスト (E7 verdict 08-28 までゲート、multiplicity 二重取り回避) / 棄却 E24 global vol risk (2026 年新研究が horizon >3ヶ月を再確認 = round-2 の E17 棄却を補強)・E25 synthetic vol surface (Yahoo 価格由来 = 価格モダリティ再着せ替え、E13 同型)
+- **E22 の事前コミット節を on-record 化**: explore/OOS は**無料で完結**する (EVZCLS 実測 4,529 行、OOS 終端 2025-03-11) が、**forward の無料経路はゼロ** (EVZCLS 廃止確定 / `^EVZ` delisted / CME scrape は ToS 禁止 / Databento 有償)。よって **PASS = 「live 実装承認」ではなく「有償データ調達の user 決裁点に到達」の意味のみ**。user が調達しない判断をした場合に設計を緩める再訴訟を禁止。枠を使う正当化 = 無料で vol モダリティに白黒がつく非対称
+- **E21 のスコープ制限**: estimand は 4 分解 (swap / spot ドリフト β / タイミング残差 α / サイズ寄与) の**会計**であって WR 統計ではない (MEMORY 明示指示)。**M2/M3 直接寄与は小さいと前置** (無レバ carry +0.3-0.4%/月、20%/月には ~25x = unwind 即死)。α≈0 でも human-signal-stream 系統を恒久クローズできる情報価値がある
+- **四半期モダリティ棚卸し (初回)**: 閉鎖判定の巻き戻し **ゼロ** (12 モダリティ全て前提有効、うち E17 は新研究で強化)。**生存モダリティは 6 系統のみ、うち能動的に動かせるのは E21/E22 の 2 系統だけ**と確定
+- **入手性 re-check で 2 件悪化・1 件構造欠陥を検出** — 悪化: EVZCLS 右端 2025-03-11 で確定終了 / VXFXICLS 2022-02-11 終了。**構造欠陥 = ZN=F 1h キャッシュ (下記)**
+- **ZN=F キャッシュ構造欠陥 (R3、本 PR で修復)**: `modules/yield_data.py` が rolling 窓 API の結果でキャッシュを**無条件 overwrite**。`interval="1h"` は period=60d を選ぶため、**一度呼べば 12,760 行が 1,162 行に潰れる**。しかも **2024-02-18→2024-03-21 の約 1 ヶ月は既に yfinance 窓外 = ファイルにしか存在しない**。修正 = `merge_bar_cache()` で union-merge (行数単調非減少 / 重複は fresh 採用) + 1h period を 730d へ + **test pin 7 件**。実行結果 **12,760 → 14,175 行 / 右端 2026-05-15 → 2026-08-14、左端 2024-02-18 保持**
+- **到達経路のない registry 条件を是正**: `ws3-round4-eur-divergence-conditional` の発火条件 (cache が 2026-11-15+ へ延伸) は、**キャッシュを伸ばすジョブが存在しなかったため構造的に到達不能**だった (毎日 "watching" 表示は健全性の証拠にならない)。`.github/workflows/zn-cache-refresh.yml` (週次 UTC 月 06:40) を新設して伸長経路を実在させた
+- **教訓ページ**: [[lesson-rolling-window-cache-overwrite-2026-08-14]] — rolling 窓 API のキャッシュは union-merge が既定 / 条件付きトリガ登録時は到達経路を message に明記する
+- **パイプライン運用規則の追補**: WIP 充足判定は「S1-S4 の本数」ではなく **「今日着手できる本数 ≥1」** で行う ([[edge-development-pipeline-2026-07-18]] §5)
+- **registry**: `edge-supply-scan-monthly` 期日 08-18 → **09-18**、`ws3-round4-eur-divergence-conditional` に修復注記
+- **評価への影響: なし** — live / tier / lot / Kelly は一切不変更 (純研究 + データ基盤)
+
 ## 2026-08-12 — docs(KB): ps_aud_jpy demote 可否 user 決裁 — 見送り採択、LOCK watchdog に委任 (rule:R2 手続きクローズ)
 
 - **user「進めて」(2026-08-12) で推奨案採択**: 549250 (−123.2p) 事故起点の demote 提案 ([[mc-ruin-dashboard-artifact-2026-08-05]] #3) は **demote 見送り** — LOCK 済み基準 (watchdog Live N≥10 EV<0 / N=15 Wilson<0.40 / 2週連続 EV<0 / catastrophic SL率>30%) が唯一の判定器。horizon 損失 cap の R1 amendment は起案しない

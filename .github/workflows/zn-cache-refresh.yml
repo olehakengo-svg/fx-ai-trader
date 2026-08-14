@@ -1,0 +1,79 @@
+# ZN=F (10Y T-Note) 1h バーキャッシュの週次 union-merge リフレッシュ
+#
+# 目的:
+#   yfinance の 1h 窓は rolling 730d — 左端は毎日 1 日ずつ消える。リフレッシュを
+#   止めるとキャッシュは伸びず、窓外に出た歴史はどこからも再取得できなくなる。
+#   実測 (2026-08-14): キャッシュが 2026-05-15 で停止し、registry の
+#   `ws3-round4-eur-divergence-conditional` (発火条件 = cache が 2026-11-15+ まで
+#   延伸) が構造的に到達不能だった。
+#
+# 安全性:
+#   `modules.yield_data.merge_bar_cache` により union-merge (行数は単調非減少)。
+#   不変条件は tests/test_yield_data_cache_merge.py が pin。計測も判定もしない
+#   純データ基盤ジョブ (rule:R3)。
+name: zn-cache-refresh
+
+on:
+  schedule:
+    - cron: '40 6 * * 1'   # UTC 月曜 06:40 (週次で十分 — 窓は 730d)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          token: ${{ secrets.PAT_TOKEN }}  # main は protected — daily-report と同一の bypass 経路
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install --quiet yfinance pandas pyarrow
+
+      - name: Refresh ZN=F 1h cache (union-merge)
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import warnings; warnings.filterwarnings("ignore")
+          import pandas as pd
+          from pathlib import Path
+          from modules.yield_data import fetch_zn_intraday
+
+          p = Path("data/cache/yield/ZN_F_1h.parquet")
+          before = pd.read_parquet(p) if p.exists() else None
+          n0 = len(before) if before is not None else 0
+          left0 = before.index.min() if n0 else None
+
+          fetch_zn_intraday(interval="1h", days=3650, use_cache=True,
+                            cache_max_age_hours=0)
+
+          after = pd.read_parquet(p)
+          print(f"rows {n0} -> {len(after)} | {after.index.min()} -> {after.index.max()}")
+          assert len(after) >= n0, "行数が減った = 破壊的上書き (merge 退行)"
+          if left0 is not None:
+              assert after.index.min() <= left0, "左端の歴史が失われた"
+              assert before.index.isin(after.index).all(), "既存バーの欠落"
+          PYEOF
+
+      - name: Commit cache
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/cache/yield/ZN_F_1h.parquet
+          if git diff --cached --quiet; then
+            echo "no changes"
+            exit 0
+          fi
+          git commit -m "auto: ZN=F 1h cache refresh ($(date -u +%F))"
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase
+          done
+          exit 1
