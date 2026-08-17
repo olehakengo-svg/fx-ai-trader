@@ -215,11 +215,13 @@
     },
     {
       "id": "e15-e7-event-prereg-phase1-verdict",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-08-28",
       "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
-      "message": "E15+E7 family phase-1 (E7 指標サプライズ directional) — FF gap scrape + データ付録凍結 2026-08-14 ✅ 完了 (付録 §3.3b 2026-07-24 + pre-flight §3.3c 2026-08-12: 価格側 13/13 OK / サプライズパネル凍結 / θ=1.0 の 12 combo は block ゲート不達で結果観測前に脱落 → 実効 12 combo / OOS blocks 19(NFP) 16(CPI) = modal 予想 C3 or C5) / 次 = discovery+凍結 2026-08-21 / OOS verdict 2026-08-28。phase-0 の帰結に依存せず実行 (pre-reg §8 固定分岐)"
+      "message": "E15+E7 family phase-1 (E7 指標サプライズ directional) — FF gap scrape + データ付録凍結 2026-08-14 ✅ 完了 (付録 §3.3b 2026-07-24 + pre-flight §3.3c 2026-08-12: 価格側 13/13 OK / サプライズパネル凍結 / θ=1.0 の 12 combo は block ゲート不達で結果観測前に脱落 → 実効 12 combo / OOS blocks 19(NFP) 16(CPI) = modal 予想 C3 or C5) / 次 = discovery+凍結 2026-08-21 / OOS verdict 2026-08-28。phase-0 の帰結に依存せず実行 (pre-reg §8 固定分岐)",
+      "resolved": "2026-08-17",
+      "resolution": "phase-1 verdict ❌ FAIL (discovery 段、選抜通過 0/24 → m₁=0) — 凍結期日 08-21 の 4 日 / verdict 期日 08-28 の 11 日前倒しで完了 (pre-reg §13、PR #182)。実効空間 θ=0.5 の 12 combo は time-exit EV 全て負 (−0.31〜−8.15p、blocks 41–62) = 符号が系統的に逆 (SIGN-FLIP 記述記録のみ)。OOS 窓 (2024-01+) は結合統計未接触のまま保存。§8 固定分岐発動: 両 phase PASS=0 → イベントモダリティ枯渇 → E12 を供給ライン主候補へ格上げ。再試行禁止 = NFP/CPI headline z × sign-follow × M15 全変種。機械ガード: 台帳再現 13/13 + census §3.3c 完全一致 + 符号/estimand 手計算 spot check"
     },
     {
       "id": "e1-prereg-verdict-deadline",
