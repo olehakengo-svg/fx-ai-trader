@@ -3668,6 +3668,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **r2_shadow_demoted_cell**: scalp(15)・scalp_eur(12)・scalp_5m(5)・daytrade_gbpusd(3) — シャドウ降格セルによる抑制が積み上がっており、Scalpファミリーのシグナル通過率を恒常的に低下させている。
 - **rnb_usdjpy:direction_filter(29)**: RnBが方向フィルタで29回連続ブロックされている。USD/JPYのトレンドが方向定義と合致していない状態（後述レジーム参照）。
 
+### 2026-08-17 (Post-Tokyo Report)
+| WR | **0.0%**（0勝1敗） |
+| PnL | **−11.8 pips** |
+| 戦略 | ペア | 方向 | 結果 | PnL | 主因 |
+- USD/JPYは現在ATR%ile **90%（20日比較）** かつSMA20 Slope **−0.00463**（下向きトレンド）
+- レジーム分類は「RANGING」だが、ATR%ile=90%はボラティリティが高い水準にある矛盾状態（高ボラ+横ばい＝ノイズ相場）
+- "dip_accumulator"（押し目買い蓄積）系戦略にとって、下向きSlopeかつ高ATR環境は逆方向フォローが発生しやすく、SL_HIT率が構造的に高まる条件
+- スプレッド=0.8（USD/JPYとして許容範囲内）であり、スプレッド問題ではない
+- N=1は統計的根拠として完全に不十分（判断閾値はN≥30）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
