@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-17 — research(E22): VRP explore ❌ FAIL (IC −0.025 p=0.760、OOS 非接触) — vol モダリティ恒久クローズ (rule:R1 手続き、台帳 #24)
+
+- **E22 (通貨 VRP = EVZ−RV21 × EUR_USD × 21bd 時系列 IC) の凍結 explore を単独 wave で執行** ([[e22-vrp-explore-prereg-2026-08-17]]、scan 第 3 次 §2/§2.1 の explore 枠 1/3)。敵対的検証 GO-WITH-CONDITIONS (17 条 / blocking 10 条) 全消化 → 🔒 凍結 `f50b680a` → two-pass 測定
+- **verdict = explore FAIL (gate C+D+F 同時不通過)**: 両側 circular-shift p = **0.760**、IC = **−0.0249 ≈ 0** の完全 null (N=2,066 / 非重複窓 98)。stressed-net は adverse **−11.2p**・point 端でも **−3.1p** — **swap −16.2p が gross +8.9p を支配** (21bd hold の事前記録どおり)。年次符号 5/8・LOYO 7/8
+- **クローズ範囲 (凍結どおり発効)**: 通貨 VRP 全変種 × G10 × 日次〜月次 + 無料 proxy (EVZ/VXFXICLS) — **E24/E25 棄却と合わせ vol モダリティ恒久クローズ、生存モダリティ 6→5 系統**。power caveat 凍結済み (FAIL ≠ falsified、検出力 8–17%、引用は estimand 監査必須)。復活 = 有償 OTC 面 + 新 family + 新敵対的検証のみ
+- **§2.1 事前コミット節の帰結執行**: OOS 2022-01..2025-03-11 非接触封印 / **Databento 有償調達の user 決裁は不要化** (PASS 時のみの決裁点だった) / 無料で vol モダリティに白黒 = 主目的達成。外部/新規 family 系統の explore→OOS 生存 **0/16** に更新
+- **副産物**: EUR_USD 15m の **2020-10-23..11-16 MASSIVE ベンダー穴を OANDA mid backfill で修復 (+1,440 行、米大統領選挙週回収、`tools/e22_gap_backfill.py`)** — 敵対的検証が実測発見した未開示穴。EVZCLS.csv (FRED、確定終了系列) を git 追跡化 + sha256 manifest 凍結
+- **能動的に動かせる供給ラインは E21 (帰属分解、user 決裁 registry 08-31) のみに** — 残りは全て calendar-lock (E12 2027-02 / E1 10-15 / #22 ECG 11-06)。E23 はゲート解除済み (起動判断は次スキャン)。live/tier/lot 変更ゼロ
+
 ## 2026-08-17 — research(E7): phase-1 verdict ❌ FAIL (discovery 0/24、OOS 非接触) — イベントモダリティ枯渇、E12 格上げ (rule:R1 手続き)
 
 - **E7 phase-1 (指標サプライズ directional) を期日前倒しで執行** (凍結期日 08-21 の 4 日 / verdict 08-28 の 11 日前倒し、[[e15-e7-event-modality-prereg-2026-07-18]] §13、PR #182)。排他 claim = queue ticket + draft PR (race 対策の初適用)

@@ -1,0 +1,102 @@
+{
+  "family": "e22_fx_variance_risk_premium",
+  "ledger_slot": 24,
+  "date": "2026-08-17",
+  "status": "DRAFT-pending-adversarial-verification",
+  "prereg_doc": "knowledge-base/wiki/decisions/e22-vrp-explore-prereg-2026-08-17.md",
+  "origin": {
+    "scan": "knowledge-base/wiki/research/external-hypothesis-scan-round3-2026-08-14.md sec2/2.1",
+    "predecessor": "round-2 E9 (conditional admit, free probe first; data-blocked not falsified)",
+    "mandatory_precommit": {
+      "explore_window": "2014-01-01..2021-12-31 (signal dates)",
+      "oos_window": "2022-01-01..2025-03-11 (EVZCLS terminal), single touch after candidate freeze, only if explore PASS",
+      "pass_meaning": "PASS = reaching user decision point for paid data (Databento) ONLY; not live approval; non-procurement must not trigger design-relaxation relitigation",
+      "fail_meaning": "vol modality permanently closed (jointly with E24/E25 rejections)",
+      "honest_prior": "explore->OOS survival 0/15 to date; primary value = free black/white verdict on vol modality"
+    }
+  },
+  "hypothesis": {
+    "signal": "VRP(t) = EVZ_asof(t) - RV21(t), both annualized vol points",
+    "rv_def": "RV21 = 100*sqrt(252*mean(r^2)) over last 21 valid daily log returns incl. day t; no demeaning; oldest return within 45 cal days else void",
+    "pair": "EUR_USD only (EVZ is EUR-complex IV; no cross-pair extension in this family)",
+    "horizon": "+21 valid D1 positions (close-to-close, NY17 boundary); span>45 cal days void",
+    "direction": "TWO-SIDED registration (G10 single-pair sign prior uncertain); OOS one-sided at explore-observed sign g (holiday leg-a / cot #16 precedent)",
+    "sampling": "every valid FX D1 day (daily, overlapping fwd windows)"
+  },
+  "data": {
+    "iv": {
+      "file": "data/external/vrp/EVZCLS.csv",
+      "rows_raw": 4529, "rows_valid": 4360, "range": "2007-11-01..2025-03-11",
+      "missing": "169 = US holiday placeholders (matches 17.3y x ~9.8/y)",
+      "units_qa": "range 4.13-30.66, p50 8.82 -> annualized vol points confirmed",
+      "stale_prints": "runs>=3 identical: 30 (max 8); mostly 2021+; NOT excluded (conservative); knife-edge sensitivity",
+      "alignment": "same-day join FX-D1 label T <-> EVZ obs date T; EVZ 16:15 ET precedes FX close 17:00 ET (no lookahead); same-day 97.1%, asof staleness max 3 cal days; >3d void"
+    },
+    "returns": {
+      "file": "data/cache/massive/EUR_USD_15m.parquet",
+      "rows": 317002, "range": "2013-10-24..2026-08-17", "label": "UTC open-label (verified: Sunday first bar 21:00 UTC = NY17 open, Jul-2018 sample)",
+      "d1_rule": "trading day = close-time in (NY17_{T-1}, NY17_T], America/New_York zoneinfo; D1 close = last bar close; last bar close-time <14:00 NY -> day void; weekend-label bars dropped (1587 measured)",
+      "d1_qa": "bars/week p50=5.0, weekday shares 0.199-0.201, bars/day p50=96; return endpoint rule: consecutive-valid-day span >7 cal days -> return void; |r|>5%/d -> hard assert stop",
+      "banned_alternative": "EUR_USD_1d_2014_2026.parquet UNUSED (714 weekend rows measured; known trap)",
+      "audit_json_note": "bundled audit.json is stale (rows 311035 vs actual 317002); freeze via file sha256+rowcount, not audit.json"
+    },
+    "swap": {
+      "file": "knowledge-base/raw/bt-results/e20/e20_carry_level.csv",
+      "column": "EUR_USD (base-quote %/yr)", "range": "2013-01-01..2022-12-30 (explore fully covered)",
+      "sign_check": "2013-01-02=+0.625 (ECB0.75-Fed0.125); 2022-12-29=-1.875 (ECB2.50-Fed4.375)",
+      "oos_gap_declared": "2023+ missing -> BIS re-ingest extension via tools/e20_rates_ingest.py BEFORE OOS touch (deterministic public data)"
+    },
+    "freeze": "sha256+rowcount manifest knowledge-base/raw/bt-results/e22/data_freeze_manifest_2026-08-17.json; harness asserts on load; P-10: parquet loaded columns=[Close] only, Volume/vwap non-read asserted (E12 ban until 2027-02-05)"
+  },
+  "gates": {
+    "A_headroom_pass1": "unconditional median |fwd21 move| >= 10x stressed_RT = 40.0p else KILL",
+    "B_power_pass1": "N>=1500 valid days AND floor(N/21)>=70 else UNDERPOWERED",
+    "C_primary": "pooled Spearman IC(VRP, fwd21) two-sided p<0.05 (m=1), null = circular-shift permutation (k~U{42..N-42}, B=10000, seed 20260817, p=(1+#{|ICperm|>=|ICobs|})/(1+B))",
+    "D_stressed_net": "extreme-tercile (window-local) per-obs net = g_terc*move + swap(side) - stressed_RT; pooled mean > 0 at adverse end (RT 4.0p, markup 1.65%/yr); point (2.0p, 1.0%/yr) sensitivity non-binding",
+    "E_concentration": "max_y |S_y| / sum_y |S_y| <= 0.50, S_y = yearly signed gross sum of extreme-tercile obs",
+    "F_consistency": "annual IC sign >= 6/8 in pooled direction AND LOYO 8/8 sign-stable; false-kill risk pre-recorded; C-PASS/F-FAIL = regime-inconsistent FAIL close, no relitigation",
+    "G_monotonicity": "tercile means monotonic in g (adjacent violations <=1) AND T3-T1 spread sign = g",
+    "knife_edge_post_pass_only": ["RV window {14,28}", "42bd-block sign-flip null (seed 20260818)", "Wednesday-only weekly subsample IC", "pip simple-diff fwd instead of log", "exclude stale-print days (run>=3)"],
+    "oos_gates": "one-sided circular-shift p<0.05 at g (seed 20260819) AND OOS gate D adverse >0 AND N>=600 & floor(N/21)>=28 (else OOS UNDERPOWERED = decision point NOT reached) AND OOS extreme-tercile gross mean >= +5.0p economic floor",
+    "bh_merge_clause": "if another explore family launches before verdict -> BH q=0.10 denominator merge (cc-mr sec5 compensation c)",
+    "claim_scope": "family-pooled EUR_USD only; per-slice claims permanently banned"
+  },
+  "honest_power": {
+    "effective_n": "~98 non-overlapping windows (2061/21)",
+    "ic_mde": "~0.28 (two-sided a=0.05, power 0.8)",
+    "literature_effect": "G10 IC ~0.05-0.15 -> detection power ~8-17%",
+    "framing": "cheap honestly-gated kill attempt; gate B defined on N floors only, no post-hoc power excuses"
+  },
+  "friction": {
+    "rt_point": 2.0, "rt_stressed": 4.0,
+    "stressed_rationale": "NY17-close measurement convention adjacent to rollover dead zone; qs #17 measured abnormal RT = 2-3x normal",
+    "swap_formula": "swap_pips = (rate_used/100)*(H_cal/365)*S_entry/1e-4; rate_used = side*d_EUR_USD(t) - m; m_adverse=1.65 binding, m_point=1.0 sensitivity",
+    "magnitude_prerecord": "2018-19 d~-2.9%/yr -> long-EUR adverse cost ~40p/obs at 21bd; swap can dominate friction (multi-week net-of-swap hard rule)"
+  },
+  "ban_adjacency": {
+    "vix_7": "EVZ!=VIX (EUR-complex IV vs equity IV); EUR_USD not JPY crosses; IV-RV continuous diff not level-onset; 21bd not 1-5d; two-sided not short-continuation. New data + explicit diff clause satisfies ban re-entry condition",
+    "qs_17": "measured BBO spread (execution friction state) != option-implied vol (market price of future vol); orthogonal source",
+    "e20": "zero rate input to signal; rates only as post-join subtraction cost (source-code separation, ppp/cc-mr pattern)",
+    "e24": "E24 = paid 17-ccy OTC IV panel x >3mo horizon, rejected; E22 = free single-pair EVZ x 21bd; scan adjudicated both separately",
+    "e25": "E25 died because its IV was price-derived (RV re-skin); E22 uses genuine option-market prices (CBOE EVZ) - the exact differentiator",
+    "cc_mr_close_scope": "VRP is not a price location anchor; pair outside 3-cross scope; slow-family resemblance carried as honest negative prior only",
+    "p10_e12": "columns=[Close] assert; no volume", "ecg_22": "no shadow equity curve contact", "e1_e21": "no positioning / account data contact"
+  },
+  "deliverables": [
+    "tools/e22_vrp_explore.py (seed 20260817, two-pass, OOS mode locked behind explore-PASS flag)",
+    "knowledge-base/raw/bt-results/e22/data_freeze_manifest_2026-08-17.json",
+    "knowledge-base/raw/bt-results/e22/pass1 + pass2 (+oos if reached) json/csv",
+    "reports/e22-vrp-explore-2026-08-17.md",
+    "ledger #24 verdict row"
+  ],
+  "non_goals": "no live/tier/lot/Kelly/shadow changes; no E23 contact (E23 gate released by E7 verdict 2026-08-17 landing early -- if E23 launches before E22 verdict, the BH q=0.10 merge clause governs); no cross-pair extension; no Databento signup before user decision",
+  "post_verification_amendments": {
+    "verification": "knowledge-base/raw/analysis/e22-vrp-adversarial-verification-2026-08-17.md (GO-WITH-CONDITIONS 17/10 blocking; SSOT for sec10 mapping)",
+    "condition_1": "2020-10-23..2020-11-16 vendor hole backfilled via tools/e22_gap_backfill.py (+1440 rows OANDA mid; parquet 317002->318442)",
+    "condition_2": "coverage frozen at post-backfill measured values: explore FX D1 = 2066, final N = 2066, nonoverlap windows = 98, IC MDE = 0.283, weekday shares 0.1980-0.2014",
+    "condition_3": "swap magnitude corrected: 2018 mean -1.779 / 2019 mean -2.158 / panel min -2.375 %/yr; adverse example -36..-38p/obs; e20 = MRO-type policy rates",
+    "condition_9": "stale runs in explore window: 7 runs (4,3,3,3,3,6,6), all 2021, day share 1.45%",
+    "condition_11": "E23 gate reference updated (this field)",
+    "harness_updates": "conditions 4/6/8/10 implemented in tools/e22_vrp_explore.py (OOS swap full-coverage+equality+addendum asserts; _assert_committed for pass2 before OOS; gate D RT6.0p sensitivity; pass-1 VRP ACF output)"
+  }
+}
