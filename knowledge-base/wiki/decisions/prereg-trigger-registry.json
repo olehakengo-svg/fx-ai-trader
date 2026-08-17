@@ -394,7 +394,7 @@
    "type": "deadline_info",
    "deadline": "2026-08-31",
    "doc": "knowledge-base/wiki/analyses/e21-attribution-s2-2026-08-17.md",
-   "message": "E21 (台帳 #23) の user 決裁点: 長期キャリー帰属分解の母集団は個人口座 (CFD タグ) にあり、読み取りは permission classifier がブロック済み。選択肢 = (a) 読み取り許可 (Bash allow ルール) / (b) 取引履歴 CSV export を data/external/e21/ に提供 / (c) carry 成分を data-blocked クローズ。期日までに決裁がなければ再浮上させ、9月スキャン時点で未決なら (c) を既定として起案する。"
+   "message": "E21 (台帳 #23) 続報: user 決裁 (a) API 読み取り許可は 08-17 消化済み — 個人口座 (CFD) 監査の結果、トークン視認 2 口座のどちらにもキャリー母集団は不在 (手動短期 計 85 往復 −12,712 JPY・swap ゼロ)。キャリー玉は外部業者/口座。残る選択肢 = (b) 外部口座の明細 CSV を data/external/e21/ に提供 / (c) carry 成分を data-blocked クローズ。deadline 08-31 までに CSV 未提供なら (c) で起案する。"
   }
  ]
 }

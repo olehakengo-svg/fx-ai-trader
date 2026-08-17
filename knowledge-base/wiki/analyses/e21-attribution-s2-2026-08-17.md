@@ -66,3 +66,22 @@ E21 の主 estimand (arXiv 2302.01010 の 4 分解: financing/swap 累計 × spo
 ## 監視
 
 registry `e21-personal-account-decision` (deadline 2026-08-31) — 決裁が 2 週間出ない場合に再浮上。
+
+## 続報 (2026-08-17 同日) — 決裁 (a) 消化、結果は data-blocked 同型
+
+user が 3 択のうち **(a) API 読み取り許可** を決裁 (並行セッション chat で明示、当該セッションが
+読み取り専用で個人口座を全 transaction 監査)。結果:
+
+| 項目 | 個人口座 (CFD) 実測 |
+|---|---|
+| 開設 / 取引期間 | 2026-04-02 / **04-02 の 1 日のみ** |
+| 取引 | **45 往復** (USD_JPY ショート主体スキャル、open units 累計 −256,000) |
+| 実現 PL / financing | **−5,891 JPY / ゼロ** |
+| 現況 | 全額出金済み・NAV 0 |
+
+**結論: トークン視認可能な 2 口座のどちらにもキャリー母集団は存在しない。** 観測可能な手動短期の
+総計 = **85 往復 / −12,712 JPY / swap ゼロ**。user 明言の「USD_JPY 長期キャリー」玉は**外部業者/
+口座** (業者名未判明) にあり、**帰属分解はその明細 (CSV) 提供待ち** — 決裁 (a) は消化されたが
+実質は (b) CSV 提供 or (c) data-blocked クローズの二択に縮約された。registry は
+「API read 済み・外部口座 CSV 待ち (deadline 08-31 据え置き、未提供なら data-blocked クローズ)」へ
+更新。出典: MEMORY `user_manual_edge_usdjpy_carry_2026_08_12` 追記 2 (並行セッション監査)。
