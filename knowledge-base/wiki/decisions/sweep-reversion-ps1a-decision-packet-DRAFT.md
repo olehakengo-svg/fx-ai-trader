@@ -275,6 +275,14 @@ curl -s "https://fx-ai-trader.onrender.com/api/demo/trades?status=all&date_from=
 
 ## 8. 執行準備 (2026-07-31 追記 — user 指示「トリガ成立日に機械的に完遂できる状態にする」)
 
+> **zero-fire forensic 決裁記録 (2026-08-17)**: 28 日 zero-fire の原因 = gbp_asia gate の rowless drop
+> (実イベント 4 件消失、[[../analyses/sweep-zero-fire-forensic-2026-08-12]]、記録経路は PR #180 で
+> R3 修復済み — 修復後初 LATE 窓 08-12 で新イベント記録、unique N=9/10)。user「進めて」で承認:
+> (1) 再構成イベント (unique N=12 相当) は凍結トリガに**算入しない** — 字義 (DB 行) 維持で fresh 蓄積待ち、
+> (2) retire 期日 09-30 → **10-28** (計数器故障 28 日分の繰り延べ、checker/registry 反映済み)、
+> (3) 日曜 LATE イベントの恒久欠測 (12.4y 10.3% / 2021+ 4.5%) を初週再ゲート頻度帯の割引として凍結
+> (runbook §5)。**執行条件そのもの (unique N≥10 ∧ spaced EV>0) は不変**。
+
 > **AMENDMENT 決裁記録 (2026-08-03)**: §8.1 の提示 (第3/第4 ブロッカー + gbp_asia cell 免除
 > + 専用 spread cap 10.0p の提案) に対し user 「進めて」。以下を承認として記録:
 > **AMENDMENT (commit `dfec4343`) 承認** — トリガ成立日は commit 1+2 を含む単一 PR で

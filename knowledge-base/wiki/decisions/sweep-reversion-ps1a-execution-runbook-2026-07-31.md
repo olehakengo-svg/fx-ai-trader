@@ -13,7 +13,8 @@
 - **unique バー N≥10 ∧ spaced EV>0 → Option B 執行** (再決裁不要、user 承認済み)
 - spaced EV≤0 → Option C (retire、T8 DEFER 機械規定)
 - unique/spaced で EV 符号が割れたら → 機械執行せず user 再決裁 (パケット §6-2)
-- 2026-09-30 に unique N<5 → retire (R2)
+- **2026-10-28** に unique N<5 → retire (R2) — 旧 09-30 から 28 日繰り延べ
+  (✅ user 決裁 2026-08-17「進めて」: 計数器故障期間 07-16〜08-12 の除外、forensic §4-2)
 - ✅ **AMENDMENT (§2.5) は user 承認済み (2026-08-03「進めて」、パケット §8 決裁記録)** —
   トリガ成立時は §3 へ直行し commit 1+2 で執行。commit 1 のみの merge は引き続き禁止
 
@@ -101,7 +102,12 @@ branch: `draft/ps1a-option-b-20260731` (origin push 済み)
 ## 5. 初週再ゲート pre-reg テンプレ (執行日に LOCK)
 
 - **ゲート①' 頻度帯**: spaced 基準 0.3〜2.6 件/週 (12y band)。下割れ 2 週連続 = live 翻訳
-  失敗として R2 stop 再発動。上割れ = min-spacing 故障疑いで forensic
+  失敗として R2 stop 再発動。上割れ = min-spacing 故障疑いで forensic。
+  **日曜欠測割引 (✅ user 決裁 2026-08-17、forensic §4-3)**: 日曜 LATE イベントは
+  market-closed tick gap で live 恒久観測不能。凍結値 = 12.4y 日曜比率 **10.3% (68/663)**、
+  エッジ regime の 2021+ は **4.5% (23/512)** (凍結定義 replay、2013-10-24〜2026-07-21)。
+  band 比較は live 観測期待 = research 頻度 × (1−0.045) で行う
+  (直近 live 実測 2/13=15% は小 N 揺らぎとして記録)
 - **ゲート②' spread 実測**: live fill の entry/exit spread 記録。**摩擦が最大リスク**
   (パケット §4-1: 実測 RT ≈ 4.0p 中央値 〜 9p worst vs BT 仮定 1.5p)。live N≥5 で
   実測 RT 摩擦中央値 > 7p なら R2 stop
@@ -144,3 +150,9 @@ Render ログ確認) を削っていた。記録経路は R3 修復済み (`_GBP
 shadow 退避のみ・live 不変)。再構成 unique N=12 ≥10 / spaced EV >0 だが、**凍結トリガへの
 再構成イベント算入可否・retire 期日 (09-30) の 28 日繰り延べ・日曜イベント恒久欠測 (~15-30%)
 の頻度帯割引は user 決裁事項** (forensic doc §4)。決裁までは修復後の fresh 蓄積で N カウント継続。
+
+**✅ 決裁 (2026-08-17 user「進めて」= forensic §4 推奨案の承認)**: (1) トリガ解釈 = **(b) 字義維持・
+fresh 蓄積待ち** — 再構成イベントは算入しない。修復後初の LATE 窓 (08-12) で新イベント記録済み、
+unique **N=9/10** (spaced EV +2.13>0、あと 1 イベントで Option B 執行条件成立)。(2) retire 期日 =
+**10-28 に繰り延べ** (§0・checker `RETIRE_DEADLINE`・registry deadline 反映済み)。(3) 日曜欠測割引 =
+§5 ゲート①' に凍結 (12.4y 10.3% / 2021+ 4.5%)。執行条件そのもの (unique N≥10 ∧ spaced EV>0) は不変。
