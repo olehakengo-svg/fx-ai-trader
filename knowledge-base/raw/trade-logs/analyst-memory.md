@@ -3658,6 +3658,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **最悪セッション**: Tokyo & NY（両者 N=0、PnL=0.0）— ただし「悪い」というより「存在しない」
 - `shadow_tracking (19件)`: システムが本番送信前の観察フェーズにあるシグナルを遮断。N蓄積前の安全機構が正常作動
 
+### 2026-08-17 (Pre-Tokyo Briefing)
+**2026-08-16（前日）: トレードゼロ。PnL = ±0、執行件数 = 0。**
+| Strategy | Pair | N | WR% | EV | PnL |
+- 統計的判断不能（N<10基準）。EV+9.85は表面上は優秀だが、N=4では偶発的偏差の範囲内。
+- 昇格基準（N≥30 & EV≥1.0）まで残り **26件**。
+- 他の全戦略：Cutoff後の有効トレード = **0件**（Shadow除外後）。
+- **hedge_block支配**: daytrade_audjpy(30)・scalp_5m_gbp(28)・daytrade(10)・scalp_5m(6) — 複数ペアで同方向ヘッジ条件が長時間継続し、新規エントリーを完全封殺した模様。
+- **r2_shadow_demoted_cell**: scalp(15)・scalp_eur(12)・scalp_5m(5)・daytrade_gbpusd(3) — シャドウ降格セルによる抑制が積み上がっており、Scalpファミリーのシグナル通過率を恒常的に低下させている。
+- **rnb_usdjpy:direction_filter(29)**: RnBが方向フィルタで29回連続ブロックされている。USD/JPYのトレンドが方向定義と合致していない状態（後述レジーム参照）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
