@@ -105,9 +105,9 @@
       "since": "2026-07-03",
       "n_decide": 10,
       "n_floor": 5,
-      "deadline": "2026-09-30",
+      "deadline": "2026-10-28",
       "doc": "knowledge-base/wiki/decisions/sweep-reversion-ps1a-execution-runbook-2026-07-31.md",
-      "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-09-30 に N<5 なら retire (R2)。計数 = dedup_violation!=1 (packet §1.4)。TRIGGERED 時: tools/ps1a_execution_check.py で凍結判定を dry-run → runbook (doc) を上から実行。AMENDMENT (runbook §2.5、第3/第4 ブロッカー修正) は user 承認済み (2026-08-03「進めて」、packet §8 決裁記録) — commit 1+2 で直接執行可。Option B 実装は draft/ps1a-option-b-20260731 に準備済み",
+      "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-10-28 に N<5 なら retire (R2、旧 09-30 — 2026-08-17 user 決裁で計数器故障 07-16〜08-12 の 28 日分繰り延べ、forensic doc §4-2)。計数 = dedup_violation!=1 (packet §1.4)。TRIGGERED 時: tools/ps1a_execution_check.py で凍結判定を dry-run → runbook (doc) を上から実行。AMENDMENT (runbook §2.5、第3/第4 ブロッカー修正) は user 承認済み (2026-08-03「進めて」、packet §8 決裁記録) — commit 1+2 で直接執行可。Option B 実装は draft/ps1a-option-b-20260731 に準備済み",
       "mode": "daytrade_eurgbp",
       "count_basis": "unique"
     },

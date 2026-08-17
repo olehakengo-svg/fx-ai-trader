@@ -415,7 +415,8 @@ def test_registry_t8_sweep_uses_unique_basis_and_mode():
     assert trig["count_basis"] == "unique"
     assert trig["mode"] == "daytrade_eurgbp"
     assert trig["n_decide"] == 10 and trig["n_floor"] == 5
-    assert trig["deadline"] == "2026-09-30"
+    # 2026-08-17 user 決裁 (zero-fire forensic §4-2): 計数器故障 28 日分の繰り延べ
+    assert trig["deadline"] == "2026-10-28"
 
 
 def test_fetch_trades_window_fail_loud_and_dedup(monkeypatch):

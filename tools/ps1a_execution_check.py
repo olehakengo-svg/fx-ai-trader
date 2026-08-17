@@ -9,7 +9,7 @@ user 条件付き承認 (2026-07-24、決裁パケット冒頭決裁記録) の�
   - 執行条件: unique バー N>=10 到達 ∧ spaced EV>0 → Option B (§3.3 単一 PR)
   - spaced EV<=0 → Option C (retire)。両基準 (unique/spaced) で EV 符号が
     割れた場合は user 再決裁 (§6-2)
-  - retire 期日分岐 (T8 DEFER): 2026-09-30 に unique N<5 → retire (R2)
+  - retire 期日分岐 (T8 DEFER): 2026-10-28 に unique N<5 → retire (R2)。(旧 09-30 — 2026-08-17 user 決裁で計数器故障 28 日分を繰り延べ)
   - 計数: unique = dedup_violation != 1 (§1.4、registry count_basis="unique")
   - spaced = unique に 12-bar (12x15m=3h) min-spacing を entry_time 昇順で適用
     (§7)。境界は研究 grid `dedup_indices(gap=12)` の `i - keep[-1] >= gap` と
@@ -44,7 +44,9 @@ MODE = "daytrade_eurgbp"
 SINCE = "2026-07-03"            # registry t8-sweep-defer-decision.since
 N_DECIDE = 10                   # unique N>=10 で判定実施
 N_FLOOR = 5                     # 期日時 N<5 で retire (R2)
-RETIRE_DEADLINE = "2026-09-30"
+# 2026-08-17 user 決裁 (zero-fire forensic §4-2): 計数器故障期間 (07-16〜08-12、
+# gbp_asia rowless drop、PR #180 で修復) の 28 日分を繰り延べ 09-30 → 10-28。
+RETIRE_DEADLINE = "2026-10-28"
 SPACING_SEC = 12 * 900          # 12 bars x 15m = 3h (research grid DEDUP_GAP=12)
 ZERO_FIRE_FORENSIC_DAYS = 30    # LOCK Withdrawal trigger 5: 30日 fire 0 → forensic
 APP_BASE_DEFAULT = "https://fx-ai-trader.onrender.com"
