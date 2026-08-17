@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-17 — research(E7): phase-1 verdict ❌ FAIL (discovery 0/24、OOS 非接触) — イベントモダリティ枯渇、E12 格上げ (rule:R1 手続き)
+
+- **E7 phase-1 (指標サプライズ directional) を期日前倒しで執行** (凍結期日 08-21 の 4 日 / verdict 08-28 の 11 日前倒し、[[e15-e7-event-modality-prereg-2026-07-18]] §13、PR #182)。排他 claim = queue ticket + draft PR (race 対策の初適用)
+- **verdict = FAIL (discovery 段)**: §5b 選抜通過 **0/24 → m₁=0**。実効空間 (θ=0.5、12 combo) は time-exit EV 全て負 (−0.31〜−8.15p/trade、N 287–416、blocks 41–62) — power 不足でなく**サプライズ方向 drift の符号が系統的に逆** (発表後 overshoot 回帰と整合)。SIGN-FLIP は §6 事前宣言どおり記述記録のみ (fade 追試 = 新 family + 敵対的検証、phase-0 CPI fade C5 が負の prior)
+- **OOS 窓 (2024-01〜2026-06) は結合統計未接触のまま保存**。θ=1.0 は §3.3c 予告どおりゲート機械脱落
+- **機械ガード全 green**: parquet 台帳再現 13/13 / census-e7 が §3.3c pre-flight と完全一致 (41/62/22/31、19/16/8/5) / 符号・estimand の手計算 spot check (2020-06-05 NFP z=+30.79 × USD_JPY、+10.46p 一致) / self-test 24-combo 結線
+- **§8 固定分岐発動: 両 phase PASS=0 → イベントモダリティ (カレンダー/サプライズ × M15 spot) を枯渇と判定、E12 (CME volume flow、first look 2027-02-05) を供給ライン主候補へ格上げ**。E23 (中銀声明テキスト、E7 verdict までゲート) は本日からゲート解除 = 台帳の次回評価対象
+- ハーネス: `event_modality_explore.py` に discovery-e7 / census-e7 / self-test-e7 モード追加 (lib 変更ゼロ — E7_HORIZONS/uncond rule は設計時から準備済み)。test pin 4 件新設 (`tests/test_e7_phase1_explore.py`)。registry `e15-e7-event-prereg-phase1-verdict` resolved
+
 ## 2026-08-14 — research(scan): 月次外部仮説スキャン第3次 + 四半期モダリティ棚卸し + ZN=F キャッシュ構造欠陥修復 (rule:R3)
 
 - **月次スキャン第3次を期日 (08-18) の 4 日前倒しで実行** ([[external-hypothesis-scan-round3-2026-08-14]])。起動理由 = WIP 原則は名目 3 系統で充足していたが、**実態は 5 系統すべて calendar-lock 待ちで探索アクティブ枠 0/3** が 9 日間継続していた。「在庫はあるが着手可能な仕事がゼロ」は WIP 原則が防ごうとしている状態そのものと判定

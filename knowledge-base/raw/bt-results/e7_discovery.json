@@ -1,0 +1,468 @@
+{
+  "status": "OK",
+  "n_combos": 24,
+  "coverage": {
+    "USD_JPY": {
+      "coverage": 0.9786,
+      "included": true
+    },
+    "EUR_USD": {
+      "coverage": 0.9902,
+      "included": true
+    },
+    "GBP_USD": {
+      "coverage": 0.9874,
+      "included": true
+    },
+    "AUD_USD": {
+      "coverage": 0.9972,
+      "included": true
+    },
+    "NZD_USD": {
+      "coverage": 0.9738,
+      "included": true
+    },
+    "USD_CAD": {
+      "coverage": 0.9813,
+      "included": true
+    },
+    "USD_CHF": {
+      "coverage": 1.0,
+      "included": true
+    }
+  },
+  "cells": [
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 0.5,
+      "entry_off": 1,
+      "h": "h1",
+      "N": 287,
+      "event_blocks": 41,
+      "ev_time_exit": -2.6382229965156987,
+      "ev_first_touch": -2.705862057422417,
+      "te_std": 22.05088657128028,
+      "fold_te_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_sign_agreement": 3
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 0.5,
+      "entry_off": 1,
+      "h": "h4",
+      "N": 287,
+      "event_blocks": 41,
+      "ev_time_exit": -5.453902439024324,
+      "ev_first_touch": -3.3421482093824006,
+      "te_std": 35.24118392106431,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 0.5,
+      "entry_off": 1,
+      "h": "h24",
+      "N": 287,
+      "event_blocks": 41,
+      "ev_time_exit": -7.212191637630658,
+      "ev_first_touch": -8.038852567038711,
+      "te_std": 55.81863846029438,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 0.5,
+      "entry_off": 2,
+      "h": "h1",
+      "N": 287,
+      "event_blocks": 41,
+      "ev_time_exit": -3.0347386759581316,
+      "ev_first_touch": -4.232092830135229,
+      "te_std": 16.290580975379225,
+      "fold_te_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_sign_agreement": 3
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 0.5,
+      "entry_off": 2,
+      "h": "h4",
+      "N": 287,
+      "event_blocks": 41,
+      "ev_time_exit": -6.266794425087113,
+      "ev_first_touch": -5.903891044134554,
+      "te_std": 30.24436455921094,
+      "fold_te_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_sign_agreement": 3
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 0.5,
+      "entry_off": 2,
+      "h": "h24",
+      "N": 287,
+      "event_blocks": 41,
+      "ev_time_exit": -8.145344947735213,
+      "ev_first_touch": -8.668795324629599,
+      "te_std": 53.466026911509644,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 1.0,
+      "entry_off": 1,
+      "h": "h1",
+      "N": 154,
+      "event_blocks": 22,
+      "ev_time_exit": 1.7594805194804828,
+      "ev_first_touch": -1.0989662004697842,
+      "te_std": 22.591884446978558,
+      "fold_te_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 1.0,
+      "entry_off": 1,
+      "h": "h4",
+      "N": 154,
+      "event_blocks": 22,
+      "ev_time_exit": -0.6638961038960305,
+      "ev_first_touch": -0.44751645160280945,
+      "te_std": 36.037387109618344,
+      "fold_te_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 1.0,
+      "entry_off": 1,
+      "h": "h24",
+      "N": 154,
+      "event_blocks": 22,
+      "ev_time_exit": -0.15254545454550966,
+      "ev_first_touch": 0.4524174397031387,
+      "te_std": 61.86258962786189,
+      "fold_te_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 1.0,
+      "entry_off": 2,
+      "h": "h1",
+      "N": 154,
+      "event_blocks": 22,
+      "ev_time_exit": -0.02038961038958391,
+      "ev_first_touch": -2.1358877640682064,
+      "te_std": 15.92497544690316,
+      "fold_te_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 1.0,
+      "entry_off": 2,
+      "h": "h4",
+      "N": 154,
+      "event_blocks": 22,
+      "ev_time_exit": -4.161298701298675,
+      "ev_first_touch": -3.845701644100133,
+      "te_std": 30.106764742656594,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "NFP",
+      "theta": 1.0,
+      "entry_off": 2,
+      "h": "h24",
+      "N": 154,
+      "event_blocks": 22,
+      "ev_time_exit": -2.912383116883159,
+      "ev_first_touch": -3.0094146567718605,
+      "te_std": 59.24613990428531,
+      "fold_te_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 0.5,
+      "entry_off": 1,
+      "h": "h1",
+      "N": 409,
+      "event_blocks": 60,
+      "ev_time_exit": -4.56014669926645,
+      "ev_first_touch": -4.306960817587756,
+      "te_std": 20.681201264983148,
+      "fold_te_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_sign_agreement": 3
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 0.5,
+      "entry_off": 1,
+      "h": "h4",
+      "N": 409,
+      "event_blocks": 60,
+      "ev_time_exit": -6.011980440097786,
+      "ev_first_touch": -8.808281968731768,
+      "te_std": 40.39668848954311,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 0.5,
+      "entry_off": 1,
+      "h": "h24",
+      "N": 409,
+      "event_blocks": 60,
+      "ev_time_exit": -0.9356968215159365,
+      "ev_first_touch": -6.356281154723058,
+      "te_std": 76.65454365084707,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 0.5,
+      "entry_off": 2,
+      "h": "h1",
+      "N": 416,
+      "event_blocks": 61,
+      "ev_time_exit": -2.977091346153849,
+      "ev_first_touch": -3.262246100001149,
+      "te_std": 22.62011178801902,
+      "fold_te_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_sign_agreement": 3
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 0.5,
+      "entry_off": 2,
+      "h": "h4",
+      "N": 416,
+      "event_blocks": 61,
+      "ev_time_exit": -5.302572115384598,
+      "ev_first_touch": -6.748985677670539,
+      "te_std": 37.402936755642465,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 0.5,
+      "entry_off": 2,
+      "h": "h24",
+      "N": 416,
+      "event_blocks": 61,
+      "ev_time_exit": -0.3107451923076518,
+      "ev_first_touch": -6.8786682506772046,
+      "te_std": 78.01932094763518,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 1.0,
+      "entry_off": 1,
+      "h": "h1",
+      "N": 193,
+      "event_blocks": 29,
+      "ev_time_exit": -1.8063730569947247,
+      "ev_first_touch": -3.276832803570252,
+      "te_std": 19.92051487332685,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 1.0,
+      "entry_off": 1,
+      "h": "h4",
+      "N": 193,
+      "event_blocks": 29,
+      "ev_time_exit": -5.248341968911852,
+      "ev_first_touch": -6.2110655219415145,
+      "te_std": 48.475132696517186,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 1.0,
+      "entry_off": 1,
+      "h": "h24",
+      "N": 193,
+      "event_blocks": 29,
+      "ev_time_exit": 0.06461139896375309,
+      "ev_first_touch": -10.94383382679497,
+      "te_std": 90.98451480528655,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 1.0,
+      "entry_off": 2,
+      "h": "h1",
+      "N": 200,
+      "event_blocks": 30,
+      "ev_time_exit": -1.4255000000000586,
+      "ev_first_touch": -2.654104003401264,
+      "te_std": 19.811515045345597,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 1.0,
+      "entry_off": 2,
+      "h": "h4",
+      "N": 200,
+      "event_blocks": 30,
+      "ev_time_exit": -5.452000000000035,
+      "ev_first_touch": -4.726906842444017,
+      "te_std": 42.570795826322296,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    },
+    {
+      "family": "e7",
+      "event": "CPI",
+      "theta": 1.0,
+      "entry_off": 2,
+      "h": "h24",
+      "N": 200,
+      "event_blocks": 30,
+      "ev_time_exit": -0.09749999999998067,
+      "ev_first_touch": -11.037416428571468,
+      "te_std": 90.60156604939576,
+      "fold_te_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2
+    }
+  ]
+}
