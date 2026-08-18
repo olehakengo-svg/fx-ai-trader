@@ -29,6 +29,11 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-yfinance-jpy-daily-utc-shift-2026-08-18]]
+**発見日**: 2026-08-18 | **修正**: 検出・補正済み (介入全史解剖 wf 内)、既存 verdict への波及なし確認
+- 問題: yfinance `JPY=X` 日足の日付ラベルが当プロジェクトの UTC-day 規約に対し系統的に +1 日ずれる (実測)
+- 教訓: **ベンダー日足の日付境界は「前提」でなく「検証対象」。外部日足を混ぜるハーネスは MASSIVE/OANDA との突き合わせ実測 + 境界変換の明示コード + test pin が必須**
+
 ### [[lesson-rolling-window-cache-overwrite-2026-08-14]]
 **発見日**: 2026-08-14 | **修正**: rule:R3 (同 PR)
 - 問題: ① `modules/yield_data.py` が rolling 窓 API (yfinance) の結果でキャッシュを無条件 overwrite していた ② registry `ws3-round4-eur-divergence-conditional` の発火条件に到達する経路 (キャッシュを伸ばすジョブ) が存在しなかった
