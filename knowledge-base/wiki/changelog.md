@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-18 — feat(data): MoF 通信モダリティ収集基盤 — 介入 ground-truth / 会見 transcript / lexicon ladder / GDELT (rule:R3)
+
+- **新データモダリティ (当局コミュニケーション) の収集基盤を新設** ([[mof-communication-data-infrastructure]]、`data/external/mof_statements/`)。起点 = user 介入主張のスコーピング wf_32d378df (MEMORY `user_manual_edge_usdjpy_carry_2026_08_12` 追記4) — 主軸は「発言ラダー lexicon × 公式介入ラベル」、**X は ToS 上不使用**
+- **⚠️ 収集のみ**: 発言×介入×価格のジョイント測定は別 pre-reg まで全面禁止 (MoF #4 cross-LOCK)。価格データ不使用・2026 介入日の価格推定なし (P-10 遵守)
+- **介入 ground-truth**: 公式日次明細 CSV (1991-04〜) を正規化、凍結 legacy `mof_interventions.csv` と**行単位 383/383 完全一致**。新規 = 2026 Q2 開示 3 行 (04-30/05-04/05-06、Σ¥11,734.8bn ≒ 月次総額と符合)。**2026-06-29〜07-29 月次窓 = 介入額 0 (公式)**
+- **会見 corpus 502 会見 (2022-01〜2026-08)**: online 387 + NDL WARP 115 (pywb `id_` 原本、旧 `.htm` 対応)。**MoF index の欠落 8 ヶ月 (202310-12/202601-04) から未リンク孤児 62 会見を日付総当たりで回収** (神田財務官単独会見 2 本を含む)
+- **lexicon ladder v1** (`tools/mof_statements_lexicon.py`、Gnabo 系 talk/act 離散化 L1-L5 + no_comment、大臣側発言のみスコア、テスト 19 本): 目視検証 **PASS** — 2022 窓 (L0-2→09-02 L3→09-29 L4→10-03 L5) / 2024 窓 (L0→03-26 L3→04-02 L5) の両方でエスカレーション可視 (詳細テーブル: `reports/mof_statements_backfill-2026-08-18.md`)
+- **forward 日次 cron 新設**: `tools/mof_statements_daily.py` + `.github/workflows/mof-statements-daily.yml` (JST 06:30 — 介入 CSV/会見/news.rss/GDELT、月ページ欠落時は日付プローブへ自動フォールバック)
+- **観察事実**: 公式 CSV に 2026 Q2 日次明細が着地済み (08-07 公表) = **#4 pre-reg の verdict 期日 (着地+10 日) 超過中** → verdict 執行を別タスクとして起票 (本基盤では E-A/E-C 量を計算していない)
+
 ## 2026-08-18 — feat(automation): family C アンカー自動化パケット — 日次データ基盤 + E-A defensive alert + registry トリガ 3 点 (rule:R3)
 
 - **user 承認 (2026-08-18「自動化させて」) の 3 点パケット** ([[family-c-anchor-automation-2026-08-18]])。live/tier/lot 変更ゼロ、シグナル計算ゼロの純データ基盤 + defensive monitoring
