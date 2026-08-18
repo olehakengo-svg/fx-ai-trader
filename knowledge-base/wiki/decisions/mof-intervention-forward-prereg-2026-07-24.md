@@ -184,3 +184,47 @@ LOCK 執行時は本エントリを resolved 化し、後継 `mof-q2-2026-disclo
 - MFE/MAE はバー粒度 (15m)。intraday 介入時刻は不可知のため event-day 内の執行 counterfactual は全変種で構築禁止。
 - 予測・rule・candidate list・h* の LOCK 後変更禁止。開示結果を見た後のいかなる再計算・格子拡張も禁止 (exit-repair pre-reg §7 と同じ拘束)。
 - 円売りレジーム (1991-2004, 2010-2011) への本設計の外挿は行わない — 方向逆・別時代であり、E-B NO-TEST 分岐 (§5.1) でのみ言及。
+
+## 10. Verdict (2026-08-18 執行 — 開示 2026-08-07 着地、+11 日 = 期日 1 日超過を明記)
+
+**全体 verdict: 🟡 PARTIAL (G0 ✅ ∧ E-B ✅ ∧ E-A ✅ PASS ∧ E-C ❌ FAIL) — §5.5 固定分岐どおり family park (prior 減)、次の円買いエピソード 1 回限り同一仕様再判定。**
+
+### 開示データ (mof.go.jp `data/quarter/2026_2Q.html`、公表 2026-08-07)
+
+D = {**2026-04-30** (¥6兆2,787億), **2026-05-04** (¥7,802億), **2026-05-06** (¥4兆6,759億)} — 全て米ドル売り/円買い。Q2 総額 ¥11兆7,349億 = §5.4 E-D 予測 (k∈[2,5]、最大単日 ≥¥3.0T) は k=3・最大 ¥6.28T で**両方的中**。
+
+### E-A (primary): ✅ PASS — p = 0.0143
+
+- S 再導出 = 凍結値と完全一致 {04-30, 05-06} (integrity ✓)、母集団 M=21 実測一致
+- k_eff = 3 (D 全日が母集団内)、**overlap = 2 ≥ 閾値 2、超幾何 p = 0.0143 ≤ α 0.10**
+- **プロジェクト初の forward pre-reg primary 的中** — 2022/2024 のみで校正した識別 rule (X,Y)=(2.0, 0.25%) が観測前凍結の candidate 2 日をともに言い当てた
+- 取り逃し 05-04 は close/open **+0.20%** の covert 型 = explore の 2022-10-24 と同一の構造的不可捕捉モード (rule の既知限界どおり)
+
+### E-C (符号予測): ❌ FAIL — 完全リトレース + 反転
+
+| event | anchor | net_h1 | net_h2 | net_h5 | **net_h10** | MFE_sell | MAE_sell |
+|---|---|---|---|---|---|---|---|
+| 04-30 | 05-01 | −6.7 | +25.4 | −10.3 | **+188.1** | 193.6 | 191.9 |
+| 05-04 | 05-05 | +45.0 | −35.8 | +45.6 | **+182.0** | 219.0 | 203.5 |
+| 05-06 | 05-08 (05-07 欠損 roll、凍結例どおり) | +0.1 | +37.4 | +152.3 | **+216.1** | 49.7 | 248.6 |
+
+(median: h1 +0.1 / h2 +25.4 / h5 +45.6 / **h10 +188.1**)
+
+- 予測 = **負 (SELL)、band [−319.8, −43.6]p** に対し **median net_h10 = +188.1p (3/3 全日 正)** → 符号不一致で FAIL。隣接 h1/h2/h5 の median も全て正 = h* 固有の偶然ではない
+- 2026-05 エピソードの介入効果は 10 営業日で完全リトレースし反転 — 2022/2024 (6/7 負) と**レジームが異なる**。事後の符号反転主張 (「介入後 BUY」) は holiday レグ c 前例どおり禁止 — 本観測は record のみ
+
+### §8 ナイフエッジ 3 点検査
+
+1. **メカニズム整合 ✅**: 両ヒットとも 2 構成要素の実体ヒット (04-30: co_ret −1.99% / range 518p vs 閾 135p、05-06: −0.73% / 287p vs 158p)。E-C は MFE でも SELL 側 49.7-219p vs MAE 191-249p で MAE 支配 = 符号 FAIL は実体
+2. **擬似反復 ✅ 明記**: D 3 日は gap≥30d 規約で**単一クラスタ = 有効 N=1 エピソード**。E-A の p=0.0143 は「日選択 null」に対する解釈に限定
+3. **閾値リーク ✅**: rule ±20% 摂動 (X 1.6/2.4、Y 0.20/0.30) の全てで S 不変。E-A は overlap −1 で不合格になる構造だが両ヒットの margin は大 (閾値の 3-8 倍)
+
+### 帰結と手続きメモ
+
+- **Variant B (real-time 検知→SELL) は stage-2 に進めない** (E-C 死)。ただし**検知器の real-time 実行可能性は実証された** — 将来の介入系 family (2026-08-18 user 起案の介入回避/ショート仮説を含む) への一次 prior として: **「介入後 10 営業日の SELL drift は 2026 エピソードで符号逆」**
+- 再判定 registry: `mof-next-episode-reverdict` (四半期開示ごとに新規円買いエピソード有無を確認、発生時のみ 1 回限り同一仕様)
+- **手続き教訓**: verdict が期日を 1 日超過した原因 = `deadline_info` トリガが「開示の実着地」を検知できず backstop (09-30) だけを持っていた。四半期開示型トリガは**予想着地日を deadline に刻み、四半期ごとに roll する** (ZN 到達経路教訓の姉妹形)。検証は `tools/mof_forward_verdict.py` + raw 出力 `knowledge-base/raw/bt-results/mof-forward-verdict-2026-08-18.txt`
+
+### 運用追記 (2026-08-18) — E-A 検知器の defensive alert 化 (凍結条項の変更なし)
+
+E-A の real-time 実行可能性実証を受け、凍結 rule (X,Y)=(2.0, 0.25%) を **as-is (再校正なし)** で日次監視に載せた: `tools/mof_intervention_watch.py` + `.github/workflows/intervention-watch.yml` (前 UTC 営業日を 1 回評価 → Discord 通知 + `knowledge-base/raw/intervention_watch/` JSONL 記録)。**これは Variant B ではない** — 監視/通知のみで、live gating の自動執行は §5.5 どおり別 pre-reg + user 最終承認まで不実装 (E-C FAIL により SELL 執行系は stage-2 進行不可のまま)。alert 記録は yfinance 1h 集計 (grade フィールドで明示) であり、§10 再判定 (mof-next-episode-reverdict) の verdict-grade 計算 (Massive 15m mid) に**流用禁止**。candidate ≠ 介入ラベル (公式ラベルは MoF 開示のみ)。詳細: [[family-c-anchor-automation-2026-08-18]] §2
