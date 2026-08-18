@@ -3718,6 +3718,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 ### 推奨戦略配分
 **NO ACTION推奨**
 
+### 2026-08-18 (Post-London Report)
+| PnL | **0 pips / 0円** |
+| 勝率 (WR) | **N/A** |
+- **OANDA Block理由 TOP1**: `shadow_tracking` 20件（全ブロック100%）
+- **OANDA転送率**: SENT=0 / SKIP=50 → **ライブ転送率 0%**
+- システムはシグナルを一定数生成しているが、全件がshadow_trackingフェーズに留まり本番執行に到達していない
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+- **EUR/JPY・USD/JPY・GBP/JPY**: ATR%ile 86–90%と高水準 → ボラティリティは存在するが方向性なし（SMA20 Slope全てマイナス）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
