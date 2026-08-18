@@ -465,8 +465,10 @@ def test_evaluate_trigger_wires_mode_and_count_basis(monkeypatch):
     seen = {}
 
     def fake_fetch(entry_type, since, app_base, prefix=False, instrument="",
-                   mode="", exclude_dedup_violation=False):
-        seen[entry_type] = {"mode": mode, "uniq": exclude_dedup_violation}
+                   mode="", exclude_dedup_violation=False, direction="",
+                   closed_only=False):
+        seen[entry_type] = {"mode": mode, "uniq": exclude_dedup_violation,
+                            "dir": direction, "closed": closed_only}
         return 3
 
     monkeypatch.setattr(w, "fetch_shadow_count", fake_fetch)
@@ -482,6 +484,43 @@ def test_evaluate_trigger_wires_mode_and_count_basis(monkeypatch):
          "instrument": "AUD_JPY",
          "n_decide": 100, "n_floor": 100, "deadline": "2027-01-31"},
         today="2026-07-24", app_base="http://t")
+    # 2026-08-18: sr-anti-hunt 偽発火の回帰 pin — direction / dedup_violation:0 /
+    # closed_only が entry からそのまま配線されること (無視すると凍結母集団の
+    # 過大計上で単発 look を早期 burn する)
+    w.evaluate_trigger(
+        {"id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+         "type": "shadow_count_decision",
+         "entry_type": "sr_anti_hunt_bounce", "since": "2026-08-05",
+         "instrument": "EUR_JPY", "direction": "BUY", "dedup_violation": 0,
+         "closed_only": True,
+         "n_decide": 40, "n_floor": 40, "deadline": "2027-02-28"},
+        today="2026-08-18", app_base="http://t")
     assert seen["sweep_reversion_eurgbp_late"] == {
-        "mode": "daytrade_eurgbp", "uniq": True}
-    assert seen["htf_false_breakout"] == {"mode": "", "uniq": False}
+        "mode": "daytrade_eurgbp", "uniq": True, "dir": "", "closed": False}
+    assert seen["htf_false_breakout"] == {
+        "mode": "", "uniq": False, "dir": "", "closed": False}
+    assert seen["sr_anti_hunt_bounce"] == {
+        "mode": "", "uniq": True, "dir": "BUY", "closed": True}
+
+
+def test_count_matching_direction_and_closed_only():
+    """2026-08-18 偽発火バグの単体 pin: 実測形 (40 → 22 相当) の縮約再現。"""
+    from tools.prereg_trigger_watch import count_matching
+
+    rows = [
+        {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+         "direction": "BUY", "status": "CLOSED", "dedup_violation": 0},
+        {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+         "direction": "BUY", "status": "CLOSED", "dedup_violation": 1},
+        {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+         "direction": "SELL", "status": "CLOSED", "dedup_violation": 0},
+        {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+         "direction": "BUY", "status": "OPEN", "dedup_violation": 0},
+    ]
+    # 旧計数 (フィルタなし) = 4 — 偽発火の形
+    assert count_matching(rows, "sr_anti_hunt_bounce",
+                          instrument="EUR_JPY") == 4
+    # 凍結母集団 = closed ∧ BUY ∧ dedup0 = 1
+    assert count_matching(rows, "sr_anti_hunt_bounce", instrument="EUR_JPY",
+                          direction="BUY", closed_only=True,
+                          exclude_dedup_violation=True) == 1

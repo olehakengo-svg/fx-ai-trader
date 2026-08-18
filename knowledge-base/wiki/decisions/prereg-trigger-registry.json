@@ -95,7 +95,8 @@
    "dedup_violation": 0,
    "deadline": "2027-02-28",
    "doc": "knowledge-base/wiki/decisions/sr-anti-hunt-eurjpy-r1-verdict-2026-08-05.md",
-   "message": "R1 昇格 NO-GO (2026-08-05) → forward 確認枠。セル凍結 = EUR_JPY×BUY、母集団 = dedup_violation=0 の shadow 新規 (2026-08-05 以降)。fresh N>=40 到達で 1 回限り判定: EV>0 (片側 t p<0.05) AND Wilson_lo>38.7% (BEV+5pp) AND 凍結後月次符号>=3/4。全通過で R1 パケット再起案 (BT ハーネス修復済みが前提)、不通過でセル クローズ。それまで本セル×outcome の中間再計算禁止 (P-10 型)。起案動機の p=2.2e-11 は dedup 後 EV n.s. + 5月一山型に減衰した経緯に注意"
+   "message": "R1 昇格 NO-GO (2026-08-05) → forward 確認枠。セル凍結 = EUR_JPY×BUY、母集団 = dedup_violation=0 の shadow 新規 closed (2026-08-05 以降)。fresh N>=40 到達で 1 回限り判定: EV>0 (片側 t p<0.05) AND Wilson_lo>38.7% (BEV+5pp) AND 凍結後月次符号>=3/4。全通過で R1 パケット再起案 (BT ハーネス修復済みが前提)、不通過でセル クローズ。それまで本セル×outcome の中間再計算禁止 (P-10 型)。⚠️ 2026-08-18 偽発火の記録: 旧計数器が direction/dedup_violation フィールド無視 + open 込みで N=40 と誤報 (凍結母集団の実測 N=22、counts のみで確認・look 未消費)。計数器修正済み (closed_only/direction/dedup_violation 解釈、tools/prereg_trigger_watch.py 2026-08-18)。起案動機の p=2.2e-11 は dedup 後 EV n.s. + 5月一山型に減衰した経緯に注意。⚠️ 判定時の注意 2 点: (a) 08-05 以降の発火レートが凍結時想定の数倍 (hour_utc 修復 08-09 の影響疑い) — 判定文書で rate 変化を開示、(b) ③月次符号>=3/4 は数ヶ月の蓄積を想定した集中ガード — N=40 が 1 ヶ月未満で到達した場合は『完結月が 4 未満』の扱いを判定書で明示すること。③ の分母解釈 (4 ヶ月想定 vs 経過月) が verdict を左右する場合は代替基準を発明せず user 決裁に上げる (凍結判定への事後裁量の混入禁止)",
+   "closed_only": true
   },
   {
    "id": "t8-sweep-defer-decision",
