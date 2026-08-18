@@ -390,11 +390,11 @@
   },
   {
    "id": "e21-personal-account-decision",
-   "active": true,
+   "active": false,
    "type": "deadline_info",
    "deadline": "2026-08-31",
    "doc": "knowledge-base/wiki/analyses/e21-attribution-s2-2026-08-17.md",
-   "message": "E21 (台帳 #23) 続報: user 決裁 (a) API 読み取り許可は 08-17 消化済み — 個人口座 (CFD) 監査の結果、トークン視認 2 口座のどちらにもキャリー母集団は不在 (手動短期 計 85 往復 −12,712 JPY・swap ゼロ)。キャリー玉は外部業者/口座。残る選択肢 = (b) 外部口座の明細 CSV を data/external/e21/ に提供 / (c) carry 成分を data-blocked クローズ。deadline 08-31 までに CSV 未提供なら (c) で起案する。"
+   "message": "消化済み (2026-08-18): user が (b) 外部業者 CSV を提供 → 帰属分解実行済み。verdict = 観測可能な全手動実績に識別可能な α なし (7週 N=247 +54,052円は p=0.32・単一トレード寄与 68%・月次符号不安定で n.s.、swap 寄与 28%・保有中央値 1.2h = 長期キャリーの自己申告と不一致)。E21 (台帳 #23) クローズ。forward 明細の継続提供があれば新 family + 観測前凍結で再入場 (月次スキャンで再評価)。"
   }
  ]
 }
