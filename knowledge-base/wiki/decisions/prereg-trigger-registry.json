@@ -280,11 +280,13 @@
   },
   {
    "id": "mof-q2-2026-disclosure-verdict",
-   "active": true,
+   "active": false,
    "type": "deadline_info",
    "deadline": "2026-09-30",
    "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
-   "message": "MoF forward pre-reg (🔒 LOCKED 2026-07-24、台帳 family #4) の verdict 監視 — Q2-2026 四半期日次開示 (~2026-08 推定) 着地から 10 日以内に verdict 実行。backstop 2026-09-30 で未着地なら stale レビュー (設計変更禁止)。P-10: 2026 candidate 日の forward net は開示前計算禁止"
+   "message": "MoF forward pre-reg (🔒 LOCKED 2026-07-24、台帳 family #4) の verdict 監視 — Q2-2026 四半期日次開示 (~2026-08 推定) 着地から 10 日以内に verdict 実行。backstop 2026-09-30 で未着地なら stale レビュー (設計変更禁止)。P-10: 2026 candidate 日の forward net は開示前計算禁止",
+   "resolved": "2026-08-18",
+   "resolution": "verdict 執行 (PARTIAL: E-A PASS p=0.0143 / E-C FAIL +188.1p 符号逆)。開示は 08-07 着地、+11d = 期日 1 日超過 — 原因 = deadline_info が実着地を検知できない構造 (backstop のみ)。後継 = mof-next-episode-reverdict"
   },
   {
    "id": "weekend-gap-live-g1-slippage",
@@ -395,6 +397,14 @@
    "deadline": "2026-08-31",
    "doc": "knowledge-base/wiki/analyses/e21-attribution-s2-2026-08-17.md",
    "message": "消化済み (2026-08-18): user が (b) 外部業者 CSV を提供 → 帰属分解実行済み。verdict = 観測可能な全手動実績に識別可能な α なし (7週 N=247 +54,052円は p=0.32・単一トレード寄与 68%・月次符号不安定で n.s.、swap 寄与 28%・保有中央値 1.2h = 長期キャリーの自己申告と不一致)。E21 (台帳 #23) クローズ。forward 明細の継続提供があれば新 family + 観測前凍結で再入場 (月次スキャンで再評価)。"
+  },
+  {
+   "id": "mof-next-episode-reverdict",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-11-14",
+   "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
+   "message": "MoF family #4 PARTIAL の再判定監視: Q3-2026 四半期日次開示 (予想 ~2026-11-06、mof.go.jp feio/data/quarter/) を確認し、新規の円買いエピソードが開示された場合のみ §10 の 1 回限り同一仕様再判定 (新自由度ゼロ) を実行。エピソードなしなら deadline を翌四半期 (+3ヶ月) に roll して継続。教訓: 予想着地日+8d を deadline に刻む (backstop 頼み禁止)。"
   }
  ]
 }
