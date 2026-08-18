@@ -3728,6 +3728,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 | WR | N/A | N/A |
 - **EUR/JPY・USD/JPY・GBP/JPY**: ATR%ile 86–90%と高水準 → ボラティリティは存在するが方向性なし（SMA20 Slope全てマイナス）
 
+### 2026-08-18 (Post-NY Report)
+| PnL | **+0.0 pips** |
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **最も成績が良かったセッション**: 評価不能（全セッションN=0）
+- **最も成績が悪かったセッション**: 評価不能（同上）
+- **最もアクティブだった戦略**: なし
+- **`shadow_tracking`が唯一の遮断理由（20/20件 = 100%）**
+- これはシステムが意図的にシャドウモード（is_shadow=1）として処理しているトレードであり、OANDAブリッジが設計通りにフィルタリングしていることを示す
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
