@@ -224,3 +224,7 @@ D = {**2026-04-30** (¥6兆2,787億), **2026-05-04** (¥7,802億), **2026-05-06*
 - **Variant B (real-time 検知→SELL) は stage-2 に進めない** (E-C 死)。ただし**検知器の real-time 実行可能性は実証された** — 将来の介入系 family (2026-08-18 user 起案の介入回避/ショート仮説を含む) への一次 prior として: **「介入後 10 営業日の SELL drift は 2026 エピソードで符号逆」**
 - 再判定 registry: `mof-next-episode-reverdict` (四半期開示ごとに新規円買いエピソード有無を確認、発生時のみ 1 回限り同一仕様)
 - **手続き教訓**: verdict が期日を 1 日超過した原因 = `deadline_info` トリガが「開示の実着地」を検知できず backstop (09-30) だけを持っていた。四半期開示型トリガは**予想着地日を deadline に刻み、四半期ごとに roll する** (ZN 到達経路教訓の姉妹形)。検証は `tools/mof_forward_verdict.py` + raw 出力 `knowledge-base/raw/bt-results/mof-forward-verdict-2026-08-18.txt`
+
+### 運用追記 (2026-08-18) — E-A 検知器の defensive alert 化 (凍結条項の変更なし)
+
+E-A の real-time 実行可能性実証を受け、凍結 rule (X,Y)=(2.0, 0.25%) を **as-is (再校正なし)** で日次監視に載せた: `tools/mof_intervention_watch.py` + `.github/workflows/intervention-watch.yml` (前 UTC 営業日を 1 回評価 → Discord 通知 + `knowledge-base/raw/intervention_watch/` JSONL 記録)。**これは Variant B ではない** — 監視/通知のみで、live gating の自動執行は §5.5 どおり別 pre-reg + user 最終承認まで不実装 (E-C FAIL により SELL 執行系は stage-2 進行不可のまま)。alert 記録は yfinance 1h 集計 (grade フィールドで明示) であり、§10 再判定 (mof-next-episode-reverdict) の verdict-grade 計算 (Massive 15m mid) に**流用禁止**。candidate ≠ 介入ラベル (公式ラベルは MoF 開示のみ)。詳細: [[family-c-anchor-automation-2026-08-18]] §2

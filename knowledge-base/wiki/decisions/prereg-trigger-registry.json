@@ -238,7 +238,7 @@
    "type": "deadline_info",
    "deadline": "2026-09-18",
    "doc": "knowledge-base/wiki/syntheses/edge-development-pipeline-2026-07-18.md",
-   "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3) 第3次 2026-08-14 実行済 ([[external-hypothesis-scan-round3-2026-08-14]]、採用 E21/E22・棄却 E24/E25・保留 E23) → 期日を翌月へ更新。四半期モダリティ棚卸しは第3次に同乗済み (次は第6次)。"
+   "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3) 第3次 2026-08-14 実行済 ([[external-hypothesis-scan-round3-2026-08-14]]、採用 E21/E22・棄却 E24/E25・保留 E23) → 期日を翌月へ更新。四半期モダリティ棚卸しは第3次に同乗済み (次は第6次)。第4次 (09-18) は family A/B/C (発言ラダー/介入イベント/金利アンカー帯) の統合裁定を含む — dossier = knowledge-base/raw/analysis/intervention-history-anatomy-2026-08-18.md + MEMORY user_manual_edge 追記5-7。到達経路: C 材料 = rate-anchor-daily workflow (平日 21:15 UTC、data/external/rate_anchor/ を日次延伸) / B 入力 = intervention-watch workflow (E-A 凍結検知器、00:20 UTC、knowledge-base/raw/intervention_watch/) / A 基盤 = statement-ladder-foundation-readiness トリガ参照。詳細: [[family-c-anchor-automation-2026-08-18]]"
   },
   {
    "id": "r3-market-data-ingest-freshness",
@@ -406,6 +406,23 @@
    "deadline": "2026-11-14",
    "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
    "message": "MoF family #4 PARTIAL の再判定監視: Q3-2026 四半期日次開示 (予想 ~2026-11-06、mof.go.jp feio/data/quarter/) を確認し、新規の円買いエピソードが開示された場合のみ §10 の 1 回限り同一仕様再判定 (新自由度ゼロ) を実行。エピソードなしなら deadline を翌四半期 (+3ヶ月) に roll して継続。教訓: 予想着地日+8d を deadline に刻む (backstop 頼み禁止)。"
+  },
+  {
+   "id": "mof-monthly-total-2026-08-29-check",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-08-28",
+   "doc": "knowledge-base/wiki/analyses/family-c-anchor-automation-2026-08-18.md",
+   "message": "MoF 月次介入実施額の公表チェック (公表 ~08-29 前後、対象窓 2026-07-30〜08-27 推定): user の「7月の負けは介入をくらった」説の答え合わせ — user 外部口座のワースト日 07-30 (−69,628円、レンジ 579p) / 07-31 (−21,370円、370p) が本窓に入る。確認先 = mof.go.jp 外国為替平衡操作の実施状況 (月次)。**着地当日に user へ報告** (総額 >0 なら『窓内に介入あり』までが言えること — 日次帰属は Q3 開示 ~11 月まで不明。価格からの当日推定ラベリングは mof-next-episode-reverdict の OOS burn で禁止)。総額 >0 なら T5 復帰第 2 要件 (外部一次情報) の認定材料にもなりうる (cross-LOCK 注意: project_t5_restore_mof_crosslock_2026_08_10)。到達経路: 本 deadline は daily Tier-A gate-status cron (00:20 UTC、quant_gate_status.py) が TRIGGERED 表示 → Claude セッションが公表ページを確認し KB 記録 + user 報告 → 本エントリを resolve。"
+  },
+  {
+   "id": "statement-ladder-foundation-readiness",
+   "active": true,
+   "type": "conditional_info",
+   "deadline": "no-deadline",
+   "doc": "knowledge-base/wiki/analyses/family-c-anchor-automation-2026-08-18.md",
+   "condition": "当局発言ラダー基盤 (MoF 会見 lexicon + forward 収集 cron) が main に着地したら発火",
+   "message": "family A (発言ラダー→介入確率) の pre-reg 起草は本基盤の main 着地が前提。到達経路: 並行セッション (task_a3b5b005) が lexicon データ基盤 + forward 収集 cron を構築中 — 2026-08-18 時点で branch 未 push のため、着地物 (データ dir + workflow) が main に現れるまで本条件は到達しない (watching 表示を健全性の証拠と誤読しないこと — ZN 教訓)。着地を確認したら: 本エントリ resolve + edge-dev レーンへ family A 起草可を通知。09-18 スキャン (edge-supply-scan-monthly) の A/B/C 統合裁定の前提材料。"
   }
  ]
 }

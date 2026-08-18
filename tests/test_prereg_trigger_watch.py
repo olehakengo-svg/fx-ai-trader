@@ -524,3 +524,22 @@ def test_count_matching_direction_and_closed_only():
     assert count_matching(rows, "sr_anti_hunt_bounce", instrument="EUR_JPY",
                           direction="BUY", closed_only=True,
                           exclude_dedup_violation=True) == 1
+
+
+def test_registry_automation_packet_triggers_wired():
+    """2026-08-18 自動化パケットのトリガ 3 点 pin — 到達経路明記 (ZN 教訓) 込み。"""
+    triggers = {t["id"]: t for t in load_registry()}
+
+    t = triggers["mof-monthly-total-2026-08-29-check"]
+    assert t["type"] == "deadline_info" and t["deadline"] == "2026-08-28"
+    assert "到達経路" in t["message"] and "user へ報告" in t["message"]
+
+    t = triggers["statement-ladder-foundation-readiness"]
+    assert t["type"] == "conditional_info"
+    assert "到達経路" in t["message"] and "task_a3b5b005" in t["message"]
+
+    # 09-18 スキャンには A/B/C 統合裁定と各材料の到達経路が明記されていること
+    t = triggers["edge-supply-scan-monthly"]
+    assert "rate-anchor-daily" in t["message"]
+    assert "intervention-watch" in t["message"]
+    assert "statement-ladder-foundation-readiness" in t["message"]

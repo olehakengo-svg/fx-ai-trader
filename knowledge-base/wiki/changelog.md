@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-18 — feat(automation): family C アンカー自動化パケット — 日次データ基盤 + E-A defensive alert + registry トリガ 3 点 (rule:R3)
+
+- **user 承認 (2026-08-18「自動化させて」) の 3 点パケット** ([[family-c-anchor-automation-2026-08-18]])。live/tier/lot 変更ゼロ、シグナル計算ゼロの純データ基盤 + defensive monitoring
+- **① rate-anchor-daily**: `tools/rate_anchor_ingest.py` + 平日 21:15 UTC workflow — MoF JGB 15 テナー (歴史+当月英語版) / FRED DGS1-10 / ZN=F 日足を `data/external/rate_anchor/` に union-merge 蓄積 (単調性 assert、決定的 manifest)。凍結 e20 パネルには非接触。シード済み: JGB 3,328 行 (→08-17) / US 3,554 行 / ZN 756 行。**材料のみ — フェアバリュー帯/乖離の計算は family C pre-reg まで構造的に不実施**
+- **② intervention-watch**: `tools/mof_intervention_watch.py` + 00:20 UTC workflow — #4 §2.2 凍結 rule (X,Y)=(2.0, 0.25%) **as-is** で前 UTC 営業日を評価、candidate=1 で Discord 通知 + `knowledge-base/raw/intervention_watch/` JSONL 記録 (dedup 兼用)。**監視のみ — live gating 自動執行は不実装 (§5.5 Variant B = 別 pre-reg + user 承認)、candidate ≠ 介入ラベル、alert-grade (yfinance 1h) と verdict-grade (Massive 15m) を grade フィールドで分離**。test pin で order 系 import を構造遮断
+- **③ registry トリガ**: `mof-monthly-total-2026-08-29-check` (user 7月「介入をくらった」説の答え合わせ、着地当日 user 報告) / `statement-ladder-foundation-readiness` (family A 基盤、並行 task_a3b5b005) / `edge-supply-scan-monthly` 増補 (09-18 = A/B/C 統合裁定)。**全トリガに到達経路を明記** (ZN 教訓)
+- test 22 件新設 (`tests/test_rate_anchor_ingest.py` / `tests/test_mof_intervention_watch.py`) + registry pin
+
 ## 2026-08-17 — research(E22): VRP explore ❌ FAIL (IC −0.025 p=0.760、OOS 非接触) — vol モダリティ恒久クローズ (rule:R1 手続き、台帳 #24)
 
 - **E22 (通貨 VRP = EVZ−RV21 × EUR_USD × 21bd 時系列 IC) の凍結 explore を単独 wave で執行** ([[e22-vrp-explore-prereg-2026-08-17]]、scan 第 3 次 §2/§2.1 の explore 枠 1/3)。敵対的検証 GO-WITH-CONDITIONS (17 条 / blocking 10 条) 全消化 → 🔒 凍結 `f50b680a` → two-pass 測定

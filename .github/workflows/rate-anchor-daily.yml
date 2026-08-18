@@ -1,0 +1,60 @@
+# family C (金利観測アンカー) 材料の日次蓄積 — data/external/rate_anchor/
+#
+# 目的:
+#   日米金利差フェアバリュー帯の「材料」(MoF JGB 全テナー / FRED DGS / ZN=F 日足) を
+#   毎日 union-merge で蓄積する。**材料収集のみ — シグナル/乖離計算はしない**
+#   (family C は pre-reg 前。tools/rate_anchor_ingest.py の docstring 参照)。
+#
+# 到達経路の明示 (lesson-rolling-window-cache-overwrite-2026-08-14):
+#   本ジョブが data/external/rate_anchor/*.csv と data/cache/yield/ZN_F_1h.parquet の
+#   右端を日次で進める。09-18 スキャン (edge-supply-scan-monthly) の family C 裁定は
+#   この蓄積が前提。週次 zn-cache-refresh.yml は backstop として残置 (merge は冪等)。
+#
+# 安全性:
+#   全出力は union-merge (行数単調非減少 / 既存日付欠落なし / 左端保持 — 違反は即例外)。
+#   不変条件は tests/test_rate_anchor_ingest.py が pin。計測も判定もしない
+#   純データ基盤ジョブ (rule:R3)。
+name: rate-anchor-daily
+
+on:
+  schedule:
+    - cron: '15 21 * * 1-5'   # UTC 平日 21:15 (MoF 当日分は 17:30 JST 頃公表済み、FRED は翌run自己修復)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          token: ${{ secrets.PAT_TOKEN }}  # main は protected — zn-cache-refresh と同一の bypass 経路
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install --quiet requests yfinance pandas pyarrow
+
+      - name: Ingest rate anchor materials (union-merge)
+        run: python3 tools/rate_anchor_ingest.py fetch --refresh-zn
+
+      - name: Commit accumulated data
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/external/rate_anchor/ data/cache/yield/ZN_F_1h.parquet
+          if git diff --cached --quiet; then
+            echo "no changes"
+            exit 0
+          fi
+          git commit -m "auto: rate anchor daily ingest ($(date -u +%F))"
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase
+          done
+          exit 1

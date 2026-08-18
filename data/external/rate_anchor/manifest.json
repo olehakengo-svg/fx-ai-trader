@@ -1,0 +1,34 @@
+{
+  "tool": "rate_anchor_ingest",
+  "purpose": "family C 金利アンカー材料の日次蓄積 (材料のみ — シグナル/乖離計算は行わない。family C は pre-reg 前)",
+  "start": "2013-01-01",
+  "sources": {
+    "mof_jgb_all": "https://www.mof.go.jp/jgbs/reference/interest_rate/data/jgbcm_all.csv",
+    "mof_jgb_current": "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv",
+    "fred_dgs": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS1,DGS2,DGS5,DGS10"
+  },
+  "zn_source": "data/cache/yield/ZN_F_1h.parquet (union-merge cache) の UTC-day 集計",
+  "files": {
+    "jgb_yields": {
+      "path": "data/external/rate_anchor/jgb_yields.csv",
+      "rows": 3328,
+      "date_min": "2013-01-04",
+      "date_max": "2026-08-17",
+      "sha256": "d332a7bc8004d45c28d09a32a374b98d1f3c9a6e5728ff24e5990ac2900462f6"
+    },
+    "us_treasury_yields": {
+      "path": "data/external/rate_anchor/us_treasury_yields.csv",
+      "rows": 3554,
+      "date_min": "2013-01-01",
+      "date_max": "2026-08-14",
+      "sha256": "a5d1fa9377c0138eb656a63e833f5f57cb501c7ee219460c24d42d683114bb95"
+    },
+    "zn_f_daily": {
+      "path": "data/external/rate_anchor/zn_f_daily.csv",
+      "rows": 756,
+      "date_min": "2024-02-18",
+      "date_max": "2026-08-18",
+      "sha256": "c05e0a8c49c5c7ed644548b274fa8898e80e7cecb13b9aa9985db565c18195e4"
+    }
+  }
+}
