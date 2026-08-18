@@ -3708,6 +3708,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - キャリー系「押し目買い」戦略が、下降モメンタムが強い局面で買いを繰り返した
 - EV = −8.97（N=4）は「傾向として深刻」だが、統計的確定判断はN≥30まで保留
 
+### 2026-08-18 (Post-Tokyo Report)
+| PnL | 0.0p |
+| WR | N/A |
+- ブロックは設計通りのリスクゲート（r2_shadow_demoted / hedge_block）が機能した結果であり、システムの誤作動ではない
+- OANDA転送率 **0%**（50件中50件 SKIP）は shadow_tracking が全件適用中のためで、デモ→本番昇格未実施の現状と整合
+- `agg_kelly=-0.364<0` による1件ブロックは Kelly基準が負EVを正しく検知している証拠
+- 現在 **DD=100.01%（バリア突破後 held、DD防御0.2x モード）** のため、新規パラメータ投入によるリスク増加は許容不可
+### 推奨戦略配分
+**NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
