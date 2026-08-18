@@ -201,15 +201,27 @@ def fetch_latest_daily_close(symbol: str) -> float | None:
 
 def count_matching(trades: list, entry_type: str, prefix: bool = False,
                    instrument: str = "",
-                   exclude_dedup_violation: bool = False) -> int:
+                   exclude_dedup_violation: bool = False,
+                   direction: str = "",
+                   closed_only: bool = False) -> int:
     """entry_type の一致件数。prefix=True で前方一致 (multi-variant 戦略用、
     例: kalman_d7_* 3 variant 合算)。instrument 指定時はセル (戦略×ペア) 粒度
     (ws3-stage2-underpowered-recheck 用 — ペア無指定だと全ペア合算になり
     セル判定を過大計上する)。exclude_dedup_violation=True で dedup_violation=1
     の重複行を除外 = unique バー基準 (registry `count_basis: "unique"`、
-    sweep P-S1(a) 決裁パケット §1.4 で確定した estimand 忠実計数)。"""
+    sweep P-S1(a) 決裁パケット §1.4 で確定した estimand 忠実計数)。
+
+    2026-08-18 追加 (sr-anti-hunt forward-confirm 偽発火の修正):
+    direction 指定でセル方向粒度、closed_only=True で status=CLOSED 行のみ
+    (P&L 確定母集団で判定する decision エントリ用 — open 行込みだと単発 look の
+    早期 burn を誘発する。実測: registry 式 40 vs 凍結母集団 22)。"""
     if instrument:
         trades = [t for t in trades if t.get("instrument") == instrument]
+    if direction:
+        trades = [t for t in trades if t.get("direction") == direction]
+    if closed_only:
+        trades = [t for t in trades
+                  if str(t.get("status") or "").upper() == "CLOSED"]
     if exclude_dedup_violation:
         trades = [t for t in trades if (t.get("dedup_violation") or 0) != 1]
     if prefix:
@@ -323,12 +335,15 @@ def fetch_live_count(entry_type: str, instrument: str, direction: str,
 def fetch_shadow_count(entry_type: str, since: str, app_base: str,
                        prefix: bool = False, instrument: str = "",
                        mode: str = "",
-                       exclude_dedup_violation: bool = False) -> int | None:
+                       exclude_dedup_violation: bool = False,
+                       direction: str = "",
+                       closed_only: bool = False) -> int | None:
     trades = fetch_trades_window(since, app_base, mode=mode)
     if trades is None:
         return None
     return count_matching(trades, entry_type, prefix, instrument=instrument,
-                          exclude_dedup_violation=exclude_dedup_violation)
+                          exclude_dedup_violation=exclude_dedup_violation,
+                          direction=direction, closed_only=closed_only)
 
 
 def fetch_ingest_health(app_base: str, endpoint: str) -> dict[str, Any] | None:
@@ -359,13 +374,19 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
         res = evaluate_price_below(
             fetch_latest_daily_close(trig["symbol"]), float(trig["threshold"]))
     elif ttype == "shadow_count_decision":
+        # 2026-08-18: direction / dedup_violation:0 / closed_only を契約どおり解釈
+        # (sr-anti-hunt forward-confirm が方向・dedup 無視 + open 込みで N=40 と
+        # 偽発火 — 凍結母集団の実測は 22。entry のフィールドを黙って無視しない)
         res = evaluate_shadow_count_decision(
             fetch_shadow_count(trig["entry_type"], trig["since"], app_base,
                                prefix=trig.get("match") == "prefix",
                                instrument=trig.get("instrument", ""),
                                mode=trig.get("mode", ""),
                                exclude_dedup_violation=(
-                                   trig.get("count_basis") == "unique")),
+                                   trig.get("count_basis") == "unique"
+                                   or trig.get("dedup_violation") == 0),
+                               direction=trig.get("direction", ""),
+                               closed_only=bool(trig.get("closed_only"))),
             int(trig["n_decide"]), int(trig["n_floor"]), trig["deadline"], today)
     elif ttype == "shadow_count_info":
         res = evaluate_shadow_count_info(
