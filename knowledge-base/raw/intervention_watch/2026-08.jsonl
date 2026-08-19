@@ -1,1 +1,2 @@
 {"day": "2026-08-17", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": 0.0647, "range": 0.758, "med20_range": 0.783, "range_ratio": 0.968, "n_bars": 24, "candidate": false}
+{"day": "2026-08-18", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": 0.1412, "range": 0.475, "med20_range": 0.7855, "range_ratio": 0.605, "n_bars": 24, "candidate": false}
