@@ -3748,6 +3748,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - `r2_shadow_demoted_cell` ブロックの多寡は現行セルのシャドウ評価結果に依存。**降格済みセルのN蓄積を継続し、再昇格条件の充足を待つ**以外の選択肢はない（コード変更禁止原則の範囲内）。
 - `rnb_usdjpy:direction_filter` の27件ブロックは、USD/JPY が強い下落バイアス下にある間は継続すると見込む。レジーム転換まで許容範囲内と判断。
 
+### 2026-08-19 (Post-Tokyo Report)
+| WR | 0.0% (0/1) |
+| PnL | **−11.7 pips** |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+- スプレッド0.8pipは許容範囲内であり、執行品質自体に問題はない
+- **SMA20 Slope = −0.00478（全ペア中最大の下降傾き）**の環境下でBUY（carry dip accumulation）は逆風であり、レジーム適合性に疑問が残る
+- N=1は統計的根拠なし。単一SL_HITで調整判断を下すことは統計的に不適切
+- ただし**レジーム観察事項**として記録：USD/JPYはATR90%ile×下降SMAであり、carry dip accumulator（BUY bias）との相性が構造的に問われる局面。N≥10蓄積後に再評価要
+| GBP_JPY | RANGING | **84%** | 同上。GBP絡みはロンドンopen特有の急動意注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
