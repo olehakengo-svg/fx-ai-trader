@@ -186,7 +186,108 @@ def evaluate_shadow_count_info(
             "detail": f"実測 {rate:.2f}/週 vs 期待 {expected_per_week}/週 (N={count})"}
 
 
+def evaluate_artifact_presence(
+    measured: dict[str, int], requirements: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """成果物着地の機械判定: 全 requirement を満たしたら TRIGGERED。
+
+    「main に着地したら発火」型の条件を人手判定に委ねると、条件成立後も
+    watching のまま滞留する (ZN 教訓: 「条件を書く」と「条件が起こりうる」は
+    別物)。measured は path パターン -> 実測ファイル数 (scan_artifacts が生成)。
+    """
+    if measured is None:
+        return {"state": STATE_UNAVAILABLE, "detail": "artifact scan unavailable"}
+    missing: list[str] = []
+    have: list[str] = []
+    for req in requirements:
+        pat = req["path"]
+        need = int(req.get("min_files", 1))
+        got = int(measured.get(pat, 0))
+        label = req.get("label", pat)
+        if got < need:
+            missing.append(f"{label} ({got}/{need})")
+        else:
+            have.append(f"{label} {got}")
+    if missing:
+        return {"state": STATE_WATCHING,
+                "detail": "未着地: " + " / ".join(missing)
+                          + (f" — 着地済: {', '.join(have)}" if have else "")}
+    return {"state": STATE_TRIGGERED,
+            "detail": "成果物着地を確認 (" + ", ".join(have)
+                      + ") — 条件成立、resolve して後続レーンへ通知せよ"}
+
+
+def evaluate_data_coverage(
+    max_date: str | None, threshold_date: str,
+) -> dict[str, Any]:
+    """データ被覆の機械判定: 実測 max 日付が閾値を超えたら TRIGGERED。
+
+    cache 延伸待ちの条件付きエントリ用。取得不能は fail-loud せず
+    DATA_UNAVAILABLE (cron を落とさない設計原則)。
+    """
+    if not max_date:
+        return {"state": STATE_UNAVAILABLE, "detail": "coverage 取得不能"}
+    if str(max_date)[:10] > threshold_date:
+        return {"state": STATE_TRIGGERED,
+                "detail": f"被覆 {str(max_date)[:10]} > 閾値 {threshold_date} — 条件成立"}
+    return {"state": STATE_WATCHING,
+            "detail": f"被覆 {str(max_date)[:10]} / 閾値 {threshold_date} まで延伸待ち"}
+
+
+def evaluate_manual_info(
+    condition: str, deadline: str, today: str, reachability: str,
+) -> dict[str, Any]:
+    """人手判定エントリ: 機械評価はしないが deadline は必ず効かせる。
+
+    2026-08-19: info/conditional_info が deadline を無視して無期限 watching
+    だったため、期日付き手動エントリ (volstate-split 系等) が自分から
+    期限切れを名乗れなかった。deadline_info と同じ escalation を与える。
+    """
+    detail = condition or "info 監視 (手動判定)"
+    if deadline and deadline != "no-deadline" and today > deadline:
+        return {"state": STATE_TRIGGERED,
+                "detail": f"期日 {deadline} 超過 (手動判定エントリ) — {detail}"
+                          + (f" / 到達経路: {reachability}" if reachability else "")}
+    return {"state": STATE_WATCHING, "detail": detail}
+
+
 # ── データ取得 (cron 実行時のみ呼ばれる) ─────────────────────────────
+
+def scan_artifacts(requirements: list[dict[str, Any]],
+                   root: Path = ROOT) -> dict[str, int]:
+    """requirement の path (glob 可) にマッチする実ファイル数を数える。"""
+    out: dict[str, int] = {}
+    for req in requirements:
+        pat = req["path"]
+        try:
+            matches = [m for m in root.glob(pat) if m.is_file()]
+            out[pat] = len(matches)
+        except (OSError, ValueError):
+            out[pat] = 0
+    return out
+
+
+def fetch_data_coverage_max(spec: dict[str, Any],
+                            root: Path = ROOT) -> str | None:
+    """cache ファイルの被覆最大日付を返す (parquet index / csv 列)。"""
+    path = root / spec["path"]
+    if not path.exists():
+        return None
+    try:
+        import pandas as pd
+        col = spec.get("date_column", "")
+        if path.suffix == ".parquet":
+            df = pd.read_parquet(path)
+        else:
+            df = pd.read_csv(path)
+        if col and col in df.columns:
+            return str(pd.to_datetime(df[col]).max())
+        if isinstance(df.index, pd.DatetimeIndex) and len(df):
+            return str(df.index.max())
+        return None
+    except Exception:
+        return None
+
 
 def fetch_latest_daily_close(symbol: str) -> float | None:
     try:
@@ -411,17 +512,55 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
                 app_base, trig.get("endpoint", "/api/marketdata/status")),
             trig["checks"],
             datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+    elif ttype == "artifact_presence":
+        reqs = trig["requirements"]
+        res = evaluate_artifact_presence(scan_artifacts(reqs), reqs)
+    elif ttype == "data_coverage":
+        res = evaluate_data_coverage(
+            fetch_data_coverage_max(trig["source"]), trig["threshold_date"])
     elif ttype in ("info", "conditional_info"):
         # 手動判定/条件待ちの常時 watching エントリ (機械評価なし)。
         # 2026-07-14: e1-positioning-ingest-freshness (info) 追加に合わせ、
         # 既存 conditional_info と共に UNAVAILABLE (unknown type) 扱いだった
         # ものを watching に分類 (daily report のノイズ解消)。
-        res = {"state": STATE_WATCHING,
-               "detail": trig.get("condition") or "info 監視 (手動判定)"}
+        # 2026-08-19: deadline を無視して無期限 watching だったのを修正
+        # (期日付き手動エントリが自分から期限切れを名乗れなかった)。
+        res = evaluate_manual_info(
+            trig.get("condition", ""), trig.get("deadline", "no-deadline"),
+            today, trig.get("reachability", ""))
     else:
         res = {"state": STATE_UNAVAILABLE, "detail": f"unknown type: {ttype}"}
     return {"id": trig["id"], "doc": trig.get("doc", ""),
             "message": trig.get("message", ""), **res}
+
+
+MACHINE_EVALUABLE_TYPES = {
+    "price_below", "shadow_count_decision", "shadow_count_info",
+    "live_count_decision", "deadline_info", "ingest_freshness",
+    "artifact_presence", "data_coverage",
+}
+
+
+def lint_reachability(triggers: list[dict[str, Any]]) -> list[str]:
+    """到達経路 lint — 「条件を書いた」だけで前進経路が無いエントリを検出。
+
+    ZN 教訓 (2026-08-14) の再発防止。機械評価型でない (= 人手判定の)
+    エントリは、誰/どのジョブが状態を進めるかを reachability に明記させる。
+    これが無いと watching 表示が健全性の証拠と誤読される。
+    """
+    errors: list[str] = []
+    for t in triggers:
+        ttype = t.get("type")
+        if ttype in MACHINE_EVALUABLE_TYPES:
+            continue
+        if ttype not in ("info", "conditional_info"):
+            errors.append(f"{t['id']}: unknown type {ttype!r}")
+            continue
+        if not str(t.get("reachability", "")).strip():
+            errors.append(
+                f"{t['id']}: 手動判定エントリに reachability (到達経路) が無い — "
+                "誰/どのジョブが状態を進めるかを明記せよ")
+    return errors
 
 
 def build_report(*, today: str | None = None, app_base: str | None = None) -> dict[str, Any]:
@@ -458,8 +597,16 @@ def to_markdown(report: dict[str, Any]) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Pre-reg trigger watch")
+    ap.add_argument("--lint", action="store_true",
+                    help="到達経路 lint のみ実行 (違反があれば exit 1)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
+    if args.lint:
+        errors = lint_reachability(load_registry())
+        for e in errors:
+            print(f"ERROR {e}", file=sys.stderr)
+        print(f"到達経路 lint: {len(errors)} 件の違反")
+        return 1 if errors else 0
     report = build_report()
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
