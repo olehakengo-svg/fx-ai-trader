@@ -5,8 +5,10 @@
 - **family C (user 水平線理論の機械核 v2 = 金利観測フェアバリュー帯乖離リバージョン) を臨時裁定で台帳 #26 に採用** (改訂 WIP 原則: 能動 explore 枠 0/3 + user 直接承認 2026-08-19「進めて」)。claim = PR #197 + edge-dev レーン cross-session 承認、explore 枠 1/3 消費
 - **pre-reg 凍結** ([[family-c-rate-anchor-explore-prereg-2026-08-19]]): 片側 LONG onset イベント (2y 金利差 rolling OLS 帯、z 下抜けクロス、Z_th 機械選定) × +21bd 固定 horizon、explore 2014-2021 (介入ゼロ実測窓)、swap 込み・gross/net 分解報告、MoF #4 cross-LOCK 遵守 (OOS は介入隣接 partition)
 - **敵対的検証 GO-WITH-CONDITIONS (blocking 10 条、[[family-c-adversarial-verification-2026-08-19]])** — 最重要 3 件を凍結前修復: ① 旧 gate C null が合成 probe で反保守 (type-I 20-29% @ 名目 5%) → **年内 demean + episode-block sign-flip + p≤0.02 較正**へ差し替え、② JGB Golden Week gap (実測 11 暦日) × staleness 5d 規則が 2019-2021 を連鎖 blackout → 12d へ、③ rates-content 識別不能リスク → b≡0 ablation 対照 + 解釈規則凍結
-- ハーネス `tools/family_c_anchor_explore.py` (freeze/pass1/pass2/oos、4 点 OOS 機械ロック実装済み) + test pin 19 件。registry `family-c-explore-verdict-deadline` (08-29 backstop) 登録
-- (verdict は同日 two-pass 実行後に本 entry へ追記)
+- ハーネス `tools/family_c_anchor_explore.py` (freeze/pass1/pass2/oos、4 点 OOS 機械ロック実装済み) + test pin 19 件。registry `family-c-explore-verdict-deadline` (08-29 backstop) 登録 → 同日 resolve
+- **verdict = ❌ FAIL (同日 two-pass、期日 10 日前倒し、OOS 2022+ 非接触封印)**: N=41 (Z_th=1.5)、**gross −20.5p / swap −1.6p / net −24.2p (adverse −32.1p)** — 帯下 onset 後の +21bd は平均続落。gate C (timing 超過 vs 同年無条件ロング) p=0.527、LOYO 符号不安定 (JPY 増価年 2015/16/18 が負殺)。median +1.4p・WR 51% = 左テール支配 (falling-knife 型)。**h5 診断 (非 claim): 初週 +10.9p バウンス → 21bd で逆転** = 「dip は跳ねるが多週ホールドで死ぬ」
+- **クローズ範囲発効**: 日次金利差アンカー帯 × USD_JPY × 帯下 onset LONG × 5-63bd 全変種。**user 水平線理論の機械核 v2 死亡 — 裁量スタック残余 = 執行層 (15m/1m) + exit 層のみ**。power caveat: MDE 131p、FAIL≠falsified だが点推定負 = 符号情報を持つ FAIL
+- **副次所見**: ablation 対照 (価格のみ z) は Jaccard 0.167 で識別作動 + さらに悪い −65.8p = **USD_JPY 多週 dip-buy は 2015-2021 で機構を問わず負け**。E-C の介入 dip +188p (2026) は非介入 dip で再現されず = 介入型の固有性示唆 (09-18 A/B/C 統合裁定の一次材料)。ppp「USD_JPY だけ IC 負」prior が的中
 
 ## 2026-08-19 — fix(watch): 条件付きトリガの評価器レベル欠陥 — 「常時 WATCHING」を機械評価へ (rule:R3)
 

@@ -146,3 +146,27 @@
 non-blocking (全て反映/on-record): C6 entry-lag knife-edge 追加 (旧 log-fwd 変種は無歯で差替)、C8/C11 測定 N 再チェック + drop 件数報告、C9 staleness 計測基準 wording、C10 inf-z guard (RESID_STD_MIN)、C12 RNG 順序決定化 + version 記録、C13 gross/swap/net 分解報告、C14 ロック網羅 (イベント CSV/ハーネス自己 commit assert + manifest 行数 assert)、L2-3 E20 機構的 discharge、L2-4 ppp 原文引用、L2-5 BH「起動」定義、L2-6 parquet living-cache 条項、L2-7 anchor 寄与 census、C9-critic gate G false-kill 定量、C10-critic gate F 全疎 fallback、C13-critic yields 改定値 on-record、C5-conform §9 wording 一致、C8-conform knife-edge (v) 診断化の明文化、C11-critic host-pin on-record、runtime 実測 ~1 分 (問題なし)。
 
 **コミット規律**: 本文書 + `tools/family_c_anchor_explore.py` + tests + data_freeze コピー + manifest + 検証 report + 台帳 #26 行 + registry 追記 + **changelog 行**を**同一コミットで凍結 (rule:R1 手続き)**。測定はコミット後開始。
+
+## §11 verdict (2026-08-19 同日執行 — 凍結どおり two-pass、以後変更禁止)
+
+**❌ FAIL (explore) — OOS 2022+ 非接触封印。** 凍結 a0473f4b → pass-1 826312ab → pass-2 (raw: `knowledge-base/raw/bt-results/family-c/family-c-pass2-2026-08-19.json`)。
+
+| 項目 | 実測 |
+|---|---|
+| イベント | Z_th=1.5 (機械選定: grid 内適格は 1.5 のみ)、N=41 (2015-2021、drop 0)、episode block 18 |
+| **分解 (§5 義務)** | **gross move −20.48p / swap −1.60p / net (point) −24.21p** — 帯下 onset 後の +21bd は平均で続落 |
+| 感度 | adverse 端 −32.13p / RT3x −34.23p (全端で負) |
+| 分布 | median +1.43p / WR 51.2% — **左テール支配 (falling-knife 型)**。mean≪median |
+| gate C | demeaned stat **−4.52p、p=0.527** ❌ — 同年無条件ロングへの timing 超過なし |
+| gate D | adverse −32.1p < 0 ❌ |
+| gate E | max year share 0.282 ✅ |
+| gate F | year share 4/6=0.667 ✅ だが **LOYO 符号不安定 ❌** (2015 −406p [n=2] / 2016 −177p / 2018 −229p vs 2017 +141 / 2019 +162 — JPY 増価レジーム年に帯自体がリプライスされ「安値」がさらに安くなる) |
+| gate G | T3−T1 = +59.2p ✅ (深い乖離ほどマシ — だが負の基底から) |
+| ablation 対照 | **Jaccard 0.167** = rates-anchor は価格のみ z と別のイベント集合を選ぶ (識別機能は作動、rates_content_unidentified=false)。対照 (価格のみ) mean net **−65.8p** (n=29) = さらに悪い |
+| h=5 診断 (§3 事前宣言、非 claim) | mean +10.85p / median +34.3p / WR 58.5% — **初週バウンスは実在するが 21bd で消滅・逆転**。banned 保有帯 (E20 1-10d) と重なるため、これを根拠とした再試行は禁止のまま (記述のみ) |
+
+**power caveat (§9 義務)**: MDE 131p (N=41、σ_21=250p、inflation 1.35) — FAIL ≠ falsified。**ただし本件は検出力不足の null ではなく点推定が負 (−24p)** = 符号情報を持つ FAIL。131p 未満の正効果は検出不能だった、という留保は残る。
+
+**クローズ範囲発効 (§9 凍結どおり)**: 日次国債金利差アンカー (rolling 回帰帯、2y/10y・W/Z_th 摂動込み) × USD_JPY × 帯下 onset LONG × 5-63bd 固定ホライズン全変種。**user 水平線理論の機械核 v2 死亡 — 裁量スタックの残る未検証は執行層 (15m/1m) と exit 層のみ**。復活経路 = 新 anchor 構成 (OIS/先物 implied 政策 path 等有償) + 新 family + 事前差分節 + 新敵対的検証のみ。
+
+**副次所見 (機構解釈、claim 不可)**: ppp #14 の「USD_JPY だけ per-pair IC 負」prior が的中 — 本件は「方向は合うが弱い」ですらなく**方向が合わない**。E-C の介入 dip リトレース (+188p、2026) は本 explore の非介入 dip では再現されない = **介入型 dip の固有性を示唆** (§1-7 外挿限界の逆方向確認、09-18 A/B/C 統合裁定の一次材料)。ablation の識別成功 (Jaccard 0.167) は手法論として今後の family 設計に流用可。
