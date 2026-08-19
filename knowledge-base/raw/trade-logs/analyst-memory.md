@@ -3738,6 +3738,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **`shadow_tracking`が唯一の遮断理由（20/20件 = 100%）**
 - これはシステムが意図的にシャドウモード（is_shadow=1）として処理しているトレードであり、OANDAブリッジが設計通りにフィルタリングしていることを示す
 
+### 2026-08-19 (Pre-Tokyo Briefing)
+| PnL合計 | ±0（取引なし） |
+| 全体WR | N/A |
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+- **N=4** はFidelity基準上「データなし」に相当。統計的判断は保留。
+- Cutoff後の有効戦略サンプルはこの1セルのみ。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<−0.5）のいずれの判断域にも達していない。
+- **Sentinel蓄積進捗：N=4/30（残26件で判断域到達）**
+- `r2_shadow_demoted_cell` ブロックの多寡は現行セルのシャドウ評価結果に依存。**降格済みセルのN蓄積を継続し、再昇格条件の充足を待つ**以外の選択肢はない（コード変更禁止原則の範囲内）。
+- `rnb_usdjpy:direction_filter` の27件ブロックは、USD/JPY が強い下落バイアス下にある間は継続すると見込む。レジーム転換まで許容範囲内と判断。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
