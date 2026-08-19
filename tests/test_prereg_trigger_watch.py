@@ -8,7 +8,12 @@ from pathlib import Path
 
 from tools.prereg_trigger_watch import (
     REGISTRY_PATH,
+    evaluate_artifact_presence,
+    evaluate_data_coverage,
     evaluate_ingest_freshness,
+    evaluate_manual_info,
+    lint_reachability,
+    scan_artifacts,
     evaluate_price_below,
     evaluate_shadow_count_decision,
     evaluate_shadow_count_info,
@@ -534,12 +539,103 @@ def test_registry_automation_packet_triggers_wired():
     assert t["type"] == "deadline_info" and t["deadline"] == "2026-08-28"
     assert "到達経路" in t["message"] and "user へ報告" in t["message"]
 
-    t = triggers["statement-ladder-foundation-readiness"]
-    assert t["type"] == "conditional_info"
-    assert "到達経路" in t["message"] and "task_a3b5b005" in t["message"]
+    # 2026-08-19: 条件成立 (PR #194 着地) 後も発火できなかったため
+    # conditional_info -> artifact_presence へ移行。旧 pin (type と
+    # 並行セッション ID) は現行設計と整合しないので、より強い
+    # 「機械評価可能であること」の pin に置き換える。
+    t = next(x for x in json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))["triggers"]
+             if x["id"] == "statement-ladder-foundation-readiness")
+    assert t["type"] == "artifact_presence"
+    assert t["requirements"], "artifact_presence は requirements 必須"
+    assert "569dbe3f" in t["message"], "着地 commit を根拠として残すこと"
 
     # 09-18 スキャンには A/B/C 統合裁定と各材料の到達経路が明記されていること
     t = triggers["edge-supply-scan-monthly"]
     assert "rate-anchor-daily" in t["message"]
     assert "intervention-watch" in t["message"]
     assert "statement-ladder-foundation-readiness" in t["message"]
+
+
+# ── 到達経路 (reachability) — 2026-08-19 ────────────────────────────
+# 背景: info/conditional_info が「常時 WATCHING」ハードコードで、条件が
+# 成立しても永久に発火しなかった (statement-ladder-foundation-readiness は
+# PR #194 の main 着地で成立済みだったのに watching のまま滞留)。
+# ZN 教訓「条件を書く」と「条件が起こりうる」は別物 の評価器レベル再発。
+
+def test_artifact_presence_triggers_only_when_all_requirements_met():
+    reqs = [
+        {"path": "a/*.jsonl", "min_files": 24, "label": "corpus"},
+        {"path": "b.csv", "min_files": 1, "label": "scores"},
+    ]
+    assert evaluate_artifact_presence(
+        {"a/*.jsonl": 56, "b.csv": 1}, reqs)["state"] == "TRIGGERED"
+    # 1 つでも不足なら watching、かつ不足分を detail に出す
+    part = evaluate_artifact_presence({"a/*.jsonl": 23, "b.csv": 1}, reqs)
+    assert part["state"] == "WATCHING"
+    assert "corpus (23/24)" in part["detail"]
+    assert evaluate_artifact_presence({}, reqs)["state"] == "WATCHING"
+    assert evaluate_artifact_presence(None, reqs)["state"] == "DATA_UNAVAILABLE"
+
+
+def test_data_coverage_triggers_strictly_past_threshold():
+    assert evaluate_data_coverage(
+        "2026-11-16", "2026-11-15")["state"] == "TRIGGERED"
+    assert evaluate_data_coverage(
+        "2026-11-15", "2026-11-15")["state"] == "WATCHING"
+    # datetime 文字列でも先頭 10 文字で日付比較できる
+    assert evaluate_data_coverage(
+        "2026-08-18 07:00:00", "2026-11-15")["state"] == "WATCHING"
+    assert evaluate_data_coverage(None, "2026-11-15")["state"] == "DATA_UNAVAILABLE"
+
+
+def test_manual_info_honors_deadline():
+    # 期日内は watching、超過で TRIGGERED (旧実装は deadline を無視していた)
+    assert evaluate_manual_info(
+        "", "2026-12-31", "2026-08-19", "")["state"] == "WATCHING"
+    over = evaluate_manual_info("", "2026-12-31", "2027-01-01", "shadow 蓄積")
+    assert over["state"] == "TRIGGERED"
+    assert "shadow 蓄積" in over["detail"]
+    # no-deadline は無期限 watching のまま (回帰防止)
+    assert evaluate_manual_info(
+        "cond", "no-deadline", "2099-01-01", "")["state"] == "WATCHING"
+
+
+def test_registry_every_manual_entry_declares_reachability():
+    """人手判定エントリは前進経路の明記を必須にする (再発防止の本体)。"""
+    assert lint_reachability(load_registry()) == []
+
+
+def test_lint_catches_manual_entry_without_reachability():
+    assert lint_reachability(
+        [{"id": "x", "type": "conditional_info", "condition": "何か"}])
+    assert lint_reachability(
+        [{"id": "x", "type": "conditional_info", "reachability": "  "}])
+    assert lint_reachability(
+        [{"id": "x", "type": "conditional_info", "reachability": "cron が進める"}]) == []
+    assert lint_reachability([{"id": "x", "type": "deadline_info"}]) == []
+
+
+def test_statement_ladder_entry_is_machine_evaluable_and_satisfied():
+    """PR #194 着地済み = 実ファイルで TRIGGERED になること。
+
+    2026-08-19 に発火 → resolve 済み (active=false) なので registry 全体を読む。
+    resolve 後も「機械評価可能かつ条件成立」であることを固定し、基盤ファイルが
+    消えたら気付けるようにする。
+    """
+    all_triggers = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))["triggers"]
+    trig = next(t for t in all_triggers
+                if t["id"] == "statement-ladder-foundation-readiness")
+    assert trig["active"] is False and trig["resolved_at"] == "2026-08-19"
+    assert trig["type"] == "artifact_presence"
+    reqs = trig["requirements"]
+    res = evaluate_artifact_presence(scan_artifacts(reqs), reqs)
+    assert res["state"] == "TRIGGERED", res["detail"]
+
+
+def test_ws3_round4_entry_is_machine_evaluable():
+    trig = next(t for t in load_registry()
+                if t["id"] == "ws3-round4-eur-divergence-conditional")
+    assert trig["type"] == "data_coverage"
+    assert trig["threshold_date"] == "2026-11-15"
+    assert (Path(__file__).resolve().parent.parent
+            / trig["source"]["path"]).exists()

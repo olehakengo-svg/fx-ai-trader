@@ -1,5 +1,16 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-19 — fix(watch): 条件付きトリガの評価器レベル欠陥 — 「常時 WATCHING」を機械評価へ (rule:R3)
+
+- **`info`/`conditional_info` 型が dispatch で無条件に `WATCHING` を返すハードコードだった** ([[lesson-trigger-reachability-evaluator-2026-08-19]])。`condition` フィールドの発火条件は **一度も評価されず**、条件が成立しても TRIGGERED にならない設計。ZN 教訓 (「条件を書く」と「条件が起こりうる」は別物) の **4 例目、初の評価器レベル**
+- **実害**: `statement-ladder-foundation-readiness` は条件 (当局発言ラダー基盤の main 着地) が **PR #194 (`569dbe3f`) で既に成立済み**だったのに watching 表示のまま滞留。同トリガは family A (発言ラダー→介入確率) の pre-reg 起草ゲート = **能動測定ライン 0 本の状況で唯一動かせる供給ライン作業が黙って停止していた**。`deadline` も無視されており、期日付き手動エントリ (`volstate-split-*` / `carry-dip-v3-revival-watch`) は自分から期限切れを名乗れなかった
+- **機械評価型 2 種を追加**: `artifact_presence` (glob + `min_files` の実ファイル判定 =「main に着地したら発火」型) / `data_coverage` (cache 被覆 max 日付 vs 閾値 =「cache が延伸したら発火」型)。取得不能は従来どおり `DATA_UNAVAILABLE` で cron を落とさない
+- **`evaluate_manual_info`**: 手動判定エントリでも `deadline` 超過で TRIGGERED (`no-deadline` は無期限 watching のまま)
+- **到達経路 lint** (`lint_reachability` / `--lint`、pytest 強制): 機械評価型でないエントリは `reachability` (誰/どのジョブが状態を進めるか) の明記を**必須化** — 5 例目の再発防止本体。現行 registry 違反 0 件
+- **`statement-ladder-foundation-readiness` = TRIGGERED → resolve 済み** (会見 corpus 56 月次 jsonl / lexicon ladder スコア / forward 日次 cron を実ファイルで確認)。**family A の pre-reg 起草ゲート解除** — 09-18 スキャン (`edge-supply-scan-monthly`) の A/B/C 統合裁定の前提材料が揃った。⚠️ 基盤は**収集のみ**、発言×介入×価格のジョイント測定は別 pre-reg の観測前 LOCK まで禁止 (MoF #4 cross-LOCK 継続)
+- `ws3-round4-eur-divergence-conditional` を `data_coverage` へ移行 → 実測表示 (被覆 2026-08-18 / 閾値 2026-11-15) に変化、延伸経路の実在も同時確認
+- live/tier/lot 変更ゼロ。test 7 件新設 + 旧 pin 1 件を現行設計へ更新 (2645 passed)
+
 ## 2026-08-18 — feat(data): MoF 通信モダリティ収集基盤 — 介入 ground-truth / 会見 transcript / lexicon ladder / GDELT (rule:R3)
 
 - **新データモダリティ (当局コミュニケーション) の収集基盤を新設** ([[mof-communication-data-infrastructure]]、`data/external/mof_statements/`)。起点 = user 介入主張のスコーピング wf_32d378df (MEMORY `user_manual_edge_usdjpy_carry_2026_08_12` 追記4) — 主軸は「発言ラダー lexicon × 公式介入ラベル」、**X は ToS 上不使用**
