@@ -3758,6 +3758,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - ただし**レジーム観察事項**として記録：USD/JPYはATR90%ile×下降SMAであり、carry dip accumulator（BUY bias）との相性が構造的に問われる局面。N≥10蓄積後に再評価要
 | GBP_JPY | RANGING | **84%** | 同上。GBP絡みはロンドンopen特有の急動意注意 |
 
+### 2026-08-19 (Post-London Report)
+| セッション内PnL | **0.0 pips** |
+| セッション内WR | **N/A** |
+- **agg_kelly=-0.371<0（3件ブロック）**: アグリゲートKellyがマイナスに振れており、システムが自律的に新規ポジション開放を抑制。DD防御モード（DD=100.01%）が継続中であることと整合する。
+- **shadow_tracking（17件スキップ）**: デモ専用フロー。本番転送率0%は構造的設定であり異常ではないが、学習素材としてのトレード自体もゼロであった点が問題。
+| PnL | -11.7 pips（本日唯一） | 0.0 pips |
+| WR | 0.0%（1/1負け） | N/A |
+- EUR/USD・GBP/USDはATR%ile 41%と**低ボラティリティ**。NYオープン（UTC 13:00以降）でUSD統計イベントがあれば一時的ATR拡張の可能性あり。
+- JPYクロス系（EUR/JPY 90%、GBP/JPY 84%、USD/JPY 90%）は引き続き高ATR——方向性が定まらない中での高ボラは**Scalp系にはノイズ**、DT系にはフォルスブレイクアウトリスクを高める。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
