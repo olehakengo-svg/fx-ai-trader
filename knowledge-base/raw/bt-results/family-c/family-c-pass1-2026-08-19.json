@@ -1,0 +1,53 @@
+{
+  "mode": "pass1",
+  "versions": {
+    "numpy": "2.0.2",
+    "pandas": "2.3.3"
+  },
+  "z_grid_counts": {
+    "1.5": 41,
+    "2.0": 25,
+    "2.5": 14
+  },
+  "z_selected": 1.5,
+  "n_events_low": 41,
+  "n_events_high_descriptive": 22,
+  "events_by_year": {
+    "2015": 2,
+    "2016": 9,
+    "2017": 7,
+    "2018": 4,
+    "2019": 6,
+    "2020": 10,
+    "2021": 3
+  },
+  "void_census": {
+    "degenerate_anchor": 321,
+    "warmup": 249,
+    "n_thin_void": 6,
+    "n_ret_void": 0
+  },
+  "uncond_fwd21_pips": {
+    "n": 2072,
+    "median_abs": 126.1499999999998,
+    "sd_abs": 175.1602465588927,
+    "sd_signed": 250.17409122048886,
+    "p25_abs": 55.77499999999915,
+    "p75_abs": 245.12500000000088
+  },
+  "z_acf": {
+    "lag5": 0.890891140669864,
+    "lag10": 0.81941185449398,
+    "lag21": 0.6977446468572783,
+    "lag42": 0.5140397325070317
+  },
+  "anchor_share_census": {
+    "p25": 0.39201783403002066,
+    "p50": 0.6298882244564843,
+    "p75": 0.8176702863633976
+  },
+  "mde_mean_net_pips": 131.1,
+  "gate_A_headroom": true,
+  "gate_B_power": true,
+  "verdict_if_stopped": null
+}

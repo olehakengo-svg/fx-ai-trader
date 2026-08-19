@@ -1,0 +1,25 @@
+{
+  "spec": "family-c-rate-anchor-explore-prereg-2026-08-19.md",
+  "files": {
+    "jgb_frozen": {
+      "path": "knowledge-base/raw/bt-results/family-c/data_freeze/jgb_yields_2026-08-19.csv",
+      "sha256": "d332a7bc8004d45c28d09a32a374b98d1f3c9a6e5728ff24e5990ac2900462f6",
+      "rows": 3328
+    },
+    "ust_frozen": {
+      "path": "knowledge-base/raw/bt-results/family-c/data_freeze/us_treasury_yields_2026-08-19.csv",
+      "sha256": "a5d1fa9377c0138eb656a63e833f5f57cb501c7ee219460c24d42d683114bb95",
+      "rows": 3554
+    },
+    "usdjpy_15m_parquet": {
+      "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/USD_JPY_15m_2014_2026.parquet",
+      "sha256": "f3b8cab6fad2bdf35629ff6501573e554a680bf917468b3304f10ec463811195",
+      "rows": 310624
+    },
+    "swap_panel": {
+      "path": "knowledge-base/raw/bt-results/e20/e20_carry_level.csv",
+      "sha256": "0b03ea58606ee4f43d3a0cef5a85f8556071f8caefccd0a2475a75431c6378a4",
+      "rows": 2609
+    }
+  }
+}

@@ -448,6 +448,16 @@
       ],
       "resolved_at": "2026-08-19",
       "resolution": "TRIGGERED → resolve。基盤 (会見 corpus 56 月次 jsonl / lexicon ladder スコア / forward 日次 cron) は PR #194 commit 569dbe3f で main 着地済みを実ファイルで確認。family A (発言ラダー→介入確率) の pre-reg 起草ゲートを解除し、09-18 スキャン (edge-supply-scan-monthly) の A/B/C 統合裁定の前提材料が揃った。通知 = KB 経由 (edge-dev への SendMessage は不達、MEMORY project_family_c_automation_packet)。注意: 基盤は**収集のみ** — ジョイント測定 (発言スコア × 価格/介入) は別 pre-reg の 観測前 LOCK まで禁止 (MoF #4 cross-LOCK 継続)。"
+    },
+    {
+      "id": "family-c-explore-verdict-deadline",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-08-29",
+      "doc": "knowledge-base/wiki/decisions/family-c-rate-anchor-explore-prereg-2026-08-19.md",
+      "message": "family C (台帳 #26) explore の verdict 期日 (凍結 2026-08-19 + 10d)。到達経路: 凍結セッション (dazzling-bhaskara) が two-pass を凍結当日に実行予定 — 本トリガは実行ギャップ時の backstop (T5 型防止)。TRIGGERED 時: knowledge-base/raw/bt-results/family-c/ の pass2 JSON 有無を確認し、無ければ pre-reg §4 の手順で two-pass を実行して verdict を台帳 #26 に記入。09-18 スキャン (edge-supply-scan-monthly) の A/B/C 統合裁定が本 verdict を確定材料として使う。",
+      "resolved": "2026-08-19",
+      "resolution": "verdict FAIL を凍結当日に執行 (期日 10 日前倒し)。N=41、gross −20.5p / net −24.2p、gate C p=0.527、LOYO 不安定。クローズ範囲発効 (日次金利差アンカー帯 × USD_JPY × 帯下 LONG × 5-63bd)。OOS 非接触封印。詳細: family-c-rate-anchor-explore-prereg-2026-08-19.md §11"
     }
   ]
 }
