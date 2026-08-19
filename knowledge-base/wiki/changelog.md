@@ -1,6 +1,11 @@
 # Changelog — バージョン別変更と評価基準日
 
-## 2026-08-19 — fix(watch): 条件付きトリガの評価器レベル欠陥 — 「常時 WATCHING」を機械評価へ (rule:R3)
+## 2026-08-19 — research(family-A): statement_ladder explore pre-reg 起草 (DRAFT、測定ゼロ) — 09-18 統合裁定の前提材料 (rule:R3)
+
+- **family A (発言ラダー→介入確率) の explore pre-reg を DRAFT 起草** ([[family-a-statement-ladder-prereg-2026-08-19]])。起点 = `statement-ladder-foundation-readiness` resolve (PR #195、基盤 PR #194) + user「進めて」。claim = queue ticket + 本 PR (E23 方式)
+- **estimand = ladder 検出器の較正 (hit / false alarm 率、価格全面不使用)** — dossier の指定どおり「発言ラダー先行 (N=4 記述)」の FP 率測定が本 family の仕事。primary = L≥4 遷移検出器 1 本 (m=1)、(T,R,H)=(5,20,20) 設計仮説、凍結は敵対的検証後に論拠のみで確定
+- **正直な拘束を事前固定**: 有効 N=4 episode blocks → **全 verdict 記述級** (edge 主張不可) / **P-A1 = lexicon v1 語彙は 2022/2024 目視検証を経た in-sample 汚染チャネル** → クリーン判定は forward OOS のみ (Q3 開示 ~11-06 が最初の機会、エピソードゼロ四半期も FP 側検証として記録) / lexicon は PR #194 commit `569dbe3f` に pin
+- **測定は未実施** (発言×介入ジョイント量ゼロ)。採否・explore 枠は 09-18 edge-supply-scan-monthly の A/B/C 統合裁定。台帳登録案 = #26 `statement_ladder_intervention_prob`。family B (介入イベント→回避/執行) は別 family として E-C 符号逆 prior を継承させる設計指示のみ記載
 
 - **`info`/`conditional_info` 型が dispatch で無条件に `WATCHING` を返すハードコードだった** ([[lesson-trigger-reachability-evaluator-2026-08-19]])。`condition` フィールドの発火条件は **一度も評価されず**、条件が成立しても TRIGGERED にならない設計。ZN 教訓 (「条件を書く」と「条件が起こりうる」は別物) の **4 例目、初の評価器レベル**
 - **実害**: `statement-ladder-foundation-readiness` は条件 (当局発言ラダー基盤の main 着地) が **PR #194 (`569dbe3f`) で既に成立済み**だったのに watching 表示のまま滞留。同トリガは family A (発言ラダー→介入確率) の pre-reg 起草ゲート = **能動測定ライン 0 本の状況で唯一動かせる供給ライン作業が黙って停止していた**。`deadline` も無視されており、期日付き手動エントリ (`volstate-split-*` / `carry-dip-v3-revival-watch`) は自分から期限切れを名乗れなかった
