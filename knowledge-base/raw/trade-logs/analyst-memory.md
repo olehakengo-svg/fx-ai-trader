@@ -3768,6 +3768,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - EUR/USD・GBP/USDはATR%ile 41%と**低ボラティリティ**。NYオープン（UTC 13:00以降）でUSD統計イベントがあれば一時的ATR拡張の可能性あり。
 - JPYクロス系（EUR/JPY 90%、GBP/JPY 84%、USD/JPY 90%）は引き続き高ATR——方向性が定まらない中での高ボラは**Scalp系にはノイズ**、DT系にはフォルスブレイクアウトリスクを高める。
 
+### 2026-08-19 (Post-NY Report)
+| WR | — |
+| PnL | ±0.0 pips |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+| 本日合計 PnL | **−11.7 pips** |
+| WR | **0.0%** |
+> **注記**: 本日の全活動は東京セッションの1トレードに集約。ロンドン・NYは完全に沈黙。「N=1 / WR=0%」は統計的判断不可領域（N<10）のため、戦略評価には使用不可。
+- `shadow_tracking` 18件は設計通りの除外。デモ段階のシャドウトレードがLive送信をブロックするのは仕様通り。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
