@@ -1,9 +1,9 @@
 # family_c_rate_anchor_deviation (台帳 #26) explore pre-reg — 観測前プロトコル凍結 (2026-08-19)
 
 **状態**: 🚧 DRAFT → 敵対的検証 → 🔒 FROZEN (凍結コミットが凍結点 — 以後の定義・閾値変更禁止、逸脱は verdict 無効)
-**family**: rates-anchor モダリティ (family C)。user「水平線理論」最終形の機械核 v2 ([[../analyses/family-c-anchor-automation-2026-08-18|自動化パケット]] §4 / MEMORY `user_manual_edge_usdjpy_carry_2026_08_12` 追記 7)。user 承認 2026-08-19「進めて」。
+**family**: rates-anchor モダリティ (family C)。user「水平線理論」最終形の機械核 v2 ([[family-c-anchor-automation-2026-08-18]] §4 / MEMORY `user_manual_edge_usdjpy_carry_2026_08_12` 追記 7)。user 承認 2026-08-19「進めて」。
 **臨時裁定 (§0)**: 改訂 WIP 原則 (「今日着手できる本数 ≥1」、scan round-3 §5 追補) — E21/E22 クローズ (08-17/18)・E23 は S2 設計中 (TDW ライセンス user 決裁待ちの残タスクあり) で**能動 explore 枠 0/3、今日着手可能 = 本件のみ** → 期日 (09-18) を待たず R3 臨時裁定。
-**敵対的検証**: [[../../raw/analysis/family-c-adversarial-verification-2026-08-19|family-c-adversarial-verification-2026-08-19]] — §10 に条件→解決マッピング。
+**敵対的検証**: [[family-c-adversarial-verification-2026-08-19]] — §10 に条件→解決マッピング。
 **ハーネス**: `tools/family_c_anchor_explore.py` (凍結コミット同梱、seed 20260819)。**測定は凍結コミット後のみ・two-pass 厳守**。
 **台帳スロット**: #26 explore = **1/3 active** (E22 #24 クローズ 08-17 以降 0/3 → 本件で 1/3)。
 **live への影響**: ゼロ。live/tier/lot/Kelly/shadow 構成は一切変更しない。
@@ -32,6 +32,7 @@
 4. 外部/新規 family 系統の explore→OOS 生存 **0/16**。
 5. **E21: user 実績の timing α 不検出 (p=0.32、収益 = swap 28% + 価格ドリフト 72%)** — 本件はその thesis の機械核を検定するのであって、user が α を持つ証拠は現時点で存在しない。
 6. anchor 縮退リスク: 2020-2021 は金利差がほぼ不動 (両国 ZIRP 近傍) — 回帰は ill-conditioned になりうる (§3 縮退 void 規則で処理、件数報告)。イベントが後半窓に立たない可能性は UNDERPOWERED 分岐で正直に処理。
+7. **外挿限界の事前記録 (lane-owner 要請 1、[[intervention-history-anatomy-2026-08-18]] dossier)**: E-C の +188p リトレース (PR #189) は**介入型**の帯下人工乖離だが、explore 窓 2014-2021 は**介入ゼロ** — 本 explore が検定するのは**非介入型の帯下乖離**のみ。PASS/FAIL いずれでも「介入 dip への外挿」は本 verdict の claim 範囲外 (介入層との統合は 09-18 裁定の family B/C 統合設計マター)。
 
 **正の差分 prior (§8 の存在理由)**: (i) anchor が価格由来でない (level family 5 corpse と非同型) かつ**日次リプライス** (ppp は月次 CPI + 45 日 staleness)、(ii) USD_JPY↔金利差のレベル追従は 2014-2021 で最も文書化された FX-マクロ関係、(iii) **swap が trade 側 (LONG) に有利** — slow-MR 死型 4 例で初めて摩擦が味方につく、(iv) イベント設計 (連続 IC でなく尾部集中) で per-event 効果量の土俵に乗せる。
 
@@ -56,7 +57,8 @@
 | フェアバリュー | rolling OLS: log C_d = a + b·diff2y over 直近 **W = 252 valid D1** (完全窓必須)。fitted_d = a + b·diff2y_d |
 | 乖離 z | z_d = (log C_d − fitted_d) / std(residuals, ddof=1) (同一 252 窓) |
 | 縮退 void | 窓内 std(diff2y) < **0.10 %pt** → 当該日 z void (回帰 ill-conditioned、件数・年次分布を pass-1 census 報告)。2020-21 の ZIRP 期に void が集中する見込みを事前記録 — void はイベント不成立であって欠陥ではない |
-| onset イベント | z が **−Z_th を上から下へクロス** (z_{d−1} ≥ −Z_th ∧ z_d < −Z_th、両日 valid)。**min separation = 5 valid D1** (直前 onset から 5 日未満のクロスは無視 — 同一エピソード多重計上防止) |
+| onset イベント | z が **−Z_th を上から下へクロス** (直前の valid z 観測 ≥ −Z_th ∧ 当日 z < −Z_th — void 跨ぎのクロスも「直前 valid 観測」基準で判定)。**min separation = 5 valid D1** (直前 onset から 5 日未満のクロスは無視 — 同一エピソード多重計上防止) |
+| warmup 事前記録 | 価格 parquet 左端 = 2013-12-29 → W=252 valid D1 warmup により**最初の有効 z ≈ 2014-12 末 = 2014 年はほぼ全日 warmup void → 実効 explore ≈ 2015-01..2021-12 (7 年)**。これは機械的 warmup であって窓選択ではない (pass-1 census で実測値を記録) |
 | Z_th 機械選定 | pass-1 (outcome 非接触) で grid **{1.5, 2.0, 2.5}** から explore 窓 onset 数 N_ev ∈ [30, 150] のうち **\|N_ev − 60\| 最小**を選定、tie は大きい方。全 grid で N_ev < 30 → **UNDERPOWERED** (pass-2 非解錠)。全 grid で N_ev > 150 → 2.5 採用。選定は機械的・事前宣言 (MoF #4 §4 rule 校正の同型) |
 | サイド | **LONG のみ** (下方 onset)。上方 onset (+Z_th 上抜け) は同一機械定義で列挙・記録するが descriptive (claim 恒久禁止) |
 | horizon | **PRIMARY = +21 valid D1** close-to-close (t0 = onset 日 close、entry = onset 当日終値 — シグナルは同日 close + lag-1bd yields で構成されるため lookahead なし)。net move (pips, pip=0.01) = (C_{t0+21} − C_{t0})/0.01。span > 45 暦日 → void。**SECONDARY = +5 valid D1 (診断のみ、gate 判定に不使用)** |
@@ -83,7 +85,8 @@
 - verdict: 全 binding gate (A, C–G) 通過 = **explore PASS** → OOS pass。gate B 未達 = **UNDERPOWERED**。他 = **FAIL クローズ** (OOS 非接触)。閾値の事後変更禁止。
 - **OOS gates (事前凍結)**: (i) 同一定義の片側 placebo p ≤ 0.05 (seed 20260821)、(ii) OOS pooled mean net_21 adverse 端 > 0、(iii) **OOS N_ev ≥ 15** 未達 = OOS UNDERPOWERED、(iv) 経済 floor: OOS mean net_21 ≥ **+10.0p**。**全通過 = family PASS → stage-2 (執行設計) は別 pre-reg + user 最終承認 — live/shadow/tier/lot 変更ゼロ、autopilot による実装着手も禁止**。
 - **BH 分母合流条項**: 本 verdict 前に他 explore family 起動時は BH q=0.10 合流 (cc-mr §5 (c) 継承)。
-- **claim 範囲の恒久限定**: family-pooled USD_JPY LONG onset のみ。サブ期間/深さ bin/上方サイド等の per-slice claim は結果如何によらず禁止。
+- **claim 範囲の恒久限定**: family-pooled USD_JPY LONG onset のみ。サブ期間/深さ bin/上方サイド等の per-slice claim は結果如何によらず禁止。**非介入型乖離のみ** (§1 負 prior 7 の外挿限界)。
+- **分解報告義務 (lane-owner 要請 4、E21 慣行)**: verdict には gross move / swap / net を**分離して併記** (swap 受取が verdict を作っている場合に識別可能にする)。
 
 ## §6 permutation と正直 MDE (完全凍結)
 
