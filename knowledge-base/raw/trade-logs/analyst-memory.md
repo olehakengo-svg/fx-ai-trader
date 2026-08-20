@@ -3798,6 +3798,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 | 🟡 監視 | daytrade_eurjpy / daytrade_gbpjpy | 高ATR RANGINGでシグナル出現可能性あり、hedge_block頻度に注意 |
 **NO ACTION推奨の根拠:**
 
+### 2026-08-20 (Post-London Report)
+| 勝率（WR） | 50.0% |
+| セッション PnL | **+29.1 pips** |
+| 平均 EV/トレード | +7.28 pips |
+| 戦略 | ペア | 方向 | PnL | スプレッド |
+**成功要因**：USD_JPY が ATR%ile=86%・TRENDING_DOWN レジームにおいて、キャリー押し目戦略の両エントリーが OANDA_SL_TP による規律ある決済で完結し、スプレッド摩擦（0.8）が十分に低く実EV を損なわなかった。
+※ただし2件のうち1件は PnL=+0.7 pip と最低限の勝利であり、実質的な稼ぎは1件目（+38.2）に依存している点に留意。
+| 戦略 | ペア | 方向 | PnL | 敗因 |
+本日データには東京セッション（UTC 00:00–07:00）分の別集計が提供されていないため、**直接比較は不能**。本日累計 N=4・PnL=+29.1 がそのままロンドン分と一致していることから、**本日は東京セッションでのトレード発生なし**と判断される。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
