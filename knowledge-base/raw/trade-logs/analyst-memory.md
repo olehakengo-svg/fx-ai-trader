@@ -3788,6 +3788,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - シグナルの枯渇が「フィルタ過剰」か「正当なno-trade」かは本日の相場展開で判断
 - **JPY全般が高ATR・下降トレンド**: JPYクロスのロング戦略は全てレジーム逆風
 
+### 2026-08-20 (Post-Tokyo Report)
+| PnL | 0.0 pips |
+| WR | N/A |
+| GBP_JPY | RANGING | 79% | 同上。EUR_JPY相関に注意 |
+### 推奨戦略配分
+**NO ACTION推奨 — ただし監視強化**
+| 推奨度 | 戦略 | 理由 |
+| 🟡 監視 | daytrade_eurjpy / daytrade_gbpjpy | 高ATR RANGINGでシグナル出現可能性あり、hedge_block頻度に注意 |
+**NO ACTION推奨の根拠:**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
