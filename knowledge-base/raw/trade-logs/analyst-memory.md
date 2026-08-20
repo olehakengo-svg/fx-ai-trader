@@ -3778,6 +3778,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 > **注記**: 本日の全活動は東京セッションの1トレードに集約。ロンドン・NYは完全に沈黙。「N=1 / WR=0%」は統計的判断不可領域（N<10）のため、戦略評価には使用不可。
 - `shadow_tracking` 18件は設計通りの除外。デモ段階のシャドウトレードがLive送信をブロックするのは仕様通り。
 
+### 2026-08-20 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **-11.7 pips** |
+| 全体WR | **0.0%** |
+| Strategy | Pair | N | WR% | EV | PnL |
+> **注意**: N=4 は統計的判断不可領域（データなし扱い）。EV=-8.57は現時点では参考値に留める。ただし4/4で全損失のうち3件・BUY方向のSL_HIT連続は、TRENDING_DOWN（後述）環境との方向性ミスマッチを示唆する。
+- `usdjpy_carry_dip_accumulator`のBUY方向シグナルはTRENDING_DOWN継続中は**信頼度低**と認識して監視
+- Kelly負の状態が継続する限り、OANDAへのSENTは構造的に0件が続く（設計通り）
+- シグナルの枯渇が「フィルタ過剰」か「正当なno-trade」かは本日の相場展開で判断
+- **JPY全般が高ATR・下降トレンド**: JPYクロスのロング戦略は全てレジーム逆風
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
