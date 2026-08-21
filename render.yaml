@@ -5,6 +5,41 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1 --threads 8 --worker-class gthread
     plan: pro
+    # ── デプロイ churn 抑制 (2026-08-21, rule:R3) ────────────────────────────
+    # 問題: main への全 commit が web service を再デプロイし、取引エンジン
+    #   (per-mode background threads) を再起動する。実測 18.8 deploy/日、うち
+    #   78% は KB ドキュメント専用 commit。1 回あたり実測 ~60s の完全無 tick +
+    #   ~2.5-3 分の 24 モード ramp-up (cold cache で tick#1 が 10s 級)。
+    #   2026-08-21T01:06/01:09 の連続 KB commit では、新インスタンスが ramp
+    #   完了前 (85s) に次デプロイで kill された。原則 1 (マーケット開いてる間
+    #   は攻める) とクリーン N 蓄積に直接反する構造欠陥。
+    # 対策: ランタイムが読まない KB パスのみ ignore する。
+    # ⚠️ ここに足してよいのは「app.py / modules/ が読まない」パスだけ。
+    #   ランタイム read (tier-master.json / wiki/snapshots/ / trade-logs/
+    #   analyst-memory*.md) は意図的に除外 = デプロイを起こさせる。
+    #   逸脱は tests/test_render_build_filter.py が CI で落とす。
+    # 導出: knowledge-base/wiki/analyses/deploy-churn-trading-gap-2026-08-21.md
+    buildFilter:
+      ignoredPaths:
+        - "knowledge-base/wiki/sessions/**"
+        - "knowledge-base/wiki/lessons/**"
+        - "knowledge-base/wiki/analyses/**"
+        - "knowledge-base/wiki/syntheses/**"
+        - "knowledge-base/wiki/strategies/**"
+        - "knowledge-base/wiki/learning/**"
+        - "knowledge-base/wiki/log.md"
+        - "knowledge-base/wiki/changelog.md"
+        - "knowledge-base/wiki/index.md"
+        - "knowledge-base/wiki/audit-index.md"
+        - "knowledge-base/wiki/tier-master.md"
+        - "knowledge-base/raw/trade-logs/20??-??-??*.md"
+        - "knowledge-base/raw/audits/**"
+        - "knowledge-base/raw/bt-results/**"
+        - "knowledge-base/raw/hunt_events/**"
+        - "knowledge-base/raw/market-analysis/**"
+        - "knowledge-base/raw/intervention_watch/**"
+        - "knowledge-base/raw/analysis/**"
+        - ".remember/**"
     disk:
       name: fx-data
       mountPath: /var/data
