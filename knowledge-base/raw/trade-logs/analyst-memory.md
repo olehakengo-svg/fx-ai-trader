@@ -3828,6 +3828,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **今日の対処**：観察継続のみ。N=10到達前に降格判断を下すのは早計。ただし連続`horizon`決済は「シグナル質の低下」のプロキシとして警戒継続。
 - Cutoff後N=8という極端なスロー蓄積は、shadow_trackingによるスキップ（本日ブリッジ確認: 19件スキップ）と、direction_filter/hedge_blockによる大量ブロックが主因。システムは動いているが「弾が出ていない」状態。
 
+### 2026-08-21 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+- 今日のゼロトレードは「エントリー抑制が設計通り機能した結果」であり、誤作動ではない
+- USD_JPY TRENDING_DOWN（ATR%ile 81%）下での `rnb_usdjpy:direction_filter` 多発は適切なリスク回避
+- OANDA転送率0%（SENT=0/50）は全50件がshadow_tracking(15件) or agg_kelly<0(5件)でフィルターされており、Kelly gate が正常にリスク遮断中
+- **agg_kelly=−0.331<0** のブロックが5件 — 現在のポートフォリオEV構造がマイナスと判定されており、昇格条件（N≥30 & EV≥1.0）を満たすセルが存在しない状態を反映
+- コード変更は本分析の対象外であり、データが「何もするな」と告げている
+| ペア | 現在レジーム | ロンドン移行予測 | 注意点 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
