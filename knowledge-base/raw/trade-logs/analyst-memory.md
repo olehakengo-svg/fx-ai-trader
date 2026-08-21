@@ -3838,6 +3838,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - コード変更は本分析の対象外であり、データが「何もするな」と告げている
 | ペア | 現在レジーム | ロンドン移行予測 | 注意点 |
 
+### 2026-08-21 (Post-London Report)
+| 勝率 (WR) | 0.0% |
+| PnL | +0.0 pips |
+| セッション寄与 | BREAKEVEN |
+**該当なし。** 唯一のトレード（`price_shock_rev_eur_gbp_h1_long`）はBREAKEVENで、勝利とは計上できない。
+| 戦略 | ペア | PnL | 失敗要因 |
+| price_shock_rev_eur_gbp_h1_long | EUR_GBP | +0.0 | horizon終了によるクローズ——価格インパルスが持続せずBREAKEVEN着地 |
+**補足**: GBP_USDレジームがRANGING（ATR%ile 34%）、GBP_JPYもRANGING（67%）という低ATR環境下では、price_shock系戦略のトリガー条件を満たしても値動きが続かない構造的不利があった。スプレッド1.3pipsはEUR_GBPとして許容範囲内だが、EVに寄与できるほどの方向性が出なかった。
+| WR | — | 0.0% |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
