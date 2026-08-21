@@ -3848,6 +3848,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 **補足**: GBP_USDレジームがRANGING（ATR%ile 34%）、GBP_JPYもRANGING（67%）という低ATR環境下では、price_shock系戦略のトリガー条件を満たしても値動きが続かない構造的不利があった。スプレッド1.3pipsはEUR_GBPとして許容範囲内だが、EVに寄与できるほどの方向性が出なかった。
 | WR | — | 0.0% |
 
+### 2026-08-21 (Post-NY Report)
+| WR | — |
+| PnL (pips) | **+0.0** |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+- **PnL**: +0.0 pips（実質フラット）
+- **トレード数**: 1（ロンドンのみ、PnL=0.0で詳細不明）
+- **最も成績が良かったセッション**: ロンドン（唯一のトレード発生セッション、ただしEV評価不能）
+- **最も成績が悪かったセッション**: 東京・NY（完全無取引、機会損失）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
