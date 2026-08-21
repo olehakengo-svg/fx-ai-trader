@@ -1,5 +1,17 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-21 — fix(deploy): KB ドキュメント commit が取引エンジンを再起動する構造欠陥を是正 (rule:R3)
+
+- **発見**: autopilot ヘルスチェックで本番 502 → 障害ではなく**自分の push が誘発した再デプロイ swap 窓**と判明。「1 commit で取引エンジンが止まる」構造に気づいたのが起点 ([[deploy-churn-trading-gap-2026-08-21]])
+- **実測 (origin/main 14 日)**: web service デプロイ **18.8/日**、うち **78% が `knowledge-base/` のみの commit**。`autoDeploy: commit` に path filter が無く、ドキュメント更新がそのまま `demo_trader.py` の per-mode background threads 再起動になっていた
+- **1 回のコスト (Render app ログ instance 追跡)**: 旧 instance 最終 tick 01:07:47.8 → 新 instance MainLoop 開始 01:08:47.2 = **完全無 tick ≈59.5 秒**、全 24 モード到達まで **+2m39s**、cold cache で tick#1 が 10s 級 (定常 0.6s)
+- **最悪ケース実測**: KB commit が 2m22s 間隔で連続した結果、新 instance が **寿命 85 秒・全モード tick#1〜#3 の warm-up 未完了のまま kill**。連続 KB commit 中はエンジンが定常状態に到達できない
+- **対策 (R3)**: `render.yaml` web service に `buildFilter.ignoredPaths` を追加。**ランタイム read パスは意図的に除外** — `wiki/tier-master.json` / `wiki/snapshots/` / `raw/trade-logs/analyst-memory*.md` / `wiki/decisions/prereg-trigger-registry.json` はデプロイを起こさせる。ignore 対象は write-only (`raw/hunt_events/`, `raw/bt-results/`) と純ドキュメントのみ
+- **効果 (同一 14 日窓で再生)**: デプロイ **18.8/日 → 7.9/日 (−58%)** (263→110。merge commit は first-parent 差分で評価)。残存最大要因は `analyst-memory.md` (41件、シグナル経路外だがランタイム read のため保守的に残置)
+- **再発防止** `tests/test_render_build_filter.py` 3 件: ignoredPaths 縮小検知 / **ランタイム read 巻き込み検知** / **drift guard** (`app.py`+`modules/` の KB 参照を regex 抽出し、ignore に match するものは write-only allowlist 必須)。故意の違反注入で赤くなることを確認済み (非 vacuous)。pyyaml 非依存 (`scripts/check.py` と同じ regex 方式)
+- **範囲外 (主張しない)**: 逸失 pip の定量化。断続窓と発火の同時性は未測定 — 主張は「不要な断続窓が構造的に存在した」機構レベルの事実のみ
+- 教訓: **CI の paths filter (T15 で撤廃) と CD の build filter は別問題。前者は「テストを回すか」、後者は「取引エンジンを殺すか」**
+
 ## 2026-08-19 — research(family-C): rate_anchor_deviation explore — 臨時裁定 #26 + pre-reg 凍結 + two-pass (rule:R1 手続き)
 
 - **family C (user 水平線理論の機械核 v2 = 金利観測フェアバリュー帯乖離リバージョン) を臨時裁定で台帳 #26 に採用** (改訂 WIP 原則: 能動 explore 枠 0/3 + user 直接承認 2026-08-19「進めて」)。claim = PR #197 + edge-dev レーン cross-session 承認、explore 枠 1/3 消費
