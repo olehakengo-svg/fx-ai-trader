@@ -172,3 +172,116 @@ match する KB 専用 commit。**デプロイが作られなかった** = フ�
 
 §4.2 の「18.8/日 → 7.9/日 (−58%)」は履歴再生による**推定**だが、
 機構そのもの (KB 専用 commit が skip される) は上記で**実証済み**。
+
+---
+
+## 8. phase-2 — 残存 churn の実測分解と恒久抑制 (2026-08-23, rule:R3)
+
+### 8.1 phase-1 の事後実測 (推定でなく実データ)
+
+§4.2 の「7.9/日 (−58%)」は履歴再生による**推定**だった。PR #199 マージ
+(`4e2b69b9`, 2026-08-21T01:57Z) 以降の実データで検証する。
+
+| 指標 | 値 |
+|---|---|
+| main への commit (マージ後〜08-23T11:30Z, 非マージ) | 31 |
+| Render が実際に走らせたデプロイ | **4** |
+| 実効デプロイ頻度 | **1.7/日** (baseline 18.8/日 から **−91%**) |
+
+**推定 7.9/日 は保守的に外していた**（実測はその 1/4.6）。原因は再生スクリプトが
+マージ commit の file list を `git show` で取れていなかったこと (MEMORY
+`project_deploy_churn_trading_gap_2026_08_21` に既出の罠) と、実運用の
+commit 構成比が窓によって振れること。**以後この種の効果は推定でなく
+Render deploy 一覧との突き合わせで報告する。**
+
+### 8.2 残存 churn の全量分解
+
+ローカル再生 (buildFilter を適用して 31 commit を判定) が Render の
+deploy 一覧と **4/4 完全一致** したので、残存源は網羅的に確定できる:
+
+| # | 源 | 頻度 | ランタイム read か |
+|---|---|---|---|
+| (a) | `knowledge-base/raw/trade-logs/analyst-memory.md` | **3/平日** (daily_report の post_tokyo / post_london / post_ny) | read だが**助言専用** |
+| (b) | `bt-results/phase1b/**` + `data/sentiment/**` | 1/日 (phase1b 日次 re-run) | **参照ゼロ** |
+| (c) | `knowledge-base/raw/cell_deepdive/**` | 不定 (~1/2週) | **参照ゼロ** |
+
+### 8.3 (a) の再分類 — 「ランタイム read」を 2 階層に割る
+
+phase-1 は read/write の 2 値で分類し、`analyst-memory.md` を「read だから
+デプロイを起こさせる」に置いた。**これは粒度が粗すぎた。**
+
+全数 grep による実際の参照経路:
+
+```
+app.py:11651 _read_analyst_memory()
+  └─ app.py:11749 get_analyst_opinion()
+       └─ app.py:12229 @app.route("/api/analyst-opinion")   ← 人手起動のみ
+```
+
+- `modules/` からの参照: **ゼロ**
+- `demo_trader` / signal 生成 / OANDA 転送からの参照: **ゼロ**
+- 起動時ロード: **無し** (リクエスト毎に読む)
+
+つまり売買判断はこのファイルを一切見ない。**助言メモの鮮度のために
+平日 3 回 × (無 tick ~60s + ramp ~2.5-3 分) を払っていた** = 平日あたり
+約 10 分の劣化取引。原則 1 (マーケット開いてる間は攻める) に反する。
+
+→ 分類を **取引パス read / 助言専用 read / write-only** の 3 階層に改め、
+助言専用は ignore 可とする。
+
+**代償と、その可視化**: ignore すると本番の memo は「最後にコード系
+commit でデプロイした時点」で固定される。phase-1 の test docstring が
+警戒していた「サイレント汚染」がまさにここで起きうる。そこで
+`/api/analyst-opinion` の応答に **`memory_stale_days`** を同梱し、
+陳腐化を**観測可能**にした (サイレントにしない、が交換条件)。
+
+### 8.4 副産物 — guard の抽出器がコメント行で黙って打ち切られていた
+
+`tests/test_render_build_filter.py::_ignored_paths()` の regex は
+`(?:\s*-\s*.+\n)+` で、**リスト途中のコメント行 `# ...` で抽出が止まる**。
+phase-2 でリスト内に注記を入れた瞬間、それ以降の entry が guard の視界から
+消えた (= 検査が黙って無力化)。実際、`data/**` を誤って ignore する
+counterfactual を注入しても **6 テスト全て pass した**。
+
+修正 + `test_ignored_paths_parser_sees_entries_after_inline_comments` で pin。
+修正後は同じ counterfactual で 4 テストが落ちることを確認済み。
+
+さらに phase-1 の drift guard は `"knowledge-base"` 起点のリテラルしか
+走査していなかったため、`data/sentiment/**` / `bt-results/**` を ignore した
+瞬間に非 KB ルートの穴が空く →
+`test_no_new_runtime_data_path_silently_ignored` を新設し、`data` /
+`bt-results` 起点も同じ検査にかける (実測で `data/cache/massive` /
+`data/cache/yield` / `data/_holdout_locked/MANIFEST.json` の 3 件を検出、
+`cached["data"]` 等の dict 添字は継続セグメント要求により偽陽性ゼロ)。
+
+### 8.5 効果 (同一 31 commit 窓の再生)
+
+| | phase-1 | phase-2 |
+|---|---|---|
+| would-deploy | 4 (実測 4 と一致) | **0** |
+| suppressed | 26 | **31** |
+
+反対側の検証 (過剰抑制でないこと): 直近 276 commit で再生すると
+**32 commit は依然デプロイを起こす** — `modules/demo_trader.py`,
+`tools/*.py`, `tests/*`, `.github/workflows/*`,
+`knowledge-base/wiki/decisions/prereg-trigger-registry.json`,
+`data/cache/yield/*.parquet` (ランタイム read) 等。**コード/設定/ランタイム
+データの変更は正しくデプロイされる。**
+
+### 8.6 追わなかった候補
+
+`knowledge-base/wiki/decisions/**.md` (純ドキュメント、ランタイム read ゼロ)
+は 276 commit 窓で ~11 件の deploy に関与するが、その大半は同 commit の
+`prereg-trigger-registry.json` (意図的に非 ignore) やコードと同梱のため
+**単独では churn を生まない**。phase-2 後の残存が実測 0 である以上、
+投機的な拡大はしない。**churn が再発したらここが次の候補。**
+
+### 8.7 教訓
+
+- **「ランタイムが読む」は分類として粗い。読む主体が取引パスか、人手起動の
+  助言系かで、デプロイを払う価値が桁違いに変わる。**
+- **設定ファイルのリスト内にコメントを足す変更は、その設定を読む
+  パーサ全部を疑え。** guard 自身が無力化されても全テストが green になる。
+  guard を触ったら必ず counterfactual を注入して**落ちること**を確認する。
+- **効果報告は履歴再生の推定でなく、本番の実行記録と突き合わせる。**
+  今回、推定 7.9/日 に対し実測 1.7/日 だった。

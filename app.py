@@ -11659,6 +11659,26 @@ def _read_analyst_memory() -> str:
         pass
     return ""
 
+
+def _analyst_memory_stale_days():  # -> Optional[float] (py3.9 互換: PEP604 不可)
+    """analyst-memory.md の鮮度 (日) を返す。取得不能なら None。
+
+    2026-08-23 (rule:R3): 本ファイルは render.yaml buildFilter で ignore された
+    (取引パス非参照の助言メモのために平日 3 回の取引エンジン再起動を払うのは
+    原則 1 に反するため)。その代償として本番の memory は「最後にコード系
+    commit でデプロイした時点」で固定される = 陳腐化しうる。
+    サイレント陳腐化を防ぐため、鮮度を応答に同梱して観測可能にする。
+    導出: knowledge-base/wiki/analyses/deploy-churn-trading-gap-2026-08-21.md §phase-2
+    """
+    try:
+        path = os.path.join(os.path.dirname(__file__), _ANALYST_MEMORY_FILE)
+        if not os.path.exists(path):
+            return None
+        age = _time_mod.time() - os.path.getmtime(path)
+        return round(age / 86400.0, 2)
+    except Exception:
+        return None
+
 def _rotate_analyst_memory(path: str) -> None:
     """メモリが上限超過時に古いエントリをアーカイブに退避。"""
     try:
@@ -11823,6 +11843,9 @@ def get_analyst_opinion(question: str, market_context: dict = None) -> dict:
             "opinion":      opinion,
             "model":        "claude-opus-4-5",
             "memory_used":  bool(memory),
+            # buildFilter ignore 化 (2026-08-23) に伴う鮮度テレメトリ。
+            # 本番でこの値が数日級に膨らむのは設計通り (助言メモのみ)。
+            "memory_stale_days": _analyst_memory_stale_days(),
             "question":     question,
         }
 
