@@ -14,11 +14,27 @@ services:
     #   完了前 (85s) に次デプロイで kill された。原則 1 (マーケット開いてる間
     #   は攻める) とクリーン N 蓄積に直接反する構造欠陥。
     # 対策: ランタイムが読まない KB パスのみ ignore する。
-    # ⚠️ ここに足してよいのは「app.py / modules/ が読まない」パスだけ。
-    #   ランタイム read (tier-master.json / wiki/snapshots/ / trade-logs/
-    #   analyst-memory*.md) は意図的に除外 = デプロイを起こさせる。
+    # ⚠️ ここに足してよいのは「取引パスが読まない」パスだけ。
+    #   取引パス read (tier-master.json / wiki/snapshots/ / registry json) は
+    #   意図的に除外 = デプロイを起こさせる。
     #   逸脱は tests/test_render_build_filter.py が CI で落とす。
     # 導出: knowledge-base/wiki/analyses/deploy-churn-trading-gap-2026-08-21.md
+    #
+    # ── phase-2 (2026-08-23, rule:R3) ──────────────────────────────────
+    # phase-1 後の実測 = 30 commit / 4 deploy (1.7/日、baseline 18.8 から −91%)。
+    # 残存 churn の全量は 2 源のみ (Render deploy 一覧と完全一致):
+    #   (a) analyst-memory.md ×3/平日 — daily_report の post_tokyo/london/ny
+    #   (b) bt-results/phase1b + data/sentiment ×1/日 — phase1b 日次 re-run
+    # (a) は「ランタイム read」だが read 元は `/api/analyst-opinion` のみ
+    #   (app.py:11749 ← :12229、人手起動の助言エンドポイント)。取引パス
+    #   (demo_trader / signal / OANDA 転送) からの参照はゼロ (全数 grep)。
+    #   助言メモの鮮度のために平日 3 回 × (無 tick ~60s + ramp ~2.5-3 分) を
+    #   払うのは原則 1 に反する → ignore へ移す。サイレント化を防ぐため、
+    #   /api/analyst-opinion 応答に memory_stale_days を同梱した (app.py)。
+    # (b) は app.py / modules/ からの参照ゼロ (scripts/ の研究出力専用)。
+    #   ※ app.py:12309 の bt-results は knowledge-base/raw/ 配下の別物。
+    #   ※ data/ でも cache/massive・cache/yield・_holdout_locked は
+    #      ランタイム read のため ignore しない (test が固定)。
     buildFilter:
       ignoredPaths:
         - "knowledge-base/wiki/sessions/**"
@@ -39,6 +55,13 @@ services:
         - "knowledge-base/raw/market-analysis/**"
         - "knowledge-base/raw/intervention_watch/**"
         - "knowledge-base/raw/analysis/**"
+        - "knowledge-base/raw/cell_deepdive/**"
+        # phase-2: 助言エンドポイント専用 read (取引パス非参照)
+        - "knowledge-base/raw/trade-logs/analyst-memory.md"
+        - "knowledge-base/raw/trade-logs/analyst-memory-archive.md"
+        # phase-2: 研究出力 (scripts/ のみが読み書き、ランタイム非参照)
+        - "bt-results/**"
+        - "data/sentiment/**"
         - ".remember/**"
     disk:
       name: fx-data

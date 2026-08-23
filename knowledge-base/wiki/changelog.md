@@ -1,5 +1,17 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-23 — fix(deploy): 残存デプロイ churn を実測分解して恒久ゼロ化 (phase-2, rule:R3)
+
+- **phase-1 の効果を推定でなく実測で確定**: PR #199 マージ (08-21T01:57Z) 以降の main 31 commit に対し Render が実際に走らせたデプロイは **4 件 = 1.7/日** (baseline 18.8/日 から **−91%**)。§4.2 の推定「7.9/日」は保守的に外していた (実測はその 1/4.6) — **以後この種の効果は Render deploy 一覧との突き合わせで報告する** ([[deploy-churn-trading-gap-2026-08-21]] §8)
+- **残存源の全量分解** (ローカル再生が Render の deploy 一覧と 4/4 完全一致 = 網羅性の担保): (a) `analyst-memory.md` **3/平日** (daily_report の post_tokyo/london/ny)、(b) `bt-results/phase1b` + `data/sentiment` 1/日 (phase1b 日次 re-run)、(c) `raw/cell_deepdive/` 不定
+- **(a) の再分類 — 「ランタイム read」は粒度が粗すぎた**: 全数 grep で参照経路は `_read_analyst_memory` (app.py:11651) → `get_analyst_opinion` (:11749) → `/api/analyst-opinion` (:12229) の**人手起動エンドポイントのみ**。`modules/` / demo_trader / signal / OANDA 転送からの参照は**ゼロ**、起動時ロードも無し。**助言メモの鮮度のために平日 3 回 × (無 tick ~60s + ramp ~2.5-3 分) ≈ 平日 10 分の劣化取引**を払っていた = 原則 1 違反 → 分類を **取引パス read / 助言専用 read / write-only** の 3 階層に改め、助言専用は ignore 可とした
+- **代償の可視化 (サイレントにしないことが交換条件)**: ignore により本番 memo は最後のコード系デプロイ時点で固定される → `/api/analyst-opinion` 応答に **`memory_stale_days`** を同梱し陳腐化を観測可能に (`app.py::_analyst_memory_stale_days`)
+- **🔴 副産物 — guard の抽出器がコメント行で黙って打ち切られていた**: `_ignored_paths()` の regex `(?:\s*-\s*.+\n)+` はリスト途中の `# ...` で停止し、以降の entry が検査の視界から消える。`data/**` を誤 ignore する counterfactual を注入しても **6 テスト全て pass** した (= 検査の無力化)。修正 + `test_ignored_paths_parser_sees_entries_after_inline_comments` で pin、修正後は同 counterfactual で 4 テストが落ちることを確認
+- **drift guard を非 KB ルートへ拡張**: phase-1 の guard は `"knowledge-base"` 起点リテラルしか走査せず、`data/**` / `bt-results/**` を ignore した瞬間に穴が空く → `test_no_new_runtime_data_path_silently_ignored` を新設 (実測検出 = `data/cache/massive` / `data/cache/yield` / `data/_holdout_locked/MANIFEST.json`、`cached["data"]` 等の dict 添字は偽陽性ゼロ)
+- **効果**: 同一 31 commit 窓の再生で would-deploy **4 → 0**。過剰抑制でないことの対照 = 直近 276 commit では **32 commit が依然デプロイを起こす** (`modules/demo_trader.py` / `tools/` / `tests/` / `.github/workflows/` / `prereg-trigger-registry.json` / `data/cache/yield/*.parquet` 等のランタイム read)
+- **範囲外 (主張しない)**: 逸失 pip の定量化。主張は「不要な断続窓が構造的に存在し、その全量を実測で特定して消した」機構レベルの事実のみ
+- 教訓: **設定リストにコメントを足す変更は、その設定を読むパーサ全部を疑え。guard 自身が無力化されても全テストは green になる — guard を触ったら counterfactual を注入して「落ちること」を必ず確認する**
+
 ## 2026-08-21 — fix(deploy): KB ドキュメント commit が取引エンジンを再起動する構造欠陥を是正 (rule:R3)
 
 - **発見**: autopilot ヘルスチェックで本番 502 → 障害ではなく**自分の push が誘発した再デプロイ swap 窓**と判明。「1 commit で取引エンジンが止まる」構造に気づいたのが起点 ([[deploy-churn-trading-gap-2026-08-21]])
