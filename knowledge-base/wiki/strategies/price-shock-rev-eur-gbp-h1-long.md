@@ -4,6 +4,36 @@
 
 **Tier**: Tier 2 — Live MIN lot 1000u 固定 (Kelly half / DD multiplier / lot ramp bypass) | **Activation**: 2026-05-18 [[price-shock-rev-live-activation-2026-05-18]]
 
+## 🔴 Live 実績 (post-cutoff 2026-04-08〜, is_shadow=0) — 2026-08-23 初計上
+| N | W/L | WR | PnL | Mean/trade | Wilson_lo | DSR |
+|---|---|---|---|---|---|---|
+| **3** | **0W/3L** | **0.0%** | **−9.8 pip** | −3.27 | 0.0 | insufficient (n<閾値) |
+
+**live デビューで 0勝3敗。** 確認済み OANDA fill (audit limit=800、いずれも EUR_GBP BUY 1000u、real trade id 付き = false-sent ではない):
+- **#681143** — 2026-08-20 07:41:37 UTC
+- **#700421** — 2026-08-20 12:59:23 UTC
+- **#709529** — 2026-08-21 11:39:53 UTC
+
+`sent` 行は戦略名、`filled` 行は mode 名 `daytrade_1h_eurgbp` (twin-meaning)。
+
+### BT との乖離
+| | BT (12.3y MASSIVE, commit 63c7cf18) | Live (2026-08-23) |
+|---|---|---|
+| N | 239 | 3 |
+| WR | 72.8% | **0.0%** |
+| EV/trade | **+55.81 pip** | **−3.27 pip** |
+| PF | 14.75 | n/a (0 wins) |
+
+N=3 は統計的に何も否定しない (WR 0/3 は WR 72.8% 下でも p≈0.02 で起こりうる) が、**方向は sibling の [[price-shock-rev-aud-jpy-h1-long]] (N=2, −122.6 pip, mean −61.3, BT EV +32.25) と一致している** — Price-Shock family の 2 セルが同時に「BT で大きく正、live で負」を示している。
+
+### LOCK 基準に対する現在地
+- 棄却基準「N=15 で Wilson_lo<0.40 → deactivate」: **N=3/15 — 未達、自動発火なし**
+- 棄却基準「2 週連続 EV<0 → 緊急 review」: live 履歴が 2 日しかなく **未評価**
+- watchdog (`tools/price_shock_rev_live_watchdog.py`) の auto-demote は **Live N>=10 かつ EV<0** — **N=3 で未発火**
+- ⇒ **本 run では demote を執行していない。** ただし AUD_JPY sibling と合わせ、セル単位ではなく **family 単位の判断** を user 決裁に上げている ([[2026-08-23]])
+
+> ⚠️ 下記「現況 (2026-06-08 再監査)」の「運用は強制 Shadow track」「Live track N=0 表示は正常」の記述は **2026-08-20 以降 stale** — 本セルは実際に live fill を出している (Tier 2 / MIN lot 1000u、2026-05-18 activation の通り)。
+
 ## 概要
 H1 EUR_GBP で 252-bar log return 1%-tile 以下の negative shock が発生し、vol20 が top quintile (Q5) の場合に 3 bars 保有の LONG mean reversion。
 

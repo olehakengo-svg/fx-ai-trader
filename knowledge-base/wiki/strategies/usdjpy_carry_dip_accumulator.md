@@ -1,10 +1,26 @@
 # usdjpy_carry_dip_accumulator
 
-- **Status**: SHADOW (2026-06-08 登録) / LIVE は **Rule-1 意図的例外 pending**（要 user 最終承認 + lot 確定）
+- **Status**: **LIVE 稼働中** (1000u MIN lot、Rule-1 意図的例外) — 2026-08-14 以降 fill 実績あり。2026-06-08 登録
 - **Mode**: hourly (H1) / **Pair**: USD_JPY only / **Direction**: LONG only
 
-> ⚠️ **2026-07-02 zero-fire 診断**: 06-12 LIVE enable 以降 fill 0 の根本原因は **CEILING=159.5 が市場 (161-162.8) に取り残されたこと**。06-03 以降の RSI dip cross 22 回が全て ceiling block、emit 自体ゼロ。thesis の「155-160.7 レンジ」仮定が失効 (旧介入壁 160.7 を上抜け定着)。QUALBAR logging (T7) 実装済み。ceiling 再設定 or retire は user 決裁待ち。
-> 詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] / 決裁用データ: [[carry-dip-ceiling-reeval-2026-07-02]] (推奨: hold — 壁位置の外生証拠待ち。⚠️ 07-01 ATH 162.84 後 2 セッション -1.9円 で up-drift 一旦破れ、retreat 条件要監視)
+> ✅ **2026-08-20 更新 — zero-fire 解消 (外生要因)**: 07-02 診断の dormancy は **市場が thesis レンジに戻ったことで自然解消**。USD_JPY が ~159.47-159.62 まで下げ、`close < 159.50` ゲートが再武装 (`raw/trade-logs/2026-08-19-monitor.md`)。ceiling の再設定・retire は**不要になった** — 159.5 は結果的に妥当な壁位置だった。**本戦略は現在システム唯一の live 発火セル**。
+> 詳細: [[2026-08-20]]
+
+> ⚠️ **2026-07-02 zero-fire 診断 (解消済み、記録として保持)**: 06-12 LIVE enable 以降 fill 0 の根本原因は **CEILING=159.5 が市場 (161-162.8) に取り残されたこと**。06-03 以降の RSI dip cross 22 回が全て ceiling block、emit 自体ゼロ。thesis の「155-160.7 レンジ」仮定が (一時) 失効。QUALBAR logging (T7) 実装済み。
+> 詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] / [[carry-dip-ceiling-reeval-2026-07-02]] (当時の推奨 "hold" が結果的に正解 — 壁を動かさなかったので市場復帰と同時に再武装した)
+
+## Live 実績 (post-cutoff 2026-04-08〜, is_shadow=0) — 2026-08-23 時点
+| N | W/L | WR | PnL | EV/trade | DSR |
+|---|---|---|---|---|---|
+| **9** | 5W/4L | 55.6% | **+84.0 pip** | +9.33 | 0.424 (Sharpe 0.3363 < 閾値 0.4059、z=−0.192 → **依然として有意でない**) |
+
+- vs 2026-08-20: **N 7→9 (+2、いずれも勝ち)**、PnL **+45.1→+84.0 (+38.9)**、WR 42.9→**55.6%**、EV/trade +6.44→**+9.33**。DSR は 0.3591→0.424 と閾値に近づいたが **z=−0.192 でまだ跨いでいない**。
+- 全 9 fill が直近 30d 窓内 (risk API USD_JPY `n=10`, +53.9 — 差分は同窓の非carry-dip 1 本)。ポートフォリオ 30d の**唯一の正寄与**（他は AUD_JPY price-shock −122.6 / 🆕 EUR_GBP price-shock −9.8）。
+- 確認済み OANDA fill (audit limit=800): **#677402** (08-14 06:02 UTC) / **#677910** (08-16 23:02) / **#677917** (08-17 06:52) / **#677924** (08-19 01:05) / 🆕 **#677931** (08-20 07:03) / 🆕 **#681149** (08-20 10:19) — いずれも USD_JPY BUY 1000u、real trade id 付き = false-sent ではない。`sent` 行は戦略名 `usdjpy_carry_dip_accumulator`、`filled` 行は mode 名 `daytrade_1h` (twin-meaning、`reference_oanda_audit_twin_meaning`)。
+- **判定保留**: pre-reg の評価 N≥30 に対し **N=9/30**。2 連勝で WR が BT の 90.9% に向けて寄ったが、N=9 の 2 本移動で 42.9→55.6pp 動く不安定域であり、**サンプル追加以外の情報は出ていない**。N≥30 まで promote/demote いずれも判断しない。
+- ⚠️ **本セルは 2026-08-23 時点でも「システム唯一の継続的な正の live セル」であり、book 全体の +29.1 pip 改善はこの 2 本が単独で作った**。ポートフォリオの見かけ上の好転をこのセル 1 本の draw に依存させている状態。
+
+> 🔴 **未解決 — SL 契約の不一致**: 戦略宣言は SL = entry −1.5円 (**150 pip** のテールキャップ) だが、初 live fill で **18.8 pip の SL** に置換されて観測された (`_1H_PRESERVE_SLTP` 未登録)。live fill が 9 本に達した今、これは仮説ではなく**このセルのテール挙動を実際に支配している**問題。150p キャップ前提の BT (最悪テール −2.0円ハードキャップ) と live の risk profile が別物になる。R3 決裁待ち。
 
 ## 概要
 現レジーム固有の順張りロング dip-buy。USD_JPY H1 で RSI(14) が 45 を**下抜けた瞬間**（押し目入口）に、close が天井 159.5 未満なら LONG。SL = entry-1.5円（介入ギャップ前提の per-trade テールキャップ）、TP = entry+0.8円、hold ≤ 24 H1。同一押し目クラスタは 12h cooldown で1エントリーに畳む。

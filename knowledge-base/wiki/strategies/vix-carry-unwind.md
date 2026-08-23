@@ -38,10 +38,11 @@ vol_momentumの「VIXブーストモード」として統合が最適。独立�
 ## Live Performance (post-cutoff, 2026-04-08〜)
 | Strategy | Pairs | N | WR | PnL |
 |---|---|---|---|---|
-| vix_carry_unwind | all | 2 | 0.0% | -30.9 pip |
+| vix_carry_unwind | all | **26** | **53.8%** | **−46.9 pip** |
 
-N=2 is below judgment threshold (min N=10). Low-frequency strategy — observe over full VIX cycle.
-Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
+Data source: /api/demo/stats?date_from=2026-04-08 (**refreshed 2026-08-20**; supersedes the 2026-04-20 N=2 row).
+
+**2026-08-20 状況**: 08-03 の PAIR_DEMOTED 執行以降、**新規 live fill なし**。累計は N=26 / −46.9 pip で 07-31 quant-eval 時点から不変 — 直近 30d 窓に 1 本 (07-30 の −30.1 pip SL_HIT) が残っているだけで、これは demote 前のトレード。**demote は意図通り効いている** (live 発火停止、shadow emit は継続)。再昇格条件は下記 08-03 節の R1 のまま。
 
 ## Related
 - [[research/index]]
