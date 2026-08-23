@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-23 — docs(roadmap): T-MTF を CLOSE に是正 (KB drift、rule:R3)
+
+- roadmap v2.3 の **T-MTF 行が 47 日間 🔄「調査中 (別セッション)」のまま残存**していた。実体は **2026-07-07 に PR #58 でクローズ済** — コード側で確認 (`DaytradeEngine.HTF_MIXED_LIVE_STOP_CELLS` = `modules/demo_trader.py:8833` / 診断タグ文言の実装整合コメント = `app.py:2181-2185`)
+- 調査結果 (行に反映): 「シグナル抑制中」タグは**診断表示のみ**で、Hard Block は `htf_agreement` が bull/bear のときだけ効き **mixed は素通り**していた (mixed の実効果は legacy score×0.70 減衰のみ、DTE 候補は非抑制) = **バイパス確定**。fix は trendline_sweep×GBP_USD の cell stop 登録。再 live 化は R1
+- **なぜ問題か**: 「調査中」の残存は、次セッションが**クローズ済みのバグを再調査する**か、逆に**未解決だと誤認して判断を保留する**。spawn_task で別セッションに渡した項目は、着地確認がロードマップに戻ってこない構造欠陥がある
+- 教訓: **別セッションへ委譲した項目は、委譲元のロードマップ行に「誰が・いつ・どこで着地確認するか」を書く。書けないなら委譲しない**
+
 ## 2026-08-23 — fix(deploy): 残存デプロイ churn を実測分解して恒久ゼロ化 (phase-2, rule:R3)
 
 - **phase-1 の効果を推定でなく実測で確定**: PR #199 マージ (08-21T01:57Z) 以降の main 31 commit に対し Render が実際に走らせたデプロイは **4 件 = 1.7/日** (baseline 18.8/日 から **−91%**)。§4.2 の推定「7.9/日」は保守的に外していた (実測はその 1/4.6) — **以後この種の効果は Render deploy 一覧との突き合わせで報告する** ([[deploy-churn-trading-gap-2026-08-21]] §8)
