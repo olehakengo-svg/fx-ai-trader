@@ -3878,6 +3878,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 | GBP_USD | RANGING | ATR%ile 28%（最低）、静穏継続 | ロンドン入りでの急変に注意 |
 ### 推奨戦略配分
 
+### 2026-08-24 (Post-London Report)
+| PnL | **0.0 pips** |
+| 勝率（WR） | **N/A** |
+| WR | N/A | N/A |
+| PnL | 0 | 0 |
+### 推奨戦略配分
+**⚠️ NO ACTION推奨**
+| 累計PnL | **0.0 pips** |
+### 最重要シグナル：「稼働25モード・トレードゼロ」は**システム機能不全の警告**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
