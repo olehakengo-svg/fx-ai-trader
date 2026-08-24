@@ -13560,6 +13560,77 @@ def api_demo_block_counts():
     })
 
 
+@app.route("/api/demo/evaluated-candidates")
+def api_demo_evaluated_candidates():
+    """Read-only C1 candidate-funnel readout (evaluated_candidates table).
+
+    2026-08-24 (rule:R3): the C1 audit table has been written on every bar
+    since 2026-04-28 but had **no read path** — no route, and
+    ``query_candidate_summary`` was called only from its own unit test.
+    Collecting the data without being able to read it leaves the funnel
+    stage "candidate produced -> trade recorded" unobservable in
+    production, which is why the hull_donchian_fade fire-rate gap
+    (12.6 signal/wk offline replay vs 1.62 trade/wk live) stayed
+    undiagnosed for 49 days.
+
+    view=summary (default) -> per-strategy totals + selection counts
+    view=rows              -> recent individual rows (forensics)
+    view=meta              -> table row count / coverage window (growth)
+
+    ESTIMAND WARNING (do not skip): rows are logged in app.py *after* the
+    v9.1 HTF Hard Block has already removed counter-HTF candidates from
+    the list. HTF-blocked candidates never reach this table and are only
+    visible via the ``[DTE] HTF_HARD_BLOCK`` stdout line. A zero count
+    here therefore means "no candidate survived to the select_best
+    stage", NOT "the strategy produced no signal".
+    """
+    try:
+        from modules.candidate_logger import (
+            query_candidate_meta,
+            query_candidate_rows,
+            query_candidate_summary,
+        )
+    except Exception as exc:  # pragma: no cover - import guard
+        return jsonify({"status": "error", "error": str(exc)}), 500
+
+    view = (request.args.get("view", "summary") or "summary").strip()
+    strategy = request.args.get("strategy", "").strip()
+    instrument = request.args.get("instrument", "").strip()
+    try:
+        days = int(request.args.get("days", 7))
+    except ValueError:
+        days = 7
+    try:
+        limit = int(request.args.get("limit", 200))
+    except ValueError:
+        limit = 200
+
+    try:
+        if view == "meta":
+            return jsonify({"view": "meta", "meta": query_candidate_meta(_db_path)})
+        if view == "rows":
+            rows = query_candidate_rows(
+                _db_path, strategy=strategy, instrument=instrument,
+                days=days, limit=limit)
+            return jsonify({
+                "view": "rows", "days": days, "strategy": strategy or None,
+                "instrument": instrument or None, "count": len(rows),
+                "rows": rows,
+            })
+        summary = query_candidate_summary(_db_path, days=days)
+        if strategy:
+            summary = {k: v for k, v in summary.items() if k == strategy}
+        return jsonify({
+            "view": "summary", "days": days, "strategy": strategy or None,
+            "n_strategies": len(summary), "summary": summary,
+        })
+    except Exception as exc:
+        # fail loud: an empty table and a broken query must not look alike
+        # (lesson: silent except makes "no rows" indistinguishable from
+        #  "never ran" — knowledge-base/wiki/lessons/)
+        return jsonify({"status": "error", "view": view, "error": str(exc)}), 500
+
+
 @app.route("/api/demo/live-enable-flags")
 def api_demo_live_enable_flags():
     """Read-only LIVE 例外レバーの実効値 (import 時 class attr) と現行 env の突合。

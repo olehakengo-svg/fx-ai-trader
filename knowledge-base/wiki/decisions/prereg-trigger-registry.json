@@ -119,8 +119,8 @@
       "entry_type": "hull_donchian_fade",
       "since": "2026-07-03",
       "expected_per_week": 13.3,
-      "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
-      "message": "hull 発火頻度 band 監視 (ゲート① 再評価用、復帰判断の材料)"
+      "doc": "knowledge-base/wiki/analyses/hull-fire-rate-funnel-2026-08-24.md",
+      "message": "hull 発火頻度 band 監視 (ゲート① 再評価用、復帰判断の材料)。⚠️ 2026-08-24 funnel 分解 (rule:R3): expected_per_week=13.3 は **signal-rate** であり、本トリガが数える trade-rate と直接比較できない (estimand 不一致)。offline replay 12.59/週 → HTF Hard Block −25.4% → 実測 hold 直列化 → 7.61/週 に対し実測 1.62/週 = **残余 ~4.7x は未説明で実在**。残余の localize には /api/demo/evaluated-candidates (?strategy=hull_donchian_fade&view=summary) を 1 週間以上蓄積後に読み、total_candidates と trade 数を突合して (a) select_best 段未到達 / (b) 到達後の下流 block に二分すること。2026-09-30 の retire 判定 (shadow N<5) も本 band 誤指定の上に乗っている。詳細: hull-fire-rate-funnel-2026-08-24.md"
     },
     {
       "id": "t9-kalman-d7-fire-info",

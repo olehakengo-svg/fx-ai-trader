@@ -206,3 +206,88 @@ def query_candidate_summary(
         }
         for r in rows
     }
+
+
+def query_candidate_meta(db_path: str) -> dict[str, Any]:
+    """Table health: row count, coverage window, distinct strategy count.
+
+    2026-08-24 (rule:R3): the C1 table has been **write-only** since
+    2026-04-28 — no API route and no tool ever called
+    ``query_candidate_summary``. That is why the hull_donchian_fade
+    fire-rate gap (12.6 signal/wk offline vs 1.62 trade/wk live) sat
+    undiagnosed for 49 days: the funnel stage between "candidate
+    produced" and "trade recorded" was unobservable from outside.
+
+    The row count is returned so unbounded growth on the Render disk is
+    visible (no retention job exists as of 2026-08-24).
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT COUNT(*) AS rows,"
+        " MIN(created_at) AS first_created,"
+        " MAX(created_at) AS last_created,"
+        " COUNT(DISTINCT strategy_name) AS n_strategies"
+        " FROM evaluated_candidates"
+    )
+    r = cur.fetchone()
+    conn.close()
+    return {
+        "rows": r["rows"],
+        "first_created": r["first_created"],
+        "last_created": r["last_created"],
+        "n_strategies": r["n_strategies"],
+    }
+
+
+def query_candidate_rows(
+    db_path: str,
+    *,
+    strategy: str = "",
+    instrument: str = "",
+    days: int = 7,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    """Recent candidate rows for per-bar forensics (newest first).
+
+    Complements :func:`query_candidate_summary` (aggregate) by exposing the
+    individual bars, so a strategy with ``total_candidates > 0`` and
+    ``n_selected = 0`` can be traced to concrete bar timestamps and matched
+    against ``demo_trades`` / block counters.
+
+    Note on estimand: rows are logged **after** the v9.1 HTF Hard Block has
+    already filtered the candidate list (app.py), so HTF-blocked candidates
+    never reach this table — they are only visible via the
+    ``[DTE] HTF_HARD_BLOCK`` stdout line. Do not read a zero row count as
+    "the strategy produced no signal".
+    """
+    where = []
+    params: list[Any] = []
+    days_int = max(0, int(days))
+    if days_int > 0:
+        where.append("created_at >= datetime('now', ?)")
+        params.append(f"-{days_int} days")
+    if strategy:
+        where.append("strategy_name = ?")
+        params.append(strategy)
+    if instrument:
+        where.append("instrument = ?")
+        params.append(instrument)
+    sql = (
+        "SELECT bar_time, instrument, tf, strategy_name, signal, confidence,"
+        " score, selected, selected_strategy, created_at"
+        " FROM evaluated_candidates"
+    )
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY id DESC LIMIT ?"
+    params.append(max(1, min(int(limit), 2000)))
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute(sql, params)
+    rows = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return rows
