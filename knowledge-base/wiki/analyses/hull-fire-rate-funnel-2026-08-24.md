@@ -139,14 +139,70 @@ stdout 行のみ)。したがって count=0 は「シグナルが出なかった
 
 - HTF 再現は MASSIVE 15m→4H resample + `EUR_USD_1d.parquet` を使用。本番は
   `fetch_ohlcv` + `TF_CFG` 経由で、日足境界がベンダー間で一致する保証はない
-  ([[lesson-vendor-daily-boundary]] 系の既知の罠)。25.4% は ±数 pp の推定値。
+  ([[lesson-yfinance-jpy-daily-utc-shift-2026-08-18]] 系の既知の罠)。25.4% は ±数 pp の推定値。
 - 本番 HTF は `df_h.iloc[-1]` = **進行中バー**を読む。再生では signal 時刻を含む
   バーで近似した。
 - `recent_emit` 900s dedup の寄与は **ゼロ** (205→205、同方向 15m 以内の重複無し)。
 - 保有時間分布は N=17 と小さい。median 0.57h は点推定。
+
+## 7. 追記 (同日、デプロイ後の初回読み出し) — 2 つの新事実
+
+読み出し経路が本番に乗った直後に `/api/demo/evaluated-candidates` を実行した
+(このテーブルが**読まれたのは新設から 4 ヶ月で初めて**)。
+
+`view=meta`: **517,378 行 / 54 戦略 / 2026-04-28 09:55 〜 2026-08-21 21:59**
+(最終行が 08-21 なのは 08-22/23 が週末で市場閉鎖のため。retention 不在の実測値でもある)
+
+### 7.1 hull は select_best に**勝っている** — 「敗者の側路」問題ではない
+
+直近 30 日の hull: **total_candidates 1,139 / n_selected 998 (87.6%)**。
+
+`LIVE_PROMOTE_LOSERS` に hull を登録した根拠 (2026-06-12 Codex review I-3) は
+「score 3.0-5.0 は session_time_bias 等 ~6.0-6.5 に敗北し side-channel 不在だと
+prod fires=0」だったが、**実測では hull が primary slot を取っている**。
+side-channel の要否は別として、**残余 4.7x の原因は select_best 競争ではない**。
+
+さらに hull は **08-07 / 08-11 / 08-12 / 08-13 / 08-18** にも候補を出して
+selected になっている — すなわち最終 trade (08-06) 以降も**候補生成と選択は
+継続していた**。→ 残余の落下点は **`_tick_entry` / order 層に確定的に絞られた**。
+
+### 7.2 🔴 `bar_time` が live 行で全て NULL — C1 テーブルの第 2 の欠陥
+
+取得した 1,139 行の `bar_time` は **全て NULL**。原因は call site:
+
+```python
+_log_cands(_db_path, _dt_candidates, _dt_best,
+           instrument=symbol, tf=tf, bar_time=bar_time)   # ← live では常に None
+```
+
+`bar_time` が渡るのは BT 経路のみで、**live 経路
+(`demo_trader._tick` → `compute_fn(df, tf, sr, symbol)`) は渡さない** —
+2026-08-09 に修復した `ctx.hour_utc` 凍結 (PR #168) と**同一の call-site 欠落**
+であり、そのとき同関数内の他の派生値は直したが本 call site は見落とされていた
+(同型 **4 例目**)。
+
+影響: `bar_time` は C1 テーブルで唯一 bar 粒度への正規化を可能にする列。NULL だと
+**「1 バーを 30 秒 poll で 30 回記録した」と「30 本の別バー」が区別できない**。
+実際 1,139 行は 12 日分の poll 膨張であって 1,139 バーではない。
+→ funnel 分解 (候補 → select_best → trade) が**原理的に計算できない**。
+
+fix (別 PR): PR #168 が確立した fallback `_dt_bar_dt`
+(`bar_time or df.index[-1]`、UTC 正規化) を渡す。`df.index[-1]` は order 層 dedup の
+`_closed_bar_ts_from_df` と同一基準なので `order_bar_dedup` の 1 バー 1 emit と
+直接突合できる。counterfactual (旧コードに戻すと落ちること) を確認済み。
+
+> 教訓: **「観測基盤を作った」は 3 段階ある — 書ける / 読める / 読んだ値が意味を持つ。**
+> C1 は 4 ヶ月にわたり 1 段目しか満たしていなかった。読み出しを繋いだ瞬間に
+> 2 段目の欠陥 (bar_time NULL) が即座に露出した = **読まれない計装は劣化を検知できない**。
+
+### 7.3 残余 4.7x の localize は bar_time 修復後に再実行
+
+§5 の next action は `bar_time` 非 NULL の行が 1 週間以上蓄積してから実行する
+(それ以前の行は bar 粒度に正規化できないため funnel 分母に使えない)。
 
 ## 関連
 - [[t8-week1-gate-breach-2026-07-06]] (§89 で本件を「独立の問題」として残置)
 - [[lesson-select-best-bottleneck-2026-04-28]] (C1 テーブルの設置根拠)
 - [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] (sweep の HTF gate 100% silent drop)
 - MEMORY: `project_trigger_reachability_evaluator_fix_2026_08_19` (条件付きトリガの滞留)
+- MEMORY: `project_dt_ctx_hour_utc_live_freeze_2026_08_09` (同型 call-site 欠落の 3 例目)
