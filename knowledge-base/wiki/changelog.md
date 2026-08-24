@@ -1,5 +1,20 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-24 — fix(obs): C1 candidate テーブルの読み出し経路を新設 + hull 発火率 funnel 分解 (rule:R3)
+
+- **hull_donchian_fade の「13.3/週 期待 vs 1.62/週 実測」を funnel 分解**した ([[hull-fire-rate-funnel-2026-08-24]])。registry `t8-hull-shadow-freq` が 49 日間 info 表示のまま滞留していた案件
+- **平均値が階段関数を隠していた**: hull の trade は全 17 行 (全 shadow)、**最終発火 2026-08-06 で以後 18 日ゼロ**。週平均表示ではこの停止が見えない
+- **シグナル生成器は健全**: 凍結スペックを MASSIVE EUR_USD 15m にオフライン再生 (16.3 週) すると **205 signals = 12.59/週** で期待値 13.3 をほぼ再現。無発火だった 08-06〜08-21 窓にも **33 signals** が存在 → 「相場が setup を出さなかった」は棄却
+- **funnel**: 12.59/週 → HTF Hard Block **−25.4%** → 9.39/週 → 実測 hold 直列化 → 7.61/週 に対し実測 **1.62/週 = 残余 ~4.7x は未説明で実在**
+- **⚠️ 途中で誤結論しかけた点を記録**: `max_hold_bars=96` (24h) を直列化ブロック時間に使うと 3.07/週 まで落ち残余 1.90x = 「ほぼ説明できた」に見えた。だが本番 closed 17 件の実測保有は **median 0.57h** (p90 3.86h) で 24h キャップはほぼ不拘束 → 実測 hold だと残余は **4.7x**。**設計上のキャップを実効値の代理にすると残余を過小評価する**
+- **「MR は counter-HTF で kill 率 ~100%」を hull に外挿してはいけない**: 実測 **25.4%**。生存 153 件中 119 件が `htf=mixed` 窓 (Hard Block は bull/bear 限定で mixed 非発動)。sweep の「HTF gate 100% silent drop」は sweep 固有の観測であって family 一般則ではない
+- **🔴 真因 (診断が 49 日止まっていた理由) — C1 テーブルが write-only**: `evaluated_candidates` は [[lesson-select-best-bottleneck-2026-04-28]] を受け 2026-04-28 に新設され毎バー書かれ続けていたが、**HTTP route が無く `query_candidate_summary()` の呼び出し元は自身の unit test のみ** (本番参照ゼロ = 実質 dead code)。silent drop を可視化するための観測基盤が、観測できないまま 4 ヶ月データを溜めていた
+- **fix**: `GET /api/demo/evaluated-candidates` を新設 (read-only / GET のみ)。`view=summary|rows|meta`、`strategy` / `instrument` / `days` / `limit` フィルタ。`query_candidate_meta` / `query_candidate_rows` を `modules/candidate_logger.py` に追加。テスト 10 件追加 (関数 5 + endpoint 5)
+- **estimand 警告を route/関数 docstring に内蔵**: 本テーブルへの記録は **HTF Hard Block が候補リストを削った後**。HTF-blocked 候補は入らない (可視化は `[DTE] HTF_HARD_BLOCK` の stdout のみ) → **count=0 は「シグナルが出なかった」ではなく「select_best 段まで生き残った候補が無かった」**
+- **付随観測**: 本テーブルに retention/rotation が無く単調増加する。`view=meta` で総行数を露出させ可視化のみ実施 (挙動不変、retention は別 R3)
+- **live パラメータ・発注挙動は不変更** (観測系のみ)
+- 教訓: **観測基盤は「書ける」だけでは完成していない。読み出し経路が無い監査テーブルは、無いのと同じ — むしろ「計装済み」という誤った安心を与える分だけ悪い**
+
 ## 2026-08-23 — docs(roadmap): T-MTF を CLOSE に是正 (KB drift、rule:R3)
 
 - roadmap v2.3 の **T-MTF 行が 47 日間 🔄「調査中 (別セッション)」のまま残存**していた。実体は **2026-07-07 に PR #58 でクローズ済** — コード側で確認 (`DaytradeEngine.HTF_MIXED_LIVE_STOP_CELLS` = `modules/demo_trader.py:8833` / 診断タグ文言の実装整合コメント = `app.py:2181-2185`)
