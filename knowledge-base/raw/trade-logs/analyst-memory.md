@@ -3868,6 +3868,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - `daytrade_eurgbp:score_gate` **28件** — スコアが閾値未満のシグナルが多数発生も全て不採用。
 - rnb_usdjpyについては、USD_JPYのTRENDING_DOWN継続中は約定ゼロが続く可能性を前提として許容する（フィルターが仕事をしている）。
 
+### 2026-08-24 (Post-Tokyo Report)
+| PnL | 0.0p |
+| WR | N/A |
+- 東京セッションはN=0のため統計的判断の根拠なし
+- ブロック構造（shadow_demoted_cell / direction_filter）は設計通りの動作であり、誤作動ではない
+- OANDA転送率4%（2/50 SENT）はshadow_tracking 18件 + agg_kelly負値ブロック2件が主因であり、現行リスクゲートが正常機能している証左
+- コード不変原則の下、判断変更の根拠となるN≥30データが東京時間帯には存在しない
+| GBP_USD | RANGING | ATR%ile 28%（最低）、静穏継続 | ロンドン入りでの急変に注意 |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
