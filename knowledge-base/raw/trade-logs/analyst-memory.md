@@ -3858,6 +3858,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **最も成績が良かったセッション**: ロンドン（唯一のトレード発生セッション、ただしEV評価不能）
 - **最も成績が悪かったセッション**: 東京・NY（完全無取引、機会損失）
 
+### 2026-08-24 (Pre-Tokyo Briefing)
+**2026-08-23（前日）: トレードゼロ。PnL = 0、約定件数 = 0、WR = N/A。**
+| Strategy | Pair | N | WR% | EV | PnL |
+**全体評価: N=9 / WR=33.3% / 合計PnL=-5.2**
+- `rnb_usdjpy:direction_filter` **334件** — 最大の単一ブロック要因。USD_JPYがTRENDING_DOWN（ATR%ile 74%）という高ボラ下降トレンド局面で、RnBストラテジーの方向フィルターが全シグナルを弾き続けている。フィルターが機能している状態であり、異常ではないが、**このペアでの機会が構造的に消滅している**ことを示す。
+- `scalp:r2_shadow_demoted_cell` **74件** / `scalp_5m_gbp:r2_shadow_demoted_cell` **42件** / `scalp_eur:r2_shadow_demoted_cell` **40件** — Scalp系の主要ブロック。R2シャドウセルの降格が複数スキャルパー戦略の供給ライン全体を絞っている。これはシステムの設計通りの自己保護だが、**シグナル供給がほぼ枯渇している**ことを意味する。
+- `daytrade_eur:order_bar_dedup` **52件** — 重複バーフィルターが多発。EUR系デイトレードでシグナルが生成→即フィルタリングされるサイクルが繰り返されている。
+- `daytrade_eurgbp:score_gate` **28件** — スコアが閾値未満のシグナルが多数発生も全て不採用。
+- rnb_usdjpyについては、USD_JPYのTRENDING_DOWN継続中は約定ゼロが続く可能性を前提として許容する（フィルターが仕事をしている）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
