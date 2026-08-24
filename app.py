@@ -2725,10 +2725,23 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # of the score competition — so that the 30-of-54 NEVER-in-DB problem
     # (lesson-select-best-bottleneck-2026-04-28.md) is observable. Trade
     # execution path is unchanged; failure here must not break trade flow.
+    # 2026-08-24 [rule:R3] 構造バグ修正: 旧実装は `bar_time=bar_time` を渡していたが、
+    # live 経路 (demo_trader._tick → compute_fn(df, tf, sr, symbol)) は bar_time を
+    # **渡さない** (上記 2026-08-09 の hour_utc 凍結と同一の call-site 欠落)。結果
+    # evaluated_candidates.bar_time は live 行で全て NULL になり、監査テーブルが
+    # 「1 バーを 30 回 poll した」と「30 本の別バー」を区別できなくなっていた
+    # (実測: hull_donchian_fade 直近 30 日 1,139 行すべて bar_time IS NULL)。
+    # bar_time は C1 テーブルで唯一 bar 粒度への正規化を可能にする列なので、これが
+    # NULL だと funnel 分解 (候補 → select_best → trade) が原理的に計算できない。
+    # PR #168 が確立した fallback (_dt_bar_dt = bar_time or df.index[-1], UTC 正規化)
+    # をそのまま流用する。df.index[-1] は order 層 dedup の
+    # `_closed_bar_ts_from_df` (modules/demo_trader.py) と同一基準なので、
+    # order_bar_dedup の 1 バー 1 emit と突合できる。
+    # 詳細: knowledge-base/wiki/analyses/hull-fire-rate-funnel-2026-08-24.md
     try:
         from modules.candidate_logger import log_candidates as _log_cands
         _log_cands(_db_path, _dt_candidates, _dt_best,
-                   instrument=symbol, tf=tf, bar_time=bar_time)
+                   instrument=symbol, tf=tf, bar_time=_dt_bar_dt)
     except Exception:
         pass
     # 2026-04-28 (sr-strategies-signal-track): shadow-always candidates を抽出。

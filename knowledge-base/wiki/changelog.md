@@ -1,5 +1,17 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-24 — fix(obs): evaluated_candidates.bar_time が live 行で全て NULL (call-site 欠落 4 例目、rule:R3)
+
+- PR #203 で C1 テーブルの読み出し経路を新設した直後、本番を初めて読んだところ **hull_donchian_fade 直近 30 日 1,139 行すべて `bar_time IS NULL`**
+- 原因 = call site: `_log_cands(..., bar_time=bar_time)`。`bar_time` が渡るのは **BT 経路のみ**で、live 経路 (`demo_trader._tick` → `compute_fn(df, tf, sr, symbol)`) は渡さない → live 行は常に NULL。**2026-08-09 に修復した `ctx.hour_utc` 凍結 (PR #168) と同一の call-site 欠落** で、そのとき同関数内の他の派生値は直したがこの call site は見落とされていた (同型 **4 例目**)
+- **なぜ致命的か**: `bar_time` は C1 テーブルで唯一 bar 粒度への正規化を可能にする列。NULL だと **「1 バーを 30 秒 poll で 30 回記録した」と「30 本の別バー」が区別できない** — 実際 1,139 行は 12 日分の poll 膨張であって 1,139 バーではない。funnel 分解 (候補 → select_best → trade) が**原理的に計算できない**
+- fix = PR #168 が確立した fallback `_dt_bar_dt` (`bar_time or df.index[-1]`、UTC 正規化) を渡す。`df.index[-1]` は order 層 dedup の `_closed_bar_ts_from_df` と同一基準なので `order_bar_dedup` の 1 バー 1 emit と直接突合できる
+- **counterfactual 確認済** (deploy-churn 教訓の適用): 旧コード `bar_time=bar_time` に戻すと新テスト 2 件が落ちることを実行して確認。guard が無力化されていないことの行動証拠
+- **副産物 — hull は select_best に勝っていた**: 30 日で `total_candidates 1,139 / n_selected 998 (87.6%)`。`LIVE_PROMOTE_LOSERS` 登録根拠 (2026-06-12「score 3.0-5.0 は敗北し prod fires=0」) と実測が食い違う。さらに **08-07/11/12/13/18 にも selected** = 最終 trade (08-06) 以降も候補生成と選択は継続 → **残余 4.7x の落下点は `_tick_entry` / order 層に確定**
+- 付随: `view=meta` 実測 **517,378 行 / 54 戦略 / 2026-04-28〜08-21** (retention 不在の実測値)
+- **live パラメータ・発注挙動は不変更** (監査列の埋め戻しのみ)
+- 教訓: **「観測基盤を作った」は 3 段階ある — 書ける / 読める / 読んだ値が意味を持つ。** C1 は 4 ヶ月 1 段目しか満たしておらず、読み出しを繋いだ瞬間に 2 段目の欠陥が露出した = **読まれない計装は劣化を検知できない**
+
 ## 2026-08-24 — fix(obs): C1 candidate テーブルの読み出し経路を新設 + hull 発火率 funnel 分解 (rule:R3)
 
 - **hull_donchian_fade の「13.3/週 期待 vs 1.62/週 実測」を funnel 分解**した ([[hull-fire-rate-funnel-2026-08-24]])。registry `t8-hull-shadow-freq` が 49 日間 info 表示のまま滞留していた案件
