@@ -3918,6 +3918,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 ### ロンドン戦略配分推奨
 **NO ACTION推奨**
 
+### 2026-08-25 (Post-London Report)
+| PnL | **0.0 pips / 0円** |
+| 勝率 (WR) | **N/A** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**NO ACTION推奨**
+- 現在のOANDA Live転送率が**4%**（50件中2件）と極端に低く、そのうち`shadow_tracking`（18件）と`agg_kelly=-0.336<0`（2件）がブロック主因
+- `agg_kelly<0`はシステムが自己判定でリスクオフを選択している状態であり、これを上書きする判断材料がセッションデータから得られない
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
