@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from datetime import datetime, timezone
 
 import pytest
 
@@ -52,6 +53,55 @@ def test_db_footprint_attributes_backups_separately(tmp_path):
     assert fp["backups_total_bytes"] > 0
     # Backups must not be double-counted as "other".
     assert fp["other_bytes"] == 0
+
+
+def test_write_probe_succeeds_and_records_timestamp(tmp_path):
+    """write_probe は書込み障害 (db_write_failed) 検知の観測点 (rule:R3,
+    2026-08-26)。健康な DB では ok=True と現在時刻に近い ISO 時刻を返し、
+    タイムスタンプは実際に DB 内の 1 行に永続化される (upsert なので
+    何度呼んでも成長しない)。"""
+    db = tmp_path / "demo_trades.db"
+    _make_db(str(db))
+    result = disk_guard.write_probe(str(db))
+    assert result["ok"] is True
+    dt = datetime.fromisoformat(result["last_ok_at"])
+    assert dt.tzinfo is not None
+    assert abs((datetime.now(timezone.utc) - dt).total_seconds()) < 300
+
+    disk_guard.write_probe(str(db))
+    conn = sqlite3.connect(str(db))
+    try:
+        rows = conn.execute(f"SELECT COUNT(*) FROM {disk_guard.PROBE_TABLE}").fetchone()[0]
+    finally:
+        conn.close()
+    assert rows == 1
+
+
+def test_write_probe_failure_reports_error_and_last_success(tmp_path):
+    """書込み不能時は ok=False + エラー文字列。前回成功時刻は read-only
+    接続で読めるなら返す (満杯中も読取りは動く、が本設計の前提)。"""
+    if os.geteuid() == 0:
+        pytest.skip("root はディレクトリ書込み禁止を無視する")
+    db = tmp_path / "demo_trades.db"
+    _make_db(str(db))
+    ok = disk_guard.write_probe(str(db))
+    assert ok["ok"] is True
+
+    os.chmod(tmp_path, 0o555)  # -wal/-journal を作れなくして書込み失敗を再現
+    try:
+        result = disk_guard.write_probe(str(db))
+    finally:
+        os.chmod(tmp_path, 0o755)
+    assert result["ok"] is False
+    assert result["error"]
+    assert result["last_ok_at"] == ok["last_ok_at"]
+
+
+def test_write_probe_failure_without_history(tmp_path):
+    """DB 自体に到達できない場合も例外を漏らさず ok=False で報告する。"""
+    result = disk_guard.write_probe(str(tmp_path / "no_such_dir" / "x.db"))
+    assert result["ok"] is False
+    assert result["last_ok_at"] is None
 
 
 def test_table_rows_rejects_unsafe_identifier(tmp_path):

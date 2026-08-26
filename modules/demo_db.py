@@ -2563,11 +2563,18 @@ class DemoDB:
 
     # ── SQLite Daily Backup (WAL-safe) ────────────────
 
-    def backup_database(self, keep_last: int = 3) -> dict:
+    def backup_database(self, keep_last: int = 2) -> dict:
         """Create a timestamped backup of the SQLite DB using sqlite3.backup() API.
 
         This is safe for WAL mode — it acquires a consistent snapshot without
         blocking concurrent readers/writers.
+
+        ``keep_last`` defaults to 2 (rule:R3, 2026-08-26): with the production
+        DB at ~204 MB (+37 MB WAL), 3 retained copies put the steady state at
+        852 MB = 85.3% of the 1 GB disk — permanently above the 75% warn
+        threshold in ``modules/disk_guard.py``. Two copies land at ~65%.
+        Render also snapshots the whole disk daily (7-day retention), so the
+        marginal DR value of a third same-disk copy is nil.
 
         **Rotation runs BEFORE the copy (rule:R3, 2026-08-26).** The original
         order — copy, then rotate — made a full disk unrecoverable: the copy
@@ -2652,13 +2659,6 @@ class DemoDB:
                 "size_bytes": backup_size,
                 "rotated": rotated,
                 "disk": disk_guard.disk_status(self._path),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-        except Exception as e:
-            print(f"[Backup] FAILED: {e}", flush=True)
-            return {
-                "status": "error",
-                "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:

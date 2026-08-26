@@ -126,8 +126,12 @@ class DailyReviewEngine:
                     print(f"[DailyReview] C1 prune error: {e}")
 
                 # ── Daily SQLite Backup (after review) ──
+                # keep_last=2: 3 copies of a ~204MB DB put the steady state at
+                # 852MB = 85.3% of the 1GB disk, permanently above the 75%
+                # warn threshold (rule:R3, 2026-08-26). Render's daily disk
+                # snapshot covers the DR case a third copy would have served.
                 try:
-                    backup_result = self._db.backup_database(keep_last=3)
+                    backup_result = self._db.backup_database(keep_last=2)
                     print(f"[DailyReview] DB backup: {backup_result.get('status')} "
                           f"({backup_result.get('size_bytes', 0)} bytes)")
                 except Exception as e:
