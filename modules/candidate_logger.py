@@ -291,3 +291,70 @@ def query_candidate_rows(
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
+
+
+# Default retention for the C1 audit table, derived rather than guessed: the
+# longest window any consumer actually asks for is 30 days
+# (``query_candidate_summary`` default; ``query_candidate_rows`` uses 7, and
+# the hull funnel analysis used 30). 90 days keeps a 3x margin over every
+# observed use while holding the table near its 2026-08 size instead of
+# letting it grow without bound. Override with ``C1_RETENTION_DAYS``.
+DEFAULT_RETENTION_DAYS = 90
+
+
+def prune_candidates(db_path: str, keep_days: int = 0) -> dict[str, Any]:
+    """Delete ``evaluated_candidates`` rows older than ``keep_days`` (rule:R3).
+
+    The table has grown without bound since 2026-04-28 on a 1 GB Render disk
+    that filled completely on 2026-08-21, stopping **all** SQLite writes for
+    3.5 days. Capping the table removes one of the two growth terms (the
+    other — retained backup copies — is handled in
+    ``DemoDB.backup_database``).
+
+    ``keep_days=0`` resolves to ``C1_RETENTION_DAYS`` from the environment,
+    falling back to :data:`DEFAULT_RETENTION_DAYS`. A non-positive resolved
+    value disables pruning and is reported as ``status="disabled"``.
+
+    Caveat, stated because it is load-bearing: SQLite ``DELETE`` frees pages
+    for reuse but does **not** shrink the file. This bounds future growth; it
+    does not reclaim disk that is already consumed. ``VACUUM`` would reclaim
+    it but needs roughly a second copy of the DB in free space — precisely
+    what is unavailable when the disk is full — so it is deliberately not
+    run here.
+    """
+    import os as _os
+
+    if keep_days <= 0:
+        try:
+            keep_days = int(_os.environ.get("C1_RETENTION_DAYS", DEFAULT_RETENTION_DAYS))
+        except (TypeError, ValueError):
+            keep_days = DEFAULT_RETENTION_DAYS
+    if keep_days <= 0:
+        return {"status": "disabled", "keep_days": keep_days, "deleted": 0}
+
+    try:
+        conn = sqlite3.connect(db_path, timeout=30)
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "DELETE FROM evaluated_candidates WHERE created_at < datetime('now', ?)",
+                (f"-{int(keep_days)} days",),
+            )
+            deleted = cur.rowcount if cur.rowcount and cur.rowcount > 0 else 0
+            conn.commit()
+            remaining = int(
+                conn.execute("SELECT COUNT(*) FROM evaluated_candidates").fetchone()[0]
+            )
+        finally:
+            conn.close()
+        logger.info("prune_candidates: deleted=%s remaining=%s keep_days=%s",
+                    deleted, remaining, keep_days)
+        return {
+            "status": "ok",
+            "keep_days": keep_days,
+            "deleted": deleted,
+            "remaining": remaining,
+        }
+    except Exception as exc:
+        logger.warning("prune_candidates failed: %s", exc)
+        return {"status": "error", "error": str(exc), "keep_days": keep_days, "deleted": 0}
