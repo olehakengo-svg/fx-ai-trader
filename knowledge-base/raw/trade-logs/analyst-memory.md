@@ -3958,6 +3958,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 | GBP_USD | TRENDING_UP（29%） | 29% | 超低ATR水準でのトレンド。スプレッドコスト対比EVが薄い可能性 → 過度な期待は禁物 |
 ### 推奨戦略配分
 
+### 2026-08-26 (Post-London Report)
+| PnL | **0.0 pips** |
+| 勝率 (WR) | **N/A** |
+| PnL | — | — |
+| WR | N/A | N/A |
+### 推奨戦略配分
+> **⚠️ NO ACTION推奨（以下の根拠による）**
+| 累計PnL | **0.0 pips** |
+**推奨確認事項**：Open Trades 1件の方向性とUSD_JPYのTRENDING_DOWN方向が逆張りになっていないか。Kellyマイナス（-0.336）の構造的原因（損失サイドの偏りか、WR低下か）の特定を優先すべき。NYセッション終了後もゼロ約定が継続する場合、「システム稼働中」と「実質的機能停止」の境界線に達したと判断すべきタイミングである。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
