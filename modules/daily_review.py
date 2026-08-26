@@ -110,6 +110,21 @@ class DailyReviewEngine:
                 except Exception as e:
                     print(f"[DailyReview] Error: {e}")
 
+                # ── Daily C1 retention prune (rule:R3, 2026-08-26) ──
+                # Runs before the backup so the freed pages are already
+                # reflected in the snapshot, and so a disk-pressure day
+                # reclaims table growth even if the copy is then skipped.
+                # Incident: /var/data filled 2026-08-21 → all writes failed
+                # for 3.5 days (MEMORY project_render_disk_full_write_outage).
+                try:
+                    from modules.candidate_logger import prune_candidates
+                    prune_result = prune_candidates(self._db._path)
+                    print(f"[DailyReview] C1 prune: {prune_result.get('status')} "
+                          f"deleted={prune_result.get('deleted')} "
+                          f"remaining={prune_result.get('remaining')}")
+                except Exception as e:
+                    print(f"[DailyReview] C1 prune error: {e}")
+
                 # ── Daily SQLite Backup (after review) ──
                 try:
                     backup_result = self._db.backup_database(keep_last=3)

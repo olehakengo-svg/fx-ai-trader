@@ -13474,14 +13474,40 @@ if os.path.isdir(_render_disk):
     _db_path = os.path.join(_render_disk, "demo_trades.db")
 else:
     _db_path = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "demo_trades.db"))
+
+# ── Disk pressure reclaim (rule:R3, 2026-08-26) ──────────────────────────
+# 2026-08-21T18:46Z 以降、/var/data (1 GB) が満杯になり **全 SQLite 書込みが
+# 失敗し続けた** (`database or disk is full`, consecutive=85 を 08-26 に実測)。
+# trades / evaluated_candidates / positioning / health の全経路が停止し、
+# クリーン N 蓄積が 5 日間ゼロになった。ダッシュボードは最後の成功状態を
+# 描き続けるため「静かな相場」と見分けがつかなかった。
+# DemoDB を作る前に走らせる: 古いバックアップの削除は書込み成功を必要と
+# しない唯一の解放手段で、これが通らないと以降の初期化も全て失敗する。
+# 平常時は no-op (critical 未満かつバックアップ余地ありなら何も消さない)。
+try:
+    from modules import disk_guard as _disk_guard
+    _reclaim = _disk_guard.emergency_reclaim(_db_path)
+    print(f"[init] disk reclaim: triggered={_reclaim.get('triggered')} "
+          f"freed={_reclaim.get('freed_bytes')} "
+          f"removed={[b['name'] for b in _reclaim.get('removed_backups', [])]} "
+          f"used_pct={(_reclaim.get('after') or {}).get('used_pct')}")
+except Exception as _reclaim_err:
+    print(f"[init] disk reclaim failed: {_reclaim_err}")
+
 _demo_db = DemoDB(db_path=_db_path)
 
 # 2026-04-28 Phase 10 C1: ensure evaluated_candidates table exists for
 # per-bar candidate logging (lesson-select-best-bottleneck-2026-04-28.md).
 # Idempotent; safe to run on every deploy.
 try:
-    from modules.candidate_logger import init_candidates_table
+    from modules.candidate_logger import init_candidates_table, prune_candidates
     init_candidates_table(_db_path)
+    # rule:R3 (2026-08-26): retention was absent since 2026-04-28, so this
+    # audit table grew without bound on a 1 GB disk. DELETE frees pages for
+    # reuse (it does not shrink the file) — that bounds future growth.
+    _prune = prune_candidates(_db_path)
+    print(f"[init] C1 prune: {_prune.get('status')} deleted={_prune.get('deleted')} "
+          f"remaining={_prune.get('remaining')}")
 except Exception as _cand_init_err:
     print(f"[init] candidate_logger init failed: {_cand_init_err}")
 
@@ -15426,6 +15452,74 @@ def api_emergency_status():
 
 
 # ── DB Backup API ─────────────────────────────────────
+
+@app.route("/api/admin/disk_status")
+def api_admin_disk_status():
+    """Disk-capacity readout for the Render persistent disk (rule:R3, 2026-08-26).
+
+    The 1 GB ``/var/data`` disk filled on 2026-08-21 and every SQLite write
+    failed for 3.5 days. Nothing measured free space, so the outage rendered
+    as a *frozen* dashboard — indistinguishable from a quiet market — and was
+    only found by hand on 08-25.
+
+    GET → public read-only diagnostic. ``scripts/anomaly_watcher.py`` polls
+    this every 15 minutes and escalates to Discord at the warn/critical
+    thresholds in ``modules/disk_guard.py``.
+    """
+    try:
+        from modules import disk_guard
+        from modules.candidate_logger import DEFAULT_RETENTION_DAYS
+
+        out = {
+            "disk": disk_guard.disk_status(_db_path),
+            "footprint": disk_guard.db_footprint(_db_path),
+            "warn_pct": disk_guard.DISK_WARN_PCT,
+            "critical_pct": disk_guard.DISK_CRITICAL_PCT,
+        }
+        out["backup_preflight"] = disk_guard.has_room_for_backup(_db_path)
+        out["tables"] = {
+            "evaluated_candidates": disk_guard.table_rows(_db_path, "evaluated_candidates"),
+            "demo_trades": disk_guard.table_rows(_db_path, "demo_trades"),
+        }
+        out["c1_retention_days"] = int(
+            os.environ.get("C1_RETENTION_DAYS", DEFAULT_RETENTION_DAYS)
+        )
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
+
+@app.route("/api/admin/disk_reclaim", methods=["POST"])
+def api_admin_disk_reclaim():
+    """Force a disk reclaim without waiting for a redeploy (rule:R3, 2026-08-26).
+
+    During the 2026-08-21 outage the only lever available was a redeploy,
+    which costs a full engine restart. ``force=1`` runs the reclaim even when
+    the disk is below the critical threshold.
+    """
+    try:
+        from modules import disk_guard
+        force = request.args.get("force", "").lower() in ("1", "true", "yes")
+        result = disk_guard.emergency_reclaim(_db_path, force=force)
+        try:
+            from modules.candidate_logger import prune_candidates
+            result["prune"] = prune_candidates(_db_path)
+        except Exception as prune_err:
+            result["prune"] = {"status": "error", "error": str(prune_err)}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
+
+@app.route("/api/admin/prune_candidates", methods=["POST"])
+def api_admin_prune_candidates():
+    """Force-run the C1 retention prune. Idempotent (rule:R3, 2026-08-26)."""
+    try:
+        from modules.candidate_logger import prune_candidates
+        return jsonify(prune_candidates(_db_path))
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
 
 @app.route("/api/db/backup", methods=["POST"])
 def api_db_backup():

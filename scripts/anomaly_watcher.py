@@ -13,6 +13,7 @@ Protocol: knowledge-base/wiki/analyses/daily-tierB-protocol.md §6
     2. OANDA order latency > 3s
     3. Session volume drift (Tokyo <50% of median)
     4. Live N stagnation (24h増加0件)
+    5. Render Disk 使用率 (warn/critical) — 2026-08-26 追加
 
 **禁止事項**:
     - 判断しない (昇格/降格推奨は出さない)
@@ -43,6 +44,9 @@ SPREAD_MULTIPLIER_THRESHOLD = 2.0
 LATENCY_THRESHOLD_SEC = 3.0
 SESSION_VOLUME_RATIO_THRESHOLD = 0.5
 N_STAGNATION_HOURS = 24
+# 書込み停止は「取引ゼロ」として現れる。市場が静かな週末と区別するため、
+# stagnation は取引時刻ではなく **DB の最終書込み時刻** で測る (下記)。
+STALE_WRITE_HOURS = 6
 
 
 def fetch_json(path: str, timeout: int = 15) -> dict[str, Any]:
@@ -101,26 +105,108 @@ def check_oanda_latency(oanda_status: dict[str, Any]) -> list[dict[str, Any]]:
     return events
 
 
-def check_live_n_stagnation(status: dict[str, Any]) -> list[dict[str, Any]]:
-    """Live N が N_STAGNATION_HOURS 増加0件なら警告。
+def check_live_n_stagnation(
+    status: dict[str, Any], trades: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """DB への最終書込みからの経過時間で書込み停止を検知する (rule:R3, 2026-08-26).
 
-    status APIに last_trade_time があると仮定。無ければ skip。
+    **この検知器は 2026-04-22 の作成以来 126 日間 no-op だった。**
+    ``status["last_trade_time"]`` を読んでいたが、その key は
+    ``/api/demo/status`` にも app.py のどこにも存在しない (全数 grep で
+    生成箇所ゼロ)。docstring 自身が「あると仮定。無ければ skip」と書いて
+    おり、その仮定は一度も検証されなかった → 常に ``[]`` を返していた。
+
+    代償は実測済み: 2026-08-21〜08-25 に Render Disk 満杯で全 SQLite 書込み
+    が 3.5 日停止した際、本来これが鳴るはずだったが沈黙した。ZN 教訓
+    (計装契約バグ) の 5 例目・「読まれない計装は劣化を検知できない」の
+    直系。
+
+    現行の実装は trades API の実データ (``/api/demo/trades`` の最新行) から
+    時刻を取るので、field 契約は呼び出し側で観測可能な形になっている。
+    時刻が 1 件も読めない場合は ``no_timestamp_field`` を **異常として報告
+    する** — 黙って skip する旧挙動こそが欠陥だったため。
     """
-    events = []
-    last_trade = status.get("last_trade_time")
-    if not last_trade:
+    events: list[dict[str, Any]] = []
+
+    latest: datetime | None = None
+    for t in trades:
+        for key in ("open_time", "entry_time", "created_at", "timestamp"):
+            raw = t.get(key)
+            if not raw:
+                continue
+            try:
+                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            except (ValueError, TypeError):
+                continue
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if latest is None or dt > latest:
+                latest = dt
+            break
+
+    if latest is None:
+        # 旧実装はここで沈黙した。契約が壊れたこと自体を異常として上げる。
+        events.append(
+            {
+                "type": "stagnation_check_broken",
+                "detail": "no parseable timestamp field in /api/demo/trades",
+                "n_trades_seen": len(trades),
+            }
+        )
         return events
-    try:
-        last_dt = datetime.fromisoformat(last_trade.replace("Z", "+00:00"))
-    except (ValueError, AttributeError):
-        return events
-    hours_since = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600
+
+    hours_since = (datetime.now(timezone.utc) - latest).total_seconds() / 3600
     if hours_since >= N_STAGNATION_HOURS:
         events.append(
             {
                 "type": "live_n_stagnation",
                 "hours_since_last_trade": round(hours_since, 1),
                 "threshold_hours": N_STAGNATION_HOURS,
+                "last_trade_time": latest.isoformat(),
+            }
+        )
+    return events
+
+
+def check_disk_capacity(disk_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Render Disk 使用率を /api/admin/disk_status から監視する (rule:R3, 2026-08-26).
+
+    2026-08-21 の満杯事故は「誰も空き容量を測っていなかった」ため 3.5 日
+    発見されなかった。閾値は modules/disk_guard.py が API 応答に同梱して
+    返すので、判定基準は本番コードと単一ソースになる。
+    """
+    events: list[dict[str, Any]] = []
+    if not disk_payload:
+        return events
+    disk = disk_payload.get("disk") or {}
+    used_pct = disk.get("used_pct")
+    if used_pct is None:
+        return events
+
+    warn = disk_payload.get("warn_pct", 75.0)
+    critical = disk_payload.get("critical_pct", 90.0)
+    if used_pct >= warn:
+        fp = disk_payload.get("footprint") or {}
+        events.append(
+            {
+                "type": "disk_capacity",
+                "severity": "critical" if used_pct >= critical else "warn",
+                "used_pct": used_pct,
+                "free_bytes": disk.get("free_bytes"),
+                "total_bytes": disk.get("total_bytes"),
+                "main_db_bytes": fp.get("main_bytes"),
+                "backups_total_bytes": fp.get("backups_total_bytes"),
+                "backup_preflight_ok": (disk_payload.get("backup_preflight") or {}).get("ok"),
+            }
+        )
+
+    # 書込み停止そのものの直接検知: backup が低容量でスキップされ続けている
+    if (disk_payload.get("backup_preflight") or {}).get("ok") is False:
+        events.append(
+            {
+                "type": "backup_blocked_low_disk",
+                "need_bytes": (disk_payload.get("backup_preflight") or {}).get("need_bytes"),
+                "free_bytes": (disk_payload.get("backup_preflight") or {}).get("free_bytes"),
             }
         )
     return events
@@ -216,12 +302,14 @@ def main() -> int:
 
     oanda_status = fetch_json("/api/oanda/status")
     status = fetch_json("/api/demo/status")
+    disk_payload = fetch_json("/api/admin/disk_status")
 
     all_events: list[dict[str, Any]] = []
     all_events.extend(check_spread_spike(trades))
     all_events.extend(check_oanda_latency(oanda_status))
-    all_events.extend(check_live_n_stagnation(status))
+    all_events.extend(check_live_n_stagnation(status, trades))
     all_events.extend(check_session_volume(trades))
+    all_events.extend(check_disk_capacity(disk_payload))
 
     if all_events:
         path = save_events(all_events)

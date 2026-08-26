@@ -11,6 +11,8 @@ import glob as _glob_mod
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 
+from modules import disk_guard
+
 
 def pip_multiplier(instrument: str = "USD_JPY") -> float:
     """Pip multiplier for PnL calculation.
@@ -2567,6 +2569,18 @@ class DemoDB:
         This is safe for WAL mode — it acquires a consistent snapshot without
         blocking concurrent readers/writers.
 
+        **Rotation runs BEFORE the copy (rule:R3, 2026-08-26).** The original
+        order — copy, then rotate — made a full disk unrecoverable: the copy
+        raised ``disk I/O error`` and the rotation that would have freed space
+        never executed. Four consecutive days returned FAILED during the
+        2026-08-21→08-25 outage, so the disk stayed full *and* no backup
+        existed. Freeing first means each run reclaims the stale copies even
+        when it cannot write a new one.
+
+        A pre-flight free-space check then skips the copy outright when there
+        is not room for it, returning ``status="skipped_low_disk"`` instead of
+        a half-written file and an exception.
+
         Args:
             keep_last: Number of recent backups to keep (older ones are rotated out).
 
@@ -2580,7 +2594,43 @@ class DemoDB:
             backup_name = f"{db_basename}_backup_{today_str}.db"
             backup_path = os.path.join(db_dir, backup_name)
 
-            # Perform backup using sqlite3.backup() (WAL-safe, consistent snapshot)
+            # ── Step 1: rotate FIRST so a full disk can still be reclaimed ──
+            # Today's target is excluded from the census: it is about to be
+            # overwritten, so it must not consume one of the `keep_last` slots
+            # (otherwise the effective retention silently drops by one).
+            pattern = os.path.join(db_dir, f"{db_basename}_backup_*.db")
+            existing_backups = sorted(
+                b for b in _glob_mod.glob(pattern) if os.path.abspath(b) != os.path.abspath(backup_path)
+            )
+            rotated = 0
+            keep_before_copy = max(keep_last - 1, 0)
+            if len(existing_backups) > keep_before_copy:
+                for old_backup in existing_backups[: len(existing_backups) - keep_before_copy]:
+                    try:
+                        os.remove(old_backup)
+                        rotated += 1
+                    except OSError:
+                        pass
+
+            # ── Step 2: pre-flight — refuse to start a copy that cannot fit ──
+            room = disk_guard.has_room_for_backup(self._path)
+            if not room.get("ok"):
+                print(
+                    f"[Backup] SKIPPED (low disk): need={room.get('need_bytes')} "
+                    f"free={room.get('free_bytes')} used_pct="
+                    f"{room.get('disk', {}).get('used_pct')} — rotated {rotated}",
+                    flush=True,
+                )
+                return {
+                    "status": "skipped_low_disk",
+                    "rotated": rotated,
+                    "need_bytes": room.get("need_bytes"),
+                    "free_bytes": room.get("free_bytes"),
+                    "disk": room.get("disk"),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+
+            # ── Step 3: copy (WAL-safe, consistent snapshot) ──
             source_conn = sqlite3.connect(self._path, timeout=10)
             try:
                 dest_conn = sqlite3.connect(backup_path)
@@ -2593,18 +2643,6 @@ class DemoDB:
 
             backup_size = os.path.getsize(backup_path)
 
-            # Rotate old backups: keep only the most recent `keep_last`
-            pattern = os.path.join(db_dir, f"{db_basename}_backup_*.db")
-            existing_backups = sorted(_glob_mod.glob(pattern))
-            rotated = 0
-            if len(existing_backups) > keep_last:
-                for old_backup in existing_backups[:-keep_last]:
-                    try:
-                        os.remove(old_backup)
-                        rotated += 1
-                    except OSError:
-                        pass
-
             print(f"[Backup] Created: {backup_path} ({backup_size} bytes), "
                   f"rotated {rotated} old backups", flush=True)
 
@@ -2613,6 +2651,14 @@ class DemoDB:
                 "backup_path": backup_path,
                 "size_bytes": backup_size,
                 "rotated": rotated,
+                "disk": disk_guard.disk_status(self._path),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            print(f"[Backup] FAILED: {e}", flush=True)
+            return {
+                "status": "error",
+                "error": str(e),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:

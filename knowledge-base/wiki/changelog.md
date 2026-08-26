@@ -1,5 +1,18 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-26 — fix(infra): Render Disk 満杯による全 DB 書込み停止が **継続中** と判明 → 自己回復 + 検知を新設 (rule:R3)
+
+- **既存記録の訂正**: MEMORY `project_render_disk_full_write_outage_2026_08_25` は事故を「2026-08-21→08-25」と閉じた窓で記録していたが、**解消していなかった**。本セッション実測 (08-26T03:16-03:18Z) で本番ログに `database or disk is full` が **consecutive=85** で継続。positioning / health / `log_candidates` / `_tick_entry` の全書込み経路が失敗中
+- **実測**: trades 最終行 `entry_time=2026-08-21T18:46:24Z` / `evaluated-candidates` 直近 1・2・3 日いずれも **0 件** / disk = `/var/data` **1 GB**。**クリーン N 蓄積 (M1 の唯一のボトルネック) が 5 日間ゼロ**
+- **D1 自己増悪ループ**: `backup_database` が「コピー → ローテーション」順で、満杯時はコピーが例外を投げて**空きを作る唯一の処理に到達しない**。→ ローテーションを先頭へ移し、free-space pre-flight で不足時は `status="skipped_low_disk"` を返す。**counterfactual 確認済** (旧実装で `test_backup_rotates_before_copying` が FAIL)
+- **D2 計装ゼロ**: `shutil.disk_usage`/`statvfs` の参照がリポジトリ全体でゼロだった。→ `modules/disk_guard.py` + `GET /api/admin/disk_status` + anomaly_watcher の 15 分毎ポーリング (warn 75% / critical 90%、**閾値は API 応答に同梱 = 本番コードと単一ソース**)
+- **D3 retention 不在**: `evaluated_candidates` は 08-24 実測で 517,378 行。→ `prune_candidates` (90 日 = 観測最長読み出し窓 30 日 × 3 倍マージン、env `C1_RETENTION_DAYS`) を起動時 + 日次レビューで実行。⚠️ SQLite `DELETE` はファイルを縮めない = **将来の増加を止める対策であって既存容量の回収ではない** (`VACUUM` は満杯時に最も無い資源を要求するので意図的に不実行)
+- **D4 (最悪) 検知器が 126 日間 no-op**: `check_live_n_stagnation` は `status["last_trade_time"]` を読んでいたが、**この key は app.py のどこにも生成箇所が無い** (全数 grep)。docstring 自身が「あると仮定。無ければ skip」と書き、その仮定は一度も検証されなかった。**「24h トレード増加ゼロで警告」= まさにこの事故のための検知器が、事故の間ずっと沈黙していた**。→ 実在を本番応答で確認した `entry_time` を使用 + **時刻が読めない場合を `stagnation_check_broken` として異常報告** (黙って skip する旧挙動こそが欠陥)
+- **回復手段**: `disk_guard.emergency_reclaim()` を起動時 (DemoDB 生成より前) + `POST /api/admin/disk_reclaim` に配置。**書込み成功を前提としない `os.remove` によるバックアップ削除**が満杯からの唯一の脱出路。満杯で中断されたコピーは mtime が最新になるため、**readable なコピーを recent より優先**して残す。平常時は no-op
+- **live パラメータ・発注挙動は不変更**。テスト 23 件追加 (`tests/test_disk_guard.py` / `tests/test_anomaly_watcher_detectors.py`)
+- 教訓: **書込み停止は「異常」ではなく「凍結」として観測される** — メモリ内カウンタ駆動のダッシュボードは永続化層が全滅しても正常に見え続ける。生存監視は**永続化層に到達した最新レコードの時刻**で行う。そして **計装の field 契約は「仮定」ではなく「検証対象」**: 「無ければ skip」と書いた時点で検知器は飾りになる。**測れないなら測れないと鳴らせ**
+- 詳細: [[disk-full-write-outage-2026-08-26]]
+
 ## 2026-08-24 — fix(obs): evaluated_candidates.bar_time が live 行で全て NULL (call-site 欠落 4 例目、rule:R3)
 
 - PR #203 で C1 テーブルの読み出し経路を新設した直後、本番を初めて読んだところ **hull_donchian_fade 直近 30 日 1,139 行すべて `bar_time IS NULL`**
