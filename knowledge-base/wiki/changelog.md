@@ -2,7 +2,7 @@
 
 ## 2026-08-26 — fix(infra): Render Disk 満杯による全 DB 書込み停止が **継続中** と判明 → 自己回復 + 検知を新設 (rule:R3)
 
-- **既存記録の訂正**: MEMORY `project_render_disk_full_write_outage_2026_08_25` は事故を「2026-08-21→08-25」と閉じた窓で記録していたが、**解消していなかった**。本セッション実測 (08-26T03:16-03:18Z) で本番ログに `database or disk is full` が **consecutive=85** で継続。positioning / health / `log_candidates` / `_tick_entry` の全書込み経路が失敗中
+- **事故は継続中**。本セッション実測 (08-26T03:16-03:18Z) で本番ログに `database or disk is full` が **consecutive=85**、positioning / health / `log_candidates` / `_tick_entry` の全書込み経路が失敗中。検出自体は 08-25 に済んでおり MEMORY 本文も「未復旧」を正しく記録していた (MEMORY.md の索引行だけが閉じた窓のまま = **索引が本文より古い**)。**差分は結論の方**: 前回の「user 操作なしには絶対に直らない」を覆し、`os.remove` によるファイル削除は書込み成功を必要としない = **コード経路で回復できる** (自走原則)
 - **実測**: trades 最終行 `entry_time=2026-08-21T18:46:24Z` / `evaluated-candidates` 直近 1・2・3 日いずれも **0 件** / disk = `/var/data` **1 GB**。**クリーン N 蓄積 (M1 の唯一のボトルネック) が 5 日間ゼロ**
 - **D1 自己増悪ループ**: `backup_database` が「コピー → ローテーション」順で、満杯時はコピーが例外を投げて**空きを作る唯一の処理に到達しない**。→ ローテーションを先頭へ移し、free-space pre-flight で不足時は `status="skipped_low_disk"` を返す。**counterfactual 確認済** (旧実装で `test_backup_rotates_before_copying` が FAIL)
 - **D2 計装ゼロ**: `shutil.disk_usage`/`statvfs` の参照がリポジトリ全体でゼロだった。→ `modules/disk_guard.py` + `GET /api/admin/disk_status` + anomaly_watcher の 15 分毎ポーリング (warn 75% / critical 90%、**閾値は API 応答に同梱 = 本番コードと単一ソース**)
