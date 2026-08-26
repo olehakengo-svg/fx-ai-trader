@@ -3948,6 +3948,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **昇格基準（N≥30 & EV≥1.0）到達まで：最低+24件が必要**
 - 全26モード稼働中にもかかわらず約定ゼロ
 
+### 2026-08-26 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+- 東京セッション N=0 のため統計的判断の基盤なし
+- OANDA転送率 4%（50件中2件のみLIVE送信）は低水準に見えるが、`shadow_tracking`（19件）が主因であり、Shadowフェーズが意図通り機能している証拠
+- `agg_kelly=-0.336<0` ブロック（1件）はKellyがネガティブを検出してリスク遮断 → 防御機能正常作動
+- Block要因はいずれもロジック設計内の動作
+| GBP_USD | TRENDING_UP（29%） | 29% | 超低ATR水準でのトレンド。スプレッドコスト対比EVが薄い可能性 → 過度な期待は禁物 |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
