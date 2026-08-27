@@ -133,8 +133,29 @@ class TestRowFreshnessContract:
         assert f["last_trade_row_age_sec"] is None
         assert f["last_trade_row_at"] == "not-a-date"
 
-    def test_query_failure_reports_error_status(self, db):
-        """DB 破損時は error を立てる (no_rows と混同しない)。"""
+    def test_corrupt_db_reports_error_status(self, tmp_path):
+        """**実際に壊れた sqlite ファイル**で error 経路を pin する。
+
+        合成例外 (属性欠落等) だけで error 経路を主張すると、本物の
+        sqlite エラーが別経路に落ちていても気付けない。ここでは
+        `file is not a database` を実発生させる。
+        """
+        import threading
+
+        bad = tmp_path / "corrupt.db"
+        bad.write_bytes(b"not a sqlite file" * 100)
+
+        broken = DemoDB.__new__(DemoDB)
+        broken._path = str(bad)
+        broken._local = threading.local()
+
+        f = DemoDB.get_row_freshness(broken)
+        assert f["last_trade_row_status"] == "error"
+        assert f["last_trade_row_age_sec"] is None
+        assert "not a database" in str(f["error"])
+
+    def test_unexpected_internal_failure_also_reports_error(self, db):
+        """想定外の内部例外 (属性欠落など) も握り潰さず error にする。"""
         broken = DemoDB.__new__(DemoDB)
         broken._path = "/nonexistent-dir/does-not-exist.db"
 
