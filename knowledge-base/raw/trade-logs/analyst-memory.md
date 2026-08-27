@@ -3988,6 +3988,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 | **慎重観察** | scalp / scalp_5m | r2_shadow_demoted_cellブロックが多く有効シグナル密度低い。ロンドン急変には注意 |
 ### → **基本は NO ACTION 推奨**
 
+### 2026-08-27 (Post-London Report)
+| PnL (pips) | **0.0** |
+東京セッションデータは今回提供なし。ただし**本日累計N=1（WR 100%、+20.1 pips）**という事前集計値が存在しており、これは東京早朝の単発取引と推定される。
+| PnL (pips) | +20.1 | 0.0 | → |
+| WR | 100% | N/A | 評価不可 |
+| GBP/USD | TRENDING_UP (ATR 33%) | 同上 | 低ATR、NY初動に注意 |
+### 推奨戦略配分
+**⚠️ NO ACTION推奨 — ただし条件付き**
+| 累計PnL | **+20.1 pips** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
