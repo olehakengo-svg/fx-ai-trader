@@ -1,5 +1,18 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-27 — fix(obs): 行鮮度を status に出し「凍結 vs 静かな相場」を分離 + 評価停止の新検知 (rule:R3)
+
+- **残穴の位置**: PR #205/#206 で alert 経路 (`write_probe` / `live_n_stagnation`) は塞いだが、`/api/demo/status` **自身**は最終書込み時刻を持たないままだった。08-21 事故で「ダッシュボードが正常に見えた」根本理由がこれ。ダッシュボードは 08-27 時点でも**凍結と閑散を区別できない**
+- **追加した読み出し経路**: `DemoDB.get_row_freshness()` → `last_{trade,candidate}_row_{at,age_sec,status}` を status payload へ。判定列は **`created_at`** (DB 側 DEFAULT で必ず埋まる)。`bar_time` は call-site 欠落で live 行が全 NULL だった前例 (PR #204) があり**鮮度の基準に使わない**
+- **status を 5 値に分離**: `ok` / `no_rows` / `no_table` / `unparseable` / `error`。**「行が無い」と「クエリが落ちた」を混同させないことが主目的** — silent except は「不発」と「ゼロ件」を区別不能にする (既存教訓)。契約 key は常に存在させる (key 欠落は下流の silent skip を生む = `live_n_stagnation` 126 日 no-op の直接原因)
+- **キー衝突の回避**: `get_row_freshness()` の `error`/`now` をそのまま展開すると `/api/demo/status` の汎用 `error` (例外ハンドラが使う) と衝突し、鮮度クエリの失敗が **status 全体の失敗に見える**。`row_freshness_error` / `row_freshness_now` へ名前空間化して詰め替える
+- **新検知器 `candidate_stagnation`** — 既存 3 検知器がいずれも見ていない故障モードを埋める: `write_probe` は**書込み経路**の生死しか見ず、評価スレッドが死んで候補がゼロでも ok を返す。`live_n_stagnation` は約定ベースで閾値 24h。そして **watcher はスレッド生存 (`main_loop_alive` 等) を一切見ていなかった** (全数 grep で確認)。`evaluated_candidates` はバー評価ごとの高頻度系列 (本番 315,173 行 vs 約定 16,548 行) なので、停止 ≒「エンジンが評価していない」を約定より遥かに速く捉える
+- **閾値の実測根拠**: 08-26T18:17〜08-27T02:25Z の 2,000 行で行間隔 median 0.10 分 / p99 0.80 分、**最大 120.3 分** = NY クローズ〜アジア early (水 22:00→00:00 UTC) の薄商い帯。`CANDIDATE_STAGNATION_HOURS = 6` は実測最大の 3 倍。観測窓が 8 時間しかないため**暫定値**で、誤発火が出たら実測を延長して**上げる** (下げる調整は実測なしに行わない)。週末は `_market_open_hours` で除外 (実時間で数えると毎週末誤発火する既知の罠)
+- **counterfactual 4 本を実行して確認** (deploy-churn 教訓の適用): ①`no_rows`→`error` 折り畳み ②age の定数固着 ③`unparseable` の握り潰し ④市場オープン時間→実時間 のいずれでも該当テストが落ちることを実測。**green のまま無力化していないことの行動証拠**
+- **付随 (偽陽性の除去)**: `check.py` の queue SLA 検査が `status:` を読まずファイル名日付のみで判定していたため、**完了済み** (`status: done`) のまま `queue/` に残った family-a タスクを 8 日間「滞留」と警告し続けていた。done 残置を SLA 滞留と**別種の警告に分離** — 偽陽性の常時点灯は本物の停滞 (E23 = in_progress 9 日) を埋もれさせる。当該タスクは Claude Review を付して `done/` へ移送
+- **live パラメータ・発注挙動は不変更** (読み出し経路と監視の追加のみ)。テスト 20 件追加 (`tests/test_row_freshness.py` 10 / `tests/test_anomaly_watcher_detectors.py` 10)
+- 教訓: **観測基盤の 3 段階 (書ける / 読める / 読んだ値が意味を持つ) は、足した直後に 3 段目まで通しておかないと必ず 1 段目で止まる。** 今回 status に field を足すだけで終えれば C1 テーブルが 4 ヶ月 write-only だったのと同型になるため、**同じコミット内で読み手 (`candidate_stagnation`) を必ず併設した**。検知器を足すときは同時に「この検知器の偽陽性は何か」を実測で決める — 鳴りっぱなしの検知器は無いのと同じ
+
 ## 2026-08-26 — fix(infra): Render Disk 満杯による全 DB 書込み停止が **継続中** と判明 → 自己回復 + 検知を新設 (rule:R3)
 
 - **事故は継続中**。本セッション実測 (08-26T03:16-03:18Z) で本番ログに `database or disk is full` が **consecutive=85**、positioning / health / `log_candidates` / `_tick_entry` の全書込み経路が失敗中。検出自体は 08-25 に済んでおり MEMORY 本文も「未復旧」を正しく記録していた (MEMORY.md の索引行だけが閉じた窓のまま = **索引が本文より古い**)。**差分は結論の方**: 前回の「user 操作なしには絶対に直らない」を覆し、`os.remove` によるファイル削除は書込み成功を必要としない = **コード経路で回復できる** (自走原則)

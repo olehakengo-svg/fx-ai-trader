@@ -15,6 +15,7 @@ Protocol: knowledge-base/wiki/analyses/daily-tierB-protocol.md §6
     4. Live N stagnation (市場オープン時間換算で24h増加0件)
     5. Render Disk 使用率 (warn/critical) — 2026-08-26 追加
     6. DB 書込み失敗 (disk_status の write_probe 実測) — 2026-08-26 追加
+    7. シグナル評価の停止 (候補行の鮮度、市場オープン6h) — 2026-08-27 追加
 
 **禁止事項**:
     - 判断しない (昇格/降格推奨は出さない)
@@ -48,6 +49,9 @@ SPREAD_MULTIPLIER_THRESHOLD = 2.0
 LATENCY_THRESHOLD_SEC = 3.0
 SESSION_VOLUME_RATIO_THRESHOLD = 0.5
 N_STAGNATION_HOURS = 24
+# 候補行 (バー評価ごと) の停止閾値。実測根拠は check_candidate_stagnation
+# の docstring 参照 (自然な最大無風 2.0h の 3 倍を取った暫定値)。
+CANDIDATE_STAGNATION_HOURS = 6
 # 書込み停止は「取引ゼロ」として現れるが、取引ゼロには市場が閉まっている
 # だけの週末も含まれる。そこで検知は2本立てにする (rule:R3, 2026-08-26):
 #   - live_n_stagnation: 取引時刻ベース。ただし FX 週末閉場 (金 21:00 →
@@ -78,12 +82,14 @@ NOTIFY_EVERY_HOURS = {
     "db_write_failed": 1,
     "live_n_stagnation": 6,
     "stagnation_check_broken": 6,
+    "candidate_stagnation": 6,
+    "candidate_freshness_error": 6,
 }
 # Discord に流さない type。write_probe_missing はデプロイ直後の cron/web
 # バージョン不一致で必ず一度は起きる (cron は数十秒で新コード化、web は
 # build 完了まで旧 API を返す)。web が旧版のまま固着するケースは Render の
 # デプロイ失敗通知が受け持つので、ここは記録のみに降格する。
-NOTIFY_NEVER = {"write_probe_missing"}
+NOTIFY_NEVER = {"write_probe_missing", "candidate_freshness_missing"}
 
 
 def fetch_json(path: str, timeout: int = 15) -> dict[str, Any]:
@@ -323,6 +329,95 @@ def check_db_write_health(disk_payload: dict[str, Any]) -> list[dict[str, Any]]:
     return events
 
 
+def check_candidate_stagnation(
+    status: dict[str, Any], now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """シグナル評価そのものの停止を検知する (rule:R3, 2026-08-27).
+
+    既存 3 検知器がいずれも見ていない故障モードを埋める:
+
+    - ``db_write_failed`` (write_probe) は **書込み経路**の生死しか見ない。
+      評価スレッドが死んで候補が 1 件も出なくなっても probe は ok を返す。
+    - ``live_n_stagnation`` は約定ベースなので閾値が 24 市場オープン時間。
+      「ゲートが弾いているだけ」と区別するため意図的に鈍い。
+    - watcher は ``main_loop_alive`` 等のスレッド生存を **一切見ていない**
+      (2026-08-27 時点で全数 grep 済み)。
+
+    ``evaluated_candidates`` はバー評価ごとに書かれる高頻度系列
+    (本番実測 315,173 行 vs 約定 16,548 行) なので、これが止まることは
+    「エンジンが評価していない」とほぼ同値であり、約定より遥かに速く
+    劣化を捉えられる。
+
+    **閾値の実測根拠 (2026-08-26 18:17〜08-27 02:25 UTC, 2,000 行)**:
+    行間隔の median 0.10 分 / p99 0.80 分。最大は 120.3 分 = NY クローズ〜
+    アジア early (水 22:00→00:00 UTC) の薄商い帯。よって自然な無風で 2h は
+    起こりうる。閾値 ``CANDIDATE_STAGNATION_HOURS = 6`` は実測最大の 3 倍を
+    取ったもので、``live_n_stagnation`` の 24h に対し検知を 4 倍速める。
+    観測窓が 8 時間しかないため **暫定値**であり、誤発火が出たら実測を
+    延長して上げること (下げる方向の調整は実測なしに行わない)。
+
+    週末閉場は ``_market_open_hours`` で除外する — 実時間で数えると
+    毎週末必ず誤発火する (``live_n_stagnation`` で踏んだのと同じ罠)。
+    """
+    events: list[dict[str, Any]] = []
+    if not status:
+        return events
+
+    st = status.get("last_candidate_row_status")
+    if st is None:
+        # デプロイ直後の web 旧版など。黙って skip せず記録だけ残す
+        # (沈黙こそが 126 日 no-op の原因だった)。通知はしない。
+        events.append(
+            {
+                "type": "candidate_freshness_missing",
+                "detail": "no last_candidate_row_status in /api/demo/status (version skew?)",
+            }
+        )
+        return events
+
+    # no_table / no_rows は初期状態。error は本物の異常。
+    if st == "error":
+        events.append(
+            {
+                "type": "candidate_freshness_error",
+                "detail": str(status.get("row_freshness_error"))[:200],
+            }
+        )
+        return events
+    if st != "ok":
+        return events
+
+    raw_at = status.get("last_candidate_row_at")
+    try:
+        latest = datetime.fromisoformat(str(raw_at).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        events.append(
+            {
+                "type": "candidate_freshness_error",
+                "detail": f"unparseable last_candidate_row_at: {raw_at!r}",
+            }
+        )
+        return events
+    if latest.tzinfo is None:
+        latest = latest.replace(tzinfo=timezone.utc)
+
+    now = now or datetime.now(timezone.utc)
+    open_hours = _market_open_hours(latest, now)
+    if open_hours >= CANDIDATE_STAGNATION_HOURS:
+        events.append(
+            {
+                "type": "candidate_stagnation",
+                "market_open_hours_since": round(open_hours, 1),
+                "hours_since_last_candidate": round(
+                    (now - latest).total_seconds() / 3600, 1
+                ),
+                "threshold_hours": CANDIDATE_STAGNATION_HOURS,
+                "last_candidate_row_at": str(raw_at),
+            }
+        )
+    return events
+
+
 def check_session_volume(trades: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Tokyo session (UTC 00-06) の直近volumeが30日median比50%未満なら警告。"""
     events = []
@@ -431,6 +526,15 @@ def _event_line(e: dict[str, Any]) -> str:
         )
     if et == "stagnation_check_broken":
         return f"- {et}: {e.get('detail')} — 検知器の計装契約が破れている"
+    if et == "candidate_stagnation":
+        return (
+            f"- candidate_stagnation: 市場オープン {e.get('market_open_hours_since')}h"
+            f" 候補行ゼロ (実時間 {e.get('hours_since_last_candidate')}h,"
+            f" 閾値 {e.get('threshold_hours')}h, 最終 {e.get('last_candidate_row_at')})"
+            f" — シグナル評価が止まっている疑い (書込みは生存)"
+        )
+    if et in ("candidate_freshness_error", "candidate_freshness_missing"):
+        return f"- {et}: {e.get('detail')} — 鮮度計装の契約が破れている"
     return f"- {et}: {json.dumps(e, ensure_ascii=False)[:150]}"
 
 
@@ -490,6 +594,7 @@ def main() -> int:
     all_events.extend(check_session_volume(trades))
     all_events.extend(check_disk_capacity(disk_payload))
     all_events.extend(check_db_write_health(disk_payload))
+    all_events.extend(check_candidate_stagnation(status, now=now))
 
     if all_events:
         path = save_events(all_events)

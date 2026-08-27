@@ -2045,7 +2045,52 @@ class DemoTrader:
             )[:30]),  # 上位30件のみ (キー爆発防止)
             # ── Emergency Kill Switch status ──
             "emergency_killed": self._emergency_killed,
+            # ── 行鮮度 (rule:R3, 2026-08-27): 「凍結」と「静かな相場」の分離 ──
+            **self._row_freshness_payload(),
         }
+
+    def _row_freshness_payload(self) -> dict:
+        """最終書込みからの経過秒を status payload 用に平坦化する.
+
+        rule:R3 (2026-08-27). 2026-08-21〜08-25 の Disk 満杯事故では全書込みが
+        3.5 日停止したにもかかわらず、ダッシュボードは最終書込み時刻を持た
+        ないため「静かな相場」と区別できず正常に見えた。alert 経路は
+        PR #205/#206 で塞いだが、status payload 自身は blind のままだった。
+
+        `demo_trades` (約定) と `evaluated_candidates` (シグナル評価) は
+        **独立した系列**である点が肝: candidate が進んでいて trade が
+        止まっているなら「相場は静か/ゲートが弾いている」、両方止まって
+        いるなら「書込みが死んでいる」と切り分けられる。
+
+        本メソッドは status 取得を絶対に落とさない (取引パスの隣) が、
+        失敗は握り潰さず `row_freshness_error` として表面化させる。
+
+        注意: `get_row_freshness()` の `error` / `now` はそのまま展開すると
+        `/api/demo/status` の汎用 `error` キー (endpoint の例外ハンドラが
+        使う) と衝突し、鮮度クエリの失敗が status 全体の失敗に見える。
+        そのため名前空間付きに詰め替えてから返す。
+        """
+        keys = (
+            "last_trade_row_at",
+            "last_trade_row_age_sec",
+            "last_trade_row_status",
+            "last_candidate_row_at",
+            "last_candidate_row_age_sec",
+            "last_candidate_row_status",
+        )
+        try:
+            raw = self._db.get_row_freshness()
+        except Exception as e:  # noqa: BLE001 - status 応答自体は落とさない
+            out = {k: None for k in keys}
+            out["last_trade_row_status"] = "error"
+            out["last_candidate_row_status"] = "error"
+            out["row_freshness_error"] = f"row_freshness: {e}"
+            return out
+
+        out = {k: raw.get(k) for k in keys}
+        out["row_freshness_error"] = raw.get("error")
+        out["row_freshness_now"] = raw.get("now")
+        return out
 
     def request_tick(self):
         """リクエスト駆動tick: バックグラウンドスレッドが死んでいる場合のフォールバック。
