@@ -3978,6 +3978,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **USD_JPY（最重要）**：ATR%ile 71% + TRENDING_DOWN。このATR水準では急反転リスクも高い。`usdjpy_carry_dip_accumulator`のN=5はこの環境で蓄積されたデータ — バックグラウンド・レジームのバイアスに注意。
 - **EUR/GBP系**：TRENDING_UPだが、`price_shock_rev_eur_gbp_h1_long`はN=3でWR 0% — 現トレンドに逆らうLong戦略が機能不全を起こしている可能性（N少なく断定不可）。
 
+### 2026-08-27 (Post-Tokyo Report)
+| セッション PnL | **+20.1 pips** |
+| 戦略 | ペア | PnL | 成功要因 |
+- **`rnb_usdjpy:direction_filter` 309件ブロック** — USD/JPY TRENDING_DOWN（ATR%ile 71%）レジームに対し方向フィルターが大量抑制。これは保護機能の正常作動だが、トレンド環境でのシグナル供給がほぼ機能していないことを示す
+- **`daytrade:hedge_block` 299件 / `daytrade_gbpjpy:hedge_block` 90件** — ヘッジブロックが最大ボトルネック群。相互ポジション打消しが常態化しているか、エントリー条件が両方向同時充足している可能性
+- **`scalp:r2_shadow_demoted_cell` 202件** — Shadow降格セルによる大量ブロックはR2スクリーニングが正常稼働の証左だが、scalp系の有効シグナル密度の低さを示す
+### 推奨戦略配分
+| **慎重観察** | scalp / scalp_5m | r2_shadow_demoted_cellブロックが多く有効シグナル密度低い。ロンドン急変には注意 |
+### → **基本は NO ACTION 推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
