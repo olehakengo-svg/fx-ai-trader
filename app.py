@@ -15477,6 +15477,10 @@ def api_admin_disk_status():
             "critical_pct": disk_guard.DISK_CRITICAL_PCT,
         }
         out["backup_preflight"] = disk_guard.has_room_for_backup(_db_path)
+        # 実 INSERT で書込み可否をその場で測る (1 行 upsert、DB は成長しない)。
+        # mtime ベースの staleness は再起動と ENOSPC 下の WAL 再書込みに
+        # 騙されるため採らない (rule:R3, 2026-08-26)。
+        out["write_probe"] = disk_guard.write_probe(_db_path)
         out["tables"] = {
             "evaluated_candidates": disk_guard.table_rows(_db_path, "evaluated_candidates"),
             "demo_trades": disk_guard.table_rows(_db_path, "demo_trades"),
@@ -15524,7 +15528,7 @@ def api_admin_prune_candidates():
 @app.route("/api/db/backup", methods=["POST"])
 def api_db_backup():
     """Trigger manual SQLite backup (same as daily auto-backup)."""
-    result = _demo_db.backup_database(keep_last=3)
+    result = _demo_db.backup_database(keep_last=2)
     return jsonify(result)
 
 

@@ -28,6 +28,7 @@ import glob as _glob_mod
 import os
 import shutil
 import sqlite3
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 # Alert ladder. Chosen from the incident: the fill went from "fine" to
@@ -72,6 +73,54 @@ def _size_or_zero(path: str) -> int:
         return os.path.getsize(path)
     except OSError:
         return 0
+
+
+PROBE_TABLE = "disk_guard_probe"
+
+
+def write_probe(db_path: str) -> dict[str, Any]:
+    """実 INSERT で「今この瞬間に commit が成功するか」を測る (rule:R3, 2026-08-26).
+
+    書込み停止の観測点としてファイル mtime は使えない: 再起動時の
+    checkpoint / WAL-index 再構築が main/-shm を touch して時計をリセット
+    し、ENOSPC 下でも失敗する commit のリトライが確保済み WAL ブロックを
+    上書きして -wal の mtime を前進させ続ける (2026-08-26 のレビューで
+    再現済み)。信頼できるのは commit が成功したという事実だけ。
+
+    1 行の upsert なので DB は成長しない。失敗時は read-only 接続で
+    前回成功時刻を読んで返す (読取りは満杯中も動く)。
+    """
+    now_iso = datetime.now(timezone.utc).isoformat()
+    try:
+        conn = sqlite3.connect(db_path, timeout=10)
+        try:
+            conn.execute(
+                f"CREATE TABLE IF NOT EXISTS {PROBE_TABLE} "
+                "(id INTEGER PRIMARY KEY CHECK (id = 1), last_ok_at TEXT)"
+            )
+            conn.execute(
+                f"INSERT INTO {PROBE_TABLE} (id, last_ok_at) VALUES (1, ?) "
+                "ON CONFLICT(id) DO UPDATE SET last_ok_at = excluded.last_ok_at",
+                (now_iso,),
+            )
+            conn.commit()
+            return {"ok": True, "last_ok_at": now_iso}
+        finally:
+            conn.close()
+    except Exception as exc:
+        last_ok = None
+        try:
+            ro = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+            try:
+                row = ro.execute(
+                    f"SELECT last_ok_at FROM {PROBE_TABLE} WHERE id = 1"
+                ).fetchone()
+                last_ok = row[0] if row else None
+            finally:
+                ro.close()
+        except Exception:
+            pass
+        return {"ok": False, "error": str(exc), "last_ok_at": last_ok}
 
 
 def db_footprint(db_path: str) -> dict[str, Any]:
