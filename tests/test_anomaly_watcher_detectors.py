@@ -228,3 +228,82 @@ def test_write_failure_notifies_hourly():
     ev = {"type": "db_write_failed", "error": "database or disk is full"}
     assert aw._should_notify(ev, _at(9, 0)) is True
     assert aw._should_notify(ev, _at(9, 45)) is False
+
+
+class TestCandidateStagnation:
+    """候補行 (バー評価ごと) の鮮度検知 (rule:R3, 2026-08-27).
+
+    埋める穴: write_probe は「書込み経路」の生死しか見ず、評価スレッドが
+    死んで候補が出なくなっても ok を返す。live_n_stagnation は約定ベースで
+    閾値 24h。watcher はスレッド生存を一切見ていない。
+    """
+
+    @staticmethod
+    def _status(at, st="ok"):
+        return {"last_candidate_row_at": at, "last_candidate_row_status": st}
+
+    def test_fresh_candidates_are_quiet(self):
+        now = datetime(2026, 8, 27, 3, 0, tzinfo=timezone.utc)
+        s = self._status((now - timedelta(minutes=4)).isoformat())
+        assert aw.check_candidate_stagnation(s, now=now) == []
+
+    def test_natural_two_hour_lull_does_not_fire(self):
+        """実測された自然な最大無風 (NY クローズ〜アジア early の 2.0h)
+        で鳴ってはいけない — 誤発火は検知器を無視させる。"""
+        now = datetime(2026, 8, 27, 0, 0, tzinfo=timezone.utc)  # 木
+        s = self._status((now - timedelta(hours=2)).isoformat())
+        assert aw.check_candidate_stagnation(s, now=now) == []
+
+    def test_fires_past_threshold_on_open_market(self):
+        now = datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc)  # 木 = 開場
+        s = self._status((now - timedelta(hours=7)).isoformat())
+        ev = aw.check_candidate_stagnation(s, now=now)
+        assert len(ev) == 1
+        assert ev[0]["type"] == "candidate_stagnation"
+        assert ev[0]["market_open_hours_since"] >= aw.CANDIDATE_STAGNATION_HOURS
+
+    def test_weekend_close_does_not_false_fire(self):
+        """金 21:00 UTC 閉場 → 日曜まで候補ゼロは正常。実時間で数えると
+        毎週末必ず誤発火する (live_n_stagnation で踏んだ罠と同型)。"""
+        friday_close = datetime(2026, 8, 28, 20, 30, tzinfo=timezone.utc)
+        saturday = datetime(2026, 8, 29, 18, 0, tzinfo=timezone.utc)
+        assert friday_close.weekday() == 4 and saturday.weekday() == 5
+        s = self._status(friday_close.isoformat())
+        assert aw.check_candidate_stagnation(s, now=saturday) == []
+
+    def test_missing_field_is_recorded_but_never_notified(self):
+        """契約欠落は黙って skip しない。ただしデプロイ直後の version skew
+        で必ず起きるので Discord には流さない。"""
+        ev = aw.check_candidate_stagnation({"running": True}, now=None)
+        assert len(ev) == 1
+        assert ev[0]["type"] == "candidate_freshness_missing"
+        assert "candidate_freshness_missing" in aw.NOTIFY_NEVER
+
+    def test_error_status_is_surfaced(self):
+        s = {"last_candidate_row_status": "error", "row_freshness_error": "disk I/O"}
+        ev = aw.check_candidate_stagnation(s, now=None)
+        assert ev and ev[0]["type"] == "candidate_freshness_error"
+
+    def test_no_rows_is_not_an_anomaly(self):
+        """初期状態 (テーブル空) を異常にすると本物が埋もれる。"""
+        assert aw.check_candidate_stagnation(
+            {"last_candidate_row_status": "no_rows"}, now=None
+        ) == []
+
+    def test_unparseable_timestamp_is_surfaced_not_swallowed(self):
+        s = self._status("not-a-date")
+        ev = aw.check_candidate_stagnation(s, now=None)
+        assert ev and ev[0]["type"] == "candidate_freshness_error"
+
+    def test_empty_status_is_silent(self):
+        """fetch 失敗 ({}) で false alarm を作らない (既存方針と一致)。"""
+        assert aw.check_candidate_stagnation({}, now=None) == []
+
+    def test_event_line_renders(self):
+        now = datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc)
+        s = self._status((now - timedelta(hours=7)).isoformat())
+        ev = aw.check_candidate_stagnation(s, now=now)
+        line = aw._event_line(ev[0])
+        assert "candidate_stagnation" in line
+        # 汎用 fallback (json ダンプ) に落ちていないこと
+        assert not line.startswith("- candidate_stagnation: {")

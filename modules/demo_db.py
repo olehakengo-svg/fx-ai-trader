@@ -1266,6 +1266,104 @@ class DemoDB:
                 )
                 conn.commit()
 
+    # ── 行鮮度 (row freshness) — 「凍結」と「静かな相場」の分離 ────────
+    # rule:R3 (2026-08-27). 2026-08-21〜08-25 の Disk 満杯事故では全書込みが
+    # 3.5 日停止したが、ダッシュボードは最終書込み時刻を持たないため
+    # 「静かな相場」と見分けがつかず、正常に見えた。PR #205/#206 で alert
+    # 経路 (anomaly_watcher + write_probe) は塞いだが、status payload 自身は
+    # 依然 blind だったのでその読み出し経路をここに新設する。
+    #
+    # 設計上の要点 (MEMORY 教訓の直系):
+    #   - 「行が無い」/「時刻が壊れている」/「クエリが落ちた」を **別 status**
+    #     で返す。silent except で潰すと「不発」と「ゼロ件」が区別不能になる。
+    #   - 契約 key は常に存在させる。key 欠落は下流の silent skip を生む
+    #     (live_n_stagnation が 126 日 no-op だった直接原因がこれ)。
+    #   - 判定に使うのは `created_at` (DB 側 DEFAULT で必ず埋まる)。
+    #     `bar_time` は call-site 欠落で live 行が全 NULL だった前例があり
+    #     (PR #204)、鮮度の基準に使ってはならない。
+    # (kind, table, MAX query) — クエリは動的生成せず literal で持つ
+    # (テーブル名を f-string で埋めると SQL 連結として検出されるため)
+    _FRESHNESS_TABLES = (
+        ("trade", "demo_trades", "SELECT MAX(created_at) FROM demo_trades"),
+        ("candidate", "evaluated_candidates",
+         "SELECT MAX(created_at) FROM evaluated_candidates"),
+    )
+
+    @staticmethod
+    def _parse_db_timestamp(raw) -> "datetime | None":
+        """`created_at` を UTC aware datetime に。失敗は None (呼側で status 化)."""
+        if raw is None:
+            return None
+        text = str(raw).strip()
+        if not text:
+            return None
+        try:
+            dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            return None
+        if dt.tzinfo is None:
+            # sqlite の datetime('now') / CURRENT_TIMESTAMP は UTC naive
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+
+    def get_row_freshness(self, now: "datetime | None" = None) -> dict:
+        """最終書込みからの経過秒を系列別に返す (rule:R3, 2026-08-27).
+
+        Returns a dict with, for each of ``trade`` / ``candidate``:
+        ``last_<kind>_row_at`` (raw DB text), ``last_<kind>_row_age_sec``
+        (float) and ``last_<kind>_row_status`` — one of:
+
+        ``ok``          : 時刻が読めた。age_sec が有効
+        ``no_rows``     : テーブルは在るが 0 件 (正常な初期状態)
+        ``no_table``    : テーブル未作成 (旧 DB 互換。障害ではない)
+        ``unparseable`` : 行は在るが時刻が壊れている (要調査)
+        ``error``       : クエリ自体が失敗 (``error`` キーに理由)
+
+        ``no_rows`` と ``error`` を混同させないことが本メソッドの主目的。
+        """
+        now = now or datetime.now(timezone.utc)
+        out: dict = {"now": now.isoformat(), "error": None}
+
+        for kind, table, max_sql in self._FRESHNESS_TABLES:
+            at_key = f"last_{kind}_row_at"
+            age_key = f"last_{kind}_row_age_sec"
+            status_key = f"last_{kind}_row_status"
+            out[at_key] = None
+            out[age_key] = None
+
+            try:
+                with self._safe_conn() as conn:
+                    exists = conn.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                        (table,),
+                    ).fetchone()
+                    if not exists:
+                        out[status_key] = "no_table"
+                        continue
+                    row = conn.execute(max_sql).fetchone()
+            except Exception as e:  # noqa: BLE001 - 明示的に error として報告する
+                out[status_key] = "error"
+                # 最初の失敗理由を保持 (後続 kind で上書きしない)
+                if out["error"] is None:
+                    out["error"] = f"{table}: {e}"
+                continue
+
+            raw = row[0] if row else None
+            if raw is None:
+                out[status_key] = "no_rows"
+                continue
+
+            out[at_key] = str(raw)
+            parsed = self._parse_db_timestamp(raw)
+            if parsed is None:
+                out[status_key] = "unparseable"
+                continue
+
+            out[status_key] = "ok"
+            out[age_key] = round((now - parsed).total_seconds(), 1)
+
+        return out
+
     def get_open_trades(self) -> list:
         with self._safe_conn() as conn:
             rows = conn.execute(

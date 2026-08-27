@@ -437,6 +437,20 @@ def check_ai_task_governance() -> tuple[list[str], list[str]]:
                     f"{date_m.group(1)[:4]}-{date_m.group(1)[4:6]}-{date_m.group(1)[6:]}"
                 )
             ).days
+            # status: done のまま queue/ に残っているものは「停滞」ではない。
+            # SLA 滞留として数えると偽陽性が常時点灯し、本物の停滞
+            # (in_progress のまま放置) が埋もれる (2026-08-27, rule:R3 —
+            # family-a タスクが完了済みのまま 8 日間 SLA 警告を出し続けた)。
+            try:
+                head = task_file.read_text(encoding="utf-8")[:600]
+            except OSError:
+                head = ""
+            if re.search(r"^status:\s*done\b", head, re.M):
+                warns.append(
+                    f"  ⚠️  queue/{task_file.name}: status=done のまま queue 残置 "
+                    f"— .ai/tasks/done/ へ移送すること"
+                )
+                continue
             if age_days > QUEUE_SLA_DAYS:
                 warns.append(
                     f"  ⚠️  queue/{task_file.name}: {age_days}日滞留 "
