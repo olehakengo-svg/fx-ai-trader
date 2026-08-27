@@ -3968,6 +3968,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 | 累計PnL | **0.0 pips** |
 **推奨確認事項**：Open Trades 1件の方向性とUSD_JPYのTRENDING_DOWN方向が逆張りになっていないか。Kellyマイナス（-0.336）の構造的原因（損失サイドの偏りか、WR低下か）の特定を優先すべき。NYセッション終了後もゼロ約定が継続する場合、「システム稼働中」と「実質的機能停止」の境界線に達したと判断すべきタイミングである。
 
+### 2026-08-27 (Pre-Tokyo Briefing)
+前日全セッション（東京・ロンドン・NY）を通じてシステム発注は一切なし。PnL = 0、N = 0、WR = N/A。稼働モード27本は正常稼働中だが、実質的に静止状態だった。
+| Strategy | Pair | N | WR% | EV | PnL |
+**全体集計（N=9、WR=33.3%、PnL=+14.1）**
+> ⚠️ **統計的注意**：最大N=5。全戦略がN<10の「データなし」域。**数値は傾向参照レベルにも達しておらず、いかなる判断の根拠にもなり得ない。** N=30達成を最優先課題として観察継続。
+- 方向フィルター: USD_JPYのTRENDING_DOWN継続中 → `rnb_usdjpy`の発注機会は引き続き限定的と予測。期待値を下げて監視。
+- Hedge_block: オープンポジションがゼロ（OANDA Open Trades=0）にもかかわらずhedge_blockが頻発している点は要観察。ポジション管理状態とblock理由の整合性を確認。
+- **USD_JPY（最重要）**：ATR%ile 71% + TRENDING_DOWN。このATR水準では急反転リスクも高い。`usdjpy_carry_dip_accumulator`のN=5はこの環境で蓄積されたデータ — バックグラウンド・レジームのバイアスに注意。
+- **EUR/GBP系**：TRENDING_UPだが、`price_shock_rev_eur_gbp_h1_long`はN=3でWR 0% — 現トレンドに逆らうLong戦略が機能不全を起こしている可能性（N少なく断定不可）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
