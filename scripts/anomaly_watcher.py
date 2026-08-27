@@ -344,9 +344,21 @@ def check_candidate_stagnation(
       (2026-08-27 時点で全数 grep 済み)。
 
     ``evaluated_candidates`` はバー評価ごとに書かれる高頻度系列
-    (本番実測 315,173 行 vs 約定 16,548 行) なので、これが止まることは
-    「エンジンが評価していない」とほぼ同値であり、約定より遥かに速く
+    (本番実測 315,173 行 vs 約定 16,548 行) なので、約定より遥かに速く
     劣化を捉えられる。
+
+    ⚠️ **estimand の限界 (2026-08-27 本番で実測確認)**: 行は app.py で
+    **v9.1 HTF Hard Block が counter-HTF 候補を除去した後**に書かれる。
+    したがって本検知器が測るのは「エンジンが評価しているか」ではなく
+    **「候補が select_best 段階まで到達したか」**である。実際 08-27T02:25〜
+    03:40 の 73 分間は本テーブルがゼロ行だったが、これは障害ではなく
+    **DTE 候補が eurgbp_daily_mr のみで、その全件が HTF Hard Block
+    (htf=bull) に除去されていた**ためだった (Render ログで確認、同時刻に
+    tick_counts は前進、block_counts も 154 件計上)。
+    → **発火しても「engine 停止」と断定するな**。まず (a) Render ログの
+    ``[DTE] HTF_HARD_BLOCK``、(b) ``tick_counts`` の前進、(c) 薄商い帯かを
+    確認する。真の engine 停止判定には tick_counts の差分監視が必要だが、
+    cron は状態を持てないため別途 (未実装 — 本 PR の残タスク)。
 
     **閾値の実測根拠 (2026-08-26 18:17〜08-27 02:25 UTC, 2,000 行)**:
     候補行は「1 バー評価で複数戦略ぶんが一斉に書かれる」**バースト構造**を
@@ -540,7 +552,10 @@ def _event_line(e: dict[str, Any]) -> str:
             f"- candidate_stagnation: 市場オープン {e.get('market_open_hours_since')}h"
             f" 候補行ゼロ (実時間 {e.get('hours_since_last_candidate')}h,"
             f" 閾値 {e.get('threshold_hours')}h, 最終 {e.get('last_candidate_row_at')})"
-            f" — シグナル評価が止まっている疑い (書込みは生存)"
+            f" — 候補が select_best 段階まで 1 件も到達していない。"
+            f"benign な既知要因を先に潰すこと: (a) HTF Hard Block が全候補を"
+            f"除去中 (Render ログ '[DTE] HTF_HARD_BLOCK')、(b) 薄商い帯。"
+            f"engine 停止と断定するな"
         )
     if et in ("candidate_freshness_error", "candidate_freshness_missing"):
         return f"- {et}: {e.get('detail')} — 鮮度計装の契約が破れている"
