@@ -307,3 +307,139 @@ class TestCandidateStagnation:
         assert "candidate_stagnation" in line
         # 汎用 fallback (json ダンプ) に落ちていないこと
         assert not line.startswith("- candidate_stagnation: {")
+
+
+class TestEngineTickStall:
+    """エンジン本体 (main loop) の停止検知 — rule:R3, 2026-08-28.
+
+    2026-08-27 に「cron は状態を持てない」として見送られた項目。差分を
+    サーバ側で取ることで解決した。既存の ``candidate_stagnation`` は HTF
+    Hard Block 後の行を数えるため benign な全ブロックと区別できないが、
+    tick 前進はゲートにも市場の開閉にも依存しないので、発火 = 異常。
+    """
+
+    def _status(self, **kw) -> dict:
+        base = {
+            "running": True,
+            "engine_tick_status": "ok",
+            "engine_tick_age_sec": 18.0,
+            "engine_tick_running_modes": 24,
+            "engine_tick_stalest_mode": "daytrade_1h",
+            "engine_tick_stalest_age_sec": 55.0,
+        }
+        base.update(kw)
+        return base
+
+    def test_healthy_engine_is_silent(self):
+        assert aw.check_engine_tick_stall(self._status()) == []
+
+    def test_production_cadence_is_far_below_threshold(self):
+        """本番実測 (2026-08-28): engine レベルの前進間隔は 20 秒未満、
+        モード別 max でも 81.2 秒。閾値 15 分はそのどちらからも桁で遠い。"""
+        assert aw.check_engine_tick_stall(self._status(engine_tick_age_sec=81.2)) == []
+
+    def test_stalled_engine_fires(self):
+        ev = aw.check_engine_tick_stall(self._status(engine_tick_age_sec=20 * 60))
+        assert len(ev) == 1
+        assert ev[0]["type"] == "engine_tick_stall"
+        assert ev[0]["minutes_since_last_tick"] == 20.0
+        assert ev[0]["stalest_mode"] == "daytrade_1h"
+
+    def test_threshold_boundary_is_inclusive(self):
+        below = aw.check_engine_tick_stall(
+            self._status(engine_tick_age_sec=aw.ENGINE_TICK_STALL_MINUTES * 60 - 1)
+        )
+        at = aw.check_engine_tick_stall(
+            self._status(engine_tick_age_sec=aw.ENGINE_TICK_STALL_MINUTES * 60)
+        )
+        assert below == []
+        assert len(at) == 1
+
+    def test_deploy_ramp_does_not_false_alarm(self):
+        """PR #199 実測: デプロイは無 tick 59.5s + ramp 2m39s ≈ 3.6 分。
+        閾値 15 分はその約 4 倍で、通常のデプロイでは鳴らない。"""
+        assert aw.check_engine_tick_stall(self._status(engine_tick_age_sec=3.6 * 60)) == []
+
+    def test_never_ticked_is_its_own_event(self):
+        """起動したが一度も tick していない = 起動失敗。停止とは原因が違う
+        ので type を分ける (no_rows と error を折り畳むなの同型)。"""
+        ev = aw.check_engine_tick_stall(
+            self._status(engine_tick_status="never_ticked", engine_tick_age_sec=30 * 60)
+        )
+        assert len(ev) == 1
+        assert ev[0]["type"] == "engine_tick_never"
+
+    def test_never_ticked_is_silent_during_startup(self):
+        ev = aw.check_engine_tick_stall(
+            self._status(engine_tick_status="never_ticked", engine_tick_age_sec=60.0)
+        )
+        assert ev == []
+
+    def test_user_stopped_engine_is_not_an_outage(self):
+        """全モード停止中は「止まっている」ではなく「止められている」。
+        資格 (eligible) と実状態 (effective) を混同しない。"""
+        ev = aw.check_engine_tick_stall(
+            {"running": False, "engine_tick_status": "not_running",
+             "engine_tick_age_sec": None, "engine_tick_running_modes": 0}
+        )
+        assert ev == []
+
+    def test_weekend_is_not_excluded(self):
+        """tick は市場が閉まっていても前進する。ここで市場オープン時間に
+        換算すると、本物の週末停止を毎回見逃す (live_n_stagnation とは
+        estimand が違う)。"""
+        saturday = datetime(2026, 8, 29, 12, 0, tzinfo=timezone.utc)
+        ev = aw.check_engine_tick_stall(
+            self._status(engine_tick_age_sec=60 * 60), now=saturday
+        )
+        assert len(ev) == 1
+        assert ev[0]["type"] == "engine_tick_stall"
+
+    def test_missing_field_is_recorded_not_skipped(self):
+        """web が旧版でも黙って skip しない — 沈黙が 126 日 no-op の原因。"""
+        ev = aw.check_engine_tick_stall({"running": True})
+        assert len(ev) == 1
+        assert ev[0]["type"] == "engine_tick_missing"
+
+    def test_missing_field_is_never_notified(self):
+        """デプロイ直後のバージョン不一致で必ず一度は起きるので Discord に
+        は流さない (write_probe_missing と同じ扱い)。"""
+        assert "engine_tick_missing" in aw.NOTIFY_NEVER
+        now = datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc)
+        assert aw._should_notify({"type": "engine_tick_missing"}, now) is False
+
+    def test_unparseable_age_is_reported(self):
+        ev = aw.check_engine_tick_stall(self._status(engine_tick_age_sec="soon"))
+        assert len(ev) == 1
+        assert ev[0]["type"] == "engine_tick_missing"
+
+    def test_none_age_with_ok_status_is_reported(self):
+        ev = aw.check_engine_tick_stall(self._status(engine_tick_age_sec=None))
+        assert len(ev) == 1
+        assert ev[0]["type"] == "engine_tick_missing"
+
+    def test_unreachable_api_is_silent(self):
+        assert aw.check_engine_tick_stall({}) == []
+
+    def test_stall_notifies_hourly(self):
+        assert aw.NOTIFY_EVERY_HOURS["engine_tick_stall"] == 1
+        assert aw.NOTIFY_EVERY_HOURS["engine_tick_never"] == 1
+
+    def test_alert_line_is_actionable(self):
+        ev = aw.check_engine_tick_stall(self._status(engine_tick_age_sec=20 * 60))
+        line = aw._event_line(ev[0])
+        assert "エンジン停止" in line
+        assert "benign な説明は無い" in line
+        assert not line.startswith("- engine_tick_stall: {")
+
+
+    def test_detector_is_wired_into_main(self):
+        """**配線 pin**: 検知器を書いても main() から呼ばれなければ意味が
+        無い。C1 テーブルが 4 ヶ月 write-only だったのと同型の失敗を、
+        検知器側でも防ぐ (counterfactual CF6 で実際に素通りしたため追加)。"""
+        from pathlib import Path
+
+        src = (Path(aw.__file__).read_text(encoding="utf-8")
+               if getattr(aw, "__file__", None) else
+               (ROOT / "scripts" / "anomaly_watcher.py").read_text(encoding="utf-8"))
+        assert "all_events.extend(check_engine_tick_stall(status" in src

@@ -418,9 +418,10 @@
       "id": "mof-monthly-total-2026-08-29-check",
       "active": true,
       "type": "deadline_info",
-      "deadline": "2026-08-28",
+      "deadline": "2026-08-31",
       "doc": "knowledge-base/wiki/analyses/family-c-anchor-automation-2026-08-18.md",
-      "message": "MoF 月次介入実施額の公表チェック (公表 ~08-29 前後、対象窓 2026-07-30〜08-27 推定): user の「7月の負けは介入をくらった」説の答え合わせ — user 外部口座のワースト日 07-30 (−69,628円、レンジ 579p) / 07-31 (−21,370円、370p) が本窓に入る。確認先 = mof.go.jp 外国為替平衡操作の実施状況 (月次)。**着地当日に user へ報告** (総額 >0 なら『窓内に介入あり』までが言えること — 日次帰属は Q3 開示 ~11 月まで不明。価格からの当日推定ラベリングは mof-next-episode-reverdict の OOS burn で禁止)。総額 >0 なら T5 復帰第 2 要件 (外部一次情報) の認定材料にもなりうる (cross-LOCK 注意: project_t5_restore_mof_crosslock_2026_08_10)。到達経路: 本 deadline は daily Tier-A gate-status cron (00:20 UTC、quant_gate_status.py) が TRIGGERED 表示 → Claude セッションが公表ページを確認し KB 記録 + user 報告 → 本エントリを resolve。"
+      "message": "MoF 月次介入実施額の公表チェック (対象窓 2026-07-30〜08-27)。⚠️ 2026-08-28 に一次確認済み — **公表日は月末営業日**であり registry 初稿の『~08-29』は誤り (過去12窓のページ名 = 07-31/06-30/05-29/04-30… で全て月末営業日)。当該窓ページ 20260831.html は 08-28 時点で HTTP 404 = 未公表 (正常)。→ deadline を 08-31 (月) へ再武装。 **既に判明した事実**: 直前窓 2026-06-29〜07-29 の平衡操作額 = **0円** = user の「7月の負けは介入」説は 07-29 までについて反証済み。残る未決着はワースト2日 07-30 (−69,628円) / 07-31 (−21,370円) のみで、これが本窓に入る。総額 >0 なら『窓内に介入あり』まで (日次帰属は Q3 開示 ~11月)。総額 0 なら介入説は完全否定。T5 復帰第2要件の材料にもなる (cross-LOCK: project_t5_restore_mof_crosslock_2026_08_10 — 認定は外部一次情報のみ、価格からの当日推定は OOS burn で禁止)。確認先 = mof.go.jp/policy/international_policy/reference/feio/data/monthly/。到達経路: daily Tier-A gate-status cron (00:20 UTC) が TRIGGERED 表示 → Claude が公表ページを確認 → KB 記録 + user へ報告 → resolve。経過記録: knowledge-base/wiki/decisions/mof-monthly-total-check-2026-08-28.md",
+      "eval_record": "knowledge-base/wiki/decisions/mof-monthly-total-check-2026-08-28.md"
     },
     {
       "id": "statement-ladder-foundation-readiness",

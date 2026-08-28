@@ -2047,7 +2047,112 @@ class DemoTrader:
             "emergency_killed": self._emergency_killed,
             # ── 行鮮度 (rule:R3, 2026-08-27): 「凍結」と「静かな相場」の分離 ──
             **self._row_freshness_payload(),
+            # ── engine 生存 (rule:R3, 2026-08-28): tick 前進の実時刻 ──
+            **self._engine_tick_payload(),
         }
+
+    def _record_tick(self, mode: str) -> dict:
+        """1 モードの tick 完遂を記録する (カウンタ + 実時刻).
+
+        rule:R3 (2026-08-28). ``_tick_counts`` の increment を **この 1 箇所に
+        集約する**のが本メソッドの主目的。同じ 2 行を各 tick 経路にコピーする
+        設計だと、新しい経路が足されたときに片方だけ更新され黙って壊れる —
+        本プロジェクトはこの call-site 欠落を PR #168 (``ctx.hour_utc`` が
+        live で 123 日定数固着) / PR #204 (``bar_time`` 全行 NULL) など
+        **4 回**踏んでいる。increment とタイムスタンプを別々に書けば 5 回目に
+        なるだけなので、最初から不可分にする。
+
+        ``_tick_last_advance[mode]`` は **tick が例外なく完遂した時刻** (epoch
+        秒)。呼び出し側は必ず「``_tick`` が戻った後」で呼ぶこと — 開始時刻を
+        入れると、毎回 30 秒でタイムアウトして中身が何も実行されていない
+        エンジンが「生存」に見えてしまう。
+
+        Returns:
+            更新後の ``_tick_counts`` (呼び出し側のログ出力用)。
+        """
+        _tc = getattr(self, '_tick_counts', {})
+        _tc[mode] = _tc.get(mode, 0) + 1
+        self._tick_counts = _tc
+        _adv = getattr(self, '_tick_last_advance', {})
+        _adv[mode] = time.time()
+        self._tick_last_advance = _adv
+        return _tc
+
+    def _engine_tick_payload(self) -> dict:
+        """エンジンが「今も評価を回しているか」を status payload に出す.
+
+        rule:R3 (2026-08-28). 既存の観測系はいずれもエンジン本体の生存を
+        測っていなかった:
+
+        - ``main_loop_alive`` / ``watchdog_alive`` は ``Thread.is_alive()``。
+          **スレッドが生きたまま中で無限に詰まっている状態を alive と報告する**。
+        - ``tick_counts`` は単調増加カウンタだが**絶対値しか出ていない**ため、
+          単発の観測では「前進しているか」が判定できない。cron は前回値を
+          保存できないので、watcher 側で差分を取ることもできなかった
+          (2026-08-27 の積み残し)。
+        - ``candidate_stagnation`` (PR #207) は HTF Hard Block **後**の行を
+          数えるので、「全候補がブロックされた」と「エンジンが死んだ」を
+          区別できない (08-27 の 73 分ゼロ行が実際にこれで、benign だった)。
+
+        そこで **差分をサーバ側で取り、watcher には経過秒だけを渡す**。
+        ``write_probe.last_ok_at`` と同じ形で、cron を状態レスに保てる。
+        tick の前進は HTF ゲートにもシグナル有無にも市場の開閉にも依存
+        しない (カウンタは ``_tick`` が戻った後に加算され、``_tick`` は
+        週末でも early-return するだけ) ので、**エンジン停止の estimand と
+        して candidate 行より素直**である。
+
+        出力 (``engine_tick_*`` 名前空間 — 汎用キーとの衝突回避は PR #207 と
+        同じ理由):
+
+        - ``engine_tick_status``: ``ok`` / ``never_ticked`` / ``not_running``
+        - ``engine_tick_age_sec``: **走っている全モードのうち最も新しい**
+          tick 前進からの経過秒。エンジンは単一の main loop が全モードを
+          順に回すため、これが engine レベルの生存指標になる
+        - ``engine_tick_stalest_mode`` / ``engine_tick_stalest_age_sec``:
+          最も古いモードとその経過秒 (**診断用の生データ**。個別モードの
+          wedge 検知は閾値がモード別 interval 10-60s に依存し較正が別問題
+          なので、本 PR では検知器を作らず数値の露出に留める)
+        - ``engine_tick_running_modes``: 走っているモード数 (分母)
+
+        ``never_ticked`` は「プロセスは上がっているが 1 度も tick 完遂して
+        いない」= デプロイ直後の正常状態でもあり、起動に失敗した異常でも
+        ある。``engine_tick_age_sec`` にはプロセス起動からの経過秒を入れて
+        呼び出し側が閾値で区別できるようにする (``None`` を返して黙って
+        skip させない — 沈黙が 126 日 no-op を生んだ)。
+        """
+        now = time.time()
+        adv = dict(getattr(self, '_tick_last_advance', {}) or {})
+        try:
+            running = [m for m, r in (self._runners or {}).items()
+                       if isinstance(r, dict) and r.get("running", False)]
+        except Exception:
+            running = []
+
+        payload: dict = {"engine_tick_running_modes": len(running)}
+
+        if not running:
+            # user が全モードを止めている等。生存を問う対象が無い状態を
+            # 「停止」と混同しない (資格 vs 実状態、lesson 2026-06)。
+            payload["engine_tick_status"] = "not_running"
+            payload["engine_tick_age_sec"] = None
+            return payload
+
+        ages = [(m, now - adv[m]) for m in running if m in adv]
+        if not ages:
+            started = getattr(self, '_main_loop_start_ts', None)
+            payload["engine_tick_status"] = "never_ticked"
+            payload["engine_tick_age_sec"] = (
+                round(now - started, 1) if started else None
+            )
+            return payload
+
+        newest = min(a for _, a in ages)
+        stalest_mode, stalest_age = max(ages, key=lambda x: x[1])
+        payload["engine_tick_status"] = "ok"
+        payload["engine_tick_age_sec"] = round(newest, 1)
+        payload["engine_tick_stalest_mode"] = stalest_mode
+        payload["engine_tick_stalest_age_sec"] = round(stalest_age, 1)
+        return payload
 
     def _row_freshness_payload(self) -> dict:
         """最終書込みからの経過秒を status payload 用に平坦化する.
@@ -2121,9 +2226,7 @@ class DemoTrader:
             try:
                 self._tick(mode)
                 self._last_request_tick[mode] = time.time()
-                _tc = getattr(self, '_tick_counts', {})
-                _tc[mode] = _tc.get(mode, 0) + 1
-                self._tick_counts = _tc
+                self._record_tick(mode)
                 ticked.append(mode)
             except Exception as e:
                 print(f"[RequestTick/{mode}] Error: {e}", flush=True)
@@ -3602,9 +3705,7 @@ class DemoTrader:
                             _tick_dur = time.time() - _tick_start
                             _consecutive_errors[mode] = 0
                             _last_tick[mode] = time.time()
-                            _tick_count = getattr(self, '_tick_counts', {})
-                            _tick_count[mode] = _tick_count.get(mode, 0) + 1
-                            self._tick_counts = _tick_count
+                            _tick_count = self._record_tick(mode)
                             if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 15:
                                 print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)", flush=True)
                         except Exception as e:
