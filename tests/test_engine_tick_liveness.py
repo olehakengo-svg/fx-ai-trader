@@ -175,3 +175,32 @@ class TestEngineTickPayload:
     def test_status_payload_includes_engine_tick(self):
         """get_status() から実際に配線されている (write-only にしない)。"""
         assert "**self._engine_tick_payload()," in SRC
+
+
+class TestNeverStartedMainLoopIsNotSilent:
+    """**最悪ケースの無検知を塞ぐ** — rule:R3, 2026-08-28 (実測で発見).
+
+    `_main_loop_start_ts` は `_main_loop` の先頭で設定されるので、**main loop
+    スレッドが一度も起動しなかった場合には存在しない**。ところが `start()` は
+    `_runners[mode]["running"] = True` を先に立てるため、「モードは running
+    なのに tick ゼロ」という**この検知器が存在する理由そのもの**の状態が作れる。
+
+    初版はこのとき `engine_tick_age_sec = None` を返し、watcher が
+    `engine_tick_missing` (= NOTIFY_NEVER、web 旧版と同じ扱い) に分類して
+    **完全に沈黙**した。実際に本番相当の payload を組んで確認した。
+    """
+
+    def test_payload_always_returns_a_number_when_never_ticked(self, trader):
+        _run(trader, "scalp")
+        assert not hasattr(trader, "_main_loop_start_ts")
+        p = trader._engine_tick_payload()
+        assert p["engine_tick_status"] == "never_ticked"
+        assert isinstance(p["engine_tick_age_sec"], float), (
+            "None を返すと watcher が version skew と誤分類して沈黙する"
+        )
+
+    def test_explicit_start_ts_still_wins(self, trader):
+        _run(trader, "scalp")
+        trader._main_loop_start_ts = time.time() - 300
+        p = trader._engine_tick_payload()
+        assert 299 <= p["engine_tick_age_sec"] <= 320

@@ -527,6 +527,22 @@ def check_engine_tick_stall(
 
     age = status.get("engine_tick_age_sec")
     if age is None:
+        # ``never_ticked`` で age が無いのは **最悪ケース** (モードは running
+        # なのに tick ゼロ)。これを version skew と同じ袋に入れると
+        # NOTIFY_NEVER で沈黙する — 本検知器が存在する理由そのものを潰す。
+        # 産出側は必ず数値を返すが (プロセス起動時刻フォールバック)、契約が
+        # 破れた場合も鳴らす側に倒す。
+        if st == "never_ticked":
+            events.append(
+                {
+                    "type": "engine_tick_never",
+                    "minutes_since_last_tick": None,
+                    "threshold_minutes": ENGINE_TICK_STALL_MINUTES,
+                    "running_modes": status.get("engine_tick_running_modes"),
+                    "detail": "never_ticked かつ経過秒不明 — 起動失敗の疑い",
+                }
+            )
+            return events
         events.append(
             {
                 "type": "engine_tick_missing",

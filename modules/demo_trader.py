@@ -350,6 +350,14 @@ def _shadow_audit_log_fragment(is_shadow: bool, block_reason: str, tier_state: s
     )
 
 # モード別設定
+# プロセス起動時刻 (rule:R3, 2026-08-28)。``never_ticked`` の経過秒の基準。
+# ``_main_loop_start_ts`` は _main_loop の先頭で設定されるため、**main loop
+# スレッドが一度も起動しなかった場合には存在しない** — その状態こそが検知
+# したい最悪ケース (モードは running のまま tick ゼロ) なので、常に存在する
+# フォールバックが要る。これが無いと age=None → watcher が「version skew」と
+# 誤分類して **沈黙**する (実測で確認済み)。
+_PROCESS_START_TS = time.time()
+
 MODE_CONFIG = {
     "daytrade": {
         "interval_sec": 30,       # 30秒ごとにシグナルチェック
@@ -2139,11 +2147,13 @@ class DemoTrader:
 
         ages = [(m, now - adv[m]) for m in running if m in adv]
         if not ages:
-            started = getattr(self, '_main_loop_start_ts', None)
+            # main loop が一度も起動していなければ _main_loop_start_ts 自体が
+            # 無い。そこで None を返すと watcher 側で「web が旧版」と区別が
+            # つかず沈黙する = 最悪ケースが無検知になる。プロセス起動時刻を
+            # フォールバックにして、**必ず数値を返す**。
+            started = getattr(self, '_main_loop_start_ts', None) or _PROCESS_START_TS
             payload["engine_tick_status"] = "never_ticked"
-            payload["engine_tick_age_sec"] = (
-                round(now - started, 1) if started else None
-            )
+            payload["engine_tick_age_sec"] = round(now - started, 1)
             return payload
 
         newest = min(a for _, a in ages)

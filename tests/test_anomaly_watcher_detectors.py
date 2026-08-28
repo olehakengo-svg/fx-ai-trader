@@ -443,3 +443,28 @@ class TestEngineTickStall:
                if getattr(aw, "__file__", None) else
                (ROOT / "scripts" / "anomaly_watcher.py").read_text(encoding="utf-8"))
         assert "all_events.extend(check_engine_tick_stall(status" in src
+
+    def test_never_ticked_without_age_alerts_instead_of_silent(self):
+        """**最悪ケースを沈黙させない** (rule:R3, 2026-08-28 実測で発見)。
+
+        「モードは running なのに tick ゼロ」= この検知器が存在する理由その
+        もの。初版はこの payload を `engine_tick_missing` (NOTIFY_NEVER =
+        web 旧版と同じ袋) に分類して完全に沈黙していた。契約が破れた場合も
+        **鳴らす側に倒す**。
+        """
+        ev = aw.check_engine_tick_stall(
+            {"running": True, "engine_tick_status": "never_ticked",
+             "engine_tick_age_sec": None, "engine_tick_running_modes": 24}
+        )
+        assert len(ev) == 1
+        assert ev[0]["type"] == "engine_tick_never"
+        assert ev[0]["type"] not in aw.NOTIFY_NEVER
+        assert aw.NOTIFY_EVERY_HOURS["engine_tick_never"] == 1
+
+    def test_ok_status_without_age_is_still_version_skew(self):
+        """逆に status=ok で age だけ欠けるのは契約破れ = 記録のみ。"""
+        ev = aw.check_engine_tick_stall(
+            {"running": True, "engine_tick_status": "ok",
+             "engine_tick_age_sec": None}
+        )
+        assert ev[0]["type"] == "engine_tick_missing"
