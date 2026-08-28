@@ -4008,6 +4008,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **最大抑制要因**は `rnb_usdjpy:direction_filter`（2,153件ブロック）— このフィルターが単体でシステム全体の機会を最も強く制限している。
 - Cutoff後累計でさえ N=7。昇格判断に必要なN=30まで、**最低あと23件**必要。
 
+### 2026-08-28 (Post-Tokyo Report)
+| PnL | 0.0 pips |
+| WR | N/A |
+- Cutoff後のN=0（本日セッション）。統計的判断の根拠なし
+- ブロック事象は全て設計通りの動作（シャドウ降格・ヘッジ検出・重複除去）
+- OANDA転送率0%（50件全SKIP）はshadow_trackingによるもので、システム異常ではなくシャドウ追跡フェーズが継続中の正常動作
+- DD=100.01%で防御モード発動中 — この状況でのパラメータ介入は禁忌
+### 推奨戦略配分
+> **⚠️ NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
