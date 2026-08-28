@@ -4028,6 +4028,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 ### 推奨戦略配分
 **NO ACTION推奨**
 
+### 2026-08-28 (Post-London Report)
+| セッション内 PnL | **0 pips / 0 JPY** |
+| 勝率 (WR) | **N/A** |
+| GBP/USD | TRENDING_UP / ATR 29% | ATR拡大可能性 | 低ATRからのブレイクアウト型動きに注意 |
+### 推奨戦略配分
+**⚠️ NO ACTION推奨**
+2. **Fidelity Cutoff後のN蓄積がゼロ** — 本日は東京・ロンドン合計でN=0。戦略別EVの更新材料がない
+**モニタリング推奨事項**（アクションではなく観察）：
+- `agg_kelly`がゼロ以上に回復するタイミング（Kelly回復が全ゲートの先決条件）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
