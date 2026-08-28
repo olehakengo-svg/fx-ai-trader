@@ -1,5 +1,35 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-28 — fix(obs): エンジン生存の真の検知 (tick 前進の実時刻) + MoF 月次介入額の一次確認 (rule:R3)
+
+- **前セッションの積み残しを解消**: 08-27 に「`tick_counts` 差分監視が要るが **cron は状態を持てない**ので設計が要る」として見送った項目。**差分をサーバ側で取れば cron は状態レスのままでよい**というのが解法 — `write_probe.last_ok_at` が既に採っていた形と同じ分業で、常駐プロセス側が経過秒を出す
+- **なぜ既存の観測系では足りなかったか (全て estimand がエンジンの下流)**:
+  - `main_loop_alive` / `watchdog_alive` は `Thread.is_alive()` = **生きたまま中で詰まっている状態を alive と報告する**
+  - `tick_counts` は単調増加カウンタだが **絶対値しか出ていない** ため単発観測では前進を判定できない
+  - `candidate_stagnation` (PR #207) は HTF Hard Block の**後**の行を数えるので「全候補ブロック」と「エンジン死亡」を区別できない (08-27 の 73 分ゼロ行が実際にこれで **benign** だった)
+  - `live_n_stagnation` は約定ベースで閾値 24h、`db_write_failed` は書込み経路の生死のみ
+- **追加**: `DemoTrader._record_tick(mode)` (カウンタ + 実時刻を**不可分**に更新) と `_engine_tick_payload()` → `/api/demo/status` に `engine_tick_{status,age_sec,running_modes,stalest_mode,stalest_age_sec}`。watcher 側に検知器 `check_engine_tick_stall` (`engine_tick_stall` / `engine_tick_never`)
+- **estimand が素直なのが本検知器の価値**: tick 前進は **HTF ゲートにもシグナル有無にも市場の開閉にも依存しない** (加算は `_tick` が戻った後で、`_tick` は週末なら early-return するだけ)。したがって `candidate_stagnation` と違い **発火 = エンジン異常と読んでよい唯一の系列**。逆に**週末を市場オープン時間へ換算してはいけない** — そうすると本物の週末停止を毎回見逃す (`live_n_stagnation` とは estimand が違う)
+- **閾値の実測根拠 (2026-08-28、本番 24 モード稼働中を 20 秒間隔 x 8 標本 = 142 秒窓で観測、前進イベント n=89)**: 走っている **24/24** モードが窓内で漏れなく前進。モード別間隔 **median 40.4s / p90 60.9s / max 81.2s** (`MODE_CONFIG` の interval_sec 10-60s と整合、max が 60s 超なのは単一 main loop が 24 モードを順に回す直列化ぶん)。engine レベル (= 最も新しい前進) は最速モード scalp (10s) に律速され通常 20s 未満。定常の天井 = 最長 interval 60s + tick タイムアウト 30s ≈ 1.5 分、デプロイ再起動 = PR #199 実測で無 tick 59.5s + ramp 2m39s ≈ **3.6 分**。`ENGINE_TICK_STALL_MINUTES = 15` は **デプロイ ramp の約 4 倍 / engine 定常値の約 30 倍**。検知遅延は cron 15 分で上限 30 分 = 既存 2 検知器 (6h / 24h) より**桁で速い**。⚠️ 標本化間隔 20 秒の **aliasing** で上記ギャップは 20 秒の倍数に量子化され真値より**上振れ** (真値 <= 測定値) = 閾値側に安全なので補正しない。誤発火時は**上げる**
+- **`_record_tick` に集約した理由 (call-site 欠落の 5 例目を作らないため)**: increment の 2 行を各 tick 経路にコピーする設計だと、新経路で片方だけ忘れて黙って壊れる。本プロジェクトはこの型を **4 回**踏んでいる (PR #168 `ctx.hour_utc` が live で 123 日定数固着 / PR #204 `bar_time` 全行 NULL 等)。increment とタイムスタンプを別々に書けば 5 回目になるだけなので**最初から不可分**にし、さらに **「`_record_tick` の外に生の increment が生えたら落ちる」構造 pin をテストに置いた**
+- **状態の切り分けを折り畳まない**: `ok` / `never_ticked` (起動したが 1 度も tick 未完 = 起動失敗の疑い) / `not_running` (全モード停止中 = **止まっているのではなく止められている**、資格 vs 実状態) を別扱い。web が旧版で field が無い場合は `engine_tick_missing` として**記録は残すが Discord には流さない** (デプロイ直後のバージョン不一致で必ず一度は起きる。沈黙が 126 日 no-op の原因だったので skip もしない)
+- ⚠️ **実装中に自分で踏んだ最悪ケースの無検知を塞いだ (レビュー前に実測発見)**: `_main_loop_start_ts` は `_main_loop` の先頭で設定されるため **main loop スレッドが一度も起動しなかった場合には存在しない**。一方 `start()` は `_runners[mode]["running"] = True` を先に立てるので、**「モードは running なのに tick ゼロ」= この検知器が存在する理由そのもの**の状態が作れる。初版はこのとき `engine_tick_age_sec = None` を返し、watcher が `engine_tick_missing` (= NOTIFY_NEVER、web 旧版と同じ袋) に分類して**完全に沈黙**した。本番相当の payload を組んで実測確認 → ①産出側に **モジュール定数 `_PROCESS_START_TS` のフォールバック**を入れて必ず数値を返す ②watcher 側も `never_ticked` かつ age 欠落なら **`engine_tick_never` として鳴らす側に倒す** (契約破れでも沈黙しない)。counterfactual ⑪⑫ で確認済み
+- **counterfactual 12 本を実行して確認**: ①タイムスタンプ書込み削除 ②`get_status` 配線削除 (write-only 化) ③生 increment の call-site 復活 ④newest→stalest 取り違え ⑤停止モードを分母に混入 ⑥main() 配線削除 ⑦欠落フィールドの silent skip ⑧週末除外の混入 ⑨`never_ticked` を stall に折り畳み ⑩`not_running` を停止扱い ⑪プロセス起動時刻フォールバック削除 ⑫`never_ticked`+age 欠落の沈黙化 — 全てで該当テストが落ちることを実測。**⑥は初回に素通りした** (検知器を書いても `main()` から呼ばれなければ意味が無い = C1 write-only と同型の失敗が**検知器側**にもあった) ため、配線 pin を追加してから再確認
+- **本番で graceful degradation を実測**: 現行 live (旧コード) に対し watcher を dry-run → `engine_tick_missing` 1 件のみ、Discord 通知なし。想定どおり
+- **live パラメータ・発注挙動は不変更** (計装と監視の追加のみ)。テスト **29 件追加** (`tests/test_engine_tick_liveness.py` 16 / `tests/test_anomaly_watcher_detectors.py` 13)
+- **意図的な非目標**: 個別モードの wedge (main loop は生きているが 1 モードだけ 30 秒タイムアウトを繰り返す) は検知しない — 閾値がモード別 interval 10-60s に依存し較正が別問題。判断材料の `engine_tick_stalest_mode` / `_age_sec` は payload に露出済みなので、必要になった時点で実測して足す
+
+### 付随: MoF 月次介入額の一次確認 (registry `mof-monthly-total-2026-08-29-check`, deadline 08-28)
+
+- **直前窓 令和8年6月29日〜7月29日 (2026-06-29〜07-29) の外国為替平衡操作額 = 0円** (一次ソース `feio/data/monthly/20260731.html`)
+- → **user の「7月の負けは介入をくらった」説は 07-29 までについて反証**。月次総額 0 は「窓内のどの日にも介入が無かった」を意味し、総額 >0 が「窓内のどこかに」までしか言えないのと**非対称でゼロの側が遥かに強い** (日次帰属は Q3 開示 ~11 月まで不明)
+- **ただしワースト 2 日は未決着**: 07-30 (−69,628円) / 07-31 (−21,370円) は**次の窓 (07-30〜08-27) に落ちる**。当該ページ `20260831.html` は 08-28 時点で **HTTP 404 = 未公表**
+- **registry 初稿の公表日想定「~08-29」は誤りだった**: 過去 12 窓のページ名は `20260731 / 20260630 / 20260529 / 20260430 / 20260331 / 20260227 / 20260130 …` = **全て月末営業日**。→ resolve せず **deadline を 2026-08-31 (月) へ再武装**
+- **T5 復帰第2要件への含意**: 本開示は**否定側の材料** (0円 = 介入なし)。`t5-jpy-cap-restore-price` は第1要件のみ点灯のまま **lot 0.5x 維持**、変更なし。cross-LOCK (MEMORY `project_t5_restore_mof_crosslock_2026_08_10`) どおり認定は外部一次情報のみで、価格シグネチャからの推定は `mof-next-episode-reverdict` の 2026 窓 OOS を burn するため引き続き禁止 — 本チェックは公式開示の読み取りのみなので抵触しない
+- 詳細: [[mof-monthly-total-check-2026-08-28]]
+
+- 教訓: **「cron は状態を持てない」は検知を諦める理由にならない — 状態を持てる側 (常駐プロセス) に差分を寄せればよい。** 観測の分業は「誰が測るか」でなく「誰が状態を保持できるか」で切る。そして **検知器そのものも write-only になりうる**: 今回 counterfactual ⑥ で、検知器を実装して通知文言まで書いても `main()` から呼ばれなければ全テスト green のまま無音である状態が実在した。**計装は「読み手を併設したか」だけでなく「読み手が呼ばれているか」まで pin する**
+
 ## 2026-08-27 — fix(obs): 行鮮度を status に出し「凍結 vs 静かな相場」を分離 + 評価停止の新検知 (rule:R3)
 
 - **残穴の位置**: PR #205/#206 で alert 経路 (`write_probe` / `live_n_stagnation`) は塞いだが、`/api/demo/status` **自身**は最終書込み時刻を持たないままだった。08-21 事故で「ダッシュボードが正常に見えた」根本理由がこれ。ダッシュボードは 08-27 時点でも**凍結と閑散を区別できない**

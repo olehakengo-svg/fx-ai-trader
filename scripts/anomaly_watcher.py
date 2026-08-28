@@ -16,6 +16,7 @@ Protocol: knowledge-base/wiki/analyses/daily-tierB-protocol.md §6
     5. Render Disk 使用率 (warn/critical) — 2026-08-26 追加
     6. DB 書込み失敗 (disk_status の write_probe 実測) — 2026-08-26 追加
     7. シグナル評価の停止 (候補行の鮮度、市場オープン6h) — 2026-08-27 追加
+    8. エンジン停止 (tick 前進の実時刻、15分) — 2026-08-28 追加
 
 **禁止事項**:
     - 判断しない (昇格/降格推奨は出さない)
@@ -52,6 +53,10 @@ N_STAGNATION_HOURS = 24
 # 候補行 (バー評価ごと) の停止閾値。実測根拠は check_candidate_stagnation
 # の docstring 参照 (自然な最大無風 2.0h の 3 倍を取った暫定値)。
 CANDIDATE_STAGNATION_HOURS = 6
+# エンジン (main loop) が tick を完遂しなくなってからの許容分数。実測根拠は
+# check_engine_tick_stall の docstring 参照。既存 2 検知器 (24h / 6h) より
+# 桁で速いのは、tick 前進が市場状態にもゲートにも依存しないため。
+ENGINE_TICK_STALL_MINUTES = 15
 # 書込み停止は「取引ゼロ」として現れるが、取引ゼロには市場が閉まっている
 # だけの週末も含まれる。そこで検知は2本立てにする (rule:R3, 2026-08-26):
 #   - live_n_stagnation: 取引時刻ベース。ただし FX 週末閉場 (金 21:00 →
@@ -84,12 +89,15 @@ NOTIFY_EVERY_HOURS = {
     "stagnation_check_broken": 6,
     "candidate_stagnation": 6,
     "candidate_freshness_error": 6,
+    "engine_tick_stall": 1,
+    "engine_tick_never": 1,
 }
 # Discord に流さない type。write_probe_missing はデプロイ直後の cron/web
 # バージョン不一致で必ず一度は起きる (cron は数十秒で新コード化、web は
 # build 完了まで旧 API を返す)。web が旧版のまま固着するケースは Render の
 # デプロイ失敗通知が受け持つので、ここは記録のみに降格する。
-NOTIFY_NEVER = {"write_probe_missing", "candidate_freshness_missing"}
+NOTIFY_NEVER = {"write_probe_missing", "candidate_freshness_missing",
+                "engine_tick_missing"}
 
 
 def fetch_json(path: str, timeout: int = 15) -> dict[str, Any]:
@@ -439,6 +447,145 @@ def check_candidate_stagnation(
     return events
 
 
+def check_engine_tick_stall(
+    status: dict[str, Any], now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """取引エンジン本体の停止を検知する (rule:R3, 2026-08-28).
+
+    2026-08-27 の積み残し「engine 生存の真の検知」。既存の検知器が全て
+    **エンジンの下流**を見ていたのを、tick 前進そのものに置き換える:
+
+    ==========================  ====================================  ========
+    検知器                       実際の estimand                        閾値
+    ==========================  ====================================  ========
+    ``live_n_stagnation``       約定が出たか (ゲート通過後)              24h
+    ``candidate_stagnation``    候補が select_best に到達したか          6h
+                                (HTF Hard Block の **後**)
+    ``db_write_failed``         書込み経路が生きているか                  15分
+    ``main_loop_alive``         Thread.is_alive() — **詰まりを検知不能**  n/a
+    **``engine_tick_stall``**   **tick が完遂しているか**                **15分**
+    ==========================  ====================================  ========
+
+    tick カウンタの前進は HTF ゲートにもシグナル有無にも市場の開閉にも
+    依存しない (加算は ``_tick`` が戻った後で、``_tick`` は週末なら
+    early-return するだけ)。したがって ``candidate_stagnation`` と違い
+    **発火 = エンジン異常**と読んでよい唯一の系列である。実際 08-27 の
+    73 分候補ゼロは HTF block が実体で、その間 tick は前進していた。
+
+    差分は**サーバ側**で取る (``_engine_tick_payload``)。Render cron は毎回
+    クリーンなクローンで走り前回値を保存できないため、カウンタの絶対値を
+    渡されても watcher 側では前進を判定できない — これが 08-27 に本項目を
+    「設計が要る」として見送った理由だった。``write_probe.last_ok_at`` と
+    同じく、状態を持つ側 (常駐プロセス) が経過秒を出すのが正しい分業。
+
+    **閾値の実測根拠 (2026-08-28, 本番 24 モード稼働中を 20 秒間隔 x 8 標本 =
+    142 秒窓で観測、前進イベント n=89)**:
+
+    - 走っている全 **24/24** モードが窓内で漏れなく前進 (前進ゼロのモード無し)
+    - **モード別**の前進間隔: median 40.4 秒 / p90 60.9 秒 / max 81.2 秒
+      (``MODE_CONFIG`` の interval_sec 10-60 秒と整合。max が 60 秒を超えるのは
+      単一 main loop が 24 モードを順に回す直列化のぶん)
+    - engine レベル (= 全モードで最も新しい前進) は最速モード (scalp, 10 秒)
+      に律速されるので通常 20 秒未満
+
+    ⚠️ 標本化間隔 20 秒による **aliasing** で上記のギャップは 20 秒の倍数に
+    量子化され、真値より**上振れ**している (真の間隔 <= 測定値)。閾値の側に
+    安全なバイアスなので補正しない。
+
+    定常の天井は「最長 interval 60 秒 + tick タイムアウト 30 秒」≈ 1.5 分。
+    デプロイ再起動は PR #199 の実測で **無 tick 59.5 秒 + ramp 2 分 39 秒
+    ≈ 3.6 分**。``ENGINE_TICK_STALL_MINUTES = 15`` はデプロイ ramp の約 4 倍、
+    engine レベル定常値の約 30 倍。検知遅延は cron 間隔の 15 分で上限 30 分。
+    ⚠️ 誤発火が出たら**上げる** (下げるのは実測を取り直してから)。
+
+    **意図的な非目標**: 個別モードの wedge (main loop は生きているが 1 つの
+    モードだけ 30 秒タイムアウトを繰り返す) は検知しない。閾値がモード別
+    interval 10-60 秒に依存し較正が別問題になるため。判断材料としての
+    ``engine_tick_stalest_mode`` / ``engine_tick_stalest_age_sec`` は
+    payload に露出済みなので、必要になった時点で実測して足すこと。
+    """
+    events: list[dict[str, Any]] = []
+    if not status:
+        return events
+
+    st = status.get("engine_tick_status")
+    if st is None:
+        # web が旧版 (デプロイ直後のバージョン不一致)。黙って skip せず
+        # 記録は残す — 沈黙こそが 126 日 no-op の原因だった。通知はしない。
+        events.append(
+            {
+                "type": "engine_tick_missing",
+                "detail": "no engine_tick_status in /api/demo/status (version skew?)",
+            }
+        )
+        return events
+
+    if st == "not_running":
+        # 全モード停止中。エンジンは「止まっている」のではなく「止められて
+        # いる」— 資格 (eligible) と実状態 (effective) を混同しない。
+        return events
+
+    age = status.get("engine_tick_age_sec")
+    if age is None:
+        # ``never_ticked`` で age が無いのは **最悪ケース** (モードは running
+        # なのに tick ゼロ)。これを version skew と同じ袋に入れると
+        # NOTIFY_NEVER で沈黙する — 本検知器が存在する理由そのものを潰す。
+        # 産出側は必ず数値を返すが (プロセス起動時刻フォールバック)、契約が
+        # 破れた場合も鳴らす側に倒す。
+        if st == "never_ticked":
+            events.append(
+                {
+                    "type": "engine_tick_never",
+                    "minutes_since_last_tick": None,
+                    "threshold_minutes": ENGINE_TICK_STALL_MINUTES,
+                    "running_modes": status.get("engine_tick_running_modes"),
+                    "detail": "never_ticked かつ経過秒不明 — 起動失敗の疑い",
+                }
+            )
+            return events
+        events.append(
+            {
+                "type": "engine_tick_missing",
+                "detail": f"engine_tick_age_sec is None (status={st!r})",
+            }
+        )
+        return events
+
+    try:
+        age_min = float(age) / 60.0
+    except (TypeError, ValueError):
+        events.append(
+            {
+                "type": "engine_tick_missing",
+                "detail": f"unparseable engine_tick_age_sec: {age!r}",
+            }
+        )
+        return events
+
+    if age_min < ENGINE_TICK_STALL_MINUTES:
+        return events
+
+    # 週末除外は **しない**: tick は市場が閉まっていても前進する。ここで
+    # _market_open_hours を噛ませると、本物の週末停止を毎回見逃す。
+    common = {
+        "minutes_since_last_tick": round(age_min, 1),
+        "threshold_minutes": ENGINE_TICK_STALL_MINUTES,
+        "running_modes": status.get("engine_tick_running_modes"),
+    }
+    if st == "never_ticked":
+        events.append({"type": "engine_tick_never", **common})
+    else:
+        events.append(
+            {
+                "type": "engine_tick_stall",
+                **common,
+                "stalest_mode": status.get("engine_tick_stalest_mode"),
+                "stalest_age_sec": status.get("engine_tick_stalest_age_sec"),
+            }
+        )
+    return events
+
+
 def check_session_volume(trades: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Tokyo session (UTC 00-06) の直近volumeが30日median比50%未満なら警告。"""
     events = []
@@ -559,6 +706,25 @@ def _event_line(e: dict[str, Any]) -> str:
         )
     if et in ("candidate_freshness_error", "candidate_freshness_missing"):
         return f"- {et}: {e.get('detail')} — 鮮度計装の契約が破れている"
+    if et == "engine_tick_stall":
+        return (
+            f"- 🛑 **エンジン停止の疑い**: tick 前進が "
+            f"{e.get('minutes_since_last_tick')} 分止まっている "
+            f"(閾値 {e.get('threshold_minutes')} 分、稼働 {e.get('running_modes')} モード、"
+            f"最古 {e.get('stalest_mode')} {e.get('stalest_age_sec')}s)。"
+            f"tick 前進は市場の開閉にもゲートにも依存しないので、"
+            f"candidate_stagnation と違い **benign な説明は無い**。"
+            f"/healthz と Render ログの [MainLoop] を確認"
+        )
+    if et == "engine_tick_never":
+        return (
+            f"- 🛑 **エンジンが一度も tick していない**: プロセス起動から "
+            f"{e.get('minutes_since_last_tick')} 分 "
+            f"(閾値 {e.get('threshold_minutes')} 分、稼働 {e.get('running_modes')} モード)。"
+            f"起動失敗を疑う — Render の直近デプロイログを確認"
+        )
+    if et == "engine_tick_missing":
+        return f"- {et}: {e.get('detail')} — engine 生存計装の契約が破れている"
     return f"- {et}: {json.dumps(e, ensure_ascii=False)[:150]}"
 
 
@@ -619,6 +785,7 @@ def main() -> int:
     all_events.extend(check_disk_capacity(disk_payload))
     all_events.extend(check_db_write_health(disk_payload))
     all_events.extend(check_candidate_stagnation(status, now=now))
+    all_events.extend(check_engine_tick_stall(status, now=now))
 
     if all_events:
         path = save_events(all_events)

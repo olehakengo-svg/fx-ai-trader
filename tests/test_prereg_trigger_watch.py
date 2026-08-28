@@ -536,8 +536,18 @@ def test_registry_automation_packet_triggers_wired():
     triggers = {t["id"]: t for t in load_registry()}
 
     t = triggers["mof-monthly-total-2026-08-29-check"]
-    assert t["type"] == "deadline_info" and t["deadline"] == "2026-08-28"
+    # 2026-08-28 に一次確認して deadline を 08-28 -> 08-31 へ再武装した。
+    # MoF 月次開示の公表日は **月末営業日** (過去12窓のページ名 = 20260731 /
+    # 20260630 / 20260529 / 20260430 ... で全て月末営業日) であり、registry
+    # 初稿の「公表 ~08-29」は誤りだった。対象窓 (07-30〜08-27) のページ
+    # 20260831.html は 08-28 時点で HTTP 404 = 未公表。
+    # 根拠: knowledge-base/wiki/decisions/mof-monthly-total-check-2026-08-28.md
+    assert t["type"] == "deadline_info" and t["deadline"] == "2026-08-31"
     assert "到達経路" in t["message"] and "user へ報告" in t["message"]
+    # 直前窓 (2026-06-29〜07-29) = 0円 という**既に判明した事実**を message に
+    # 残すこと。総額 0 は「窓内の全日に介入なし」= >0 より強い情報で、
+    # user の「7月の負けは介入」説の 07-29 までを反証している。
+    assert "0円" in t["message"]
 
     # 2026-08-19: 条件成立 (PR #194 着地) 後も発火できなかったため
     # conditional_info -> artifact_presence へ移行。旧 pin (type と
