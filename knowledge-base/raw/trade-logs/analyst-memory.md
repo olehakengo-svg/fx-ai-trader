@@ -4018,6 +4018,16 @@ Cutoff後全期間で有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 ### 推奨戦略配分
 > **⚠️ NO ACTION推奨**
 
+### 2026-08-28 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+- 東京セッションN=0であり統計的判断の母体が存在しない
+- ブロック多発は設計通りの防御動作（hedge_block、direction_filter、shadow_demoted）
+- DD防御0.2xモードが継続中であり、現時点での緩和判断は禁忌
+- OANDA転送率 0%（50件全SKIPがshadow_tracking起因）はシャドウ検証フェーズとして正常
+### 推奨戦略配分
+**NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
