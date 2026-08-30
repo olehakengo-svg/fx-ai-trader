@@ -2032,6 +2032,16 @@ class DemoTrader:
                 self._log_count_cache = getattr(self, '_log_count_cache', 0)
             self._log_count_cache_ts = _now
 
+        # 鮮度は 3 箇所 (生値 2 系統 + 画面判定) で同じ観測を使う。dict 内で
+        # 別々に呼ぶと判定と生値がずれた瞬間の値になりうるので、先に確定させる。
+        _freshness_raw = self._row_freshness_payload()
+        _engine_raw = self._engine_tick_payload()
+        try:
+            from modules.freshness_policy import classify_freshness
+            _freshness_ui = classify_freshness({**_freshness_raw, **_engine_raw})
+        except Exception as e:  # noqa: BLE001 - status 応答自体は落とさない
+            _freshness_ui = {"families": [], "worst_level": "unknown", "error": str(e)}
+
         return {
             "running": self.is_running(),
             "modes": modes_status,
@@ -2054,9 +2064,15 @@ class DemoTrader:
             # ── Emergency Kill Switch status ──
             "emergency_killed": self._emergency_killed,
             # ── 行鮮度 (rule:R3, 2026-08-27): 「凍結」と「静かな相場」の分離 ──
-            **self._row_freshness_payload(),
+            **_freshness_raw,
             # ── engine 生存 (rule:R3, 2026-08-28): tick 前進の実時刻 ──
-            **self._engine_tick_payload(),
+            **_engine_raw,
+            # ── 画面用の鮮度判定 (rule:R3, 2026-08-29) ──
+            # 生値だけを出しても人は読まない。3.5 日の書込み停止が「静かな
+            # 相場」に見えたのは、画面に閾値超過の判定が出ていなかったから。
+            # 閾値は modules/freshness_policy.py が SSOT で、ブラウザには
+            # 判定済みの level だけを渡す (JS に閾値を書き写さない)。
+            "freshness_ui": _freshness_ui,
         }
 
     def _record_tick(self, mode: str) -> dict:

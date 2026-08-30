@@ -1,5 +1,22 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-29 — feat(obs): 鮮度判定のダッシュボード露出 + 閾値/時計の SSOT 化 (rule:R3)
+
+- **積み残し「ダッシュボード UI 側での鮮度表示」を解消**。PR #205/#206 で alert 経路、PR #207/#208 で `/api/demo/status` の生値までは通したが、**人間が実際に見る画面は最後まで blind のままだった**
+- **なぜこれが load-bearing か**: 2026-08-21〜08-25 の Render Disk 満杯で全 SQLite 書込みが 3.5 日停止した際、**ダッシュボードは完全に正常に見えた**。凍結した画面は「静かな相場」と区別がつかない。生値 (`last_*_row_age_sec` 等) を payload に足しても、画面に判定が出ていなければ「読まれない計装」のまま (C1 candidate 4ヶ月 write-only と同型)
+- **追加**: `modules/freshness_policy.py` — 閾値・週末除外の時計・UI 判定の **SSOT**。`classify_freshness(status)` が 3 系統 (`engine_tick` / `candidate_row` / `trade_row`) の level を返し、`/api/demo/status` に `freshness_ui` として載る。画面 (`templates/index.html` の `renderFreshness`) は**色を塗るだけで閾値を持たない**
+- **時計の使い分けが本設計の中核** (混同するとどちらかが必ず誤る):
+  - `engine_tick` = **実時間 (wall clock)**、15 分。tick は市場が閉まっていても前進するので、ここで週末除外を噛ませると**本物の週末停止を毎週見逃す**
+  - `candidate_row` (6h) / `trade_row` (24h) = **市場オープン時間**。実時間で数えると毎週末必ず誤発火する
+- **本番実測で weekend 分岐を検証 (2026-08-29 03:30 UTC、閉場中)**: 候補行は実時間 **20.4 時間**経過だが市場オープン換算 **0.0h** → 正しく `ok`、かつ画面に「市場オープン換算 0.0h (閉場ぶんを除外)」と**理由まで出る**。エンジンは 1 秒 / 24 モード稼働で `ok`。**「古いが正常」と「凍結」を画面上で初めて分離できた**
+- **level を 4 状態に分離して折り畳まない**: `ok` / `stale` (閾値超過 = watcher が同じ入力で alert を上げる状態) / `idle` (全モード停止中・行なし = 「止まっている」でなく「**止められている**」、資格 vs 実状態) / `unknown` (値が無い・壊れている)。`unknown` を握り潰さないのは、沈黙こそが `live_n_stagnation` 126 日 no-op の原因だったため
+- **SSOT 化で `scripts/anomaly_watcher.py` の重複定義を撤去**: `N_STAGNATION_HOURS` / `CANDIDATE_STAGNATION_HOURS` / `ENGINE_TICK_STALL_MINUTES` / `FX_WEEKEND_CLOSE_HOURS` と `_market_open_hours` は `modules/freshness_policy` へ委譲。**閾値を検知器と画面で別々に持つと、片方を上げたときもう片方が古い閾値で判定し続け、しかも全テストは green のままになる** — PR #199 で実際に踏んだ型 (設定リストにコメントを足したら guard の regex が黙って打ち切られた) の予防
+- **counterfactual 4 本で pin の実効性を確認**: ①画面の `renderFreshness` call-site 削除 ②status payload から `freshness_ui` 削除 ③watcher が閾値を直書きに復帰 (SSOT 破れ) ④engine tick に週末除外を混入 — 全てで該当テストが落ちることを実測。**「読み手を併設したか」でなく「読み手が呼ばれているか」まで pin する** (PR #208 の counterfactual ⑥ が初回素通りした教訓の適用)
+- ⚠️ **副産物: 既存の構造 pin が実装形に過剰結合していたのを是正** (`tests/test_engine_tick_liveness.py::test_status_payload_includes_engine_tick`)。PR #208 の pin は `"**self._engine_tick_payload()," in SRC` という**ファイル全体へのリテラル一致**で、本 PR が呼び出しを局所変数に束ねる等価リファクタ (`_engine_raw = ...` → `**_engine_raw,`) をした瞬間、**配線は無傷のまま**落ちた。pin が守るべきは「payload が `get_status` の返す dict に到達している」という**性質**であって構文ではない → `get_status` 本体に**スコープを絞った**上で、直接展開・局所変数経由のどちらの形でも配線を確認する形へ。counterfactual 3 本で**旧 pin より強い**ことを確認 (①呼ぶが dict に展開しない ②呼び出し自体を削除 ③`get_status` の外に同じ構文を置く — **③は旧 pin なら素通りしていた**)
+- **live パラメータ・発注挙動は不変更** (表示と監視配管のみ)。テスト **17 件追加** (`tests/test_freshness_policy.py`)、既存 watcher テスト 51 件 green、全 736 件 green
+- ⚠️ **残る非目標**: 個別モード wedge の検知は引き続き未実装 (payload には `engine_tick_stalest_*` として露出済み)。`CANDIDATE_STAGNATION_HOURS = 6` はバースト実効 N=16 の暫定値のままで、**再較正は 1〜2 週の実運用後** (2026-08-27 起点、目安 09-03〜09-10) — 本 PR では動かしていない
+
+
 ## 2026-08-28 — fix(obs): エンジン生存の真の検知 (tick 前進の実時刻) + MoF 月次介入額の一次確認 (rule:R3)
 
 - **前セッションの積み残しを解消**: 08-27 に「`tick_counts` 差分監視が要るが **cron は状態を持てない**ので設計が要る」として見送った項目。**差分をサーバ側で取れば cron は状態レスのままでよい**というのが解法 — `write_probe.last_ok_at` が既に採っていた形と同じ分業で、常駐プロセス側が経過秒を出す

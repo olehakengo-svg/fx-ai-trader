@@ -173,8 +173,36 @@ class TestEngineTickPayload:
         assert re.search(r'"engine_tick_status"', SRC)
 
     def test_status_payload_includes_engine_tick(self):
-        """get_status() から実際に配線されている (write-only にしない)。"""
-        assert "**self._engine_tick_payload()," in SRC
+        """get_status() から実際に配線されている (write-only にしない)。
+
+        ⚠️ 2026-08-29 に判定形を変更した。初版は
+        ``"**self._engine_tick_payload()," in SRC`` というファイル全体への
+        リテラル一致だったが、これは 2 つの意味で実装形に過剰結合していた:
+
+        1. 呼び出しを局所変数に束ねる等価なリファクタ (``_engine_raw =
+           self._engine_tick_payload()`` → ``**_engine_raw,``) で、**配線は
+           無傷のまま**落ちる (実際に落ちた)
+        2. ファイル全体を見るので、``get_status`` の外に書かれていても通る
+
+        pin が守るべきは「payload が get_status の返す dict に到達している」
+        という**性質**であって、それを書く構文ではない。ここでは
+        ``get_status`` の本体に絞った上で、直接展開・局所変数経由の
+        どちらの形でも「呼んで、返す dict に展開している」ことを確認する。
+        """
+        body = _function_body(SRC, "get_status")
+        assert "_engine_tick_payload()" in body, (
+            "get_status が _engine_tick_payload を呼んでいない (write-only 化)"
+        )
+        m = re.search(r"(\w+)\s*=\s*self\._engine_tick_payload\(\)", body)
+        if m:
+            # 局所変数に束ねる形。その変数が返す dict に展開されていること
+            assert f"**{m.group(1)}," in body, (
+                f"payload を {m.group(1)} に束ねたが dict に展開していない"
+            )
+        else:
+            assert "**self._engine_tick_payload()," in body, (
+                "payload を呼んだが返す dict に展開していない"
+            )
 
 
 class TestNeverStartedMainLoopIsNotSilent:

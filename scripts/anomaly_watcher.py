@@ -44,19 +44,24 @@ from typing import Any
 import requests
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from modules import freshness_policy as _fp  # noqa: E402
+
 API_BASE = os.environ.get("API_BASE", "https://fx-ai-trader.onrender.com")
 
 SPREAD_MULTIPLIER_THRESHOLD = 2.0
 LATENCY_THRESHOLD_SEC = 3.0
 SESSION_VOLUME_RATIO_THRESHOLD = 0.5
-N_STAGNATION_HOURS = 24
-# 候補行 (バー評価ごと) の停止閾値。実測根拠は check_candidate_stagnation
-# の docstring 参照 (自然な最大無風 2.0h の 3 倍を取った暫定値)。
-CANDIDATE_STAGNATION_HOURS = 6
-# エンジン (main loop) が tick を完遂しなくなってからの許容分数。実測根拠は
-# check_engine_tick_stall の docstring 参照。既存 2 検知器 (24h / 6h) より
-# 桁で速いのは、tick 前進が市場状態にもゲートにも依存しないため。
-ENGINE_TICK_STALL_MINUTES = 15
+# 閾値と週末除外の時計は modules/freshness_policy.py が SSOT (rule:R3,
+# 2026-08-29)。ダッシュボード表示も同じ定数・同じ時計を使う — 検知器と画面
+# で閾値を別々に持つと、片方を上げたときもう片方が古い閾値で判定し続け、
+# しかも全テストは green のままになる (PR #199 で実際に踏んだ型)。
+# 実測根拠は各 check_* の docstring に残す。
+N_STAGNATION_HOURS = _fp.N_STAGNATION_HOURS
+CANDIDATE_STAGNATION_HOURS = _fp.CANDIDATE_STAGNATION_HOURS
+ENGINE_TICK_STALL_MINUTES = _fp.ENGINE_TICK_STALL_MINUTES
 # 書込み停止は「取引ゼロ」として現れるが、取引ゼロには市場が閉まっている
 # だけの週末も含まれる。そこで検知は2本立てにする (rule:R3, 2026-08-26):
 #   - live_n_stagnation: 取引時刻ベース。ただし FX 週末閉場 (金 21:00 →
@@ -66,7 +71,7 @@ ENGINE_TICK_STALL_MINUTES = 15
 #     の成否。満杯型書込み停止の直接検知で、検知遅延はポーリング間隔の
 #     15 分。mtime ベースの staleness は再起動の checkpoint でリセットされ、
 #     ENOSPC 下でも確保済み WAL ブロックへの再書込みで前進するため採らない
-FX_WEEKEND_CLOSE_HOURS = 48  # 金 21:00 UTC → 日 21:00 UTC
+FX_WEEKEND_CLOSE_HOURS = _fp.FX_WEEKEND_CLOSE_HOURS  # 金 21:00 UTC → 日 21:00 UTC
 
 # Discord 通知の時間バケット抑制 (rule:R3, 2026-08-26)。Render cron は毎回
 # クリーンな環境で走り「前回いつ通知したか」を保存できないため、レベル
@@ -157,29 +162,13 @@ def check_oanda_latency(oanda_status: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _market_open_hours(start: datetime, end: datetime) -> float:
-    """[start, end] の実時間から FX 週末閉場 (金 21:00 → 日 21:00 UTC) を除いた時間数。
+    """[start, end] の実時間から FX 週末閉場を除いた時間数.
 
-    閉場境界は夏時間で 21:00/22:00 と揺れるが、24h 閾値に対する ±1h の
-    誤差は無害なので UTC 21:00 固定とする。
+    実体は ``modules/freshness_policy.market_open_hours`` (SSOT)。ダッシュ
+    ボード表示が同じ時計で「なぜ古くて正常なのか」を説明できるよう、
+    検知器と画面で 1 つの実装を共有する。
     """
-    if end <= start:
-        return 0.0
-    total = (end - start).total_seconds() / 3600.0
-    closed = 0.0
-    # start 以前で最も近い金曜 21:00 UTC に錨を置き、週単位で閉場窓を歩く
-    anchor = (start - timedelta(days=(start.weekday() - 4) % 7)).replace(
-        hour=21, minute=0, second=0, microsecond=0
-    )
-    if anchor > start:
-        anchor -= timedelta(days=7)
-    while anchor < end:
-        overlap = (
-            min(end, anchor + timedelta(hours=FX_WEEKEND_CLOSE_HOURS)) - max(start, anchor)
-        ).total_seconds() / 3600.0
-        if overlap > 0:
-            closed += overlap
-        anchor += timedelta(days=7)
-    return total - closed
+    return _fp.market_open_hours(start, end)
 
 
 def check_live_n_stagnation(
