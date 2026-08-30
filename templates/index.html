@@ -740,6 +740,11 @@ body{background:var(--bg0);color:var(--t1);
         <button id="demo-sw-btn" onclick="toggleDemo('swing')" style="font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid rgba(20,184,166,.4);background:rgba(20,184,166,.08);color:#2dd4bf;cursor:pointer;width:88px;text-align:center;box-sizing:border-box">🌊 スイング ▶</button>
       </div>
       <div id="demo-status" style="font-size:10px;color:var(--t3);margin-bottom:4px;min-height:16px">全モード停止中</div>
+      <!-- 鮮度ストリップ (rule:R3, 2026-08-29): 「凍結」を「静かな相場」から見分ける。
+           2026-08-21〜08-25 の Disk 満杯で全書込みが 3.5 日止まった際、画面は
+           完全に正常に見えた。判定 (level) はサーバ側 modules/freshness_policy.py
+           が返す — ここでは色を塗るだけで閾値は持たない。 -->
+      <div id="demo-freshness" style="display:none;font-size:9px;margin-bottom:5px;gap:4px;flex-wrap:wrap"></div>
       <!-- Open Position (min-height固定でレイアウト安定) -->
       <div id="demo-open-pos" style="display:none;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:5px;padding:5px 8px;margin-bottom:6px;min-height:0"></div>
       <!-- Stats -->
@@ -3048,6 +3053,29 @@ async function _fetchAndRenderLogs(){
 }
 let _demoLearnShown=false;
 let _demoTradesShown=false;
+// level -> 色。判定そのものはサーバが持つ (閾値はここに無い)。
+const _FRESH_STYLE={
+  ok:      {c:'#4ade80', bg:'rgba(74,222,128,.10)', b:'rgba(74,222,128,.30)', icon:'●'},
+  stale:   {c:'#f87171', bg:'rgba(248,113,113,.14)', b:'rgba(248,113,113,.45)', icon:'▲'},
+  unknown: {c:'#fbbf24', bg:'rgba(251,191,36,.12)', b:'rgba(251,191,36,.35)', icon:'?'},
+  idle:    {c:'var(--t3)', bg:'rgba(148,163,184,.08)', b:'rgba(148,163,184,.22)', icon:'○'}
+};
+function renderFreshness(fu){
+  const el=document.getElementById('demo-freshness');
+  if(!el)return;
+  const fams=(fu&&fu.families)||[];
+  if(!fams.length){ el.style.display='none'; return; }
+  el.innerHTML=fams.map(f=>{
+    const st=_FRESH_STYLE[f.level]||_FRESH_STYLE.unknown;
+    const tip=[f.label, f.age_text?('経過 '+f.age_text):'', f.threshold_text?('閾値 '+f.threshold_text):'',
+               f.detail||''].filter(Boolean).join(' | ');
+    return `<span title="${_h(tip)}" style="display:inline-flex;align-items:center;gap:3px;padding:1px 5px;`
+      +`border-radius:3px;background:${st.bg};border:1px solid ${st.b};color:${st.c};white-space:nowrap">`
+      +`<span style="font-size:8px">${st.icon}</span><span>${_h(f.label)}</span>`
+      +`<span style="font-family:'SF Mono',monospace;opacity:.85">${_h(f.age_text||'—')}</span></span>`;
+  }).join('');
+  el.style.display='flex';
+}
 async function loadDemoStatus(){
   if(_demoStatusBusy)return;
   _demoStatusBusy=true;
@@ -3083,6 +3111,12 @@ async function loadDemoStatus(){
     if(scOn) stParts.push('<span style="color:#fbbf24">⚡ スキャルプ稼働</span>');
     if(!stParts.length) stParts.push('<span style="color:var(--t3)">● 全モード停止中</span>');
     stEl.innerHTML=stParts.join(' ')+(d.params?' <span style="color:var(--t3);font-size:9px">| 確度≥'+d.params.confidence_threshold+'%</span>':'');
+
+    // Freshness strip — サーバ判定済み (modules/freshness_policy.py)。
+    // ⚠️ ここに閾値 (15分/6h/24h) を書き写さないこと。書き写すと閾値を
+    //    変えたとき画面だけ古い判定で色を塗り続け、全テスト green のまま
+    //    検査が無力化する (PR #199 で実際に踏んだ型)。
+    renderFreshness(d.freshness_ui);
 
     // Open positions (multiple modes possible)
     const posEl=document.getElementById('demo-open-pos');
