@@ -468,3 +468,299 @@ class TestEngineTickStall:
              "engine_tick_age_sec": None}
         )
         assert ev[0]["type"] == "engine_tick_missing"
+
+
+# ── API 到達不能 (rule:R3, 2026-08-30) ────────────────────────────────
+#
+# 実測が動機: 2026-08-29T23:31Z のデプロイ再起動で 4 エンドポイント全てが
+# 502 を返した run で、8 検知器のうち 7 個が完全に沈黙し、残る 1 個が
+# 「/api/demo/trades に読める時刻フィールドが無い」という**事実と異なる
+# 診断**を上げた (真因は 502)。つまり本番が死んでいる間、監視スタックは
+# 死んでいることを報告できなかった。
+
+
+def _ok(path: str, payload: dict | None = None) -> "aw.FetchOutcome":
+    return aw.FetchOutcome(path, True, payload or {}, "")
+
+
+def _fail(path: str, reason: str = "HTTPError: 502 Server Error") -> "aw.FetchOutcome":
+    return aw.FetchOutcome(path, False, {}, reason)
+
+
+class TestApiReachability:
+    def test_healthy_fetches_are_silent(self):
+        outcomes = {p: _ok(p) for p in aw.WATCHED_PATHS}
+        assert aw.check_api_reachability(outcomes) == []
+
+    def test_total_outage_fires_with_the_real_reason(self):
+        """502 は 502 として報告される。旧経路は 502 を「契約破綻」と誤診した。"""
+        outcomes = {p: _fail(p) for p in aw.WATCHED_PATHS}
+        ev = aw.check_api_reachability(outcomes, attempts=4, waited_sec=210.0)
+        assert len(ev) == 1
+        assert ev[0]["type"] == "api_unreachable"
+        assert ev[0]["n_failed"] == ev[0]["n_watched"] == len(aw.WATCHED_PATHS)
+        assert "502" in ev[0]["reasons"]["/api/demo/status"]
+        # ramp を跨いだのか 1 回で諦めたのかが読み手に見えること
+        assert ev[0]["attempts"] == 4
+        assert ev[0]["waited_sec"] == 210.0
+
+    def test_partial_failure_is_a_different_event(self):
+        """1 本だけの失敗は「サービスの死」ではない。畳むと切り分けが消える。"""
+        outcomes = {p: _ok(p) for p in aw.WATCHED_PATHS}
+        outcomes["/api/admin/disk_status"] = _fail("/api/admin/disk_status")
+        ev = aw.check_api_reachability(outcomes)
+        assert ev[0]["type"] == "api_endpoint_failed"
+        assert ev[0]["failed"] == ["/api/admin/disk_status"]
+
+    def test_outage_is_notified_not_silenced(self):
+        """NOTIFY_NEVER に落ちていたら検知器を書いた意味が無い。"""
+        assert "api_unreachable" not in aw.NOTIFY_NEVER
+        assert aw.NOTIFY_EVERY_HOURS["api_unreachable"] == 1
+        assert aw.NOTIFY_EVERY_HOURS["api_endpoint_failed"] == 6
+
+    @pytest.mark.parametrize(
+        "outcomes_fn, must_contain",
+        [
+            (lambda: {p: _fail(p) for p in aw.WATCHED_PATHS},
+             "他の全検知器は盲目である"),
+            (lambda: {**{p: _ok(p) for p in aw.WATCHED_PATHS},
+                      "/api/oanda/status": _fail("/api/oanda/status")},
+             "エンドポイント固有の異常"),
+        ],
+    )
+    def test_both_event_types_render_a_human_line(self, outcomes_fn, must_contain):
+        """汎用 fallback (`- {type}: {json 抜粋}`) に落ちていないこと。
+
+        初版の assertion は「長さ > 60」「'json.dumps' を含まない」だった
+        が、fallback 行もその両方を満たすので **counterfactual が素通り
+        した**。専用行にしか現れない文言で pin し直している。
+        """
+        line = aw._event_line(aw.check_api_reachability(outcomes_fn())[0])
+        assert line.startswith("- ")
+        assert must_contain in line
+
+
+class TestFetchOutcomeSeparation:
+    def test_fetch_failure_is_not_reported_as_a_broken_contract(self):
+        """2026-08-29T23:31Z の誤診そのもの。fetch 失敗なら黙る
+        (api_unreachable が真の理由で報告するため)。"""
+        assert aw.check_live_n_stagnation({}, [], now=WEDNESDAY_NOON,
+                                          trades_ok=False) == []
+
+    def test_real_contract_break_still_fires(self):
+        """取得に成功したのに時刻が読めない = 本物の契約破綻。沈黙させない。"""
+        ev = aw.check_live_n_stagnation(
+            {}, [{"instrument": "USD_JPY"}], now=WEDNESDAY_NOON, trades_ok=True
+        )
+        assert ev[0]["type"] == "stagnation_check_broken"
+        assert "no parseable timestamp field" in ev[0]["detail"]
+
+    def test_zero_rows_says_zero_rows(self):
+        """「0 行だった」と「行はあるが時刻が読めない」を同じ文言に畳むと、
+        次に読む人が存在しない契約破綻を追いかけることになる。"""
+        ev = aw.check_live_n_stagnation({}, [], now=WEDNESDAY_NOON, trades_ok=True)
+        assert ev[0]["detail"] == "/api/demo/trades returned 0 rows"
+
+    def test_default_stays_backwards_compatible(self):
+        """trades_ok の既定は True — 既存の呼び出しと同じ意味であること。"""
+        ev = aw.check_live_n_stagnation({}, [{"instrument": "USD_JPY"}])
+        assert ev and ev[0]["type"] == "stagnation_check_broken"
+
+
+class TestFetchAllRetry:
+    """全滅時のみ ramp (実測 3.6 分, PR #199) を跨いで再試行する。"""
+
+    def test_success_does_not_retry_or_sleep(self):
+        slept: list[float] = []
+        outcomes, attempts, waited = fetch_all_probe(
+            lambda p: _ok(p), slept
+        )
+        assert attempts == 1 and waited == 0.0 and slept == []
+        assert all(o.ok for o in outcomes.values())
+
+    def test_partial_failure_does_not_retry(self):
+        """ramp では 4 本とも落ちる。1 本だけの失敗を待っても意味が無い。"""
+        slept: list[float] = []
+        outcomes, attempts, _ = fetch_all_probe(
+            lambda p: _fail(p) if "disk" in p else _ok(p), slept
+        )
+        assert attempts == 1 and slept == []
+
+    def test_total_failure_retries_across_the_ramp(self):
+        slept: list[float] = []
+        _, attempts, waited = fetch_all_probe(lambda p: _fail(p), slept)
+        assert attempts == 1 + len(aw.API_RETRY_BACKOFF_SEC)
+        assert slept == list(aw.API_RETRY_BACKOFF_SEC)
+        assert waited == float(sum(aw.API_RETRY_BACKOFF_SEC))
+
+    def test_recovery_mid_ramp_stops_early(self):
+        """デプロイ blip は途中で回復する = 誤って api_unreachable を上げない。"""
+        slept: list[float] = []
+        calls = {"n": 0}
+
+        def flaky(path: str):
+            calls["n"] += 1
+            # 1 巡目 (4 本) は全滅、2 巡目から回復
+            return _fail(path) if calls["n"] <= len(aw.WATCHED_PATHS) else _ok(path)
+
+        outcomes, attempts, _ = fetch_all_probe(flaky, slept)
+        assert attempts == 2
+        assert aw.check_api_reachability(outcomes, attempts) == []
+
+    def test_retry_budget_fits_inside_the_cron_interval(self):
+        """待機総和が cron 間隔を超えると run が重なる。"""
+        assert sum(aw.API_RETRY_BACKOFF_SEC) < aw.CRON_INTERVAL_MIN * 60
+
+
+def fetch_all_probe(fetcher, slept: list):
+    return aw.fetch_all(fetcher=fetcher, sleeper=slept.append)
+
+
+class TestMainWiring:
+    """検知器を書いても main() から呼ばれなければ、全テスト green のまま無音。
+
+    PR #208 でこの型を実際に踏んでいる (配線削除の counterfactual が初回に
+    素通りした)。pin は **main() 本体にスコープを絞る** — ファイル全体への
+    文字列一致は、同じ字面がコメントや別関数にあるだけで通ってしまう
+    (PR #209 で同型の過剰結合を是正済み)。
+    """
+
+    @staticmethod
+    def _main_source() -> str:
+        import inspect
+
+        return inspect.getsource(aw.main)
+
+    def test_reachability_check_is_called_from_main(self):
+        assert "check_api_reachability(" in self._main_source()
+
+    def test_stagnation_is_told_whether_the_fetch_succeeded(self):
+        """trades_ok を渡さないと既定 True に戻り、502 の誤診が復活する。"""
+        assert "trades_ok=" in self._main_source()
+
+    def test_main_fetches_through_the_retrying_path(self):
+        src = self._main_source()
+        assert "fetch_all(" in src
+        # 生の fetch_json に戻すと outcome (ok/理由) が {} に潰れる
+        assert "fetch_json(" not in src
+
+    def test_every_watched_path_is_consumed(self):
+        """WATCHED_PATHS と main の読み出し先がずれると、監視しているつもりの
+        エンドポイントが誰にも使われないまま残る。"""
+        src = self._main_source()
+        for path in aw.WATCHED_PATHS:
+            assert f'"{path}"' in src, path
+
+
+class TestFetchOutcomeBoundary:
+    """ok/payload の分離が**実際に生まれる場所**を pin する.
+
+    上の検知器テストは ``_fail()`` で手組みした outcome を使うので、
+    ``fetch_outcome`` 自身が失敗を握り潰しても素通りする — 実際に
+    counterfactual (失敗を ok=True に潰す) が初回に 69 passed で通過した。
+    PR #208 と同じ「検知器を書いても呼ばれなければ無音」の境界版。
+    """
+
+    class _Resp:
+        def __init__(self, exc=None, payload=None):
+            self._exc = exc
+            self._payload = payload or {}
+
+        def raise_for_status(self):
+            if self._exc:
+                raise self._exc
+
+        def json(self):
+            return self._payload
+
+    def _patched(self, monkeypatch, resp):
+        monkeypatch.setattr(aw.requests, "get", lambda *a, **k: resp)
+        return aw.fetch_outcome("/api/demo/status")
+
+    def test_http_error_is_not_ok_and_keeps_the_reason(self, monkeypatch):
+        import requests as _rq
+
+        out = self._patched(
+            monkeypatch,
+            self._Resp(exc=_rq.HTTPError("502 Server Error: Bad Gateway")),
+        )
+        assert out.ok is False
+        assert out.payload == {}
+        assert "502" in out.reason
+
+    def test_transport_error_is_not_ok(self, monkeypatch):
+        import requests as _rq
+
+        def boom(*a, **k):
+            raise _rq.ConnectionError("connection reset by peer")
+
+        monkeypatch.setattr(aw.requests, "get", boom)
+        out = aw.fetch_outcome("/api/demo/status")
+        assert out.ok is False
+        assert "ConnectionError" in out.reason
+
+    def test_success_carries_the_payload(self, monkeypatch):
+        out = self._patched(monkeypatch, self._Resp(payload={"running": True}))
+        assert out.ok is True
+        assert out.payload == {"running": True}
+        assert out.reason == ""
+
+    def test_legacy_wrapper_still_returns_a_plain_dict(self, monkeypatch):
+        """fetch_json の後方互換。失敗時は従来どおり {} だが、新規経路は
+        fetch_outcome を使う (main の pin が それを強制している)。"""
+        import requests as _rq
+
+        monkeypatch.setattr(
+            aw.requests, "get", lambda *a, **k: self._Resp(exc=_rq.HTTPError("500"))
+        )
+        assert aw.fetch_json("/api/demo/status") == {}
+
+
+class TestIncidentReplay20260829:
+    """2026-08-29T23:31Z の実インシデントをそのまま再生する.
+
+    Render ログの実測: デプロイ再起動中に 4 エンドポイント全てが 502 を返し、
+    watcher は ``stagnation_check_broken``「no parseable timestamp field in
+    /api/demo/trades」1 件だけを出した。**真因は 502 であってペイロード契約
+    ではない** — 誤診であり、しかも「本番が落ちている」という肝心の事実は
+    どの検知器も報告しなかった。
+    """
+
+    def test_total_502_now_reports_the_outage_not_a_fake_contract_break(
+        self, monkeypatch
+    ):
+        seen: list[dict] = []
+        monkeypatch.setattr(aw, "fetch_outcome",
+                            lambda p, timeout=15: _fail(p, "HTTPError: 502 Server Error"))
+        monkeypatch.setattr(aw.time, "sleep", lambda *_: None)
+        monkeypatch.setattr(aw, "save_events", lambda evs: seen.extend(evs) or "(x)")
+        monkeypatch.setattr(aw, "notify_discord", lambda evs, now=None: None)
+        monkeypatch.setattr(aw.sys, "argv", ["anomaly_watcher.py"])
+
+        assert aw.main() == 0
+
+        types = [e["type"] for e in seen]
+        assert "api_unreachable" in types, "本番の死が報告されていない"
+        assert "stagnation_check_broken" not in types, "502 を契約破綻と誤診している"
+        # ramp を跨ぐまで粘ったことが記録に残る
+        outage = next(e for e in seen if e["type"] == "api_unreachable")
+        assert outage["attempts"] == 1 + len(aw.API_RETRY_BACKOFF_SEC)
+
+    def test_healthy_production_stays_quiet(self, monkeypatch):
+        """健全時に api_unreachable が出るなら、この検知器は使い物にならない。"""
+        seen: list[dict] = []
+        payloads = {
+            "/api/demo/trades?limit=500": {
+                "trades": [_trade(WEDNESDAY_NOON - timedelta(hours=1))]
+            },
+        }
+        monkeypatch.setattr(
+            aw, "fetch_outcome",
+            lambda p, timeout=15: _ok(p, payloads.get(p, {})),
+        )
+        monkeypatch.setattr(aw, "save_events", lambda evs: seen.extend(evs) or "(x)")
+        monkeypatch.setattr(aw, "notify_discord", lambda evs, now=None: None)
+        monkeypatch.setattr(aw.sys, "argv", ["anomaly_watcher.py"])
+
+        assert aw.main() == 0
+        assert [e["type"] for e in seen if e["type"].startswith("api_")] == []

@@ -17,6 +17,7 @@ Protocol: knowledge-base/wiki/analyses/daily-tierB-protocol.md §6
     6. DB 書込み失敗 (disk_status の write_probe 実測) — 2026-08-26 追加
     7. シグナル評価の停止 (候補行の鮮度、市場オープン6h) — 2026-08-27 追加
     8. エンジン停止 (tick 前進の実時刻、15分) — 2026-08-28 追加
+    9. API 到達不能 (本番 web service そのものの死) — 2026-08-30 追加
 
 **禁止事項**:
     - 判断しない (昇格/降格推奨は出さない)
@@ -37,9 +38,10 @@ import json
 import os
 import statistics
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, NamedTuple
 
 import requests
 
@@ -96,6 +98,8 @@ NOTIFY_EVERY_HOURS = {
     "candidate_freshness_error": 6,
     "engine_tick_stall": 1,
     "engine_tick_never": 1,
+    "api_unreachable": 1,
+    "api_endpoint_failed": 6,
 }
 # Discord に流さない type。write_probe_missing はデプロイ直後の cron/web
 # バージョン不一致で必ず一度は起きる (cron は数十秒で新コード化、web は
@@ -105,18 +109,133 @@ NOTIFY_NEVER = {"write_probe_missing", "candidate_freshness_missing",
                 "engine_tick_missing"}
 
 
-def fetch_json(path: str, timeout: int = 15) -> dict[str, Any]:
+class FetchOutcome(NamedTuple):
+    """1 エンドポイントの取得結果.
+
+    ``ok`` と ``payload`` を分けて持つのが要点である。旧実装は失敗時に
+    ``{}`` を返しており、**「取りに行けなかった」と「空だった」が呼び出し
+    側で区別できなかった** (PR #207 の「``no_rows`` と ``error`` を折り
+    畳むな」と同型の欠陥)。実害は 2026-08-29T23:31Z に実測されている:
+    デプロイ再起動で 4 本すべてが 502 を返した run で、``live_n_stagnation``
+    が「``/api/demo/trades`` に読める時刻フィールドが無い」という**事実と
+    異なる診断**を上げた。真因は API の 502 であってペイロード契約ではない。
+    """
+
+    path: str
+    ok: bool
+    payload: dict[str, Any]
+    reason: str  # ok のときは ""
+
+
+def fetch_outcome(path: str, timeout: int = 15) -> FetchOutcome:
     url = f"{API_BASE}{path}"
     try:
         r = requests.get(url, timeout=timeout)
         r.raise_for_status()
-        return r.json()
+        return FetchOutcome(path, True, r.json(), "")
     except requests.RequestException as e:
         print(f"⚠️  fetch failed: {url} — {e}", file=sys.stderr)
-        return {}
+        return FetchOutcome(path, False, {}, f"{type(e).__name__}: {e}")
+
+
+def fetch_json(path: str, timeout: int = 15) -> dict[str, Any]:
+    """後方互換の薄いラッパ。**新規の呼び出しは fetch_outcome を使うこと** —
+    ここで ``{}`` に潰すと上記の「折り畳み」を再導入することになる。
+    """
+    return fetch_outcome(path, timeout=timeout).payload
+
+
+# デプロイ再起動と本物の停止を、状態を持たずに区別するためのリトライ間隔。
+# Render の web service は KB 実測 (PR #199) で ramp 3.6 分 / 無 tick 59.5 秒
+# を要する。全エンドポイントが同時に落ちるのは「ramp 中」か「本当に死んで
+# いる」かのどちらかなので、ramp を跨ぐまで待ってから判定する。累積 3.5 分
+# (30+60+120) は cron 間隔 15 分に対して十分な余裕がある。
+#
+# 部分障害 (一部のパスだけ失敗) はリトライしない — ramp では 4 本とも落ちる
+# ので、1 本だけの失敗は最初からそのエンドポイント固有の異常である。
+API_RETRY_BACKOFF_SEC = (30, 60, 120)
+
+WATCHED_PATHS = (
+    "/api/demo/trades?limit=500",
+    "/api/oanda/status",
+    "/api/demo/status",
+    "/api/admin/disk_status",
+)
+
+
+def fetch_all(
+    paths: tuple[str, ...] = WATCHED_PATHS,
+    *,
+    backoff: tuple[int, ...] = API_RETRY_BACKOFF_SEC,
+    fetcher: Callable[[str], FetchOutcome] | None = None,
+    sleeper: Callable[[float], None] | None = None,
+) -> tuple[dict[str, FetchOutcome], int, float]:
+    """全エンドポイントを取得し、**全滅時のみ** backoff で再試行する.
+
+    戻り値は (path→FetchOutcome, 試行回数, 費やした待機秒)。待機秒は
+    ``api_unreachable`` イベントに載せる — 「何分待ってもダメだった」を
+    読み手が判断できないと、デプロイ blip と本物の停止が区別できない。
+    """
+    fetcher = fetcher or fetch_outcome
+    sleeper = sleeper or time.sleep
+
+    attempts = 0
+    waited = 0.0
+    outcomes: dict[str, FetchOutcome] = {}
+    for wait in (0, *backoff):
+        if wait:
+            sleeper(wait)
+            waited += wait
+        attempts += 1
+        outcomes = {p: fetcher(p) for p in paths}
+        if any(o.ok for o in outcomes.values()):
+            break
+    return outcomes, attempts, waited
 
 
 # ── 検知ロジック ────────────────────────────────────────
+
+def check_api_reachability(
+    outcomes: dict[str, FetchOutcome], attempts: int = 1, waited_sec: float = 0.0
+) -> list[dict[str, Any]]:
+    """本番 web service そのものの死を検知する (rule:R3, 2026-08-30).
+
+    **他の 8 検知器は全て「API が答えること」を前提にしている。** 実測
+    (2026-08-29T23:31Z) では 4 エンドポイント全てが 502 を返した run で、
+    8 検知器のうち 7 個が完全に沈黙し、残る 1 個 (``live_n_stagnation``) が
+    事実と異なる診断を上げた。つまり **API が落ちている間、監視スタックは
+    落ちていることを報告できない** — 2026-08-21 の Disk 満杯事故で「凍結
+    した画面は静かな相場と区別がつかない」と学んだ構図の、監視器側での
+    再演である (MEMORY: 「検知器そのものも write-only になりうる」)。
+
+    cron の exit code は 0 のままにする。Render の notifyOnFail は cron
+    自身の異常を担当する経路であり、そこに web service の停止を混ぜると
+    「どちらが壊れたか」が通知から読めなくなる。この検知器の出力先は
+    Discord (バケット 1h) と stdout の恒久ログ。
+
+    ``attempts``/``waited_sec`` を必ずイベントに載せる: デプロイ ramp
+    (実測 3.6 分, PR #199) を待った上でなお全滅だったのか、1 回で諦めた
+    のかが読み手に分からないと、blip と本物の停止を区別できない。
+    """
+    failed = [o for o in outcomes.values() if not o.ok]
+    if not failed:
+        return []
+
+    total = len(outcomes)
+    return [
+        {
+            # 全滅は「サービスが死んだ」、部分失敗は「そのendpointが壊れた」。
+            # 同じ type に畳むと原因の切り分けが通知から消えるので分ける。
+            "type": "api_unreachable" if len(failed) == total else "api_endpoint_failed",
+            "failed": [o.path for o in failed],
+            "n_failed": len(failed),
+            "n_watched": total,
+            "attempts": attempts,
+            "waited_sec": round(waited_sec, 1),
+            "reasons": {o.path: o.reason for o in failed},
+        }
+    ]
+
 
 def check_spread_spike(trades: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """instrument別に最新spread vs 30日median比を計算。"""
@@ -172,7 +291,11 @@ def _market_open_hours(start: datetime, end: datetime) -> float:
 
 
 def check_live_n_stagnation(
-    status: dict[str, Any], trades: list[dict[str, Any]], now: datetime | None = None
+    status: dict[str, Any],
+    trades: list[dict[str, Any]],
+    now: datetime | None = None,
+    *,
+    trades_ok: bool = True,
 ) -> list[dict[str, Any]]:
     """DB への最終書込みからの経過時間で書込み停止を検知する (rule:R3, 2026-08-26).
 
@@ -197,8 +320,19 @@ def check_live_n_stagnation(
     約 48h 閉場するため、実時間 24h では金曜夕方の最終取引が毎週末
     必ず誤発火する。書込み障害そのものの検知は ``check_db_write_health``
     が受け持つ (write_probe の実 INSERT 成否を見る)。
+
+    2026-08-30 追記 (rule:R3): ``trades_ok=False`` = trades API の取得自体が
+    失敗した場合は何も上げない。旧実装は失敗を ``{}``/``[]`` として受け取り
+    「読める時刻フィールドが無い」と報告していたが、これは**事実と異なる
+    診断**である (2026-08-29T23:31Z の 502 で実際に誤発火)。API に到達でき
+    ないこと自体は ``check_api_reachability`` が真の理由付きで報告する。
+    「黙って skip するな」という本検知器の設計思想はここでも守られている —
+    沈黙するのは**別の検知器が同じ事実をより正確に報告するとき**だけ。
     """
     events: list[dict[str, Any]] = []
+
+    if not trades_ok:
+        return events
 
     latest: datetime | None = None
     for t in trades:
@@ -218,10 +352,17 @@ def check_live_n_stagnation(
 
     if latest is None:
         # 旧実装はここで沈黙した。契約が壊れたこと自体を異常として上げる。
+        # ここに来るのは取得に成功した場合だけなので、detail は「0 行だった」
+        # と「行はあるが時刻が読めない」を区別して書く — 両方を同じ文言に
+        # 畳むと、次に読む人が存在しない契約破綻を追いかけることになる。
         events.append(
             {
                 "type": "stagnation_check_broken",
-                "detail": "no parseable timestamp field in /api/demo/trades",
+                "detail": (
+                    "/api/demo/trades returned 0 rows"
+                    if not trades
+                    else "no parseable timestamp field in /api/demo/trades"
+                ),
                 "n_trades_seen": len(trades),
             }
         )
@@ -714,6 +855,20 @@ def _event_line(e: dict[str, Any]) -> str:
         )
     if et == "engine_tick_missing":
         return f"- {et}: {e.get('detail')} — engine 生存計装の契約が破れている"
+    if et == "api_unreachable":
+        return (
+            f"- 🛑 **本番 API に到達できない**: 監視対象 {e.get('n_watched')} 本すべてが失敗 "
+            f"({e.get('attempts')} 回試行 / {e.get('waited_sec')}s 待機)。"
+            f"理由: {json.dumps(e.get('reasons'), ensure_ascii=False)[:200]}。"
+            f"**この間、他の全検知器は盲目である** (取引停止も書込み停止も報告されない)。"
+            f"Render の web service ステータスとデプロイログを確認"
+        )
+    if et == "api_endpoint_failed":
+        return (
+            f"- api_endpoint_failed: {e.get('n_failed')}/{e.get('n_watched')} 本が失敗 "
+            f"({', '.join(e.get('failed', []))})。サービス全体は生きているので"
+            f"当該エンドポイント固有の異常。依存する検知器だけが盲目になっている"
+        )
     return f"- {et}: {json.dumps(e, ensure_ascii=False)[:150]}"
 
 
@@ -759,17 +914,27 @@ def main() -> int:
     # 越えて通知を落とすことがある
     now = datetime.now(timezone.utc)
 
-    trades_raw = fetch_json("/api/demo/trades?limit=500")
+    # 全滅時は ramp を跨ぐまで再試行する (fetch_all の docstring 参照)。
+    # ここで待つぶん now が古くなるが、now は「観測を開始した時刻」であって
+    # 判定はどれも経過時間の下側評価になるため、誤発火の方向には倒れない。
+    outcomes, attempts, waited = fetch_all()
+    trades_out = outcomes["/api/demo/trades?limit=500"]
+    trades_raw = trades_out.payload
     trades = trades_raw.get("trades", []) if isinstance(trades_raw, dict) else []
 
-    oanda_status = fetch_json("/api/oanda/status")
-    status = fetch_json("/api/demo/status")
-    disk_payload = fetch_json("/api/admin/disk_status")
+    oanda_status = outcomes["/api/oanda/status"].payload
+    status = outcomes["/api/demo/status"].payload
+    disk_payload = outcomes["/api/admin/disk_status"].payload
 
     all_events: list[dict[str, Any]] = []
+    # 他の検知器は全て「API が答えること」を前提にしている。到達不能の検知は
+    # 先頭に置く — これが無いと、本番が死んだ run は「異常なし」と出力される。
+    all_events.extend(check_api_reachability(outcomes, attempts, waited))
     all_events.extend(check_spread_spike(trades))
     all_events.extend(check_oanda_latency(oanda_status))
-    all_events.extend(check_live_n_stagnation(status, trades, now=now))
+    all_events.extend(
+        check_live_n_stagnation(status, trades, now=now, trades_ok=trades_out.ok)
+    )
     all_events.extend(check_session_volume(trades))
     all_events.extend(check_disk_capacity(disk_payload))
     all_events.extend(check_db_write_health(disk_payload))
