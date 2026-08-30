@@ -1,5 +1,28 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-08-30 — fix(obs): API 到達不能の無検知を塞ぐ + fetch 失敗を「契約破綻」と誤診する経路を除去 (rule:R3)
+
+- **実測から出発した (仮説ではない)**: 積み残し「`ENGINE_TICK_STALL_MINUTES = 15` の実運用確認 — デプロイ再起動で誤発火しないか」を Render cron ログで検証した際、**別の・より重い欠陥**が露出した
+- **誤発火の検証結果 (先に結論)**: PR #208 の live 反映 (2026-08-28T05:59Z) 以降、web service のデプロイ再起動は **3 回** (08-29 03:22-03:24 / 08-29 23:29-23:31 / 08-30 05:15-05:16、いずれも build+deploy 100-110 秒)。この間の 15 分 cron 全 run で `engine_tick_stall` / `engine_tick_never` は **0 件**。⚠️ ただし**3 回中 1 回 (08-29 23:31) は watcher 自身が 502 を掴んで status を読めておらず、「正しく静かだった」のではなく「見えていなかった」** — 誤発火ゼロの母数は実質 2/3。閾値 15 分は据え置き (再較正の材料は増やす方向でのみ動かす)
+- 🛑 **露出した欠陥: 本番 web service が落ちている間、監視スタックは落ちていることを報告できない**
+  - 2026-08-29T23:31:00-02Z の実 run で `/api/demo/trades` `/api/oanda/status` `/api/demo/status` `/api/admin/disk_status` の **4 本すべてが 502 Bad Gateway** (直前 23:29 の `data(mof-statements)` commit によるデプロイ再起動)
+  - 8 検知器のうち **7 個が完全に沈黙**。残る 1 個 (`live_n_stagnation`) が **`stagnation_check_broken`「no parseable timestamp field in /api/demo/trades」** を上げたが、**真因は 502 でありペイロード契約ではない = 誤診**。しかも時間バケット抑制で Discord にすら出ず (`[notify] 1 event(s) suppressed`)
+  - **「本番が到達不能」を報告する検知器が存在しなかった**。cron は exit 0 で "finished successfully"、Render の `notifyOnFail` は cron 自身の失敗を見る経路なので発火しない → **web service が恒久的に死んでも通知はゼロ**
+  - 構図は 2026-08-21 の Disk 満杯事故 (「凍結した画面は静かな相場と区別がつかない」) の**監視器側での再演**。MEMORY の「検知器そのものも write-only になりうる」の直系
+- **根本原因は 1 行**: `fetch_json` が失敗時に `{}` を返し、**「取りに行けなかった」と「空だった」を呼び出し側で区別不能にしていた** — PR #207 で明文化した「`no_rows` と `error` を折り畳むな」と完全に同型
+- **修正**:
+  - `FetchOutcome(path, ok, payload, reason)` + `fetch_outcome()` を新設し、成否と理由を payload から分離。`fetch_json` は後方互換の薄いラッパとして残す (新規経路では使わないことを main の構造 pin が強制)
+  - `check_api_reachability()` を新設。**全滅 = `api_unreachable`** (サービスの死、通知バケット 1h) と **部分失敗 = `api_endpoint_failed`** (そのエンドポイント固有、6h) を**別 type に分ける** — 畳むと切り分け情報が通知から消える
+  - `check_live_n_stagnation(..., trades_ok=)`: 取得自体が失敗したときは**何も上げない**。本検知器の「黙って skip するな」という設計思想は維持されている — 沈黙するのは**別の検知器が同じ事実をより正確に報告するとき**だけ
+- **デプロイ blip と本物の停止を、状態を持たずに区別する**: `fetch_all()` が**全滅時のみ** `API_RETRY_BACKOFF_SEC = (30, 60, 120)` で再試行する。部分失敗は再試行しない (ramp なら 4 本とも落ちるので、1 本だけの失敗は最初からそのエンドポイント固有の異常)。**実測が閾値を裏付ける**: 08-29 の 502 は 23:31:00 に発生し、デプロイは 23:31:07 に完了している = **30 秒の 1 回目リトライだけで回復していた**。累積 3.5 分は KB 実測の ramp 3.6 分 (PR #199) 相当で、cron 間隔 15 分に対して十分な余裕がある。`attempts` / `waited_sec` は必ずイベントに載せる — 「ramp を跨いだ上でなお全滅」なのか「1 回で諦めた」のかが読み手に分からなければ blip と停止は区別できない
+- **cron の exit code は 0 のまま**: Render の `notifyOnFail` は cron 自身の異常を担当する経路であり、そこに web service の停止を混ぜると「どちらが壊れたか」が通知から読めなくなる。出力先は Discord (1h バケット) と stdout の恒久ログ
+- **counterfactual 9 本を実行**: ①main から検知器の配線削除 ②`trades_ok` を渡さない ③`trades_ok` ガード撤去 ④`api_unreachable` を NOTIFY_NEVER へ ⑤部分失敗を `api_unreachable` に畳む ⑥部分失敗でもリトライ ⑦リトライ廃止 ⑧`fetch_outcome` が失敗を `ok=True` に潰す ⑨Discord 行を汎用 fallback に戻す。⚠️ **⑧と⑨は初回に素通りした**:
+  - ⑧ — 検知器テストが `_fail()` で**手組みした** outcome を使うため、**ok/payload の分離が実際に生まれる場所** (`fetch_outcome` の except 節) が誰にも触られていなかった → `requests.get` を差し替える境界テストを追加
+  - ⑨ — 描画 pin の assertion が「長さ > 60」「'json.dumps' を含まない」で、**汎用 fallback 行もその両方を満たしていた** → 専用行にしか現れない文言 (「他の全検知器は盲目である」「エンドポイント固有の異常」) で pin し直し
+  - **教訓: counterfactual が初回に通ったら、それは「安全」ではなく「pin が無い」の証拠である** (PR #208 の ⑥ に続き 2 度目)
+- **インシデント再生テストを同梱**: 08-29 の 502 シナリオを `main()` に通し、`api_unreachable` が出ること **かつ** `stagnation_check_broken` が出ないことを両側で pin。健全時に `api_*` が出ないことも対で pin (健全時に鳴る検知器は使い物にならない)
+- **live パラメータ・発注挙動は不変更** (監視配管のみ)。テスト **25 件追加** (`tests/test_anomaly_watcher_detectors.py` 51 → 76)
+
 ## 2026-08-29 — feat(obs): 鮮度判定のダッシュボード露出 + 閾値/時計の SSOT 化 (rule:R3)
 
 - **積み残し「ダッシュボード UI 側での鮮度表示」を解消**。PR #205/#206 で alert 経路、PR #207/#208 で `/api/demo/status` の生値までは通したが、**人間が実際に見る画面は最後まで blind のままだった**
