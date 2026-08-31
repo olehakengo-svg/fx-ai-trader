@@ -297,9 +297,9 @@
       "id": "weekend-gap-live-g1-slippage",
       "active": true,
       "type": "deadline_info",
-      "deadline": "2026-08-31",
+      "deadline": "2026-09-30",
       "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
-      "message": "weekend_gap live G1 ゲート監視 — live fill の slippage rolling mean > +2.0p で R2 live 停止 (code gate が一次、本エントリは週次監査の見落とし防止)。user 承認 (b) 2026-07-24"
+      "message": "weekend_gap live G1 ゲート監視 — live fill の slippage rolling mean > +2.0p で R2 live 停止 (code gate が一次、本エントリは週次監査の見落とし防止)。user 承認 (b) 2026-07-24 ⚠️ 2026-08-31 評価 (deadline 08-31 到来 → 09-30 へ roll): live 化 (2026-07-25) 以降の weekend_gap は **clean live N=0**。本番 /api/demo/trades を全ページ取得 (2026-07-24 以降 2,710 行) して抽出した結果、weekend_gap 行は 2 件のみ (2026-07-26 / 08-02、いずれも USD_JPY BUY・**shadow**、oanda_trade_id 空)。→ **G1 (live fill slippage rolling mean > +2.0p) は評価対象ゼロ = 未抵触、live 停止の根拠なし。措置なし**。⚠️ 併せて観測: 08-09 / 08-16 / 08-23 / 08-30 の **4 週連続で発火ゼロ**。G2 エントリが置く『頻度 ~3.3/月 → N=12 は ~2026-11 見込み』との乖離は、**その 3.3/月 が signal-rate か live-fill-rate かで意味が変わる** (hull 残余 4.7x と同型の estimand 不一致) ため、本時点では『設計レートが誤り』と断定しない。G2 チェックポイント (weekend-gap-live-g2-cumloss) で 分母を明示した上で再評価すること。単発 limit クエリは希少戦略を 0 に向けて過小計上するので **必ず全ページ取得で数えること** (2026-07-24 実測バグ)。"
     },
     {
       "id": "weekend-gap-live-g2-cumloss",
