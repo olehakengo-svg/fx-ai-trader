@@ -234,6 +234,84 @@ def evaluate_data_coverage(
             "detail": f"被覆 {str(max_date)[:10]} / 閾値 {threshold_date} まで延伸待ち"}
 
 
+_CSV_OPS = {
+    ">": lambda a, b: a > b,
+    ">=": lambda a, b: a >= b,
+    "<": lambda a, b: a < b,
+    "<=": lambda a, b: a <= b,
+    "==": lambda a, b: a == b,
+    "!=": lambda a, b: a != b,
+}
+
+
+def _csv_row_predicate(row: dict[str, Any], cond: dict[str, Any]) -> bool:
+    """1 条件の評価。value が数値なら数値比較、それ以外は文字列比較。
+
+    数値列に空文字/非数値が入っていたら False — 欠測は「一致」ではない。
+    op の妥当性は呼び出し側 (evaluate_csv_row_match) が事前検証する。
+    """
+    op = _CSV_OPS[str(cond.get("op", "=="))]
+    raw = row.get(cond["column"])
+    want = cond["value"]
+    if isinstance(want, (int, float)) and not isinstance(want, bool):
+        try:
+            return op(float(raw), float(want))
+        except (TypeError, ValueError):
+            return False
+    return op(str(raw if raw is not None else ""), str(want))
+
+
+def evaluate_csv_row_match(
+    rows: list[dict[str, Any]] | None,
+    match: list[dict[str, Any]],
+    label_columns: list[str] | None = None,
+) -> dict[str, Any]:
+    """リポジトリ内 CSV に述語を満たす行が現れたら TRIGGERED。
+
+    背景 (2026-08-31、write-only 6 例目): MoF 月次介入額の開示
+    (2026-07-30〜08-26 = 15兆3,993億円) は日次 cron が **08-29 に**
+    interventions_monthly_pending.csv へ書き込んでいた。しかし registry 側の
+    到達経路は「deadline (08-31) まで無反応 + 人手で公表 URL を直叩き」しか
+    無く、値がリポジトリに 2 日間座ったまま誰も読まなかった。しかもその人手
+    経路は公表 URL を命名規則から**推測**していたため、実際の
+    20260828.html を 20260831.html と取り違えて 404 = 「未公表」と誤読した。
+
+    → 収集済みデータを機械が読む経路を与えるのが本評価器。書き手 (cron) と
+    読み手 (本評価器) を必ず対にする。
+
+    設計 (PR #207 の no_rows vs error 教訓): 「取得不能」と「行はあるが
+    述語に一致しない」を折り畳まない。ファイル欠落/パース失敗/列欠落/
+    述語不正は DATA_UNAVAILABLE、一致ゼロのみ WATCHING。折り畳むと schema が
+    壊れた瞬間から永久に「健全に監視中」を表示し続ける。
+    """
+    if not match:
+        return {"state": STATE_UNAVAILABLE,
+                "detail": "match 述語が空 — 全行一致の偽発火を防ぐため評価しない"}
+    bad_ops = sorted({str(c.get("op", "==")) for c in match} - set(_CSV_OPS))
+    if bad_ops:
+        return {"state": STATE_UNAVAILABLE,
+                "detail": f"未知の op: {', '.join(bad_ops)}"}
+    if rows is None:
+        return {"state": STATE_UNAVAILABLE, "detail": "CSV 取得不能"}
+    needed = {str(c["column"]) for c in match}
+    if rows:
+        missing = sorted(needed - set(rows[0].keys()))
+        if missing:
+            return {"state": STATE_UNAVAILABLE,
+                    "detail": f"列欠落 (schema 変化?): {', '.join(missing)}"}
+    cond_txt = " ∧ ".join(
+        f"{c['column']}{c.get('op', '==')}{c['value']}" for c in match)
+    hits = [r for r in rows if all(_csv_row_predicate(r, c) for c in match)]
+    if not hits:
+        return {"state": STATE_WATCHING,
+                "detail": f"該当行なし ({len(rows)} 行走査) — 条件 {cond_txt}"}
+    cols = label_columns or sorted(needed)
+    shown = " ; ".join(
+        ", ".join(f"{c}={r.get(c)}" for c in cols) for r in hits[:5])
+    return {"state": STATE_TRIGGERED,
+            "detail": f"該当 {len(hits)} 行 (条件 {cond_txt}): {shown}"}
+
+
 def evaluate_manual_info(
     condition: str, deadline: str, today: str, reachability: str,
 ) -> dict[str, Any]:
@@ -285,6 +363,24 @@ def fetch_data_coverage_max(spec: dict[str, Any],
         if isinstance(df.index, pd.DatetimeIndex) and len(df):
             return str(df.index.max())
         return None
+    except Exception:
+        return None
+
+
+def read_csv_rows(spec: dict[str, Any],
+                  root: Path = ROOT) -> list[dict[str, Any]] | None:
+    """registry の source spec が指す CSV を dict 行として読む。
+
+    取得不能 (欠落/パース失敗) は None を返し DATA_UNAVAILABLE にする —
+    「空の CSV」と折り畳まないこと (evaluate_csv_row_match の docstring 参照)。
+    """
+    path = root / spec["path"]
+    if not path.exists():
+        return None
+    try:
+        import csv as _csv
+        with path.open(newline="", encoding="utf-8") as f:
+            return list(_csv.DictReader(f))
     except Exception:
         return None
 
@@ -518,6 +614,10 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
     elif ttype == "data_coverage":
         res = evaluate_data_coverage(
             fetch_data_coverage_max(trig["source"]), trig["threshold_date"])
+    elif ttype == "csv_row_match":
+        src = trig["source"]
+        res = evaluate_csv_row_match(
+            read_csv_rows(src), src["match"], src.get("label_columns"))
     elif ttype in ("info", "conditional_info"):
         # 手動判定/条件待ちの常時 watching エントリ (機械評価なし)。
         # 2026-07-14: e1-positioning-ingest-freshness (info) 追加に合わせ、
@@ -537,7 +637,7 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
 MACHINE_EVALUABLE_TYPES = {
     "price_below", "shadow_count_decision", "shadow_count_info",
     "live_count_decision", "deadline_info", "ingest_freshness",
-    "artifact_presence", "data_coverage",
+    "artifact_presence", "data_coverage", "csv_row_match",
 }
 
 

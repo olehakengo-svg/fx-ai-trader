@@ -33,7 +33,7 @@
       "symbol": "USDJPY=X",
       "threshold": 159.5,
       "doc": "knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md",
-      "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — ただし復帰は AND 条件。第2要件 (介入観測 or 当局の 160 防衛言及の再確認) は **MoF 公式開示/当局公式言及 (外部一次情報) のみ**で認定すること。価格シグネチャからの介入日推定は mof-intervention-forward-prereg-2026-07-24 (#4) の凍結識別 rule と同一で 2026 窓 OOS を burn するため禁止。lot 1.0x 復帰は R1 = user 決裁 (KB 記録 + テスト変更 PR 必須)。評価記録: t5-restore-eval-and-carrydip-revival-2026-08-10.md (2026-08-10 時点 執行せず)",
+      "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — ただし復帰は AND 条件。第2要件 (介入観測 or 当局の 160 防衛言及の再確認) は **MoF 公式開示/当局公式言及 (外部一次情報) のみ**で認定すること。価格シグネチャからの介入日推定は mof-intervention-forward-prereg-2026-07-24 (#4) の凍結識別 rule と同一で 2026 窓 OOS を burn するため禁止。lot 1.0x 復帰は R1 = user 決裁 (KB 記録 + テスト変更 PR 必須)。評価記録: t5-restore-eval-and-carrydip-revival-2026-08-10.md (2026-08-10 時点 執行せず) ⚠️ 2026-08-31 更新 (第2要件の材料、**認定・lot 変更はしていない**): MoF 月次開示 (外部一次情報) で 2026-07-30〜08-26 窓に 15兆3,993億円の平衡操作が確認された。これは 08-28 時点の『直前窓 0円 = 否定側』を覆し、**第2要件『介入観測』の肯定側材料が初めて外部一次情報で得られた**ことを意味する。ただし (a) 月次開示は方向 (円買い/円売り) を開示しない (b) 介入日が特定できないため『160 防衛』の文脈適合を一次情報で確認できない — よって認定は保留。lot 1.0x 復帰は R1 = user 決裁事項であり、autopilot は執行しない。判断材料は knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md §4 に整理済。",
       "eval_record": "knowledge-base/wiki/decisions/t5-restore-eval-and-carrydip-revival-2026-08-10.md"
     },
     {
@@ -412,16 +412,18 @@
       "type": "deadline_info",
       "deadline": "2026-11-14",
       "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
-      "message": "MoF family #4 PARTIAL の再判定監視: Q3-2026 四半期日次開示 (予想 ~2026-11-06、mof.go.jp feio/data/quarter/) を確認し、新規の円買いエピソードが開示された場合のみ §10 の 1 回限り同一仕様再判定 (新自由度ゼロ) を実行。エピソードなしなら deadline を翌四半期 (+3ヶ月) に roll して継続。教訓: 予想着地日+8d を deadline に刻む (backstop 頼み禁止)。"
+      "message": "MoF family #4 PARTIAL の再判定監視: Q3-2026 四半期日次開示 (予想 ~2026-11-06、mof.go.jp feio/data/quarter/) を確認し、新規の円買いエピソードが開示された場合のみ §10 の 1 回限り同一仕様再判定 (新自由度ゼロ) を実行。エピソードなしなら deadline を翌四半期 (+3ヶ月) に roll して継続。教訓: 予想着地日+8d を deadline に刻む (backstop 頼み禁止)。 ⚠️ 2026-08-31 更新: 月次開示で **2026-07-30〜08-26 窓に 15兆3,993億円** の平衡操作が確認された (単一窓として本プロジェクト保有データ中の最大、2026-05 窓 11兆7,349億円の約1.3倍)。したがって Q3 四半期日次開示 (~2026-11-06) に**新規エピソードが載る公算は高く、本エントリは実質的に load-bearing 化した**。ただし月次総額は日次帰属を与えないため §10 の再判定は依然として四半期開示待ちであり、現時点で look を消費してはならない。方向 (円買い/円売り) も月次開示は非開示。"
     },
     {
       "id": "mof-monthly-total-2026-08-29-check",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-08-31",
       "doc": "knowledge-base/wiki/analyses/family-c-anchor-automation-2026-08-18.md",
       "message": "MoF 月次介入実施額の公表チェック (対象窓 2026-07-30〜08-27)。⚠️ 2026-08-28 に一次確認済み — **公表日は月末営業日**であり registry 初稿の『~08-29』は誤り (過去12窓のページ名 = 07-31/06-30/05-29/04-30… で全て月末営業日)。当該窓ページ 20260831.html は 08-28 時点で HTTP 404 = 未公表 (正常)。→ deadline を 08-31 (月) へ再武装。 **既に判明した事実**: 直前窓 2026-06-29〜07-29 の平衡操作額 = **0円** = user の「7月の負けは介入」説は 07-29 までについて反証済み。残る未決着はワースト2日 07-30 (−69,628円) / 07-31 (−21,370円) のみで、これが本窓に入る。総額 >0 なら『窓内に介入あり』まで (日次帰属は Q3 開示 ~11月)。総額 0 なら介入説は完全否定。T5 復帰第2要件の材料にもなる (cross-LOCK: project_t5_restore_mof_crosslock_2026_08_10 — 認定は外部一次情報のみ、価格からの当日推定は OOS burn で禁止)。確認先 = mof.go.jp/policy/international_policy/reference/feio/data/monthly/。到達経路: daily Tier-A gate-status cron (00:20 UTC) が TRIGGERED 表示 → Claude が公表ページを確認 → KB 記録 + user へ報告 → resolve。経過記録: knowledge-base/wiki/decisions/mof-monthly-total-check-2026-08-28.md",
-      "eval_record": "knowledge-base/wiki/decisions/mof-monthly-total-check-2026-08-28.md"
+      "eval_record": "knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md",
+      "resolved": "2026-08-31",
+      "resolution": "公表確認済 — 対象窓 令和8年7月30日〜8月26日 (2026-07-30〜08-26) の外国為替平衡操作額 = **15兆3,993億円** (= 15,399.3 十億円)。ページ https://www.mof.go.jp/policy/international_policy/reference/feio/data/monthly/20260828.html (公表 2026-08-28)。⚠️ **二重の到達経路欠陥が同時に露見した (rule:R3 で修復済)**: (a) 08-28 の人手チェックは公表 URL を『月末営業日』という推測命名規則から組み立てて 20260831.html を叩き、404 を『未公表』と誤読した — 実際の公表は 08-28 付 20260828.html で、index.html を列挙していれば当日中に見えていた。命名規則は window_end + 2〜4 日であって月末営業日ではない (月末営業日はたまたまの一致)。(b) さらに日次 cron (mof-statements-daily) は **08-29 に既にこの値を data/external/mof_statements/interventions_monthly_pending.csv へ収集済みだった** が、この CSV を読む検知器が存在せず、値がリポジトリに 2 日間座ったまま誰も読まなかった (write-only 6 例目)。→ 新設 csv_row_match 型 + 後継エントリ mof-monthly-disclosure-new-window で機械読み取り経路を敷設。**判定内容**: 総額 >0 = 当該窓内に介入あり (日次帰属は Q3 四半期開示 ~2026-11-06 まで不明)。user の『7月の負けは介入』説は、ワースト2日 07-30/07-31 が本窓に入るため **反証されず継続 (未決着)** — ただし当該日への帰属は未確定であり、価格シグネチャからの推定は mof-next-episode-reverdict の 2026 窓 OOS を burn するため禁止。詳細: knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md"
     },
     {
       "id": "statement-ladder-foundation-readiness",
@@ -459,6 +461,34 @@
       "message": "family C (台帳 #26) explore の verdict 期日 (凍結 2026-08-19 + 10d)。到達経路: 凍結セッション (dazzling-bhaskara) が two-pass を凍結当日に実行予定 — 本トリガは実行ギャップ時の backstop (T5 型防止)。TRIGGERED 時: knowledge-base/raw/bt-results/family-c/ の pass2 JSON 有無を確認し、無ければ pre-reg §4 の手順で two-pass を実行して verdict を台帳 #26 に記入。09-18 スキャン (edge-supply-scan-monthly) の A/B/C 統合裁定が本 verdict を確定材料として使う。",
       "resolved": "2026-08-19",
       "resolution": "verdict FAIL を凍結当日に執行 (期日 10 日前倒し)。N=41、gross −20.5p / net −24.2p、gate C p=0.527、LOYO 不安定。クローズ範囲発効 (日次金利差アンカー帯 × USD_JPY × 帯下 LONG × 5-63bd)。OOS 非接触封印。詳細: family-c-rate-anchor-explore-prereg-2026-08-19.md §11"
+    },
+    {
+      "id": "mof-monthly-disclosure-new-window",
+      "active": true,
+      "type": "csv_row_match",
+      "source": {
+        "path": "data/external/mof_statements/interventions_monthly_pending.csv",
+        "match": [
+          {
+            "column": "window_end",
+            "op": ">",
+            "value": "2026-08-26"
+          },
+          {
+            "column": "amount_yen_billions",
+            "op": ">",
+            "value": 0
+          }
+        ],
+        "label_columns": [
+          "window_start",
+          "window_end",
+          "amount_yen_billions",
+          "source_url"
+        ]
+      },
+      "doc": "knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md",
+      "message": "MoF 月次介入額の**新規非ゼロ窓**の機械検知 (2026-08-26 窓より後)。前身 mof-monthly-total-2026-08-29-check の失敗modeの構造修復: 期日待ち + 人手 URL 推測ではなく、日次 cron (.github/workflows/mof-statements-daily.yml → tools/mof_statements_daily.py) が index.html を列挙して書き込む interventions_monthly_pending.csv を毎日読む。到達経路: 日次 cron が書く → Tier-A gate-status cron (00:20 UTC) が本エントリを評価 → TRIGGERED 表示。TRIGGERED 時の手順: (1) 窓と総額を KB decisions に記録 (2) user へ報告 (3) 総額 0 なら『窓内の全日に介入なし』= 強い反証、>0 なら『窓内のどこかに介入あり』まで — **日次帰属は四半期開示を待つこと。価格シグネチャからの介入日推定は禁止** (mof-next-episode-reverdict #4 の 2026 窓 OOS を burn する) (4) T5 復帰第2要件の材料として t5-jpy-cap-restore-price に反映 (lot 変更は R1 = user 決裁) (5) match の window_end 閾値を今回の窓末へ前進させて再武装。"
     }
   ]
 }

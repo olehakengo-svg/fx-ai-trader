@@ -7,9 +7,13 @@ import json
 from pathlib import Path
 
 from tools.prereg_trigger_watch import (
+    MACHINE_EVALUABLE_TYPES,
     REGISTRY_PATH,
     evaluate_artifact_presence,
+    evaluate_csv_row_match,
     evaluate_data_coverage,
+    evaluate_trigger,
+    read_csv_rows,
     evaluate_ingest_freshness,
     evaluate_manual_info,
     lint_reachability,
@@ -535,19 +539,24 @@ def test_registry_automation_packet_triggers_wired():
     """2026-08-18 自動化パケットのトリガ 3 点 pin — 到達経路明記 (ZN 教訓) 込み。"""
     triggers = {t["id"]: t for t in load_registry()}
 
-    t = triggers["mof-monthly-total-2026-08-29-check"]
-    # 2026-08-28 に一次確認して deadline を 08-28 -> 08-31 へ再武装した。
-    # MoF 月次開示の公表日は **月末営業日** (過去12窓のページ名 = 20260731 /
-    # 20260630 / 20260529 / 20260430 ... で全て月末営業日) であり、registry
-    # 初稿の「公表 ~08-29」は誤りだった。対象窓 (07-30〜08-27) のページ
-    # 20260831.html は 08-28 時点で HTTP 404 = 未公表。
-    # 根拠: knowledge-base/wiki/decisions/mof-monthly-total-check-2026-08-28.md
-    assert t["type"] == "deadline_info" and t["deadline"] == "2026-08-31"
-    assert "到達経路" in t["message"] and "user へ報告" in t["message"]
-    # 直前窓 (2026-06-29〜07-29) = 0円 という**既に判明した事実**を message に
-    # 残すこと。総額 0 は「窓内の全日に介入なし」= >0 より強い情報で、
-    # user の「7月の負けは介入」説の 07-29 までを反証している。
-    assert "0円" in t["message"]
+    # mof-monthly-total-2026-08-29-check は 2026-08-31 に resolve 済み
+    # (active=false なので load_registry() には出ない)。旧 pin は
+    # 「type == deadline_info かつ deadline == 2026-08-31」という**構文**を
+    # 固定していたが、これは誤った設計 (期日待ち + 人手 URL 推測) をそのまま
+    # 固定してしまっていた。是正として、後継エントリが**機械評価可能である
+    # という性質**を pin する (PR #209 教訓: 構文でなく性質を pin せよ)。
+    succ = triggers["mof-monthly-disclosure-new-window"]
+    assert succ["type"] in MACHINE_EVALUABLE_TYPES, (
+        "MoF 月次開示の監視は機械評価可能でなければならない — "
+        "人手 URL 推測に戻すと 2026-08-28 の 404 誤読が再発する")
+    assert succ["type"] == "csv_row_match"
+    # 収集済み CSV を読む経路であること (write-only の再発防止の本体)
+    assert succ["source"]["path"] == (
+        "data/external/mof_statements/interventions_monthly_pending.csv")
+    assert (Path(__file__).resolve().parent.parent
+            / succ["source"]["path"]).exists()
+    # 日次帰属の禁止 (MoF #4 の 2026 窓 OOS burn 防止) を手順に残すこと
+    assert "価格シグネチャからの介入日推定は禁止" in succ["message"]
 
     # 2026-08-19: 条件成立 (PR #194 着地) 後も発火できなかったため
     # conditional_info -> artifact_presence へ移行。旧 pin (type と
@@ -640,6 +649,106 @@ def test_statement_ladder_entry_is_machine_evaluable_and_satisfied():
     reqs = trig["requirements"]
     res = evaluate_artifact_presence(scan_artifacts(reqs), reqs)
     assert res["state"] == "TRIGGERED", res["detail"]
+
+
+# ── csv_row_match — 2026-08-31 ──────────────────────────────────────
+# 背景: MoF 月次開示 (2026-07-30〜08-26 = 15兆3,993億円) を日次 cron が
+# 08-29 に CSV へ収集していたのに、その CSV を読む検知器が無く 2 日間
+# 誰も気付かなかった (write-only 6 例目)。書き手と読み手を対にする。
+
+MOF_PENDING_CSV = "data/external/mof_statements/interventions_monthly_pending.csv"
+
+
+def test_csv_row_match_separates_unavailable_from_no_match():
+    """取得不能と『一致ゼロ』を折り畳まない (PR #207 no_rows vs error 教訓)。"""
+    match = [{"column": "amount_yen_billions", "op": ">", "value": 0}]
+    # 一致ゼロ = WATCHING (正常な監視中)
+    assert evaluate_csv_row_match(
+        [{"amount_yen_billions": "0.0"}], match)["state"] == "WATCHING"
+    # 行ゼロも WATCHING (ファイルは読めている)
+    assert evaluate_csv_row_match([], match)["state"] == "WATCHING"
+    # 取得不能 = DATA_UNAVAILABLE
+    assert evaluate_csv_row_match(None, match)["state"] == "DATA_UNAVAILABLE"
+    # 列欠落 (schema 変化) を「一致ゼロ」に折り畳まない — 折り畳むと
+    # schema が壊れた瞬間から永久に「健全に監視中」を表示し続ける
+    broken = evaluate_csv_row_match([{"other_col": "1"}], match)
+    assert broken["state"] == "DATA_UNAVAILABLE"
+    assert "列欠落" in broken["detail"]
+
+
+def test_read_csv_rows_returns_none_for_missing_file():
+    """ファイル欠落は None (= DATA_UNAVAILABLE)。
+
+    空リストに折り畳むと「収集が止まってファイルが消えた」が永久に
+    「一致ゼロ = 健全に監視中」へ化ける。evaluate 側だけ分離しても
+    fetcher 側で折り畳んだら意味がないので、fetcher 単体で固定する。
+    """
+    assert read_csv_rows({"path": "data/external/__does_not_exist__.csv"}) is None
+    rows = read_csv_rows({"path": MOF_PENDING_CSV})
+    assert isinstance(rows, list) and rows, "実ファイルは非空で読めること"
+
+
+def test_csv_row_match_refuses_degenerate_predicates():
+    """述語不正を『一致ゼロ』にしない — 設定ミスが恒久 WATCHING に化ける。"""
+    rows = [{"a": "1"}]
+    # 空 match は全行一致 = 偽発火。評価しない
+    assert evaluate_csv_row_match(rows, [])["state"] == "DATA_UNAVAILABLE"
+    # 未知の op も同様 (typo が黙って無害化されない)
+    bad = evaluate_csv_row_match(
+        rows, [{"column": "a", "op": "=>", "value": 1}])
+    assert bad["state"] == "DATA_UNAVAILABLE" and "未知の op" in bad["detail"]
+
+
+def test_csv_row_match_numeric_vs_string_and_missing_values():
+    # 数値 value は数値比較 ("9" < "10" の文字列比較にならないこと)
+    rows = [{"amt": "9"}, {"amt": "10"}]
+    res = evaluate_csv_row_match(rows, [{"column": "amt", "op": ">", "value": 9.5}])
+    assert res["state"] == "TRIGGERED" and "amt=10" in res["detail"]
+    # 欠測/非数値は「一致」ではない
+    assert evaluate_csv_row_match(
+        [{"amt": ""}, {"amt": "n/a"}],
+        [{"column": "amt", "op": ">", "value": 0}])["state"] == "WATCHING"
+    # 文字列 value は ISO 日付の辞書順比較として機能する
+    rows = [{"window_end": "2026-08-26"}, {"window_end": "2026-07-29"}]
+    res = evaluate_csv_row_match(
+        rows, [{"column": "window_end", "op": ">", "value": "2026-07-29"}])
+    assert res["state"] == "TRIGGERED" and "2026-08-26" in res["detail"]
+
+
+def test_csv_row_match_would_have_caught_the_2026_08_26_disclosure():
+    """回帰の本体: 実データで『08-29 時点の正しい閾値』なら発火すること。
+
+    08-29 に cron が書き込んだ 2026-07-30〜08-26 窓 (15,399.3 十億円) は、
+    当時の baseline (直前窓末 = 2026-07-29) を閾値にした検知器があれば
+    その日のうちに TRIGGERED になっていた。実ファイルで固定する。
+    """
+    rows = read_csv_rows({"path": MOF_PENDING_CSV})
+    assert rows is not None, f"{MOF_PENDING_CSV} が読めない"
+    res = evaluate_csv_row_match(
+        rows,
+        [{"column": "window_end", "op": ">", "value": "2026-07-29"},
+         {"column": "amount_yen_billions", "op": ">", "value": 0}],
+        ["window_start", "window_end", "amount_yen_billions"])
+    assert res["state"] == "TRIGGERED", res["detail"]
+    assert "2026-08-26" in res["detail"] and "15399.3" in res["detail"]
+
+
+def test_mof_successor_entry_is_wired_into_the_dispatch():
+    """反実仮想: registry エントリが実際に評価器へ到達しているか。
+
+    MEMORY 教訓 (PR #208): 検知器を書いても呼ばれなければ全テスト green の
+    まま無音になる。evaluate_trigger() 経由で評価し、dispatch から
+    csv_row_match の分岐を外したら落ちることを確認済み
+    (外すと state が DATA_UNAVAILABLE / "unknown type" になる)。
+    """
+    trig = next(t for t in load_registry()
+                if t["id"] == "mof-monthly-disclosure-new-window")
+    res = evaluate_trigger(trig, today="2026-08-31", app_base="http://unused")
+    # 現閾値 (window_end > 2026-08-26) では次窓待ち = WATCHING。
+    # 重要なのは「unknown type で素通りしていない」こと。
+    assert res["state"] == "WATCHING", res
+    assert "unknown type" not in res["detail"]
+    assert "該当行なし" in res["detail"]
 
 
 def test_ws3_round4_entry_is_machine_evaluable():
