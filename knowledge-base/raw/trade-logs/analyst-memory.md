@@ -4078,6 +4078,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - `hedge_block` 系（daytrade_eur=387、daytrade=286、daytrade_gbpusd=240、daytrade_eurjpy=238、daytrade_audjpy=194）の合計は**1,345件**。ヘッジポジションが存在しないにもかかわらず（Open Trades=0）、過去履歴または想定ポジションに対してブロックが発動している可能性。
 - `r2_shadow_demoted_cell` の蓄積は「セル群が昇格するまで待つ」しかない。N蓄積を促すためには、シグナル生成環境（RANGING継続）がどう展開するかをモニタリングする。
 
+### 2026-08-31 (Post-NY Report)
+| PnL | **+0.0 pips** |
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **最も成績が良かったセッション**: なし（全セッション同値）
+- **最も成績が悪かったセッション**: 定義不能（全て無取引）
+- **最も成績が良かった戦略**: なし
+- **本日合計**: N=0 / PnL=0.0 / WR=計測不能
+- 50件の「シグナル」はデモシミュレーション内のものであり、shadow_trackingフィルターで全件SKIP
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
