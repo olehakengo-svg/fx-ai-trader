@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-01 (5) — feat(kalman): min-lot carve-out DRAFT — 05-28 決裁 live 化の実効化 (rule:R1 **user 最終承認待ち**)
+
+- 🛑 **kalman_d7 は 05-28 user 決裁 (SUCCESS = OANDA fill ≥1) から 96 日間 live fill ゼロだった**: `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` 非所属 + FLAT 5000u > bypass 上限 1000u の二重不適格 (直近 14 日で 6 件 block をログ確認)。gate 衝突は 08-09 設計時に未認識、初認識 = 2026-09-01 session
+- **carry_dip 同型の 1000u 固定契約 + bypass set 追加** (リスクは 5000u → 1000u の削減方向、シグナル/SL/TP 不変更)。R2 降格は既存 registry `t9-kalman-d7-live-n10-ev-check` が binding (LIVE N≥10 ∧ EV<0 → 停止)
+- テスト 12 本 + counterfactual 実施済み (set から外すと 3 本 fail)。**「live 化を決裁した」≠「送信が発生しうる」 — live 化決裁時は gate chain 最後までの到達性 + fill 発生監視を必須にする** (教訓)
+- pre-reg: [[kalman-d7-minlot-carveout-prereg-2026-09-01]] (DRAFT — マージ・デプロイは user 最終承認後のみ)
+
 ## 2026-09-01 (3) — fix(deploy): decisions/*.md の deploy churn を塞ぐ (rule:R3)
 
 - 🛑 **KB ドキュメント専用の commit が取引エンジンを再起動していた取りこぼしを発見**。`knowledge-base/wiki/decisions/**` が `buildFilter.ignoredPaths` に無く、**直近 60 日で 23 commit (~0.38 deploy/日) が decisions/*.md だけのために web service を再デプロイ**していた (1 回あたり ~60s の無 tick + ~2.5-3 分の 24 モード ramp)。PR #199/#201 が churn を would-deploy 0 まで落とした後に残っていた
