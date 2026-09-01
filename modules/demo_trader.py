@@ -91,6 +91,7 @@ PRICE_SHOCK_REV_MIN_UNITS = 1000
 # ══════════════════════════════════════════════════════════════════════════════
 WEEKEND_GAP_FADE_ENTRY_TYPE = "weekend_gap_fade"
 WEEKEND_GAP_FADE_UNITS = 1000            # 固定 sentinel (pre-reg §3.1) — lot chain 非適用
+KALMAN_D7_MIN_UNITS = 1000               # carve-out 2026-09-01 LOCK — lot chain / FLAT 非適用
 WEEKEND_GAP_MAX_HOLD_SEC = 4 * 3600      # +4h time-exit (pre-reg §2.3, close_reason="horizon")
 WEEKEND_GAP_LIVE_STOP_KV_KEY = "WEEKEND_GAP_LIVE_STOPPED"  # 恒久 R2 stop flag (自動解除なし)
 WEEKEND_GAP_G1_MIN_N = 6                 # G1: live N>=6 rolling
@@ -6973,6 +6974,16 @@ class DemoTrader:
             _lot_ratio = WEEKEND_GAP_FADE_UNITS / max(_base_units, 1)
             _adjusted_units = WEEKEND_GAP_FADE_UNITS
             _sentinel_reason = "WEEKEND_GAP_FADE_MIN_LOT"
+        if entry_type in self._KALMAN_D7_LIVE_OVERRIDE:
+            # Rule-1 LOCK (2026-09-01 pre-reg、user 承認同日): 05-28 決裁の
+            # live 化 (SUCCESS = OANDA fill >=1) が bypass set 非所属 + FLAT 5000u の
+            # 二重不適格で 96 日 fill ゼロだった carve-out。cascade
+            # (_PAIR_LOT_BOOST 0.5 → floor 0.3 → FLAT 5000u) に関係なく MIN lot
+            # (1000u) に固定 (carry dip と同型)。lot 増額は Live N>=30 の別 R1 のみ。
+            # knowledge-base/wiki/decisions/kalman-d7-minlot-carveout-prereg-2026-09-01.md
+            _lot_ratio = KALMAN_D7_MIN_UNITS / max(_base_units, 1)
+            _adjusted_units = KALMAN_D7_MIN_UNITS
+            _sentinel_reason = "KALMAN_D7_MIN_LOT"
         if _is_sentinel:
             # v7.6: XAU専用Sentinel単位数 — 1unit=1troy oz≈$4800
             # FX 0.01lot=1000u相当をXAUに適用すると 1000oz×$4800=$4.8M → margin拒絶
@@ -7011,6 +7022,9 @@ class DemoTrader:
             and entry_type != WEEKEND_GAP_FADE_ENTRY_TYPE
             # 2026-06-12 Codex review I-4: hull_donchian_fade は MIN lot 1000u 契約 — flat 上書き不可
             and entry_type != "hull_donchian_fade"
+            # 2026-09-01 LOCK: kalman_d7 ×3 は MIN lot 1000u 契約 — flat 上書き不可
+            # (FLAT 5000u が bypass 上限 1000u を超え carve-out を無効化していた)
+            and entry_type not in self._KALMAN_D7_LIVE_OVERRIDE
             and _prime_tier not in ("A", "B")
         ):
             try:
@@ -10263,6 +10277,14 @@ class DemoTrader:
         "price_shock_rev_usd_cad_h1_long",
         "price_shock_rev_nzd_jpy_h1_long",
         "price_shock_rev_aud_jpy_h1_long",
+        # 2026-09-01 LOCK (user 承認同日): kalman_d7 ×3 — 05-28 決裁の live 化
+        # (SUCCESS = OANDA fill >=1) が本 set 非所属 + FLAT 5000u の二重不適格で
+        # 96 日 fill ゼロだった carve-out。MIN lot 1000u 契約 (KALMAN_D7_MIN_LOT)
+        # とセット。instrument 制限 (USD_JPY) は _kalman_d7_live_eligible が担保。
+        # knowledge-base/wiki/decisions/kalman-d7-minlot-carveout-prereg-2026-09-01.md
+        "kalman_d7_po_dn_flip",
+        "kalman_d7_ema75_break",
+        "kalman_d7_trail_atr",
     })
     _AGG_KELLY_GATE_MINLOT_MAX_UNITS = 1000
 
