@@ -764,3 +764,41 @@ class TestIncidentReplay20260829:
 
         assert aw.main() == 0
         assert [e["type"] for e in seen if e["type"].startswith("api_")] == []
+
+
+# ── check_account_survival (2026-09-01: API 存続条件の監視) ──────────
+
+
+def test_account_survival_nav_floor_fires():
+    from scripts.anomaly_watcher import check_account_survival
+    status = {"oanda": {"heartbeat": {"nav": "255000.0"}}}
+    events = check_account_survival(status)
+    assert [e["type"] for e in events] == ["nav_floor"]
+    assert events[0]["nav_jpy"] == 255000
+
+
+def test_account_survival_silent_on_blind_run():
+    """status が取れなかった run では判定しない (blind ≠ 正常、PR #210 規律)。"""
+    from scripts.anomaly_watcher import check_account_survival
+    assert check_account_survival({}) == []
+    assert check_account_survival(None) == []
+
+
+def test_account_survival_healthy_nav_no_event():
+    from scripts.anomaly_watcher import check_account_survival
+    status = {"oanda": {"heartbeat": {"nav": "278345.4810"}}}
+    assert check_account_survival(status) == []
+
+
+def test_account_survival_svk_behind_pace_requires_enabled():
+    from scripts.anomaly_watcher import check_account_survival
+    base = {"oanda": {"heartbeat": {"nav": "278000"}}}
+    # enabled=False なら behind_pace でも発火しない
+    status = dict(base, status_volume_keeper={
+        "enabled": False, "behind_pace": True})
+    assert check_account_survival(status) == []
+    status = dict(base, status_volume_keeper={
+        "enabled": True, "behind_pace": True, "month": "2026-09",
+        "volume_usd": 40000.0, "target_usd": 520000.0})
+    events = check_account_survival(status)
+    assert [e["type"] for e in events] == ["svk_behind_pace"]
