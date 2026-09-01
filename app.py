@@ -13568,6 +13568,13 @@ def healthz():
 def api_demo_status():
     try:
         status = _demo_trader.get_status()
+        # SVK telemetry (読み手を writer と同一コミットで併設する原則)。
+        # keeper は demo DB を使わないため、ここが唯一の観測面。
+        try:
+            from modules.status_volume_keeper import get_worker_status
+            status["status_volume_keeper"] = get_worker_status()
+        except Exception as _svk_err:
+            status["status_volume_keeper"] = {"error": str(_svk_err)}
         return jsonify(status)
     except Exception as e:
         print(f"[api_demo_status] Error: {e}", flush=True)
@@ -13776,6 +13783,15 @@ def _positioning_heartbeat():
         _mkt_ensure_running()
     except Exception as e:
         print(f"[market-ingest] heartbeat self-heal failed: "
+              f"{type(e).__name__}: {e}", flush=True)
+    # status volume keeper (2026-09-01 user 決裁 案 A) も同 heartbeat で heal。
+    # env STATUS_VOLUME_KEEPER_ENABLE=1 のときのみ worker が立つ (default OFF)。
+    try:
+        from modules.status_volume_keeper import (
+            ensure_worker_running as _svk_ensure_running)
+        _svk_ensure_running()
+    except Exception as e:
+        print(f"[svk] heartbeat self-heal failed: "
               f"{type(e).__name__}: {e}", flush=True)
 
 
