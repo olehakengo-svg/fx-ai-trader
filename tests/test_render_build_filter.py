@@ -198,3 +198,44 @@ def test_no_new_runtime_data_path_silently_ignored():
         "ランタイムコードが触る非 KB パスが ignoredPaths に match している。"
         " read なら ignoredPaths から外すこと: %s" % offenders
     )
+
+
+def test_decisions_markdown_ignored_but_registry_json_still_deploys():
+    """decisions/ は **md だけ** ignore し、registry JSON はデプロイを起こすこと.
+
+    2026-09-01 (rule:R3)。`knowledge-base/wiki/decisions/**` が ignoredPaths に
+    無かったため、**KB ドキュメント専用の commit が web service を再デプロイして
+    いた** — 実測で直近 60 日に 23 commit (~0.38 deploy/日)。PR #199/#201 が
+    churn を would-deploy 0 まで落とした後に残っていた取りこぼしである。
+
+    ただし同ディレクトリの ``prereg-trigger-registry.json`` は
+    ``TRADING_PATH_READ_PATHS`` が「cron が読む load-bearing な状態なので
+    保守的にデプロイを起こさせる」と明示している。したがって
+    **`decisions/**` を丸ごと ignore してはならない**。
+
+    ここは**性質**を pin する (構文ではない, PR #209 教訓):
+      性質 A: decisions 直下および入れ子の .md は ignore される
+      性質 B: registry JSON は ignore され「ない」
+    B は ``test_trading_path_read_paths_are_not_ignored`` でも守られているが、
+    A と B は**対で意味を持つ** (片方だけだと「全部 ignore」か「全部 deploy」に
+    倒れても気づけない) ので、同じ test で並べて固定する。
+    """
+    ignored = _ignored_paths()
+
+    # 性質 A — 実在のパス形状で確認する (直下 + 入れ子)
+    md_paths = [
+        "knowledge-base/wiki/decisions/candidate-stagnation-threshold-verdict-2026-09-01.md",
+        "knowledge-base/wiki/decisions/shadow-audit-2026-04-30/any-report.md",
+    ]
+    for p in md_paths:
+        assert any(_matches(p, pat) for pat in ignored), (
+            f"decisions の markdown が ignore されていない (ドキュメント commit が"
+            f" 取引エンジンを再起動する): {p}"
+        )
+
+    # 性質 B — registry JSON は必ずデプロイを起こす
+    registry = "knowledge-base/wiki/decisions/prereg-trigger-registry.json"
+    assert not any(_matches(registry, pat) for pat in ignored), (
+        "prereg-trigger-registry.json が ignoredPaths に巻き込まれた。"
+        " cron が読む load-bearing な状態なのでデプロイを起こさせること"
+    )
