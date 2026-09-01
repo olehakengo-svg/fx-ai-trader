@@ -185,3 +185,68 @@ def test_gaps_view_bad_params_fall_back(flask_client):
     assert g["min_gap_minutes"] == 30.0
     import modules.freshness_policy as fp
     assert g["threshold_hours"] == float(fp.CANDIDATE_STAGNATION_HOURS)
+
+
+# ── 較正が依存している「構造的ギャップ」の前提を pin する ────────────────────
+#
+# 上の分布 readout は数字を出すだけで、その数字が**なぜその形なのか**は
+# コード側の 2 つの事実に依存している。ここが変わると較正の根拠が黙って
+# 陳腐化するので、構文ではなく**性質**を pin する (PR #209 教訓)。
+
+def test_late_utc_hours_are_layer0_prohibited():
+    """22:00-23:59 UTC は Layer-0 で取引禁止 = 候補行が書かれない前提.
+
+    観測された「ちょうど 120.0 分」の日次空白の実体。この性質が消えたら
+    日次 2h ブロックという較正の前提が崩れる。
+    """
+    from datetime import datetime, timezone
+
+    from app import is_trade_prohibited
+
+    for hour in (22, 23):
+        r = is_trade_prohibited(
+            bar_time=datetime(2026, 9, 1, hour, 30, tzinfo=timezone.utc))
+        assert r["prohibited"] is True, hour
+        assert r["check"] == "session"
+        # tokyo_mode は hour<7 のときだけ。ここで立つと早期 return が
+        # 回避され前提が崩れる
+        assert not r.get("tokyo_mode", False), hour
+
+    # 00:00 では解除される (東京セッションで稼働) = 空白が 2h で終わる根拠
+    r0 = is_trade_prohibited(
+        bar_time=datetime(2026, 9, 1, 0, 30, tzinfo=timezone.utc))
+    assert r0["prohibited"] is False
+
+
+def test_weekly_reopen_gap_is_three_market_open_hours():
+    """週次の再開ギャップ = 市場オープン換算 3.00h — 日次 2h より大きい.
+
+    3 つの境界が重なって決まる:
+      市場オープン計上の再開  日 21:00 UTC  (freshness_policy)
+      エンジンの再開          日 22:00 UTC  (_is_fx_market_closed)
+      Layer-0 解除            月 00:00 UTC  (hour_utc >= 22)
+
+    したがって閾値 6h の余裕は「日次 max 2h の 3 倍」ではなく **約 2 倍**。
+    ここが崩れたら較正メモの結論も書き換える必要がある。
+    """
+    from datetime import datetime, timezone
+
+    from modules.freshness_policy import (
+        CANDIDATE_STAGNATION_HOURS,
+        market_open_hours,
+    )
+
+    last_fri = datetime(2026, 8, 28, 21, 59, tzinfo=timezone.utc)
+    first_mon = datetime(2026, 8, 31, 0, 0, tzinfo=timezone.utc)
+    weekly = market_open_hours(last_fri, first_mon)
+    assert weekly == pytest.approx(3.0, abs=0.05)
+    # 実時間では 50h — 実時間で判定していたら毎週誤発火する
+    assert (first_mon - last_fri).total_seconds() / 3600 == pytest.approx(50.0, abs=0.05)
+
+    daily = market_open_hours(
+        datetime(2026, 8, 31, 21, 59, tzinfo=timezone.utc),
+        datetime(2026, 9, 1, 0, 0, tzinfo=timezone.utc))
+    assert daily == pytest.approx(2.0, abs=0.05)
+    assert weekly > daily  # 構造的な最大は週次であって日次ではない
+    # 閾値はこの週次ギャップより大きくなければ毎週誤発火する
+    assert CANDIDATE_STAGNATION_HOURS > weekly
