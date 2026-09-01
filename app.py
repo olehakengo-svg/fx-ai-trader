@@ -13615,6 +13615,14 @@ def api_demo_evaluated_candidates():
     view=summary (default) -> per-strategy totals + selection counts
     view=rows              -> recent individual rows (forensics)
     view=meta              -> table row count / coverage window (growth)
+    view=gaps              -> write-gap distribution for threshold calibration
+
+    view=rows is capped at LIMIT 2000, which in production reaches back only
+    ~9.9h (1,790 distinct created_at) even though the table retains 90 days.
+    Calibrating the 6h ``candidate_stagnation`` threshold from a 10h window is
+    impossible, and waiting longer does not help because the cap -- not
+    elapsed time -- is binding. view=gaps folds the distribution server-side
+    over the full retention window instead of paging raw rows.
 
     ESTIMAND WARNING (do not skip): rows are logged in app.py *after* the
     v9.1 HTF Hard Block has already removed counter-HTF candidates from
@@ -13628,6 +13636,7 @@ def api_demo_evaluated_candidates():
             query_candidate_meta,
             query_candidate_rows,
             query_candidate_summary,
+            query_candidate_write_gaps,
         )
     except Exception as exc:  # pragma: no cover - import guard
         return jsonify({"status": "error", "error": str(exc)}), 500
@@ -13647,6 +13656,29 @@ def api_demo_evaluated_candidates():
     try:
         if view == "meta":
             return jsonify({"view": "meta", "meta": query_candidate_meta(_db_path)})
+        if view == "gaps":
+            # 閾値較正のための書込み間隔分布。view=rows は LIMIT 2000 =
+            # 本番実測で 9.9h しか遡れず、6h 閾値の裾を見るには窓が足りない
+            # (2026-09-01 判明)。ここはサーバ側で分布に畳んでから返す。
+            try:
+                gap_days = int(request.args.get("gap_days", 90))
+            except ValueError:
+                gap_days = 90
+            try:
+                floor_min = float(request.args.get("min_gap_minutes", 30))
+            except ValueError:
+                floor_min = 30.0
+            thr_raw = request.args.get("threshold_hours", "").strip()
+            try:
+                thr = float(thr_raw) if thr_raw else None
+            except ValueError:
+                thr = None
+            return jsonify({
+                "view": "gaps",
+                "gaps": query_candidate_write_gaps(
+                    _db_path, days=gap_days, min_gap_minutes=floor_min,
+                    threshold_hours=thr, top=limit),
+            })
         if view == "rows":
             rows = query_candidate_rows(
                 _db_path, strategy=strategy, instrument=instrument,

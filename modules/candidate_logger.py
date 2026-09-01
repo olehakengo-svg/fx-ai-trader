@@ -358,3 +358,158 @@ def prune_candidates(db_path: str, keep_days: int = 0) -> dict[str, Any]:
     except Exception as exc:
         logger.warning("prune_candidates failed: %s", exc)
         return {"status": "error", "error": str(exc), "keep_days": keep_days, "deleted": 0}
+
+
+# ── 書込みギャップ readout (rule:R3, 2026-09-01) ─────────────────────────────
+#
+# なぜこの関数が要るか — ``candidate_stagnation`` 閾値 6h の較正は 2026-08-27
+# 以来「1〜2 週の実運用後に取り直す」として未解決のまま置かれていたが、
+# **待っても永久に取り直せない**ことが 2026-09-01 に判明した:
+#
+#   ``query_candidate_rows`` は ``LIMIT`` を 2,000 行に固定している。本番実測
+#   では 2,000 行 = **わずか 9.9 時間**しか遡れない (distinct created_at 1,790)。
+#   テーブル自体は 90 日 / 317,542 行を保持しているのに、読み手が見られるのは
+#   その 0.5% でしかない。6 時間の閾値を較正するのに 10 時間の窓しか無いので、
+#   何週間待っても標本は増えない — 律速は経過時間ではなく **読み経路の天井**
+#   だった。
+#
+# これは本プロジェクトが繰り返し踏んでいる「集めたのに読み手が無い」型
+# (MoF 月次額の write-only 6 例目 / C1 テーブル自体が 2026-08-24 まで無経路)
+# の変種で、**読み手はあるが窓が狭すぎて問う質問に答えられない**形である。
+#
+# 対処: 生行をページングして運ぶのをやめ、**サーバ側で分布に畳んでから返す**。
+#
+# estimand (取り違えると較正を誤る):
+#
+#   検知器 ``check_candidate_stagnation`` は ``now - MAX(created_at)`` を
+#   **市場オープン時間**で測り、閾値以上で発火する。したがって較正すべき量は
+#   「連続する書込み時刻どうしの間隔を市場オープン時間で測った分布」であり、
+#   その **上側の裾**である。中央値ではない — 候補行はバースト構造を持ち
+#   (1 バーで複数戦略ぶんが一斉に書かれる)、生の間隔の中央値 0.15 分は
+#   *バースト内*の密度であって停止判定のケイデンスではない (2026-08-27 の
+#   自己訂正)。ここで「バースト」を人為的に定義せずに済むのは、上側の裾が
+#   定義上そのままバースト間ギャップになるからである。
+#
+#   時計は必ず ``freshness_policy.market_open_hours`` を使う (SSOT)。実時間で
+#   数えると毎週末 48h のギャップが立ち、裾が週末で埋まって無意味になる。
+#
+# 計算量の縮約とその正当性: 市場オープン時間 <= 実時間 が常に成り立つので、
+# **実時間で floor 未満のギャップは市場オープン換算でも floor 未満**である。
+# よって floor 以上のギャップだけを Python 側で換算すればよく、317k 件すべてを
+# ``market_open_hours`` に通す必要はない。floor 未満を落とすことは閾値
+# (floor よりはるかに大きい) の誤発火計数に一切影響しない。
+def query_candidate_write_gaps(
+    db_path: str,
+    *,
+    days: int = 90,
+    min_gap_minutes: float = 30.0,
+    threshold_hours: Optional[float] = None,
+    top: int = 20,
+) -> dict[str, Any]:
+    """候補行の書込み間隔分布 — ``candidate_stagnation`` 閾値較正の一次資料.
+
+    返す量はすべて「連続する distinct ``created_at`` の差」であり、
+    ``min_gap_minutes`` 以上のものだけを市場オープン時間へ換算する
+    (換算しないものは定義上どの現実的閾値にも届かない)。
+
+    ``would_fire`` は **反実仮想の誤発火計数**である: 「この窓のあいだ閾値が
+    ``threshold_hours`` だったとして、``candidate_stagnation`` は何回発火して
+    いたか」。較正の判断はこの数と ``top_gaps`` の中身 (週末境界か / デプロイ
+    再起動か / 本物の停止か) を人間が突き合わせて行う。
+    """
+    from datetime import datetime, timezone
+
+    from modules.freshness_policy import (
+        CANDIDATE_STAGNATION_HOURS,
+        market_open_hours,
+    )
+
+    if threshold_hours is None:
+        threshold_hours = float(CANDIDATE_STAGNATION_HOURS)
+    threshold_hours = float(threshold_hours)
+    days_int = max(1, min(int(days), 400))
+    floor_min = max(0.0, float(min_gap_minutes))
+    top_n = max(1, min(int(top), 200))
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        cur = conn.cursor()
+        # distinct created_at の連続差を SQL 側で作る。317k 行を Python に
+        # 運ばないための LAG。idx_evcand_created が範囲走査を支える。
+        cur.execute(
+            "WITH t AS ("
+            "  SELECT DISTINCT created_at AS ts FROM evaluated_candidates"
+            "   WHERE created_at >= datetime('now', ?)"
+            "), g AS ("
+            "  SELECT LAG(ts) OVER (ORDER BY ts) AS prev_ts, ts"
+            "    FROM t"
+            ")"
+            " SELECT prev_ts, ts,"
+            "        (julianday(ts) - julianday(prev_ts)) * 24.0 AS gap_hours"
+            "   FROM g WHERE prev_ts IS NOT NULL",
+            (f"-{days_int} days",),
+        )
+        gaps = cur.fetchall()
+        cur.execute(
+            "SELECT COUNT(DISTINCT created_at) AS n_ts,"
+            "       MIN(created_at) AS first_ts, MAX(created_at) AS last_ts"
+            "  FROM evaluated_candidates WHERE created_at >= datetime('now', ?)",
+            (f"-{days_int} days",),
+        )
+        cov = cur.fetchone()
+    finally:
+        conn.close()
+
+    def _dt(raw: Any) -> datetime:
+        return datetime.fromisoformat(str(raw)).replace(tzinfo=timezone.utc)
+
+    long_gaps: list[dict[str, Any]] = []
+    for r in gaps:
+        wall_h = float(r["gap_hours"] or 0.0)
+        if wall_h * 60.0 < floor_min:
+            continue
+        start, end = _dt(r["prev_ts"]), _dt(r["ts"])
+        open_h = market_open_hours(start, end)
+        long_gaps.append({
+            "start": r["prev_ts"],
+            "end": r["ts"],
+            "wall_hours": round(wall_h, 3),
+            "market_open_hours": round(open_h, 3),
+            "weekday": start.strftime("%a"),
+            "would_fire": open_h >= threshold_hours,
+        })
+    long_gaps.sort(key=lambda g: g["market_open_hours"], reverse=True)
+
+    open_vals = sorted(g["market_open_hours"] for g in long_gaps)
+
+    def _pct(p: float) -> Optional[float]:
+        if not open_vals:
+            return None
+        return round(open_vals[min(len(open_vals) - 1, int(p * len(open_vals)))], 3)
+
+    fired = [g for g in long_gaps if g["would_fire"]]
+    return {
+        "window_days": days_int,
+        "min_gap_minutes": floor_min,
+        "threshold_hours": threshold_hours,
+        "coverage": {
+            "n_write_timestamps": int(cov["n_ts"] or 0),
+            "first": cov["first_ts"],
+            "last": cov["last_ts"],
+        },
+        "n_gaps_total": len(gaps),
+        "n_gaps_over_floor": len(long_gaps),
+        # 分位はすべて **floor 以上のギャップのみ**を母集団とする。全ギャップ
+        # での中央値はバースト内密度 (0.15 分) を測るだけで停止判定と無関係。
+        "over_floor_market_open_hours": {
+            "p50": _pct(0.50), "p90": _pct(0.90), "p99": _pct(0.99),
+            "max": round(open_vals[-1], 3) if open_vals else None,
+        },
+        "would_fire": {
+            "count": len(fired),
+            "at_threshold_hours": threshold_hours,
+            "events": fired[:top_n],
+        },
+        "top_gaps": long_gaps[:top_n],
+    }
