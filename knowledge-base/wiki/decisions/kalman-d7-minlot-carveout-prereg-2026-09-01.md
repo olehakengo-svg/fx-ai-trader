@@ -1,6 +1,6 @@
-# kalman_d7 min-lot carve-out — pre-reg (2026-09-01, rule:R1 **DRAFT — user 最終承認待ち**)
+# kalman_d7 min-lot carve-out — pre-reg (2026-09-01, rule:R1 🔒 **LOCKED**)
 
-**status: DRAFT。マージ・デプロイは user 最終承認後のみ。承認と同時に本ドキュメントを LOCK に更新する。**
+**status: LOCKED — user 最終承認 2026-09-01 (「承認・マージ GO」)。**
 
 ## 問題 (整合性欠陥)
 - kalman_d7 live 化は **2026-05-28 user option B 決裁済み** ([[pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28]] §3、**SUCCESS 定義 = `oanda_audit is_live=1 AND bridge_status='filled' COUNT>=1`**)。08-09 PR #168 (R3) で経路開通。
@@ -27,7 +27,7 @@
 
 ## R2 自動降格ゲート (D4 必須項目 ii)
 - 既存 registry **`t9-kalman-d7-live-n10-ev-check`** を binding として維持: **LIVE N≥10 到達で EV<0 → live 停止 (R2)** / 連続 3 SL → user review。
-- deadline 2026-11-30 は「初 fill 発生日 + 90 日」へ再武装する (現行は分子発生不能のまま stale 確定コースのため)。registry 更新はマージと同一 PR で行う。
+- deadline 2026-11-30 は backstop として据え置き (carve-out 着地後は ~19 件/月ペースで N=10 到達が先行する見込み)。**初 fill 確認時に deadline を「初 fill + 90 日」へ更新する** — その旨を registry message に本 PR で追記済み。初 fill が 2026-10-15 までに出ない場合は到達性の再監査 (本 pre-reg の検証手順) を先に行う。
 - 撤退は env `KALMAN_D7_LIVE_ENABLE=0` のみで即時 (経路全体が env gate 下にあることは既存テストが pin)。
 
 ## 検証

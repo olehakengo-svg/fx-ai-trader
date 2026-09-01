@@ -1,4 +1,4 @@
-"""kalman_d7 min-lot carve-out (2026-09-01 DRAFT、user 最終承認待ち) の契約固定。
+"""kalman_d7 min-lot carve-out (2026-09-01 LOCK、user 承認同日) の契約固定。
 
 対象: knowledge-base/wiki/decisions/kalman-d7-minlot-carveout-prereg-2026-09-01.md
 - 05-28 決裁 (SUCCESS = OANDA fill >=1) が bypass set 非所属 + FLAT 5000u の
