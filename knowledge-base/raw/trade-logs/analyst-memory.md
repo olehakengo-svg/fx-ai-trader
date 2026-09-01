@@ -4118,6 +4118,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - **東京オープン（09:00 JST = 00:00 UTC）〜 09:30 JST**: USD_JPY・AUD_JPY・EUR_JPY のATR拡張タイミング。rnb_usdjpyのdirection_filterが解除条件を満たすか観察。
 - **ロンドンオープン（16:00 JST = 07:00 UTC）**: EUR系・GBP系のATR%ile上昇が見込まれ、RANGINGからTRENDへのレジーム遷移トリガーになりうる最重要窓。daytrade_eur・daytrade_gbpusdのhedge_block頻度が低下するか確認。
 
+### 2026-09-01 (Pre-Tokyo Briefing)
+| 前日 (2026-08-31) PnL | **¥0 / 0 trades** |
+| 本日累計 (Cutoff後全期間) | N=2, WR=50.0%, EV=+10.05 (avg), PnL=+20.1p |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- **hedge_block が全体Blockの最大勢力（質的）**: daytrade系モード全体でヘッジ制約がほぼ全エントリーをブロック。現在のRANGING相場でも方向感が決まらず、両サイドが相殺し合っている構造と推定。
+- **r2_shadow_demoted_cell がscalp系を完全封殺**: Cutoff後の実績データ蓄積がない段階でshadow降格セルが大量発生 → scalp系は事実上機能不全。
+- **direction_filter(rnb_usdjpy)**: USD_JPYのATR%ile=62%（5ペア中最高）だが、SMA20 Slope=-0.00117（下降）。フィルターがトレンド弱さを検出し、959回ブロックしている。
+- エントリー不足は「コードの問題」ではなく **現在のレジーム×パラメータのミスマッチ**として観察を続ける
+- block_countのモニタリングを継続し、`hedge_block`が解消されるレジーム遷移を待つ
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
