@@ -4098,6 +4098,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - **gbp_asia_flash_crash**: GBP系（GBP/JPY、GBP/USD、EUR/GBP）は本日東京時間も同ガードが作動しやすい状態が続いている可能性。GBP系エントリーは慎重。
 | 時間帯（JST） | イベント | 注意点 |
 
+### 2026-09-01 (Pre-Tokyo Briefing)
+| PnL | 0.0p |
+| 全体WR | N/A |
+前日の全セッション（東京・ロンドン・NY）を通じてエントリーなし。月初（9月1日）移行直後の深夜帯という時間的文脈はあるが、全モード稼働中にも関わらず実行件数がゼロという点は要注意。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体集計（Cutoff後）**: N=6、WR=50.0%、PnL=+49.2p
+- `usdjpy_carry_dip_accumulator` の EV+19.45 は魅力的に見えるが **N=2 はノイズ純粋体**。昇格基準（N≥30 & EV≥1.0）まで残り28件。
+- `price_shock_rev_eur_gbp_h1_long` は N=3 で EV=-3.27。降格基準（N≥30 & EV<-0.5）には遠いが、3連敗スタートは構造的問題の予兆として監視継続。
+- **Sentinel N蓄積進捗**:
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
