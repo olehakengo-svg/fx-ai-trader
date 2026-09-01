@@ -4108,6 +4108,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - `price_shock_rev_eur_gbp_h1_long` は N=3 で EV=-3.27。降格基準（N≥30 & EV<-0.5）には遠いが、3連敗スタートは構造的問題の予兆として監視継続。
 - **Sentinel N蓄積進捗**:
 
+### 2026-09-01 (Pre-Tokyo Briefing)
+前日（2026-08-31）はトレードゼロ。当日（2026-09-01）も Cutoff 後の有効トレードは計 **N=4、PnL=+53.4**（WR 50.0%）と極めて限定的。稼働モード 25/27 が ON にもかかわらず、実質的な執行が機能していない状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注**: 全戦略でN<10。統計的判断は不可能。全てのEV値は「傾向」としても扱えないノイズ領域。
+- **`hedge_block`（合計516件）が最大の執行阻害要因**。eurjpy(146)・daytrade(103)・eur(92)・gbpusd(84)・gbpjpy(50)・audjpy(41) に分散。ポジション方向の相殺が多発しており、エントリーが連鎖的に止まっている。
+- **`r2_shadow_demoted_cell`（合計398件）**がscalp系を全面的に抑制。シャドウ降格セルがscalp経路の大半を遮断している。
+- **`direction_filter`（185件）**はrnb_usdjpyの方向制約が極めて厳格に機能。このモード単独でblockの最多。
+- **東京オープン（09:00 JST = 00:00 UTC）〜 09:30 JST**: USD_JPY・AUD_JPY・EUR_JPY のATR拡張タイミング。rnb_usdjpyのdirection_filterが解除条件を満たすか観察。
+- **ロンドンオープン（16:00 JST = 07:00 UTC）**: EUR系・GBP系のATR%ile上昇が見込まれ、RANGINGからTRENDへのレジーム遷移トリガーになりうる最重要窓。daytrade_eur・daytrade_gbpusdのhedge_block頻度が低下するか確認。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
