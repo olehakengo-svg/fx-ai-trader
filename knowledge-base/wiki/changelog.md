@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-01 (3) — fix(deploy): decisions/*.md の deploy churn を塞ぐ (rule:R3)
+
+- 🛑 **KB ドキュメント専用の commit が取引エンジンを再起動していた取りこぼしを発見**。`knowledge-base/wiki/decisions/**` が `buildFilter.ignoredPaths` に無く、**直近 60 日で 23 commit (~0.38 deploy/日) が decisions/*.md だけのために web service を再デプロイ**していた (1 回あたり ~60s の無 tick + ~2.5-3 分の 24 モード ramp)。PR #199/#201 が churn を would-deploy 0 まで落とした後に残っていた
+  - **発見の経緯 = 自分で踏んだから**: 本日の PR #214 (verdict、KB のみ) が `decisions/` に verdict doc を置いた結果デプロイが走り、本番が一時 502 → 復帰した。**自分の変更が起こした churn を追跡して初めて設定の穴に気付いた**
+- **修復は narrow に**: `decisions/**` を丸ごと ignore して**はならない** — 同ディレクトリの `prereg-trigger-registry.json` は `TRADING_PATH_READ_PATHS` が「cron が読む load-bearing な状態なので保守的にデプロイを起こさせる」と明示している。したがって **markdown だけ**を ignore (`decisions/*.md` + `decisions/**/*.md`、入れ子の `shadow-audit-2026-04-30/` も被覆)
+- **性質を対で pin** (構文でなく性質 — PR #209 教訓): `test_decisions_markdown_ignored_but_registry_json_still_deploys` が **①md は ignore される ②registry JSON は ignore されない**を同一 test で並べて固定。片方だけだと「全部 ignore」「全部 deploy」のどちらに倒れても気付けないため対で意味を持つ
+- **counterfactual 2 本、いずれも所望どおり失敗**: ⑦`decisions/**` を丸ごと ignore (registry を巻き込む誤り) → 新 test + 既存の取引パス guard の 2 本が落ちる ⑧md の ignore を削除 (churn が戻る) → 新 test が落ちる
+- pytest 2,836 passed / check.py 全 9 通過
+
 ## 2026-09-01 (2) — verdict(obs): candidate_stagnation 閾値 6h = 据え置き、根拠を N=16 → 90 日実測へ置換 (rule:R3)
 
 - **判定: 閾値 `CANDIDATE_STAGNATION_HOURS = 6` を据え置く**。2026-08-27 以来の暫定値 (バースト実効 N=16 / 10 時間窓) を **90 日 / 書込みタイムスタンプ 274,862 / floor 30 分以上のギャップ 130 本**の実測へ置換 (PR #213 の `view=gaps` で初めて測定可能になった)
