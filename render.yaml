@@ -56,6 +56,13 @@ services:
         - "knowledge-base/raw/intervention_watch/**"
         - "knowledge-base/raw/analysis/**"
         - "knowledge-base/raw/cell_deepdive/**"
+        # 2026-09-01: decisions/ の **markdown だけ** を ignore する。
+        # 同ディレクトリの prereg-trigger-registry.json は cron が読む
+        # load-bearing な状態なので**意図的に除外しない** (デプロイを起こさせる)。
+        # 実測: 直近 60 日で 23 commit が decisions/*.md だけのために
+        # web service を再デプロイしていた (~0.38 deploy/日)。
+        - "knowledge-base/wiki/decisions/*.md"
+        - "knowledge-base/wiki/decisions/**/*.md"
         # phase-2: 助言エンドポイント専用 read (取引パス非参照)
         - "knowledge-base/raw/trade-logs/analyst-memory.md"
         - "knowledge-base/raw/trade-logs/analyst-memory-archive.md"
