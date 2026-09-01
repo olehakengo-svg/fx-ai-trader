@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-01 (4) — feat(infra): status volume keeper — OANDA API 存続のための出来高維持 (rule:R3, user 決裁 案 A)
+
+- 🛑 **OANDA JP REST API の存続条件を発見**: Gold ステータス (前月取引量 USD 50 万、新規+決済双方カウント) + プロコース + 残高 25 万円を**継続充足**しないと API 停止 + トークン再発行 (FAQ 720/1730)。8 月出来高 ≈ $28k → **10 月 SILVER 降格見込み = 自動売買・E1 収集・テレメトリの物理停止リスク**。エッジトレードは MIN lot 契約下で構造的に $500k に届かない (有機レバー全部で $82-106k)
+- **`modules/status_volume_keeper.py` 新設**: USD_JPY 10,000u の市場即時往復 (数秒保有) × 月 ~26 回で $520k を積む。**env `STATUS_VOLUME_KEEPER_ENABLE` default OFF — arm は user 最終確認後**。ガード = 口座完全フラット要求 (netting 干渉ゼロ) / NAV floor ¥262k / スプレッド >1.0p skip / 日次 3 RT / crash-safe 玉回収。**demo DB 非経由** (Kelly・鮮度検知の母集団を汚染しない — keeper が定期約定を作ると停滞検知が無効化されるため機能要件)。OANDA 側識別は `tradeClientExtensions.tag="SVK"` (market_order に clientExtensions サポート追加)
+- **読み手を同一コミットで併設**: `/api/demo/status`.status_volume_keeper telemetry + anomaly_watcher に `nav_floor` (¥262k 警報線、API 停止床 ¥250k) / `svk_behind_pace` 検知器新設 (status 空 run では判定しない — blind ≠ 正常)
+- テスト 16 本 (guard chain / 出来高両側カウント / crash 回収 / 月替りリセット / clientExtensions payload / telemetry 読み手 / heartbeat 到達性 pin / 検知器 4 本)
+- 決裁: [[status-volume-keeper-2026-09-01]] / 分析: [[live-frequency-and-oanda-status-survival-2026-09-01]]
+
 ## 2026-09-01 (3) — fix(deploy): decisions/*.md の deploy churn を塞ぐ (rule:R3)
 
 - 🛑 **KB ドキュメント専用の commit が取引エンジンを再起動していた取りこぼしを発見**。`knowledge-base/wiki/decisions/**` が `buildFilter.ignoredPaths` に無く、**直近 60 日で 23 commit (~0.38 deploy/日) が decisions/*.md だけのために web service を再デプロイ**していた (1 回あたり ~60s の無 tick + ~2.5-3 分の 24 モード ramp)。PR #199/#201 が churn を would-deploy 0 まで落とした後に残っていた

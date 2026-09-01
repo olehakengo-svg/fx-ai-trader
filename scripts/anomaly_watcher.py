@@ -100,6 +100,8 @@ NOTIFY_EVERY_HOURS = {
     "engine_tick_never": 1,
     "api_unreachable": 1,
     "api_endpoint_failed": 6,
+    "nav_floor": 6,
+    "svk_behind_pace": 24,
 }
 # Discord に流さない type。write_probe_missing はデプロイ直後の cron/web
 # バージョン不一致で必ず一度は起きる (cron は数十秒で新コード化、web は
@@ -716,6 +718,47 @@ def check_engine_tick_stall(
     return events
 
 
+NAV_FLOOR_ALERT_JPY = 262000.0  # OANDA API 存続条件 (残高 25 万円) + 執行バッファ
+
+
+def check_account_survival(status: dict[str, Any]) -> list[dict[str, Any]]:
+    """API 存続条件 (残高 25 万円 / Gold 出来高 $500k) への接近を監視。
+
+    OANDA JP の REST API は「Gold ステータス + 残高 25 万円以上」を継続充足
+    しないと停止する (FAQ 720/1730、2026-09-01 決裁 doc 参照)。エッジとは
+    独立にシステムの生死を決める変数なので、専用の検知器を持つ。
+    status が空の run (fetch 失敗) では判定しない — 「取りに行けなかった」を
+    「正常」と混同しない (PR #210 と同じ規律)。
+    """
+    events: list[dict[str, Any]] = []
+    if not isinstance(status, dict) or not status:
+        return events
+    hb = (status.get("oanda") or {}).get("heartbeat") or {}
+    nav_raw = hb.get("nav")
+    if nav_raw not in (None, ""):
+        try:
+            nav = float(nav_raw)
+        except (TypeError, ValueError):
+            nav = None
+        if nav is not None and nav < NAV_FLOOR_ALERT_JPY:
+            events.append({
+                "type": "nav_floor",
+                "nav_jpy": round(nav),
+                "threshold_jpy": NAV_FLOOR_ALERT_JPY,
+                "api_floor_jpy": 250000,
+            })
+    svk = status.get("status_volume_keeper") or {}
+    if svk.get("enabled") and svk.get("behind_pace"):
+        events.append({
+            "type": "svk_behind_pace",
+            "month": svk.get("month"),
+            "volume_usd": svk.get("volume_usd"),
+            "target_usd": svk.get("target_usd"),
+            "last_skip_reason": svk.get("last_skip_reason", ""),
+        })
+    return events
+
+
 def check_session_volume(trades: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Tokyo session (UTC 00-06) の直近volumeが30日median比50%未満なら警告。"""
     events = []
@@ -806,6 +849,17 @@ def _event_line(e: dict[str, Any]) -> str:
         )
     if et == "session_volume_drift":
         return f"- session_drift {e['session']}: {e['recent_count']} vs median {e['median_count']} ({e['ratio']}×)"
+    if et == "nav_floor":
+        return (
+            f"- nav_floor: NAV ¥{e.get('nav_jpy'):,} < 警報線 ¥{int(e.get('threshold_jpy', 0)):,}"
+            f" (API 停止床 ¥{int(e.get('api_floor_jpy', 0)):,})"
+        )
+    if et == "svk_behind_pace":
+        return (
+            f"- svk_behind_pace: {e.get('month')} 出来高 ${e.get('volume_usd'):,.0f}"
+            f"/${e.get('target_usd'):,.0f} — Gold 維持ペース未達"
+            f" (last_skip={e.get('last_skip_reason')})"
+        )
     if et == "disk_capacity":
         return (
             f"- disk_{e.get('severity')}: {e.get('used_pct')}% used,"
@@ -940,6 +994,7 @@ def main() -> int:
     all_events.extend(check_db_write_health(disk_payload))
     all_events.extend(check_candidate_stagnation(status, now=now))
     all_events.extend(check_engine_tick_stall(status, now=now))
+    all_events.extend(check_account_survival(status))
 
     if all_events:
         path = save_events(all_events)
