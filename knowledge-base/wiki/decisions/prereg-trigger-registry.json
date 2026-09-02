@@ -154,7 +154,7 @@
       "n_decide": 10,
       "deadline": "2026-11-30",
       "doc": "knowledge-base/wiki/analyses/dt-ctx-hour-utc-live-freeze-2026-08-09.md",
-      "message": "kalman D7 退避条件の機械監視 (2026-05-28 pre-reg §3 追補で LOCK 済、当時 user option B 決裁)。DT ctx hour_utc 凍結バグ修正 (2026-08-09, R3) により 73 日ぶりに live 発火経路が開通 → 決裁時に約束された 'Live N>=10 時点で EV<0 なら 0.1x へ降格 (R2)' を N=10 到達で執行。連続 3 SL (3 variant 同時) は即時 user review。期日到達で N<10 なら stale レビュー (T5 教訓: pre-reg には監視主体を必ず併設)"
+      "message": "kalman D7 退避条件の機械監視 (2026-05-28 pre-reg §3 追補で LOCK 済、当時 user option B 決裁)。DT ctx hour_utc 凍結バグ修正 (2026-08-09, R3) により 73 日ぶりに live 発火経路が開通 → 決裁時に約束された 'Live N>=10 時点で EV<0 なら 0.1x へ降格 (R2)' を N=10 到達で執行。連続 3 SL (3 variant 同時) は即時 user review。期日到達で N<10 なら stale レビュー (T5 教訓: pre-reg には監視主体を必ず併設)。到達経路: 2026-09-01 min-lot carve-out (PR #218, kalman-d7-minlot-carveout-prereg-2026-09-01) で agg-Kelly bypass + 1000u 契約が着地し fill 発生が可能になった — 初 fill 確認時に deadline を初 fill + 90 日へ更新、2026-10-15 まで fill ゼロなら到達性を再監査"
     },
     {
       "id": "ws3-round2-oos-verdict-deadline",

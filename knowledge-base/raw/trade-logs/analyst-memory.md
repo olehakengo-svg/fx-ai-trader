@@ -4108,6 +4108,46 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - `price_shock_rev_eur_gbp_h1_long` は N=3 で EV=-3.27。降格基準（N≥30 & EV<-0.5）には遠いが、3連敗スタートは構造的問題の予兆として監視継続。
 - **Sentinel N蓄積進捗**:
 
+### 2026-09-01 (Pre-Tokyo Briefing)
+前日（2026-08-31）はトレードゼロ。当日（2026-09-01）も Cutoff 後の有効トレードは計 **N=4、PnL=+53.4**（WR 50.0%）と極めて限定的。稼働モード 25/27 が ON にもかかわらず、実質的な執行が機能していない状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注**: 全戦略でN<10。統計的判断は不可能。全てのEV値は「傾向」としても扱えないノイズ領域。
+- **`hedge_block`（合計516件）が最大の執行阻害要因**。eurjpy(146)・daytrade(103)・eur(92)・gbpusd(84)・gbpjpy(50)・audjpy(41) に分散。ポジション方向の相殺が多発しており、エントリーが連鎖的に止まっている。
+- **`r2_shadow_demoted_cell`（合計398件）**がscalp系を全面的に抑制。シャドウ降格セルがscalp経路の大半を遮断している。
+- **`direction_filter`（185件）**はrnb_usdjpyの方向制約が極めて厳格に機能。このモード単独でblockの最多。
+- **東京オープン（09:00 JST = 00:00 UTC）〜 09:30 JST**: USD_JPY・AUD_JPY・EUR_JPY のATR拡張タイミング。rnb_usdjpyのdirection_filterが解除条件を満たすか観察。
+- **ロンドンオープン（16:00 JST = 07:00 UTC）**: EUR系・GBP系のATR%ile上昇が見込まれ、RANGINGからTRENDへのレジーム遷移トリガーになりうる最重要窓。daytrade_eur・daytrade_gbpusdのhedge_block頻度が低下するか確認。
+
+### 2026-09-01 (Pre-Tokyo Briefing)
+| 前日 (2026-08-31) PnL | **¥0 / 0 trades** |
+| 本日累計 (Cutoff後全期間) | N=2, WR=50.0%, EV=+10.05 (avg), PnL=+20.1p |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- **hedge_block が全体Blockの最大勢力（質的）**: daytrade系モード全体でヘッジ制約がほぼ全エントリーをブロック。現在のRANGING相場でも方向感が決まらず、両サイドが相殺し合っている構造と推定。
+- **r2_shadow_demoted_cell がscalp系を完全封殺**: Cutoff後の実績データ蓄積がない段階でshadow降格セルが大量発生 → scalp系は事実上機能不全。
+- **direction_filter(rnb_usdjpy)**: USD_JPYのATR%ile=62%（5ペア中最高）だが、SMA20 Slope=-0.00117（下降）。フィルターがトレンド弱さを検出し、959回ブロックしている。
+- エントリー不足は「コードの問題」ではなく **現在のレジーム×パラメータのミスマッチ**として観察を続ける
+- block_countのモニタリングを継続し、`hedge_block`が解消されるレジーム遷移を待つ
+
+### 2026-09-01 (Pre-Tokyo Briefing)
+| 前日（2026-08-31）PnL | **¥0（トレードなし）** |
+| 全体WR | **N/A** |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**昇格基準（N≥30 & EV≥1.0）** → 全戦略が達成不可（N=1ずつ）
+**降格基準（N≥30 & EV<-0.5）** → 該当なし（ただしNが不十分なため保留ではなく「判断対象外」）
+> ⚠️ N=1は「データあり」ではなく「観測が1件存在した」に過ぎない。EVも信頼区間が±∞に近く、**統計的意味はゼロ**。
+- **課題A/B**: シグナル枯渇は本日も継続と想定。price_shock_rev系に限定されたシグナルが出る可能性があるペア（AUD_JPY、EUR_GBP）を注視するが、期待値は低い。
+- **課題C**: OANDA転送が全SKIP（shadow_tracking: 20件）のため、たとえN蓄積が進んでもlive反映されない。この構造的問題の認識を継続。
+
+### 2026-09-02 (Pre-Tokyo Briefing)
+2026-09-01（月）は**全モードでトレードゼロ**。PnL = ¥0、N = 0、WR = N/A。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> ⚠️ N=2は「データなし」扱い。WR・EVの数値に統計的意味は一切ない。昇格基準（N≥30 & EV≥1.0）まで残り**28件以上**必要。
+- `r2_shadow_demoted_cell`が累積454件はShadow降格セルの「在庫」が多いことを示す。これが解消されない限り、scalpの実注文は構造的に抑制される。**Shadow昇格の判断タイミングを注視**。
+- `hedge_block`407件はEUR/GBP/JPY系の方向相関が強く、ポジション重複を過検知している可能性。**レジーム変化（ランド脱却）を待つのが合理的**。
+- **DayTrade系に不利**（トレンドフォロー設計のため、レンジでは hedge_blockが自己防衛的に発動）
+- **Scalp系には条件付き有利**（中ボラ帯はスキャルプ向きだが、shadow降格セルが実質的なキャパシティを潰している）
+- **rnb_usdjpyに最も不利**（USD_JPYのATR=59%ile、つまりボラはある。しかしdirection_filterが全311件をブロック → レンジ内の方向性確認が取れない）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

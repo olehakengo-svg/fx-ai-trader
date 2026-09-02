@@ -10,6 +10,12 @@
 - **測定ツール自身のバグを境界値テストが初回検出**: B1 の `(_utc_hour(r) or 99)` が hour==0 を falsy 取りこぼし → N 174→241 に是正 (verdict 不変)。counterfactual 3/3 + 実欠陥 1 = **4/4 が所望どおり失敗**
 - pre-reg/verdict: [[alpha-scan-static-block-recalibration-prereg-2026-09-02]] / 数値: `raw/bt-results/alpha-scan-block-recalibration-2026-09-02.json` / ツール: `tools/alpha_scan_block_recalibration.py` (テスト 35 本)
 
+## 2026-09-01 (5) — feat(kalman): min-lot carve-out — 05-28 決裁 live 化の実効化 (rule:R1 🔒 user 承認 2026-09-01)
+
+- 🛑 **kalman_d7 は 05-28 user 決裁 (SUCCESS = OANDA fill ≥1) から 96 日間 live fill ゼロだった**: `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` 非所属 + FLAT 5000u > bypass 上限 1000u の二重不適格 (直近 14 日で 6 件 block をログ確認)。gate 衝突は 08-09 設計時に未認識、初認識 = 2026-09-01 session
+- **carry_dip 同型の 1000u 固定契約 + bypass set 追加** (リスクは 5000u → 1000u の削減方向、シグナル/SL/TP 不変更)。R2 降格は既存 registry `t9-kalman-d7-live-n10-ev-check` が binding (LIVE N≥10 ∧ EV<0 → 停止)
+- テスト 12 本 + counterfactual 実施済み (set から外すと 3 本 fail)。**「live 化を決裁した」≠「送信が発生しうる」 — live 化決裁時は gate chain 最後までの到達性 + fill 発生監視を必須にする** (教訓)
+- pre-reg: [[kalman-d7-minlot-carveout-prereg-2026-09-01]] (🔒 LOCKED — user 承認 2026-09-01、同日マージ)
 ## 2026-09-01 (4) — feat(infra): status volume keeper — OANDA API 存続のための出来高維持 (rule:R3, user 決裁 案 A)
 
 - 🛑 **OANDA JP REST API の存続条件を発見**: Gold ステータス (前月取引量 USD 50 万、新規+決済双方カウント) + プロコース + 残高 25 万円を**継続充足**しないと API 停止 + トークン再発行 (FAQ 720/1730)。8 月出来高 ≈ $28k → **10 月 SILVER 降格見込み = 自動売買・E1 収集・テレメトリの物理停止リスク**。エッジトレードは MIN lot 契約下で構造的に $500k に届かない (有機レバー全部で $82-106k)
