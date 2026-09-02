@@ -421,3 +421,10 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 - 原因: KB 必読プロトコル (CLAUDE.md) を 5 連続違反。fib_reversal の FORCE_DEMOTED (Recovery Path Active) 状態 + 180d BT 符号反転履歴 を確認せず、cell-conditional BT も走らせなかった
 - 修正: lot 0.05 → 0.01 (Recovery Path SENTINEL 整合) / lesson 作成 / cell promote の 3 段階防御プロトコル明文化
 - 教訓: **Cell-level 統計分析だけで Live promote するな。KB 必読 + cell-conditional 180d BT + Recovery Path lot サイズ の 3 段階防御を全段クリアして初めて promote 可**
+
+### `[[lesson-validity-check-pins-proxy-2026-09-02]]`
+**発見日**: 2026-09-02 | **修正**: 妥当性チェックの設計是正 (コード変更なし)
+- 問題: pre-reg の妥当性チェックが「再構成が engine と一致するか」という**性質**でなく、「今日の exempt 集合に入っているか」という**時変の代理**を pin していた
+- 症状: 違反 104 行を検出し、字義どおりなら研究中止だった (実際は再構成が正しく、チェックが誤り)
+- 修正: 読み出し経路のコード同一性で直接検証 + 違反行の時系列分解 (2026-08 で 0/12)
+- 再発: PR #209 の「構造 pin は性質を書け」と同型 = **通算 2 領域目** (今度は統計の妥当性チェック側)

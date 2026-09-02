@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-02 (1) — study(recal): v8.9 alpha_scan 静的ブロック 10 件の再較正 — 10/10 PREMISE-INTACT (rule:R3)
+
+- **コード変更ゼロ / 挙動不変。** 2026-04-14 較正 (N=9〜89) の静的ブロック 10 件を、較正と非重複の窓 (2026-04-15〜09-01、clean 11,840 行 = shadow 11,548 / LIVE 292) で再検定 → **全件 PREMISE-INTACT** (新 N=146〜1,404 = 較正の 10〜100 倍、摩擦調整後 EV −2.35〜−4.21、Bonferroni m=10 α=0.005 に対し全て p<1e-4)
+- **2026-09-01 readout の「静的 hour block が NY live を不当に削っている」仮説は全母集団水準で反証**。B8 (H16-20×USD_JPY) は N=675 EV_net −3.26 [−3.85, −2.67] = 正しい防御。live 頻度問題の主因は**セル構成 (6 月世代の R2 demote)** に確定
+- 事前予想 (§5「較正 N が薄い B6/B7/B10 は STALE だろう」) は**外れた**。母集団オーバーラップも 70.0〜93.8% で estimand 不一致仮説自体が否定
+- **post-hoc 観察 (claimable ではない)**: live 転送が現に可能なセルは shadow の 4.0% (462 行) にすぎず、この層では B7/B8 の gross EV が正 (+1.27/+1.09、WR 57.7-64.7%) に反転する。ただし **N=17/26 < 30 かつ post-hoc かつ shadow は BE/Trail 楽観** → **ブロック維持**、次 pre-reg の estimand として registry `alpha-scan-b7-b8-livecell-recheck` (期日 2026-11-30) に登録
+- **妥当性チェック (P0) 自体の設計欠陥を発見・是正**: `_is_live_tier_exempt` は時変なのに現在値の静的集合で pin していた → 違反 104 行は偽陽性。再構成の正しさは engine の読み出し経路との**コード同一性**で確定 (`demo_trader.py:5139` ↔ `demo_db.py:2135-2136`)、違反行は 2026-08 で 0/12 に消滅。教訓: [[lesson-validity-check-pins-proxy-2026-09-02]]
+- **測定ツール自身のバグを境界値テストが初回検出**: B1 の `(_utc_hour(r) or 99)` が hour==0 を falsy 取りこぼし → N 174→241 に是正 (verdict 不変)。counterfactual 3/3 + 実欠陥 1 = **4/4 が所望どおり失敗**
+- pre-reg/verdict: [[alpha-scan-static-block-recalibration-prereg-2026-09-02]] / 数値: `raw/bt-results/alpha-scan-block-recalibration-2026-09-02.json` / ツール: `tools/alpha_scan_block_recalibration.py` (テスト 35 本)
+
 ## 2026-09-01 (5) — feat(kalman): min-lot carve-out — 05-28 決裁 live 化の実効化 (rule:R1 🔒 user 承認 2026-09-01)
 
 - 🛑 **kalman_d7 は 05-28 user 決裁 (SUCCESS = OANDA fill ≥1) から 96 日間 live fill ゼロだった**: `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` 非所属 + FLAT 5000u > bypass 上限 1000u の二重不適格 (直近 14 日で 6 件 block をログ確認)。gate 衝突は 08-09 設計時に未認識、初認識 = 2026-09-01 session
