@@ -4148,6 +4148,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - **Scalp系には条件付き有利**（中ボラ帯はスキャルプ向きだが、shadow降格セルが実質的なキャパシティを潰している）
 - **rnb_usdjpyに最も不利**（USD_JPYのATR=59%ile、つまりボラはある。しかしdirection_filterが全311件をブロック → レンジ内の方向性確認が取れない）
 
+### 2026-09-02 (Pre-Tokyo Briefing)
+- PnL合計: ¥0 / トレード数: 0 / WR: N/A
+- 全27モードが稼働中（daytrade_xau・scalp_xau・scalp_eurjpyのみOFF）にもかかわらず、前日を通じてシグナル発火ゼロ。マーケット状態（後述のRANGINGレジーム）が主因と推定。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注記**: Cutoff後の有効N=2は「データなし」に相当。EV・WR双方とも確率的ノイズの域を出ない。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）のいずれも発動条件未達。
+- **主因**: 全観測ペアがRANGINGレジームに収束（ATR%ile: 31%〜59%、SMA Slope微弱）。price_shock系エントリー条件（急騰・急落後の逆張り）が発火する価格変動が発生しなかった可能性が高い。
+- **対処方針**: 本日もRANGING継続が想定されるため、シグナル不発は「誤作動」ではなく「正常な非エントリー判断」と評価。過度な期待設定は不要。
+- **rnb_usdjpy の direction_filter（331件）が全体最大**。これはシステムが積極的にシグナルを見送っている状態であり、USD_JPY（ATR%ile=59%、最も高い）でシグナルは多発しているが全て方向フィルターで遮断されていることを示す。
+- **r2_shadow_demoted_cellの多発**: scalp_eur・daytrade_1h_usdchf等で多数。v2.3以前のデモテッドセルが引き続きシグナル経路を塞いでいる構造。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
