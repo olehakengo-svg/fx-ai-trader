@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-02 (2) — fix(dedup): shadow_emit のプロセス境界 dedup 突破を write-time DB flag で塞ぐ + audit units:0 自己記述化 (rule:R3)
+
+- 🛑 **ema200 forensics ([[hourblock-recal-and-ema200-verdict-2026-09-02]] Study 2) の近接重複 22 ペアの機構を確定**: `_maybe_reserve_signal_emit` の dedup ゲートは **プロセスローカル in-memory 状態**でプロセス境界 (zero-downtime デプロイ重複 / コンテナ置換 / 一時的な第 2 インスタンスが同一 Render Disk SQLite に並走書込み) を越えられない。決め手 = `/api/admin/dedup_status` の counter 矛盾 (単一インスタンスで `shadow_called=1` なのに boot 後 shadow_emit 2 行 = 2 行目は今は存在しない別プロセス由来)。[[lesson-shadow-emit-dedup-2026-04-30]] の restart 消失の**並走版**、dedup 系 5 例目
+- 🛑 **boot 時 backfill の write-time ギャップ**: `_backfill_dedup_violation` は境界越え重複を retroactive に flag するが**起動時のみ**。boot 後に生じた重複は次回起動まで未 flag → **その窓で走った point-in-time 分析が N を水増しして見る** (実例 = 2026-07-31 ema200 quant-eval N=79 PASS は当時未 flag の重複込み。**churn 抑制で起動が稀になるほど盲点が広がる**)
+- **修正**: `demo_db.open_trade` に **write-time の DB 参照 dedup flag** を追加。shadow 行 INSERT 時、同一 (entry_type, instrument, direction) の dv=0 先行行が TF 窓内にあれば新行を `dedup_violation=1`。共有 DB 参照ゆえプロセス境界を越え、write-time ゆえ即時。**行は必ず保持 (挙動不変・データ非破壊、live 送信 `oanda_trade_id != ''` は対象外) — flag のみ変え、quant-eval/R2 audit が既に除外する列を使う**。boot backfill は歴史回収として存続 (相補的)。skip-insert 案は considered-but-rejected (害は測定 N 水増しのみ、live 重複なし → 既存 flag 方式を踏襲)
+- **他戦略への影響 (定量)**: 90d shadow の intra-window 重複 **1,434 行中 1,431 (99.8%) は boot backfill が既に dv=1、未 flag は 3 行 (0.04%)** = **集計 quant-eval への水増しは軽微**。実害は point-in-time 分析に限定 → write-time flag で恒久解消
+- **audit units:0 の自己記述化 (同 PR)**: `_open_shadow_emit_trade` の `_add_oanda_audit` block_reason を `shadow_tracking(shadow_emit_no_lot)` へ。units=0 = ロット未割当のトラッキングマーカーであってサイズ 0 の発注ではない旨をコメント併記。`shadow_tracking` prefix 維持で startswith 依存の guard/tool (drift_guard/breakdown/counterfactual) は互換
+- テスト: `test_shadow_dedup_write_time_flag.py` 3 本 (cross-process flag / TF 窓境界 / 非重複行 anchor、counterfactual = fix 前は dv=0 で fail 確認済み) + audit 自己記述の exact-value 更新 4 本 (shadow_emit_audit/kalman_v18e/sr_audit_pipeline)。`open_trade` に `entry_time` override 追加 (テストが distinct bar を seed するため、production は常に now)。全 2904 passed / check.py 9/9
+- lesson: [[lesson-shadow-emit-dedup-writetime-2026-09-02]] / forensics: [[hourblock-recal-and-ema200-verdict-2026-09-02]] Study 2
+
 ## 2026-09-02 (1) — study(recal): v8.9 alpha_scan 静的ブロック 10 件の再較正 — 10/10 PREMISE-INTACT (rule:R3)
 
 - **コード変更ゼロ / 挙動不変。** 2026-04-14 較正 (N=9〜89) の静的ブロック 10 件を、較正と非重複の窓 (2026-04-15〜09-01、clean 11,840 行 = shadow 11,548 / LIVE 292) で再検定 → **全件 PREMISE-INTACT** (新 N=146〜1,404 = 較正の 10〜100 倍、摩擦調整後 EV −2.35〜−4.21、Bonferroni m=10 α=0.005 に対し全て p<1e-4)

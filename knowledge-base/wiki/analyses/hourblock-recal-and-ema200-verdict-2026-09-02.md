@@ -36,7 +36,7 @@ user 承認 (2026-09-01「進めて」) の 2 分析。Workflow 3 エージェ�
 3. live 累計は負 (2 行 −5.6p×2)、365d BT (04-20) は N=32 EV−0.183 と shadow に逆符号
 → 「過去 verdict 自体を疑え」(user 恒久指示 2026-08-05) の実践例: Overlap 勝ちセル筆頭候補は estimand 監査で棄却。
 
-**最小修正案 (R3、未実装)**: 経路 B の audit `block_reason` に `(shadow_emit_no_lot)` を付加し units=0 を自己記述化 — dedup 診断と同一 PR で実施予定。
+**修正 (R3、✅ 実装済み 2026-09-02)**: 機構は「in-memory dedup ゲートがプロセス境界を越えられない + boot 時 backfill が write-time ギャップを残す」と確定 (単一インスタンスで `shadow_called=1` なのに shadow_emit 2 行 = 2 行目は別プロセス由来)。→ `demo_db.open_trade` に **write-time の DB 参照 dedup flag** を追加 (共有 DB を見て同一キー・TF 窓内の dv=0 先行行があれば新 shadow 行を dedup_violation=1、挙動不変・行は保持)。**他戦略への影響 = 集計は 0.04% (90d intra-window dup 1,434 行中 1,431 は boot backfill が既に回収、未 flag は 3 行のみ) だが point-in-time 分析が水増しを見る**のが実害 (07-31 N=79 がその例)。同 PR で audit `block_reason` を `shadow_tracking(shadow_emit_no_lot)` に自己記述化 (units=0 = ロット未割当マーカー、サイズ非使用)。詳細: [[../lessons/lesson-shadow-emit-dedup-writetime-2026-09-02]]。
 
 ## 帰結: London/NY 実弾の残る経路 (優先順)
 1. **新セル供給 (主戦線、変わらず)**: P-S1(a) N=9/10 待ち / E1 first look 10-15 / kalman 初 fill 監視

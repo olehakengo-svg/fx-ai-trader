@@ -5,8 +5,11 @@ lesson-sentinel-n-measurement-bug:
 - aggregate Kelly を汚さない.
 - lesson-tool-verification-gap: 正例 + 負例 + 空DB の 3 種で「正しい出力」を検証する.
 """
+import itertools
 import os
 import tempfile
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from modules.demo_db import DemoDB
@@ -21,6 +24,15 @@ def db():
     os.unlink(path)
 
 
+# 2026-09-02 (rule:R3): open_trade now flags same-key shadow rows written inside
+# the same TF window as dedup_violation=1 (write-time cross-process dedup). In
+# production those never coexist (the in-memory emit gate blocks them upstream),
+# so each distinct shadow observation lives on its own bar. These fixtures seed
+# N *distinct* observations, so we space entry_time by more than a 15m bar to
+# stay on separate bars (matching reality) instead of colliding into one window.
+_bar_clock = itertools.count()
+
+
 def _open_close(db: DemoDB, entry_type: str, instrument: str,
                 outcome_win: bool, is_shadow: bool,
                 direction: str = "BUY") -> str:
@@ -31,8 +43,12 @@ def _open_close(db: DemoDB, entry_type: str, instrument: str,
     else:
         entry, sl, tp = 150.0, 150.5, 149.5
         exit_price = tp if outcome_win else sl
+    # distinct bar per seeded observation (>15m apart)
+    et = (datetime.now(timezone.utc)
+          - timedelta(seconds=1000 * next(_bar_clock))).isoformat()
     tid = db.open_trade(direction, entry, sl, tp, entry_type, 60,
-                        instrument=instrument, is_shadow=is_shadow)
+                        instrument=instrument, is_shadow=is_shadow,
+                        entry_time=et)
     db.close_trade(tid, exit_price, "TP_HIT" if outcome_win else "SL_HIT")
     return tid
 

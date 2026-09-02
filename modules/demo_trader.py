@@ -1476,15 +1476,23 @@ class DemoTrader:
             except Exception as _snap_err:
                 print(f"[alpha_snapshot] shadow_emit skip tid={trade_id}: {_snap_err}", flush=True)
         if self._should_audit_shadow_emit(entry_type):
+            # 2026-09-02 (rule:R3): self-describe the hardcoded units=0.
+            # This emit-path row records a select_best loser routed to a parallel
+            # shadow trade — it is a tracking marker, not a sized order. The
+            # units=0 here means "no lot was ever assigned to this shadow-emit
+            # row", NOT "a zero-size order was placed". Readers MUST NOT use this
+            # row's units as a size. The "shadow_tracking" prefix is preserved so
+            # existing startswith()-based guards/tools stay compatible
+            # (drift_guard / breakdown / counterfactual all match by prefix).
             self._add_oanda_audit(
                 trade_id=trade_id,
                 entry_type=entry_type,
                 is_live=False,
                 bridge_status="skipped",
-                block_reason=SHADOW_TRACKING_BLOCK_REASON,
+                block_reason=f"{SHADOW_TRACKING_BLOCK_REASON}(shadow_emit_no_lot)",
                 direction=direction,
                 instrument=instrument,
-                units=0,
+                units=0,  # marker only — see note above; not an order size
                 sr_meta=sr_meta,
             )
         return trade_id
