@@ -29,6 +29,13 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-shadow-emit-dedup-writetime-2026-09-02]]
+**発見日**: 2026-09-02 | **修正**: rule:R3 (同 PR、`open_trade` write-time DB flag + audit 自己記述)
+- 問題: `_maybe_reserve_signal_emit` の dedup ゲートはプロセスローカル in-memory 状態で、プロセス境界 (デプロイ重複 / コンテナ置換 / 一時 2nd インスタンスの並走書込み) を越えられず同一キーを重複 INSERT していた (dedup 系 5 例目)。かつ `_backfill_dedup_violation` は起動時のみ = boot 後の重複を次回起動まで未 flag に残す
+- 症状: 単一インスタンスで `shadow_called=1` なのに shadow_emit 2 行 (counter 矛盾で別プロセス由来と確定)。90d intra-window dup 1,434 行中 99.8% は backfill 回収済みだが、未 flag 窓で走った point-in-time 分析 (07-31 ema200 N=79) が水増しを見た
+- 修正: `open_trade` に共有 DB 参照の write-time dedup flag (同一キー・TF 窓内 dv=0 先行行があれば dv=1、行は保持・挙動不変・live 対象外)。audit units:0 を `shadow_tracking(shadow_emit_no_lot)` に自己記述化
+- 教訓: **In-memory な dedup/cooldown/cache はプロセス境界 (restart だけでなく並走) を越えられない — またいで守る不変条件は共有 DB を write-time で参照せよ。retroactive cleanup (boot backfill) は「いつ走るか」がそのまま盲点で、皮肉にも churn 抑制で盲点が広がる**
+
 ### [[lesson-constructed-url-404-is-not-absence-2026-08-31]]
 **発見日**: 2026-08-31 | **修正**: rule:R3 (同 PR、`csv_row_match` 新設)
 - 問題: ① 外部一次情報 (MoF 月次介入額) の公表 URL を命名規則の**推測**から組み立て、404 を「未公表」と誤読した (実際は別名で公表済、15兆3,993億円) ② 日次 cron は同じ値を **2 日前に収集済み**だったが、その CSV を読む検知器が存在しなかった (write-only 6 例目)

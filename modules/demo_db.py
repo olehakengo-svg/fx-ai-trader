@@ -1086,22 +1086,62 @@ class DemoDB:
                    mtf_regime: str = "", mtf_d1_label: int = 3,
                    mtf_h4_label: int = 3, mtf_vol_state: str = "",
                    gate_group: str = "", mtf_alignment: str = "",
-                   mtf_gate_action: str = "") -> str:
+                   mtf_gate_action: str = "",
+                   entry_time: str = None) -> str:
         """Record a new trade open. Returns trade_id.
         is_shadow=True: フィルターバイパスで生成された観測専用トレード (v7.0 Shadow Tracking)
         mtf_*: v9.3 MTF regime monitor (D1×H4×H1 engine)
         gate_group: v9.3 Phase D A/B — 'mtf_gated' or 'label_only'
         mtf_alignment: strategy_aware_alignment 結果 ('aligned'/'conflict'/'neutral')
         mtf_gate_action: 'kept' (そのまま) / 'downgraded' (conflict→shadow) / 'none'
+        entry_time: ISO-8601 override for the row timestamp (default: now). Production
+            always uses now(); tests pass spaced timestamps to seed distinct bars so
+            the write-time dedup flag (below) does not treat them as duplicates.
         """
         trade_id = str(uuid.uuid4())[:12]
         oanda_trade_id = oanda_trade_id or ""
         persisted_is_shadow = bool(is_shadow) or (
             bool(enforce_oanda_live_invariant) and not bool(oanda_trade_id)
         )
-        now_str = datetime.now(timezone.utc).isoformat()
+        if entry_time:
+            entry_dt = datetime.fromisoformat(entry_time)
+            if entry_dt.tzinfo is None:
+                entry_dt = entry_dt.replace(tzinfo=timezone.utc)
+        else:
+            entry_dt = datetime.now(timezone.utc)
+        now_str = entry_dt.isoformat()
         with self._lock:
             with self._safe_conn() as conn:
+                # ── 2026-09-02 (rule:R3): write-time cross-process dedup flag ──
+                # The emit dedup gate (_maybe_reserve_signal_emit) is process-local
+                # in-memory state — it cannot coordinate across a process boundary
+                # (deploy overlap, container replacement, a transient second
+                # instance writing to the shared Render Disk SQLite). The boot-time
+                # _backfill_dedup_violation catches those cross-process dups, but
+                # only *at boot*, so any analysis run before the next restart sees
+                # an inflated shadow N (e.g. the 2026-07-31 ema200 quant-eval N=79
+                # that shrank once a later boot flagged 22 near-dup pairs).
+                # Consulting the shared DB here flags the dup immediately and holds
+                # across processes. Same "advance last kept row only on non-dup"
+                # semantics as _backfill_dedup_violation_impl (dedup_violation=0
+                # anchor). Shadow rows only — live sends (oanda_trade_id != '')
+                # are never flagged. The row is still inserted (no trading change).
+                dedup_violation = 0
+                if (persisted_is_shadow and not oanda_trade_id
+                        and entry_type and instrument
+                        and direction in ("BUY", "SELL")):
+                    window = self._tf_window_sec(tf)
+                    lo = (entry_dt - timedelta(seconds=window)).isoformat()
+                    prior = conn.execute(
+                        """SELECT 1 FROM demo_trades
+                           WHERE entry_type = ? AND instrument = ? AND direction = ?
+                             AND is_shadow = 1 AND dedup_violation = 0
+                             AND entry_time >= ? AND entry_time < ?
+                           LIMIT 1""",
+                        (entry_type, instrument, direction, lo, now_str),
+                    ).fetchone()
+                    if prior is not None:
+                        dedup_violation = 1
                 conn.execute("""
                     INSERT INTO demo_trades
                         (trade_id, status, direction, entry_price, entry_time,
@@ -1111,8 +1151,8 @@ class DemoDB:
                          is_shadow, oanda_trade_id, dow_regime, v2_regime,
                          edge_cell_id, confluence_score, confluence_details,
                          mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
-                         gate_group, mtf_alignment, mtf_gate_action)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         gate_group, mtf_alignment, mtf_gate_action, dedup_violation)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
@@ -1123,7 +1163,7 @@ class DemoDB:
                       oanda_trade_id, dow_regime, v2_regime,
                       edge_cell_id or "", confluence_score, confluence_details,
                       mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
-                      gate_group, mtf_alignment, mtf_gate_action))
+                      gate_group, mtf_alignment, mtf_gate_action, dedup_violation))
                 conn.commit()
         return trade_id
 

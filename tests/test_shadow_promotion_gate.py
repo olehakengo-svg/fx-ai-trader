@@ -12,8 +12,10 @@ accumulate the N needed to promote. The shadow path now reads
 ``get_shadow_trades_for_evaluation`` and applies cell_edge_audit.py v2
 criteria (N>=20, wilson_bf_lower>0.50, Bonferroni p<0.05).
 """
+import itertools
 import os
 import tempfile
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -127,12 +129,21 @@ def db():
     os.unlink(path)
 
 
+# 2026-09-02 (rule:R3): open_trade write-time dedup flags same-key shadow rows in
+# one TF window as dedup_violation=1. Each seeded observation here is a distinct
+# shadow trade (one per bar in production), so space entry_time by >15m to keep
+# them on separate bars rather than colliding into one dedup window.
+_bar_clock = itertools.count()
+
+
 def _open_close_shadow(db: DemoDB, entry_type: str, instrument: str,
                        win: bool) -> str:
     entry, sl, tp = 150.0, 149.5, 150.5
     exit_price = tp if win else sl
+    et = (datetime.now(timezone.utc)
+          - timedelta(seconds=1000 * next(_bar_clock))).isoformat()
     tid = db.open_trade("BUY", entry, sl, tp, entry_type, 60,
-                        instrument=instrument, is_shadow=True)
+                        instrument=instrument, is_shadow=True, entry_time=et)
     db.close_trade(tid, exit_price, "TP_HIT" if win else "SL_HIT")
     return tid
 
