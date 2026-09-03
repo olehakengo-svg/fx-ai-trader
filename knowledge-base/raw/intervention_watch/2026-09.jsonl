@@ -1,1 +1,2 @@
 {"day": "2026-09-01", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": 0.2811, "range": 0.644, "med20_range": 0.7555, "range_ratio": 0.852, "n_bars": 24, "candidate": false}
+{"day": "2026-09-02", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": -0.8065, "range": 2.2, "med20_range": 0.7025, "range_ratio": 3.132, "n_bars": 24, "candidate": true, "alerted": true}
