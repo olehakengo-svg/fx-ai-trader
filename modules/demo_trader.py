@@ -2197,10 +2197,18 @@ class DemoTrader:
         ないため「静かな相場」と区別できず正常に見えた。alert 経路は
         PR #205/#206 で塞いだが、status payload 自身は blind のままだった。
 
-        `demo_trades` (約定) と `evaluated_candidates` (シグナル評価) は
+        `demo_trades` (書込み) と `evaluated_candidates` (シグナル評価) は
         **独立した系列**である点が肝: candidate が進んでいて trade が
         止まっているなら「相場は静か/ゲートが弾いている」、両方止まって
         いるなら「書込みが死んでいる」と切り分けられる。
+
+        2026-09-03 追加 (rule:R3): 第3系列 `live_fill` = `oanda_trade_id`
+        を持つ行だけの鮮度。`demo_trades` は shadow が 99.8% を占めるため、
+        `last_trade_row_*` は**実弾が約定したかには答えられない** — 実際
+        2026-08-26〜09-03 に LIVE 約定が 133 市場オープン時間ゼロだった間、
+        `last_trade_row_status` は数分以内の `ok` を返し続けた。
+        「候補は出ている / 行は書けている / だが実弾は出ていない」を
+        分離できるのは 3 系列を畳まずに並べたときだけである。
 
         本メソッドは status 取得を絶対に落とさない (取引パスの隣) が、
         失敗は握り潰さず `row_freshness_error` として表面化させる。
@@ -2217,6 +2225,9 @@ class DemoTrader:
             "last_candidate_row_at",
             "last_candidate_row_age_sec",
             "last_candidate_row_status",
+            "last_live_fill_row_at",
+            "last_live_fill_row_age_sec",
+            "last_live_fill_row_status",
         )
         try:
             raw = self._db.get_row_freshness()
@@ -2224,6 +2235,7 @@ class DemoTrader:
             out = {k: None for k in keys}
             out["last_trade_row_status"] = "error"
             out["last_candidate_row_status"] = "error"
+            out["last_live_fill_row_status"] = "error"
             out["row_freshness_error"] = f"row_freshness: {e}"
             return out
 
