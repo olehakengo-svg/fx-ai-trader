@@ -4178,6 +4178,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - コードは変更しない。記録・観察のみ
 - **不利**：トレンドフォロー系DT、方向フィルター依存のRnB
 
+### 2026-09-03 (Pre-Tokyo Briefing)
+前日（2026-09-02）は**全セッション通じてトレードゼロ**。PnL = ¥0、N = 0、WR = N/A。システムは稼働中（27モードON）だが、シグナル発生なし、または全ブロックにより執行至らず。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注記**: N=1は統計的に「データなし」として扱う。WR 100%・EV +20.10は参考値に過ぎない。昇格基準（N≥30 & EV≥1.0）まで残り**29件**。
+- **r2_shadow_demoted_cell**（scalp/scalp_eur/scalp_5m/scalp_5m_eur/daytrade_1h_usdchf合計=575件）→ Shadow降格セルが現在の市場環境で多数存在し、Scalpファミリー全体の実行機会を事実上封鎖している。これはKBにある「正の摩擦調整EVセルの不在」問題の直接的な表れ。
+- **direction_filter（319件）** → rnb_usdjpyが最大単一ブロック源。RANGINGレジームでの方向性判断が機能せず、全シグナルをブロックしている可能性。
+- **gbp_asia_flash_crash（157+34件）** → GBP系保護ガードが発火継続。アジア時間のGBP流動性懸念が持続。
+- ブロック件数の推移を時間帯別に観察。特にLondon Open（UTC 07:00-08:00）でdirection_filterが緩和するか確認。
+- scalp系のr2_shadow_demoted_cellブロックが減少トレンドにあるか追跡（Shadow再評価サイクルの進行確認）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
