@@ -4206,6 +4206,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 全ペアRANGINGのため、**NY open時のフォールスブレイクアウトに注意**。特にGBP系はATR低水準（38%）でスプレッドガードに引っかかる割合が高まりやすい。
 ### 推奨戦略配分
 
+### 2026-09-03 (Pre-Tokyo Briefing)
+前日（2026-09-02）はトレードゼロ。当日（2026-09-03）は全体N=2、PnL=**−74.5**、WR=**50.0%**（1勝1敗）。実質的に機能停止に近い状態が継続しており、累積データの蓄積はほぼ進んでいない。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体: N=2 / WR=50.0% / Total PnL=−74.5**
+> ⚠️ N=2は「データなし」扱い。EVおよびWRは統計的に無意味。昇格/降格判断には使用不可。
+- 全モードON（27中25）にもかかわらず、約定はわずか2件
+- **block_countsが高水準**：`rnb_usdjpy:direction_filter`が1,795件、`scalp/scalp_eur:r2_shadow_demoted_cell`が合計1,828件と突出
+- `hedge_block`も複数戦略で200〜634件に達しており、シグナルがことごとく遮断されている
+- `scalp`系4戦略のブロック合計：`scalp`(973)+`scalp_eur`(855)+`scalp_5m_gbp`(414)+`scalp_5m_eur`(367)+`scalp_5m`(288) = **2,897件**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
