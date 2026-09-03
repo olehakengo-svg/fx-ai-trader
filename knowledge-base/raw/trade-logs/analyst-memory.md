@@ -4188,6 +4188,14 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - ブロック件数の推移を時間帯別に観察。特にLondon Open（UTC 07:00-08:00）でdirection_filterが緩和するか確認。
 - scalp系のr2_shadow_demoted_cellブロックが減少トレンドにあるか追跡（Shadow再評価サイクルの進行確認）。
 
+### 2026-09-03 (Pre-Tokyo Briefing)
+前日（2026-09-02）は**トレードゼロ**。PnL = ±0、WR = N/A。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的評価**: N=1は「データなし」と同義。EV +20.10、WR 100%はいずれも統計的に無意味。昇格・降格・傾向判断のいずれも不可。
+- r2_shadow_demoted_cell の降格セルがいつ復活するか（N蓄積のペース）を観察
+- USD/JPY方向フィルターの緩和・収束タイミングを注視
+- hedge_block（audjpy 268件、eur 192件、gbpusd 150件）は開放ポジションとの方向対立が続いていることを示す → OANDA現在オープントレード1件との関連を確認
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
