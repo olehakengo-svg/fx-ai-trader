@@ -497,6 +497,22 @@
       "deadline": "2026-11-30",
       "doc": "knowledge-base/wiki/decisions/alpha-scan-static-block-recalibration-prereg-2026-09-02.md",
       "message": "alpha_scan B7 (H13×USD_JPY) / B8 (H16-20×USD_JPY) の **live 可能セル層に限った** 再判定枠。2026-09-02 の再較正で全 shadow 母集団では 10/10 が PREMISE-INTACT (B7 N=327 EV_net -2.35 / B8 N=675 EV_net -3.26、いずれも p<1e-4) だが、min-lot bypass + kalman + PAIR_PROMOTED に限った層では B7 N=17 WR64.7% EV_gross +1.27 / B8 N=26 WR57.7% EV_gross +1.09 と符号が反転する。**これは post-hoc かつ N<30 で claimable ではない** (§7 Post-hoc 節に理由 4 点を明記)。到達経路: shadow 蓄積が進むと当該層の N が増える → 期日に `python3 tools/alpha_scan_block_recalibration.py --fetch --cache <path>` を再実行し、live 可能セル層の B7/B8 が **両方とも N>=30** に到達しているかを確認する。到達していれば **新規 pre-reg を観測前に起草** (層別を primary estimand として凍結、Bonferroni m=2、shadow の BE/Trail 楽観バイアスを friction 調整で明示) してから測る。N<30 なら期日を再武装するだけで、**現データでの再測定は禁止** (同じ層を繰り返し見るのは 選択バイアスの累積)。**いかなる場合も本エントリ単体でブロックを解除しない** — 解除は R1 (365d BT or Live N>=30 + Bonferroni + pre-reg LOCK + user 最終承認)。"
+    },
+    {
+      "id": "live-fill-threshold-recalibration",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-12-03",
+      "doc": "knowledge-base/wiki/lessons/lesson-live-fill-estimand-shadow-conflation-2026-09-03.md",
+      "message": "live_fill_stagnation 閾値 120 市場オープン時間の再較正期日 (設置 2026-09-03 + 3ヶ月)。初回較正は carve-out 後 n=15 の到着間隔 (max 75.3h) のみ = 薄い。到達経路: /api/demo/trades の oanda_trade_id!='' 行から到着間隔を取り直す (手順は lesson ページ)。⚠️ 規律 (a) 誤発火が出たら閾値は **上げる** — 下げるのは実測を取り直してから (b) 消滅した構成のギャップを母集団に混ぜない — 全期間 max 224.7h は _is_xau_inst バグ期 (PR #119→#124 で修復) の尾であり現行構成には存在しない (c) LIVE 資格セル構成が変わったら n をリセットして数え直す。SSOT = modules/freshness_policy.LIVE_FILL_STAGNATION_HOURS"
+    },
+    {
+      "id": "live-fill-drought-2026-08-26-disposition",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-09-30",
+      "doc": "knowledge-base/wiki/lessons/lesson-live-fill-estimand-shadow-conflation-2026-09-03.md",
+      "message": "2026-08-26 14:59 UTC を最後とする LIVE 約定ドリフト (09-03 時点 133 市場オープン時間) の disposition。09-03 の観測では実体は **シグナル枯渇** であって転送障害ではない (直近8日: LIVE 資格 5 ファミリの発生が計 2 件、うち price_shock_rev_aud_jpy が 08-26 に実際に約定 = 転送経路は健全。同期間 shadow 総数 536 行 = engine 稼働)。⚠️ 未解決の副次観察: 2026-08-27T16:02Z の usdjpy_carry_dip_accumulator (roadmap T8 で live 稼働中のはず) が is_shadow=1 で記録され +15.5p の WIN。shadow 落ちの理由は未特定 (spread / HTF / DD defensive / cooldown / lot floor / carve-out ゲートのいずれか)。判定: 09-30 までに (a) 新 LIVE 約定が出たら経路健全を再確認して close (b) ゼロのままなら LIVE 資格セル群の発生率 ~1件/週 を M3 (clean live N>=30 セル 3 個 = 現在 0 個) のスループット問題として roadmap 側へ起票。**本エントリは R2/R3 の観測枠であり、セル昇格・lot 変更 (R1) は含まない**"
     }
   ]
 }

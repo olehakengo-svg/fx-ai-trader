@@ -64,6 +64,7 @@ SESSION_VOLUME_RATIO_THRESHOLD = 0.5
 N_STAGNATION_HOURS = _fp.N_STAGNATION_HOURS
 CANDIDATE_STAGNATION_HOURS = _fp.CANDIDATE_STAGNATION_HOURS
 ENGINE_TICK_STALL_MINUTES = _fp.ENGINE_TICK_STALL_MINUTES
+LIVE_FILL_STAGNATION_HOURS = _fp.LIVE_FILL_STAGNATION_HOURS
 # 書込み停止は「取引ゼロ」として現れるが、取引ゼロには市場が閉まっている
 # だけの週末も含まれる。そこで検知は2本立てにする (rule:R3, 2026-08-26):
 #   - live_n_stagnation: 取引時刻ベース。ただし FX 週末閉場 (金 21:00 →
@@ -93,6 +94,8 @@ NOTIFY_EVERY_HOURS = {
     "backup_blocked_low_disk": 1,
     "db_write_failed": 1,
     "live_n_stagnation": 6,
+    "live_fill_stagnation": 6,
+    "live_fill_freshness_error": 6,
     "stagnation_check_broken": 6,
     "candidate_stagnation": 6,
     "candidate_freshness_error": 6,
@@ -301,6 +304,21 @@ def check_live_n_stagnation(
 ) -> list[dict[str, Any]]:
     """DB への最終書込みからの経過時間で書込み停止を検知する (rule:R3, 2026-08-26).
 
+    ⚠️ **名前に反して、これは「約定」の検知器ではない** (2026-09-03 訂正、
+    rule:R3)。読んでいるのは ``/api/demo/trades`` の全行であり、その
+    **99.8% は shadow** (実測 501 行中 LIVE 1 行)。したがって本検知器の
+    estimand は docstring 冒頭のとおり「``demo_trades`` に何か書けたか」=
+    書込み経路の生死であって、実弾が約定したかではない。``live_n_`` という
+    接頭辞はこの検知器が 2026-04-22 に別の意図で作られた名残である。
+
+    両者は 2026-08-26〜09-03 に実際に乖離した: LIVE 約定は 133 市場オープン
+    時間ゼロだったが、shadow 行が数分おきに書かれ続けたため本検知器は
+    最後まで無音だった。**実弾の停止は ``check_live_fill_stagnation`` が
+    見る** — こちらは名前を変えず (type 文字列は過去の alert 履歴と
+    registry が参照する識別子なので固定)、estimand の記述だけを実装に
+    合わせて訂正した。
+
+
     **この検知器は 2026-04-22 の作成以来 126 日間 no-op だった。**
     ``status["last_trade_time"]`` を読んでいたが、その key は
     ``/api/demo/status`` にも app.py のどこにも存在しない (全数 grep で
@@ -381,6 +399,124 @@ def check_live_n_stagnation(
                 "market_open_hours_since": round(open_hours, 1),
                 "threshold_hours": N_STAGNATION_HOURS,
                 "last_trade_time": latest.isoformat(),
+            }
+        )
+    return events
+
+
+def check_live_fill_stagnation(
+    status: dict[str, Any], now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """**実弾が約定しているか**を検知する (rule:R3, 2026-09-03).
+
+    既存の 9 検知器はどれも「LIVE 転送が死んだ」に答えられなかった:
+
+    - ``live_n_stagnation`` / ``trade_row`` は ``demo_trades`` 全体を見るが、
+      その **99.8% は shadow** (実測 501 行中 LIVE 1 行)。shadow が毎日
+      80-111 行流れる限り常に「新鮮」で、名前に反して永久に沈黙する
+    - ``candidate_stagnation`` は select_best 到達まで。LIVE 転送ゲートの
+      **手前**で止まる
+    - ``engine_tick_stall`` はエンジン生存のみ。ゲートにもシグナル有無にも
+      依存しない代わりに、約定の有無にも依存しない
+
+    実害は実測済み: **2026-08-26 14:59 UTC を最後に LIVE 約定が 133 市場
+    オープン時間 (実時間 7.5 日) ゼロだった間、全検知器が無音だった**。
+
+    **なぜ status 経由でサーバ側に集計させるか** — watcher が読む
+    ``/api/demo/trades?limit=500`` は shadow が埋め尽くすため **実測で
+    7.67 日しか遡れない**。ドリフトが 7.67 日を超えた瞬間、最後の LIVE 行が
+    窓から落ちて「LIVE 行ゼロ」になり、gap の計算自体が不能になる
+    (2026-09-03 03:31 時点で窓の先頭は 08-26 11:31 = 最後の約定の 3.5 時間前
+    という崖っぷちだった)。**読み手はあるが窓が狭すぎる**型で、2026-09-01 の
+    候補行 readout (PR #213/#214) と同型である。DB 側なら窓の天井が無い。
+
+    閾値 120 市場オープン時間の実測較正根拠は
+    ``modules/freshness_policy.LIVE_FILL_STAGNATION_HOURS`` に置いた (SSOT)。
+    要約: carve-out 後 (2026-07-29〜) の到着間隔 n=15 で max 75.3h、その
+    1.59 倍。replay で誤発火 0、全期間では 1 回だけ発火し、それは
+    ``_is_xau_inst`` バグが LIVE 送信を殺していた時期の尾 = **真陽性**。
+
+    ⚠️ **発火 = 必ずしもバグではない**。「LIVE 資格セルが 1 つも条件を満た
+    さなかった」も同じ見え方をする (``candidate_stagnation`` と同じ注意)。
+    発火時に切り分けるべきは ``block_counts`` と LIVE 資格セルの現況であって、
+    発火そのものを engine 異常と読んではならない。
+    """
+    events: list[dict[str, Any]] = []
+    if not status:
+        return events
+
+    st = status.get("last_live_fill_row_status")
+    if st is None:
+        # 旧版 web (デプロイ差) の可能性。黙って skip しない — 沈黙こそが
+        # live_n_stagnation を 126 日 no-op にした原因だった。通知はしない。
+        events.append(
+            {
+                "type": "live_fill_freshness_missing",
+                "detail": (
+                    "no last_live_fill_row_status in /api/demo/status "
+                    "(version skew?)"
+                ),
+            }
+        )
+        return events
+
+    if st == "error":
+        events.append(
+            {
+                "type": "live_fill_freshness_error",
+                "detail": str(status.get("row_freshness_error"))[:200],
+            }
+        )
+        return events
+
+    if st == "unparseable":
+        # DB は行を見つけたが時刻が壊れている。**これは異常**であって
+        # 初期状態ではない。下の `st != "ok"` に畳むと黙って捨てられる —
+        # 本 PR が直しているのがまさにその「静かに skip」型なので、
+        # ここで畳んだら同じ穴を新しい検知器に作り直すことになる。
+        events.append(
+            {
+                "type": "live_fill_freshness_error",
+                "detail": (
+                    "DB reports unparseable created_at for the last live fill: "
+                    f"{status.get('last_live_fill_row_at')!r}"
+                ),
+            }
+        )
+        return events
+
+    if st != "ok":
+        # no_rows / no_table のみがここに来る = LIVE 約定が DB 開始以来ゼロ、
+        # または旧 DB。異常ではなく初期状態 (資格 eligible と実状態
+        # effective の区別)。ここで stale を上げると新環境で必ず鳴る。
+        return events
+
+    raw_at = status.get("last_live_fill_row_at")
+    try:
+        latest = datetime.fromisoformat(str(raw_at).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        events.append(
+            {
+                "type": "live_fill_freshness_error",
+                "detail": f"unparseable last_live_fill_row_at: {raw_at!r}",
+            }
+        )
+        return events
+    if latest.tzinfo is None:
+        latest = latest.replace(tzinfo=timezone.utc)
+
+    now = now or datetime.now(timezone.utc)
+    open_hours = _market_open_hours(latest, now)
+    if open_hours >= LIVE_FILL_STAGNATION_HOURS:
+        events.append(
+            {
+                "type": "live_fill_stagnation",
+                "market_open_hours_since": round(open_hours, 1),
+                "hours_since_last_live_fill": round(
+                    (now - latest).total_seconds() / 3600, 1
+                ),
+                "threshold_hours": LIVE_FILL_STAGNATION_HOURS,
+                "last_live_fill_at": str(raw_at),
             }
         )
     return events
@@ -590,13 +726,25 @@ def check_engine_tick_stall(
     ==========================  ====================================  ========
     検知器                       実際の estimand                        閾値
     ==========================  ====================================  ========
-    ``live_n_stagnation``       約定が出たか (ゲート通過後)              24h
+    ``live_n_stagnation``       ``demo_trades`` に**何か**書けたか        24h
+                                (**shadow 込み** — 約定ではない)
+    ``live_fill_stagnation``    **実弾が約定したか** (LIVE 転送の生死)    **120h**
     ``candidate_stagnation``    候補が select_best に到達したか          6h
                                 (HTF Hard Block の **後**)
     ``db_write_failed``         書込み経路が生きているか                  15分
     ``main_loop_alive``         Thread.is_alive() — **詰まりを検知不能**  n/a
     **``engine_tick_stall``**   **tick が完遂しているか**                **15分**
     ==========================  ====================================  ========
+
+    ⚠️ **上表の 1 行目は 2026-09-03 に訂正された (rule:R3)。** それまでこの表
+    自身が ``live_n_stagnation`` の estimand を「約定が出たか (ゲート通過後)」
+    と書いていたが、**実装は一度もそれを測っていなかった** — 読んでいるのは
+    ``/api/demo/trades?limit=500`` の全行で、実測**501 行中 LIVE は 1 行**
+    (99.8% が shadow)。shadow は毎日 80-111 行流れるので、この検知器の
+    「最終行」は常に数分以内であり、**LIVE 転送が完全に停止しても永久に
+    沈黙する**。2026-08-26〜09-03 に実際にそうなった (LIVE 約定 133 市場
+    オープン時間ゼロ / 検知器は無音)。約定の estimand は
+    ``live_fill_stagnation`` が引き受ける。
 
     tick カウンタの前進は HTF ゲートにもシグナル有無にも市場の開閉にも
     依存しない (加算は ``_tick`` が戻った後で、``_tick`` は週末なら
@@ -844,9 +992,20 @@ def _event_line(e: dict[str, Any]) -> str:
         return f"- oanda_latency: {e['latency_sec']:.2f}s (threshold {e['threshold']}s)"
     if et == "live_n_stagnation":
         return (
-            f"- live_n_stagnation: {e['hours_since_last_trade']}h since last trade"
+            f"- live_n_stagnation: {e['hours_since_last_trade']}h since last"
+            f" demo_trades write (**shadow 込み** — 約定ではない)"
             f" (市場オープン {e.get('market_open_hours_since', '?')}h)"
         )
+    if et == "live_fill_stagnation":
+        return (
+            f"- live_fill_stagnation: **LIVE 約定** が"
+            f" {e['hours_since_last_live_fill']}h 出ていない"
+            f" (市場オープン {e.get('market_open_hours_since', '?')}h"
+            f" / 閾値 {e.get('threshold_hours', '?')}h"
+            f" / 最終 {e.get('last_live_fill_at', '?')})"
+        )
+    if et in ("live_fill_freshness_error", "live_fill_freshness_missing"):
+        return f"- {et}: {e.get('detail', '?')}"
     if et == "session_volume_drift":
         return f"- session_drift {e['session']}: {e['recent_count']} vs median {e['median_count']} ({e['ratio']}×)"
     if et == "nav_floor":
@@ -993,6 +1152,7 @@ def main() -> int:
     all_events.extend(check_disk_capacity(disk_payload))
     all_events.extend(check_db_write_health(disk_payload))
     all_events.extend(check_candidate_stagnation(status, now=now))
+    all_events.extend(check_live_fill_stagnation(status, now=now))
     all_events.extend(check_engine_tick_stall(status, now=now))
     all_events.extend(check_account_survival(status))
 

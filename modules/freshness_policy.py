@@ -34,12 +34,22 @@ Python と JS の 2 箇所に持てば、``ENGINE_TICK_STALL_MINUTES`` を上げ
 ``engine_tick``             **実時間 (wall clock)**       15 分
 ``candidate_row``           市場オープン時間               6 時間
 ``trade_row``               市場オープン時間               24 時間
+``live_fill_row``           市場オープン時間               120 時間
 ==========================  ==========================  ==================
 
 tick は市場が閉まっていても前進する (``_tick`` が週末に early-return する
 のは *戻ってから*カウントされるため) ので、ここで週末を除外すると**本物の
 週末停止を毎週見逃す**。逆に候補行・約定行は市場が閉まれば当然止まるので、
 実時間で数えると毎週末必ず誤発火する。
+
+⚠️ **``trade_row`` は「約定」の系列ではない** (2026-09-03 訂正、rule:R3)。
+``demo_trades`` は shadow 行と LIVE 行を同居させており、実測で
+**501 行中 LIVE は 1 行 = 99.8% が shadow**。したがって ``trade_row`` が
+測っているのは「``demo_trades`` に何か書けたか」= 書込み経路の生死であって、
+**実弾が約定したかではない**。両者は 2026-08-26〜09-03 に実際に乖離した:
+LIVE 約定は 133 市場オープン時間ゼロだったのに ``trade_row`` は常時
+数分以内で ``ok`` を返し続けた。約定の estimand は ``live_fill_row``
+(本モジュールで新設) だけが答えられる。
 """
 from __future__ import annotations
 
@@ -53,6 +63,31 @@ N_STAGNATION_HOURS = 24
 CANDIDATE_STAGNATION_HOURS = 6
 ENGINE_TICK_STALL_MINUTES = 15
 FX_WEEKEND_CLOSE_HOURS = 48  # 金 21:00 UTC → 日 21:00 UTC
+
+# LIVE 約定 (oanda_trade_id 有り) の停止閾値。市場オープン時間で数える。
+#
+# 実測較正 (2026-09-03、本番 /api/demo/trades 6,000 行 = 2026-06-24〜09-03、
+# LIVE 約定 63 件 / 到着間隔 62 本):
+#
+#   全期間      median  5.0h / p90 43.2h / max 224.7h
+#   carve-out 後 (2026-07-29〜, n=15)  median 30.0h / p90 65.8h / **max 75.3h**
+#
+# 全期間の max 224.7h は 2026-07-15→07-29 のギャップで、``_is_xau_inst``
+# バグが preserve 型 LIVE 送信を 3.5 ヶ月殺していた時期の末端である
+# (PR #119→#124 で修復、修復直後の 07-29 04:44 が次の約定)。**現行構成には
+# 存在しない母集団**なので閾値較正から除外する — 逆に「その 224.7h を含めて
+# max の n 倍」と決めると、消滅済みバグの尾で閾値が膨らみ本物のドリフトを
+# 見逃す (2026-09-01 の候補行較正で踏んだ「max の 3 倍」の鏡像)。
+#
+# 120h = carve-out 後 max の 1.59 倍。閾値 replay の結果:
+#   thr=72h  → carve-out 後に 1 回誤発火   (不採用)
+#   thr=96h  → 誤発火 0 だが max の 1.27 倍しか余裕が無い (n=15 では薄い)
+#   **thr=120h → 誤発火 0 / 全期間では 1 回だけ発火 = 上記 preserve バグの
+#     尾 (= 真陽性)。すなわち本検知器が当時あればあのバグを捕捉できた**
+#   thr=144h → 2026-09-03 の実ドリフト (133.3h) を取り逃す (不採用)
+#
+# ⚠️ n=15 は薄い。誤発火が出たら**上げる** (下げるのは実測を取り直してから)。
+LIVE_FILL_STAGNATION_HOURS = 120
 
 
 def market_open_hours(start: datetime, end: datetime) -> float:
@@ -188,13 +223,19 @@ def _row_family(
     label: str,
     threshold_hours: float,
 ) -> dict[str, Any]:
-    """候補行 / 約定行 — 市場オープン時間で数える系列.
+    """候補行 / トレード行 / LIVE 約定 — 市場オープン時間で数える系列.
 
     ⚠️ estimand: ``candidate_row`` は v9.1 HTF Hard Block の **後**に書かれる。
     「エンジンが評価しているか」ではなく「候補が select_best に到達したか」で
     あり、発火しても engine 停止と断定してはならない (2026-08-27 の 73 分
     ゼロ行は全候補 HTF ブロックが実体で、tick は前進していた)。
     エンジン生存は上の ``engine_tick`` 行だけが答えられる。
+
+    ⚠️ estimand: ``trade_row`` は shadow 込みの ``demo_trades`` 全体、
+    ``live_fill_row`` は ``oanda_trade_id`` を持つ行だけ。**3 系列とも別物**で、
+    「候補は出ている / 行は書けている / だが実弾は出ていない」を分離するのが
+    本ファミリの目的である。畳むと 2026-08-26〜09-03 の 133 市場オープン時間
+    LIVE ゼロが「正常」に見える (実際そう見えていた)。
     """
     out: dict[str, Any] = {
         "key": key,
@@ -259,10 +300,19 @@ def classify_freshness(
             key="candidate_row", label="候補行",
             threshold_hours=CANDIDATE_STAGNATION_HOURS,
         ),
+        # ⚠️ ラベルは「約定行」ではない — この系列は shadow 行を含む
+        # demo_trades 全体の書込み鮮度である (モジュール docstring 参照)。
+        # 画面に「約定」と書くと、shadow だけが流れている状態を「実弾が
+        # 出ている」と誤読させる。実際 2026-08-26〜09-03 はそう見えていた。
         _row_family(
             status, now,
-            key="trade_row", label="約定行",
+            key="trade_row", label="トレード行 (shadow込)",
             threshold_hours=N_STAGNATION_HOURS,
+        ),
+        _row_family(
+            status, now,
+            key="live_fill_row", label="LIVE 約定",
+            threshold_hours=LIVE_FILL_STAGNATION_HOURS,
         ),
     ]
     worst = max(families, key=lambda f: _LEVEL_RANK.get(f.get("level"), 0))
