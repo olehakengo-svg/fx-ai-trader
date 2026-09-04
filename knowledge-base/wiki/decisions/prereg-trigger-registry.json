@@ -508,11 +508,29 @@
     },
     {
       "id": "live-fill-drought-2026-08-26-disposition",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-09-30",
       "doc": "knowledge-base/wiki/lessons/lesson-live-fill-estimand-shadow-conflation-2026-09-03.md",
-      "message": "2026-08-26 14:59 UTC を最後とする LIVE 約定ドリフト (09-03 時点 133 市場オープン時間) の disposition。09-03 の観測では実体は **シグナル枯渇** であって転送障害ではない (直近8日: LIVE 資格 5 ファミリの発生が計 2 件、うち price_shock_rev_aud_jpy が 08-26 に実際に約定 = 転送経路は健全。同期間 shadow 総数 536 行 = engine 稼働)。⚠️ 未解決の副次観察: 2026-08-27T16:02Z の usdjpy_carry_dip_accumulator (roadmap T8 で live 稼働中のはず) が is_shadow=1 で記録され +15.5p の WIN。shadow 落ちの理由は未特定 (spread / HTF / DD defensive / cooldown / lot floor / carve-out ゲートのいずれか)。判定: 09-30 までに (a) 新 LIVE 約定が出たら経路健全を再確認して close (b) ゼロのままなら LIVE 資格セル群の発生率 ~1件/週 を M3 (clean live N>=30 セル 3 個 = 現在 0 個) のスループット問題として roadmap 側へ起票。**本エントリは R2/R3 の観測枠であり、セル昇格・lot 変更 (R1) は含まない**"
+      "message": "[RESOLVED 2026-09-04 — 条件 (a) 成立] 2026-09-03 に LIVE 約定が 2 件発生し転送経路の健全性を再確認: 05:58 UTC price_shock_rev_aud_jpy_h1_long×AUD_JPY (-77.5p) / 15:08 UTC price_shock_rev_eur_gbp_h1_long×EUR_GBP (+3.0p)。本番 last_live_fill_row = 市場オープン換算 10.3h / status=ok (09-04 01:25 UTC 実測)。ドリフトの実体はシグナル枯渇であって転送障害ではない、という 09-03 の判定を追認して close。 / 条件 (b) の M3 スループット起票は 2026-09-04 に執行済み — knowledge-base/wiki/analyses/m1-kpi-readout-and-mechanical-flip-2026-09-04.md §6 で定量化 (LIVE 発火セル 124/30d (5月) → 3/30d (現在)、M3 到達 最短 ~14 ヶ月) し roadmap v2.3 KPI 表 M3 行へ反映。 / ⚠️ 副次観察 (carry_dip の shadow 落ち理由) は未解決のまま新エントリ carry-dip-live-to-shadow-drop-cause へ引き継いだ。"
+    },
+    {
+      "id": "m1-sign-flip-durability",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/analyses/m1-kpi-readout-and-mechanical-flip-2026-09-04.md",
+      "message": "M1 (clean live 30d PnL) は 2026-09-01 前後に符号がプラスへ転じたが、これは **新規約定ゼロのまま 2026-07-31 の -123.2p が 30 日窓の外へ抜けた**ことによる MECHANICAL_FLIP であり成果ではない (Δ=+123.2p、新規寄与 0)。09-04 実測 N=15 / +19.8p / bootstrap P(sum<=0)=0.426 / 1 件抜くだけで符号が消える約定が 4 件 = 符号は未解決。2026-10-06 (= 09-06 以降に窓が完全に入れ替わった後) に `python3 tools/m1_clean_live_monitor.py` を再読みし、(a) verdict が MET_UNDERPOWERED 以上を 維持しているか (b) flip_attribution が MECHANICAL_FLIP を外れたか を記録する。**本エントリは観測枠であり lot 変更・セル昇格 (R1) を含まない。** M1 の定義に統計資格条件を付す提案 (analyses §8) は user 決裁事項で autopilot は執行しない。",
+      "reachability": "毎日 UTC 00:20 の cron fx-ai-tier-a-gate-status が tools/quant_gate_status.py 経由で tools/m1_clean_live_monitor.py を呼び、M1 verdict と flip_attribution を Discord へ出す (先頭固定)。deadline 到達で TRIGGERED、判定は Claude。"
+    },
+    {
+      "id": "carry-dip-live-to-shadow-drop-cause",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-30",
+      "doc": "knowledge-base/wiki/lessons/lesson-live-fill-estimand-shadow-conflation-2026-09-03.md",
+      "message": "2026-08-27T16:02Z の usdjpy_carry_dip_accumulator (roadmap T8 で live 稼働中のはず) が is_shadow=1 で記録され +15.5p の WIN。live 資格セルが shadow へ落ちた理由が未特定 (spread / HTF / DD defensive / cooldown / lot floor / carve-out ゲートのいずれか)。同セルは 08-05〜08-20 に LIVE 9 件を出しているので恒久的な資格喪失ではない。次に同セルが shadow で記録されたら block/gate ログと突き合わせて原因を特定する。2026-11-30 までに再現ゼロなら単発として close。**観測枠。lot 変更・降格 (R1/R2) は含まない。**",
+      "reachability": "usdjpy_carry_dip_accumulator は稼働中で shadow/LIVE いずれかの行を出し続ける (自動)。deadline 到達で TRIGGERED、判定は Claude。前進経路 = 新規発火の蓄積。"
     }
   ]
 }
