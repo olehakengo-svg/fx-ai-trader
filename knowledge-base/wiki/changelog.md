@@ -1,5 +1,18 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-04 — feat(monitoring): M1 KPI に読み手を新設 — 符号は反転していたが 60 日間誰も見ていなかった (rule:R3)
+
+- 🛑 **roadmap 最重要 KPI である M1 (clean live 30d PnL > 0) を再計算する主体がプロジェクトに存在しなかった**。roadmap の M1 行は 2026-07-06 の手動実測 (N=92 / −242.6p) のまま **60 日凍結**され、その間に KPI は符号を反転していた。`clean_n_tracker` は件数、`daily_live_monitor` は cutoff 累計、`anomaly_watcher` は鮮度 — **どれも M1 を測っていない**。08-31 MoF 教訓「収集経路を足したら読み手を同じコミットで足せ」の一段手前 = **指標自体に読み手が無かった**型
+- 🛑 **2026-09-04 現在 M1 は文言上は達成 (N=15 / +19.8p、6 月以来初のプラス)。しかしそれは成果ではない**: 08-30→09-01 の符号反転は **新規約定ゼロのまま** 2026-07-31 の `price_shock_rev_aud_jpy_h1_long` **−123.2p** が 30 日窓の外へ抜けたことだけで起きた (Δ=+123.2p、新規寄与 0) = **MECHANICAL_FLIP**
+- **符号は統計的に未解決**: bootstrap 95% CI = [−217.6p, +241.2p] (幅は合計値の 23 倍) / P(sum≤0) = **0.426** / 符号検定 p=0.696 / t=0.17。**15 件中 4 件は、その 1 件を抜くだけで符号が消える**
+- 🛑 **M3 スループットが独立ボトルネックに昇格 (roadmap 起票)**: LIVE 発火セル数は **124 セル/30d (2026-05) → 3 セル/30d (現在)**。現行レートでの M3 (clean live N≥30 セル 3 個) 到達は **最短 ~14 ヶ月** (carry_dip 2.3ヶ月 / ps_eur_gbp 6.4ヶ月 / ps_aud_jpy 13.8ヶ月、`weekend_gap_fade`・`kalman_d7` は LIVE 約定通算ゼロ)。**「エッジ不在」ではなく「発火機会不足」** — v2.3 が定義したボトルネックとは別の律速。分母縮小自体は 7-8 月 R2 降格による正しい止血だが、副作用として **M1 は「止めるほど達成しやすい」縮退 KPI** になった
+- **実装**: `tools/m1_clean_live_monitor.py` (M1 の唯一の SSOT 計算主体、verdict 3 状態 `MET`/`MET_UNDERPOWERED`/`NOT_MET` + 符号反転の帰属 + 1 件脆弱性) → `tools/quant_gate_status.py` (日次 Tier A cron UTC 00:20 → Discord) へ配線。**M1 の定義は変えない** — 生の符号に「その符号が雑音と区別できるか」を併記するだけ。定義への統計資格条件付与は user 決裁事項 (analyses §8)
+- **estimand 妥当性**: 新ハーネスで anchor=2026-07-06 を計算すると **N=92 / −242.6p / EV −2.64** = roadmap 記録値と完全一致。⚠️ pip 合計であって口座損益ではない (セル毎に lot が異なる) — M1 の定義由来の限界として明記
+- **設計上の罠 2 件**: (1) `send_discord` は 1900 字で切り詰めるので **M1 を末尾に置くと読み手を足したのに誰にも届かない** → `to_markdown` 先頭に固定し順序をテストで pin (2) bootstrap の seed 未固定だと日次 CI が毎回ぶれて読めない → seed 固定を pin
+- テスト: `tests/test_m1_clean_live_monitor.py` 17 本。**counterfactual 10/10 が所望どおり落ちる**ことを確認 (estimand 4 条件の各削除 / timestamp 破損の「今」扱い / 配線切断 / セクション末尾移動 / MECHANICAL_FLIP 無効化 / verdict 常時 MET / seed 除去)。初回素通りゼロ
+- registry: `m1-sign-flip-durability` (2026-10-06 再読み) / `carry-dip-live-to-shadow-drop-cause` (2026-11-30) を新設、`live-fill-drought-2026-08-26-disposition` は **条件 (a) 成立で RESOLVED** (09-03 に LIVE 約定 2 件発生、転送経路の健全性を再確認)
+- 分析: [[m1-kpi-readout-and-mechanical-flip-2026-09-04]] / roadmap: [[roadmap-v2.3-payoff-friction-repair]] KPI 表 M1/M3 + ボトルネック節
+
 ## 2026-09-02 (4) — fix(registry): E1 positioning 鮮度監視の陳腐エントリを機械評価型へ移行 (rule:R3)
 
 - 🛑 **「MYFXBOOK 資格情報は user 投入待ち」という 7 週間陳腐化したブロッカー看板を撤去**: 実際は 2026-07-16 に投入済み・first login 同日・ingest は 13/13 ペアで継続稼働中 (本番 `/api/positioning/status` 実測: logged_in=true / consecutive_failures=0 / stale 12 分)。e1 pre-reg LOCK 時 (07-17) に解消が記録されていたのに、registry `e1-positioning-ingest-freshness` が `conditional_info` 型 (機械評価対象外) のまま「投入待ち」を主張し続け、セッション毎の UNRESOLVED リストに偽ブロッカーとして再生産されていた

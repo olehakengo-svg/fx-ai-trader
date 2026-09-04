@@ -43,6 +43,11 @@ def _status(**over):
         "last_candidate_row_at": (WED - timedelta(minutes=5)).isoformat(),
         "last_trade_row_status": "ok",
         "last_trade_row_at": (WED - timedelta(hours=2)).isoformat(),
+        # LIVE 約定系列 (2026-09-03 新設)。閾値 120h に対し 30h = 正常域。
+        # 本番では LIVE 約定は shadow よりずっと疎なので、既定値も
+        # trade_row より意図的に古くしてある。
+        "last_live_fill_row_status": "ok",
+        "last_live_fill_row_at": (WED - timedelta(hours=30)).isoformat(),
     }
     base.update(over)
     return base
@@ -168,9 +173,45 @@ def test_worst_level_prefers_stale_over_unknown():
     assert r["worst_level"] == fp.LEVEL_STALE
 
 
-def test_all_three_families_always_present():
+def test_all_families_always_present():
+    """4 系列が常に並ぶ (2026-09-03 に ``live_fill_row`` を追加).
+
+    畳んではいけない理由はそれぞれ estimand が違うこと:
+    engine 生存 / 候補到達 / 書込み (shadow 込) / **LIVE 約定**。
+    ``trade_row`` は 99.8% が shadow なので約定の代理にはならない。
+    """
     r = fp.classify_freshness({}, now=WED)
-    assert [f["key"] for f in r["families"]] == ["engine_tick", "candidate_row", "trade_row"]
+    assert [f["key"] for f in r["families"]] == [
+        "engine_tick", "candidate_row", "trade_row", "live_fill_row",
+    ]
+
+
+def test_live_fill_row_is_labelled_as_live_and_trade_row_is_not():
+    """画面ラベルの pin。``trade_row`` を「約定」と書くと、shadow だけが
+    流れている状態を「実弾が出ている」と誤読させる (2026-08-26〜09-03 に
+    実際にそう見えていた)。"""
+    r = fp.classify_freshness(_status(), now=WED)
+    assert "約定" not in _fam(r, "trade_row")["label"]
+    assert "LIVE" in _fam(r, "live_fill_row")["label"]
+
+
+def test_live_fill_stale_when_past_threshold():
+    """閾値超えで stale、かつ worst_level に伝播する。"""
+    old = (WED - timedelta(hours=24 * 14)).isoformat()  # 週末 2 回込みでも >120h
+    r = fp.classify_freshness(_status(last_live_fill_row_at=old), now=WED)
+    fam = _fam(r, "live_fill_row")
+    assert fam["market_open_hours"] >= fp.LIVE_FILL_STAGNATION_HOURS
+    assert fam["level"] == fp.LEVEL_STALE
+    assert r["worst_level"] == fp.LEVEL_STALE
+
+
+def test_live_fill_no_rows_is_idle_not_stale():
+    """LIVE 約定が一度も無い環境で赤くしない (資格 eligible ≠ 実状態)。"""
+    r = fp.classify_freshness(
+        _status(last_live_fill_row_status="no_rows", last_live_fill_row_at=None),
+        now=WED,
+    )
+    assert _fam(r, "live_fill_row")["level"] == fp.LEVEL_IDLE
 
 
 # ── SSOT pin: 検知器と画面が同じ定数を見ているか ─────────────────────────
@@ -191,6 +232,7 @@ def test_watcher_constants_are_the_shared_ones():
     assert aw.ENGINE_TICK_STALL_MINUTES is fp.ENGINE_TICK_STALL_MINUTES
     assert aw.CANDIDATE_STAGNATION_HOURS is fp.CANDIDATE_STAGNATION_HOURS
     assert aw.N_STAGNATION_HOURS is fp.N_STAGNATION_HOURS
+    assert aw.LIVE_FILL_STAGNATION_HOURS == fp.LIVE_FILL_STAGNATION_HOURS
     assert aw.FX_WEEKEND_CLOSE_HOURS is fp.FX_WEEKEND_CLOSE_HOURS
     # 週末除外も 1 実装であること (2 実装あると片方だけ直る)
     mon = datetime(2026, 8, 24, tzinfo=timezone.utc)

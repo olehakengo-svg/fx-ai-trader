@@ -1327,6 +1327,17 @@ class DemoDB:
         ("trade", "demo_trades", "SELECT MAX(created_at) FROM demo_trades"),
         ("candidate", "evaluated_candidates",
          "SELECT MAX(created_at) FROM evaluated_candidates"),
+        # LIVE 約定だけの鮮度 (rule:R3, 2026-09-03)。上の "trade" は shadow を
+        # 含む demo_trades 全体なので、**実弾が出ているかには答えられない**
+        # (実測 501 行中 LIVE 1 行 = 99.8% shadow)。
+        #
+        # MAX() ではなく ORDER BY ... LIMIT 1 で書くのは意図的:
+        # MAX() + 非索引列の WHERE は全表走査になるが、この形なら
+        # idx_trades_created を降順に歩いて最初の一致で止まれる。
+        ("live_fill", "demo_trades",
+         "SELECT created_at FROM demo_trades "
+         "WHERE oanda_trade_id IS NOT NULL AND oanda_trade_id != '' "
+         "ORDER BY created_at DESC LIMIT 1"),
     )
 
     @staticmethod

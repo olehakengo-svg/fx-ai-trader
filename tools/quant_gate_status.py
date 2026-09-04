@@ -16,6 +16,10 @@ cron で daily_report.py の直後に実行、結果は別メッセージとし�
     1. tools/quant_readiness.py の gate status (既存)
     2. tools/alpha_budget_tracker.py の α予算残 (新規)
     3. candidates/shadow_queue.jsonl の直近7日 pass/shadow 集計 (新規)
+    4. M1 KPI (clean live 30d PnL) の読み出し (2026-09-04 追加)
+
+⚠️ send_discord() は 1900 字で切り詰める。**M1 は最重要 KPI なので必ず先頭**に
+置くこと — 末尾に置くと読み手を足したのに誰にも届かない (write-only の再来)。
 """
 from __future__ import annotations
 
@@ -34,6 +38,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from tools.alpha_budget_tracker import load_state, status_summary  # noqa: E402
+from tools import m1_clean_live_monitor as m1  # noqa: E402
 
 
 def run_quant_readiness() -> str:
@@ -91,10 +96,24 @@ def run_prereg_trigger_watch() -> str:
         return f"(prereg_trigger_watch.py error: {e})"
 
 
+def run_m1_readout() -> dict[str, Any]:
+    """M1 KPI (clean live 30d PnL) を読み出す。
+
+    roadmap v2.3 の最重要 KPI だが 2026-09-04 まで再計算する主体が無く、
+    roadmap の M1 行は 2026-07-06 の手動実測のまま 60 日凍結されていた
+    (その間に符号が反転していた)。失敗しても daily レポート全体は落とさない。
+    """
+    try:
+        return m1.build_report()
+    except Exception as e:  # noqa: BLE001 - 日次レポートを落とさないための境界
+        return {"error": f"{type(e).__name__}: {e}"}
+
+
 def build_report() -> dict[str, Any]:
     alpha = load_state()
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "m1_readout": run_m1_readout(),
         "quant_readiness": run_quant_readiness(),
         "alpha_budget": alpha,
         "candidate_queue_7d": summarize_candidate_queue(7),
@@ -105,6 +124,14 @@ def build_report() -> dict[str, Any]:
 def to_markdown(report: dict[str, Any]) -> str:
     lines = ["# Quant Gate Status"]
     lines.append(f"_Generated: {report['generated_at']}_")
+    lines.append("")
+    # M1 は最重要 KPI かつ Discord 側で 1900 字に切られるので先頭に固定する。
+    m1_report = report.get("m1_readout") or {}
+    if m1_report.get("error"):
+        lines.append("## M1 KPI (clean live 30d PnL)")
+        lines.append(f"- ⚠️ 読み出し失敗: {m1_report['error']}")
+    else:
+        lines.append(m1.to_markdown(m1_report))
     lines.append("")
     lines.append("## Readiness")
     lines.append("```")
