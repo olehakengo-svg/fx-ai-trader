@@ -157,6 +157,20 @@
       "message": "kalman D7 退避条件の機械監視 (2026-05-28 pre-reg §3 追補で LOCK 済、当時 user option B 決裁)。DT ctx hour_utc 凍結バグ修正 (2026-08-09, R3) により 73 日ぶりに live 発火経路が開通 → 決裁時に約束された 'Live N>=10 時点で EV<0 なら 0.1x へ降格 (R2)' を N=10 到達で執行。連続 3 SL (3 variant 同時) は即時 user review。期日到達で N<10 なら stale レビュー (T5 教訓: pre-reg には監視主体を必ず併設)。到達経路: 2026-09-01 min-lot carve-out (PR #218, kalman-d7-minlot-carveout-prereg-2026-09-01) で agg-Kelly bypass + 1000u 契約が着地し fill 発生が可能になった — 初 fill 確認時に deadline を初 fill + 90 日へ更新、2026-10-15 まで fill ゼロなら到達性を再監査"
     },
     {
+      "id": "hourblock-class-exempt-r2-rollback",
+      "active": true,
+      "type": "live_count_decision",
+      "entry_type": "",
+      "instrument": "",
+      "direction": "",
+      "reasons_marker": "[HOURBLOCK_CLASS_EXEMPT]",
+      "since": "2026-09-02",
+      "n_decide": 10,
+      "deadline": "2026-12-01",
+      "doc": "knowledge-base/wiki/decisions/hourblock-class-exemption-prereg-2026-09-02.md",
+      "message": "静的 hour block class exemption (R1、user 承認 2026-09-02「どちらも進めて」) の R2 rollback ゲート — [HOURBLOCK_CLASS_EXEMPT] marker 付き clean live (oanda_trade_id 非空 ∧ dedup_violation!=1) が N>=10 到達で pooled EV 判定: EV<0 なら class exemption を撤去 (R2、_STATIC_HOURBLOCK_CLASS_EXEMPT の gate 分岐 revert)。母集団は『免除で通過した行のみ』— marker は免除発火時にのみ reasons へ付与されるため、block 帯外の同戦略トレードは混入しない (estimand 忠実)。期日 2026-12-01 に N<10 なら stale review (+3 イベント/月想定 → 90 日 ~9、大幅未達は免除の実効性=class の live 到達性を再監査)。連続 3 SL は期日前でも即 user review。第 2 層 = per-cell binding registry (t9-kalman-d7-live-n10-ev-check / carry-dip-v3-revival-watch)。到達経路: prereg_trigger_watch の live_count_decision + reasons_marker 拡張 (同 PR) で機械評価"
+    },
+    {
       "id": "ws3-round2-oos-verdict-deadline",
       "active": false,
       "type": "deadline_info",
@@ -191,12 +205,18 @@
     {
       "id": "e1-positioning-ingest-freshness",
       "active": true,
-      "type": "conditional_info",
-      "deadline": "no-deadline",
+      "type": "ingest_freshness",
+      "endpoint": "/api/positioning/status",
+      "checks": [
+        {
+          "prefix": "verified:",
+          "max_age_hours": 2,
+          "min_keys": 13
+        }
+      ],
       "doc": "knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md",
-      "condition": "MYFXBOOK_EMAIL/MYFXBOOK_PASSWORD が Render env に投入され source=myfxbook で蓄積開始したら鮮度監視を本格再開",
-      "message": "E1 positioning ingest 鮮度監視 — 2026-07-15 更新: オプション A 採択 (user 全面委任決裁) で Myfxbook Community Outlook へソース転換済み (§9)。credentials 投入までは status.myfxbook.waiting_for_credentials=true が既知状態 (調査不要)。投入後: /api/positioning/status の最終 snapshot_time が 2h 超 stale なら要調査 (poll ≥900s、rate limit 100req/24h)。401 帰属は §8a で確定済み (OANDA retail book 提供終了 2024-09-14)。thread 死は self-heal 済み (restarts で観測、§8b)",
-      "reachability": "user が Render env に MYFXBOOK_EMAIL/MYFXBOOK_PASSWORD を投入 → e1_positioning ingest が source=myfxbook で蓄積開始 → 本エントリを ingest_freshness 型へ移行。user 投入待ちのため機械評価不能 (Claude 側に前進経路なし = 09-18 スキャンで user へ再確認する項目)。"
+      "message": "E1 positioning ingest 鮮度監視 (機械評価) — 2026-09-02 移行: 旧 conditional_info の条件『MYFXBOOK creds 投入待ち』は 2026-07-16 に成立済みだった (e1-positioning-contrarian-prereg-2026-07-16 冒頭 (2) が first login 2026-07-16T23:04Z を記録) のに、conditional_info は機械評価対象外のため 7 週間陳腐化して看板だけ残っていた → 約束どおり ingest_freshness 型へ移行 (r3-market-data-ingest-freshness と同型)。判定 = /api/positioning/status の health verified:{PAIR}:outlook 13 キー (poll 1200s、実測 stale p99 < 2h — 48 日で 2h 超 gap は 1 回のみ、それは 2026-08-23→08-26 の Render Disk 満杯 71.3h 停止 = 真検知で修復済み PR #205/#206)。⚠️ その 71.3h 停止は first look (2026-10-15) 評価窓の market-time ~54.6h ≈ 5.7% を消費済み (coverage 予測 94.3% > gate 90%、ただし残 budget ~41h) — verdict 時に §2.5 既知 debit として扱う。ペア追加/削除時は min_keys=13 を同時更新",
+      "reachability": "prereg_trigger_watch evaluate_ingest_freshness が daily cron 経由で機械評価。stale 時は Render ログ [positioning] と status の last_error / consecutive_cycle_failures / myfxbook.logged_in を確認"
     },
     {
       "id": "e1-prereg-lock-decision-stale",
