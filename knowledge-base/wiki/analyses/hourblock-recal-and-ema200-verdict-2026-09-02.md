@@ -40,5 +40,5 @@ user 承認 (2026-09-01「進めて」) の 2 分析。Workflow 3 エージェ�
 
 ## 帰結: London/NY 実弾の残る経路 (優先順)
 1. **新セル供給 (主戦線、変わらず)**: P-S1(a) N=9/10 待ち / E1 first look 10-15 / kalman 初 fill 監視
-2. class exemption R1 (+3 イベント/月、衛生価値) — user 決裁待ち
+2. class exemption R1 (+3 イベント/月、衛生価値) — ✅ **執行済み 2026-09-02** (user 承認「どちらも進めて」)。pre-reg: [[../decisions/hourblock-class-exemption-prereg-2026-09-02]] / rollback: registry `hourblock-class-exempt-r2-rollback`
 3. ema200 は候補から除外 / donchian×NZD は D-c-2(ii) 決裁通り shadow 蓄積継続 / orb_trap は FORCE_DEMOTED のまま

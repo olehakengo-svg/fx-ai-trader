@@ -13,6 +13,21 @@
 - registry: `m1-sign-flip-durability` (2026-10-06 再読み) / `carry-dip-live-to-shadow-drop-cause` (2026-11-30) を新設、`live-fill-drought-2026-08-26-disposition` は **条件 (a) 成立で RESOLVED** (09-03 に LIVE 約定 2 件発生、転送経路の健全性を再確認)
 - 分析: [[m1-kpi-readout-and-mechanical-flip-2026-09-04]] / roadmap: [[roadmap-v2.3-payoff-friction-repair]] KPI 表 M1/M3 + ボトルネック節
 
+## 2026-09-02 (4) — fix(registry): E1 positioning 鮮度監視の陳腐エントリを機械評価型へ移行 (rule:R3)
+
+- 🛑 **「MYFXBOOK 資格情報は user 投入待ち」という 7 週間陳腐化したブロッカー看板を撤去**: 実際は 2026-07-16 に投入済み・first login 同日・ingest は 13/13 ペアで継続稼働中 (本番 `/api/positioning/status` 実測: logged_in=true / consecutive_failures=0 / stale 12 分)。e1 pre-reg LOCK 時 (07-17) に解消が記録されていたのに、registry `e1-positioning-ingest-freshness` が `conditional_info` 型 (機械評価対象外) のまま「投入待ち」を主張し続け、セッション毎の UNRESOLVED リストに偽ブロッカーとして再生産されていた
+- **是正**: 約束どおり `ingest_freshness` 型へ移行 (`r3-market-data-ingest-freshness` と同型) — 判定 = health `verified:{PAIR}:outlook` 13 キー、閾値 2h (実測 48 日で 2h 超 gap は 1 回のみ = 08-23 Disk 満杯 71.3h 停止、真検知・修復済み PR #205/#206)
+- **first look (10-15) への影響を registry に明記**: 71.3h 停止は評価窓 market-time ~54.6h ≈ **5.7% を消費済み (coverage 予測 94.3% > gate 90%、残 budget ~41h)** — verdict 時に既知 debit として扱う (LOCKED pre-reg 本文は不変更)
+- 教訓の再確認: **conditional_info (機械評価なし) の「条件成立」は誰も検知しない** — 条件が Claude/機械で観測可能になった瞬間に型を移行する (evaluator レベル欠陥 PR #195 と同族の「常時 WATCHING」変種)
+
+## 2026-09-02 (3) — feat(gate): 静的 hour block class exemption — min-lot carve-out 契約群 (rule:R1 🔒 user 承認 2026-09-02)
+
+- **[[hourblock-recal-and-ema200-verdict-2026-09-02]] Study 1 推奨経路の執行** (user 承認 2026-09-02「どちらも進めて」、前例 = sweep gbp_asia 免除 08-03「進めて」)。min-lot carve-out 契約群 (`_STATIC_HOURBLOCK_CLASS_EXEMPT` = `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` **同一実体 alias**、12 戦略) に限り、6 つの静的 hour/session block (EUR_USD Tokyo / Late NY / H7-8 / H11、USD_JPY H13 / H16-20) の live 抑止を免除。**一般母集団への block は全て維持**、regime/方向系 block は不変更、demoted tier は fail-closed で対象外
+- **edge claim ではない**: 根拠 = ①再較正で相対毒性 0/6 (parity、独立窓複製済み) ②class 全員 1000u 固定契約 + binding R2 registry でリスク有界 ③期待効果 +3 イベント/月 (carry_dip 主)。PR #219 の B7/B8 live 層 +EV 観察 (post-hoc N=17/26) は**根拠に不使用** — その裁定は `alpha-scan-b7-b8-livecell-recheck` (11-30) に凍結のまま
+- **R2 rollback を同 PR で機械化**: 免除発火時に `[HOURBLOCK_CLASS_EXEMPT]` marker を reasons へ永続 → registry `hourblock-class-exempt-r2-rollback` (`live_count_decision` に `reasons_marker` フィルタを拡張) が **marker 付き clean live N≥10 ∧ pooled EV<0 で免除撤去**。母集団 = 免除で通過した行のみ (estimand 忠実)。期日 2026-12-01 stale review
+- テスト 10 本: 6 gate 両側 counterfactual (メンバー通過+marker / 非メンバー従来 block) + identity pin (免除クラス=min-lot set、**性質で pin**) + demoted 除外 + 窓外 marker 不付与 + 計数フィルタ。**counterfactual 実測 = class 空集合化で 7/10 fail → 復元 10/10 pass**
+- pre-reg: [[hourblock-class-exemption-prereg-2026-09-02]] (🔒 LOCKED)
+
 ## 2026-09-02 (2) — fix(dedup): shadow_emit のプロセス境界 dedup 突破を write-time DB flag で塞ぐ + audit units:0 自己記述化 (rule:R3)
 
 - 🛑 **ema200 forensics ([[hourblock-recal-and-ema200-verdict-2026-09-02]] Study 2) の近接重複 22 ペアの機構を確定**: `_maybe_reserve_signal_emit` の dedup ゲートは **プロセスローカル in-memory 状態**でプロセス境界 (zero-downtime デプロイ重複 / コンテナ置換 / 一時的な第 2 インスタンスが同一 Render Disk SQLite に並走書込み) を越えられない。決め手 = `/api/admin/dedup_status` の counter 矛盾 (単一インスタンスで `shadow_called=1` なのに boot 後 shadow_emit 2 行 = 2 行目は今は存在しない別プロセス由来)。[[lesson-shadow-emit-dedup-2026-04-30]] の restart 消失の**並走版**、dedup 系 5 例目

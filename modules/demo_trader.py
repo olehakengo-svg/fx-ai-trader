@@ -5683,6 +5683,31 @@ class DemoTrader:
         # コントラリアン検証済み: spread二重控除後 -1.1p → 逆張りもエッジなし
         # ══════════════════════════════════════════════════════════════
         _utc_hour = datetime.now(timezone.utc).hour
+        # ── 2026-09-02 (rule:R1): 静的 hour block class exemption ──
+        # min-lot carve-out 契約群 (= _STATIC_HOURBLOCK_CLASS_EXEMPT、1000u 固定 +
+        # 各 binding R2 registry) は静的 hour/session block を免除する。demoted
+        # tier は fail-closed で対象外。免除発火時は [HOURBLOCK_CLASS_EXEMPT]
+        # marker を reasons に永続し、registry `hourblock-class-exempt-r2-rollback`
+        # (marker 付き live N>=10 ∧ pooled EV<0 → 撤去) が読む。marker は本免除で
+        # 通過した行だけに付く — block 帯外の同戦略トレードは母集団に入らない。
+        _hourblock_class_exempt = (
+            entry_type in self._STATIC_HOURBLOCK_CLASS_EXEMPT
+            and not _is_demoted_tier
+        )
+
+        def _hourblock_exempt_pass(label: str) -> None:
+            """Record a class-exemption pass-through (reader: R2 rollback trigger)."""
+            _marker = (
+                f"[HOURBLOCK_CLASS_EXEMPT] {label} 通過 "
+                f"(min-lot carve-out class, R1 2026-09-02)"
+            )
+            if isinstance(reasons, list):
+                reasons.append(_marker)
+            self._add_log(
+                f"[HOURBLOCK_CLASS_EXEMPT] {entry_type} {label} {instrument} "
+                f"→ 静的 hour block 免除 (min-lot class)"
+            )
+
         # v6.7: eurgbp_daily_mr は日足MR戦略 → EUR_GBP全停止をバイパス (Sentinel)
         # 2026-06-12 Codex review Critical#1: sweep_reversion_eurgbp_late を追加。
         # 未追加だと EUR_GBP 全停止 gate が env LIVE override より先に return し、
@@ -5701,7 +5726,9 @@ class DemoTrader:
                 return
         if instrument == "EUR_USD":
             if _utc_hour < 7:  # Tokyo
-                if _is_shadow_eligible_full:
+                if _hourblock_class_exempt:
+                    _hourblock_exempt_pass(f"EUR_USD_Tokyo_H{_utc_hour}")
+                elif _is_shadow_eligible_full:
                     _is_shadow = True
                     self._add_log(
                         f"[SHADOW] session_pair bypass: {entry_type} "
@@ -5715,8 +5742,13 @@ class DemoTrader:
             # 未執行」と凍結しており、この静的セッションフィルタで live を
             # 落とすと estimand 違反 (T8 silent-drop 教訓と同型)。本 gate の
             # 母集団 (legacy DT 戦略の平日 Late-NY bleed) とも無関係。
+            # 較正時 WR9.5% (N=21) は 2026-09-02 再較正で複製されず (parity) —
+            # ただし block は一般母集団向けに維持 (EV は block 側良、詳細:
+            # analyses/hourblock-recal-and-ema200-verdict-2026-09-02 Study 1)。
             if _utc_hour >= 17 and entry_type != WEEKEND_GAP_FADE_ENTRY_TYPE:  # Late NY
-                if _is_shadow_eligible_full:
+                if _hourblock_class_exempt:
+                    _hourblock_exempt_pass(f"EUR_USD_Late_NY_H{_utc_hour}")
+                elif _is_shadow_eligible_full:
                     _is_shadow = True
                     self._add_log(
                         f"[SHADOW] session_pair bypass: {entry_type} "
@@ -5782,7 +5814,9 @@ class DemoTrader:
         # London mid-session: EUR_USDが叩かれるデスゾーン
         # ══════════════════════════════════════════════════════════════
         if _utc_hour == 11 and instrument == "EUR_USD" and not _is_live_tier_exempt:
-            if _is_slot_shadow_eligible:
+            if _hourblock_class_exempt:
+                _hourblock_exempt_pass("H11_EUR_USD")
+            elif _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H11 EUR_USD block: {entry_type} → shadow (EV=-4.489)")
             else:
@@ -5794,7 +5828,9 @@ class DemoTrader:
         # Pre-NY dead zone: JPYの流動性枯渇帯
         # ══════════════════════════════════════════════════════════════
         if _utc_hour == 13 and instrument == "USD_JPY" and not _is_live_tier_exempt:
-            if _is_slot_shadow_eligible:
+            if _hourblock_class_exempt:
+                _hourblock_exempt_pass("H13_USD_JPY")
+            elif _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H13 USD_JPY block: {entry_type} → shadow (EV=-2.486)")
             else:
@@ -5804,7 +5840,9 @@ class DemoTrader:
         # ── v8.9: 昨日分析ベース追加ブロック (4/14) ──
         # H16-H20 × USD_JPY: 合計-68.2pip (N=27, WR=18.5%)。NY後半のJPY壊滅
         if instrument == "USD_JPY" and 16 <= _utc_hour <= 20 and not _is_live_tier_exempt:
-            if _is_slot_shadow_eligible:
+            if _hourblock_class_exempt:
+                _hourblock_exempt_pass(f"H{_utc_hour}_USD_JPY")
+            elif _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H{_utc_hour} USD_JPY block: {entry_type} → shadow")
             else:
@@ -5821,7 +5859,9 @@ class DemoTrader:
                 return
         # H7-H8 × EUR_USD: N=14 EV=-2.38 PnL=-33.8pip。ロンドンオープン初動のEUR壊滅
         if instrument == "EUR_USD" and _utc_hour in (7, 8) and not _is_live_tier_exempt:
-            if _is_slot_shadow_eligible:
+            if _hourblock_class_exempt:
+                _hourblock_exempt_pass(f"H{_utc_hour}_EUR_USD")
+            elif _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H{_utc_hour} EUR_USD block: {entry_type} → shadow")
             else:
@@ -10307,6 +10347,25 @@ class DemoTrader:
         "kalman_d7_trail_atr",
     })
     _AGG_KELLY_GATE_MINLOT_MAX_UNITS = 1000
+
+    # ── 2026-09-02 (rule:R1、user 承認 2026-09-02「どちらも進めて」): 静的 hour
+    # block class exemption。hourblock-recal-and-ema200-verdict-2026-09-02 Study 1
+    # の推奨経路 —「個別撤去ではなく live 資格セル (min-lot carve-out 契約群) の
+    # class exemption 1 本」。根拠は edge claim ではない: 6/6 block で相対毒性が
+    # 再現せず (parity)、class の per-cell リスクは 1000u 固定契約 + 各 binding R2
+    # registry で有界のため、hour-of-day は追加の防御情報を持たない。ブロック帯
+    # +EV 主張 (B7/B8 live 層) は別件 pre-reg
+    # (alpha-scan-b7-b8-livecell-recheck、期日 2026-11-30) に凍結済みで、本免除は
+    # それを先取りしない。
+    # class の定義は _AGG_KELLY_GATE_MINLOT_BYPASS_TYPES と同一実体 (alias) —
+    # 「免除クラス = min-lot 契約群」という性質そのものを SSOT にする (第 2 の
+    # リストを作ると片方だけ更新されて drift する)。identity は
+    # tests/test_hourblock_class_exemption.py が pin。demoted tier (静的 +
+    # runtime) は _tick_entry 側で免除から除外 (fail-closed)。
+    # R2 rollback: registry `hourblock-class-exempt-r2-rollback`
+    # ([HOURBLOCK_CLASS_EXEMPT] marker 付き live N>=10 ∧ pooled EV<0 → 免除撤去)。
+    # pre-reg: knowledge-base/wiki/decisions/hourblock-class-exemption-prereg-2026-09-02.md
+    _STATIC_HOURBLOCK_CLASS_EXEMPT = _AGG_KELLY_GATE_MINLOT_BYPASS_TYPES
 
     def _agg_kelly_gate_minlot_bypass(self, entry_type: str, units: int,
                                       is_xau: bool) -> bool:
