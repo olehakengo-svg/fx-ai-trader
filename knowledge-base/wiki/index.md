@@ -16,7 +16,7 @@
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-09-03)
+## Current Portfolio (auto-synced, 2026-09-04)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
