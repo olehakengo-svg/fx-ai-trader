@@ -4236,6 +4236,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - GBP_USD/EUR_USDはRANGING——scalp系の理論的環境だが、r2_shadow_demotedによりほぼ全ブロック
 - **最大リスク**: USD_JPY ATR78%でさらにVOLATILEが強化 → price_shock_rev系の逆張りが前日同様に大きなhorizon lossを生む可能性
 
+### 2026-09-04 (Post-London Report)
+| PnL | **0.0 pips / 0.0 JPY** |
+| 勝率 (WR) | **N/A** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+> **⚠️ NO ACTION推奨**
+| 累計PnL | **0 pips / 0 JPY** |
+**現状は「戦略が機能しない」のではなく「戦略がそもそも試されていない」状態**。NYセッションに向けて追加アクションを取ることは推奨しない。既存の阻害要因（降格セルの状態、shadow_tracking経路、オープン1件の性質）を確認することが、NYセッションに向けた唯一の合理的準備である。コード変更の話ではなく、**何が詰まっているかを把握するための状態確認**が先決。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
