@@ -4226,6 +4226,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - **対処**: コード変更なし。観察継続。AUD_JPYの`hedge_block`が前日比76件と最多であり、リスク管理フィルターは正常稼働している。
 - **USD_JPY(78%)**: 既にATR%ileが高位。更なる上昇でDT系の`score_gate`ブロック増加の可能性。
 
+### 2026-09-04 (Pre-Tokyo Briefing)
+前日（2026-09-03）はトレード2件のみ実行。PnL合計 **−74.5p**、WR **50.0%**（1勝1敗）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**⚠️ 重要**: 両戦略ともN=1。統計的判断は一切不可能。EVの+3.00/−77.50はそれぞれ1トレードの結果に過ぎず、分布の代表値として無意味。昇格・降格の判断基準（N≥30）まで残り**各29件**。
+| EV | −77.50 | 異常値 |
+- JPY crosses（USD_JPY, EUR_JPY, GBP_JPY）は揃ってVOLATILE——円安方向のトレンドが継続中
+- USD_JPYのATR78%は高水準。price_shock_rev系がAUD_JPYで−77.5pを出した背景と一致（JPY全般のボラが高い）
+- GBP_USD/EUR_USDはRANGING——scalp系の理論的環境だが、r2_shadow_demotedによりほぼ全ブロック
+- **最大リスク**: USD_JPY ATR78%でさらにVOLATILEが強化 → price_shock_rev系の逆張りが前日同様に大きなhorizon lossを生む可能性
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
