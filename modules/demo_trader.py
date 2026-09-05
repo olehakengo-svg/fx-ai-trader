@@ -4844,9 +4844,20 @@ class DemoTrader:
             return
 
         # ── 方向フィルター (RNB BUY-only等) ── (2026-04-05 audit fix)
+        # ⚠️ estimand 分離 (2026-09-05, rule:R3 — 挙動不変、理由ラベルのみ):
+        # この分岐は「方向が逆」と「そもそもシグナルが無い (WAIT)」を同じ
+        # カウンタ名で数えていた。direction_filter を持つ唯一のモード
+        # rnb_usdjpy の signal_fn (app.compute_rnb_signal) は構造上
+        # WAIT / BUY しか返さず SELL への return path が存在しないため、
+        # 旧ラベルの中身は **常に 100% が WAIT** = 「方向棄却」を一度も
+        # 測っていなかった (12.8y / 315,623 bar 実測 SELL=0、BUY 0.705%)。
+        # カウンタが測っていない量を名乗ると監視が偽陽性を出し続ける
+        # (2026-08-26〜09-04 に 8 回連続で 🔴 escalation を発生させた)。
+        # 分析: knowledge-base/wiki/analyses/rnb-dead-mode-and-block-estimand-2026-09-05.md
         _dir_filter = cfg.get("direction_filter")
         if _dir_filter and signal != _dir_filter:
-            _block(f"direction_filter"); return
+            _block("no_signal" if signal not in ("BUY", "SELL") else "direction_filter")
+            return
 
         # ══════════════════════════════════════════════════════════════
         # ── v9.x: Score Gate — 負スコア戦略のエントリー遮断 ──
