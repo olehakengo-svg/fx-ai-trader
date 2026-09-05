@@ -89,6 +89,28 @@ if _dir_filter and signal != _dir_filter:
 3. `rnb_usdjpy:unknown_type:rnb_support_bounce` が **初めて可視化**され、tick の **~0.5-0.7%** に出る
    — これが RNB の live セットアップ頻度の初の直接観測になる
 
+### 1.6 デプロイ後の実測 — **検証は市場再開まで保留** (2026-09-05 09:2x UTC 時点)
+
+merge commit `59fa795b` は Render deploy `dep-dadtu3p7lnhs73ebfg00` で **live** 到達済み
+(09:22:56Z)。しかし §1.5 の予測は**まだ確認できていない**:
+
+| 実測 (09:2x UTC, 土曜) | 値 |
+|---|---|
+| `tick_counts["rnb_usdjpy"]` | **313** (エンジンは正常に tick している) |
+| `block_counts` | **全 24 モードで 0 キー / 0 件** |
+| `engine_tick_status` / `age` | `ok` / 1.3s |
+
+⇒ **市場閉場中は `_tick` が `_tick_entry` に到達する前に return する**ため、
+block カウンタは**市場オープン時間しか積み上がらない**。
+(09-04 の「535 direction_filter / 535 ticks」も市場時間中の観測で、これと整合する。)
+
+**予測 1-3 の答え合わせは次の市場オープン (日曜 ~21:00 UTC 以降) 最初の監視 pull で行う。**
+registry `rnb-support-bounce-registration-decision` (期日 2026-10-06) が読み手。
+
+⚠️ 派生する注意: **block family の share (%) は「市場オープン時間の tick」を分母とする量**であり、
+`engine_tick` (実時間) とは分母が違う。両者を同じ「1 日あたり」で比較すると週末分だけずれる
+(MEMORY `project_freshness_ui_ssot_pin_property_2026_08_29` の時計の使い分けと同型)。
+
 ---
 
 ## 2. 事実 B — 登録漏れによる 153 日の dead mode
