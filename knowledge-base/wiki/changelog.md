@@ -1,5 +1,19 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-05 — fix(monitoring): rnb_usdjpy の block カウンタ estimand 分離 + 153 日 dead mode の検出 (rule:R3)
+
+- 🛑 **監視ログ最古の un-actioned 🔴 (`rnb_usdjpy:direction_filter` の 8 回連続 escalation、2026-08-26→09-04) をクローズ。仮説「compute_rnb_signal の WAIT-path バグ」は外れで、実体は独立した 2 つの構造事実**
+- 🛑 **(A) カウンタが測っていない量を名乗っていた** — `direction_filter` は「方向が逆」と「そもそもシグナルが無い (WAIT)」を同名で数えていた。`direction_filter` を持つ唯一のモード `rnb_usdjpy` の signal_fn (`app.compute_rnb_signal`) は **SELL への return path を構造上持たない** ⇒ このカウンタの中身は **恒久的に 100% が WAIT**、「方向棄却」を一度も測っていなかった。実測 (MASSIVE USD_JPY 15m): **12.8y / 315,623 バーで SELL=0 / BUY 2,225 (0.705%) / WAIT 99.295%**、365d・60d でも SELL は厳密ゼロ。本番では 09-04 に **535/535 = 1.0000**、全システム block 集計の **15.6% (第 4 位 family)** = ダッシュボードの 1/6 が恒久的に無情報だった。副作用で WAIT が `conf<30` に到達せず「`conf<30`=ZERO」という**それ自体が異常に見える観測**を生み仮説を補強していた
+- 🛑 **(B) 153 日間「動いているが 1 行も出せない」モード** — `rnb_support_bounce` は `QUALIFIED_TYPES` (104 型) にも `CONDITIONAL_TYPES` (空) にも**未登録**。`unknown_type` gate は shadow bypass を持たない無条件 gate なので、BUY が出ても **shadow 1 行すら生まれない**。導入コミット `db5e3e4c` (2026-04-05) は MODE_CONFIG / signal_fn / `_1H_PRESERVE_SLTP` / `MAX_HOLD_SEC` の 4 箇所を配線して `QUALIFIED_TYPES` だけ忘れており、`git log -S` はこの 1 コミットのみ = 以後一度も登録されていない。既存テストは事実を正しく記録していたが**意図された設計として pin**しており、異常として上申する読み手がいなかった (M1 KPI と同じ読み手不在型)
+- **修正 (A のみ、挙動不変)**: 同一分岐内で `_block("no_signal" if signal not in ("BUY","SELL") else "direction_filter")` へラベル分離。**制御フロー・発注挙動・shadow 判定は一切不変**、作用域は `direction_filter` を持つ唯一のモード `rnb_usdjpy` に閉じる (作用域自体もテストで pin)
+- **恒久ガード新設**: 全 `auto_start` モード (22) の signal_fn が返す **literal** `entry_type` が `QUALIFIED ∪ CONDITIONAL ∪ BLOCKED` に含まれることを AST で検査。違反は `("rnb_usdjpy","rnb_support_bounce")` の **1 件のみ**で、**既知集合との完全一致 (== / ⊆ ではない)** で assert ⇒ 新規ドリフトも既知ドリフトの解消も必ずテストを落とす。変数経由で entry_type を組む関数からは WAIT sentinel の `"wait"` しか抽出できない = ガードは false positive を出さない保守側に倒れる
+- **B は修正しない (Rule 1 = user 決裁)**: `QUALIFIED_TYPES` 追加は `_UNIVERSAL_SENTINEL` 経由の minlot live 経路にも触れるため無条件 shadow ではない。確定足ベース頻度推定 **3.0/週 (365d) 〜 3.3/週 (12.8y)** は現行最速 live セル `usdjpy_carry_dip_accumulator` (2.10/週) を上回り **M3 スループット (発火機会不足) への寄与候補**だが、採用は BE/Trail ablated 365d BT + Bonferroni + pre-reg LOCK + R2 自動 demote gate 併設が前提。config コメントの `BUY EV=+7.7` は BE/Trail ablation 前の 2026-04-05 BT 由来で**引用不可**
+- **`auto_start: False` 化もしない**: ①このモードは元から 1 行も出せない = 止めるものが無い (原則 1 に抵触しない) ②`_price_history` への USD_JPY 実 Close 供給 (2026-07-06 `PRICE_HISTORY_GUARD` 修正の対象) を壊さない ③下記の予測 3 で live セットアップ頻度が無料で取れる
+- **検証可能な予測 (デプロイ後に答え合わせ)**: (1) `rnb_usdjpy:direction_filter` → 恒久 0 (非ゼロなら構造前提が壊れた合図) (2) `rnb_usdjpy:no_signal` ≈ tick 数 (~2,880/日) (3) `rnb_usdjpy:unknown_type:rnb_support_bounce` が**初めて可視化**され tick の ~0.5-0.7% に出る = RNB live セットアップ頻度の初の直接観測。⚠️ estimand 注意 — 上記推定は**確定足**評価、live は 30 秒ごとに**形成中バー**を評価するので消える一時的 BUY を拾い、実測はより高く・ノイジーになりうる
+- テスト: `tests/test_rnb_block_reason_estimand.py` 7 本 (挙動 pin 3 + 構造 pin 4)。**counterfactual 8/8 が所望のテストだけを落とす**ことを確認 (ラベル巻き戻し / 常時 no_signal / SELL path 追加 / rnb 登録 / 新規未登録型 / 2 つ目の direction_filter モード / 走査の空振り / 抽出器の無力化)、**初回素通りゼロ**。全 suite **2,960 passed** / `check.py` 9/9
+- registry: `rnb-support-bounce-registration-decision` (2026-10-06、到達経路 = 本デプロイで可視化される block family を読む) を新設
+- 分析: [[rnb-dead-mode-and-block-estimand-2026-09-05]] / 教訓: [[lesson-block-counter-unmeasured-estimand-2026-09-05]] / roadmap: [[roadmap-v2.3-payoff-friction-repair]] KPI 表 M3 行
+
 ## 2026-09-04 — feat(monitoring): M1 KPI に読み手を新設 — 符号は反転していたが 60 日間誰も見ていなかった (rule:R3)
 
 - 🛑 **roadmap 最重要 KPI である M1 (clean live 30d PnL > 0) を再計算する主体がプロジェクトに存在しなかった**。roadmap の M1 行は 2026-07-06 の手動実測 (N=92 / −242.6p) のまま **60 日凍結**され、その間に KPI は符号を反転していた。`clean_n_tracker` は件数、`daily_live_monitor` は cutoff 累計、`anomaly_watcher` は鮮度 — **どれも M1 を測っていない**。08-31 MoF 教訓「収集経路を足したら読み手を同じコミットで足せ」の一段手前 = **指標自体に読み手が無かった**型
