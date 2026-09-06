@@ -560,6 +560,14 @@
       "doc": "knowledge-base/wiki/analyses/rnb-dead-mode-and-block-estimand-2026-09-05.md",
       "message": "rnb_usdjpy の登録漏れ (rnb_support_bounce ∉ QUALIFIED_TYPES、2026-04-05 db5e3e4c 以来 153 日) の disposition。到達経路 = 2026-09-05 の estimand 分離デプロイ後、block 集計に `rnb_usdjpy:unknown_type:rnb_support_bounce` が初めて可視化される (予測 tick の ~0.5-0.7%) ので、期日にその live 実測セットアップ頻度を読む。確定足ベースの推定は 3.0/週 (365d) 〜 3.3/週 (12.8y) で、現行最速 live セル usdjpy_carry_dip_accumulator (2.10/週) を上回る = M3 スループット (発火機会不足) への寄与候補。⚠️ 採用は Rule 1 (BE/Trail ablated 365d BT + Bonferroni + pre-reg LOCK + user 決裁)。QUALIFIED_TYPES 追加は _UNIVERSAL_SENTINEL 経由の minlot live 経路にも触れるため無条件 shadow ではない — R2 自動 demote gate 併設が前提。config コメントの 'BUY EV=+7.7' は BE/Trail ablation 前の 2026-04-05 BT 由来で引用不可。期日に頻度が推定を大きく下回る (<1.0/週) 場合は R1 手続きに乗せず本項をクローズしてよい。登録ドリフト自体は tests/test_rnb_block_reason_estimand.py::test_auto_start_modes_have_no_unknown_registration_drift が既知集合との完全一致で pin 済み (解消側でもテストが落ちる)。",
       "reachability": "rnb_usdjpy は auto_start=True で 30 秒 tick を継続中 (自動)。2026-09-05 の estimand 分離が Render へデプロイされた時点で block 集計に `rnb_usdjpy:no_signal` と `rnb_usdjpy:unknown_type:rnb_support_bounce` が現れる = 状態を進めるジョブは 本番エンジン自身 + 日次 monitor の block family 読み取り。deadline 到達で TRIGGERED、判定は Claude、登録の採否は user 決裁。"
+    },
+    {
+      "id": "roster-e2-silent-promoted-cells",
+      "active": true,
+      "type": "artifact_presence",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/analyses/live-roster-attrition-2026-09-06.md",
+      "message": "E2_SILENT 4 セル (bb_squeeze_breakout×EUR_USD BUY/SELL, ema200_trend_reversal×USD_JPY×SELL, squeeze_release_momentum×GBP_USD×BUY) は昇格集合 (_PAIR_PROMOTED / _UNIVERSAL_SENTINEL) に 登録され wiki/index.md の Current Portfolio にも現役掲載されているが、LIVE/shadow を問わず 行の出力が 2026-05-06 以降ゼロ (rnb と同型の『現役掲載だが無出力』シグネチャ)。到達経路: (1) /api/demo/live-enable-flags で SQUEEZE_REDESIGN_V2 等 env 実値を確認し 『意図的に無効』と『配線落ち』を分離 → (2) 配線落ちなら R3 修復、無効化の解除は R1 = user 決裁。読み手: tools/live_roster_attrition.py (E2_SILENT が 0 になれば解消)。⚠️ 未帰属 = バグではない — CLAUDE.md 原則 3 により LIVE 側 winning-location フィルタは意図的に維持される"
     }
   ]
 }
