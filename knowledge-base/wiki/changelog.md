@@ -1,5 +1,19 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-06 — diag(monitoring): LIVE 発火セル 124→3 の帰属 — 88.7% は設計通り、11.3% は帰属不能 (rule:R3)
+
+- 🛑 **09-04 が M3 スループットを「独立ボトルネック」へ昇格させた際の帰属 (「7-8 月の R2 降格バッチ = 設計通り」) は検証されていなかった** — どのセルがどの停止機構で消えたかを機械的に突き合わせた主体が存在しなかった。本コミットで読み手を新設し突合した
+- **結果: 帰属済み 88.7%** — anchor 窓 (2026-05-01 終端 30d) の LIVE 発火 **124 セル**の内訳は `B_LIVE_STOPPED` **83** (`_FORCE_DEMOTED`/`_PAIR_DEMOTED`/`HTF_MIXED_LIVE_STOP_CELLS`) / `C_SHADOW_DEMOTED` **12** / `D_NEVER_PROMOTED` **15** / `E_PROMOTED_UNATTRIBUTED` **14**。窓系列は 09-04 の正準値を完全再現 (124/24/26/11/4/3) した上で分解
+- 🛑 **止血は損失の圧倒的部分を除去していた** — 停止済み 83 セルは anchor 窓で **N=609 / −469.8 pips**。一方 E の 14 セルは N=34 / −25.1p と小さい。**分母縮小の代償は主に「負け」だった**
+- 🛑 **D_NEVER_PROMOTED 15 セルは「失われた機会」ではない** — 昇格集合 (`_PAIR_PROMOTED` ∪ `_UNIVERSAL_SENTINEL`) に**一度も**入っていないのに 2026-04〜05 に LIVE 約定を出していた = 既知の昇格バグ期 (watchdog DECREMENT 再武装 / preserve 型) の残響で、**本来出てはいけなかった発火**。M3 の分子に数えてはならない
+- **E は「バグ」ではなく「未帰属」** — CLAUDE.md 原則 3 により LIVE 転送側の winning-location フィルタは**意図的に維持**されるので、昇格済みセルが LIVE ゼロであること自体は正常でありうる。E が閉じないのは **セル単位で「昇格候補が LIVE 約定に至らなかった理由」を永続化する系列が無い**ため (`block_counts` はモード × family 粒度、かつ市場オープン時間しか積み上がらない) = **読み手の粒度不足**であって新種の欠陥ではない
+- **E2_SILENT 4 セルは rnb 型シグネチャ** — `bb_squeeze_breakout × EUR_USD` (BUY/SELL) は `_PAIR_PROMOTED` 登録かつ `wiki/index.md` Current Portfolio に現役掲載だが**全行の最終出力が 2026-05-06 = 123 日前**。ただし scalp 側経路は env フラグ依存 (`SQUEEZE_REDESIGN_V2` ∧ `..._SHADOW_PROMOTE`) なので「意図的に無効」と「配線落ち」は **`/api/demo/live-enable-flags` の実測まで区別不能** — 断定しない
+- 🛑 **09-04 の含意 3 を部分的に否定** — E1 10 セルが候補行を**転換率 100%** で LIVE 化したと仮定した上限でも、それは原則 3 のフィルタを全部外すことと同義で v2.3 の M6 ゲート (摩擦調整 EV>0) に正面から反し、[[friction-adjusted-ev-map-2026-07-07]] の「live viable な正セル不在」を覆さない ⇒ **「発火機会不足」は摩擦調整 EV 不在の帰結であって独立原因ではない**。M3 行の「別の律速」記述の格下げを提案 (user 決裁、分析 §5)。~14 ヶ月 ETA 自体は不変
+- **実装**: `tools/live_roster_attrition.py` (帰属の唯一の再計算主体、markdown / `--json`)。fetch 失敗を空に畳まない (2026-08-30 監視 blind と同型の予防)。停止機構を足したら `load_stop_sets` と pin を同時に直す旨をコード内に明記
+- テスト: `tests/test_live_roster_attrition.py` **20 本** (分類優先順位 / 分母 / estimand / 窓境界 / fetch 非畳み込み)。**counterfactual 3/3 が所望のテストだけを落とす**ことを確認 (停止集合を読まない / 停止集合が空 / fetch 失敗を `[]` に畳む)、初回素通りゼロ
+- registry: `roster-e2-silent-promoted-cells` (2026-10-06、到達経路 = env 実値確認 → 配線落ちなら R3・無効化解除は R1) を新設
+- 分析: [[live-roster-attrition-2026-09-06]] / roadmap: [[roadmap-v2.3-payoff-friction-repair]] KPI 表 M3 行
+
 ## 2026-09-05 — fix(monitoring): rnb_usdjpy の block カウンタ estimand 分離 + 153 日 dead mode の検出 (rule:R3)
 
 - 🛑 **監視ログ最古の un-actioned 🔴 (`rnb_usdjpy:direction_filter` の 8 回連続 escalation、2026-08-26→09-04) をクローズ。仮説「compute_rnb_signal の WAIT-path バグ」は外れで、実体は独立した 2 つの構造事実**
