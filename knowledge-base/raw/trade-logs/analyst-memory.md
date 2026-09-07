@@ -4256,6 +4256,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - 前日も実質2件のみ。システムは稼働しているが、シグナル発生が著しく抑制されている状態。
 - **JPYクロス3通貨がVOLATILE**: EUR_JPY(66%)・GBP_JPY(66%)・USD_JPY(76%)。SMAスロープは全方向一致（JPY売り基調）だが、Shock Rev系（逆張り）には構造的に不利な環境。前日AUD_JPY −77.5pはこのレジーム下の逆張り失敗と整合する。
 
+### 2026-09-07 (Pre-Tokyo Briefing)
+2026-09-06（前日）は**全セッション（東京・ロンドン・NY）を通じてトレードゼロ**。PnL = 0、N = 0、WR = N/A。システムは稼働中だが、シグナル生成に至らないまま一日が終了した。Cutoff後累計は N=4、PnL = −87.7p と極めて薄いデータ水準に留まる。
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+> **凡例**: N<10 = 「データなし」扱い。EV・WRは統計的に無意味。全戦略がデータ不足ゾーン。
+- 最大蓄積戦略: `usdjpy_carry_dip_accumulator` → 残**28件**
+- `price_shock_rev_eur_gbp_h1_long` → 残**29件**
+- `price_shock_rev_aud_jpy_h1_long` → 残**29件**
+- **昇格基準（N≥30 & EV≥1.0）到達まで現ペースでは遠く**、前日ゼロトレードが進捗を止めた。
+- `daytrade_eurgbp`のflash_crash判定が継続しているか引き続き監視
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
