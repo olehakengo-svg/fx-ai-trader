@@ -95,6 +95,7 @@ Sub-scope: `services/discord_bot/CLAUDE.md` (Discord bot 固有規律)
 ## コードレビュー / マージゲート
 - **実機構は GitHub の Codex connector** (`chatgpt-codex-connector`) — PR を開くと自動でレビューが届き、finding は inline review thread に P1/P2/P3 バッジ付きで載る (旧記述「codex@openai-codex プラグイン」は実態と不一致、2026-09-08 訂正)
 - **マージ前に `python3 tools/pr_review_gate.py <PR番号> --wait 900` を必ず実行** (exit 0 でのみマージ可)。未解決 P1/P2 は「修正」か「反証を thread に返信して resolve」のどちらかで消化する — 無視してのマージは禁止
+- **修正 push 後は再レビューが自動で走らない** — `gh pr comment <N> --body "@codex review"` を先に実行してからゲートを再実行する
 - 根拠: 直近 40 PR で finding を持つ 35 PR の解決済みスレッド **0 件** / review→merge 中央値 2.8 分。詳細: `wiki/decisions/pr-review-gate-2026-09-08.md`
 
 ## 自走原則 (2026-07-06 user 承認)

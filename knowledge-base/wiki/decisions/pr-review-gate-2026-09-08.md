@@ -103,6 +103,18 @@ monkeypatch で `prefix=True` が実際に届くかを見る性質 pin へ差し
 counterfactual 3/3 が所望のテストだけを落とすことを確認。
 **ゲートの初回実行が実際に欠陥を 3 件止めた** — これ自体が R2 の効果測定の第 1 点。
 
+## 5c. 運用上の注意 — push では再レビューされない
+
+connector がレビューするのは **PR を開いた時 / draft を ready にした時 / `@codex review` と
+コメントした時**の 3 契機のみ。修正 push だけではレビューが来ないため、ゲートは
+`HEAD_UNREVIEWED` で永久に待ち続ける。これを知らないと「ゲートが壊れている」と誤読して
+バイパスする誘因になるので、ゲートの detail メッセージ自体に対処法を書いた:
+
+```
+gh pr comment <N> --body "@codex review"   # 先にこれ
+python3 tools/pr_review_gate.py <N> --wait 900
+```
+
 ## 6. 残件
 
 - **P1 #2 (未処理)**: PR #226 の 2 件目 — `tools/live_roster_attrition.py` の

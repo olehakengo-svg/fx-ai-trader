@@ -22,6 +22,10 @@ estimand (名乗る量):
     - 時計: GitHub 側の submittedAt (レビュー到着) / head commit の oid。
     - 「レビュー未到着」と「レビュー到着・findings ゼロ」は別状態として返す。
 
+⚠️ connector は **PR を開いた時 / draft を ready にした時 / `@codex review` と
+   コメントした時**にしかレビューしない。**push では再レビューされない**ので、
+   修正 push 後は `gh pr comment <N> --body "@codex review"` を先に実行すること。
+
 使い方:
     python3 tools/pr_review_gate.py 227            # 判定 (exit 0=マージ可)
     python3 tools/pr_review_gate.py 227 --json
@@ -145,8 +149,9 @@ def evaluate(pr: dict[str, Any]) -> dict[str, Any]:
                 "open_findings": open_findings, "blocking": blocking}
     if not head_reviews:
         return {"verdict": "BLOCK", "reason": "HEAD_UNREVIEWED", "head": head,
-                "detail": f"head commit {head[:7]} に対するレビューが無い "
-                          "(push 後に再レビューを待て)",
+                "detail": f"head commit {head[:7]} に対するレビューが無い — "
+                          "connector は push では再レビューしない。"
+                          "`gh pr comment <N> --body '@codex review'` で要求せよ",
                 "open_findings": open_findings, "blocking": blocking}
     if blocking:
         return {"verdict": "BLOCK", "reason": "OPEN_BLOCKING_FINDINGS",
@@ -179,7 +184,8 @@ def main() -> int:
     ap.add_argument("number", type=int)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--wait", type=int, default=0,
-                    help="レビュー未到着のとき最大 N 秒待つ (30 秒間隔)")
+                    help="レビュー未到着のとき最大 N 秒待つ (30 秒間隔)。"
+                         "push 後は先に `@codex review` をコメントすること")
     args = ap.parse_args()
 
     deadline = time.monotonic() + max(0, args.wait)
