@@ -4296,6 +4296,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - USD/JPY のVOLATILE×下降トレンド継続が確認される限り、**BUY系carry戦略のシグナルは慎重に監視**する
 - 現状は「N蓄積フェーズ」。個々の損益より**シグナル発生頻度とblock_counts構造**を追う段階
 
+### 2026-09-08 (Pre-Tokyo Briefing)
+前日（2026-09-07）は **N=1、WR=0%、PnL=−24.8p**。`usdjpy_carry_dip_accumulator`がSL_HITによる単発ロスを記録。他戦略はシグナルなし（全モードが0トレードないし同戦略のみ）。実質的に市場参加が極めて限定的な1日だった。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| usdjpy_carry_dip_accumulator | USD_JPY | 2 | 50.0% | −6.60 | −13.2 | ⚠️ N不足・EV負 |
+| price_shock_rev_aud_jpy_h1_long | AUD_JPY | 1 | 0.0% | −77.50 | −77.5 | 🔴 N不足・EV極大負 |
+**全体集計（Cutoff後）: N=4、WR=50.0%、PnL=−87.7p**
+> **統計的注意**: 全戦略でN<10。判断可能な水準に達していない。現時点では「傾向」以下の参考値として扱う。
+| 1 | `price_shock_rev_aud_jpy_h1_long`でEV=−77.5p（単発・N=1）。AUD/JPYはVOLATILEレジーム下でlong方向のエントリーがSL直撃した可能性が高い | 🔴 |
+| 2 | `usdjpy_carry_dip_accumulator`が2連続でEV負（累計−13.2p / N=2）。USD/JPYはATR%ile=79%のVOLATILE環境 | 🟡 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
