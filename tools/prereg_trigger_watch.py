@@ -719,9 +719,15 @@ REQUIRED_FIELDS_BY_TYPE: dict[str, tuple[str, ...]] = {
 # 数える無言の過大計上になる (sr-anti-hunt 偽発火と同型)。
 # 空文字が「絞り込まない」の正当な表明である絞り込み系フィールド。
 # 型 (str) は要求するが空であること自体は違反にしない。
-EMPTY_OK_FIELDS = frozenset({
-    "entry_type", "instrument", "direction", "mode", "reasons_marker",
-})
+# 純粋な絞り込み (空 = 全件、母集団は entry_type が定義する) — 全 type 共通。
+EMPTY_OK_FIELDS = frozenset({"instrument", "direction", "mode",
+                             "reasons_marker"})
+
+# entry_type 自体を空にできるのは、母集団を別の field が定義する type だけ。
+# shadow_count 系は entry_type が唯一の母集団定義なので、空 + match:"prefix" は
+# `startswith("")` で全 shadow トレードを数え判定を極端に早める
+# (PR #227 Codex P2 10 巡目)。
+EMPTY_ENTRY_TYPE_OK_TYPES = frozenset({"live_count_decision"})
 
 # type ごとの「いずれか 1 つは非空でなければならない」トップレベル field 群。
 ALTERNATIVE_FIELDS_BY_TYPE: dict[str, tuple[tuple[str, ...], ...]] = {
@@ -732,6 +738,18 @@ ALTERNATIVE_FIELDS_BY_TYPE: dict[str, tuple[tuple[str, ...], ...]] = {
 # ingest_freshness の check は prefix があれば key 不要、無ければ chk["key"] を
 # 添字アクセスする — 「どちらか必須」を表現できないと片方の欠落を見逃す
 # (PR #227 Codex P2 の 2 巡目)。
+# dict 型の入れ子 spec — 中の既知フィールドは任意でも検査する。
+# `source.label_columns: 1` は top-level 走査では見つからず、行が一致した
+# 瞬間に TypeError になる (PR #227 Codex P2 10 巡目)。
+NESTED_SPEC_FIELDS: dict[str, tuple[str, ...]] = {
+    "data_coverage": ("source",),
+    "csv_row_match": ("source",),
+}
+
+# list[str] を要求するフィールド。
+STRING_LIST_FIELDS = frozenset({"label_columns"})
+
+
 COLLECTION_ELEMENT_FIELDS: dict[
     str, tuple[tuple[str, tuple[str, ...], tuple[tuple[str, ...], ...]], ...]
 ] = {
@@ -765,7 +783,12 @@ INT_FIELDS = frozenset({"n_decide", "n_floor", "min_files", "min_keys"})
 # `today > deadline` が false になり、**永久に watching のまま**期日に
 # 到達しない — 「watching 表示を健全性の証拠と誤読する」ZN 教訓の型。
 DATE_FIELDS = frozenset({"deadline", "since", "threshold_date"})
-DATE_SENTINELS = frozenset({"no-deadline"})
+# sentinel を実装しているのは deadline を読む評価器だけ。
+# threshold_date / since に "no-deadline" が入ると通常の ISO 日付と比較され
+# 永久 WATCHING / DATA_UNAVAILABLE になる (PR #227 Codex P2 10 巡目)。
+DATE_SENTINELS_BY_FIELD: dict[str, frozenset[str]] = {
+    "deadline": frozenset({"no-deadline"}),
+}
 
 # 評価器が bool として消費するフィールド。`closed_only: "false"` は
 # `bool(trig.get("closed_only"))` で **true** になり、監視母集団を黙って
@@ -796,7 +819,9 @@ KNOWN_VALUE_FIELDS = (NUMERIC_FIELDS | STRING_FIELDS | DATE_FIELDS
 # STRING_FIELDS には入れない。
 
 
-def _unusable_reason(field: str, value: Any) -> str | None:
+def _unusable_reason(field: str, value: Any, *,
+                     empty_ok: frozenset[str] = EMPTY_OK_FIELDS,
+                     date_sentinels: frozenset[str] = frozenset()) -> str | None:
     """必須値が「存在するが評価器が使えない」ケースを名指しする。
 
     presence だけの検査は `path: null` / `max_age_hours: null` を通してしまい、
@@ -808,7 +833,7 @@ def _unusable_reason(field: str, value: Any) -> str | None:
     if isinstance(value, str) and not value.strip():
         # 絞り込み系は空 = ワイルドカードが正当 (母集団が誰かに定義されて
         # いることは ALTERNATIVE_FIELDS_BY_TYPE 側で別途担保する)。
-        return None if leaf in EMPTY_OK_FIELDS else "空文字"
+        return None if leaf in empty_ok else "空文字"
     if isinstance(value, (list, dict)) and not value:
         return "空のコレクション"
     if leaf in BOOL_FIELDS:
@@ -852,7 +877,7 @@ def _unusable_reason(field: str, value: Any) -> str | None:
         return f"文字列でない ({type(value).__name__}: {value!r})"
     if leaf in DATE_FIELDS and isinstance(value, str):
         v = value.strip()
-        if v not in DATE_SENTINELS and not _is_iso_date(v):
+        if v not in date_sentinels and not _is_iso_date(v):
             return (f"日付として解釈できない ({value!r}) — "
                     "文字列比較で永久に watching になる")
     return None
@@ -934,8 +959,14 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
         # (PR #227 Codex P2 7 巡目)。
         present = [f for f in REQUIRED_FIELDS_BY_TYPE[ttype] if _has_path(t, f)]
         present += [k for k in t if k in KNOWN_VALUE_FIELDS and k not in present]
+        empty_ok = EMPTY_OK_FIELDS
+        if ttype in EMPTY_ENTRY_TYPE_OK_TYPES:
+            empty_ok = empty_ok | {"entry_type"}
         for f in present:
-            why = _unusable_reason(f, _get_path(t, f))
+            leaf = f.rsplit(".", 1)[-1]
+            why = _unusable_reason(
+                f, _get_path(t, f), empty_ok=frozenset(empty_ok),
+                date_sentinels=DATE_SENTINELS_BY_FIELD.get(leaf, frozenset()))
             if why:
                 errors.append(
                     f"{tid}: type={ttype} の {f} が使えない値 ({why}) — "
@@ -951,6 +982,26 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
                 errors.append(
                     f"{tid}: type={ttype} は {list(group)} のいずれかが"
                     "非空で必須 — 全て空だと母集団が定義されず過大計上する")
+        for spec_key in NESTED_SPEC_FIELDS.get(ttype, ()):
+            spec = t.get(spec_key)
+            if not isinstance(spec, dict):
+                continue
+            for k, v in spec.items():
+                if k in STRING_LIST_FIELDS:
+                    if not (isinstance(v, list) and v
+                            and all(isinstance(x, str) and x.strip()
+                                    for x in v)):
+                        errors.append(
+                            f"{tid}: {spec_key}.{k} が非空の文字列リストでない "
+                            f"({v!r}) — 評価器が要素を走査して落ちる")
+                elif k in KNOWN_VALUE_FIELDS:
+                    why = _unusable_reason(
+                        k, v, date_sentinels=DATE_SENTINELS_BY_FIELD.get(
+                            k, frozenset()))
+                    if why:
+                        errors.append(
+                            f"{tid}: {spec_key}.{k} が使えない値 ({why}) — "
+                            "評価器が実行時に落ちる")
         errors.extend(_lint_collections(t, tid, ttype))
     return errors
 
@@ -983,7 +1034,10 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
             checked |= {k for k in elem if k in KNOWN_VALUE_FIELDS}
             for k in sorted(checked):
                 if k in elem:
-                    why = _unusable_reason(k, elem[k])
+                    why = _unusable_reason(
+                        k, elem[k],
+                        date_sentinels=DATE_SENTINELS_BY_FIELD.get(
+                            k, frozenset()))
                     if why:
                         errors.append(
                             f"{tid}: {dotted}[{i}].{k} が使えない値 ({why}) — "

@@ -1148,3 +1148,56 @@ def test_dates_must_be_canonical_zero_padded():
                          "deadline": "2026-9-1"}]) != []
     assert lint_schema([{"id": "x", "type": "deadline_info",
                          "deadline": "2026-09-01"}]) == []
+
+
+def test_empty_entry_type_is_not_a_wildcard_for_shadow_count_types():
+    """shadow 系は entry_type が唯一の母集団定義 — 空 + prefix は全件計上。
+
+    PR #227 Codex P2 10 巡目: `startswith("")` で全 shadow トレードを数え、
+    判定期日を極端に早める (sr-anti-hunt 偽発火と同クラス)。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    shadow = {"id": "x", "type": "shadow_count_decision", "since": "2026-08-05",
+              "n_decide": 40, "n_floor": 40, "deadline": "2027-02-28",
+              "match": "prefix"}
+    assert lint_schema([dict(shadow, entry_type="")]) != []
+    assert lint_schema([dict(shadow, entry_type="sr_anti_hunt_bounce")]) == []
+    info = {"id": "y", "type": "shadow_count_info", "since": "2026-08-09",
+            "expected_per_week": 4.0}
+    assert lint_schema([dict(info, entry_type="")]) != []
+    # live 側は reasons_marker が母集団を定義するので空が正当
+    live = {"id": "z", "type": "live_count_decision", "since": "2026-09-02",
+            "n_decide": 10, "deadline": "2026-12-01",
+            "reasons_marker": "[M]", "entry_type": ""}
+    assert lint_schema([live]) == []
+
+
+def test_date_sentinel_is_scoped_to_deadline_only():
+    """`no-deadline` を実装しているのは deadline を読む評価器だけ。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "data_coverage",
+                         "source": {"path": "a.parquet"},
+                         "threshold_date": "no-deadline"}]) != []
+    assert lint_schema([{"id": "x", "type": "shadow_count_info",
+                         "entry_type": "e", "since": "no-deadline",
+                         "expected_per_week": 1.0}]) != []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "no-deadline"}]) == []
+
+
+def test_lint_traverses_optional_fields_inside_source_specs():
+    """`source.label_columns: 1` は行が一致した瞬間に TypeError になる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "csv_row_match"}
+    bad = dict(base, source={"path": "a.csv", "match": [{"column": "c",
+                                                         "value": 1}],
+                             "label_columns": 1})
+    assert lint_schema([bad]) != []
+    bad2 = dict(base, source={"path": "a.csv", "match": [{"column": "c",
+                                                          "value": 1}],
+                              "date_column": 5})
+    assert lint_schema([bad2]) != []
+    ok = dict(base, source={"path": "a.csv", "match": [{"column": "c",
+                                                        "value": 1}],
+                            "label_columns": ["c"]})
+    assert lint_schema([ok]) == []
