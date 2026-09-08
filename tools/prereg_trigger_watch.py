@@ -809,14 +809,45 @@ EXACT_INT_FIELDS = frozenset({"dedup_violation"})
 
 # top-level のみで解釈される列挙フィールド (leaf 名 "match" は
 # source.match のリストと衝突するので **top-level 限定**で扱う)。
-ENUM_FIELDS: dict[str, frozenset[str]] = {
+ENUM_FIELDS: dict[str, frozenset[Any]] = {
     "match": frozenset({"prefix"}),
     "count_basis": frozenset({"unique"}),
+    # 評価器は `trig.get("dedup_violation") == 0` でしか dedup を有効にしない。
+    # 1 や 2 は黙って無視され重複行が母集団に入る (PR #227 Codex P2 12 巡目)。
+    "dedup_violation": frozenset({0}),
 }
 
 # 各カウント field の下限 (評価器の意味論)。n_decide=-1 は即時 TRIGGERED、
 # min_files=-1 は不在の成果物を「充足」と報告する。
 INT_MIN = {"n_decide": 1, "n_floor": 0, "min_files": 1, "min_keys": 1}
+
+# 全 type 共通のメタデータ (評価に使われないが台帳として必要)。
+META_FIELDS = frozenset({
+    "id", "active", "type", "doc", "message", "condition", "reachability",
+    "resolved", "resolved_at", "resolution", "eval_record", "note", "notes",
+})
+
+# type ごとに評価器が実際に読む selector。ここに無いキーは**綴り違い**として
+# 落とす。`instrumnt: "USD_JPY"` は黙って無視され全ペアを計上する
+# (PR #227 Codex P2 12 巡目) — allow-by-default をやめ reject-by-default へ。
+OPTIONAL_FIELDS_BY_TYPE: dict[str, frozenset[str]] = {
+    "price_below": frozenset(),
+    "shadow_count_decision": frozenset({
+        "instrument", "direction", "match", "mode", "count_basis",
+        "closed_only", "dedup_violation"}),
+    "shadow_count_info": frozenset({"instrument", "direction", "match", "mode",
+                                    "count_basis"}),
+    "live_count_decision": frozenset({"instrument", "direction", "match",
+                                      "reasons_marker"}),
+    "deadline_info": frozenset(),
+    "ingest_freshness": frozenset({"endpoint"}),
+    "artifact_presence": frozenset({"deadline"}),
+    "data_coverage": frozenset({"deadline"}),
+    "csv_row_match": frozenset({"deadline"}),
+    "info": frozenset({"deadline"}),
+    "conditional_info": frozenset({"deadline"}),
+}
+
 
 # 値の形が分かっている全フィールド。必須/任意・top-level/要素を問わず
 # 存在すれば検査する唯一の集合 (軸ごとに検査漏れを作らないため)。
@@ -1017,6 +1048,13 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
                         errors.append(
                             f"{tid}: {spec_key}.{k} が使えない値 ({why}) — "
                             "評価器が実行時に落ちる")
+        allowed = (META_FIELDS | OPTIONAL_FIELDS_BY_TYPE.get(ttype, frozenset())
+                   | {f.split(".", 1)[0] for f in REQUIRED_FIELDS_BY_TYPE[ttype]})
+        for k in sorted(set(t) - allowed):
+            errors.append(
+                f"{tid}: type={ttype} に未知のキー {k!r} — 評価器は読まないので "
+                "綴り違いなら母集団が黙って広がる (許可キー: "
+                f"{sorted(allowed - META_FIELDS)} + メタ)")
         errors.extend(_lint_collections(t, tid, ttype))
     return errors
 

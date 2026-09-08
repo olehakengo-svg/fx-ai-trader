@@ -86,12 +86,48 @@ def summarize_candidate_queue(days: int = 7) -> dict[str, Any]:
 WATCH_ALERT_MARK = "🔴🔴"
 
 
+# TRIGGERED 節の見出し (prereg_trigger_watch.to_markdown と対で保つ)。
+WATCH_TRIGGERED_HEADING = "### 🔴 TRIGGERED"
+
+
 def extract_watch_alert(watch_text: str) -> str:
     """watch 本文から監視器故障の 1 行だけを抜き出す (無ければ空文字)。"""
     for line in (watch_text or "").splitlines():
         if line.startswith(WATCH_ALERT_MARK):
             return line.strip()
     return ""
+
+
+def extract_watch_triggered(watch_text: str) -> str:
+    """TRIGGERED 節 (執行/判定期日 = 要行動) を抜き出す。
+
+    PR #227 Codex P1 12 巡目: 故障 banner だけを前方へ上げても、**行動を
+    要する TRIGGERED** が 1900 字カットの外に残っていては意味がない。
+    実際、本セッションで復旧するまでの 2 日間、T5 第1要件 TRIGGERED は
+    誰にも届いていなかった。
+    """
+    out: list[str] = []
+    inside = False
+    for line in (watch_text or "").splitlines():
+        if line.startswith(WATCH_TRIGGERED_HEADING):
+            inside = True
+            out.append(line)
+            continue
+        if inside:
+            if line.startswith("###"):
+                break
+            if line.strip():
+                # registry の message は数百字あるので、前方枠を守るため
+                # id + detail 相当だけを残す (全文は下の watch 節にある)。
+                out.append(_clip(line.rstrip(), TRIGGERED_LINE_CHARS))
+    return "\n".join(out).strip()
+
+
+TRIGGERED_LINE_CHARS = 220
+
+
+def _clip(line: str, limit: int) -> str:
+    return line if len(line) <= limit else line[:limit - 1] + "…"
 
 
 def run_prereg_trigger_watch() -> str:
@@ -167,10 +203,18 @@ def to_markdown(report: dict[str, Any]) -> str:
     # (strategy×instrument×direction ごとに 1 行) ので、その後ろに置くと
     # セルが増えた日に 1900 字カットの外へ押し出される
     # (PR #227 Codex P1 7 巡目 — 「読み手に届く位置」は相対順序で決まる)。
-    alert = extract_watch_alert(report.get("prereg_trigger_watch", ""))
+    watch_text = report.get("prereg_trigger_watch", "")
+    alert = extract_watch_alert(watch_text)
     if alert:
         lines.append("## ⚠️ Pre-reg Trigger Watch — 監視器故障")
         lines.append(alert)
+        lines.append("")
+    # 要行動 (TRIGGERED) も M1 より前へ。故障だけ届いて執行期日が届かないと
+    # 「見えているのに動けない」になる。
+    triggered = extract_watch_triggered(watch_text)
+    if triggered:
+        lines.append("## 🔴 Pre-reg TRIGGERED — 要行動")
+        lines.append(triggered)
         lines.append("")
     # M1 は最重要 KPI かつ Discord 側で 1900 字に切られるので (故障 banner の
     # 次に) 前方へ固定する。

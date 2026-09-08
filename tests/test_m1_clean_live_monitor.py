@@ -385,3 +385,36 @@ def test_watcher_alert_precedes_the_unbounded_m1_section():
     })
     assert md.index(qgs.WATCH_ALERT_MARK) < md.index("M1"), "M1 より後ろにある"
     assert qgs.WATCH_ALERT_MARK in md[:1900]
+
+
+def test_triggered_entries_reach_the_reader_not_only_the_failure_banner():
+    """行動を要する TRIGGERED も 1900 字カットより前に出す。
+
+    PR #227 Codex P1 12 巡目: 故障 banner だけ前方へ上げても、執行期日が
+    カットの外なら「見えているのに動けない」。本セッションで復旧するまでの
+    2 日間、T5 第1要件 TRIGGERED は誰にも届いていなかった。
+    """
+    from tools import quant_gate_status as qgs
+    from tools.alpha_budget_tracker import _empty_state
+
+    watch = ("## Pre-reg Trigger Watch\n"
+             "### 🔴 TRIGGERED — 執行/判定期日\n"
+             "- **t5-jpy-cap-restore-price**: D1 close<159.50 成立 " + "詳細" * 400 + "\n"
+             "### 👁 watching\n" + ("- noise\n" * 300))
+    md = qgs.to_markdown({
+        "generated_at": "2026-09-08T00:00:00+00:00",
+        "m1_readout": m1.summarize([row(i, 1.0) for i in range(1, 200)], ANCHOR),
+        "quant_readiness": "readiness-body",
+        "alpha_budget": _empty_state("2026-09"),
+        "candidate_queue_7d": {"total": 0, "pass": 0, "shadow_only": 0,
+                               "recent_names": []},
+        "prereg_trigger_watch": watch,
+    })
+    assert "t5-jpy-cap-restore-price" in md[:1900], "執行期日が読み手に届かない"
+    assert "noise" not in md[:1900], "watching のノイズまで前方に上げている"
+
+
+def test_no_triggered_section_when_nothing_is_triggered():
+    from tools import quant_gate_status as qgs
+    assert qgs.extract_watch_triggered(
+        "## Pre-reg Trigger Watch\n### 👁 watching\n- a") == ""

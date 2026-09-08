@@ -1244,3 +1244,38 @@ def test_lint_validates_optional_ingest_endpoint():
     assert lint_schema([dict(base, endpoint=123)]) != []
     assert lint_schema([dict(base, endpoint="")]) != []
     assert lint_schema([dict(base, endpoint="/api/marketdata/status")]) == []
+
+
+def test_lint_rejects_unknown_registry_keys():
+    """`instrumnt` の綴り違いは黙って無視され全ペアを計上する。
+
+    PR #227 Codex P2 12 巡目: allow-by-default をやめ reject-by-default へ。
+    未知キーの家系はこれで構造的に閉じる。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, instrumnt="USD_JPY")]) != []
+    assert lint_schema([dict(base, instrument="USD_JPY")]) == []
+    # メタデータは全 type で許可
+    assert lint_schema([dict(base, doc="a.md", message="m",
+                             resolved="2026-01-01")]) == []
+    # type が読まない selector も拒否 (price_below に instrument は無い)
+    assert lint_schema([{"id": "x", "type": "price_below", "symbol": "S",
+                         "threshold": 1.0, "instrument": "USD_JPY"}]) != []
+
+
+def test_dedup_violation_is_pinned_to_the_only_implemented_value():
+    """評価器は `== 0` でしか dedup を有効にしない — 1/2 は黙って無視される。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, dedup_violation=1)]) != []
+    assert lint_schema([dict(base, dedup_violation=0)]) == []
+
+
+def test_real_registry_passes_the_reject_by_default_lint():
+    from tools.prereg_trigger_watch import lint_registry
+    assert lint_registry() == []
