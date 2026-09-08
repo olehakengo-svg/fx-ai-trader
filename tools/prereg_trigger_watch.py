@@ -701,6 +701,20 @@ REQUIRED_FIELDS_BY_TYPE: dict[str, tuple[str, ...]] = {
 # 上の top-level 検査だけでは `requirements: [{}]` のような形が素通りし、
 # 実行時に scan_artifacts / evaluate_ingest_freshness が KeyError を投げる
 # (PR #227 Codex P2)。評価器が添字アクセスする深さまで authoring 時に見る。
+# 空文字が「ワイルドカード (絞り込まない)」として正当な意味を持つフィールド。
+# 例: hourblock-class-exempt-r2-rollback は entry_type="" で全戦略を対象にし、
+# 母集団は reasons_marker で定義する。ただし**何かが母集団を定義している**ことは
+# 下の ALTERNATIVE_FIELDS_BY_TYPE で必須にする — 両方空なら全 live トレードを
+# 数える無言の過大計上になる (sr-anti-hunt 偽発火と同型)。
+WILDCARD_OK_FIELDS: dict[str, frozenset[str]] = {
+    "live_count_decision": frozenset({"entry_type"}),
+}
+
+# type ごとの「いずれか 1 つは非空でなければならない」トップレベル field 群。
+ALTERNATIVE_FIELDS_BY_TYPE: dict[str, tuple[tuple[str, ...], ...]] = {
+    "live_count_decision": (("entry_type", "reasons_marker"),),
+}
+
 # 各要素は (dotted path, 常に必要なキー, 「いずれか 1 つ」で足りるキー群)。
 # ingest_freshness の check は prefix があれば key 不要、無ければ chk["key"] を
 # 添字アクセスする — 「どちらか必須」を表現できないと片方の欠落を見逃す
@@ -712,6 +726,43 @@ COLLECTION_ELEMENT_FIELDS: dict[
     "ingest_freshness": (("checks", ("max_age_hours",), (("key", "prefix"),)),),
     "csv_row_match": (("source.match", ("column", "value"), ()),),
 }
+
+
+# 評価器が float()/int() で数値化するフィールド (dotted / 要素キー)。
+# 値の型まで見ないと `max_age_hours: null` が lint を通り実行時に落ちる
+# (PR #227 Codex P2 4 巡目)。
+NUMERIC_FIELDS = frozenset({
+    "threshold", "n_decide", "n_floor", "expected_per_week", "max_age_hours",
+    "min_files", "min_keys",
+})
+
+
+def _unusable_reason(field: str, value: Any) -> str | None:
+    """必須値が「存在するが評価器が使えない」ケースを名指しする。
+
+    presence だけの検査は `path: null` / `max_age_hours: null` を通してしまい、
+    scan_artifacts の Path.glob(None) や float(None) が daily 実行時に落ちる。
+    """
+    leaf = field.rsplit(".", 1)[-1]
+    if value is None:
+        return "null"
+    if isinstance(value, str) and not value.strip():
+        return "空文字"
+    if isinstance(value, (list, dict)) and not value:
+        return "空のコレクション"
+    if leaf in NUMERIC_FIELDS:
+        try:
+            float(value)
+        except (TypeError, ValueError):
+            return f"数値化できない ({value!r})"
+    return None
+
+
+def _get_path(obj: Any, dotted: str) -> Any:
+    cur = obj
+    for part in dotted.split("."):
+        cur = cur[part]
+    return cur
 
 
 def _has_path(obj: Any, dotted: str) -> bool:
@@ -753,15 +804,22 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
                 f"{tid}: type={ttype} に必須の {missing} が無い — "
                 "実行時 KeyError で監視器全体が落ちる")
             continue
+        wildcard_ok = WILDCARD_OK_FIELDS.get(ttype, frozenset())
+        for f in REQUIRED_FIELDS_BY_TYPE[ttype]:
+            if f in wildcard_ok:
+                continue
+            why = _unusable_reason(f, _get_path(t, f))
+            if why:
+                errors.append(
+                    f"{tid}: type={ttype} の {f} が使えない値 ({why}) — "
+                    "評価器が実行時に落ちる")
+        for group in ALTERNATIVE_FIELDS_BY_TYPE.get(ttype, ()):
+            if not any(str(t.get(k) or "").strip() for k in group):
+                errors.append(
+                    f"{tid}: type={ttype} は {list(group)} のいずれかが"
+                    "非空で必須 — 全て空だと母集団が定義されず過大計上する")
         errors.extend(_lint_collections(t, tid, ttype))
     return errors
-
-
-def _get_path(obj: Any, dotted: str) -> Any:
-    cur = obj
-    for part in dotted.split("."):
-        cur = cur[part]
-    return cur
 
 
 def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
@@ -785,6 +843,13 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
                 errors.append(
                     f"{tid}: {dotted}[{i}] に必須の {lack} が無い — "
                     "実行時 KeyError")
+            for k in keys:
+                if k in elem:
+                    why = _unusable_reason(k, elem[k])
+                    if why:
+                        errors.append(
+                            f"{tid}: {dotted}[{i}].{k} が使えない値 ({why}) — "
+                            "評価器が実行時に落ちる")
             for group in alternatives:
                 # 存在だけでは足りない: evaluate_ingest_freshness は
                 # `if prefix:` で分岐するので prefix="" は key 側へ落ち、

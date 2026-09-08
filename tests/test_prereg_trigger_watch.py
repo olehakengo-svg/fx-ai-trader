@@ -923,3 +923,47 @@ def test_one_of_requires_a_usable_value_not_mere_presence():
                          "checks": [{"prefix": "", "max_age_hours": 24}]}]) != []
     assert lint_schema([{"id": "x", "type": "ingest_freshness",
                          "checks": [{"key": "  ", "max_age_hours": 24}]}]) != []
+
+
+def test_lint_rejects_present_but_unusable_required_values():
+    """presence だけでは `path: null` / `max_age_hours: null` を止められない。
+
+    PR #227 Codex P2 4 巡目: scan_artifacts の Path.glob(None)、
+    float(None) は daily 実行時にしか落ちない。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": None}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k",
+                                     "max_age_hours": None}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k",
+                                     "max_age_hours": "soon"}]}]) != []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USDJPY=X", "threshold": None}]) != []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USDJPY=X", "threshold": 159.5}]) == []
+
+
+def test_empty_entry_type_is_a_wildcard_only_when_a_marker_defines_the_population():
+    """entry_type="" は「絞り込まない」の正当な表明だが、母集団は何かが定義せよ。
+
+    hourblock-class-exempt-r2-rollback は reasons_marker で母集団を定義する
+    実在エントリ。両方空なら全 live トレードを数える無言の過大計上になる。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision", "since": "2026-09-02",
+            "n_decide": 10, "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, entry_type="",
+                             reasons_marker="[MARKER]")]) == []
+    assert lint_schema([dict(base, entry_type="sweep_reversion")]) == []
+    assert lint_schema([dict(base, entry_type="", reasons_marker="")]) != []
+
+
+def test_the_real_rollback_entry_keeps_its_wildcard_shape():
+    """実在エントリの設計 (entry_type="" + reasons_marker) を性質で pin。"""
+    trig = next(t for t in load_registry()
+                if t["id"] == "hourblock-class-exempt-r2-rollback")
+    assert trig["entry_type"] == ""
+    assert trig["reasons_marker"].strip()
