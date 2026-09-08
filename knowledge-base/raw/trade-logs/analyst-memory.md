@@ -4286,6 +4286,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - 追加的なシステム介入は不要（コード変更禁止）
 - AUD_JPY系のシグナル発生時は**損失幅の絶対値**を手動モニタリング
 
+### 2026-09-08 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **−24.8 pips** |
+| 全体WR | **0.0%** |
+前日（2026-09-07）は `usdjpy_carry_dip_accumulator / USD_JPY` の1件のみ。SL_HITで終了、単日PnL −24.8p。活動は極めて低調。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**Cutoff後累計**: N=4 / WR=50.0% / PnL=−87.7p
+| 損失原因 | `usdjpy_carry_dip_accumulator` がSL_HIT。EV=−24.8（1件のみにつき評価不能） |
+- USD/JPY のVOLATILE×下降トレンド継続が確認される限り、**BUY系carry戦略のシグナルは慎重に監視**する
+- 現状は「N蓄積フェーズ」。個々の損益より**シグナル発生頻度とblock_counts構造**を追う段階
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
