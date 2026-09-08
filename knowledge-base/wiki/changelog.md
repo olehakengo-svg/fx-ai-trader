@@ -1,5 +1,18 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-08 — fix(process): PR マージゲート新設 + 監視器 51 エントリ 2 日間停止の修復 (rule:R3)
+
+- 🛑 **独立レビューは 5.5 ヶ月間 write-only だった (定量確認)** — 直近 merged PR 40 件の実測: inline finding を持つ **35 PR 全て**で解決済みスレッドは **0 件**、review→merge の中央値 **2.8 分**、7 PR はレビュー到着から 1 分以内 (2 件は**到着前**) にマージ。5 PR はレビュー未到着でマージ。メタ監査 codex-1 訂正版 (「レビュー層は存在する。欠陥は読まれずマージされること」) が数字で確定
+- 🛑 **実害 — daily の pre-reg trigger watch が 51 エントリまるごと 2 日間停止していた**。PR #226 の P1 finding (`artifact_presence` を名乗るが `requirements` 欠落 → `build_report()` が `KeyError`) は**マージの 1 秒前**に到着し未読のままマージ (2026-09-06T12:18Z)。未監視期間中に T5 第1要件 TRIGGERED / `ps-seat-supply-remeasure-30d` (期日 09-10) / P-S1(a) N=9/10 は誰も見ていなかった
+- 🛑 **監視器の故障が「異常なし」と区別できなかった** — Tier A cron は落ちず、`quant_gate_status.run_prereg_trigger_watch()` が **returncode を無視して stderr を本文として返して**いたため Discord には traceback が「監視結果」として掲載され続けた。`returncode` 検査 + 🔴 明示ラベルへ修正
+- **マージゲート新設**: `tools/pr_review_gate.py` — head commit のレビュー到着 ∧ 未解決 P1/P2 ゼロで exit 0。**内容の妥当性は判定しない** (読み手を強制するだけ、採否は Claude 判断)。P3 は表示のみ非ブロッキング。消化手段は「修正」か「反証を thread に返信して resolve」の 2 択。`CLAUDE.md` のレビュー記述を実機構 (GitHub Codex connector) に訂正しマージ手順へ組込み
+- **監視器の堅牢化**: `evaluate_trigger` を隔離ラッパ化 (1 件の不整合が全体を落とす設計を廃止、壊れたエントリのみ `EVAL_ERROR`)、`STATE_ERROR` を `DATA_UNAVAILABLE` と別の箱へ分離 (`main()` は exit 2)、`lint_schema()` 新設 (type ごとに評価器が添字アクセスするフィールドを authoring 時に検査 — 既存 `lint_reachability` は機械評価型を素通りさせる設計で穴が空いていた)、`scripts/check.py` に登録 (**検査不能を skip に落とさず ERROR**)
+- **registry**: `roster-e2-silent-promoted-cells` を `artifact_presence` → `conditional_info` へ型修復 (条件は成果物着地ではなく 10-06 までの判別作業。estimand が型と不一致だった) + `reachability` 明記。未処理の P1 #2 を `roster-attrition-88pct-estimand-audit` (期日 2026-09-22) として新規登録
+- ⚠️ **88.7% 帰属の主張は要再検証** — PR #226 の 2 件目 P1 は `D_NEVER_PROMOTED` 判定が「現在の昇格集合に不在」を「anchor 日も未昇格」と読み替えていると指摘。成立しなければ MEMORY `project_roster_attrition_attribution_2026_09_06` と [[live-roster-attrition-2026-09-06]] の 88.7% は引用不可へ格下げ。**引用前に registry 監査結果を確認せよ**
+- **counterfactual 4/4** が所望のテストだけを落とすことを確認 (隔離除去 / registry を 09-06 形へ / prefix 配線切断 / returncode 検査除去)。副次: 構文 pin (`inspect.getsource`) だった `test_registry_kalman_live_check_entry_is_wired` を性質 pin へ差替え (「pin は性質で書け」の 3 領域目)
+- テスト: `tests/test_pr_review_gate.py` **10 本** 新設 + trigger watch **9 本** + quant gate **2 本** 追加
+- 決裁: [[pr-review-gate-2026-09-08]] / 親: [[process-meta-audit-2026-09-07]] §4.2 R2
+
 ## 2026-09-06 — diag(monitoring): LIVE 発火セル 124→3 の帰属 — 88.7% は設計通り、11.3% は帰属不能 (rule:R3)
 
 - 🛑 **09-04 が M3 スループットを「独立ボトルネック」へ昇格させた際の帰属 (「7-8 月の R2 降格バッチ = 設計通り」) は検証されていなかった** — どのセルがどの停止機構で消えたかを機械的に突き合わせた主体が存在しなかった。本コミットで読み手を新設し突合した

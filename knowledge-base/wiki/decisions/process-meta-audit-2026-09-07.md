@@ -131,10 +131,11 @@
 - 期待効果: LIVE 発火 3 → 最大 4〜8 セル。rnb が計画どおりなら M3 律速セル (13.8 ヶ月) の代替で ETA を 2027-11 → 2027-03〜04 へ短縮しうる (goals-4 訂正版の楽観径路)
 - 工数: パケット起案 2〜3 セッション。リスク: rnb は全段未確定 (BT 頻度の live 実現は未検証)。**最終 R1 承認は user**
 
-**R2: マージゲート — 既に走っている独立レビューに読み手を付ける**
+**R2: マージゲート — 既に走っている独立レビューに読み手を付ける** ✅ **執行済み 2026-09-08** ([[pr-review-gate-2026-09-08]])
 - 何を: 自走マージ手順 (gh pr merge --admin) に「connector レビュー到着待ち + P1/P2 消化 or 明示 dismiss」を必須ゲートとして組込み、CLAUDE.md の Codex レビュー行を実機構 (GitHub connector) に修正
 - 期待効果: 潜伏 100 日級 verdict/estimand 欠陥の検出遅延短縮。追加コストほぼゼロ (レビューは既に無料で届いている)
 - 工数: 0.5 セッション。リスク: マージ律速 (数分〜数十分の待ち) — R1/verdict/live 経路 PR に限定する運用も可
+- **執行結果 (2026-09-08)**: `tools/pr_review_gate.py` + CLAUDE.md 組込み。実測で本提言の前提が定量確認された — finding を持つ 35 PR の解決済みスレッド **0 件** / review→merge 中央値 **2.8 分**。同日、未読 P1 が原因の実害 (daily trigger watch が 51 エントリ 2 日間停止) を発見・修復
 
 **R3: 欠陥税の一括返済 — estimand 宣言表 + fault-injection 常設**
 - 何を: (a) freshness_policy 方式を一般化した estimand 宣言表 (名乗り/母集団/時計/分母/読み手) + CI 突合チェッカー、(b) counterfactual 注入を PR 儀式から常設 fault-injection 回帰スイートへ (全 ~10 検知器 + guard 自身の counterfactual を対で保持)、(c) SignalContext 単一ファクトリ + 値域内 sentinel default の lint、(d) 修理 PR に「混入日・発見日・発見手段」3 フィールド必須化と QA 起点発見率の月次 KPI 化

@@ -92,12 +92,14 @@ Sub-scope: `services/discord_bot/CLAUDE.md` (Discord bot 固有規律)
 - **バージョン履歴**: `wiki/changelog.md`
 - **戦略パフォーマンス**: `raw/bt-results/`, `raw/audits/`
 
-## コードレビュー
-- **作業完了後、Codexが出力をレビューする** — Codexプラグイン(codex@openai-codex)による自動レビュー
+## コードレビュー / マージゲート
+- **実機構は GitHub の Codex connector** (`chatgpt-codex-connector`) — PR を開くと自動でレビューが届き、finding は inline review thread に P1/P2/P3 バッジ付きで載る (旧記述「codex@openai-codex プラグイン」は実態と不一致、2026-09-08 訂正)
+- **マージ前に `python3 tools/pr_review_gate.py <PR番号> --wait 900` を必ず実行** (exit 0 でのみマージ可)。未解決 P1/P2 は「修正」か「反証を thread に返信して resolve」のどちらかで消化する — 無視してのマージは禁止
+- 根拠: 直近 40 PR で finding を持つ 35 PR の解決済みスレッド **0 件** / review→merge 中央値 2.8 分。詳細: `wiki/decisions/pr-review-gate-2026-09-08.md`
 
 ## 自走原則 (2026-07-06 user 承認)
 - **タスクを user に返さない** — 実行可能なものは全て Claude が完遂する。返す前に allow ルール / settings / IaC / 自動化の経路を必ず探す。不可能なもののみ理由 + 代替案付きで報告
-- **PR マージは Claude が自走** — CI green 確認後 `gh pr merge N --merge --admin` を**単独コマンド形で**実行 (複合コマンドは classifier 拒否)。hot file conflict は union 解決。詳細: MEMORY `project_pr_merge_race_parallel_sessions`
+- **PR マージは Claude が自走** — CI green **かつ review gate green** 確認後 `gh pr merge N --merge --admin` を**単独コマンド形で**実行 (複合コマンドは classifier 拒否)。hot file conflict は union 解決。詳細: MEMORY `project_pr_merge_race_parallel_sessions`
 
 ## Changelog
 Full change history: [CHANGELOG.md](CHANGELOG.md)

@@ -91,9 +91,18 @@ def run_prereg_trigger_watch() -> str:
             ["python3", str(ROOT / "tools" / "prereg_trigger_watch.py")],
             capture_output=True, text=True, timeout=90,
         )
-        return r.stdout or r.stderr or "(no output)"
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        return f"(prereg_trigger_watch.py error: {e})"
+        return f"## Pre-reg Trigger Watch\n🔴 **監視器が実行不能**: {e}"
+    if r.returncode != 0:
+        # 2026-09-08: registry の 1 エントリ欠損で本監視器が KeyError 落ちし、
+        # traceback が本文としてそのまま Discord に載っていた (2 日間、51
+        # エントリ全て未監視)。returncode を無視すると「監視器が落ちた」と
+        # 「監視器が異常なしと言った」が読み手にとって同じに見える。
+        tail = (r.stderr or r.stdout or "(no output)").strip().splitlines()[-6:]
+        return ("## Pre-reg Trigger Watch\n"
+                f"🔴 **監視器が exit {r.returncode} で失敗 — 全 trigger 未監視**\n"
+                "```\n" + "\n".join(tail) + "\n```")
+    return r.stdout or "(no output)"
 
 
 def run_m1_readout() -> dict[str, Any]:

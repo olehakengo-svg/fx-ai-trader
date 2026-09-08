@@ -162,7 +162,7 @@ def test_count_live_matching_prefix_for_multi_variant_cell():
     assert count_live_matching(trades, "trendline_sweep", "USD_JPY", "") == 1
 
 
-def test_registry_kalman_live_check_entry_is_wired():
+def test_registry_kalman_live_check_entry_is_wired(monkeypatch):
     """registry の t9-kalman-d7-live-n10-ev-check が実際に評価経路へ届くこと。
 
     entry_type が prefix 前提で書かれているのに type 側が prefix を渡さない、
@@ -181,13 +181,22 @@ def test_registry_kalman_live_check_entry_is_wired():
     assert trig["match"] == "prefix", "3 variant 合算には prefix 必須"
     assert trig["type"] == "live_count_decision"
 
-    import inspect
+    # 2026-09-08: 構文 pin (evaluate_trigger のソース文字列検査) から性質 pin へ。
+    # 旧 pin は関数名の変更だけで壊れ、配線そのものは検査していなかった
+    # (MEMORY: pin は性質で書け)。実際に prefix=True が届くかで固定する。
     from tools import prereg_trigger_watch as w
-    src = inspect.getsource(w.evaluate_trigger)
-    live_branch = src.split('ttype == "live_count_decision"')[1].split("elif")[0]
-    assert 'prefix=trig.get("match")' in live_branch, (
+    seen = {}
+
+    def fake_fetch(entry_type, instrument, direction, since, app_base,
+                   prefix=False, reasons_marker=""):
+        seen["prefix"] = prefix
+        return []
+
+    monkeypatch.setattr(w, "fetch_live_count", fake_fetch)
+    w.evaluate_trigger(trig, today="2026-09-08", app_base="http://t")
+    assert seen["prefix"] is True, (
         "live_count_decision が match=prefix を fetch_live_count へ渡していない "
-        "— 監視が沈黙する"
+        "— 3 variant 合算が沈黙する"
     )
 
 
@@ -758,3 +767,92 @@ def test_ws3_round4_entry_is_machine_evaluable():
     assert trig["threshold_date"] == "2026-11-15"
     assert (Path(__file__).resolve().parent.parent
             / trig["source"]["path"]).exists()
+
+
+# ── 監視器自身の堅牢性 — 2026-09-08 (51 エントリ 2 日間停止の再発防止) ──
+
+def test_registry_schema_lint_is_clean_on_the_real_registry():
+    """本番 registry の全 active エントリが type の必須フィールドを持つ。
+
+    2026-09-08: roster-e2-silent-promoted-cells が artifact_presence を
+    名乗りながら requirements を欠き、build_report() が KeyError で落ちて
+    51 エントリ全ての監視が 2 日間停止した。lint_reachability は機械評価型を
+    素通りさせる設計だったため、この層に穴があった。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema(load_registry()) == []
+
+
+def test_lint_schema_catches_the_exact_2026_09_08_defect():
+    from tools.prereg_trigger_watch import lint_schema
+    bad = [{"id": "x", "type": "artifact_presence", "active": True}]
+    errors = lint_schema(bad)
+    assert len(errors) == 1 and "requirements" in errors[0]
+    ok = [{"id": "x", "type": "artifact_presence",
+           "requirements": [{"path": "a", "min_files": 1}]}]
+    assert lint_schema(ok) == []
+
+
+def test_lint_schema_checks_nested_paths_the_evaluator_subscripts():
+    """csv_row_match の評価器は source["match"] を添字アクセスする。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv"}}]) != []
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv", "match": {}}}]) == []
+
+
+def test_lint_schema_rejects_unknown_type():
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "not_a_type"}]) != []
+
+
+def test_required_fields_cover_every_machine_evaluable_type():
+    """評価器に type を足して lint 仕様を足し忘れる経路を塞ぐ。"""
+    from tools.prereg_trigger_watch import (MACHINE_EVALUABLE_TYPES,
+                                            REQUIRED_FIELDS_BY_TYPE)
+    assert MACHINE_EVALUABLE_TYPES <= set(REQUIRED_FIELDS_BY_TYPE)
+
+
+def test_one_broken_entry_does_not_blind_the_other_entries(monkeypatch):
+    """fault injection: 壊れたエントリは自分だけ EVAL_ERROR を名乗る。"""
+    from tools import prereg_trigger_watch as w
+    broken = {"id": "broken", "active": True, "type": "artifact_presence"}
+    healthy = {"id": "healthy", "active": True, "type": "deadline_info",
+               "deadline": "2099-01-01"}
+    monkeypatch.setattr(w, "load_registry", lambda: [broken, healthy])
+    report = w.build_report(today="2026-09-08", app_base="http://x")
+    assert [r["id"] for r in report["errors"]] == ["broken"]
+    assert [r["id"] for r in report["watching"]] == ["healthy"]
+    assert "KeyError" in report["errors"][0]["detail"]
+
+
+def test_eval_error_is_not_folded_into_data_unavailable(monkeypatch):
+    """「評価器が壊れた」と「データが取れなかった」を同じ箱に入れない。"""
+    from tools import prereg_trigger_watch as w
+    broken = {"id": "broken", "active": True, "type": "artifact_presence"}
+    monkeypatch.setattr(w, "load_registry", lambda: [broken])
+    report = w.build_report(today="2026-09-08", app_base="http://x")
+    assert report["unavailable"] == []
+    assert len(report["errors"]) == 1
+    md = w.to_markdown(report)
+    assert "EVAL ERROR" in md and "broken" in md
+
+
+def test_markdown_says_no_triggers_only_when_all_bins_empty():
+    from tools import prereg_trigger_watch as w
+    empty = {"triggered": [], "watching": [], "unavailable": [], "errors": []}
+    assert "active な trigger なし" in w.to_markdown(empty)
+    with_err = dict(empty, errors=[{"id": "b", "detail": "boom"}])
+    assert "active な trigger なし" not in w.to_markdown(with_err)
+
+
+def test_e2_silent_entry_is_machine_watchable_with_reachability():
+    """2026-09-08 修復の pin: 型を conditional_info へ直し到達経路を明記した。"""
+    from tools.prereg_trigger_watch import lint_registry
+    trig = next(t for t in load_registry()
+                if t["id"] == "roster-e2-silent-promoted-cells")
+    assert trig["type"] == "conditional_info"
+    assert trig["deadline"] == "2026-10-06"
+    assert trig["reachability"].strip()
+    assert lint_registry(load_registry()) == []

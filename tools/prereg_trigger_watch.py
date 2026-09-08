@@ -37,6 +37,9 @@ APP_BASE_DEFAULT = "https://fx-ai-trader.onrender.com"
 STATE_TRIGGERED = "TRIGGERED"
 STATE_WATCHING = "WATCHING"
 STATE_UNAVAILABLE = "DATA_UNAVAILABLE"
+# 「評価器が落ちた」は「データが取れなかった」と別事象。折り畳むと
+# 壊れた監視器が「異常なし」と区別できなくなる (2026-09-08 実発生)。
+STATE_ERROR = "EVAL_ERROR"
 
 
 # ── 純関数 (テスト対象) ──────────────────────────────────────────────
@@ -580,7 +583,9 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
     return [t for t in data.get("triggers", []) if t.get("active", True)]
 
 
-def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict[str, Any]:
+def _evaluate_trigger_impl(
+    trig: dict[str, Any], *, today: str, app_base: str,
+) -> dict[str, Any]:
     ttype = trig.get("type")
     if ttype == "price_below":
         res = evaluate_price_below(
@@ -650,11 +655,86 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
             "message": trig.get("message", ""), **res}
 
 
+def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict[str, Any]:
+    """1 エントリの評価を隔離する。
+
+    2026-09-08: registry の 1 エントリ (roster-e2-silent-promoted-cells) が
+    type に必要なフィールドを欠いていたため `trig["requirements"]` が
+    KeyError を投げ、**51 エントリ全ての監視が 2 日間停止**した。1 件の
+    不整合が全体を落とす設計は監視器として不可。壊れたエントリは自分だけ
+    EVAL_ERROR を名乗り、残りは通常どおり評価される。
+    """
+    try:
+        return _evaluate_trigger_impl(trig, today=today, app_base=app_base)
+    except Exception as exc:  # noqa: BLE001 - 監視器を 1 件で落とさない境界
+        return {"id": trig.get("id", "(no id)"), "doc": trig.get("doc", ""),
+                "message": trig.get("message", ""),
+                "state": STATE_ERROR,
+                "detail": f"評価器が例外で停止: {type(exc).__name__}: {exc}"}
+
+
 MACHINE_EVALUABLE_TYPES = {
     "price_below", "shadow_count_decision", "shadow_count_info",
     "live_count_decision", "deadline_info", "ingest_freshness",
     "artifact_presence", "data_coverage", "csv_row_match",
 }
+
+
+# type ごとに評価器が「必ず添字アクセスする」フィールド。
+# 欠けたエントリは実行時 KeyError になるため、authoring 時に落とす。
+REQUIRED_FIELDS_BY_TYPE: dict[str, tuple[str, ...]] = {
+    "price_below": ("symbol", "threshold"),
+    "shadow_count_decision": ("entry_type", "since", "n_decide", "n_floor",
+                              "deadline"),
+    "shadow_count_info": ("entry_type", "since", "expected_per_week"),
+    "live_count_decision": ("entry_type", "since", "n_decide", "deadline"),
+    "deadline_info": ("deadline",),
+    "ingest_freshness": ("checks",),
+    "artifact_presence": ("requirements",),
+    "data_coverage": ("source", "threshold_date"),
+    "csv_row_match": ("source", "source.match"),
+    "info": (),
+    "conditional_info": (),
+}
+
+
+def _has_path(obj: Any, dotted: str) -> bool:
+    """"a.b" 形式のネストしたキー存在チェック (評価器の添字と同じ深さで見る)。"""
+    cur = obj
+    for part in dotted.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return False
+        cur = cur[part]
+    return True
+
+
+def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
+    """type が要求するフィールドの欠落を authoring 時に検出する。
+
+    2026-09-08: artifact_presence を名乗りながら requirements を持たない
+    エントリが main に着地し、daily の trigger watch 全体 (51 件) が
+    KeyError で 2 日間停止した。lint_reachability は機械評価型を素通り
+    させる設計だったため、この層に穴が空いていた。
+    """
+    errors: list[str] = []
+    for t in triggers:
+        tid = t.get("id", "(no id)")
+        ttype = t.get("type")
+        if ttype not in REQUIRED_FIELDS_BY_TYPE:
+            errors.append(f"{tid}: unknown type {ttype!r} — 評価器が無い")
+            continue
+        missing = [f for f in REQUIRED_FIELDS_BY_TYPE[ttype]
+                   if not _has_path(t, f)]
+        if missing:
+            errors.append(
+                f"{tid}: type={ttype} に必須の {missing} が無い — "
+                "実行時 KeyError で監視器全体が落ちる")
+    return errors
+
+
+def lint_registry(triggers: list[dict[str, Any]]) -> list[str]:
+    """authoring 時 lint の入口 (schema + 到達経路)。"""
+    return lint_schema(triggers) + lint_reachability(triggers)
 
 
 def lint_reachability(triggers: list[dict[str, Any]]) -> list[str]:
@@ -689,6 +769,9 @@ def build_report(*, today: str | None = None, app_base: str | None = None) -> di
         "triggered": [r for r in results if r["state"] == STATE_TRIGGERED],
         "watching": [r for r in results if r["state"] == STATE_WATCHING],
         "unavailable": [r for r in results if r["state"] == STATE_UNAVAILABLE],
+        # 評価器自身の故障。DATA_UNAVAILABLE に混ぜると「取れなかった」と
+        # 「壊れている」が区別できなくなる。
+        "errors": [r for r in results if r["state"] == STATE_ERROR],
     }
 
 
@@ -706,7 +789,12 @@ def to_markdown(report: dict[str, Any]) -> str:
         lines.append("### ⚠️ data unavailable")
         for r in report["unavailable"]:
             lines.append(f"- {r['id']}: {r['detail']}")
-    if not any((report["triggered"], report["watching"], report["unavailable"])):
+    if report.get("errors"):
+        lines.append("### 🔴 EVAL ERROR — 監視器自身の故障 (registry を直せ)")
+        for r in report["errors"]:
+            lines.append(f"- **{r['id']}**: {r['detail']}")
+    if not any((report["triggered"], report["watching"], report["unavailable"],
+                report.get("errors"))):
         lines.append("- (active な trigger なし)")
     return "\n".join(lines)
 
@@ -714,21 +802,23 @@ def to_markdown(report: dict[str, Any]) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Pre-reg trigger watch")
     ap.add_argument("--lint", action="store_true",
-                    help="到達経路 lint のみ実行 (違反があれば exit 1)")
+                    help="registry lint のみ実行 (schema + 到達経路、違反で exit 1)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
     if args.lint:
-        errors = lint_reachability(load_registry())
+        errors = lint_registry(load_registry())
         for e in errors:
             print(f"ERROR {e}", file=sys.stderr)
-        print(f"到達経路 lint: {len(errors)} 件の違反")
+        print(f"registry lint (schema + 到達経路): {len(errors)} 件の違反")
         return 1 if errors else 0
     report = build_report()
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
         print(to_markdown(report))
-    return 0
+    # 評価器が壊れているときは exit code でも名乗る (呼び出し側が
+    # 「壊れた」と「異常なし」を区別できるように)。
+    return 2 if report.get("errors") else 0
 
 
 if __name__ == "__main__":

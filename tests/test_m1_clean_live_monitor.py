@@ -262,3 +262,47 @@ def test_module_import_has_no_side_effects():
                 assert name in {"frozenset", "set", "dict", "tuple"}, (
                     f"module-level call {name} at line {node.lineno}"
                 )
+
+
+# --------------------------------------------------------------------------
+# 監視器の故障を「異常なし」と折り畳まない — 2026-09-08
+# --------------------------------------------------------------------------
+
+def test_prereg_watch_crash_is_reported_as_failure_not_content(monkeypatch):
+    """subprocess の exit code を無視すると traceback が本文として流れる。
+
+    2026-09-08 実発生: registry の 1 エントリ欠損で prereg_trigger_watch が
+    KeyError 落ちし、stderr の traceback が daily Discord にそのまま本文として
+    載っていた (2 日間、51 エントリ全て未監視)。読み手にとって「監視器が
+    落ちた」と「監視器が異常なしと言った」が同じに見えていた。
+    """
+    import subprocess
+
+    from tools import quant_gate_status as qgs
+
+    class _R:
+        returncode = 1
+        stdout = ""
+        stderr = 'Traceback (most recent call last):\nKeyError: \'requirements\''
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _R())
+    out = qgs.run_prereg_trigger_watch()
+    assert "🔴" in out and "exit 1" in out
+    assert "未監視" in out
+    assert "KeyError" in out, "原因が読み手に届いていない"
+
+
+def test_prereg_watch_success_returns_plain_body(monkeypatch):
+    import subprocess
+
+    from tools import quant_gate_status as qgs
+
+    class _R:
+        returncode = 0
+        stdout = "## Pre-reg Trigger Watch\n- ok"
+        stderr = ""
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _R())
+    out = qgs.run_prereg_trigger_watch()
+    assert out.startswith("## Pre-reg Trigger Watch")
+    assert "🔴" not in out
