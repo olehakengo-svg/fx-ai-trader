@@ -736,6 +736,18 @@ NUMERIC_FIELDS = frozenset({
     "min_files", "min_keys",
 })
 
+# 評価器が文字列として扱うフィールド (Path.glob / 日付比較 / API パラメータ)。
+# 型を見ないと `deadline: 123` が lint を通り `today > deadline` で TypeError、
+# `path: 123` が Path.glob(123) で落ちる (PR #227 Codex P2 5 巡目)。
+STRING_FIELDS = frozenset({
+    "path", "deadline", "since", "symbol", "threshold_date", "key", "prefix",
+    "column", "entry_type", "instrument", "direction", "reasons_marker",
+    "mode", "date_column", "label",
+})
+# 注: "match" は leaf 名が衝突する — shadow/live count 系では文字列 "prefix"、
+# csv_row_match では述語のリスト。leaf 名だけでは型を決められないので
+# STRING_FIELDS には入れない。
+
 
 def _unusable_reason(field: str, value: Any) -> str | None:
     """必須値が「存在するが評価器が使えない」ケースを名指しする。
@@ -751,10 +763,14 @@ def _unusable_reason(field: str, value: Any) -> str | None:
     if isinstance(value, (list, dict)) and not value:
         return "空のコレクション"
     if leaf in NUMERIC_FIELDS:
+        if isinstance(value, bool):
+            return f"数値でなく bool ({value!r})"
         try:
             float(value)
         except (TypeError, ValueError):
             return f"数値化できない ({value!r})"
+    elif leaf in STRING_FIELDS and not isinstance(value, str):
+        return f"文字列でない ({type(value).__name__}: {value!r})"
     return None
 
 
@@ -843,7 +859,12 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
                 errors.append(
                     f"{tid}: {dotted}[{i}] に必須の {lack} が無い — "
                     "実行時 KeyError")
-            for k in keys:
+            # 必須キーだけでなく、要素に**存在する**既知フィールドは全て
+            # 型検査する。min_files / min_keys は任意だが評価器が int() する
+            # ので null が入ると実行時 TypeError になる (PR #227 Codex P2)。
+            checked = set(keys) | {k for g in alternatives for k in g}
+            checked |= {k for k in elem if k in NUMERIC_FIELDS or k in STRING_FIELDS}
+            for k in sorted(checked):
                 if k in elem:
                     why = _unusable_reason(k, elem[k])
                     if why:

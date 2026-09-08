@@ -967,3 +967,33 @@ def test_the_real_rollback_entry_keeps_its_wildcard_shape():
                 if t["id"] == "hourblock-class-exempt-r2-rollback")
     assert trig["entry_type"] == ""
     assert trig["reasons_marker"].strip()
+
+
+def test_lint_type_checks_string_fields():
+    """`deadline: 123` は `today > deadline` で TypeError、`path: 123` は
+    Path.glob(123) で落ちる (PR #227 Codex P2 5 巡目)。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": 123}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": 123}]}]) != []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": 1, "threshold": 1.0}]) != []
+
+
+def test_lint_checks_optional_numeric_collection_fields():
+    """min_files / min_keys は任意だが評価器は int() する (PR #227 Codex P2)。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*", "min_files": None}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"prefix": "p:", "max_age_hours": 24,
+                                     "min_keys": None}]}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*", "min_files": 3}]}]) == []
+
+
+def test_csv_match_list_is_not_treated_as_a_string_field():
+    """leaf 名 `match` は type によって意味が違う (実 registry の回帰 pin)。"""
+    from tools.prereg_trigger_watch import lint_registry
+    assert lint_registry(load_registry()) == []

@@ -332,3 +332,33 @@ def test_partial_eval_error_keeps_the_healthy_trigger_results(monkeypatch):
     assert "EVAL ERROR" in out
     assert "exit 2" in out
     assert "全 trigger 未監視" not in out, "部分故障を全滅と誤って名乗っている"
+
+
+def test_watcher_failure_appears_before_the_discord_cutoff(monkeypatch):
+    """Discord は 1900 字で切られ watch 節は最後尾 — 故障が届かない。
+
+    PR #227 Codex P1: 「本文には出ているが読み手には届かない」= 本 PR が
+    直している 2 日間 blind と同型。故障の 1 行は M1 直後へ引き上げる。
+    """
+    from tools import quant_gate_status as qgs
+    from tools.alpha_budget_tracker import _empty_state
+
+    watch = (f"{qgs.WATCH_ALERT_MARK} **監視器が exit 2 — 一部 trigger が評価不能**\n"
+             "## Pre-reg Trigger Watch\n" + ("- filler\n" * 400))
+    md = qgs.to_markdown({
+        "generated_at": "2026-09-08T00:00:00+00:00",
+        "m1_readout": m1.summarize([row(1, 5.0)], ANCHOR),
+        "quant_readiness": "readiness-body\n" * 100,
+        "alpha_budget": _empty_state("2026-09"),
+        "candidate_queue_7d": {"total": 0, "pass": 0, "shadow_only": 0,
+                               "recent_names": []},
+        "prereg_trigger_watch": watch,
+    })
+    assert qgs.WATCH_ALERT_MARK in md[:1900], (
+        "監視器故障が 1900 字カットの外側にあり Discord に届かない")
+    assert md.index(qgs.WATCH_ALERT_MARK) < md.index("## Readiness")
+
+
+def test_no_alert_line_when_the_watcher_is_healthy():
+    from tools import quant_gate_status as qgs
+    assert qgs.extract_watch_alert("## Pre-reg Trigger Watch\n- 👁 watching") == ""

@@ -80,6 +80,20 @@ def summarize_candidate_queue(days: int = 7) -> dict[str, Any]:
     return {"total": total, "pass": passed, "shadow_only": shadow, "recent_names": names[:10]}
 
 
+# 監視器自身の故障を示すマーク。Discord は 1900 字で切られ、watch 節は
+# 最後尾なので、この行だけは M1 直後 (切られない位置) へ引き上げる
+# (PR #227 Codex P1 — 「本文には出ているが読み手には届かない」の再発防止)。
+WATCH_ALERT_MARK = "🔴🔴"
+
+
+def extract_watch_alert(watch_text: str) -> str:
+    """watch 本文から監視器故障の 1 行だけを抜き出す (無ければ空文字)。"""
+    for line in (watch_text or "").splitlines():
+        if line.startswith(WATCH_ALERT_MARK):
+            return line.strip()
+    return ""
+
+
 def run_prereg_trigger_watch() -> str:
     """tools/prereg_trigger_watch.py の Markdown を subprocess で取得。
 
@@ -92,7 +106,8 @@ def run_prereg_trigger_watch() -> str:
             capture_output=True, text=True, timeout=90,
         )
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        return f"## Pre-reg Trigger Watch\n🔴 **監視器が実行不能**: {e}"
+        return (f"## Pre-reg Trigger Watch\n{WATCH_ALERT_MARK} "
+                f"**監視器が実行不能**: {e}")
     if r.returncode != 0:
         # 2026-09-08: registry の 1 エントリ欠損で本監視器が KeyError 落ちし、
         # traceback が本文としてそのまま Discord に載っていた (2 日間、51
@@ -105,15 +120,16 @@ def run_prereg_trigger_watch() -> str:
         # そのまま再現する。構造化レポートが出ていれば必ず併記する。
         err = (r.stderr or "").strip()
         if r.stdout.strip():
-            banner = (f"🔴 **監視器が exit {r.returncode} — 一部 trigger が "
-                      "評価不能 (下記 EVAL ERROR 節を見よ)**")
+            banner = (f"{WATCH_ALERT_MARK} **監視器が exit {r.returncode} — "
+                      "一部 trigger が評価不能 (下記 EVAL ERROR 節を見よ)**")
             body = r.stdout.strip()
             if err:
                 banner += "\n```\n" + "\n".join(err.splitlines()[-6:]) + "\n```"
             return f"{banner}\n{body}"
         tail = (err or "(no output)").splitlines()[-6:]
         return ("## Pre-reg Trigger Watch\n"
-                f"🔴 **監視器が exit {r.returncode} で失敗 — 全 trigger 未監視**\n"
+                f"{WATCH_ALERT_MARK} **監視器が exit {r.returncode} で失敗 — "
+                "全 trigger 未監視**\n"
                 "```\n" + "\n".join(tail) + "\n```")
     return r.stdout or "(no output)"
 
@@ -155,6 +171,12 @@ def to_markdown(report: dict[str, Any]) -> str:
     else:
         lines.append(m1.to_markdown(m1_report))
     lines.append("")
+    # 監視器の故障は最優先で、かつ 1900 字カットより前に出す。
+    alert = extract_watch_alert(report.get("prereg_trigger_watch", ""))
+    if alert:
+        lines.append("## ⚠️ Pre-reg Trigger Watch — 監視器故障")
+        lines.append(alert)
+        lines.append("")
     lines.append("## Readiness")
     lines.append("```")
     lines.append(report["quant_readiness"].strip())
