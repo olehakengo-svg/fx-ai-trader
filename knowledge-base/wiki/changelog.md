@@ -11,7 +11,7 @@
 - ⚠️ **88.7% 帰属の主張は要再検証** — PR #226 の 2 件目 P1 は `D_NEVER_PROMOTED` 判定が「現在の昇格集合に不在」を「anchor 日も未昇格」と読み替えていると指摘。成立しなければ MEMORY `project_roster_attrition_attribution_2026_09_06` と [[live-roster-attrition-2026-09-06]] の 88.7% は引用不可へ格下げ。**引用前に registry 監査結果を確認せよ**
 - **counterfactual 4/4** が所望のテストだけを落とすことを確認 (隔離除去 / registry を 09-06 形へ / prefix 配線切断 / returncode 検査除去)。副次: 構文 pin (`inspect.getsource`) だった `test_registry_kalman_live_check_entry_is_wired` を性質 pin へ差替え (「pin は性質で書け」の 3 領域目)
 - テスト: `tests/test_pr_review_gate.py` **10 本** 新設 + trigger watch **9 本** + quant gate **2 本** 追加
-- 🛑 **ゲートの初回適用 (本 PR 自身) が P1 1 件 + P2 2 件を止めた** — うち P1 は「exit 2 で stdout を捨てると壊れた 1 件が他エントリの TRIGGERED を隠す」= **本 PR が直そうとした盲点を別の層で作り直していた**。他 2 件は lint がネスト要素を見ていない / レビュアー照合が部分一致。3 件とも修正し counterfactual 3/3 確認
+- 🛑 **ゲートは本 PR 自身を 2 巡止めた** — 1 巡目 P1 1 件 + P2 2 件、2 巡目 P2 1 件。2 巡目は「評価器の添字を authoring 時に写す」修正自体が写し漏らしていた (prefix 無し ingest check の `key` / csv 述語の `value`) = **同じ欠陥クラスが修正の中で再発**していた。1 巡目 P1 1 件 + P2 2 件の内訳 — うち P1 は「exit 2 で stdout を捨てると壊れた 1 件が他エントリの TRIGGERED を隠す」= **本 PR が直そうとした盲点を別の層で作り直していた**。他 2 件は lint がネスト要素を見ていない / レビュアー照合が部分一致。3 件とも修正し counterfactual 3/3 確認
 - 決裁: [[pr-review-gate-2026-09-08]] / 親: [[process-meta-audit-2026-09-07]] §4.2 R2
 
 ## 2026-09-06 — diag(monitoring): LIVE 発火セル 124→3 の帰属 — 88.7% は設計通り、11.3% は帰属不能 (rule:R3)

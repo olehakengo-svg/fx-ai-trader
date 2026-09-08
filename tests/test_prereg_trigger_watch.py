@@ -800,7 +800,8 @@ def test_lint_schema_checks_nested_paths_the_evaluator_subscripts():
                          "source": {"path": "a.csv"}}]) != []
     assert lint_schema([{"id": "x", "type": "csv_row_match",
                          "source": {"path": "a.csv",
-                                    "match": [{"column": "c"}]}}]) == []
+                                    "match": [{"column": "c",
+                                               "value": 1}]}}]) == []
 
 
 def test_lint_schema_rejects_unknown_type():
@@ -874,11 +875,14 @@ def test_lint_schema_validates_collection_element_fields():
                          "checks": [{"key": "k"}]}]) != []
     assert lint_schema([{"id": "x", "type": "ingest_freshness",
                          "checks": [{"key": "k", "max_age_hours": 24}]}]) == []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"prefix": "p:", "max_age_hours": 24}]}]) == []
     assert lint_schema([{"id": "x", "type": "csv_row_match",
                          "source": {"path": "a.csv", "match": [{}]}}]) != []
     assert lint_schema([{"id": "x", "type": "csv_row_match",
                          "source": {"path": "a.csv",
-                                    "match": [{"column": "c"}]}}]) == []
+                                    "match": [{"column": "c",
+                                               "value": 1}]}}]) == []
 
 
 def test_data_coverage_and_csv_specs_declare_their_path():
@@ -886,3 +890,17 @@ def test_data_coverage_and_csv_specs_declare_their_path():
     from tools.prereg_trigger_watch import lint_schema
     assert lint_schema([{"id": "x", "type": "data_coverage",
                          "source": {}, "threshold_date": "2026-01-01"}]) != []
+
+
+def test_lint_schema_requires_either_key_or_prefix_and_the_csv_value():
+    """評価器の添字を漏れなく写す (PR #227 Codex P2 2 巡目)。
+
+    prefix 無しの ingest check は `chk["key"]` を、csv 述語は `c["value"]` を
+    添字アクセスするが、初版のスキーマはどちらも必須にしていなかった。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"max_age_hours": 24}]}]) != []
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv",
+                                    "match": [{"column": "c"}]}}]) != []

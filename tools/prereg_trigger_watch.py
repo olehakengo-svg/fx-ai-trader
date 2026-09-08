@@ -701,10 +701,16 @@ REQUIRED_FIELDS_BY_TYPE: dict[str, tuple[str, ...]] = {
 # 上の top-level 検査だけでは `requirements: [{}]` のような形が素通りし、
 # 実行時に scan_artifacts / evaluate_ingest_freshness が KeyError を投げる
 # (PR #227 Codex P2)。評価器が添字アクセスする深さまで authoring 時に見る。
-COLLECTION_ELEMENT_FIELDS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
-    "artifact_presence": (("requirements", ("path",)),),
-    "ingest_freshness": (("checks", ("max_age_hours",)),),
-    "csv_row_match": (("source.match", ("column",)),),
+# 各要素は (dotted path, 常に必要なキー, 「いずれか 1 つ」で足りるキー群)。
+# ingest_freshness の check は prefix があれば key 不要、無ければ chk["key"] を
+# 添字アクセスする — 「どちらか必須」を表現できないと片方の欠落を見逃す
+# (PR #227 Codex P2 の 2 巡目)。
+COLLECTION_ELEMENT_FIELDS: dict[
+    str, tuple[tuple[str, tuple[str, ...], tuple[tuple[str, ...], ...]], ...]
+] = {
+    "artifact_presence": (("requirements", ("path",), ()),),
+    "ingest_freshness": (("checks", ("max_age_hours",), (("key", "prefix"),)),),
+    "csv_row_match": (("source.match", ("column", "value"), ()),),
 }
 
 
@@ -754,7 +760,7 @@ def _get_path(obj: Any, dotted: str) -> Any:
 def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
     """コレクション型フィールドの形と要素キーを検査する。"""
     errors: list[str] = []
-    for dotted, keys in COLLECTION_ELEMENT_FIELDS.get(ttype, ()):
+    for dotted, keys, alternatives in COLLECTION_ELEMENT_FIELDS.get(ttype, ()):
         coll = _get_path(t, dotted)
         if not isinstance(coll, list) or not coll:
             errors.append(
@@ -772,6 +778,11 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
                 errors.append(
                     f"{tid}: {dotted}[{i}] に必須の {lack} が無い — "
                     "実行時 KeyError")
+            for group in alternatives:
+                if not any(k in elem for k in group):
+                    errors.append(
+                        f"{tid}: {dotted}[{i}] は {list(group)} の"
+                        "いずれか 1 つが必須 — 実行時 KeyError")
     return errors
 
 
