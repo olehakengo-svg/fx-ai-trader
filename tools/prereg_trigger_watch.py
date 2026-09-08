@@ -773,7 +773,7 @@ NUMERIC_FIELDS = frozenset({
 STRING_FIELDS = frozenset({
     "path", "deadline", "since", "symbol", "threshold_date", "key", "prefix",
     "column", "entry_type", "instrument", "direction", "reasons_marker",
-    "mode", "date_column", "label",
+    "mode", "date_column", "label", "endpoint",
 })
 # int() で消費される field。float() だけ通る "1.5" を素通りさせない
 # (PR #227 Codex P2 6 巡目)。
@@ -789,6 +789,15 @@ DATE_FIELDS = frozenset({"deadline", "since", "threshold_date"})
 DATE_SENTINELS_BY_FIELD: dict[str, frozenset[str]] = {
     "deadline": frozenset({"no-deadline"}),
 }
+# sentinel 分岐を実際に実装しているのは evaluate_manual_info だけ
+# (`deadline != "no-deadline"` を明示チェックする)。evaluate_deadline_info は
+# `today > deadline` しか見ないので、"no-deadline" を渡すと永久 WATCHING に
+# なる (PR #227 Codex P2 11 巡目)。deadline を消費しない type は無害なので許可。
+DEADLINE_CONSUMING_TYPES = frozenset({"deadline_info", "info",
+                                      "conditional_info",
+                                      "shadow_count_decision",
+                                      "live_count_decision"})
+SENTINEL_OK_TYPES = frozenset({"info", "conditional_info"})
 
 # 評価器が bool として消費するフィールド。`closed_only: "false"` は
 # `bool(trig.get("closed_only"))` で **true** になり、監視母集団を黙って
@@ -964,9 +973,15 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
             empty_ok = empty_ok | {"entry_type"}
         for f in present:
             leaf = f.rsplit(".", 1)[-1]
+            sentinels = DATE_SENTINELS_BY_FIELD.get(leaf, frozenset())
+            # sentinel は「実装している評価器」+「その field を消費しない
+            # type」でのみ許可する。
+            if (sentinels and ttype in DEADLINE_CONSUMING_TYPES
+                    and ttype not in SENTINEL_OK_TYPES):
+                sentinels = frozenset()
             why = _unusable_reason(
                 f, _get_path(t, f), empty_ok=frozenset(empty_ok),
-                date_sentinels=DATE_SENTINELS_BY_FIELD.get(leaf, frozenset()))
+                date_sentinels=sentinels)
             if why:
                 errors.append(
                     f"{tid}: type={ttype} の {f} が使えない値 ({why}) — "
@@ -1042,6 +1057,11 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
                         errors.append(
                             f"{tid}: {dotted}[{i}].{k} が使えない値 ({why}) — "
                             "評価器が実行時に落ちる")
+            if "op" in elem and elem["op"] not in _CSV_OPS:
+                errors.append(
+                    f"{tid}: {dotted}[{i}].op={elem['op']!r} は未知の演算子 — "
+                    f"評価器は {sorted(_CSV_OPS)} のみ解釈し、"
+                    "それ以外は毎日 DATA_UNAVAILABLE を返し続ける")
             for group in alternatives:
                 # 存在だけでは足りない: evaluate_ingest_freshness は
                 # `if prefix:` で分岐するので prefix="" は key 側へ落ち、

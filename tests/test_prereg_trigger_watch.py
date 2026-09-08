@@ -1011,8 +1011,11 @@ def test_lint_rejects_dates_that_are_never_reached():
                          "deadline": "2026-13-45"}]) != []
     assert lint_schema([{"id": "x", "type": "deadline_info",
                          "deadline": "2026-10-06"}]) == []
-    assert lint_schema([{"id": "x", "type": "deadline_info",
-                         "deadline": "no-deadline"}]) == []
+    # 2026-09-08 (11 巡目) 契約変更: no-deadline sentinel は
+    # evaluate_manual_info (info/conditional_info) だけが実装している。
+    assert lint_schema([{"id": "x", "type": "conditional_info",
+                         "deadline": "no-deadline",
+                         "reachability": "cron"}]) == []
 
 
 def test_lint_uses_int_conversion_for_int_consumed_fields():
@@ -1181,8 +1184,9 @@ def test_date_sentinel_is_scoped_to_deadline_only():
     assert lint_schema([{"id": "x", "type": "shadow_count_info",
                          "entry_type": "e", "since": "no-deadline",
                          "expected_per_week": 1.0}]) != []
-    assert lint_schema([{"id": "x", "type": "deadline_info",
-                         "deadline": "no-deadline"}]) == []
+    assert lint_schema([{"id": "x", "type": "conditional_info",
+                         "deadline": "no-deadline",
+                         "reachability": "cron"}]) == []
 
 
 def test_lint_traverses_optional_fields_inside_source_specs():
@@ -1201,3 +1205,42 @@ def test_lint_traverses_optional_fields_inside_source_specs():
                                                         "value": 1}],
                             "label_columns": ["c"]})
     assert lint_schema([ok]) == []
+
+
+def test_no_deadline_sentinel_only_for_evaluators_that_implement_it():
+    """evaluate_deadline_info は sentinel 分岐を持たない — 永久 WATCHING になる。
+
+    PR #227 Codex P2 11 巡目: sentinel を実装しているのは
+    evaluate_manual_info (`deadline != "no-deadline"` を明示チェック) だけ。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "no-deadline"}]) != []
+    assert lint_schema([{"id": "x", "type": "conditional_info",
+                         "deadline": "no-deadline",
+                         "reachability": "cron"}]) == []
+    # deadline を消費しない type では無害
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "deadline": "no-deadline",
+                         "requirements": [{"path": "a/*"}]}]) == []
+
+
+def test_lint_validates_csv_predicate_operators():
+    """`op: "=>"` は評価器が未知として毎日 DATA_UNAVAILABLE を返し続ける。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "csv_row_match"}
+    bad = dict(base, source={"path": "a.csv",
+                             "match": [{"column": "c", "op": "=>", "value": 1}]})
+    assert lint_schema([bad]) != []
+    ok = dict(base, source={"path": "a.csv",
+                            "match": [{"column": "c", "op": ">=", "value": 1}]})
+    assert lint_schema([ok]) == []
+
+
+def test_lint_validates_optional_ingest_endpoint():
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "ingest_freshness",
+            "checks": [{"key": "k", "max_age_hours": 24}]}
+    assert lint_schema([dict(base, endpoint=123)]) != []
+    assert lint_schema([dict(base, endpoint="")]) != []
+    assert lint_schema([dict(base, endpoint="/api/marketdata/status")]) == []

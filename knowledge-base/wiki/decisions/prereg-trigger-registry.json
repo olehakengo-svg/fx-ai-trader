@@ -580,6 +580,16 @@
       "doc": "knowledge-base/wiki/decisions/pr-review-gate-2026-09-08.md",
       "reachability": "セッション作業: tools/live_roster_attrition.py の D 分類は「現在の _PAIR_PROMOTED / _UNIVERSAL_SENTINEL に不在」を「anchor 日 (2026-05-06) 時点でも未昇格」と読み替えている。当時の _ELITE_LIVE / 手動 bridge / 個別 LIVE override を git history から再構成して分類を検証せよ。反証されれば MEMORY project_roster_attrition_attribution_2026_09_06 と wiki/analyses/live-roster-attrition-2026-09-06.md の 88.7% は引用禁止に格下げ。",
       "message": "PR #226 の Codex P1 finding #2 (レビュー到着 1 秒後にマージされ未読だった)。『現在の昇格集合に不在』は『当時も未昇格』を含意しない — 成立しなければ D 15 セルの誤分類となり 88.7% 帰属と『M3 の分子外』の結論が崩れる。引用前に必ず本監査の結果を確認すること (MEMORY feedback_audit_past_verdicts = 過去 verdict 自体を疑え、の適用事例)。"
+    },
+    {
+      "id": "registry-lint-declaration-generation",
+      "active": true,
+      "type": "conditional_info",
+      "deadline": "2026-12-31",
+      "condition": "registry lint の検査宣言を評価器側から生成する (手写しの廃止)",
+      "doc": "knowledge-base/wiki/decisions/pr-review-gate-2026-09-08.md",
+      "reachability": "セッション作業 (R3): 現行 lint は NUMERIC/STRING/DATE/BOOL/ENUM/INT_MIN 等を 評価器の型強制から**手で写して**おり、PR #227 で同一家系の写し漏れが 11 巡に わたり計 25 件出た。恒久解は評価器側 (_evaluate_trigger_impl の各分岐) から 検査宣言を生成すること。メタ監査 process-meta-audit-2026-09-07 §4.2 R3 の 『estimand 宣言表 + CI 突合チェッカー』の最初の適用先として設計する。期日超過時は TRIGGERED で再起票。",
+      "message": "PR #227 で確立した打ち切り判断の相方。lint の手写しは原理的に評価器と乖離し 続けるため、1 件ずつの修正では終わらない。R3 手続き (365d BT 不要、数学/code derivation を analyses/ に文書化) で実施可。"
     }
   ]
 }
