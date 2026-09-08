@@ -4326,6 +4326,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - **JPYクロス全般がVOLATILE**: SMA傾斜がすべてマイナス（円高方向への継続的圧力）。キャリー系・ロングバイアス戦略にとって構造的な逆風環境。
 - **USD/EUR系がRANGING**: Scalp/DT_1h系には比較的クリーンな環境。ただしATR%ileが低め（40-48%）で値幅が細く、EV確保に不利。
 
+### 2026-09-08 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **−24.8 pips** |
+| WR | **0.0%** |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全期間合計**: N=5 / WR=40.0% / PnL=−87.2
+- **N=5は全体として「データなし」扱い**。いずれの戦略も統計的判断不可能水準（昇格基準N≥30 まで残り25件以上）。
+- `price_shock_rev_aud_jpy_h1_long` のEV=−77.50は1件のみの外れ値であり構造的問題かどうか現時点では判断不能。ただしAUD_JPYがVOLATILEレジームにいる事実と照合すると、エントリータイミングの問題が疑われる。
+- `usdjpy_carry_dip_accumulator` はN=3でEV=−4.23。USD_JPYのATR%ile=79%という高ボラ環境下でのCarry系戦略としての相性を要注視。
+| EUR_USD | RANGING | 36% | +0.00152 | レンジ・低ボラ。スキャルプ系有利だがEVが出にくい |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
