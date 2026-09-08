@@ -62,18 +62,33 @@ def is_designated_reviewer(login: str | None) -> bool:
     return bool(login) and login.strip().lower() in REVIEWER_LOGINS
 
 # Codex は finding 本文の先頭に P1/P2/P3 バッジ画像を置く。
-SEVERITY_PAT = re.compile(r"!\[(P[123]) Badge\]", re.IGNORECASE)
-BLOCKING = ("P1", "P2")
+SEVERITY_PAT = re.compile(r"!\[(P[0-3]) Badge\]", re.IGNORECASE)
+# P0 (最severe) を落とさない。未知/バッジ無しは **ブロック側**へ倒す —
+# 「判定不能」を「合格」に折り畳まないのは本プロジェクトの一貫規律
+# (PR #227 Codex P1)。非ブロッキングは P3 だけ。
+NON_BLOCKING = ("P3",)
 
+
+def is_blocking(sev: str) -> bool:
+    return sev not in NON_BLOCKING
+
+
+BLOCKING = ("P0", "P1", "P2", "P?")
+
+# reviews は last: で最新側から取る (head commit のレビューは常に最新側)。
+# reviewThreads は cursor で全ページ辿る — first:100 のみだと、レビュー要求を
+# 繰り返して 100 スレッドを超えた PR で新しい P1/P2 が evaluate() に届かず
+# 素通りする (PR #227 Codex P2)。
 _QUERY = """
-query($owner:String!, $name:String!, $number:Int!) {
+query($owner:String!, $name:String!, $number:Int!, $cursor:String) {
   repository(owner:$owner, name:$name) {
     pullRequest(number:$number) {
       number title state
       commits(last:1) { nodes { commit { oid } } }
-      reviews(first:50) { nodes { author { login } state submittedAt
-                                  commit { oid } } }
-      reviewThreads(first:100) {
+      reviews(last:50) { nodes { author { login } state submittedAt
+                                 commit { oid } } }
+      reviewThreads(first:100, after:$cursor) {
+        pageInfo { hasNextPage endCursor }
         nodes { isResolved isOutdated path
                 comments(first:1) { nodes { author { login } body url } } }
       }
@@ -81,6 +96,8 @@ query($owner:String!, $name:String!, $number:Int!) {
   }
 }
 """
+
+MAX_THREAD_PAGES = 20
 
 
 def _repo_slug() -> tuple[str, str]:
@@ -93,11 +110,30 @@ def _repo_slug() -> tuple[str, str]:
 
 def fetch_pr(number: int) -> dict[str, Any]:
     owner, name = _repo_slug()
-    out = subprocess.run(
-        ["gh", "api", "graphql", "-f", f"query={_QUERY}",
-         "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"number={number}"],
-        capture_output=True, text=True, check=True)
-    return json.loads(out.stdout)["data"]["repository"]["pullRequest"]
+    pr: dict[str, Any] | None = None
+    threads: list[dict[str, Any]] = []
+    cursor: str | None = None
+    for _ in range(MAX_THREAD_PAGES):
+        args = ["gh", "api", "graphql", "-f", f"query={_QUERY}",
+                "-F", f"owner={owner}", "-F", f"name={name}",
+                "-F", f"number={number}"]
+        if cursor:
+            args += ["-F", f"cursor={cursor}"]
+        out = subprocess.run(args, capture_output=True, text=True, check=True)
+        pr = json.loads(out.stdout)["data"]["repository"]["pullRequest"]
+        conn = pr["reviewThreads"]
+        threads.extend(conn["nodes"])
+        info = conn.get("pageInfo") or {}
+        if not info.get("hasNextPage"):
+            break
+        cursor = info.get("endCursor")
+    else:
+        # 全ページ辿れなかった = 見落としがありうる。合格に倒さない。
+        raise RuntimeError(
+            f"reviewThreads が {MAX_THREAD_PAGES} ページを超えた — 全件確認不能")
+    assert pr is not None
+    pr["reviewThreads"] = {"nodes": threads}
+    return pr
 
 
 def severity(body: str) -> str:
@@ -141,7 +177,7 @@ def evaluate(pr: dict[str, Any]) -> dict[str, Any]:
             "title": finding_title(body),
         })
 
-    blocking = [f for f in open_findings if f["severity"] in BLOCKING]
+    blocking = [f for f in open_findings if is_blocking(f["severity"])]
     if not reviews:
         return {"verdict": "BLOCK", "reason": "NO_REVIEW", "head": head,
                 "detail": f"指定レビュアー ({'/'.join(sorted(REVIEWER_LOGINS))}) "
@@ -156,8 +192,8 @@ def evaluate(pr: dict[str, Any]) -> dict[str, Any]:
     if blocking:
         return {"verdict": "BLOCK", "reason": "OPEN_BLOCKING_FINDINGS",
                 "head": head,
-                "detail": f"未解決の {'/'.join(BLOCKING)} finding が "
-                          f"{len(blocking)} 件",
+                "detail": f"未解決のブロッキング finding が {len(blocking)} 件 "
+                          f"(非ブロッキングは {'/'.join(NON_BLOCKING)} のみ)",
                 "open_findings": open_findings, "blocking": blocking}
     return {"verdict": "PASS", "reason": "REVIEWED_NO_BLOCKING", "head": head,
             "detail": f"head {head[:7]} レビュー済 / 未解決 P1・P2 なし",
@@ -169,7 +205,7 @@ def to_text(number: int, res: dict[str, Any]) -> str:
     lines = [f"{icon} PR #{number} review gate: {res['verdict']} "
              f"({res['reason']}) — {res['detail']}"]
     for f in res["open_findings"]:
-        mark = "🔴" if f["severity"] in BLOCKING else "·"
+        mark = "🔴" if is_blocking(f["severity"]) else "·"
         lines.append(f"  {mark} [{f['severity']}] {f['path']}: {f['title']}")
         if f["url"]:
             lines.append(f"      {f['url']}")
@@ -193,7 +229,7 @@ def main() -> int:
         try:
             res = evaluate(fetch_pr(args.number))
         except (subprocess.CalledProcessError, KeyError, json.JSONDecodeError,
-                TypeError) as e:
+                TypeError, RuntimeError) as e:
             print(f"⚠️ 判定不能 (gh/GraphQL): {type(e).__name__}: {e}",
                   file=sys.stderr)
             return 2

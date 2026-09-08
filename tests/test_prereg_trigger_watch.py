@@ -904,3 +904,22 @@ def test_lint_schema_requires_either_key_or_prefix_and_the_csv_value():
     assert lint_schema([{"id": "x", "type": "csv_row_match",
                          "source": {"path": "a.csv",
                                     "match": [{"column": "c"}]}}]) != []
+
+
+def test_lint_requires_a_nonempty_id_on_every_entry():
+    """_evaluate_trigger_impl は trig["id"] を添字アクセスする (PR #227 P2)。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"type": "deadline_info", "deadline": "2099-01-01"}]) != []
+    assert lint_schema([{"id": "  ", "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) != []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) == []
+
+
+def test_one_of_requires_a_usable_value_not_mere_presence():
+    """prefix="" は評価器の `if prefix:` で false になり chk["key"] へ落ちる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"prefix": "", "max_age_hours": 24}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "  ", "max_age_hours": 24}]}]) != []

@@ -736,6 +736,13 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
     for t in triggers:
         tid = t.get("id", "(no id)")
         ttype = t.get("type")
+        # id は全 type 共通の必須。_evaluate_trigger_impl が trig["id"] を
+        # 添字アクセスするので、欠けると daily 実行時 EVAL_ERROR になる
+        # (PR #227 Codex P2)。
+        if not str(t.get("id", "")).strip():
+            errors.append(
+                f"(no id): id が無い/空 — 評価器が trig[\"id\"] を添字アクセスする")
+            continue
         if ttype not in REQUIRED_FIELDS_BY_TYPE:
             errors.append(f"{tid}: unknown type {ttype!r} — 評価器が無い")
             continue
@@ -779,10 +786,15 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
                     f"{tid}: {dotted}[{i}] に必須の {lack} が無い — "
                     "実行時 KeyError")
             for group in alternatives:
-                if not any(k in elem for k in group):
+                # 存在だけでは足りない: evaluate_ingest_freshness は
+                # `if prefix:` で分岐するので prefix="" は key 側へ落ち、
+                # 欠けた chk["key"] を添字アクセスする (PR #227 Codex P2)。
+                # 評価器の truthiness と同じ判定で見る。
+                if not any(str(elem.get(k) or "").strip() for k in group):
                     errors.append(
                         f"{tid}: {dotted}[{i}] は {list(group)} の"
-                        "いずれか 1 つが必須 — 実行時 KeyError")
+                        "いずれか 1 つが**非空の値**で必須 — "
+                        "空文字は評価器の分岐で false 扱いになり KeyError")
     return errors
 
 

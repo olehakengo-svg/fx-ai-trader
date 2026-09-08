@@ -120,3 +120,99 @@ def test_impostor_thread_author_does_not_hide_a_finding():
     res = evaluate(_pr(reviews=[_review()],
                        threads=[_thread(login="my-codex-helper")]))
     assert res["verdict"] == "PASS", "非指定アカウントのスレッドは対象外"
+
+
+def test_p0_is_blocking_and_unknown_severity_fails_closed():
+    """P0 を P? に落として素通りさせない。判定不能は合格側に折り畳まない。
+
+    PR #227 Codex P1: 旧 regex は `P[123]` だったので P0 が `P?` になり、
+    BLOCKING からも外れて「最も重い finding があるのに PASS」になっていた。
+    """
+    from tools.pr_review_gate import is_blocking, severity
+
+    assert severity("![P0 Badge](https://img/P0) x") == "P0"
+    assert is_blocking("P0") and is_blocking("P1") and is_blocking("P2")
+    assert is_blocking("P?"), "バッジ無しの指定レビュアー指摘は合格に倒さない"
+    assert not is_blocking("P3")
+
+    res = evaluate(_pr(reviews=[_review()], threads=[_thread(sev="P0")]))
+    assert res["verdict"] == "BLOCK" and len(res["blocking"]) == 1
+
+
+def test_unbadged_reviewer_thread_blocks():
+    t = _thread()
+    t["comments"]["nodes"][0]["body"] = "No badge, but a real concern"
+    res = evaluate(_pr(reviews=[_review()], threads=[t]))
+    assert res["verdict"] == "BLOCK"
+
+
+def test_fetch_pr_paginates_review_threads(monkeypatch):
+    """100 スレッドを超えた PR で 2 ページ目の P1 を落とさない (PR #227 P2)。"""
+    import json as _json
+    import subprocess as _sp
+
+    from tools import pr_review_gate as g
+
+    pages = [
+        {"pageInfo": {"hasNextPage": True, "endCursor": "c1"},
+         "nodes": [_thread(sev="P3")]},
+        {"pageInfo": {"hasNextPage": False, "endCursor": None},
+         "nodes": [_thread(sev="P1")]},
+    ]
+    calls = {"n": 0}
+
+    class _R:
+        returncode = 0
+        stderr = ""
+
+        def __init__(self, body):
+            self.stdout = body
+
+    def fake_run(args, **kw):
+        if args[:2] == ["gh", "repo"]:
+            return _R(_json.dumps({"owner": {"login": "o"}, "name": "r"}))
+        page = pages[calls["n"]]
+        calls["n"] += 1
+        return _R(_json.dumps({"data": {"repository": {"pullRequest": {
+            "number": 1, "title": "t", "state": "OPEN",
+            "commits": {"nodes": [{"commit": {"oid": HEAD}}]},
+            "reviews": {"nodes": [_review()]},
+            "reviewThreads": page}}}}))
+
+    monkeypatch.setattr(_sp, "run", fake_run)
+    pr = g.fetch_pr(1)
+    assert calls["n"] == 2, "2 ページ目を取りに行っていない"
+    assert len(pr["reviewThreads"]["nodes"]) == 2
+    assert evaluate(pr)["verdict"] == "BLOCK", "2 ページ目の P1 が届いていない"
+
+
+def test_fetch_pr_fails_closed_when_pages_never_end(monkeypatch):
+    """辿りきれないときに「見えた範囲で合格」にしない。"""
+    import json as _json
+    import subprocess as _sp
+
+    import pytest as _pytest
+
+    from tools import pr_review_gate as g
+
+    class _R:
+        returncode = 0
+        stderr = ""
+
+        def __init__(self, body):
+            self.stdout = body
+
+    def fake_run(args, **kw):
+        if args[:2] == ["gh", "repo"]:
+            return _R(_json.dumps({"owner": {"login": "o"}, "name": "r"}))
+        return _R(_json.dumps({"data": {"repository": {"pullRequest": {
+            "number": 1, "title": "t", "state": "OPEN",
+            "commits": {"nodes": [{"commit": {"oid": HEAD}}]},
+            "reviews": {"nodes": [_review()]},
+            "reviewThreads": {"pageInfo": {"hasNextPage": True,
+                                           "endCursor": "c"},
+                              "nodes": []}}}}}))
+
+    monkeypatch.setattr(_sp, "run", fake_run)
+    with _pytest.raises(RuntimeError):
+        g.fetch_pr(1)
