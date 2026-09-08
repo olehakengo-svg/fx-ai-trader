@@ -1063,3 +1063,47 @@ def test_empty_filter_fields_stay_legal_wildcards():
                          "entry_type": "", "instrument": "", "direction": "",
                          "reasons_marker": "[M]", "since": "2026-09-02",
                          "n_decide": 10, "deadline": "2026-12-01"}]) == []
+
+
+def test_lint_parses_the_whole_date_not_just_the_prefix():
+    """`2026-01-01Tgarbage` は先頭 10 文字検査を通るが fromisoformat で落ちる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_info", "entry_type": "e",
+            "expected_per_week": 4.0}
+    assert lint_schema([dict(base, since="2026-01-01Tgarbage")]) != []
+    assert lint_schema([dict(base, since="2026-01-01 25:99:99")]) != []
+    assert lint_schema([dict(base, since="2026-01-01")]) == []
+
+
+def test_lint_validates_evaluator_control_fields():
+    """母集団を黙って変える制御 field を検査する (PR #227 P2 8 巡目)。
+
+    `closed_only: "false"` は bool() で true、`dedup_violation: "0"` は
+    `== 0` に一致しない — どちらも監視母集団が変わり判定期日が前後する。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, closed_only="false")]) != []
+    assert lint_schema([dict(base, closed_only=True)]) == []
+    assert lint_schema([dict(base, dedup_violation="0")]) != []
+    assert lint_schema([dict(base, dedup_violation=0)]) == []
+    assert lint_schema([dict(base, count_basis="uniqe")]) != []
+    assert lint_schema([dict(base, count_basis="unique")]) == []
+    assert lint_schema([dict(base, match="prefx")]) != []
+    assert lint_schema([dict(base, match="prefix")]) == []
+
+
+def test_lint_rejects_fractional_and_out_of_range_counts():
+    """int(1.5) は黙って 1 に切り捨て、n_decide=-1 は即時 TRIGGERED になる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision", "entry_type": "e",
+            "since": "2026-09-02", "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, n_decide=1.5)]) != []
+    assert lint_schema([dict(base, n_decide=-1)]) != []
+    assert lint_schema([dict(base, n_decide=0)]) != []
+    assert lint_schema([dict(base, n_decide=10)]) == []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*",
+                                           "min_files": -1}]}]) != []

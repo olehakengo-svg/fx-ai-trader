@@ -757,9 +757,29 @@ INT_FIELDS = frozenset({"n_decide", "n_floor", "min_files", "min_keys"})
 DATE_FIELDS = frozenset({"deadline", "since", "threshold_date"})
 DATE_SENTINELS = frozenset({"no-deadline"})
 
+# 評価器が bool として消費するフィールド。`closed_only: "false"` は
+# `bool(trig.get("closed_only"))` で **true** になり、監視母集団を黙って
+# 変える (PR #227 Codex P2 8 巡目)。
+BOOL_FIELDS = frozenset({"closed_only"})
+
+# 評価器が `== 0` 等の値一致で消費するフィールド (文字列 "0" は一致しない)。
+EXACT_INT_FIELDS = frozenset({"dedup_violation"})
+
+# top-level のみで解釈される列挙フィールド (leaf 名 "match" は
+# source.match のリストと衝突するので **top-level 限定**で扱う)。
+ENUM_FIELDS: dict[str, frozenset[str]] = {
+    "match": frozenset({"prefix"}),
+    "count_basis": frozenset({"unique"}),
+}
+
+# 各カウント field の下限 (評価器の意味論)。n_decide=-1 は即時 TRIGGERED、
+# min_files=-1 は不在の成果物を「充足」と報告する。
+INT_MIN = {"n_decide": 1, "n_floor": 0, "min_files": 1, "min_keys": 1}
+
 # 値の形が分かっている全フィールド。必須/任意・top-level/要素を問わず
 # 存在すれば検査する唯一の集合 (軸ごとに検査漏れを作らないため)。
-KNOWN_VALUE_FIELDS = NUMERIC_FIELDS | STRING_FIELDS | DATE_FIELDS
+KNOWN_VALUE_FIELDS = (NUMERIC_FIELDS | STRING_FIELDS | DATE_FIELDS
+                      | BOOL_FIELDS | EXACT_INT_FIELDS)
 
 # 注: "match" は leaf 名が衝突する — shadow/live count 系では文字列 "prefix"、
 # csv_row_match では述語のリスト。leaf 名だけでは型を決められないので
@@ -781,16 +801,30 @@ def _unusable_reason(field: str, value: Any) -> str | None:
         return None if leaf in EMPTY_OK_FIELDS else "空文字"
     if isinstance(value, (list, dict)) and not value:
         return "空のコレクション"
+    if leaf in BOOL_FIELDS:
+        if not isinstance(value, bool):
+            return (f"bool でない ({type(value).__name__}: {value!r}) — "
+                    'bool("false") は true になり母集団が黙って変わる')
+        return None
+    if leaf in EXACT_INT_FIELDS:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return (f"int でない ({type(value).__name__}: {value!r}) — "
+                    "評価器は値一致 (== 0) で比較する")
+        return None
     if leaf in NUMERIC_FIELDS:
         if isinstance(value, bool):
             return f"数値でなく bool ({value!r})"
         try:
             num = float(value)
-            if leaf in INT_FIELDS:
-                int(value)
         except (TypeError, ValueError, OverflowError):
-            kind = "整数" if leaf in INT_FIELDS else "数値"
-            return f"{kind}化できない ({value!r})"
+            return f"数値化できない ({value!r})"
+        if leaf in INT_FIELDS:
+            if not math.isfinite(num) or num != int(num):
+                return (f"整数でない ({value!r}) — int() が黙って切り捨てる")
+            low = INT_MIN.get(leaf, 0)
+            if int(num) < low:
+                return (f"下限 {low} 未満 ({value!r}) — "
+                        "閾値が即時成立/常時充足になる")
         # nan/inf は変換は通るが比較を静かに壊す: max_age_hours=nan は
         # `age > max_h` が常に false になり、古い ingest を fresh と報告する
         # (PR #227 Codex P2 7 巡目)。
@@ -807,12 +841,19 @@ def _unusable_reason(field: str, value: Any) -> str | None:
 
 
 def _is_iso_date(value: str) -> bool:
-    """評価器が today (YYYY-MM-DD) と辞書順比較するので同じ形を要求する。"""
+    """評価器が today (YYYY-MM-DD) と辞書順比較し、since は fromisoformat する。
+
+    2026-09-08 (PR #227 Codex P2 8 巡目): 先頭 10 文字だけ見て残りを
+    素通りさせると `2026-01-01Tgarbage` が lint を通り、
+    fromisoformat() が毎回 DATA_UNAVAILABLE を返し続ける。**全体**を解釈する。
+    """
     try:
         datetime.strptime(value[:10], "%Y-%m-%d")
+        if len(value) > 10:
+            datetime.fromisoformat(value)
     except ValueError:
         return False
-    return len(value) == 10 or value[10] in ("T", " ")
+    return True
 
 
 def _get_path(obj: Any, dotted: str) -> Any:
@@ -873,6 +914,12 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
                 errors.append(
                     f"{tid}: type={ttype} の {f} が使えない値 ({why}) — "
                     "評価器が実行時に落ちる")
+        for f, allowed in ENUM_FIELDS.items():
+            if f in t and t[f] not in allowed:
+                errors.append(
+                    f"{tid}: type={ttype} の {f}={t[f]!r} は未知の値 — "
+                    f"評価器が解釈するのは {sorted(allowed)} のみ "
+                    "(綴り違いは黙って無効化される)")
         for group in ALTERNATIVE_FIELDS_BY_TYPE.get(ttype, ()):
             if not any(str(t.get(k) or "").strip() for k in group):
                 errors.append(
