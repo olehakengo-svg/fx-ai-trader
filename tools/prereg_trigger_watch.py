@@ -744,6 +744,16 @@ STRING_FIELDS = frozenset({
     "column", "entry_type", "instrument", "direction", "reasons_marker",
     "mode", "date_column", "label",
 })
+# int() で消費される field。float() だけ通る "1.5" を素通りさせない
+# (PR #227 Codex P2 6 巡目)。
+INT_FIELDS = frozenset({"n_decide", "n_floor", "min_files", "min_keys"})
+
+# 日付として比較される field。`deadline: "soon"` は文字列比較で常に
+# `today > deadline` が false になり、**永久に watching のまま**期日に
+# 到達しない — 「watching 表示を健全性の証拠と誤読する」ZN 教訓の型。
+DATE_FIELDS = frozenset({"deadline", "since", "threshold_date"})
+DATE_SENTINELS = frozenset({"no-deadline"})
+
 # 注: "match" は leaf 名が衝突する — shadow/live count 系では文字列 "prefix"、
 # csv_row_match では述語のリスト。leaf 名だけでは型を決められないので
 # STRING_FIELDS には入れない。
@@ -766,12 +776,27 @@ def _unusable_reason(field: str, value: Any) -> str | None:
         if isinstance(value, bool):
             return f"数値でなく bool ({value!r})"
         try:
-            float(value)
+            (int if leaf in INT_FIELDS else float)(value)
         except (TypeError, ValueError):
-            return f"数値化できない ({value!r})"
+            kind = "整数" if leaf in INT_FIELDS else "数値"
+            return f"{kind}化できない ({value!r})"
     elif leaf in STRING_FIELDS and not isinstance(value, str):
         return f"文字列でない ({type(value).__name__}: {value!r})"
+    if leaf in DATE_FIELDS and isinstance(value, str):
+        v = value.strip()
+        if v not in DATE_SENTINELS and not _is_iso_date(v):
+            return (f"日付として解釈できない ({value!r}) — "
+                    "文字列比較で永久に watching になる")
     return None
+
+
+def _is_iso_date(value: str) -> bool:
+    """評価器が today (YYYY-MM-DD) と辞書順比較するので同じ形を要求する。"""
+    try:
+        datetime.strptime(value[:10], "%Y-%m-%d")
+    except ValueError:
+        return False
+    return len(value) == 10 or value[10] in ("T", " ")
 
 
 def _get_path(obj: Any, dotted: str) -> Any:

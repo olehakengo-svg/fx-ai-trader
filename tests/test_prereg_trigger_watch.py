@@ -997,3 +997,32 @@ def test_csv_match_list_is_not_treated_as_a_string_field():
     """leaf 名 `match` は type によって意味が違う (実 registry の回帰 pin)。"""
     from tools.prereg_trigger_watch import lint_registry
     assert lint_registry(load_registry()) == []
+
+
+def test_lint_rejects_dates_that_are_never_reached():
+    """`deadline: "soon"` は文字列比較で永久に watching になる (PR #227 P2 6 巡目)。
+
+    「条件を書いた」だけで期日に到達しない = ZN 教訓と同型の write-only。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "soon"}]) != []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2026-13-45"}]) != []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2026-10-06"}]) == []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "no-deadline"}]) == []
+
+
+def test_lint_uses_int_conversion_for_int_consumed_fields():
+    """評価器は int() で消費する — float() だけ通る "1.5" を素通りさせない。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision",
+            "entry_type": "e", "since": "2026-09-02", "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, n_decide="1.5")]) != []
+    assert lint_schema([dict(base, n_decide=10)]) == []
+    assert lint_schema([dict(base, n_decide="10")]) == []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*",
+                                           "min_files": "2.5"}]}]) != []
