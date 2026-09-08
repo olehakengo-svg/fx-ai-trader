@@ -4306,6 +4306,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 | 1 | `price_shock_rev_aud_jpy_h1_long`でEV=−77.5p（単発・N=1）。AUD/JPYはVOLATILEレジーム下でlong方向のエントリーがSL直撃した可能性が高い | 🔴 |
 | 2 | `usdjpy_carry_dip_accumulator`が2連続でEV負（累計−13.2p / N=2）。USD/JPYはATR%ile=79%のVOLATILE環境 | 🟡 |
 
+### 2026-09-08 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **-24.8p** |
+| 全体WR | **0.0%** |
+> **重要前提**: 全戦略合計 N=4。統計的判断に耐えるサンプルは皆無（N<10は「データなし」扱い）。EVの数値は参考値に過ぎない。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**Cutoff後合計**: N=4 / WR=50.0% / PnL=-87.7p
+- **昇格候補（N≥30 & EV≥1.0）**: 該当なし
+- **降格候補（N≥30 & EV<-0.5）**: 該当なし（N不足のため判定不能）
+- **Sentinel N蓄積進捗**: 最大N=2。昇格基準N=30まで全戦略で**28件以上の不足**。蓄積フェーズの初期段階。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
