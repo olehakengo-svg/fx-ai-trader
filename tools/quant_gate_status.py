@@ -163,7 +163,17 @@ def to_markdown(report: dict[str, Any]) -> str:
     lines = ["# Quant Gate Status"]
     lines.append(f"_Generated: {report['generated_at']}_")
     lines.append("")
-    # M1 は最重要 KPI かつ Discord 側で 1900 字に切られるので先頭に固定する。
+    # 監視器の故障は M1 より先頭に置く。M1 節はセル数に比例して伸びる
+    # (strategy×instrument×direction ごとに 1 行) ので、その後ろに置くと
+    # セルが増えた日に 1900 字カットの外へ押し出される
+    # (PR #227 Codex P1 7 巡目 — 「読み手に届く位置」は相対順序で決まる)。
+    alert = extract_watch_alert(report.get("prereg_trigger_watch", ""))
+    if alert:
+        lines.append("## ⚠️ Pre-reg Trigger Watch — 監視器故障")
+        lines.append(alert)
+        lines.append("")
+    # M1 は最重要 KPI かつ Discord 側で 1900 字に切られるので (故障 banner の
+    # 次に) 前方へ固定する。
     m1_report = report.get("m1_readout") or {}
     if m1_report.get("error"):
         lines.append("## M1 KPI (clean live 30d PnL)")
@@ -171,12 +181,6 @@ def to_markdown(report: dict[str, Any]) -> str:
     else:
         lines.append(m1.to_markdown(m1_report))
     lines.append("")
-    # 監視器の故障は最優先で、かつ 1900 字カットより前に出す。
-    alert = extract_watch_alert(report.get("prereg_trigger_watch", ""))
-    if alert:
-        lines.append("## ⚠️ Pre-reg Trigger Watch — 監視器故障")
-        lines.append(alert)
-        lines.append("")
     lines.append("## Readiness")
     lines.append("```")
     lines.append(report["quant_readiness"].strip())

@@ -362,3 +362,26 @@ def test_watcher_failure_appears_before_the_discord_cutoff(monkeypatch):
 def test_no_alert_line_when_the_watcher_is_healthy():
     from tools import quant_gate_status as qgs
     assert qgs.extract_watch_alert("## Pre-reg Trigger Watch\n- 👁 watching") == ""
+
+
+def test_watcher_alert_precedes_the_unbounded_m1_section():
+    """M1 節はセル数に比例して伸びる — その後ろだと押し出される。
+
+    PR #227 Codex P1 7 巡目: 「読み手に届く位置」は絶対位置ではなく
+    相対順序で決まる。故障 banner は M1 より前。
+    """
+    from tools import quant_gate_status as qgs
+    from tools.alpha_budget_tracker import _empty_state
+
+    rows = [row(i, 1.0) for i in range(1, 400)]
+    md = qgs.to_markdown({
+        "generated_at": "2026-09-08T00:00:00+00:00",
+        "m1_readout": m1.summarize(rows, ANCHOR),
+        "quant_readiness": "readiness-body",
+        "alpha_budget": _empty_state("2026-09"),
+        "candidate_queue_7d": {"total": 0, "pass": 0, "shadow_only": 0,
+                               "recent_names": []},
+        "prereg_trigger_watch": f"{qgs.WATCH_ALERT_MARK} **監視器が exit 2**\nbody",
+    })
+    assert md.index(qgs.WATCH_ALERT_MARK) < md.index("M1"), "M1 より後ろにある"
+    assert qgs.WATCH_ALERT_MARK in md[:1900]

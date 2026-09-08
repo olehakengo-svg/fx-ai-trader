@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -706,9 +707,11 @@ REQUIRED_FIELDS_BY_TYPE: dict[str, tuple[str, ...]] = {
 # 母集団は reasons_marker で定義する。ただし**何かが母集団を定義している**ことは
 # 下の ALTERNATIVE_FIELDS_BY_TYPE で必須にする — 両方空なら全 live トレードを
 # 数える無言の過大計上になる (sr-anti-hunt 偽発火と同型)。
-WILDCARD_OK_FIELDS: dict[str, frozenset[str]] = {
-    "live_count_decision": frozenset({"entry_type"}),
-}
+# 空文字が「絞り込まない」の正当な表明である絞り込み系フィールド。
+# 型 (str) は要求するが空であること自体は違反にしない。
+EMPTY_OK_FIELDS = frozenset({
+    "entry_type", "instrument", "direction", "mode", "reasons_marker",
+})
 
 # type ごとの「いずれか 1 つは非空でなければならない」トップレベル field 群。
 ALTERNATIVE_FIELDS_BY_TYPE: dict[str, tuple[tuple[str, ...], ...]] = {
@@ -754,6 +757,10 @@ INT_FIELDS = frozenset({"n_decide", "n_floor", "min_files", "min_keys"})
 DATE_FIELDS = frozenset({"deadline", "since", "threshold_date"})
 DATE_SENTINELS = frozenset({"no-deadline"})
 
+# 値の形が分かっている全フィールド。必須/任意・top-level/要素を問わず
+# 存在すれば検査する唯一の集合 (軸ごとに検査漏れを作らないため)。
+KNOWN_VALUE_FIELDS = NUMERIC_FIELDS | STRING_FIELDS | DATE_FIELDS
+
 # 注: "match" は leaf 名が衝突する — shadow/live count 系では文字列 "prefix"、
 # csv_row_match では述語のリスト。leaf 名だけでは型を決められないので
 # STRING_FIELDS には入れない。
@@ -769,17 +776,26 @@ def _unusable_reason(field: str, value: Any) -> str | None:
     if value is None:
         return "null"
     if isinstance(value, str) and not value.strip():
-        return "空文字"
+        # 絞り込み系は空 = ワイルドカードが正当 (母集団が誰かに定義されて
+        # いることは ALTERNATIVE_FIELDS_BY_TYPE 側で別途担保する)。
+        return None if leaf in EMPTY_OK_FIELDS else "空文字"
     if isinstance(value, (list, dict)) and not value:
         return "空のコレクション"
     if leaf in NUMERIC_FIELDS:
         if isinstance(value, bool):
             return f"数値でなく bool ({value!r})"
         try:
-            (int if leaf in INT_FIELDS else float)(value)
-        except (TypeError, ValueError):
+            num = float(value)
+            if leaf in INT_FIELDS:
+                int(value)
+        except (TypeError, ValueError, OverflowError):
             kind = "整数" if leaf in INT_FIELDS else "数値"
             return f"{kind}化できない ({value!r})"
+        # nan/inf は変換は通るが比較を静かに壊す: max_age_hours=nan は
+        # `age > max_h` が常に false になり、古い ingest を fresh と報告する
+        # (PR #227 Codex P2 7 巡目)。
+        if not math.isfinite(num):
+            return f"有限数でない ({value!r}) — 比較が静かに壊れる"
     elif leaf in STRING_FIELDS and not isinstance(value, str):
         return f"文字列でない ({type(value).__name__}: {value!r})"
     if leaf in DATE_FIELDS and isinstance(value, str):
@@ -845,10 +861,13 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
                 f"{tid}: type={ttype} に必須の {missing} が無い — "
                 "実行時 KeyError で監視器全体が落ちる")
             continue
-        wildcard_ok = WILDCARD_OK_FIELDS.get(ttype, frozenset())
-        for f in REQUIRED_FIELDS_BY_TYPE[ttype]:
-            if f in wildcard_ok:
-                continue
+        # 必須だけでなく **存在する既知フィールドを全て** 検査する。
+        # 「必須は見るが任意は見ない」「top-level は見るが要素は見ない」で
+        # 同じ欠陥クラスを 3 巡繰り返したため、両軸を統一した
+        # (PR #227 Codex P2 7 巡目)。
+        present = [f for f in REQUIRED_FIELDS_BY_TYPE[ttype] if _has_path(t, f)]
+        present += [k for k in t if k in KNOWN_VALUE_FIELDS and k not in present]
+        for f in present:
             why = _unusable_reason(f, _get_path(t, f))
             if why:
                 errors.append(
@@ -888,7 +907,7 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
             # 型検査する。min_files / min_keys は任意だが評価器が int() する
             # ので null が入ると実行時 TypeError になる (PR #227 Codex P2)。
             checked = set(keys) | {k for g in alternatives for k in g}
-            checked |= {k for k in elem if k in NUMERIC_FIELDS or k in STRING_FIELDS}
+            checked |= {k for k in elem if k in KNOWN_VALUE_FIELDS}
             for k in sorted(checked):
                 if k in elem:
                     why = _unusable_reason(k, elem[k])

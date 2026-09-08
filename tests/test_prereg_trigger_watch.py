@@ -1026,3 +1026,40 @@ def test_lint_uses_int_conversion_for_int_consumed_fields():
     assert lint_schema([{"id": "x", "type": "artifact_presence",
                          "requirements": [{"path": "a/*",
                                            "min_files": "2.5"}]}]) != []
+
+
+def test_lint_rejects_non_finite_numbers():
+    """nan/inf は変換を通るが比較を静かに壊す (PR #227 P2 7 巡目)。
+
+    max_age_hours=nan は `age > max_h` が常に false になり、古い ingest を
+    fresh と報告する。threshold=nan は price trigger を永久 watching にする。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USDJPY=X", "threshold": "nan"}]) != []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USDJPY=X", "threshold": float("inf")}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k",
+                                     "max_age_hours": "nan"}]}]) != []
+
+
+def test_lint_checks_optional_top_level_fields_too():
+    """必須/任意・top-level/要素の 4 象限すべてで同じ検査を効かせる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision", "entry_type": "e",
+            "since": "2026-09-02", "n_decide": 10, "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, reasons_marker=123)]) != []
+    assert lint_schema([{"id": "x", "type": "conditional_info",
+                         "deadline": 123,
+                         "reachability": "cron"}]) != []
+    assert lint_schema([dict(base, reasons_marker="[M]")]) == []
+
+
+def test_empty_filter_fields_stay_legal_wildcards():
+    """instrument/direction の空文字は「絞り込まない」の正当な表明。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "live_count_decision",
+                         "entry_type": "", "instrument": "", "direction": "",
+                         "reasons_marker": "[M]", "since": "2026-09-02",
+                         "n_decide": 10, "deadline": "2026-12-01"}]) == []
