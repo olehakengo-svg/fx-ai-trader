@@ -579,9 +579,19 @@ def fetch_ingest_health(app_base: str, endpoint: str) -> dict[str, Any] | None:
 
 # ── registry 評価 ────────────────────────────────────────────────────
 
+def load_registry_raw(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
+    """active フィルタ前の全エントリ。lint は必ずこちらを見る。
+
+    2026-09-08 (PR #227 Codex P2 9 巡目): `active` は truthiness で消費される
+    ため `active: "false"` は **true** 扱いで評価され、逆に壊れた falsey 値は
+    lint に届く前に消える。フィルタ後だけを検査する lint は `active` 自身の
+    不正を構造的に見られない。
+    """
+    return list(json.loads(path.read_text(encoding="utf-8")).get("triggers", []))
+
+
 def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    return [t for t in data.get("triggers", []) if t.get("active", True)]
+    return [t for t in load_registry_raw(path) if t.get("active", True)]
 
 
 def _evaluate_trigger_impl(
@@ -819,10 +829,18 @@ def _unusable_reason(field: str, value: Any) -> str | None:
         except (TypeError, ValueError, OverflowError):
             return f"数値化できない ({value!r})"
         if leaf in INT_FIELDS:
-            if not math.isfinite(num) or num != int(num):
-                return (f"整数でない ({value!r}) — int() が黙って切り捨てる")
+            # 評価器と**同じ変換** (int(value)) で検査する。float 経由だと
+            # `"1.0"` が通り int("1.0") が ValueError になる
+            # (PR #227 Codex P2 9 巡目)。lint は評価器の写しではなく
+            # 評価器と同じ呼び出しをすること。
+            try:
+                as_int = int(value)
+            except (TypeError, ValueError, OverflowError):
+                return f"int() で変換できない ({value!r})"
+            if not math.isfinite(num) or num != as_int:
+                return f"整数でない ({value!r}) — int() が黙って切り捨てる"
             low = INT_MIN.get(leaf, 0)
-            if int(num) < low:
+            if as_int < low:
                 return (f"下限 {low} 未満 ({value!r}) — "
                         "閾値が即時成立/常時充足になる")
         # nan/inf は変換は通るが比較を静かに壊す: max_age_hours=nan は
@@ -848,12 +866,15 @@ def _is_iso_date(value: str) -> bool:
     fromisoformat() が毎回 DATA_UNAVAILABLE を返し続ける。**全体**を解釈する。
     """
     try:
-        datetime.strptime(value[:10], "%Y-%m-%d")
+        d = datetime.strptime(value[:10], "%Y-%m-%d")
         if len(value) > 10:
             datetime.fromisoformat(value)
     except ValueError:
         return False
-    return True
+    # strptime は `2026-9-1` を受けるが辞書順比較では 2026-12-31 より後ろに
+    # なり、期限切れが永久 WATCHING になる。**正準形 (0 埋め) を要求する**
+    # (PR #227 Codex P2 9 巡目)。
+    return value[:10] == d.strftime("%Y-%m-%d")
 
 
 def _get_path(obj: Any, dotted: str) -> Any:
@@ -888,6 +909,11 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
         # id は全 type 共通の必須。_evaluate_trigger_impl が trig["id"] を
         # 添字アクセスするので、欠けると daily 実行時 EVAL_ERROR になる
         # (PR #227 Codex P2)。
+        if "active" in t and not isinstance(t["active"], bool):
+            errors.append(
+                f"{tid}: active が bool でない "
+                f"({type(t['active']).__name__}: {t['active']!r}) — "
+                'truthiness で消費されるので "false" は true になる')
         if not str(t.get("id", "")).strip():
             errors.append(
                 f"(no id): id が無い/空 — 評価器が trig[\"id\"] を添字アクセスする")
@@ -975,8 +1001,14 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
     return errors
 
 
-def lint_registry(triggers: list[dict[str, Any]]) -> list[str]:
-    """authoring 時 lint の入口 (schema + 到達経路)。"""
+def lint_registry(triggers: list[dict[str, Any]] | None = None) -> list[str]:
+    """authoring 時 lint の入口 (schema + 到達経路)。
+
+    既定は **active フィルタ前**の全エントリ — `active` 自身の不正や、
+    誤って falsey になって消えたエントリを見るため。
+    """
+    if triggers is None:
+        triggers = load_registry_raw()
     return lint_schema(triggers) + lint_reachability(triggers)
 
 
@@ -1049,7 +1081,7 @@ def main() -> int:
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
     if args.lint:
-        errors = lint_registry(load_registry())
+        errors = lint_registry()
         for e in errors:
             print(f"ERROR {e}", file=sys.stderr)
         print(f"registry lint (schema + 到達経路): {len(errors)} 件の違反")

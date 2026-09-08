@@ -395,13 +395,13 @@ def check_prereg_registry_schema() -> tuple[list[str], list[str]]:
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
     try:
-        from tools.prereg_trigger_watch import lint_registry, load_registry
+        from tools.prereg_trigger_watch import lint_registry
     except Exception as e:  # noqa: BLE001
         # skip に落とさない: 検査できないことを「合格」と読ませない
         # (write-only guard の再発防止)。
         return [f"  ❌ prereg registry lint が実行不能: {e}"], []
     try:
-        violations = lint_registry(load_registry())
+        violations = lint_registry()
     except Exception as e:  # noqa: BLE001
         return [f"  ❌ prereg registry の読込に失敗: {e}"], []
     for v in violations:

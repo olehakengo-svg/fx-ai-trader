@@ -1107,3 +1107,44 @@ def test_lint_rejects_fractional_and_out_of_range_counts():
     assert lint_schema([{"id": "x", "type": "artifact_presence",
                          "requirements": [{"path": "a/*",
                                            "min_files": -1}]}]) != []
+
+
+def test_lint_sees_active_before_the_filter_removes_entries():
+    """`active` は truthiness 消費 — "false" は true、壊れた falsey は消える。
+
+    PR #227 Codex P2 9 巡目: フィルタ後だけを見る lint は active 自身の
+    不正を構造的に検出できない。
+    """
+    from tools.prereg_trigger_watch import lint_schema, load_registry_raw
+    assert lint_schema([{"id": "x", "active": "false",
+                         "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) != []
+    assert lint_schema([{"id": "x", "active": 0, "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) != []
+    assert lint_schema([{"id": "x", "active": False, "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) == []
+    # 既定の lint 入口は raw (inactive を含む) を見る
+    assert len(load_registry_raw()) > len(load_registry())
+
+
+def test_default_lint_entry_point_covers_inactive_entries():
+    from tools.prereg_trigger_watch import lint_registry
+    assert lint_registry() == []
+
+
+def test_int_lint_uses_the_same_conversion_as_the_evaluator():
+    """`int("1.0")` は ValueError — float 経由の検査では通ってしまう。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision", "entry_type": "e",
+            "since": "2026-09-02", "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, n_decide="1.0")]) != []
+    assert lint_schema([dict(base, n_decide="10")]) == []
+
+
+def test_dates_must_be_canonical_zero_padded():
+    """`2026-9-1` は strptime を通るが辞書順比較で永久 WATCHING になる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2026-9-1"}]) != []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2026-09-01"}]) == []
