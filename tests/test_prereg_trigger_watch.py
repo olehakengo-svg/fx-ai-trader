@@ -799,7 +799,8 @@ def test_lint_schema_checks_nested_paths_the_evaluator_subscripts():
     assert lint_schema([{"id": "x", "type": "csv_row_match",
                          "source": {"path": "a.csv"}}]) != []
     assert lint_schema([{"id": "x", "type": "csv_row_match",
-                         "source": {"path": "a.csv", "match": {}}}]) == []
+                         "source": {"path": "a.csv",
+                                    "match": [{"column": "c"}]}}]) == []
 
 
 def test_lint_schema_rejects_unknown_type():
@@ -856,3 +857,32 @@ def test_e2_silent_entry_is_machine_watchable_with_reachability():
     assert trig["deadline"] == "2026-10-06"
     assert trig["reachability"].strip()
     assert lint_registry(load_registry()) == []
+
+
+def test_lint_schema_validates_collection_element_fields():
+    """top-level の器だけ見ると `requirements: [{}]` が素通りする (PR #227 P2)。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{}]}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": []}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": {}}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*.jsonl"}]}]) == []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k"}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k", "max_age_hours": 24}]}]) == []
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv", "match": [{}]}}]) != []
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv",
+                                    "match": [{"column": "c"}]}}]) == []
+
+
+def test_data_coverage_and_csv_specs_declare_their_path():
+    """評価器は source["path"] を添字アクセスする。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "data_coverage",
+                         "source": {}, "threshold_date": "2026-01-01"}]) != []

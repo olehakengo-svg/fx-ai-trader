@@ -306,3 +306,29 @@ def test_prereg_watch_success_returns_plain_body(monkeypatch):
     out = qgs.run_prereg_trigger_watch()
     assert out.startswith("## Pre-reg Trigger Watch")
     assert "🔴" not in out
+
+
+def test_partial_eval_error_keeps_the_healthy_trigger_results(monkeypatch):
+    """exit 2 = 一部エントリのみ EVAL_ERROR。本文を捨てると盲点が再現する。
+
+    PR #227 Codex P1: 壊れた 1 件が他エントリの TRIGGERED を隠すなら、
+    隔離ラッパが防ぐはずのものをこの層で作り直してしまう。
+    """
+    import subprocess
+
+    from tools import quant_gate_status as qgs
+
+    class _R:
+        returncode = 2
+        stdout = ("## Pre-reg Trigger Watch\n"
+                  "### 🔴 TRIGGERED — 執行/判定期日\n"
+                  "- **t5-jpy-cap-restore-price**: D1 close=153.7 < 159.50\n"
+                  "### 🔴 EVAL ERROR\n- **broken**: KeyError")
+        stderr = ""
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _R())
+    out = qgs.run_prereg_trigger_watch()
+    assert "t5-jpy-cap-restore-price" in out, "健全な TRIGGERED が消えている"
+    assert "EVAL ERROR" in out
+    assert "exit 2" in out
+    assert "全 trigger 未監視" not in out, "部分故障を全滅と誤って名乗っている"

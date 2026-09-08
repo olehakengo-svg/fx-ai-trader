@@ -691,10 +691,20 @@ REQUIRED_FIELDS_BY_TYPE: dict[str, tuple[str, ...]] = {
     "deadline_info": ("deadline",),
     "ingest_freshness": ("checks",),
     "artifact_presence": ("requirements",),
-    "data_coverage": ("source", "threshold_date"),
-    "csv_row_match": ("source", "source.match"),
+    "data_coverage": ("source", "source.path", "threshold_date"),
+    "csv_row_match": ("source", "source.path", "source.match"),
     "info": (),
     "conditional_info": (),
+}
+
+# コレクション型フィールドの要素スキーマ: (dotted path, 要素が持つべきキー)。
+# 上の top-level 検査だけでは `requirements: [{}]` のような形が素通りし、
+# 実行時に scan_artifacts / evaluate_ingest_freshness が KeyError を投げる
+# (PR #227 Codex P2)。評価器が添字アクセスする深さまで authoring 時に見る。
+COLLECTION_ELEMENT_FIELDS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "artifact_presence": (("requirements", ("path",)),),
+    "ingest_freshness": (("checks", ("max_age_hours",)),),
+    "csv_row_match": (("source.match", ("column",)),),
 }
 
 
@@ -729,6 +739,39 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
             errors.append(
                 f"{tid}: type={ttype} に必須の {missing} が無い — "
                 "実行時 KeyError で監視器全体が落ちる")
+            continue
+        errors.extend(_lint_collections(t, tid, ttype))
+    return errors
+
+
+def _get_path(obj: Any, dotted: str) -> Any:
+    cur = obj
+    for part in dotted.split("."):
+        cur = cur[part]
+    return cur
+
+
+def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
+    """コレクション型フィールドの形と要素キーを検査する。"""
+    errors: list[str] = []
+    for dotted, keys in COLLECTION_ELEMENT_FIELDS.get(ttype, ()):
+        coll = _get_path(t, dotted)
+        if not isinstance(coll, list) or not coll:
+            errors.append(
+                f"{tid}: type={ttype} の {dotted} が非空のリストでない "
+                f"({type(coll).__name__}) — 評価器が要素を走査できない")
+            continue
+        for i, elem in enumerate(coll):
+            if not isinstance(elem, dict):
+                errors.append(
+                    f"{tid}: {dotted}[{i}] が dict でない "
+                    f"({type(elem).__name__})")
+                continue
+            lack = [k for k in keys if k not in elem]
+            if lack:
+                errors.append(
+                    f"{tid}: {dotted}[{i}] に必須の {lack} が無い — "
+                    "実行時 KeyError")
     return errors
 
 

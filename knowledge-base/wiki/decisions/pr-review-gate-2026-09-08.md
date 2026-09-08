@@ -89,6 +89,20 @@ PR #226 の P1 finding:
 (MEMORY `lesson_validity_check_pins_proxy_2026_09_02`「pin は性質で書け」の 3 領域目)。
 monkeypatch で `prefix=True` が実際に届くかを見る性質 pin へ差し替えた。
 
+## 5b. 本 PR 自身がゲートに落ちた (2026-09-08、初適用)
+
+新ゲートを PR #227 (本 PR) に適用したところ **BLOCK / P1 1 件 + P2 2 件**。3 件とも妥当で、
+うち 1 件は**本 PR が直そうとしていた盲点を別の層で作り直していた**:
+
+| # | 指摘 | 判定 | 修正 |
+|---|---|---|---|
+| P1 | `quant_gate_status` が exit 2 (= 一部のみ `EVAL_ERROR`) でも stdout を捨て「全 trigger 未監視」と名乗る → 壊れた 1 件が他エントリの TRIGGERED を隠す | **妥当** — 隔離ラッパの目的をこの層で無効化していた | 構造化レポートがあれば必ず併記し、banner のみ付す。全滅表示は stdout ゼロのときだけ |
+| P2 | `lint_schema` が top-level の器しか見ないので `requirements: [{}]` / `checks: [{}]` / `source: {}` が素通りし、同じ欠陥クラスが daily 実行時まで残る | **妥当** | `COLLECTION_ELEMENT_FIELDS` を追加し、評価器が添字アクセスする深さまで検査 (`source.path` も必須化) |
+| P2 | レビュアー照合が部分一致 `codex` なので `my-codex-helper` の空レビューでゲートが通る | **妥当** | 完全一致 allowlist (`DEFAULT_REVIEWERS`、env で上書き可) へ。review 側とスレッド著者側の両方に適用 |
+
+counterfactual 3/3 が所望のテストだけを落とすことを確認。
+**ゲートの初回実行が実際に欠陥を 3 件止めた** — これ自体が R2 の効果測定の第 1 点。
+
 ## 6. 残件
 
 - **P1 #2 (未処理)**: PR #226 の 2 件目 — `tools/live_roster_attrition.py` の

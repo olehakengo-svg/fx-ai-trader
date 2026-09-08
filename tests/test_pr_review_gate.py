@@ -99,3 +99,24 @@ def test_pr226_regression_shape():
                                              "prereg-trigger-registry.json"),
                                 _thread(path="tools/live_roster_attrition.py")]))
     assert res["verdict"] == "BLOCK" and len(res["blocking"]) == 2
+
+
+def test_only_the_designated_reviewer_satisfies_the_gate():
+    """部分一致だと `my-codex-helper` の空レビューでゲートが通る (PR #227 P2)。"""
+    from tools.pr_review_gate import is_designated_reviewer
+
+    assert is_designated_reviewer("chatgpt-codex-connector")
+    assert is_designated_reviewer("Chatgpt-Codex-Connector")
+    assert not is_designated_reviewer("my-codex-helper")
+    assert not is_designated_reviewer("codex")
+    assert not is_designated_reviewer(None)
+
+    res = evaluate(_pr(reviews=[_review(login="my-codex-helper")], threads=[]))
+    assert res["verdict"] == "BLOCK" and res["reason"] == "NO_REVIEW"
+
+
+def test_impostor_thread_author_does_not_hide_a_finding():
+    """スレッド側も完全一致で数える (母集団の両端を同じ規則で pin)。"""
+    res = evaluate(_pr(reviews=[_review()],
+                       threads=[_thread(login="my-codex-helper")]))
+    assert res["verdict"] == "PASS", "非指定アカウントのスレッドは対象外"

@@ -36,13 +36,27 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
 import time
 from typing import Any
 
-REVIEWER_LOGIN_PAT = re.compile(r"codex", re.IGNORECASE)
+# 指定レビュアーは完全一致で照合する。部分一致 (r"codex") だと
+# `my-codex-helper` のような無関係アカウントの空レビューでゲートが通る
+# (PR #227 Codex P2)。env で上書き可能にして allowlist の追加を許す。
+DEFAULT_REVIEWERS = ("chatgpt-codex-connector",)
+REVIEWER_LOGINS = frozenset(
+    x.strip().lower()
+    for x in os.environ.get("PR_REVIEW_GATE_REVIEWERS", "").split(",")
+    if x.strip()
+) or frozenset(x.lower() for x in DEFAULT_REVIEWERS)
+
+
+def is_designated_reviewer(login: str | None) -> bool:
+    return bool(login) and login.strip().lower() in REVIEWER_LOGINS
+
 # Codex は finding 本文の先頭に P1/P2/P3 バッジ画像を置く。
 SEVERITY_PAT = re.compile(r"!\[(P[123]) Badge\]", re.IGNORECASE)
 BLOCKING = ("P1", "P2")
@@ -101,7 +115,7 @@ def evaluate(pr: dict[str, Any]) -> dict[str, Any]:
     commits = pr.get("commits", {}).get("nodes") or []
     head = commits[-1]["commit"]["oid"] if commits else ""
     reviews = [r for r in pr.get("reviews", {}).get("nodes", [])
-               if r.get("author") and REVIEWER_LOGIN_PAT.search(r["author"]["login"])]
+               if is_designated_reviewer((r.get("author") or {}).get("login"))]
     head_reviews = [r for r in reviews
                     if (r.get("commit") or {}).get("oid") == head]
 
@@ -111,7 +125,7 @@ def evaluate(pr: dict[str, Any]) -> dict[str, Any]:
         if not c:
             continue
         author = (c[0].get("author") or {}).get("login") or ""
-        if not REVIEWER_LOGIN_PAT.search(author):
+        if not is_designated_reviewer(author):
             continue
         if th.get("isResolved") or th.get("isOutdated"):
             continue
@@ -126,7 +140,8 @@ def evaluate(pr: dict[str, Any]) -> dict[str, Any]:
     blocking = [f for f in open_findings if f["severity"] in BLOCKING]
     if not reviews:
         return {"verdict": "BLOCK", "reason": "NO_REVIEW", "head": head,
-                "detail": "codex レビューが 1 件も到着していない",
+                "detail": f"指定レビュアー ({'/'.join(sorted(REVIEWER_LOGINS))}) "
+                          "のレビューが 1 件も到着していない",
                 "open_findings": open_findings, "blocking": blocking}
     if not head_reviews:
         return {"verdict": "BLOCK", "reason": "HEAD_UNREVIEWED", "head": head,

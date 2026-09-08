@@ -98,7 +98,20 @@ def run_prereg_trigger_watch() -> str:
         # traceback が本文としてそのまま Discord に載っていた (2 日間、51
         # エントリ全て未監視)。returncode を無視すると「監視器が落ちた」と
         # 「監視器が異常なしと言った」が読み手にとって同じに見える。
-        tail = (r.stderr or r.stdout or "(no output)").strip().splitlines()[-6:]
+        #
+        # ただし exit 2 = 「一部エントリが EVAL_ERROR、残りは正常評価」なので
+        # 本文を捨ててはならない (PR #227 Codex P1)。捨てると壊れた 1 件が
+        # 他エントリの TRIGGERED を隠し、隔離ラッパが防ぐはずの盲点が
+        # そのまま再現する。構造化レポートが出ていれば必ず併記する。
+        err = (r.stderr or "").strip()
+        if r.stdout.strip():
+            banner = (f"🔴 **監視器が exit {r.returncode} — 一部 trigger が "
+                      "評価不能 (下記 EVAL ERROR 節を見よ)**")
+            body = r.stdout.strip()
+            if err:
+                banner += "\n```\n" + "\n".join(err.splitlines()[-6:]) + "\n```"
+            return f"{banner}\n{body}"
+        tail = (err or "(no output)").splitlines()[-6:]
         return ("## Pre-reg Trigger Watch\n"
                 f"🔴 **監視器が exit {r.returncode} で失敗 — 全 trigger 未監視**\n"
                 "```\n" + "\n".join(tail) + "\n```")
