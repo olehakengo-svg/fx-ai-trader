@@ -4356,6 +4356,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - Block全体の上位を `r2_shadow_demoted_cell` と `hedge_block` が支配している
 - `r2_shadow_demoted_cell` はScalp系3戦略で計1,102件 → Scalp系のエントリー機会がシステム内部でほぼ完全に封殺されている
 
+### 2026-09-09 (Post-London Report)
+| PnL | **0.0 pips / ¥0** |
+| 勝率（WR） | **N/A** |
+- Scalpシリーズは`r2_shadow_demoted_cell`が圧倒的主因。シャドートラッキングフェーズのセルがdemote状態のまま継続しており、シグナルが発生しても全てブロックされている
+- DaytradeシリーズはVolatileレジームのEUR/JPY（74%ile）・GBP/JPY（74%ile）・USD/JPY（79%ile）でATR拡張しているにも関わらず、`hedge_block`が支配的。ヘッジロジックが高ボラティリティ環境で過剰に発動している可能性
+| PnL | 0 | 0 |
+### 推奨戦略配分
+**→ NO ACTION推奨（NYセッションも同様）**
+| 累計PnL | **0.0** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
