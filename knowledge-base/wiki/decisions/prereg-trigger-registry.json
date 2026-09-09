@@ -416,7 +416,26 @@
       "n_floor": 15,
       "deadline": "2026-09-10",
       "doc": "knowledge-base/wiki/analyses/price-shock-seat-supply-audit-2026-07-29.md",
-      "message": "席供給是正 (PR #172, 08-11 deploy) の 30d 供給率再計測 — §9 検証計画。N>=15 で早期実施可 (design レート ~0.4/日 x 30d ≈ 12-14 = capture ~100% 相当)、期日 09-10 に N<15 なら capture<80% 濃厚 = §8 補足検証 (hedge_block 寄与/blackout 床) を精査。再計測手法 = audit §2 と同一 (MASSIVE design 期待 vs 観測 rows、tools/price_shock_exit_counterfactual.py の population 取得を流用可)"
+      "message": "席供給是正 (PR #172, 08-11 deploy) の 30d 供給率再計測 — §9 検証計画 4。再計測手法 = audit §2 と同一 (MASSIVE design 期待 vs 観測 rows)。ハーネス実装済み: `python3 tools/ps_seat_supply_remeasure.py --json` (境界は decide_verdict にコード実装 + pin、中途窓は自動的に MID_WINDOW_DIAGNOSTIC)。実行主体 = fx-roadmap-autopilot 日次実行 (MASSIVE_API_KEY はローカル .env のみ、CI/Render cron 不可)。**2026-09-09 中途 diagnostic: design 34 / 観測 unique 7 / capture 21% [Wilson 10-37%]** = 是正前 baseline 31% 未満、design 34 は既に判定床 N>=15 超のため窓完成時 REJECT 濃厚 (→ §8 補足検証 hedge_block/blackout 精査が発動)。さらに観測 7 行中 closed-bar design 対応は 1 行のみ = capture の分子/分母がほぼ交わらない (live は forming bar 評価) — 別 R3 パケット起案済み。**窓完成後 (2026-09-11 以降) に再実行して正式 verdict を確定すること。**",
+      "harness": "tools/ps_seat_supply_remeasure.py",
+      "execution_command": "python3 tools/ps_seat_supply_remeasure.py --json",
+      "execution_subject": "fx-roadmap-autopilot daily run (MASSIVE_API_KEY is local-.env only; not available to GitHub Actions or Render cron)",
+      "mid_window_diagnostic_2026_09_09": {
+        "as_of": "2026-09-09T03:00Z",
+        "effective_window_days": 29.1,
+        "design_expected": 34,
+        "observed_unique_total": 7,
+        "observed_live": 6,
+        "observed_shadow": 1,
+        "observed_on_closed_bar_design": 1,
+        "capture": 0.206,
+        "capture_wilson95": [
+          0.103,
+          0.368
+        ],
+        "verdict": "MID_WINDOW_DIAGNOSTIC (no verdict — window incomplete and early-execution N>=15 unmet)",
+        "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md"
+      }
     },
     {
       "id": "e21-personal-account-decision",
