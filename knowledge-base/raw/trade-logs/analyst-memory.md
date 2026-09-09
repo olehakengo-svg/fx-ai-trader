@@ -4346,6 +4346,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 **全体集計（Cutoff後）**: N=5 / WR=40.0% / PnL=−87.2 pip
 > **統計的注記**: 全戦略でN<10。現時点では「データなし」の扱い。EVの数値は参考値に過ぎず、昇格・降格の判定基準（N≥30）に達している戦略はゼロ。
 
+### 2026-09-09 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **+0.5 pips** |
+| 全体WR | **0.0%（BREAKEVEN = 勝ちに分類せず）** |
+前日（2026-09-08）は `usdjpy_carry_dip_accumulator` が1件のみ成立し、スプレッド0.8pipsに対しBREAKEVEN（+0.5p）で終了。実質ゼロ収益日。システム全体はほぼ沈黙状態。
+> **⚠️ N警告: 全戦略でN<10。統計的判断不能域。以下は「傾向の記録」として扱う。**
+| Strategy | Pair | N | WR% | EV (p/t) | PnL | 判定 |
+**合計**: N=5 / WR=40.0% / PnL=-87.2p
+- Block全体の上位を `r2_shadow_demoted_cell` と `hedge_block` が支配している
+- `r2_shadow_demoted_cell` はScalp系3戦略で計1,102件 → Scalp系のエントリー機会がシステム内部でほぼ完全に封殺されている
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
