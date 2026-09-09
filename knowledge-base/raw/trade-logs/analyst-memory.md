@@ -4366,6 +4366,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 **→ NO ACTION推奨（NYセッションも同様）**
 | 累計PnL | **0.0** |
 
+### 2026-09-09 (Pre-Tokyo Briefing)
+| 前日PnL | +0.5p |
+| 前日WR | 0.0%（BREAKEVENのみ） |
+前日（2026-09-08）は **USD_JPY × usdjpy_carry_dip_accumulator** の1件のみ約定。結果はBREAKEVEN（+0.5p）で実質ノー・ゲイン。市場参加度は極めて低調。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体合計**: N=5、WR=40.0%、PnL=−87.2p
+- **price_shock_rev_aud_jpy_h1_long（AUD_JPY）**: N=1で−77.5pは異常値水準。単発の可能性があるが、EV=−77.50はシステム全体のPnLを単独で押し下げている主因。
+- **usdjpy_carry_dip_accumulator**: N=3で判断不能だが、EV=−4.23はネガティブトレンド。累計PnL=−12.7p。
+- **price_shock_rev_eur_gbp_h1_long**: N=1のため勝率100%は統計的に無意味。傾向観察段階。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
