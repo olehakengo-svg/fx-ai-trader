@@ -158,6 +158,16 @@ id=14900 (aud_jpy shadow、2026-07-31 金 13:31 entry) で WEEKEND_CLOSE (金 21
 evidence がない。preserve-exit-overlay §7 の「既知の残存逸脱」ステータスを維持し、G-gate 解釈時に
 金曜午後 entry のみ WEEKEND_CLOSE ラベルが混じる点を注記する。
 
+### 検証計画 4 の中間報告 (2026-09-09、rule:R3)
+
+30d 再計測ハーネス `tools/ps_seat_supply_remeasure.py` 稼働。窓未完 (実効 29.1/31 日) のため
+**verdict なし** (`MID_WINDOW_DIAGNOSTIC`)。中途 diagnostic: design 期待 34 / 観測 unique 7 /
+capture **21%** [Wilson 10-37%] — 是正前 baseline 31% (§1) を下回る。NZD_JPY / EUR_AUD / USD_CAD は
+観測ゼロのまま (design は 6/7/4 本存在)。さらに観測 7 行のうち closed-bar design signal に
+対応するのは 1 行のみで、**capture の分子と分母がほぼ交わらない** ことが判明 (live は forming bar を
+評価するため) — §8 の 3 項目に含まれない第 4 の要因。正式 verdict は窓完成後 (2026-09-11 以降)。
+詳細: [[ps-seat-supply-remeasure-2026-09-10]]
+
 ## 関連
 - [[preserve-exit-overlay-2026-07-28]] §6.6-5 (発端) / §7 (exit 側是正)
 - [[price-shock-reversion]] / [[price-shock-rev-promote-criteria-2026-05-18]]
