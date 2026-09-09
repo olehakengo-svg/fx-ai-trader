@@ -4336,6 +4336,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - `usdjpy_carry_dip_accumulator` はN=3でEV=−4.23。USD_JPYのATR%ile=79%という高ボラ環境下でのCarry系戦略としての相性を要注視。
 | EUR_USD | RANGING | 36% | +0.00152 | レンジ・低ボラ。スキャルプ系有利だがEVが出にくい |
 
+### 2026-09-09 (Pre-Tokyo Briefing)
+| 前日PnL合計 | +0.5 pip |
+| 全体WR | 0.0%（唯一のトレードはBREAKEVEN） |
+前日（2026-09-08）は `usdjpy_carry_dip_accumulator` が USD_JPY で1件約定、スプレッド0.8pipsに対しBREAKEVENで決済。実質的な収益創出はゼロ。全トレードはOANDA転送SKIPのデモ完結。
+| Strategy | Pair | N | WR% | EV (pip/t) | PnL | 判定 |
+| usdjpy_carry_dip_accumulator | USD_JPY | 3 | 33.3% | −4.23 | −12.7 | ⚠️ N不足・EV負 |
+| price_shock_rev_aud_jpy_h1_long | AUD_JPY | 1 | 0.0% | −77.50 | −77.5 | 🔴 EV壊滅・N=1 |
+**全体集計（Cutoff後）**: N=5 / WR=40.0% / PnL=−87.2 pip
+> **統計的注記**: 全戦略でN<10。現時点では「データなし」の扱い。EVの数値は参考値に過ぎず、昇格・降格の判定基準（N≥30）に達している戦略はゼロ。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
