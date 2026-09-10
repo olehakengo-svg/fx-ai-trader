@@ -1,0 +1,10 @@
+{
+  "_comment": "queue hard SLA (QUEUE_SLA_HARD_DAYS) の明示 waiver。無言の滞留を禁止し、待つなら理由と期限を書く (process-meta-audit-2026-09-07 R5)。期限切れ waiver は自動失効し ERROR に戻る。",
+  "waivers": [
+    {
+      "id": "20260818-e23-cb-text-adjudication-s2",
+      "until": "2026-09-18",
+      "reason": "残作業 (testable form DRAFT→LOCK) は 09-18 scan#4 の family A/B/C 統合裁定と同時に処理する方針 (E23 採否と結合)。それ以降の滞留は waiver 更新不可 — 実行か dispose。"
+    }
+  ]
+}

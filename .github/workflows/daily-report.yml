@@ -40,7 +40,15 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           DISCORD_ERROR_WEBHOOK_URL: ${{ secrets.DISCORD_ERROR_WEBHOOK_URL }}
-        run: python3 scripts/daily_report.py ${{ github.event.inputs.session }}
+          # github コンテキストを run へ直接補間しない (semgrep CWE-78)
+          REPORT_SESSION: ${{ github.event.inputs.session }}
+        run: python3 scripts/daily_report.py "$REPORT_SESSION"
+
+      # F4 資金時計 (process-meta-audit-2026-09-07 §6) — 書き手。読み手は
+      # registry project-falsification-f4-nav-floor-clock (csv_row_match)。
+      - name: NAV floor projection (F4)
+        continue-on-error: true
+        run: python3 tools/nav_floor_projection.py --append
 
       - name: Commit KB report
         id: kb-commit
@@ -50,9 +58,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add knowledge-base/raw/trade-logs/
           test -d knowledge-base/raw/market-analysis && git add knowledge-base/raw/market-analysis/ || true
+          test -d data/monitoring && git add data/monitoring/ || true
           echo "=== Staged files ==="
           git diff --cached --name-only
-          if git diff --cached --name-only | grep -q "knowledge-base/"; then
+          if git diff --cached --name-only | grep -qE "knowledge-base/|data/monitoring/"; then
             git commit -m "docs(KB): daily report $(date -u +%Y-%m-%d)"
             git pull --rebase origin main
             git push
