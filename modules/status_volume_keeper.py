@@ -10,6 +10,14 @@ OANDA Japan の REST API 利用条件 = Gold ステータス (前月取引量 US
   - demo DB には一切書かない (Kelly / quant-eval / 鮮度検知の母集団を汚染しない)。
     トレードの識別は OANDA 側 tradeClientExtensions tag ("SVK") と本モジュールの
     状態ファイルのみ。
+  - **emergency_kill 尊重 (2026-09-11, rule:R3)**: demo_trader の emergency kill
+    switch は「全取引停止 + 口座フラット化」を名乗る最終防衛だが、keeper の
+    open_count!=0 ガードはフラット化でむしろ外れるため、kill 状態を直接参照
+    しないと kill 中に実弾往復が継続する (549250 事故・watchdog 再武装と同型の
+    「防御が名乗る範囲を実際にはカバーしない」クラス)。参照は共有 DB
+    (system_kv.emergency_killed) の read-only 読み — in-memory 参照はプロセス/
+    スレッド境界で共有されない教訓に従う。読めない場合は fail-closed (kill 中か
+    不明のまま実弾を撃たない)。
   - 口座に 1 つでも open trade がある間は発注しない (エンジン/手動ポジションとの
     netting 干渉をゼロにする)。決済は trade_id 指定 close のみ。
   - スプレッド異常時は skip (デスゾーンは動的検出のみ、の原則に整合)。
@@ -25,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import threading
 import time
 from datetime import datetime, timezone
@@ -51,7 +60,8 @@ class StatusVolumeKeeper:
 
     def __init__(self, client: Any = None,
                  state_path: str = None,
-                 now_fn=None) -> None:
+                 now_fn=None,
+                 kill_db_path: str = None) -> None:
         self.enabled = os.environ.get(
             "STATUS_VOLUME_KEEPER_ENABLE", "0") == "1"
         self.target_usd = float(os.environ.get(
@@ -70,6 +80,9 @@ class StatusVolumeKeeper:
         self.poll_sec = int(os.environ.get("SVK_POLL_SEC", "300"))
         self.state_path = state_path or os.environ.get(
             "SVK_STATE_PATH", "/var/data/status_volume_keeper.json")
+        # emergency_kill フラグ (system_kv) を持つ共有 DB。None なら app.py と
+        # 同じ規則で解決する (テストは tmp DB を注入)。
+        self.kill_db_path = kill_db_path
         self._now_fn = now_fn or _utcnow
         self._client = client
         self._thread: Optional[threading.Thread] = None
@@ -126,6 +139,49 @@ class StatusVolumeKeeper:
         self.last_skip_reason = reason
         self.last_skip_at = self._now_fn().isoformat()
 
+    def _resolve_kill_db_path(self) -> str:
+        """emergency_kill フラグを持つ共有 DB のパス (app.py と同一の解決規則)。
+
+        Render disk (/var/data) があればそこ、なければ DB_PATH env → repo ルート。
+        """
+        if self.kill_db_path:
+            return self.kill_db_path
+        if os.path.isdir("/var/data"):
+            return os.path.join("/var/data", "demo_trades.db")
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return os.environ.get("DB_PATH", os.path.join(root, "demo_trades.db"))
+
+    def _emergency_kill_blocked(self) -> bool:
+        """emergency_kill 状態なら True (= 新規 round-trip 禁止)。
+
+        demo_trader.emergency_kill() は system_kv.emergency_killed="1" を永続化
+        する。keeper は demo_trader と別スレッド/別ライフサイクルなので in-memory
+        フラグは参照できず (プロセス境界の教訓)、共有 SQLite を read-only で読む。
+        読み取り失敗も True を返す fail-closed — kill 中かどうか不明のまま実弾を
+        撃たない。失敗は skip reason に露出させ、{} に潰さない (PR #210 規律)。
+        """
+        path = self._resolve_kill_db_path()
+        try:
+            conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=5)
+            try:
+                row = conn.execute(
+                    "SELECT value FROM system_kv WHERE key='emergency_killed'"
+                ).fetchone()
+            finally:
+                conn.close()
+        except Exception as e:
+            self._skip(f"kill_state_unreadable({type(e).__name__})")
+            _log(f"emergency_kill state unreadable ({type(e).__name__}: "
+                 f"{str(e)[:120]}) — fail-closed, round-trip suppressed")
+            return True
+        if row is not None and str(row[0]) == "1":
+            if self.last_skip_reason != "emergency_kill":
+                _log("emergency_kill active — round-trip suppressed until "
+                     "emergency_resume (keeper mandate unchanged)")
+            self._skip("emergency_kill")
+            return True
+        return False
+
     def maybe_execute(self) -> bool:
         """guard chain を通過したら 1 往復だけ実行。実行したら True。"""
         if not self.enabled:
@@ -134,9 +190,17 @@ class StatusVolumeKeeper:
         now = self._now_fn()
         self._roll_counters(now)
 
-        # 事故復旧を最優先: 前回 close に失敗した SVK 玉が残っていれば閉じるだけ
+        # 事故復旧を最優先: 前回 close に失敗した SVK 玉が残っていれば閉じるだけ。
+        # kill 中でも実行する — close-only であり、emergency_kill の「口座フラット
+        # 化」マンデートに整合する (emergency_kill は demo trade_map 経由で閉じる
+        # ため、DB 非経由の SVK 玉はここでしか回収されない)。
         if self.state.get("open_trade_ids"):
             self._recover_stale_trades()
+            return False
+
+        # emergency_kill 尊重 (2026-09-11, rule:R3): kill 中は新規 round-trip 禁止。
+        # open_count!=0 ガードはフラット化で外れるため、この参照が唯一の防御。
+        if self._emergency_kill_blocked():
             return False
 
         if now.weekday() >= 5:

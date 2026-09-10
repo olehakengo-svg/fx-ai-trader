@@ -45,3 +45,35 @@ env を 0/unset に戻すのみ (worker 不起動)。玉が残っていた場合
 ## 明示的な非目標
 - ステータスのための lot 昇格 (lot ladder 凍結テンプレの違反)
 - keeper 約定の統計利用 (エッジ情報ゼロ、全 pipeline から除外)
+
+---
+
+## 追記 2026-09-11: emergency_kill 参照の防御追加 (rule:R3)
+
+**ギャップ (反証レビュー指摘 → コード実読で確定)**: keeper の guard chain は
+emergency/killed 状態を一切参照していなかった。emergency_kill は「全取引停止 +
+全ポジション決済 (口座フラット化)」を名乗る最終防衛だが、keeper の唯一の補償統制
+`openTradeCount != 0` skip は**フラット化によってむしろ外れる**ため、kill 状態下でも
+東京時間窓で 10,000u USD_JPY の実弾往復が継続する構造だった。549250 事故・watchdog
+再武装バグと同型の「防御が名乗る範囲を実際にはカバーしない」クラス。keeper は
+2026-09-01 arm 以降本番稼働中 (09-10 時点 RT 21 回 / $420k 積算を API 実測) で、
+ギャップは実弾経路上に実在した。
+
+**修理 (防御の追加のみ — 本決裁 (案 A) のマンデート・ガード値・窓・target は不変更)**:
+- `maybe_execute` の新規発注前に `_emergency_kill_blocked()` を追加。共有 DB
+  (`system_kv.emergency_killed`、demo_trader が kill/resume で永続化する同一キー) を
+  **read-only SQLite 接続で読む** — in-memory 参照はプロセス/スレッド境界で共有され
+  ない教訓 (DT ctx freeze / engine 再構築) に従い DB 経由のみ
+- kill 中は `skip("emergency_kill")` + 明示ログ (transition 時 1 回)。telemetry
+  (`/api/demo/status`.status_volume_keeper.last_skip_reason) に露出
+- kill 状態が**読めない場合も fail-closed** (`kill_state_unreadable(...)`) — kill 中か
+  不明のまま実弾を撃たない。失敗は skip reason に露出し `{}` に潰さない (PR #210 規律)
+- stale SVK 玉の回収 (`_recover_stale_trades`) は kill 中も実行 — close-only であり
+  フラット化マンデートに整合。emergency_kill 自体は demo trade_map 経由でしか閉じない
+  ため、DB 非経由の SVK 玉はこの経路が唯一の回収手段
+- テスト pin: kill=1 で発注が構造的に起きない / counterfactual (参照を外すと落ちる —
+  実施済み: 除去時 kill 下で "RT done" 発生を確認) / kill=0・行なしでマンデート非影響 /
+  read 失敗 fail-closed / kill 中の回収 close-only (`tests/test_status_volume_keeper.py`)
+
+**残課題 (起票)**: この経路 (自走マージ→auto-deploy→実弾) のガバナンス全体の監査は
+[[live-governance-gap-audit-packet-2026-09-10]] に起票 (実施は次回監査)。
