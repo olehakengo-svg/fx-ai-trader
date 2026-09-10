@@ -4376,6 +4376,16 @@ Cutoff後全期間の累計はN=6、WR=50.0%、PnL=+49.2pという極めて薄�
 - **usdjpy_carry_dip_accumulator**: N=3で判断不能だが、EV=−4.23はネガティブトレンド。累計PnL=−12.7p。
 - **price_shock_rev_eur_gbp_h1_long**: N=1のため勝率100%は統計的に無意味。傾向観察段階。
 
+### 2026-09-10 (Pre-Tokyo Briefing)
+Cutoff後累計は N=6、WR=50.0%、PnL=**−86.6p**（EV平均は計算上著しく負）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+> **統計的注記**: 全戦略でN<10。いずれも「データなし」扱い。WR・EVの数値に統計的意味は現時点でない。特に`price_shock_rev_aud_jpy_h1_long`のEV=−77.50は単発の大損失（−77.5p）を反映した外れ値であり、EV推定値として読んではならない。
+- **shadow降格セルの解除**については、現行の`r2_shadow_demoted_cell`ブロックが正当な品質フィルタとして機能しているか、それとも過度に保守的になっているかを**次のN=30蓄積後に再評価**すること。現時点でコード介入の根拠なし。
+- `gbp_asia_flash_crash`ガードは今日も継続有効（GBP/JPY VOLATILEレジーム確認済）。
+- `rnb_usdjpy:no_signal`は市場条件依存。USD/JPYがATR79%ile VOLATILE状態で方向性シグナルが発生しにくい環境にある可能性を考慮。
+| 時間帯（JST） | 内容 | 注意点 |
+- **USD/JPY 79%ile**は高ボラ環境の最終域。急落・急騰いずれも起こりやすい。`usdjpy_carry_dip_accumulator`が再エントリーする場合、損失が大きくなるリスク（AUD/JPY事例のEV−77.5pの再現懸念）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
