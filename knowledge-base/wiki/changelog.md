@@ -1,5 +1,17 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-10 — fix(w4): bb_squeeze v2 の live 呼び出し規約 3 層配線落ちを修復 — 127 日沈黙の解消 (rule:R3)
+
+- **経緯**: registry `roster-e2-silent-promoted-cells` の判別 ([[e2-silent-cells-triage-2026-09-10]]、PR #235) で bb_squeeze_breakout×EUR_USD (BUY/SELL) が「配線落ち」と確定 (意図的無効の決裁は不在)。commit 942e3800 (2026-05-06 w4 v2 化) 以降 127 日間、_PAIR_PROMOTED 現役掲載のまま LIVE/shadow 行ゼロ。user「進めて」(2026-09-10) で R3 修復を執行
+- **層① live 恒久 None を修復** (`strategies/scalp/squeeze.py`): `_evaluate_v2` の hard-guard `not backtest_mode and bar_time is None → return None` は、live 呼び出し規約 (demo_trader._tick → `compute_fn(df, tf, sr, symbol)` = bar_time 常に None) で評価器を構造的に殺していた。同 wave の xs_momentum idiom (`bar_time or df.index[-1]`) に置換。評価本体は closed signal bar (`iloc[-2]`/`index[-2]`) のみ参照のため **BT (backtest_mode=True, 旧 guard 非適用) との評価 parity は不変** — 同一 df で live 規約と BT 規約の出力一致をテストで pin
+- **層② ✅ 欠落を修復**: v2 reasons に ✅ が 1 つもなく、発火しても QUALIFIED gate `no_confirm:bb_squeeze_breakout` (demo_trader.py) で live/shadow とも死んでいた。BUY/SELL の第 1 reason に ✅ 付与。BT 側 `SCALP_BT_QUALIFIED` gate (app.py run_scalp_backtest) も同一述語 `"✅" in r` のため **BT/本番が同時に同じ向きへ直る** (parity 維持)
+- **層③ loser-shadow 不達は層①で到達回復**: `split_shadow_always` の 2-lever 配線 (SQUEEZE_REDESIGN_V2 + _SHADOW_PROMOTE) は既存 — 評価器 None で候補が永遠に来なかっただけ。live 規約で生成した候補が score 敗北時に shadow promote へ届くことを end-to-end で pin
+- 🛑 **live 送信挙動は変えない — `SQUEEZE_V2_LIVE_HOLD` 新設** (`modules/demo_trader.py`、default=1): 修復単体だと winner 経路が _PAIR_PROMOTED×EUR_USD (2026-05-07 volume emergency 登録、根拠 shadow N=14 EV=+0.01 のみ) 経由で「一度も行使されたことのない live OANDA 送信」を開く — _PAIR_PROMOTED は spread_gate / spread_sl_gate / Phase0 SHADOW gate 免除で、GRAIL/C1/EDGE_CELLS/PRIME/kalman いずれにも bb_squeeze は不在のため **hold が唯一の deciding gate** (counterfactual テストで hold=0 → bridge.open_trade 発生を実測)。v2 wave の設計意図は shadow 実測 (verdict INSUFFICIENT_BT_EVIDENCE → RECOMMEND_SHADOW) であり live 化 R1 は未了 → v2 有効時は winner も shadow 固定。解除は fresh shadow N≥30 の R1 決裁後に env "0"。SQUEEZE_REDESIGN_V2 無効 (v1) 時は hold 不適用 = 挙動変更 scope を v2 に限定
+- **テスト**: `tests/test_squeeze_shadow_redesign_v2.py` 旧 pin `test_v2_live_without_bar_time_is_blocked` (壊れた挙動の pin) を修復 pin に反転 + parity/✅/loser-shadow の 3 本追加 (計 10 本)、`tests/test_bb_squeeze_v2_live_hold.py` 新設 4 本 (real _tick_entry 駆動、preserve-types パターン)。**counterfactual 5/5 実地確認** (squeeze.py revert → 4 fail / hold revert → 1 fail、既存 pin は green 維持)。全体 3152 passed
+- **BT 検証について (rule:R3 例外の明示)**: 本修復は数学/コード導出による構造バグ修正で 365d BT は skip (Rule 3)。挙動追加は shadow 行の発生のみで実弾リスクゼロ (hold で構造保証)。EUR_USD の エッジ有無は修復後の fresh shadow N で判定する — 旧 shadow N=14 EV=+0.01 / 5d shadow EV=-3.05 は v1 評価器由来で v2 の根拠に引用不可
+- registry `roster-e2-silent-promoted-cells`: bb_squeeze 2 セル = 修復実施を追記 (ema200×USD_JPY×SELL / SRM×GBP_USD×BUY は PR #235 で E1 = シグナル未発生に再分類済み)。読み手 `tools/live_roster_attrition.py` の E2_SILENT 解消は修復デプロイ後の行発生で確認
+- 決裁: [[e2-silent-cells-triage-2026-09-10]] §2.4 R3 修復案 / 戦略カード: [[bb-squeeze-breakout]]
+
 ## 2026-09-10 — fix(process): PR #227 救済 — レビューゲート二重実装の統合とインシデント記録の保全 (rule:R3)
 
 - **経緯**: メタ監査 R2 (マージゲート) を 2 セッションが独立実装し、PR #231 版が main へ先着。座礁した PR #227 (18 巡レビュー済み・CONFLICTING) から**固有価値のみ**を origin/main 起点の救済ブランチへ移植した。ゲート実装自体は #231 版 (`tools/pr_review_gate.py`) を正とし、#227 版 (GraphQL threads / P0 fail-closed / ページング / HEAD_UNREVIEWED) は**移植見送り** — 記録は決裁文書に原文保存し採用可否は別途判断

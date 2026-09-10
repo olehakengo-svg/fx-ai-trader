@@ -7198,6 +7198,33 @@ class DemoTrader:
                     "(USD_JPY×RANGE N=217 EV=-0.58 PF=0.75 RR=1.17). Shadow 継続."
                 )
 
+        # ── 2026-09-10 (rule:R3) bb_squeeze v2 live hold — 配線修復に伴う shadow 限定 ──
+        # e2-silent-cells-triage-2026-09-10 §2: SQUEEZE_REDESIGN_V2 の v2 評価器は
+        # live 呼び出し規約 (bar_time=None) で 127 日間 構造的 None だった。同日の
+        # 修復 (strategies/scalp/squeeze.py) で候補が再び流れるが、
+        # bb_squeeze_breakout×EUR_USD は _PAIR_PROMOTED 在籍 (2026-05-07 登録、
+        # 根拠 shadow N=14 EV=+0.01) かつ spread_gate / spread_sl_gate 免除のため、
+        # 修復だけだと「一度も行使されたことのない live 送信経路」が突然開く。
+        # v2 wave の設計意図は shadow 実測 (INSUFFICIENT_BT_EVIDENCE →
+        # RECOMMEND_SHADOW、.ai/tasks 20260505-1947) であり、live 化は fresh
+        # shadow N での R1 手続き未了 — よって v2 有効時は winner 経路も shadow に
+        # 落とし、live 送信挙動を修復前 (= ゼロ) と同一に保つ。
+        # Kill-switch: SQUEEZE_V2_LIVE_HOLD (default=1); R1 決裁後に "0" で解除。
+        # SQUEEZE_REDESIGN_V2 が無効 (v1 評価器) の場合は適用しない (挙動不変 scope)。
+        _SQUEEZE_V2_LIVE_HOLD = _os.environ.get("SQUEEZE_V2_LIVE_HOLD", "1") == "1"
+        if (_SQUEEZE_V2_LIVE_HOLD
+                and entry_type == "bb_squeeze_breakout"
+                and _os.environ.get("SQUEEZE_REDESIGN_V2") == "1"
+                and not _prime_live_lock):
+            if not _is_shadow:
+                _is_shadow = True
+                _is_promoted = False
+                _shadow_at_open = True
+                self._add_log(
+                    "[SQUEEZE_V2_LIVE_HOLD] bb_squeeze_breakout v2 winner → shadow 強制 "
+                    "(配線修復 2026-09-10 rule:R3 — live 化は fresh shadow N の R1 決裁後)"
+                )
+
         # ══════════════════════════════════════════════════════
         # v10 Q4 GATE (transition safety net during confidence_v2 rollout)
         # ══════════════════════════════════════════════════════

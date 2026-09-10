@@ -88,12 +88,28 @@ class BBSqueezeBreakout(StrategyBase):
         df = ctx.df
         if df is None or len(df) < max(55, self.breakout_range_bars + 3):
             return None
-        if not ctx.backtest_mode and ctx.bar_time is None:
-            return None
+        # 2026-09-10 (rule:R3 配線修復, e2-silent-cells-triage-2026-09-10 §2.2):
+        # 旧実装は `if not ctx.backtest_mode and ctx.bar_time is None: return None`
+        # の hard-guard を持っていたが、live のシグナル呼び出し規約
+        # (modules/demo_trader.py _tick → compute_fn(df, tf, sr, symbol)) は
+        # bar_time を渡さない (常に None) ため、v2 は live で構造的に恒久 None
+        # だった (2026-05-06 commit 942e3800 以降 127 日間 行ゼロ)。
+        # 同 wave の xs_momentum / macd_rsi_pullback と同じく「bar_time が無ければ
+        # 最終確定バーの index を代用する」fallback に置換する。評価本体は
+        # closed signal bar (df.iloc[-2] / df.index[-2]) のみを参照するため
+        # BT (backtest_mode=True, 旧 guard 非適用) との評価 parity は不変。
+        _bar_time = ctx.bar_time
+        if _bar_time is None:
+            try:
+                _bar_time = df.index[-1]
+            except Exception:
+                _bar_time = None
+        if not ctx.backtest_mode and _bar_time is None:
+            return None  # index も無い df では dedup key が作れない (安全側)
 
         signal_row = df.iloc[-2]
         prev_row = df.iloc[-3]
-        signal_time = df.index[-2] if getattr(df, "index", None) is not None else ctx.bar_time
+        signal_time = df.index[-2] if getattr(df, "index", None) is not None else _bar_time
         dedup_key = (ctx.symbol, self.name, signal_time)
         if dedup_key in self._v2_seen_bars:
             return None
@@ -138,8 +154,13 @@ class BBSqueezeBreakout(StrategyBase):
             score = 3.5
             sl = entry - sig_atr * self.sl_mult
             tp = entry + sig_atr * self.tp_mult
+            # ✅ prefix は必須: bb_squeeze_breakout は QUALIFIED_TYPES / SCALP_BT_QUALIFIED
+            # で `sum(1 for r in reasons if "✅" in r) >= 1` gate を通る (demo_trader.py
+            # no_confirm / app.py run_scalp_backtest — 同一述語で BT/本番 parity)。
+            # 旧 v2 は ✅ ゼロで、発火しても no_confirm:bb_squeeze_breakout で死んでいた
+            # (2026-09-10 rule:R3 配線修復 層②)。
             reasons.extend([
-                "SQUEEZE_REDESIGN_V2: closed-bar BB/range breakout BUY",
+                "✅ SQUEEZE_REDESIGN_V2: closed-bar BB/range breakout BUY",
                 f"BB width {sig_width_pct*100:.0f}%ile expanding on closed signal bar",
                 "EMA9>EMA21 trend-continuation filter",
             ])
@@ -149,7 +170,7 @@ class BBSqueezeBreakout(StrategyBase):
             sl = entry + sig_atr * self.sl_mult
             tp = entry - sig_atr * self.tp_mult
             reasons.extend([
-                "SQUEEZE_REDESIGN_V2: closed-bar BB/range breakout SELL",
+                "✅ SQUEEZE_REDESIGN_V2: closed-bar BB/range breakout SELL",
                 f"BB width {sig_width_pct*100:.0f}%ile expanding on closed signal bar",
                 "EMA9<EMA21 trend-continuation filter",
             ])
