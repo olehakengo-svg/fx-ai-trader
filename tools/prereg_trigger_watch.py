@@ -619,7 +619,22 @@ def load_registry_raw(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
 
 
 def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
-    return [t for t in load_registry_raw(path) if t.get("active", True)]
+    """active フィルタ後のエントリ。
+
+    ⚠️ `active` フィルタの前に**要素が dict であること**を確かめる。
+    `{"triggers": [null, {...}]}` は list 形の検査を通るが `null.get()` で
+    ここが落ち、`evaluate_trigger` の隔離ラッパに届く前に**後続の正常な
+    trigger すべてが未評価**になる (PR #227 Codex P2 18 巡目) —
+    隔離ラッパが防ぐはずの盲点を、その手前の層で作り直していた。
+    """
+    raw = load_registry_raw(path)
+    bad = [i for i, t in enumerate(raw) if not isinstance(t, dict)]
+    if bad:
+        kinds = {i: type(raw[i]).__name__ for i in bad}
+        raise RuntimeError(
+            f"{path}: triggers の要素が dict でない (index→型: {kinds}) — "
+            "active フィルタより手前で落ちるため隔離ラッパでは救えない")
+    return [t for t in raw if t.get("active", True)]
 
 
 def _evaluate_trigger_impl(
@@ -789,6 +804,14 @@ NESTED_SPEC_ALLOWED_KEYS: dict[str, dict[str, frozenset[str]]] = {
     "data_coverage": {"source": frozenset({"path", "date_column"})},
     "csv_row_match": {"source": frozenset({"path", "match",
                                            "label_columns"})},
+}
+
+# コレクション要素内で**排他**の selector 群。少なくとも 1 つ必須
+# (ALTERNATIVE 側) に加えて、2 つ以上あってはならない: 評価器は
+# `if prefix:` で分岐するため `key` を黙って無視し、明示したキーが
+# 完全に未監視になる (PR #227 Codex P2 18 巡目)。
+EXCLUSIVE_ELEMENT_GROUPS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "ingest_freshness": (("key", "prefix"),),
 }
 
 # list[str] を要求するフィールド。
@@ -1068,6 +1091,14 @@ def _unusable_reason(field: str, value: Any, *,
     elif leaf in STRING_FIELDS and not isinstance(value, str):
         return f"文字列でない ({type(value).__name__}: {value!r})"
     if leaf in DATE_FIELDS and isinstance(value, str):
+        # 評価器は**元の文字列**を消費するので、lint 側で strip して
+        # 判定すると `" 2026-09-10"` が通る。先頭空白は辞書順で数字より
+        # 前に来るため `today > deadline` が常に真 = **前日から期限切れ**扱い
+        # になり、`since` では `fromisoformat` が落ちて DATA_UNAVAILABLE
+        # (PR #227 Codex P2 18 巡目)。**書かれたまま**の正準性を要求する。
+        if value != value.strip():
+            return (f"前後に空白がある ({value!r}) — 評価器は strip しないので"
+                    "辞書順比較が前倒しになり、パースは失敗する")
         v = value.strip()
         if (leaf in LEXICAL_DATE_FIELDS and v not in date_sentinels
                 and len(v) != 10 and _is_iso_date(v)):
@@ -1336,6 +1367,15 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
                     f"{tid}: {dotted}[{i}].op={elem['op']!r} は未知の演算子 — "
                     f"評価器は {sorted(_CSV_OPS)} のみ解釈し、"
                     "それ以外は毎日 DATA_UNAVAILABLE を返し続ける")
+            for group in EXCLUSIVE_ELEMENT_GROUPS.get(ttype, ()):
+                present = [k for k in group
+                           if str(elem.get(k) or "").strip()]
+                if len(present) > 1:
+                    errors.append(
+                        f"{tid}: {dotted}[{i}] は {list(group)} の"
+                        f"**どちらか一方のみ**指定すること (両方あり: {present}) "
+                        "— 評価器は `if prefix:` で分岐するので key は黙って"
+                        "無視され、明示したキーが完全に未監視になる")
             for group in alternatives:
                 # 存在だけでは足りない: evaluate_ingest_freshness は
                 # `if prefix:` で分岐するので prefix="" は key 側へ落ち、

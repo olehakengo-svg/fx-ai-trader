@@ -1553,3 +1553,54 @@ def test_csv_predicate_values_must_be_finite_scalars():
     # 害の実演: dict value + `!=` は通常値に一致する
     assert w._csv_row_predicate({"c": "5"},
                                 {"column": "c", "value": {"a": 1}, "op": "!="})
+
+
+def test_non_dict_trigger_elements_are_rejected_before_the_active_filter(tmp_path):
+    """`[null, {...}]` は隔離ラッパの手前で落ちて全 trigger を未評価にする。
+
+    PR #227 Codex P2 18 巡目: `evaluate_trigger` の隔離は「1 件の不整合が
+    全体を落とす」設計を防ぐためのものだが、`load_registry` の
+    `t.get("active")` はそれより手前で走るので `null` 要素で全滅する。
+    """
+    import json as _json
+    import pytest
+    from tools.prereg_trigger_watch import load_registry
+    good = tmp_path / "g.json"
+    good.write_text(_json.dumps({"triggers": [{"id": "x", "type": "info"}]}))
+    assert len(load_registry(good)) == 1
+    for payload in ([None, {"id": "x"}], [{"id": "x"}, "str"], [[1], {"id": "x"}]):
+        bad = tmp_path / "b.json"
+        bad.write_text(_json.dumps({"triggers": payload}))
+        with pytest.raises(RuntimeError):
+            load_registry(bad)
+
+
+def test_date_values_must_be_canonical_as_written():
+    """評価器は元の文字列を消費する — lint 側で strip して判定してはいけない。
+
+    PR #227 Codex P2 18 巡目: `" 2026-09-10"` は先頭空白が辞書順で数字より
+    前に来るので `today > deadline` が常に真 = **前日から期限切れ**扱い。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "deadline_info"}
+    assert lint_schema([dict(base, deadline="2026-09-10")]) == []
+    assert lint_schema([dict(base, deadline=" 2026-09-10")]) != []
+    assert lint_schema([dict(base, deadline="2026-09-10 ")]) != []
+    # 害の実演: 先頭空白は辞書順で数字より前
+    assert "2026-09-09" > " 2026-09-10"
+
+
+def test_ingest_selectors_are_exclusive_not_merely_present():
+    """`key` と `prefix` の両方指定は key が黙って無視される。"""
+    from tools.prereg_trigger_watch import lint_schema
+    def entry(chk):
+        return {"id": "x", "type": "ingest_freshness", "checks": [chk]}
+    assert lint_schema([entry({"key": "k", "max_age_hours": 24})]) == []
+    assert lint_schema([entry({"prefix": "p:", "max_age_hours": 24})]) == []
+    assert lint_schema([entry({"key": "k", "prefix": "p:",
+                               "max_age_hours": 24})]) != []
+    # `prefix: ""` は 2 巡目で既に禁止済み (評価器の `if prefix:` で key 側へ
+    # 落ちて `chk["key"]` を添字アクセスする) — 排他検査とは別の理由で NG
+    errs = lint_schema([entry({"key": "k", "prefix": "",
+                               "max_age_hours": 24})])
+    assert errs and all("どちらか一方のみ" not in e for e in errs), errs
