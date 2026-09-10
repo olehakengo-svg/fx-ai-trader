@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-10 — fix(e1): ingest 認証失敗インシデント — backoff + fail-loud + 復旧手順 (rule:R3)
+
+- **P1 進行中インシデント**: Myfxbook 認証失敗 (`Wrong email/password.`) で E1 positioning ingest が 2026-09-10T~07:18Z から停止。最終 verified 06:58:44Z、13 キー全 stale (14:44Z 実測 7.76h)、logins_total=0。§2.5 coverage budget 残 **33.2〜35.2h**、停止継続時の breach 予測 **09-13T23:57Z〜09-14T01:57Z** → 6 primary 全ペア機械除外 → family gate 4 週 postpone (first look 10-15 → ~11-12 = M1 経路 ~4 週遅延)。全会計と復旧手順: [[e1-ingest-outage-2026-09-10]]
+- **lockout 防止 backoff** (`modules/positioning_ingest.py` / `modules/myfxbook_client.py`): 認証失敗 (`is_auth_failure` — session 失効/transport と分類分離、marker SSOT は myfxbook_client) で login リトライを exponential backoff 1800s×2^n・**上限 6h**。連続 4 回で長期 pause を明示ログ宣言 (以後 6h 毎 1 回のみ再試行)。**認証成功で即通常化**。backoff skip 中も heartbeat (`last_cycle_at`) は書き verified:* は書かない — 鮮度検知 (registry / watcher) を殺さない。状態は status API `myfxbook.auth_*` に全露出。live 取引経路 非接触 (demo_trader/oanda_bridge/strategies からの参照ゼロ、全数 grep — positioning は E1 データ収集専用)
+- **fail-loud 化** (`scripts/anomaly_watcher.py`): 7h+ 無言だった経路を解剖 — 既存 10 検知器は `/api/positioning/status` を見ておらず、registry `e1-positioning-ingest-freshness` は daily cron (00:20Z) のみ、Render ログ [positioning] は読み手ゼロ。WATCHED_PATHS に追加し `positioning_auth_failed` (Discord 毎時) / `positioning_stale` (6h バケット) / `positioning_freshness_missing` (記録のみ) を新設 — 検知遅延 ~17h → **~15 分**
+- **テスト**: `tests/test_positioning_ingest.py` +8 本 (**counterfactual pin**: backoff 配線 kill で `test_auth_failure_backoff_counterfactual` が fail / exponential+cap / 長期 pause / 成功即リセット / 非 auth 失敗は backoff しない / no-secrets)、`tests/test_anomaly_watcher_detectors.py` +10 本 (本番実測形状で発火 / estimand 分離 / 読み手 pin = main 配線・通知バケット・event line)
+- registry `e1-positioning-ingest-freshness`: note に incident 台帳追記 + reachability に watcher 先行検知経路を追記
 ## 2026-09-10 — fix(watch): trigger 評価の全面クラッシュ耐性検証 + 評価空白 09-06〜09-10 の影響監査 (rule:R3)
 
 - **検証 (最重要)**: 反証レビュー主張「registry 欠損で prereg_trigger_watch 全面クラッシュ、日次評価 09-06 から死亡」は**PR #236 で修復済み**と実測確定 — origin/main で exit 0 / active 40 エントリ全評価 / EVAL_ERROR 0 件。隔離ラッパ・EVAL_ERROR 別箱・registry lint (check.py 第 9 チェック)・counterfactual テスト (欠落 fixture / fault injection / 型網羅 pin) の全てが導入済みのため重複修理はしない

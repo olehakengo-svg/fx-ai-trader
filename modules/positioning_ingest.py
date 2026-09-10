@@ -43,6 +43,7 @@ import os
 import random
 import sqlite3
 import threading
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -62,6 +63,20 @@ DEFAULT_INSTRUMENTS: Tuple[str, ...] = (
 BOOK_TYPES: Tuple[str, ...] = ("position", "order")
 OUTLOOK_BOOK_TYPE = "outlook"     # Myfxbook aggregate (source="myfxbook")
 MYFXBOOK_MIN_POLL_SEC = 900       # 100 req/24h 制限 → ≥900s (≤96 req/日)
+# ── 認証失敗 backoff (2026-09-10 E1 ingest 停止インシデント、rule:R3) ──
+# 認証失敗 (Wrong email/password / lockout) は user が credentials を再投入
+# するまで直らない。session 空のまま毎 cycle (~20 分) login を打ち続けると
+# Myfxbook 側 account lockout を悪化させ、user の web ログインによる生死
+# 判別・password reset まで妨げる。→ exponential backoff で login 試行を
+# 抑制する: 1800s → 3600s → 7200s → 14400s → cap 21600s (6h)。
+# AUTH_PAUSE_AFTER_FAILS 回連続で「長期 pause」(以後 6h 毎に 1 回だけ再試行)
+# を明示ログ付きで宣言する。認証成功 (fetch ok) で即座に通常 poll へ復帰。
+# 状態はプロセス内メモリのみ (fork/再デプロイでリセット = 再起動毎に 1 回
+# だけ即時再試行が走る。credentials 再投入は必ず redeploy を伴うため、
+# これはむしろ復旧を 1 cycle 早める方向にしか働かない)。
+AUTH_BACKOFF_BASE_SEC = 1800      # 認証失敗 1 回目: 次の通常 cycle 1 回分を skip
+AUTH_BACKOFF_MAX_SEC = 6 * 3600   # 上限 6h (user 指示の cap)
+AUTH_PAUSE_AFTER_FAILS = 4        # 連続 4 回で長期 pause を宣言 (backoff は cap 継続)
 DEFAULT_POLL_SEC = 1200        # 20 分 (OANDA book 更新間隔に整合)
 DEFAULT_JITTER_SEC = 120
 TRIM_PCT = 0.03                # buckets 保存帯: mid ±3%
@@ -475,6 +490,14 @@ class PositioningIngestWorker:
         self._consec_cycle_all_fail = 0
         self._last_cycle_at: Optional[str] = None
         self._last_error = ""
+        # 認証失敗 backoff 状態 (2026-09-10 rule:R3 — lockout 防止)。
+        # 全て status() に露出する (silent 抑制はしない)。
+        self._auth_fail_streak = 0
+        self._auth_backoff_until: Optional[float] = None  # epoch sec
+        self._auth_backoff_until_iso: Optional[str] = None
+        self._auth_paused = False
+        self._auth_backoff_skips = 0
+        self._last_auth_failure_at: Optional[str] = None
         self._phase = "idle"            # 現在の poll フェーズ (ハング位置の特定用)
         self._phase_since: Optional[str] = None
         self._started_at: Optional[str] = None
@@ -577,6 +600,63 @@ class PositioningIngestWorker:
             return self._poll_once_myfxbook()
         return self._poll_once_oanda()
 
+    # -- 認証失敗 backoff (2026-09-10 rule:R3、lockout 防止) --
+
+    def _now_epoch(self) -> float:
+        """backoff 用の時計 (テストがインスタンス上で差し替える)。"""
+        return time.time()
+
+    def _auth_backoff_remaining(self) -> float:
+        if not self._auth_backoff_until:
+            return 0.0
+        return max(0.0, self._auth_backoff_until - self._now_epoch())
+
+    def _register_auth_failure(self) -> None:
+        """認証失敗 1 回を計上し、次の login 試行までの backoff を張る。
+
+        exponential: 1800s × 2^(streak−1)、上限 AUTH_BACKOFF_MAX_SEC (6h)。
+        AUTH_PAUSE_AFTER_FAILS 連続で長期 pause を明示ログで宣言する
+        (以後は 6h 毎に 1 回だけ再試行 — 復旧検知の経路は残す)。
+        """
+        self._auth_fail_streak += 1
+        backoff = min(
+            AUTH_BACKOFF_BASE_SEC * (2 ** (self._auth_fail_streak - 1)),
+            AUTH_BACKOFF_MAX_SEC)
+        self._auth_backoff_until = self._now_epoch() + backoff
+        self._auth_backoff_until_iso = datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+        try:
+            self._auth_backoff_until_iso = datetime.fromtimestamp(
+                self._auth_backoff_until, timezone.utc
+            ).strftime("%Y-%m-%dT%H:%M:%SZ")
+        except (OverflowError, OSError, ValueError):
+            pass  # テスト用の合成 epoch 等 — ISO 表示は近似のままでよい
+        self._last_auth_failure_at = _utcnow_iso()
+        newly_paused = (not self._auth_paused
+                        and self._auth_fail_streak >= AUTH_PAUSE_AFTER_FAILS)
+        if newly_paused:
+            self._auth_paused = True
+        _log(f"AUTH FAILURE #{self._auth_fail_streak}: Myfxbook login 拒否 — "
+             f"再試行を {backoff}s 抑制 (until {self._auth_backoff_until_iso})。"
+             "連続リトライは Myfxbook 側 account lockout を悪化させ user の"
+             "復旧を妨げるため。認証成功で即通常化"
+             + (f"。LONG PAUSE 宣言: 連続 {self._auth_fail_streak} 回失敗 — "
+                f"以後 {AUTH_BACKOFF_MAX_SEC // 3600}h 毎に 1 回だけ再試行。"
+                "復旧は user の credentials 再投入のみ "
+                "(knowledge-base/wiki/analyses/e1-ingest-outage-2026-09-10.md)"
+                if newly_paused else ""))
+
+    def _reset_auth_backoff(self) -> None:
+        """認証成功 (fetch ok) で即座に通常 poll へ復帰する。"""
+        if self._auth_fail_streak or self._auth_backoff_until:
+            _log(f"AUTH OK: 認証成功 — backoff 解除 "
+                 f"(streak was {self._auth_fail_streak}, "
+                 f"paused was {self._auth_paused})。通常 poll へ即復帰")
+        self._auth_fail_streak = 0
+        self._auth_backoff_until = None
+        self._auth_backoff_until_iso = None
+        self._auth_paused = False
+
     def _poll_once_myfxbook(self) -> Dict[str, int]:
         """Myfxbook community outlook 1 リクエストで全 instrument 分を取得。
 
@@ -596,10 +676,28 @@ class PositioningIngestWorker:
             self._record_health_safe({"last_cycle_at": self._last_cycle_at})
             return {"saved": 0, "skipped": 0, "failed": 0}
 
+        # 認証失敗 backoff 窓の中: login を打たない (lockout 防止)。
+        # heartbeat (last_cycle_at) は書く — worker 生存と freshness 劣化を
+        # 外部 (registry ingest_freshness / anomaly_watcher) が区別して
+        # 観測できるようにする。verified:* は書かない (stale 検知を殺さない)。
+        remaining = self._auth_backoff_remaining()
+        if remaining > 0:
+            self._auth_backoff_skips += 1
+            self._set_phase("auth backoff")
+            _log(f"AUTH BACKOFF: 残り {remaining:.0f}s — login 再試行を抑制中 "
+                 f"(streak={self._auth_fail_streak}, "
+                 f"paused={self._auth_paused}, "
+                 f"skips={self._auth_backoff_skips})")
+            self._poll_cycles += 1
+            self._last_cycle_at = _utcnow_iso()
+            self._record_health_safe({"last_cycle_at": self._last_cycle_at})
+            return {"saved": 0, "skipped": 0, "failed": 0, "auth_backoff": 1}
+
         self._set_phase("fetch outlook")
         ok, data = self._client.get_community_outlook()
         self._set_phase("process outlook")
         if not ok:
+            from modules.myfxbook_client import is_auth_failure
             self._last_error = (f"{_utcnow_iso()} outlook: "
                                 f"{(data or {}).get('error')}: "
                                 f"{str((data or {}).get('message', ''))[:200]}")
@@ -607,6 +705,10 @@ class PositioningIngestWorker:
             for instrument in self.instruments:
                 key = (instrument, OUTLOOK_BOOK_TYPE)
                 self._consec_fail[key] = self._consec_fail.get(key, 0) + 1
+            if is_auth_failure(data):
+                # 認証失敗のみ backoff を張る。session 失効/transport は
+                # 自己回復系なので通常 cadence のまま再試行してよい。
+                self._register_auth_failure()
             _log(f"FETCH FAILED community-outlook "
                  f"(consecutive={self._consec_cycle_all_fail}): "
                  f"{self._last_error}")
@@ -615,6 +717,9 @@ class PositioningIngestWorker:
             self._record_health_safe({"last_cycle_at": self._last_cycle_at})
             return {"saved": 0, "skipped": 0,
                     "failed": len(self.instruments)}
+
+        # 認証成功 (fetch ok) — backoff を即解除して通常運転へ (fail-loud に log)
+        self._reset_auth_backoff()
 
         symbols: Dict[str, Dict[str, Any]] = {}
         for sym in (data.get("symbols") or []):
@@ -865,6 +970,7 @@ class PositioningIngestWorker:
         }
         if self.source == "myfxbook":
             configured = bool(getattr(self._client, "configured", False))
+            backoff_remaining = self._auth_backoff_remaining()
             # secrets (email/password/session) は一切含めない (テストで pin)
             out["myfxbook"] = {
                 "configured": configured,
@@ -873,6 +979,15 @@ class PositioningIngestWorker:
                 "logins_total": getattr(self._client, "logins_total", 0),
                 "last_login_at": getattr(self._client, "last_login_at", None),
                 "requests_total": getattr(self._client, "requests_total", 0),
+                # 認証失敗 backoff (2026-09-10 rule:R3) — anomaly_watcher の
+                # positioning_auth_failed 検知器がここを読む (読み手あり)
+                "auth_failure_streak": self._auth_fail_streak,
+                "auth_backoff_active": backoff_remaining > 0,
+                "auth_backoff_remaining_sec": int(backoff_remaining),
+                "auth_backoff_until": self._auth_backoff_until_iso,
+                "auth_paused": self._auth_paused,
+                "auth_backoff_skips": self._auth_backoff_skips,
+                "last_auth_failure_at": self._last_auth_failure_at,
             }
         return out
 
