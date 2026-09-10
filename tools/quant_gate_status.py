@@ -46,15 +46,33 @@ from tools import m1_clean_live_monitor as m1  # noqa: E402
 
 
 def run_quant_readiness() -> str:
-    """既存 tools/quant_readiness.py を subprocess で呼び出し。"""
+    """既存 tools/quant_readiness.py を subprocess で呼び出し。
+
+    2026-09-10 (trigger-watch 監査の同型検査): `r.stdout or r.stderr` は
+    returncode を見ないため、(a) 非ゼロ exit + 部分 stdout のとき stderr の
+    traceback を**黙って捨て**、途中まで印字された本文が健全なレポートに
+    見える、(b) 非ゼロ exit + stdout 空のとき素の traceback が本文として
+    流れる — run_prereg_trigger_watch が 2026-09-08 に踏んだ欠陥と同型。
+    故障は故障と名乗らせる (banner + stderr 末尾を併記、部分本文は残す)。
+    """
     try:
         r = subprocess.run(
             ["python3", str(ROOT / "tools" / "quant_readiness.py")],
             capture_output=True, text=True, timeout=60,
         )
-        return r.stdout or r.stderr or "(no output)"
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         return f"(quant_readiness.py error: {e})"
+    if r.returncode != 0:
+        # 本節は to_markdown 側で ``` フェンス内に描画されるため、ここで
+        # フェンスを入れ子にしない (内側の ``` が外側を閉じて本文が漏れる)。
+        err = (r.stderr or "").strip()
+        banner = (f"{WATCH_ALERT_MARK} quant_readiness が exit "
+                  f"{r.returncode} で失敗 — Readiness 判定は不完全")
+        if err:
+            banner += "\n" + "\n".join(err.splitlines()[-6:])
+        body = r.stdout.strip()
+        return f"{banner}\n{body}" if body else banner
+    return r.stdout or "(no output)"
 
 
 def summarize_candidate_queue(days: int = 7) -> dict[str, Any]:

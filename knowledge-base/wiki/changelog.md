@@ -1,5 +1,11 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-10 — fix(watch): trigger 評価の全面クラッシュ耐性検証 + 評価空白 09-06〜09-10 の影響監査 (rule:R3)
+
+- **検証 (最重要)**: 反証レビュー主張「registry 欠損で prereg_trigger_watch 全面クラッシュ、日次評価 09-06 から死亡」は**PR #236 で修復済み**と実測確定 — origin/main で exit 0 / active 40 エントリ全評価 / EVAL_ERROR 0 件。隔離ラッパ・EVAL_ERROR 別箱・registry lint (check.py 第 9 チェック)・counterfactual テスト (欠落 fixture / fault injection / 型網羅 pin) の全てが導入済みのため重複修理はしない
+- **評価空白の影響監査**: [[trigger-watch-gap-audit-2026-09-10|raw/audits/trigger-watch-gap-audit-2026-09-10]] — Tier-A cron 4 run (09-07〜09-10 00:20 UTC) が影響。期日超過・N 到達の見逃しは**ゼロ**。TRIGGERED 2 件: t5-jpy-cap-restore-price (既知・空白起因でない) と **e1-positioning-ingest-freshness (新規・進行中 — 本番 ingest 2026-09-10T06:58Z 停止、全 13 ペア stale 7.9h+、E1 残 coverage budget ~41h への現在進行形の消費)**。E1 復旧は別タスクで追跡。修復後初の cron 配信は 09-11 00:20 UTC のため本監査が修復後最初の読み手
+- **残欠陥の同型修理**: `quant_gate_status.run_quant_readiness()` — `r.stdout or r.stderr` が returncode を見ず、非ゼロ exit + 部分 stdout で stderr traceback を黙殺 / stdout 空で素の traceback が本文として流れる (run_prereg_trigger_watch の 2026-09-08 欠陥と同型)。fail-loud 化 (banner + stderr 末尾 6 行 + 部分本文保持、フェンス内描画のため入れ子フェンス回避) + counterfactual テスト 3 本 (`tests/test_m1_clean_live_monitor.py`)
+
 ## 2026-09-10 — feat(wg): 執行契約 (B) エントリー繰り下げ — halt 決定論 fill 0% の修理 (rule:R1 user 承認 2026-09-10)
 
 - **決裁執行**: [[weekend-gap-execution-contract-r1-packet-2026-09-10]] §4 AMENDMENT (user「進めて」2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap_fade の live fill 0/3 の機構 = エンジン発火 21:01 UTC < OANDA 実開場 21:04-21:05 (48/48 実測) → 旧契約 (即時 FOK 1 回) は MARKET_HALTED cancel が決定論的。**次イベント 2026-09-13 (日) 21:00 UTC が改定後初の検証点**
