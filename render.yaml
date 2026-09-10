@@ -153,12 +153,15 @@ services:
 
   # Tier A: quant gate status + α予算 要約 (1日1回 UTC 00:20)
   # daily_report.py の直前に実行 → gate状態を analyst に認識させる
+  # --strong: M1 強定義 (セル/book 両定義) + M3a/M3b 分離 readout
+  #   (2026-09-10 meta-audit R4(a)/(b) 修復 — 読み手なしの計装禁止のため
+  #    計算主体 tools/m1_clean_live_monitor.py と同一コミットで配線)
   - type: cron
     name: fx-ai-tier-a-gate-status
     runtime: python
     buildCommand: pip install -r requirements.txt
     schedule: "20 0 * * *"
-    startCommand: python3 tools/quant_gate_status.py --to-discord
+    startCommand: python3 tools/quant_gate_status.py --to-discord --strong
     plan: starter
     envVars:
       - key: DISCORD_WEBHOOK_URL

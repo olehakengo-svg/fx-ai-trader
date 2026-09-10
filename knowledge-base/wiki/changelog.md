@@ -21,6 +21,26 @@
 - **CI 修理 (座礁救済、3 巡目)**: `test` job の checkout が shallow (fetch-depth 既定 1) のため、実 git 履歴 (gate commit `293165ef` / 全送信期 `8a42d776` / `origin/main` first-parent) を読む pin テスト群が **CI でのみ** fail していた (ローカル full clone は 38/38 pass)。`ci.yml` test job に `fetch-depth: 0` を追加 (hip1-holdout-guard job は既に 0 で前例あり)。assertion message に「定数の誤り vs shallow clone」の区別導線を追記 — 「歴史が読めない」を「定数が誤り」に折り畳まない
 - 分析: [[roster-d-class-estimand-audit-2026-09-10]] / 改定対象: [[live-roster-attrition-2026-09-06]] §2.1
 
+## 2026-09-10 — docs(packet): rnb R1 パケット起案 + E2_SILENT 4 セル判別 (rule:R3)
+
+- **rnb_support_bounce 登録 R1 パケット起案** ([[rnb-support-bounce-r1-packet-2026-09-10]]、meta 監査 R4.2-R1(a) の前倒し) — **365d BE/Trail-ablated BT を初実施: N=126 WR 55.6% net EV +0.04p (≈0、p=0.082 NS)、730d は −2.20p、2026-03 単月 +160.9p 依存 ⇒ live 昇格根拠なし**。提案は stage-1 構造的 shadow-only 登録 (`shadow_only: True`、daytrade_audjpy 前例) に限定 + R2 auto demote gate 併設 + pre-reg LOCK 草案 (first look N≥41 or 2027-01-15)。user 決裁欄 D1-D3。BT: `raw/bt-results/rnb-support-bounce-ablated-bt-2026-09-10.md`
+- **live 実測頻度の中間読みは無情報と判明** — 現 counter 窓 (09-09 23:28 再デプロイ以降 736 tick) は active hours (UTC 7-20) を 1 分も含まず `unknown_type:rnb_support_bounce`=0 は設計整合。**09-05 以降に active hours を含んだ counter 窓 2 本 (計 ~39h) は snapshot されずに再起動で消滅** — 期日 10-06 判定には UTC 19:5x の block-counts pull 手順 (packet §2.3) が必要
+- 🛑 **E2_SILENT 4 セル判別 ([[e2-silent-cells-triage-2026-09-10]]): registry 前提「05-06 以降 4 セル行ゼロ」は本番 DB 実測で 2/4 が偽** — ema200×USD_JPY×SELL は 19 行 (〜08-05)、SRM×GBP_USD は 51 行 (〜08-31) が実在。attrition tool の 30d 窓を「05-06 以降ゼロ」と読み替えた**窓天井の再発** (クラス名が estimand を運んだ)
+- 🛑 **真の沈黙は bb_squeeze_breakout×EUR_USD の 2 セルのみ = 配線落ち 3 層** (commit `942e3800` 2026-05-06、最終行と rollout が分単位で一致): (1) v2 評価器が live 呼び出し規約 (bar_time=None) で**構造的 None** — 「shadow で実測する」目的の v2 が実測経路で恒久沈黙、(2) v2 reasons に ✅ 欠落 → 仮に発火しても `no_confirm` gate で死ぬ、(3) loser-shadow 経路は評価器 None で不達。「意図的無効」の決裁は存在せず _PAIR_PROMOTED 現役掲載のまま 127 日
+- ema200/SRM の頻度低下は **PR #168 (08-09 ctx.hour_utc 凍結修復) で session gate が 123 日ぶりに実効化した帰結** (意図された設計) + SELL は USD_JPY 上昇 regime で条件不成立 — E1 (supply present) へ再分類を提案
+- 観測基盤の欠陥 2 件を起票提案: `/api/demo/live-enable-flags` が REDESIGN_V2 系 ~40 lever を返さず registry の判別手順が実行不能だった / attrition tool に全期間 `last_row_at` が無く「いつから沈黙か」に答えられない
+- registry 変更提案 (執行せず): `rnb-support-bounce-registration-decision` へ packet 参照追記 / `roster-e2-silent-promoted-cells` の E2 実体を bb_squeeze 2 セルへ訂正
+
+## 2026-09-10 — feat(kpi): M1 強定義 readout + M3 二定義分離 (rule:R3)
+
+- 🛑 **meta-audit R4(a)/(b) 修復 (user 承認 2026-09-10)** — M1 弱定義 (30d rolling 符号) は新規約定ゼロの機械的反転で「達成」表示になる縮退 KPI で、承認済み強定義が 59 日未実装だった。`tools/m1_clean_live_monitor.py` に `--strong` を追加し、**弱定義 readout は無変更のまま** M1_STRONG + M3a/M3b を追記
+- **M1_STRONG は文書 2 系統の定義を両方実装** — セル定義 (rederivation §4 系: clean live 累積 N≥30 ∧ EV≥+1.0p/t ∧ Wilson95下限>0、達成=該当セル≥1) / book 定義 (m1-kpi §8 案: sum>0 ∧ bootstrap P(sum≤0)<0.05) / FULL (両方)。**文書間矛盾 4 件** (資格母集団 / EV 閾値 +1.0 vs >0 / Wilson「>0」は win-rate 解釈で非拘束 / M3b 目標 +0.5% vs +2〜3%) は毎日出力に明示 — 裁定は user
+- **M3 を M3a (throughput: 累積 N≥30 セル数/3、線形外挿 ETA 付き) と M3b (return: 正EVセルの 30d 寄与、pips 一次 + JPY/%NAV 推定レイヤ) に分離**。M3a は累積/稼働の二母集団を分けて出力 (休眠 legacy セル `bb_rsi_reversion×USD_JPY` ×2 が累積 N≥30 に混じる — 09-04「0 個」は稼働側の読み)
+- **2026-09-10 実測**: M1 弱 = 🔴 NOT_MET (N=17 / −85.0p / P(sum≤0)=0.817、09-04 +19.8p から **MECHANICAL_FLIP で再反転** — 勝ち +92.7p の窓外脱落が主因)。**M1_STRONG 全変種 未達** (セル 0 / literal 1 = 休眠 bb_rsi SELL / book NOT_MET)。M3a **2/3 (稼働 0)**、3 本目 ETA 2026-10-26 (carry_dip)。M3b **−0.075%/月** vs +0.5% = 線形外挿で到達不能
+- **読み手を同一コミットで配線** — Tier A cron (`render.yaml` `fx-ai-tier-a-gate-status`) を `--strong` 込みへ更新、`tools/quant_gate_status.py` が pass-through。Discord 送信は 1900 字 hard-cut 単発 → **セクション境界で最大 4 分割**へ (strong 追加で Readiness / prereg watch が毎日切り落とされる副作用の除去)
+- テスト: `tests/test_m1_strong_and_m3.py` **25 本** (N=29/30 境界 / EV 0.99/1.00 境界 / Wilson 下限 0 跨ぎ / flip 分解の恒等式 sum_added−sum_aged=sum_now−sum_prev / cron 配線 pin / Discord 分割)。全 suite **3,026 passed** / `check.py` 9/9
+- 分析: [[m1-strong-definition-implementation-2026-09-10]] / roadmap KPI 表の反映は user 裁定後 (本コミットでは提案節のみ)
+
 ## 2026-09-10 — feat(quality): estimand 宣言表 + 配線チェッカー — 検知器の「名乗る量」を台帳化 (rule:R3)
 
 - **メタ監査 §4.2 R3 の執行** ([[process-meta-audit-2026-09-07]]、user 承認 09-10): 監視バグ潜伏中央値 124 日・QA 起点発見 0/8 の根因 = estimand 混同 (PR #221/#224/#207/#209/#228 が同型) に対し、検知器の estimand を 1 ファイルに外部化した
