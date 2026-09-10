@@ -420,21 +420,23 @@
       "harness": "tools/ps_seat_supply_remeasure.py",
       "execution_command": "python3 tools/ps_seat_supply_remeasure.py --json",
       "execution_subject": "fx-roadmap-autopilot daily run (MASSIVE_API_KEY is local-.env only; not available to GitHub Actions or Render cron)",
-      "mid_window_diagnostic_2026_09_09": {
-        "as_of": "2026-09-09T03:00Z",
-        "effective_window_days": 29.1,
-        "design_expected": 34,
-        "observed_unique_total": 7,
-        "observed_live": 6,
-        "observed_shadow": 1,
-        "observed_on_closed_bar_design": 1,
-        "capture": 0.206,
-        "capture_wilson95": [
-          0.103,
-          0.368
-        ],
-        "verdict": "MID_WINDOW_DIAGNOSTIC (no verdict — window incomplete and early-execution N>=15 unmet)",
-        "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md"
+      "note": {
+        "mid_window_diagnostic_2026_09_09": {
+          "as_of": "2026-09-09T03:00Z",
+          "effective_window_days": 29.1,
+          "design_expected": 34,
+          "observed_unique_total": 7,
+          "observed_live": 6,
+          "observed_shadow": 1,
+          "observed_on_closed_bar_design": 1,
+          "capture": 0.206,
+          "capture_wilson95": [
+            0.103,
+            0.368
+          ],
+          "verdict": "MID_WINDOW_DIAGNOSTIC (no verdict — window incomplete and early-execution N>=15 unmet)",
+          "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md"
+        }
       }
     },
     {
@@ -583,10 +585,13 @@
     {
       "id": "roster-e2-silent-promoted-cells",
       "active": true,
-      "type": "artifact_presence",
+      "type": "conditional_info",
       "deadline": "2026-10-06",
       "doc": "knowledge-base/wiki/analyses/live-roster-attrition-2026-09-06.md",
-      "message": "E2_SILENT 4 セル (bb_squeeze_breakout×EUR_USD BUY/SELL, ema200_trend_reversal×USD_JPY×SELL, squeeze_release_momentum×GBP_USD×BUY) は昇格集合 (_PAIR_PROMOTED / _UNIVERSAL_SENTINEL) に 登録され wiki/index.md の Current Portfolio にも現役掲載されているが、LIVE/shadow を問わず 行の出力が 2026-05-06 以降ゼロ (rnb と同型の『現役掲載だが無出力』シグネチャ)。到達経路: (1) /api/demo/live-enable-flags で SQUEEZE_REDESIGN_V2 等 env 実値を確認し 『意図的に無効』と『配線落ち』を分離 → (2) 配線落ちなら R3 修復、無効化の解除は R1 = user 決裁。読み手: tools/live_roster_attrition.py (E2_SILENT が 0 になれば解消)。⚠️ 未帰属 = バグではない — CLAUDE.md 原則 3 により LIVE 側 winning-location フィルタは意図的に維持される"
+      "message": "E2_SILENT 4 セル (bb_squeeze_breakout×EUR_USD BUY/SELL, ema200_trend_reversal×USD_JPY×SELL, squeeze_release_momentum×GBP_USD×BUY) は昇格集合 (_PAIR_PROMOTED / _UNIVERSAL_SENTINEL) に 登録され wiki/index.md の Current Portfolio にも現役掲載されているが、LIVE/shadow を問わず 行の出力が 2026-05-06 以降ゼロ (rnb と同型の『現役掲載だが無出力』シグネチャ)。到達経路: (1) /api/demo/live-enable-flags で SQUEEZE_REDESIGN_V2 等 env 実値を確認し 『意図的に無効』と『配線落ち』を分離 → (2) 配線落ちなら R3 修復、無効化の解除は R1 = user 決裁。読み手: tools/live_roster_attrition.py (E2_SILENT が 0 になれば解消)。⚠️ 未帰属 = バグではない — CLAUDE.md 原則 3 により LIVE 側 winning-location フィルタは意図的に維持される",
+      "condition": "E2_SILENT 4 セルの『意図的無効 vs 配線落ち』判別 (期日 2026-10-06)",
+      "reachability": "セッション作業: /api/demo/live-enable-flags の env 実値を確認し 意図的無効/配線落ちを分離 → 配線落ちなら R3 修復 PR、無効解除は R1 = user 決裁。進捗の読み手は tools/live_roster_attrition.py (E2_SILENT が 0 になれば resolve)。deadline 超過で TRIGGERED。⚠️ 判別自体は 2026-09-10 の triage (eval_record) で実質完了 — 配線落ち 2 (bb_squeeze×EUR_USD 両方向、commit 942e3800) + 窓アーティファクト 2 (E2 分類の premise が偽)、意図的無効 0。残作業 = 修復可否の disposition (resolve は親セッション/次セッション判断)。",
+      "eval_record": "knowledge-base/wiki/analyses/e2-silent-cells-triage-2026-09-10.md"
     },
     {
       "id": "project-falsification-f1-supply-space",
@@ -661,6 +666,29 @@
       "reachability": "分子は hypothesis-catalog 台帳 (verdict 記録) と m1_clean_live_monitor 強定義 readout。初回判定 2027-03-31 (2026-Q4 + 2027-Q1)、以後四半期ごとに deadline を +3 ヶ月 roll。",
       "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
       "message": "プロジェクト global stop 条件 (U7、user 承認 2026-09-10)。TRIGGERED 時: 全面棚卸し (パイプライン・目標・資本の三点を process-meta-audit の §5 三択で user 決裁)。sunk cost による延命判断の構造排除が目的 — 条件不成立なら『継続は正当』の on-record 根拠として deadline を roll。"
+    },
+    {
+      "id": "roster-attrition-88pct-estimand-audit",
+      "active": false,
+      "resolved": true,
+      "resolved_at": "2026-09-10",
+      "resolution": "執行済み (12 日前倒し) — PR #230 tools/roster_d_class_estimand_audit.py が実測。旧 D_NEVER_PROMOTED 解釈は棄却 (15 セル中 14 は当時の設計どおり LIVE 可、違反は dual_sr_bounce×USD_JPY×BUY の 2 約定のみ)。88.7% の数値自体は引用可 (帰属先の機構が変わるだけ)。詳細: knowledge-base/wiki/analyses/roster-d-class-estimand-audit-2026-09-10.md / MEMORY project_roster_d_class_estimand_audit_2026_09_10",
+      "type": "conditional_info",
+      "deadline": "2026-09-22",
+      "condition": "live_roster_attrition の D_NEVER_PROMOTED 判定 estimand 監査 — 88.7% 帰属の主張が成立するか",
+      "doc": "knowledge-base/wiki/decisions/pr-review-gate-2026-09-08.md",
+      "reachability": "セッション作業: tools/live_roster_attrition.py の D 分類は「現在の _PAIR_PROMOTED / _UNIVERSAL_SENTINEL に不在」を「anchor 日 (2026-05-06) 時点でも未昇格」と読み替えている。当時の _ELITE_LIVE / 手動 bridge / 個別 LIVE override を git history から再構成して分類を検証せよ。反証されれば MEMORY project_roster_attrition_attribution_2026_09_06 と wiki/analyses/live-roster-attrition-2026-09-06.md の 88.7% は引用禁止に格下げ。",
+      "message": "PR #226 の Codex P1 finding #2 (レビュー到着 1 秒後にマージされ未読だった)。『現在の昇格集合に不在』は『当時も未昇格』を含意しない — 成立しなければ D 15 セルの誤分類となり 88.7% 帰属と『M3 の分子外』の結論が崩れる。引用前に必ず本監査の結果を確認すること (MEMORY feedback_audit_past_verdicts = 過去 verdict 自体を疑え、の適用事例)。"
+    },
+    {
+      "id": "registry-lint-declaration-generation",
+      "active": true,
+      "type": "conditional_info",
+      "deadline": "2026-12-31",
+      "condition": "registry lint の検査宣言を評価器側から生成する (手写しの廃止)",
+      "doc": "knowledge-base/wiki/decisions/pr-review-gate-2026-09-08.md",
+      "reachability": "セッション作業 (R3): 現行 lint は NUMERIC/STRING/DATE/BOOL/ENUM/INT_MIN 等を 評価器の型強制から**手で写して**おり、PR #227 で同一家系の写し漏れが 11 巡に わたり計 25 件出た。恒久解は評価器側 (_evaluate_trigger_impl の各分岐) から 検査宣言を生成すること。メタ監査 process-meta-audit-2026-09-07 §4.2 R3 の 『estimand 宣言表 + CI 突合チェッカー』(monitoring/estimand_declarations.yml、2026-09-10 着地) の適用先として設計する。期日超過時は TRIGGERED で再起票。",
+      "message": "PR #227 で確立した打ち切り判断の相方。lint の手写しは原理的に評価器と乖離し 続けるため、1 件ずつの修正では終わらない。R3 手続き (365d BT 不要、数学/code derivation を analyses/ に文書化) で実施可。"
     }
   ]
 }

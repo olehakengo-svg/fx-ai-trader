@@ -262,3 +262,204 @@ def test_module_import_has_no_side_effects():
                 assert name in {"frozenset", "set", "dict", "tuple"}, (
                     f"module-level call {name} at line {node.lineno}"
                 )
+
+
+# --------------------------------------------------------------------------
+# 監視器の故障を「異常なし」と折り畳まない — 2026-09-08
+# --------------------------------------------------------------------------
+
+def test_prereg_watch_crash_is_reported_as_failure_not_content(monkeypatch):
+    """subprocess の exit code を無視すると traceback が本文として流れる。
+
+    2026-09-08 実発生: registry の 1 エントリ欠損で prereg_trigger_watch が
+    KeyError 落ちし、stderr の traceback が daily Discord にそのまま本文として
+    載っていた (2 日間、51 エントリ全て未監視)。読み手にとって「監視器が
+    落ちた」と「監視器が異常なしと言った」が同じに見えていた。
+    """
+    import subprocess
+
+    from tools import quant_gate_status as qgs
+
+    class _R:
+        returncode = 1
+        stdout = ""
+        stderr = 'Traceback (most recent call last):\nKeyError: \'requirements\''
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _R())
+    out = qgs.run_prereg_trigger_watch()
+    assert "🔴" in out and "exit 1" in out
+    assert "未監視" in out
+    assert "KeyError" in out, "原因が読み手に届いていない"
+
+
+def test_prereg_watch_success_returns_plain_body(monkeypatch):
+    import subprocess
+
+    from tools import quant_gate_status as qgs
+
+    class _R:
+        returncode = 0
+        stdout = "## Pre-reg Trigger Watch\n- ok"
+        stderr = ""
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _R())
+    out = qgs.run_prereg_trigger_watch()
+    assert out.startswith("## Pre-reg Trigger Watch")
+    assert "🔴" not in out
+
+
+def test_partial_eval_error_keeps_the_healthy_trigger_results(monkeypatch):
+    """exit 2 = 一部エントリのみ EVAL_ERROR。本文を捨てると盲点が再現する。
+
+    PR #227 Codex P1: 壊れた 1 件が他エントリの TRIGGERED を隠すなら、
+    隔離ラッパが防ぐはずのものをこの層で作り直してしまう。
+    """
+    import subprocess
+
+    from tools import quant_gate_status as qgs
+
+    class _R:
+        returncode = 2
+        stdout = ("## Pre-reg Trigger Watch\n"
+                  "### 🔴 TRIGGERED — 執行/判定期日\n"
+                  "- **t5-jpy-cap-restore-price**: D1 close=153.7 < 159.50\n"
+                  "### 🔴 EVAL ERROR\n- **broken**: KeyError")
+        stderr = ""
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _R())
+    out = qgs.run_prereg_trigger_watch()
+    assert "t5-jpy-cap-restore-price" in out, "健全な TRIGGERED が消えている"
+    assert "EVAL ERROR" in out
+    assert "exit 2" in out
+    assert "全 trigger 未監視" not in out, "部分故障を全滅と誤って名乗っている"
+
+
+def test_watcher_failure_appears_before_the_discord_cutoff(monkeypatch):
+    """Discord は 1900 字で切られ watch 節は最後尾 — 故障が届かない。
+
+    PR #227 Codex P1: 「本文には出ているが読み手には届かない」= 本 PR が
+    直している 2 日間 blind と同型。故障の 1 行は M1 直後へ引き上げる。
+    """
+    from tools import quant_gate_status as qgs
+    from tools.alpha_budget_tracker import _empty_state
+
+    watch = (f"{qgs.WATCH_ALERT_MARK} **監視器が exit 2 — 一部 trigger が評価不能**\n"
+             "## Pre-reg Trigger Watch\n" + ("- filler\n" * 400))
+    md = qgs.to_markdown({
+        "generated_at": "2026-09-08T00:00:00+00:00",
+        "m1_readout": m1.summarize([row(1, 5.0)], ANCHOR),
+        "quant_readiness": "readiness-body\n" * 100,
+        "alpha_budget": _empty_state("2026-09"),
+        "candidate_queue_7d": {"total": 0, "pass": 0, "shadow_only": 0,
+                               "recent_names": []},
+        "prereg_trigger_watch": watch,
+    })
+    assert qgs.WATCH_ALERT_MARK in md[:1900], (
+        "監視器故障が 1900 字カットの外側にあり Discord に届かない")
+    assert md.index(qgs.WATCH_ALERT_MARK) < md.index("## Readiness")
+
+
+def test_no_alert_line_when_the_watcher_is_healthy():
+    from tools import quant_gate_status as qgs
+    assert qgs.extract_watch_alert("## Pre-reg Trigger Watch\n- 👁 watching") == ""
+
+
+def test_watcher_alert_precedes_the_unbounded_m1_section():
+    """M1 節はセル数に比例して伸びる — その後ろだと押し出される。
+
+    PR #227 Codex P1 7 巡目: 「読み手に届く位置」は絶対位置ではなく
+    相対順序で決まる。故障 banner は M1 より前。
+    """
+    from tools import quant_gate_status as qgs
+    from tools.alpha_budget_tracker import _empty_state
+
+    rows = [row(i, 1.0) for i in range(1, 400)]
+    md = qgs.to_markdown({
+        "generated_at": "2026-09-08T00:00:00+00:00",
+        "m1_readout": m1.summarize(rows, ANCHOR),
+        "quant_readiness": "readiness-body",
+        "alpha_budget": _empty_state("2026-09"),
+        "candidate_queue_7d": {"total": 0, "pass": 0, "shadow_only": 0,
+                               "recent_names": []},
+        "prereg_trigger_watch": f"{qgs.WATCH_ALERT_MARK} **監視器が exit 2**\nbody",
+    })
+    assert md.index(qgs.WATCH_ALERT_MARK) < md.index("M1"), "M1 より後ろにある"
+    assert qgs.WATCH_ALERT_MARK in md[:1900]
+
+
+def test_triggered_entries_reach_the_reader_not_only_the_failure_banner():
+    """行動を要する TRIGGERED も 1900 字カットより前に出す。
+
+    PR #227 Codex P1 12 巡目: 故障 banner だけ前方へ上げても、執行期日が
+    カットの外なら「見えているのに動けない」。本セッションで復旧するまでの
+    2 日間、T5 第1要件 TRIGGERED は誰にも届いていなかった。
+    """
+    from tools import quant_gate_status as qgs
+    from tools.alpha_budget_tracker import _empty_state
+
+    watch = ("## Pre-reg Trigger Watch\n"
+             "### 🔴 TRIGGERED — 執行/判定期日\n"
+             "- **t5-jpy-cap-restore-price**: D1 close<159.50 成立 " + "詳細" * 400 + "\n"
+             "### 👁 watching\n" + ("- noise\n" * 300))
+    md = qgs.to_markdown({
+        "generated_at": "2026-09-08T00:00:00+00:00",
+        "m1_readout": m1.summarize([row(i, 1.0) for i in range(1, 200)], ANCHOR),
+        "quant_readiness": "readiness-body",
+        "alpha_budget": _empty_state("2026-09"),
+        "candidate_queue_7d": {"total": 0, "pass": 0, "shadow_only": 0,
+                               "recent_names": []},
+        "prereg_trigger_watch": watch,
+    })
+    assert "t5-jpy-cap-restore-price" in md[:1900], "執行期日が読み手に届かない"
+    assert "noise" not in md[:1900], "watching のノイズまで前方に上げている"
+
+
+def test_no_triggered_section_when_nothing_is_triggered():
+    from tools import quant_gate_status as qgs
+    assert qgs.extract_watch_triggered(
+        "## Pre-reg Trigger Watch\n### 👁 watching\n- a") == ""
+
+
+def test_many_triggered_entries_do_not_push_m1_out_of_the_discord_window():
+    """TRIGGERED 節は**合計**でも前方枠を食い潰してはならない。
+
+    PR #227 Codex P1 13 巡目: 行ごとの 220 字 clip は入れたが合計を縛って
+    いなかったため、8 件以上で 1900 字枠を食い潰し、後続の TRIGGERED と
+    M1 節が send_discord() のカットの外へ落ちていた。性質で pin する —
+    (a) M1 見出しが 1900 字以内に残る (b) 溢れは件数として告知される。
+    """
+    from tools import quant_gate_status as qgs
+    from tools.alpha_budget_tracker import _empty_state
+
+    entries = "".join(
+        f"- **trigger-{i:02d}**: " + "詳" * 400 + "\n" for i in range(20))
+    watch = ("## Pre-reg Trigger Watch\n"
+             "### 🔴 TRIGGERED — 執行/判定期日\n" + entries +
+             "### 👁 watching\n" + ("- noise\n" * 300))
+    report = {
+        "generated_at": "2026-09-10T00:00:00+00:00",
+        "m1_readout": m1.summarize([row(i, 1.0) for i in range(1, 200)], ANCHOR),
+        "quant_readiness": "readiness-body",
+        "alpha_budget": _empty_state("2026-09"),
+        "candidate_queue_7d": {"total": 0, "pass": 0, "shadow_only": 0,
+                               "recent_names": []},
+        "prereg_trigger_watch": watch,
+    }
+    md = qgs.to_markdown(report)
+    head = md[:1900]
+    assert "M1 KPI" in head, "TRIGGERED が M1 を Discord 枠の外へ押し出した"
+    assert "trigger-00" in head, "先頭の TRIGGERED すら届いていない"
+    assert "他" in head and "件の TRIGGERED は下記" in head, "溢れが未告知"
+    assert "noise" not in head
+
+
+def test_triggered_section_total_is_bounded_and_reports_the_overflow_count():
+    from tools import quant_gate_status as qgs
+    entries = "".join(f"- **t-{i:02d}**: " + "x" * 400 + "\n" for i in range(20))
+    out = qgs.extract_watch_triggered(
+        "### 🔴 TRIGGERED\n" + entries + "### 👁 watching\n- a")
+    assert len(out) <= qgs.TRIGGERED_SECTION_CHARS
+    # 何件落としたかを必ず言う (黙って捨てない)
+    shown = sum(1 for ln in out.splitlines() if ln.startswith("- **t-"))
+    assert f"他 {20 - shown} 件" in out
+    assert shown >= 1

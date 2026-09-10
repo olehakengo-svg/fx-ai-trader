@@ -1,5 +1,17 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-10 — fix(process): PR #227 救済 — レビューゲート二重実装の統合とインシデント記録の保全 (rule:R3)
+
+- **経緯**: メタ監査 R2 (マージゲート) を 2 セッションが独立実装し、PR #231 版が main へ先着。座礁した PR #227 (18 巡レビュー済み・CONFLICTING) から**固有価値のみ**を origin/main 起点の救済ブランチへ移植した。ゲート実装自体は #231 版 (`tools/pr_review_gate.py`) を正とし、#227 版 (GraphQL threads / P0 fail-closed / ページング / HEAD_UNREVIEWED) は**移植見送り** — 記録は決裁文書に原文保存し採用可否は別途判断
+- **インシデント記録の保全**: [[pr-review-gate-2026-09-08]] 新設 — 「独立レビューは 5.5 ヶ月 write-only」の定量確認 (finding を持つ 35 PR の解決済みスレッド 0 件 / review→merge 中央値 2.8 分) と、**未読 P1 が prereg 監視器を 51 エントリ 2 日間止めていた**実害の一次記録。冒頭に救済経緯を追記済み。[[process-meta-audit-2026-09-07]] R2 行へ執行済みマークを追記
+- 🛑 **main の registry は依然壊れたままだった** — `roster-e2-silent-promoted-cells` は `artifact_presence` を名乗りながら `requirements` を欠き、`evaluate_trigger` が KeyError → **本日時点の main でも daily trigger watch は全滅停止し続けていた** (PR #226 で混入、2026-09-06)。`conditional_info` へ型修復 (estimand は成果物着地でなく期日までの判別作業)
+- **監視器の恒久堅牢化** (`tools/prereg_trigger_watch.py`、#227 の 18 巡分を一括移植): (a) `evaluate_trigger` 隔離ラッパ — 壊れたエントリは自分だけ `EVAL_ERROR` を名乗り残りは通常評価、(b) `STATE_ERROR` を `DATA_UNAVAILABLE` と別箱化 + `main()` exit 2、(c) `load_registry_raw` — root 台帳の欠落/綴り違い/空を「空の台帳」に畳まず RuntimeError、(d) **registry authoring lint** (`lint_schema` + `lint_registry`) — type 別必須/任意フィールドの reject-by-default、値の型/下限/日付正準形/enum/形 (instrument `CCY_CCY`、endpoint 絶対パス)、`mode` は `MODE_CONFIG` から AST 導出 (手写し禁止)、コレクション要素と入れ子 spec まで 3 層検査。`shadow_count_info` の instrument/direction 未配線 (allowlist にあるのに評価器へ渡らず全ペア計上) も修復
+- **`scripts/check.py` に第 9 チェック追加**: `check_prereg_registry_schema()` — registry lint を CI で強制、**検査不能は skip でなく ERROR** (write-only guard の再発防止)
+- **`tools/quant_gate_status.py`**: (a) `run_prereg_trigger_watch()` の returncode 検査 — 監視器の故障を「異常なし」と区別 (exit 2 では stdout を捨てない — 壊れた 1 件が他の TRIGGERED を隠さない)、(b) 監視器故障 banner (`WATCH_ALERT_MARK`) と **TRIGGERED 節を M1 より前方へ** — Discord 第 1 メッセージの 1900 字枠内に「要行動」が必ず入る (行 220 字 + 節 700 字の総量予算、溢れ件数は明示告知)。main 側 `_discord_chunks` (4 通分割) と相補
+- **registry 追加**: `roster-attrition-88pct-estimand-audit` (resolved — PR #230 が 12 日前倒しで執行済み、旧 D 解釈は棄却) / `registry-lint-declaration-generation` (期日 2026-12-31 — lint 手写しの恒久解 = 評価器側から検査宣言を生成、estimand 宣言表の適用先)
+- テスト: `tests/test_prereg_trigger_watch.py` +846 行 (lint 全 family + 隔離 + counterfactual)、`tests/test_m1_clean_live_monitor.py` +11 本 (returncode / banner 前方 / TRIGGERED 総量予算)。**`tests/test_pr_review_gate.py` は #231 実装のインターフェース (`evaluate(pr)->(code,msg)`、exit 0/2/3/4) に適合させて新規作成** — #227 版テスト (GraphQL 前提 10+ 本) の盲目移植はせず、#231 版が提供する性質のみ pin
+- **見送り (理由付き)**: #227 版 `tools/pr_review_gate.py` 実装 (main 版と二重実装になる)、CLAUDE.md のゲート節書き換え (#231 版が既に存在 — 「push 後は `@codex review` が必要」の運用注意 1 行のみ追加)、`hunt_events/2026-09-10.jsonl` (#230 と add/add 衝突を再生産するため — データは #227 ブランチに残存)、session log 2 本 (指定救済リスト外・hot file、価値の本体は決裁文書へ保全済み)
+- 決裁: [[pr-review-gate-2026-09-08]] / 親: [[process-meta-audit-2026-09-07]] §4.2 R2
 ## 2026-09-10 — audit(estimand): D クラス「本来出てはいけなかった発火」を棄却 — 15 セル中 1 セルだった (rule:R3)
 
 - 🛑 **旧 `D_NEVER_PROMOTED` の解釈は反証された** — registry `roster-attrition-88pct-estimand-audit` (期日 09-22) の執行。出所は **PR #226 の Codex P1 finding #2** (レビュー到着直後にマージされ未読だった 2 件の 1 件)。指摘どおり判定根拠は「**現在**の昇格集合に不在」だけで、当時の昇格状態を何も測っていなかった
