@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-10 — fix(rnb): confidence 単位不一致 — 新設 shadow レーンの構造的無発火を修理 (rule:R3)
+
+- **バグ 1 確定 (conf 単位不一致)**: `compute_rnb_signal` (app.py) の BUY confidence は `round(min(_score/2.5, 1.0), 2)` = **0-1 スケール (max 1.0)** だったが、`demo_trader._tick_entry` の conf gate (`confidence < confidence_threshold`, threshold=**30**) は全戦略共通で **0-100 スケール**前提 → rnb BUY は 100% `conf<30` block。PR #238 で登録した shadow レーン (LOCK `rnb-support-bounce-shadow-forward`, first look N≥41) は登録直後から構造的無発火 = 観測量が到達不能だった
+- **バグ 2 発見・同時修理 (confirm marker 欠落)**: 実 signal 出力の end-to-end 検証で第 2 欠陥を発見 — reasons に "✅" marker がゼロで QUALIFIED_TYPES confirm gate (`no_confirm:` block) でも 100% 死んでいた。conf 修理単独ではレーンは開通しない二重欠陥だった
+- **他モード全数調査 (「gate の挙動を全対象に等しく適用と仮定するな」)**: MODE_CONFIG 全 signal_fn (compute_daytrade/swing/hourly/scalp + strategies/ 全戦略クラス + weekend_gap_fade + MassiveSignalEnhancer) の confidence を全数走査 — **全て 0-100 int、0-1 は compute_rnb_signal 唯一**。同型の被害者なし
+- **修理 (rnb 限定、blast radius 最小)**: confidence を `int(round(min(_score/2.5, 1.0) * 100))` (実レンジ 40-96) へ正規化 + 確定条件 reasons に "✅" 付与。`compute_rnb_signal` は BT/本番共用 (backtest_mode 引数) のため両経路が同時修理 — なお BT harness (`rnb-support-bounce-ablated-bt-2026-09-10.py`) は confidence 非消費で **BT verdict 不変**。gate 側は無変更 (他モードのスケール非影響)
+- **テスト** (`tests/test_rnb_confidence_scale.py` 7 本): 実 signal 出力の単位整合 pin / confirm marker pin / end-to-end (実 BUY sig → conf/confirm gate 通過 → is_shadow=1 行 + OANDA 送信ゼロ = shadow_only 維持) / counterfactual A (旧 0-1 値に戻すと conf gate で red) / counterfactual B ("✅" 剥がすと no_confirm で red) / 他モード gate 境界不変 (29 block / 31 pass)。既存 `test_rnb_shadow_only_registration.py` は手書き sig (conf=80, "✅" 入り) だったため両欠陥を素通ししていた — 実出力 e2e が必須という教訓
+- **registry**: `rnb-support-bounce-registration-decision` (resolved) + `rnb-support-bounce-shadow-forward` の message に修理注記 (修理前の無発火期間は cadence 分母から除外 — 行ゼロのため estimand/since は不変)。**lane-health cadence checkpoint 併設 (P16 型)**: `rnb-shadow-lane-health-checkpoint-1` (2026-09-24 に closed shadow N<3 で TRIGGERED) / `-2` (2026-10-08 に N<6) — shadow_count_decision 型の deadline 分岐で機械評価、count のみで P-10 (gate×outcome joint 計算禁止) 非抵触
 ## 2026-09-11 — fix(keeper): emergency_kill 参照 — kill 状態下の実弾 round-trip 継続を封鎖 (rule:R3)
 
 - **ギャップ確定 (P10、反証レビュー指摘 → コード実読 + 本番 API 実測で自己検証)**: `modules/status_volume_keeper.py` (2026-09-01 user 決裁 案 A、本番稼働中 — 09-10 時点 RT 21 回 / $420k を `/api/demo/status` 実測) は emergency/killed 状態を一切参照していなかった。emergency_kill は口座をフラット化するため、keeper の唯一の補償統制 `openTradeCount != 0` skip は**むしろ外れ**、kill 状態下でも 10,000u USD_JPY 実弾往復が継続する構造 — 549250 事故・watchdog 再武装と同型の「防御が名乗る範囲をカバーしない」クラス
