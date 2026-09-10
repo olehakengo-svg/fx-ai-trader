@@ -270,3 +270,36 @@ def test_d2_cells_are_not_counted_as_attributed():
                           anchor=anchor, now=now, stops=_stops())
     assert d2["subcounts"] == {"D2_POST_TIER_GATE": 1}
     assert d2["attributed_share"] == 0.0, "要説明の D2 を帰属済みに数えている"
+
+
+def test_unparsable_demotion_assignment_fails_closed(tmp_path, monkeypatch):
+    """個別代入の解析失敗を飛ばして「完全に読めた」と扱わない。
+
+    PR #230 Codex P2 2 巡目: `continue` で飛ばすと、部分的にしか読めていない
+    降格集合を完全とみなし、在籍していたセルを PERMITTED 側へ落とす。
+    """
+    src = ("class D:\n"
+           "    _FORCE_DEMOTED = {'a'}\n"
+           "    _PAIR_DEMOTED = {(x, 'EUR_USD') for x in names}\n")
+
+    def fake_git(*args):
+        return src if args[0] == "show" else None
+
+    monkeypatch.setattr(aud, "_git", fake_git)
+    assert aud.demote_sets_at("deadbeef") is None, "部分解析を完全扱いしている"
+
+
+def test_withdrawn_26_of_28_claim_is_not_in_any_readout():
+    """撤回した主張が readout に残っていないこと (PR #230 Codex P2 2 巡目)。
+
+    引用可否は KB に書いても、**ツールの docstring が readout の一部**なので
+    そこに残っていれば毎回再生産される。
+    """
+    import pathlib
+    for name in ("live_roster_attrition.py", "roster_d_class_estimand_audit.py"):
+        text = (REPO / "tools" / name).read_text(encoding="utf-8")
+        # 撤回済みの主張形 (「26/28 は正当/LIVE 可」) が肯定形で残っていないか
+        for bad in ("26/28 約定) は当時の設計どおり", "26 / 28 は正当"):
+            assert bad not in text, f"{name} に撤回済みの主張が残っている: {bad}"
+        if "26/28" in text:
+            assert "撤回" in text, f"{name}: 26/28 に触れるなら撤回を明記せよ"

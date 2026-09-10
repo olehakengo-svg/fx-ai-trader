@@ -209,7 +209,12 @@ def demote_sets_at(commit: str) -> dict[str, set] | None:
                         for x in ast.literal_eval(node.value)
                     }
                 except (ValueError, SyntaxError):
-                    continue
+                    # **fail closed**: 個別代入の解析失敗を `continue` で
+                    # 飛ばすと、部分的にしか読めていない集合を「完全に読めた」
+                    # として扱い、在籍していたセルを PERMITTED 側へ落とす
+                    # (PR #230 Codex P2 2 巡目)。読めない集合が 1 つでも
+                    # あれば「コード状態が再構成できない」= None を返す。
+                    return None
     return out
 
 
