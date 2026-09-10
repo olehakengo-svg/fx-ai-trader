@@ -3916,7 +3916,10 @@ class DemoTrader:
                                spread_pips: float = 0.0) -> None:
         """Persist the latch BEFORE any OANDA send (pre-reg §2.5).
 
-        state: 'EXECUTED' | 'SKIPPED_SPREAD'. Deploy-restart safe (system_kv)."""
+        state: 'EXECUTED' | 'SKIPPED_SPREAD' | 'ABANDONED_HALT' |
+        'ABANDONED_DRIFT' (後者 2 つは執行契約(B) AMENDMENT 2026-09-10
+        §4.2/§4.3 の live 執行放棄 — shadow row は記録済み = 分母保存)。
+        Deploy-restart safe (system_kv)."""
         try:
             self._db.set_system_kv(
                 self._weekend_gap_latch_kv_key(instrument, weekend_key),
@@ -4038,9 +4041,13 @@ class DemoTrader:
         feeds the NORMAL _tick_entry guard chain (shared is_shadow/is_promoted
         checks, daily-loss gate, watchdog etc.) — no separate send path."""
         from strategies.daytrade.weekend_gap_fade import (
+            WEEKEND_GAP_DRIFT_ABANDON_PIPS,
             WEEKEND_GAP_FADE_PAIRS,
+            WEEKEND_GAP_LATCH_ABANDONED_DRIFT,
+            WEEKEND_GAP_LATCH_ABANDONED_HALT,
             build_weekend_gap_sig,
             detect_weekend_gap_signal,
+            weekend_gap_entry_send_decision,
             weekend_key_for,
         )
         now = datetime.now(timezone.utc)
@@ -4091,7 +4098,70 @@ class DemoTrader:
                 raise ValueError("atr nan")
         except Exception:
             _atr = 0.07 if "JPY" in instrument else 0.00070
+
+        # ══ 執行契約 (B) 前置条件 — pre-reg §2.2 AMENDMENT (user 承認 2026-09-10, rule:R1) ══
+        # 決裁: wiki/decisions/weekend-gap-execution-contract-r1-packet-2026-09-10 §4。
+        # エンジン発火 (21:01 UTC) は OANDA 実開場 (21:04-21:05、48/48 実測)
+        # より常に早く、旧契約 (即時 FOK 1 回) は MARKET_HALTED cancel が
+        # 決定論的 = live fill 0% (イベント ②③ tx 実測)。live 送信は
+        # 「instrument tradeable (quote age <10s) 確認後の最初の評価 tick」
+        # まで保留する。HOLD 中は latch を立てない — 検出は entry 窓 (4 bars)
+        # ガードの下で次 tick も継続、poll はエンジン tick 周期 (≤60s, §4.1)。
+        # 打ち切り: 初バー ts +15 分超で halt 継続 → ABANDONED_HALT (§4.2)。
+        # 放棄境界: fade 方向 adverse drift > +8.0p → ABANDONED_DRIFT (§4.3)。
+        # cap 10.0p 判定 (§4.6) は本前置条件の下流 = 実開場後の実 quote で
+        # 行われる (halt 中 indicative quote による cap 判定は構造的に消滅)。
+        # G1/G2/G3・qualify 閾値・cap・1000u・4h exit は一切不変更。
+        _ps = {}
+        try:
+            from modules.data import fetch_oanda_pricing_state
+            _ps = fetch_oanda_pricing_state(instrument) or {}
+        except Exception as _ps_err:
+            print(f"[WEEKEND_GAP] pricing state fetch failed ({instrument}): "
+                  f"{_ps_err}", flush=True)
+        _send_mid = float(_ps.get("mid") or 0.0) or _mid
+        _wg_decision, _wg_drift_p = weekend_gap_entry_send_decision(
+            direction=det["direction"], instrument=instrument, now_utc=now,
+            first_bar_ts=det["first_bar_ts"],
+            tradeable=(_ps.get("tradeable") if _ps else None),
+            quote_age_sec=(_ps.get("quote_age_sec") if _ps else None),
+            sunday_open=det["sunday_open"], current_mid=_send_mid,
+        )
+        # §4.6 観測強化: 評価ごとに halt/tradeable 状態・quote age・drift を
+        # ログ (weekend 窓内のみ = 低コスト)。
+        _wg_exec_obs = (
+            f"decision={_wg_decision} "
+            f"tradeable={_ps.get('tradeable') if _ps else None} "
+            f"quote_age={_ps.get('quote_age_sec') if _ps else None}s "
+            f"drift={_wg_drift_p:+.2f}p (abandon>+{WEEKEND_GAP_DRIFT_ABANDON_PIPS:.1f}p) "
+            f"send_mid={_send_mid} sunday_open={det['sunday_open']}")
+        print(f"[WEEKEND_GAP][EXEC_B] {instrument} {_wg_exec_obs} "
+              f"first_bar={det['first_bar_ts']} weekend={weekend_key}",
+              flush=True)
+        if _wg_decision == "HOLD":
+            return  # latch なし — 次の評価 tick で再判定 (§4.1)
+
         sig = build_weekend_gap_sig(det, instrument, _mid, _atr)
+        sig["_wg_exec_contract"] = {
+            "decision": _wg_decision,
+            "tradeable": (_ps.get("tradeable") if _ps else None),
+            "quote_age_sec": (_ps.get("quote_age_sec") if _ps else None),
+            "drift_pips": round(_wg_drift_p, 2),
+            "send_mid": _send_mid,
+            "sunday_open": det["sunday_open"],
+        }
+        # §4.6: demo row への永続化は reasons 経由 (スキーマ変更なし)
+        sig["reasons"].append(
+            f"[WG_EXEC_B] {_wg_exec_obs} (AMENDMENT 2026-09-10)")
+        if _wg_decision in (WEEKEND_GAP_LATCH_ABANDONED_HALT,
+                            WEEKEND_GAP_LATCH_ABANDONED_DRIFT):
+            # §4.2/§4.3: live 執行の放棄 — shadow row は従来どおり記録
+            # (分母保存)。_tick_entry 側で shadow 固定 + latch=放棄状態を永続化。
+            sig["_wg_exec_abandon"] = _wg_decision
+        else:
+            # 実開場確認済み (SEND) — この marker が無い sig の live 送信は
+            # _tick_entry 側 backstop が拒否する (冗長エンジン経路を含む)。
+            sig["_wg_exec_send_ok"] = True
         print(f"[WEEKEND_GAP] {instrument} qualifying event: "
               f"gap={det['gap_pips']:+.1f}p (>= {det['qualify_pips']:.1f}p) "
               f"→ {det['direction']} fade, first_bar={det['first_bar_ts']}, "
@@ -4977,6 +5047,7 @@ class DemoTrader:
         _wg_shadow_cause = ""
         _wg_spread_skipped = False
         _wg_weekend_key = ""
+        _wg_abandon = ""
         if _wg_entry and signal in ("BUY", "SELL"):
             from strategies.daytrade.weekend_gap_fade import (
                 WEEKEND_GAP_FADE_PAIRS as _wg_pairs,
@@ -5003,6 +5074,33 @@ class DemoTrader:
                     f"[WEEKEND_GAP] live stopped (kv {WEEKEND_GAP_LIVE_STOP_KV_KEY}) "
                     f"→ {instrument} shadow record only"
                 )
+            # ── 執行契約 (B) AMENDMENT 2026-09-10 (rule:R1 user 承認) ──
+            # 決裁: weekend-gap-execution-contract-r1-packet-2026-09-10 §4。
+            # (a) scoped runner が放棄判定 (ABANDONED_HALT / ABANDONED_DRIFT)
+            #     した sig は live 送信せず shadow row として記録 (分母保存)。
+            #     latch は放棄状態で永続化 (下の latch_set 参照)。
+            # (b) backstop: runner の tradeable 確認 (§4.1) を通過した sig
+            #     (_wg_exec_send_ok) 以外の live 送信は禁止。row/latch を作らず
+            #     block = HOLD 相当 — scoped runner が次 tick に決定する。
+            #     冗長エンジン経路 (WeekendGapFade.evaluate、market-closed gate
+            #     が開く冬 22:00+ に通常 tick から到達) はここで足止めされ、
+            #     開場前の即時 FOK (MARKET_HALTED 決定論 cancel) を再導入しない。
+            _wg_abandon = str(sig.get("_wg_exec_abandon") or "")
+            if _wg_abandon:
+                _exec_meta = sig.get("_wg_exec_contract") or {}
+                if not _is_shadow:
+                    _is_shadow = True
+                if not _wg_shadow_cause:
+                    _wg_shadow_cause = (
+                        f"weekend_gap_exec_abandon({_wg_abandon},"
+                        f"drift={float(_exec_meta.get('drift_pips') or 0.0):+.2f}p)")
+                self._add_log(
+                    f"[WEEKEND_GAP] {instrument} live execution abandoned "
+                    f"({_wg_abandon}) → shadow record (分母保存, AMENDMENT §4)"
+                )
+            elif not _is_shadow and not sig.get("_wg_exec_send_ok"):
+                _block("weekend_gap_tradeable_unconfirmed")
+                return
 
         if is_shadow_demoted(entry_type, instrument) and not _is_live_tier_exempt:
             _ec_eligible, _ec_id = self._edge_cell_eligible_at_pre_block(
@@ -6055,9 +6153,11 @@ class DemoTrader:
                 if _wg_cap_skip(_spread_pips):
                     _is_shadow = True
                     _wg_spread_skipped = True
-                    _wg_shadow_cause = (
-                        f"weekend_gap_spread_cap(spread={_spread_pips:.2f}p"
-                        f">{_wg_cap:.1f}p)")
+                    # 執行契約(B): 放棄済み row では放棄 cause を優先 (cap は併記のみ)
+                    if not _wg_abandon:
+                        _wg_shadow_cause = (
+                            f"weekend_gap_spread_cap(spread={_spread_pips:.2f}p"
+                            f">{_wg_cap:.1f}p)")
                     reasons.append(
                         f"[WEEKEND_GAP_SPREAD_SKIP] quoted spread "
                         f"{_spread_pips:.2f}p > cap {_wg_cap:.1f}p → live skip, "
@@ -6133,7 +6233,8 @@ class DemoTrader:
             # 約定価格基準が崩れ G1 slippage を汚染するため、こちらも fail-closed
             _is_shadow = True
             _wg_spread_skipped = True
-            _wg_shadow_cause = "weekend_gap_spread_cap(spread=unavailable)"
+            if not _wg_abandon:  # 執行契約(B): 放棄 cause を優先
+                _wg_shadow_cause = "weekend_gap_spread_cap(spread=unavailable)"
             reasons.append(
                 "[WEEKEND_GAP_SPREAD_SKIP] quoted spread unavailable — "
                 "cap 検証不能 → fail-closed live skip, shadow row (分母保存)")
@@ -6837,10 +6938,14 @@ class DemoTrader:
 
         # ── weekend_gap_fade: per-weekend latch を送信前に永続化 (pre-reg §2.5) ──
         # row 作成直後 / OANDA 送信前に set — restart しても同一週末の再発火なし。
+        # 執行契約(B) AMENDMENT 2026-09-10: 放棄 row は ABANDONED_HALT /
+        # ABANDONED_DRIFT を latch 状態として永続化 (§4.2/§4.3)。
         if _wg_entry and _wg_weekend_key:
             self._weekend_gap_latch_set(
                 instrument, _wg_weekend_key,
-                state=("SKIPPED_SPREAD" if _wg_spread_skipped else "EXECUTED"),
+                state=(_wg_abandon if _wg_abandon
+                       else ("SKIPPED_SPREAD" if _wg_spread_skipped
+                             else "EXECUTED")),
                 trade_id=trade_id or "",
                 spread_pips=_spread_entry,
             )
@@ -7704,6 +7809,12 @@ class DemoTrader:
                     max_attempts=(1 if entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE
                                   else 3),
                     record_fill_slippage=(
+                        entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE),
+                    # 執行契約(B) §4.4 (AMENDMENT 2026-09-10): tradeable 確認後
+                    # の FOK が MARKET_HALTED cancel で返った場合 (解除直後 race)
+                    # のみ 30s 後に 1 回だけ再送 (最大計 2 送信、FOK 維持)。
+                    # 他の cancel/エラー reason は従来どおり再送禁止。
+                    halt_race_resend=(
                         entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE),
                 )
                 if _send_accepted:

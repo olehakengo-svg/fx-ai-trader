@@ -1,5 +1,17 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-10 — feat(wg): 執行契約 (B) エントリー繰り下げ — halt 決定論 fill 0% の修理 (rule:R1 user 承認 2026-09-10)
+
+- **決裁執行**: [[weekend-gap-execution-contract-r1-packet-2026-09-10]] §4 AMENDMENT (user「進めて」2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap_fade の live fill 0/3 の機構 = エンジン発火 21:01 UTC < OANDA 実開場 21:04-21:05 (48/48 実測) → 旧契約 (即時 FOK 1 回) は MARKET_HALTED cancel が決定論的。**次イベント 2026-09-13 (日) 21:00 UTC が改定後初の検証点**
+- **§4.1 entry 繰り下げ**: `_weekend_gap_tick` (scoped runner) に前置条件 — live 送信は OANDA 実開場確認 (pricing `tradeable`、quote age <10s、poll ≤60s = tick 周期) 後の**最初の評価 tick**へ。HOLD 中は latch を立てず検出継続。新規 read-only `modules/data.fetch_oanda_pricing_state` + 純関数 `weekend_gap_entry_send_decision` (unit-testable)
+- **§4.2/§4.3 放棄境界 (凍結値)**: 初バー ts +15 分超で halt 継続 → latch=`ABANDONED_HALT` / fade 方向 adverse drift (基準 = Sunday open、§5.3 実測と同一定義) > +8.0p → latch=`ABANDONED_DRIFT`。いずれも shadow row は記録 (分母保存)
+- **§4.4 halt-race 限定再送**: bridge `open_trade(halt_race_resend=True)` (wg のみ配線) — tradeable 確認後の FOK が `MARKET_HALTED` cancel (cancel tx を response 内で確認済み) で返った場合のみ 30s 後 1 回だけ FOK 再送 (最大計 2 送信)。他 reason / transport error は従来どおり再送禁止 (`max_attempts=1` 不変)
+- **§4.5 G1 基準保存**: fill slippage 基準 = 「実際に fill した送信 attempt の直前 quote」— 再送時は再送直前の同サイド quote に基準を差し替え (初回 quote 固定だと繰下げドリフト mean +3.15p が G1 に混入し N=6 で恒久誤停止 = packet §3 の案 A 棄却理由)。通常 fill の基準は従来どおり送信時 quote (非回帰 pin あり)
+- **§4.6 観測強化**: 評価ごと `[WEEKEND_GAP][EXEC_B]` ログ (tradeable/quote_age/drift/send_mid) + demo row reasons `[WG_EXEC_B]` 永続化。cap 10.0p 判定は実開場後の実 quote に構造的に移行 (indicative 判定消滅)。`_tick_entry` backstop: tradeable 未確認 sig の live 送信は `weekend_gap_tradeable_unconfirmed` で block (row/latch なし — 冗長エンジン経路の開場前送信も封鎖)
+- **不変更 (絶対)**: シグナル定義・qualify 閾値・cap 10.0p・1000u・4h exit・disaster SL 150p・**G1 (+2.0p)/G2 (−60p)/G3 の全定義と閾値**。BT 側変更なし (live 執行層のみの修理 — estimand コスト mean +3.15p は packet §5.3 織り込み済み、実効 EV ≈ +4.75p/event)
+- registry (同一コミット): `weekend-gap-live-g1-slippage` / `weekend-gap-live-g2-cumloss` / `project-falsification-f2-wg-live-conversion` に AMENDMENT 発効 + live N カウント起点を追記。新規 `weekend-gap-execution-amendment-g0prime` (期日 09-28) — 改定後最初の 2 qualifying イベントの G0' 検証手順 (EXEC_B ログ / 送信時刻 = 実開場 +0〜2 分 / fill or 正当放棄の分類 / slippage 突合 / 再送 ≤2)。**2 連続 fill 不成立 → 執行モダリティ再審 (R1 再起案)**
+- tests: `tests/test_weekend_gap_execution_contract_b.py` **26 本** 新設 — 境界 (tradeable 直後 / +15 分 strictly-after / drift strictly >+8.0p / 符号規約) + **counterfactual kill pin** (繰り下げ配線 kill で 5 tests fail、basis swap kill で 1 test fail を実証) + 再送上限 / fail-closed。既存 29 本は不変 green。`test_preserve_types_tick_entry.py` の wg fixture に runner marker (`_wg_exec_send_ok`) を付与 (backstop 準拠、estimand 不変)
+- KB 同一コミット: 戦略カード §執行仕様 AMENDMENT 註記 + イベントログ / packet Status → APPROVED+実装済み / stage-2 pre-reg §2.2 に置換ポインタ (原文保存)
 ## 2026-09-10 — feat(rnb): rnb_support_bounce stage-1 構造的 shadow-only 登録 + R2 auto-demote gate + pre-reg LOCK (rule:R1 user 承認 2026-09-10)
 
 - **158 日 dead mode の解消** — `rnb_support_bounce` を QUALIFIED_TYPES に登録 + MODE_CONFIG `rnb_usdjpy` に `shadow_only: True` (daytrade_audjpy 前例の 3 点 block: 送信ガード最終段 / resend gate / write-path で **OANDA 発注ゼロを構造保証**)。`_UNIVERSAL_SENTINEL` には意図的に非追加 (sentinel = minlot live 経路 — stage-1 では開けない)。決裁: [[rnb-support-bounce-r1-packet-2026-09-10]] §7 (D1 GO / D2 承認 / D3 GO、user「進めて」2026-09-10)

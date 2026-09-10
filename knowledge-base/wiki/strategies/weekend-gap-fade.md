@@ -25,15 +25,25 @@
 
 ## 執行仕様 (凍結)
 
+> **⚠️ AMENDMENT 2026-09-10 — 執行契約 (B) 発効 (rule:R1、user 承認「進めて」2026-09-10)**
+> 決裁: [[weekend-gap-execution-contract-r1-packet-2026-09-10]] §4。機構: エンジン発火 21:01 UTC < OANDA 実開場 21:04-21:05 (直近 16 週末 × 3 ペア = 48/48 実測) → 旧契約 (即時 FOK) は MARKET_HALTED cancel が決定論的で **live fill 0/3 イベント**だった。改定内容:
+> 1. **entry 送信の繰り下げ (§4.1)**: シグナル成立後、live 送信は **OANDA 実開場確認 (pricing の instrument `tradeable`、quote age <10s、poll ≤60s) 後の最初の評価 tick** まで保留。保留中は latch を立てない (`modules/data.fetch_oanda_pricing_state` + `weekend_gap_entry_send_decision`、scoped runner 前段)。
+> 2. **打ち切り (§4.2、凍結値)**: 初バー ts + **15 分**を過ぎても halt 継続 → live 放棄、latch=`ABANDONED_HALT`、shadow row 記録 (分母保存)。
+> 3. **放棄境界 (§4.3、凍結値)**: 送信直前の fade 方向 adverse drift (基準 = Sunday open) > **+8.0p** → live 放棄、latch=`ABANDONED_DRIFT`、shadow row 記録。
+> 4. **halt-race 限定再送 (§4.4、凍結値)**: tradeable 確認後の FOK が `MARKET_HALTED` cancel (cancel tx 確認済み) で返った場合のみ **30s 後に 1 回だけ** FOK 再送 (最大計 2 送信)。他 reason は従来どおり再送禁止。
+> 5. **G1 slippage 基準 (§4.5)**: 「実際に fill した送信 attempt の直前 quote」— 再送時は再送直前 quote に基準を差し替え (初回 quote 固定だと繰下げドリフト mean +3.15p が G1 に混入し N=6 で恒久誤停止 = packet §3 が案 A を棄却した理由)。
+> 6. **観測強化 (§4.6)**: 評価ごとに `[WEEKEND_GAP][EXEC_B]` ログ (tradeable/quote_age/drift/send_mid) + demo row reasons へ `[WG_EXEC_B]` 永続化。cap 10.0p 判定は実開場後の実 quote で行われる (indicative quote 判定は構造的に消滅)。tradeable 未確認 sig の live 送信は `_tick_entry` backstop が block (`weekend_gap_tradeable_unconfirmed`、row/latch なし = HOLD 相当 — 冗長エンジン経路も対象)。
+> **不変更**: シグナル定義・qualify 閾値・cap 10.0p・1000u・4h exit・disaster SL 150p・G1/G2/G3 の全定義と閾値。estimand コスト (繰下げ mean +3.15p) は織り込み済み → 実効 EV ≈ +4.75p/event (packet §5.3)。改定後 fill 成立率見積り: 点 ~94% / 保守 ~75%。
+
 | 項目 | 実装 |
 |---|---|
-| entry | 成行 1 回のみ、**リトライなし** (bridge `max_attempts=1` — timeout retry の二重約定を封鎖) |
+| entry | **(AMENDMENT B)** OANDA 実開場確認後の最初の評価 tick に成行 FOK。リトライは §4.4 の halt-race 限定再送 1 回のみ (bridge `max_attempts=1` は不変 — timeout retry の二重約定封鎖は維持) |
 | spread cap | 発注時 quoted spread > **10.0p** → live 送信スキップ + shadow row (`block_cause=weekend_gap_spread_cap(spread=X.XXp)`、実測値保存 = 分母保存)。quoted 取得不能時も fail-closed で shadow |
 | E1 置換の範囲 | **置換 = E1 per-pair limit + 動的 spread/TP guard の 2 つのみ (entry_type-scoped)**。共有 = is_shadow/is_promoted チェーン、daily loss gate (bridge)、watchdog/blacklist、exposure (1000u 実値で見積)、spike/velocity、order-bar dedup、agg-Kelly (min-lot bypass 登録) / MC-ruin gate |
 | exit | **entry+4h (14400s) 成行 time-exit のみ** (`close_reason="horizon"`、exact override — mode default 8h と max() 合成しない)。TP/BE/Trail/BE_LOCK/C1/SIGNAL_REVERSE 全て無効化済み |
 | disaster SL | entry ∓ **150p** (OANDA stopLossOnFill)。発火時は `close_reason="disaster_sl"` で個別 flag (G3③ 審査対象)。OANDA 注文に takeProfit は付けない (demo row の TP 500p は engine placeholder) |
 | サイジング | **固定 1000u** (`WEEKEND_GAP_FADE_MIN_LOT`)。lot 3-factor / Kelly / DD lever / FLAT_UNITS / agg-Kelly boost 全て非適用を code で固定 |
-| dedup | **per-pair per-weekend latch を system_kv 永続** (`weekend_gap_fade:{pair}:{sunday_date}` = EXECUTED / SKIPPED_SPREAD)。row 作成直後・OANDA 送信前に set。DB read 失敗は fail-closed (= latched 扱い) |
+| dedup | **per-pair per-weekend latch を system_kv 永続** (`weekend_gap_fade:{pair}:{sunday_date}` = EXECUTED / SKIPPED_SPREAD / **ABANDONED_HALT / ABANDONED_DRIFT** ← AMENDMENT B §4.2/§4.3)。row 作成直後・OANDA 送信前に set。HOLD (実開場未確認・打ち切り前) は latch を立てない。DB read 失敗は fail-closed (= latched 扱い) |
 | 同時ポジション | 3 ペア同時 qualify は全執行 (§2.4 — 選択的執行禁止。cap skip のみが正当な未執行)。exposure 見積を 1000u 実値にして 20k cap 誤衝突を回避 |
 
 ## 実行経路 (夏/冬の非対称に注意)
@@ -97,9 +107,16 @@
 
 **機構確定 (2026-09-10)**: エンジン発火 21:01 (MASSIVE forming bar) vs **OANDA 実開場 21:04–21:05 (直近 16 週末 × 3 ペア = 48/48 で初 M1 = 21:04)** → 現行契約 (FOK 1 回・リトライなし) の fill 率は構造的に ~0%。08-03 決裁の残存仮説「大 gap ほど FOK 不成立」は棄却 (gap サイズ無関係)。**執行契約 R1 改定パケット起案済み → [[weekend-gap-execution-contract-r1-packet-2026-09-10]] (user 決裁期限 09-12、次イベント 09-13 前)**。実測: `bt-results/wg_gap_drift-2026-09-10.json`。
 
+### 2026-09-10 — 執行契約 (B) AMENDMENT 発効 (rule:R1、user 承認「進めて」)
+
+- パケット [[weekend-gap-execution-contract-r1-packet-2026-09-10]] 提示 → **user「進めて」で案 (B) 承認**。同日実装 PR (feat/wg-execution-contract-b-20260910) で §4 全条項を執行 (内容は上の 執行仕様 AMENDMENT 註記)。次イベント **2026-09-13 (日) 21:00 UTC** が改定後初の検証点 — 手順は registry `weekend-gap-execution-amendment-g0prime` (期日 09-28、最初の 2 qualifying イベントで G0' 配管確認)。
+- **採用/棄却境界 (packet §6、凍結)**: 改定後最初の 2 qualifying イベントで fill 成立 (cap skip / 正当放棄除く) → 通常運用へ。**2 連続 fill 不成立 → 執行モダリティ自体を再審 (R1 再起案)** — 3 度目の「観測して待つ」はしない。冬時間初週末 (2026-11-01) は実開場 22:04-22:05 からの乖離 >±10 分で R3 打ち切り時刻再導出。
+- registry: `weekend-gap-live-g1-slippage` / `weekend-gap-live-g2-cumloss` / `project-falsification-f2-wg-live-conversion` に AMENDMENT 発効を追記 (live N カウントは発効後 fill から)。
+
 ## テスト
 
 `tests/test_weekend_gap_fade.py` (29 tests): 検出 (qualify/非qualify/方向/ガード/窓/凍結閾値) / cap 境界とスコープ / latch dedup + fail-closed / G1/G2 発火・境界・**非再武装** / 1000u・horizon・disaster SL・no-TP・登録 4 点 pin。
+`tests/test_weekend_gap_execution_contract_b.py` (26 tests、AMENDMENT 2026-09-10): 凍結値 pin / send decision 境界 (tradeable 直後 SEND・+15 分 strictly-after・drift strictly >+8.0p・符号規約両スケール) / **counterfactual kill pin** (繰り下げ配線を殺すと halt 中 tick が `_tick_entry` に到達して落ちる — 実証: 配線 kill で 5 tests fail) / halt-race 限定再送 (1 回のみ・MARKET_HALTED 限定・flag なし再送なし・transport error 対象外) / **G1 基準 quote 差し替え pin** (再送 fill の slippage が再送直前 quote 基準 — basis swap を殺すと落ちることを実証) / `fetch_oanda_pricing_state` (ナノ秒 ts parse・halted・fail-closed)。
 
 ## 参照
 

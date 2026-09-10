@@ -49,6 +49,12 @@ OANDA_EXECUTION_ENABLED = {
 }
 
 
+# weekend_gap 執行契約(B) §4.4 (AMENDMENT 2026-09-10, rule:R1 user 承認):
+# tradeable 確認後の FOK が MARKET_HALTED cancel で返った場合 (解除直後 race)
+# の限定再送までの待機秒。凍結値 30s — tests は monkeypatch で短縮する。
+HALT_RACE_RESEND_DELAY_SEC = 30.0
+
+
 def resolve_instrument(instrument: str) -> str:
     """Return the OANDA v20 instrument code for a supported FX pair."""
     if instrument not in SUPPORTED_INSTRUMENTS:
@@ -520,7 +526,8 @@ class OandaBridge:
                    entry_type: str | None = None,
                    skip_sent_audit: bool = False,
                    max_attempts: int = 3,
-                   record_fill_slippage: bool = False):
+                   record_fill_slippage: bool = False,
+                   halt_race_resend: bool = False):
         """Place OANDA market order mirroring a demo trade.
         callback(demo_trade_id, oanda_trade_id) called on success for DB persistence.
         units: override lot size (0 = use default self._units).
@@ -538,6 +545,16 @@ class OandaBridge:
             slippage (pips, adverse-positive) onto the demo trade row
             (demo_trades.slippage_pips). Used by weekend_gap_fade whose G1
             R2 gate consumes measured live slippage.
+        halt_race_resend: weekend_gap 執行契約(B) §4.4 (AMENDMENT 2026-09-10,
+            rule:R1 user 承認)。True のとき、送信した FOK が response 内の
+            orderCancelTransaction reason=MARKET_HALTED で cancel された場合
+            (tradeable 確認後の解除直後 race) に限り、30 秒後に 1 回だけ FOK
+            を再送する (最大計 2 送信)。他の cancel/エラー reason は従来どおり
+            再送しない。G1 semantics (§4.5): fill slippage の基準 quote は
+            「実際に fill した送信 attempt の直前 quote」— 再送時は直前 quote
+            を再取得して基準を差し替える (初回 quote に固定すると繰下げ
+            ドリフトが G1 に混入し N=6 で恒久誤停止する — packet §3 が
+            案 A を棄却した理由)。
 
         Returns True when the order passed all bridge gates and the
         background send was fired; False when transmission was refused
@@ -649,6 +666,57 @@ class OandaBridge:
                                    f"{side} {instrument} ({_err_code})")
                     continue
                 break  # Non-retryable error, stop immediately
+            # ── weekend_gap 執行契約(B) §4.4: halt-race 限定再送 (最大計 2 送信) ──
+            # tradeable 確認済み送信の FOK が MARKET_HALTED cancel で返った場合
+            # のみ (= response 内で orderCancelTransaction を確認できた場合のみ)、
+            # 30 秒後に 1 回だけ FOK を再送する。他の cancel/エラー reason は
+            # 従来どおり再送禁止 (pre-reg §2.2 max_attempts=1 は不変 — 本再送は
+            # AMENDMENT §4.4 の限定条項で、二重約定構造なし: 初回注文の cancel
+            # transaction が確認済みの場合に限る)。
+            # G1 semantics (§4.5): fill slippage 基準は「実際に fill した送信
+            # attempt の直前 quote」— 再送前に同サイド quote を再取得して基準を
+            # 差し替える (初回 quote 固定は繰下げドリフトを G1 に混入させる)。
+            _fill_basis_price = float(signal_price or 0.0)
+            if halt_race_resend and ok:
+                _cxl0 = data.get("orderCancelTransaction", {}) or {}
+                _filled0 = bool((data.get("orderFillTransaction", {}) or {})
+                                .get("tradeOpened", {}).get("tradeID"))
+                if not _filled0 and str(_cxl0.get("reason", "")) == "MARKET_HALTED":
+                    logger.warning(
+                        f"[OandaBridge] OPEN {side} {instrument} FOK cancelled "
+                        f"(MARKET_HALTED, halt-race) — single resend in "
+                        f"{HALT_RACE_RESEND_DELAY_SEC:.0f}s (§4.4, max 2 sends)")
+                    if log_callback:
+                        log_callback(
+                            f"🔗 OANDA: [HALT_RACE] {instrument} FOK cancelled "
+                            f"(MARKET_HALTED) → {HALT_RACE_RESEND_DELAY_SEC:.0f}s "
+                            f"後に 1 回だけ再送 (執行契約 B §4.4)")
+                    _time.sleep(HALT_RACE_RESEND_DELAY_SEC)
+                    # 再送 attempt 直前 quote を slippage 基準に差し替え (§4.5)
+                    try:
+                        _q_ok, _q = self._client.get_price(instrument)
+                        if _q_ok:
+                            _p0 = (_q.get("prices") or [{}])[0]
+                            _side_key = "asks" if side == "buy" else "bids"
+                            _q_px = float(
+                                ((_p0.get(_side_key) or [{}])[0]).get("price", 0)
+                                or 0)
+                            if _q_px > 0:
+                                _fill_basis_price = _q_px
+                    except Exception as _q_err:
+                        logger.warning(
+                            f"[OandaBridge] halt-race basis-quote refresh "
+                            f"failed ({instrument}): {_q_err}")
+                    _t0 = _time.monotonic()
+                    ok, data = self._client.market_order(
+                        side=side,
+                        units=_lot,
+                        instrument=instrument,
+                        stop_loss=sl,
+                        take_profit=tp,
+                    )
+                    _latency_ms = round((_time.monotonic() - _t0) * 1000)
+                    _attempts_made += 1
             if ok:
                 # v20: orderFillTransaction.tradeOpened.tradeID
                 _fill = data.get("orderFillTransaction", {})
@@ -689,14 +757,17 @@ class OandaBridge:
                     # Signed adverse-positive pips: BUY fill above signal / SELL
                     # fill below signal = positive (worse). Overwrites the
                     # demo-side quote-vs-mid estimate with the broker truth.
-                    if record_fill_slippage and signal_price and _price and self._db is not None:
+                    # 基準 quote = _fill_basis_price = 「実際に fill した送信
+                    # attempt の直前 quote」(§4.5) — halt-race 再送なしの場合は
+                    # caller の signal_price (送信時 quote) と同一値。
+                    if record_fill_slippage and _fill_basis_price and _price and self._db is not None:
                         try:
                             _fill_px_rs = float(_price)
                             _pip_m_rs = 100 if ("JPY" in instrument or "XAU" in instrument) else 10000
                             if side == "buy":
-                                _slip_rs = (_fill_px_rs - float(signal_price)) * _pip_m_rs
+                                _slip_rs = (_fill_px_rs - float(_fill_basis_price)) * _pip_m_rs
                             else:
-                                _slip_rs = (float(signal_price) - _fill_px_rs) * _pip_m_rs
+                                _slip_rs = (float(_fill_basis_price) - _fill_px_rs) * _pip_m_rs
                             self._db.update_trade_slippage(
                                 demo_trade_id, round(_slip_rs, 2))
                             if log_callback:

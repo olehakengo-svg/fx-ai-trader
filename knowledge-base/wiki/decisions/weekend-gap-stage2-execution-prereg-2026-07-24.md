@@ -41,6 +41,8 @@
 
 ### 2.2 entry (凍結案)
 
+> **⚠️ AMENDMENT 2026-09-10 (rule:R1、user 承認「進めて」2026-09-10)**: 本節の entry 送信タイミングは [[weekend-gap-execution-contract-r1-packet-2026-09-10]] §4 の改定条項 (執行契約 B) で**置換済み** — live 送信は「OANDA 実開場 (instrument tradeable、quote age <10s) 確認後の最初の評価 tick」へ繰り下げ。打ち切り +15 分 / fade 方向 drift 放棄 +8.0p / halt-race 限定再送 1 回を凍結値で併設。**シグナル定義・qualify 閾値・cap 10.0p・1000u・4h exit・G1/G2/G3 は不変更**。背景: 旧文言の「目標 21:05±2 分」に対し実装はデータソース先行で 21:01 に発火し、OANDA 実開場 21:04-21:05 (48/48 実測) より常に早く MARKET_HALTED cancel が決定論的だった (live fill 0/3 イベント)。以下の原文は記録として保存。
+
 - **成行 @ Sunday open 初バー確定後の最初の評価 tick** (目標 21:05±2 分 / 冬 22:05±2 分)。**1 週末 1 ペア 1 回のみ、リトライなし** — スプレッド低下を待つ再試行は entry タイミングの条件付け = estimand 逸脱経路のため禁止。
 - **発注時 spread cap (凍結): quoted spread > 10.0p → live 発注スキップ**。
   - **cap 根拠**: 実測初バー spread p90 ≈ 10p (EUR 9.89 / JPY 10.0 = OANDA schedule cap)。cap 境界 (10.0p) でも RT = 10.5p vs gross mean +15.6p → **+5.1p の正 EV マージン**。AUD の 15p schedule-cap 張り付き週末 (実測 2/12) を自動排除。

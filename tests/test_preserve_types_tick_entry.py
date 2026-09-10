@@ -135,9 +135,16 @@ TYPE_CONFIG = {
                                expect="row", entry=1.20000, sl=1.18800,
                                tp=1.20100, atr=0.0005),
     # Sunday-open entry window + pair allowlist (EUR_USD/USD_JPY/AUD_USD).
+    # 執行契約(B) AMENDMENT 2026-09-10: live 送信は scoped runner の tradeable
+    # 確認 marker (_wg_exec_send_ok) を必須とする — marker なしの sig は
+    # backstop が row/latch なしで block する (weekend_gap_tradeable_unconfirmed,
+    # tests/test_weekend_gap_execution_contract_b.py で pin)。本テストの
+    # estimand は「送信判定経路が bug site を通過する」ことなので、runner 通過
+    # 済み相当の marker を sig に付与して駆動する。
     "weekend_gap_fade": dict(instrument="USD_JPY", now=_SUNDAY_OPEN,
                              expect="row", entry=147.500, sl=146.000,
-                             tp=152.500, atr=0.10),
+                             tp=152.500, atr=0.10,
+                             sig_extra={"_wg_exec_send_ok": True}),
 }
 
 
@@ -179,7 +186,7 @@ def _make_trader(tmp_path, monkeypatch):
 
 
 def _sig(entry_type: str, cfg: dict) -> dict:
-    return {
+    out = {
         "signal": "BUY",
         "entry": cfg["entry"],
         "sl": cfg["sl"],
@@ -192,6 +199,8 @@ def _sig(entry_type: str, cfg: dict) -> dict:
         "regime": {"regime": "TRANSITION"},
         "layer_status": {"trade_ok": True, "layer1": {"direction": "neutral"}},
     }
+    out.update(cfg.get("sig_extra") or {})
+    return out
 
 
 @pytest.mark.parametrize("entry_type", sorted(PRESERVE_TYPES))

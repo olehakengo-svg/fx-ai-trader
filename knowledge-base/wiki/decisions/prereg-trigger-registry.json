@@ -319,7 +319,7 @@
       "type": "deadline_info",
       "deadline": "2026-09-30",
       "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
-      "message": "weekend_gap live G1 ゲート監視 — live fill の slippage rolling mean > +2.0p で R2 live 停止 (code gate が一次、本エントリは週次監査の見落とし防止)。user 承認 (b) 2026-07-24 ⚠️ 2026-08-31 評価 (deadline 08-31 到来 → 09-30 へ roll): live 化 (2026-07-25) 以降の weekend_gap は **clean live N=0**。本番 /api/demo/trades を全ページ取得 (2026-07-24 以降 2,710 行) して抽出した結果、weekend_gap 行は 2 件のみ (2026-07-26 / 08-02、いずれも USD_JPY BUY・**shadow**、oanda_trade_id 空)。→ **G1 (live fill slippage rolling mean > +2.0p) は評価対象ゼロ = 未抵触、live 停止の根拠なし。措置なし**。⚠️ 併せて観測: 08-09 / 08-16 / 08-23 / 08-30 の **4 週連続で発火ゼロ**。G2 エントリが置く『頻度 ~3.3/月 → N=12 は ~2026-11 見込み』との乖離は、**その 3.3/月 が signal-rate か live-fill-rate かで意味が変わる** (hull 残余 4.7x と同型の estimand 不一致) ため、本時点では『設計レートが誤り』と断定しない。G2 チェックポイント (weekend-gap-live-g2-cumloss) で 分母を明示した上で再評価すること。単発 limit クエリは希少戦略を 0 に向けて過小計上するので **必ず全ページ取得で数えること** (2026-07-24 実測バグ)。"
+      "message": "weekend_gap live G1 ゲート監視 — live fill の slippage rolling mean > +2.0p で R2 live 停止 (code gate が一次、本エントリは週次監査の見落とし防止)。user 承認 (b) 2026-07-24 ⚠️ 2026-08-31 評価 (deadline 08-31 到来 → 09-30 へ roll): live 化 (2026-07-25) 以降の weekend_gap は **clean live N=0**。本番 /api/demo/trades を全ページ取得 (2026-07-24 以降 2,710 行) して抽出した結果、weekend_gap 行は 2 件のみ (2026-07-26 / 08-02、いずれも USD_JPY BUY・**shadow**、oanda_trade_id 空)。→ **G1 (live fill slippage rolling mean > +2.0p) は評価対象ゼロ = 未抵触、live 停止の根拠なし。措置なし**。⚠️ 併せて観測: 08-09 / 08-16 / 08-23 / 08-30 の **4 週連続で発火ゼロ**。G2 エントリが置く『頻度 ~3.3/月 → N=12 は ~2026-11 見込み』との乖離は、**その 3.3/月 が signal-rate か live-fill-rate かで意味が変わる** (hull 残余 4.7x と同型の estimand 不一致) ため、本時点では『設計レートが誤り』と断定しない。G2 チェックポイント (weekend-gap-live-g2-cumloss) で 分母を明示した上で再評価すること。単発 limit クエリは希少戦略を 0 に向けて過小計上するので **必ず全ページ取得で数えること** (2026-07-24 実測バグ)。 ⚠️ 執行契約 AMENDMENT (B) 発効 2026-09-10 (rule:R1、user 承認「進めて」同日、packet: weekend-gap-execution-contract-r1-packet-2026-09-10 §4): entry 送信 = OANDA 実開場 (instrument tradeable、quote age <10s) 確認後の最初の評価 tick へ繰り下げ。live N カウントは発効後 fill から開始。G1 の slippage 基準 = 実際に fill した送信 attempt の直前 quote (halt-race 限定再送時は再送直前 quote に差し替え — 初回 quote 固定だと繰下げドリフト mean +3.15p が混入し N=6 で恒久誤停止)。閾値・deadline は不変。"
     },
     {
       "id": "weekend-gap-live-g2-cumloss",
@@ -327,7 +327,15 @@
       "type": "deadline_info",
       "deadline": "2026-12-31",
       "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
-      "message": "weekend_gap live G2 ゲート監視 — live N=12 到達時に cumulative < −60p なら R2 demote。N=30 で G3 判定 (mean net>0 + WR≥35%) → lot 増額は別 R1。頻度 ~3.3/月 → N=12 は ~2026-11 見込み"
+      "message": "weekend_gap live G2 ゲート監視 — live N=12 到達時に cumulative < −60p なら R2 demote。N=30 で G3 判定 (mean net>0 + WR≥35%) → lot 増額は別 R1。頻度 ~3.3/月 → N=12 は ~2026-11 見込み ⚠️ 執行契約 AMENDMENT (B) 発効 2026-09-10 (同上 packet §4): live N カウントは発効後 fill から開始。改定後 fill 成立率見積り 点 ~94% / 保守 ~75% → G2 (N=12) 到達 ~2027-01 見込み。閾値 (−60p) / G3 条件は不変。"
+    },
+    {
+      "id": "weekend-gap-execution-amendment-g0prime",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-09-28",
+      "doc": "knowledge-base/wiki/decisions/weekend-gap-execution-contract-r1-packet-2026-09-10.md",
+      "message": "weekend_gap 執行契約 (B) G0' 配管検証 — 改定後最初の 2 qualifying イベント (初回 2026-09-13 (日) 21:00 UTC 見込み) を週次監査で確認する。検証手順 (packet §6/§7): (1) Render ログ [WEEKEND_GAP][EXEC_B] 行で decision 遷移 (HOLD→SEND / ABANDONED_*) と tradeable/quote_age/drift の記録を確認、(2) 送信時刻 = OANDA 実開場 (21:04-21:05) +0〜2 分 (poll ≤60s) であること、(3) oanda_audit sent→filled + demo row の oanda_trade_id 非空 (= clean live N=1、F2 resolve)、または正当放棄 (cap skip / ABANDONED_HALT / ABANDONED_DRIFT latch) の分類、(4) fill 時は [WEEKEND_GAP] fill slippage persisted 行と demo row slippage_pips (G1 入力、基準 = fill attempt 直前 quote) を突合、(5) halt-race 再送が発生した場合 [HALT_RACE] ログと送信回数 ≤2 を確認。🛑 2 イベント連続で fill 不成立 (halt >15m / drift 放棄 / 新種 cancel) → 執行モダリティ自体を再審 (R1 再起案) — 3 度目の『観測して待つ』はしない (packet §6)。冬時間初週末 2026-11-01 は実開場 22:04-22:05 からの乖離 >±10 分で R3 打ち切り時刻再導出。"
     },
     {
       "id": "volstate-split-htf-fb-recheck",
@@ -638,7 +646,7 @@
       "n_decide": 1,
       "deadline": "2026-12-31",
       "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
-      "message": "プロジェクト falsification 条件 F2 (U7、user 承認 2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap の clean live (oanda_trade_id 非空) 約定が live 化 (2026-07-25) 以降ゼロのまま。N>=1 到達 = PASS→live 変換の初実証として resolve。期日 2026-12-31 に N=0 なら『PASS→live PnL 変換は未実証』と正式認定 — 以後の全 PASS の価値を執行実証まで割引き、pre-reg テンプレに fill 成立率の事前見積りを必須化する。関連: weekend-gap-execution-contract R1 パケット (2026-09-10 起案)。"
+      "message": "プロジェクト falsification 条件 F2 (U7、user 承認 2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap の clean live (oanda_trade_id 非空) 約定が live 化 (2026-07-25) 以降ゼロのまま。N>=1 到達 = PASS→live 変換の初実証として resolve。期日 2026-12-31 に N=0 なら『PASS→live PnL 変換は未実証』と正式認定 — 以後の全 PASS の価値を執行実証まで割引き、pre-reg テンプレに fill 成立率の事前見積りを必須化する。関連: weekend-gap-execution-contract R1 パケット (2026-09-10 起案)。 ⚠️ 執行契約 AMENDMENT (B) 適用 (2026-09-10 user 承認、同日実装 PR): halt 決定論 cancel (fill 0/3 の機構) の修理。初回イベント 2026-09-13 (日) 21:00 UTC の検証手順 = weekend-gap-execution-amendment-g0prime エントリ参照。本改定は F2 の回避手段であって免除ではない (期日 2026-12-31 に N=0 なら従来どおり発動)。"
     },
     {
       "id": "project-falsification-f3-m1-durable-cell",
