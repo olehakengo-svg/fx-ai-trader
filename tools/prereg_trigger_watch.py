@@ -24,6 +24,7 @@ Registry: knowledge-base/wiki/decisions/prereg-trigger-registry.json
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import math
 import re
@@ -588,7 +589,33 @@ def load_registry_raw(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
     lint に届く前に消える。フィルタ後だけを検査する lint は `active` 自身の
     不正を構造的に見られない。
     """
-    return list(json.loads(path.read_text(encoding="utf-8")).get("triggers", []))
+    data = json.loads(path.read_text(encoding="utf-8"))
+    # `.get("triggers", [])` は root キーの綴り違い/欠落を**空の台帳**に畳んで
+    # しまう。すると check.py も本監視器も exit 0 のまま「active な trigger は
+    # 無い」と報告し、**51 エントリ全部が黙って消える** — 本 PR が直している
+    # 2 日間 blind と同じ帰結を、もっと静かな形で作る (Codex P1 16 巡目)。
+    # 監視器の不変条件: **検査不能を「異常なし」に折り畳まない**。
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            f"{path}: registry の root が dict でない "
+            f"({type(data).__name__}) — 台帳として読めない")
+    if "triggers" not in data:
+        near = [k for k in data if "trig" in k.lower()]
+        raise RuntimeError(
+            f"{path}: root に 'triggers' キーが無い (実在キー: {sorted(data)})"
+            + (f" — 綴り違いの候補: {near}" if near else "")
+            + "。空の台帳に畳むと全 trigger が黙って消える")
+    trigs = data["triggers"]
+    if not isinstance(trigs, list):
+        raise RuntimeError(
+            f"{path}: 'triggers' が list でない ({type(trigs).__name__})")
+    if not trigs:
+        # 「意図的に空」と「台帳が消えた」を区別できないので、監視器としては
+        # 後者を仮定する。本当に空の台帳を運用するなら本 guard を明示的に外す。
+        raise RuntimeError(
+            f"{path}: 'triggers' が空 — 監視器は「意図的に空」と「台帳が"
+            "消えた」を区別できないため異常として扱う")
+    return list(trigs)
 
 
 def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
@@ -869,6 +896,50 @@ SHAPE_IF_NONEMPTY: dict[str, str] = {
     "instrument": r"^[A-Z]{3}_[A-Z]{3}$",
 }
 
+# `mode` は `/api/demo/trades` へ素通しされ、open/closed 両経路で完全一致に
+# 使われる。`mode: "daytrade_eurgpp"` は API 呼び出しが**成功して 0 行**を
+# 返すので、判定は永久 WATCHING か低 N の deadline 分岐を誤って踏む
+# (Codex P2 16 巡目 — direction/instrument と同クラスの 3 例目)。
+#
+# 許可集合は**ハンドコピーせず** `modules/demo_trader.py` の `MODE_CONFIG` を
+# AST で読む (9 巡目の学び: lint は評価器の写しなので写し間違いが必ず起きる)。
+# import しないのは demo_trader の import が本番スレッドを起動しうるため。
+DEMO_TRADER_PATH = ROOT / "modules" / "demo_trader.py"
+
+# MODE_CONFIG から退役したが registry が参照し続けてよい歴史的 mode。
+# 退役 mode を持つ既存エントリを壊さずに guard を入れるための明示的な逃げ道。
+# ⚠️ ここに足すのは「その mode の行が DB に残っていて母集団として正当」な
+# 場合のみ。単に綴りを通したいだけなら足さないこと。
+HISTORICAL_MODES: frozenset[str] = frozenset()
+
+
+def app_mode_names(path: Path | None = None) -> frozenset[str]:
+    """`MODE_CONFIG` のキー = アプリが実際に produce しうる mode 名。
+
+    読めない/形が違う場合は **例外**。空集合に畳むと「mode の検査をした」と
+    「検査できなかった」が区別できなくなる (本ファイル全体の不変条件)。
+    """
+    target = path or DEMO_TRADER_PATH
+    tree = ast.parse(target.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        for t in node.targets:
+            if getattr(t, "id", None) == "MODE_CONFIG":
+                if not isinstance(node.value, ast.Dict):
+                    raise RuntimeError(
+                        f"{target}: MODE_CONFIG が dict literal でない — "
+                        "mode の許可集合を導出できない")
+                names = {k.value for k in node.value.keys
+                         if isinstance(k, ast.Constant)
+                         and isinstance(k.value, str)}
+                if len(names) != len(node.value.keys):
+                    raise RuntimeError(
+                        f"{target}: MODE_CONFIG に非文字列リテラルのキーが"
+                        "ある — 許可集合が不完全になる")
+                return frozenset(names)
+    raise RuntimeError(f"{target}: MODE_CONFIG が見つからない")
+
 # 各カウント field の下限 (評価器の意味論)。n_decide=-1 は即時 TRIGGERED、
 # min_files=-1 は不在の成果物を「充足」と報告する。
 INT_MIN = {"n_decide": 1, "n_floor": 0, "min_files": 1, "min_keys": 1}
@@ -1095,6 +1166,17 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
                     f"— 解釈するのは {sorted(allowed)} のみ (空文字 = 絞り込まない)。"
                     "綴り違いは母集団が**黙って空**になり、N ベースの判定が"
                     "永久 WATCHING か低 N の retire 分岐を誤って踏む")
+        mode_v = t.get("mode")
+        if isinstance(mode_v, str) and mode_v.strip():
+            allowed_modes = app_mode_names() | HISTORICAL_MODES
+            if mode_v not in allowed_modes:
+                near = sorted(m for m in allowed_modes
+                              if m.startswith(mode_v[:6]))
+                errors.append(
+                    f"{tid}: type={ttype} の mode={mode_v!r} は "
+                    "MODE_CONFIG に無い — API 呼び出しは成功して **0 行**を"
+                    "返すので、判定が永久 WATCHING か低 N の retire 分岐を"
+                    f"誤って踏む{f' (近い mode: {near})' if near else ''}")
         for f, pattern in SHAPE_IF_NONEMPTY.items():
             v = t.get(f)
             if isinstance(v, str) and v.strip() and not re.match(pattern, v):

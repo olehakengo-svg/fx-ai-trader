@@ -1432,3 +1432,73 @@ def test_instrument_shape_typo_is_rejected():
     assert lint_schema([dict(base, instrument="")]) == []
     assert lint_schema([dict(base, instrument="USDJPY")]) != []
     assert lint_schema([dict(base, instrument="USD_JPYY")]) != []
+
+
+def test_root_triggers_key_is_required_not_defaulted_to_empty(tmp_path):
+    """root キーの綴り違い/欠落を「空の台帳」に畳まない。
+
+    PR #227 Codex P1 16 巡目: `.get("triggers", [])` だと `trigger` の綴り違いで
+    **51 エントリ全部が黙って消え**、check.py も監視器も exit 0 のまま
+    「active な trigger は無い」と報告する = 本 PR が直している 2 日間 blind と
+    同じ帰結の、もっと静かな版。
+    """
+    import json as _json
+    import pytest
+    from tools.prereg_trigger_watch import load_registry_raw
+
+    good = tmp_path / "good.json"
+    good.write_text(_json.dumps({"triggers": [{"id": "x", "type": "info"}]}))
+    assert len(load_registry_raw(good)) == 1
+
+    for name, payload in [
+        ("typo", {"trigger": [{"id": "x"}]}),
+        ("missing", {"_comment": "note"}),
+        ("not_list", {"triggers": {"id": "x"}}),
+        ("empty", {"triggers": []}),
+        ("root_list", [{"id": "x"}]),
+    ]:
+        bad = tmp_path / f"{name}.json"
+        bad.write_text(_json.dumps(payload))
+        with pytest.raises(RuntimeError):
+            load_registry_raw(bad)
+
+
+def test_mode_allowlist_is_derived_from_mode_config_not_handcopied():
+    """許可 mode は `MODE_CONFIG` から導出する (写し間違いを構造的に防ぐ)。"""
+    from tools.prereg_trigger_watch import app_mode_names
+    names = app_mode_names()
+    assert "daytrade" in names and "scalp" in names
+    # registry が現に使っている mode は許可集合に含まれること
+    from tools.prereg_trigger_watch import load_registry_raw, HISTORICAL_MODES
+    used = {t["mode"] for t in load_registry_raw()
+            if isinstance(t.get("mode"), str) and t["mode"].strip()}
+    assert used <= (names | HISTORICAL_MODES), f"許可外の mode: {used - names}"
+
+
+def test_mode_typo_is_rejected_not_silently_zero_rows(tmp_path):
+    """`mode` の綴り違いは API 成功 + 0 行 = 永久 WATCHING を作る。
+
+    PR #227 Codex P2 16 巡目 — direction / instrument と同クラスの 3 例目。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, mode="daytrade_eurgbp")]) == []
+    assert lint_schema([dict(base, mode="")]) == [], "空 = 絞り込まない は正当"
+    assert lint_schema([dict(base, mode="daytrade_eurgpp")]) != []
+    assert lint_schema([dict(base, mode="daytrade_nope")]) != []
+
+
+def test_mode_allowlist_derivation_raises_instead_of_returning_empty(tmp_path):
+    """導出できないときは空集合でなく例外 — 「検査した」と「できなかった」を分ける。"""
+    import pytest
+    from tools.prereg_trigger_watch import app_mode_names
+    absent = tmp_path / "no_mode_config.py"
+    absent.write_text("OTHER = {'a': 1}\n")
+    with pytest.raises(RuntimeError):
+        app_mode_names(absent)
+    nonliteral = tmp_path / "nonliteral.py"
+    nonliteral.write_text("MODE_CONFIG = dict(a=1)\n")
+    with pytest.raises(RuntimeError):
+        app_mode_names(nonliteral)
