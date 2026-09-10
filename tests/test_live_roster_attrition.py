@@ -65,7 +65,7 @@ CURRENT_TIME = datetime(2026, 8, 25, tzinfo=timezone.utc)
         ("sr_fib_confluence", "EUR_USD", "C_SHADOW_DEMOTED"),
         ("vol_momentum_scalp", "GBP_USD", "C_SHADOW_DEMOTED"),
         ("macd_rsi_pullback", "EUR_USD", "C_SHADOW_DEMOTED"),
-        ("some_unpromoted", "EUR_USD", "D_NEVER_PROMOTED"),
+        ("some_unpromoted", "EUR_USD", "D_NOT_LIVE_ELIGIBLE_NOW"),
         ("doji_breakout", "USD_JPY", "E_PROMOTED_UNATTRIBUTED"),
         ("session_time_bias", "GBP_USD", "E_PROMOTED_UNATTRIBUTED"),
     ],
@@ -104,7 +104,7 @@ def test_counterfactual_removing_a_stop_set_moves_cells_into_unattributed():
 
     broken = lra.build_report(rows, anchor=ANCHOR, now=NOW, stops=_stops(force_demoted=set()))
     assert "B_LIVE_STOPPED" not in broken["counts"], "停止集合を空にしても分類が変わらない = 集合が読まれていない"
-    assert broken["counts"] == {"D_NEVER_PROMOTED": 1}
+    assert broken["counts"] == {"D_NOT_LIVE_ELIGIBLE_NOW": 1}
 
 
 def test_counterfactual_promotion_set_is_load_bearing():
@@ -115,7 +115,7 @@ def test_counterfactual_promotion_set_is_load_bearing():
     }
     stripped = _stops(pair_promoted=set(), universal_sentinel=set())
     assert lra.build_report(rows, anchor=ANCHOR, now=NOW, stops=stripped)["counts"] == {
-        "D_NEVER_PROMOTED": 1
+        "D_NOT_LIVE_ELIGIBLE_NOW": 1
     }
 
 
