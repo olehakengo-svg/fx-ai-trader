@@ -154,13 +154,81 @@ def test_v2_rejects_current_intrabar_breakout(monkeypatch):
     assert got is None
 
 
-def test_v2_live_without_bar_time_is_blocked(monkeypatch):
+def test_v2_live_call_convention_returns_candidate(monkeypatch):
+    """修復 pin 層① (2026-09-10 rule:R3, e2-silent-cells-triage-2026-09-10 §2.2)。
+
+    live のシグナル呼び出し規約 (demo_trader._tick → compute_fn(df, tf, sr,
+    symbol)) は backtest_mode=False / bar_time=None。旧 v2 はこの規約で
+    hard-guard により恒久 None (127 日間 行ゼロ) — 本テストは旧挙動の pin
+    (test_v2_live_without_bar_time_is_blocked) を意図的に反転した修復 pin。
+    counterfactual: fallback を消して hard-guard を戻すと本テストが落ちる。
+    """
     monkeypatch.setenv("SQUEEZE_REDESIGN_V2", "1")
     BBSqueezeBreakout.reset_dedup_state()
 
     got = BBSqueezeBreakout().evaluate(_ctx(_df(), backtest_mode=False, bar_time=None))
 
-    assert got is None
+    assert got is not None
+    assert got.signal == "BUY"
+
+
+def test_v2_live_and_bt_same_df_evaluate_identically(monkeypatch):
+    """BT/本番統一原則 pin: 同一 df に対し live 規約 (backtest_mode=False,
+    bar_time=None) と BT 規約 (backtest_mode=True, bar_time=index[-1]) で
+    signal/sl/tp/score が一致する (評価 parity)。"""
+    monkeypatch.setenv("SQUEEZE_REDESIGN_V2", "1")
+    df = _df()
+
+    BBSqueezeBreakout.reset_dedup_state()
+    live = BBSqueezeBreakout().evaluate(_ctx(df, backtest_mode=False, bar_time=None))
+    BBSqueezeBreakout.reset_dedup_state()
+    bt = BBSqueezeBreakout().evaluate(_ctx(df, backtest_mode=True, bar_time=df.index[-1]))
+
+    assert live is not None and bt is not None
+    assert (live.signal, live.sl, live.tp, live.score) == (bt.signal, bt.sl, bt.tp, bt.score)
+    assert live.reasons == bt.reasons
+
+
+def test_v2_reasons_carry_confirm_mark_for_no_confirm_gate(monkeypatch):
+    """修復 pin 層② (2026-09-10 rule:R3)。
+
+    bb_squeeze_breakout は QUALIFIED_TYPES (modules/demo_trader.py no_confirm
+    gate) / SCALP_BT_QUALIFIED (app.py run_scalp_backtest) の両方で
+    `sum(1 for r in reasons if "✅" in r) >= 1` を要求される。旧 v2 reasons は
+    ✅ ゼロで、発火しても no_confirm:bb_squeeze_breakout で live/shadow/BT
+    すべて死んでいた。counterfactual: ✅ を消すと本テストが落ちる。
+    """
+    monkeypatch.setenv("SQUEEZE_REDESIGN_V2", "1")
+    BBSqueezeBreakout.reset_dedup_state()
+
+    got = BBSqueezeBreakout().evaluate(_ctx(_df(), backtest_mode=False, bar_time=None))
+
+    assert got is not None
+    # demo_trader.py L5597 / app.py L6066 と同一述語
+    confirmed_count = sum(1 for r in got.reasons if "✅" in r)
+    assert confirmed_count >= 1, f"no_confirm gate would block: {got.reasons}"
+
+
+def test_v2_live_loser_reaches_shadow_promote_path(monkeypatch):
+    """修復 pin 層③ (2026-09-10 rule:R3)。
+
+    loser-shadow (split_shadow_always) 配線は strategies/scalp/__init__.py に
+    既存 (SQUEEZE_REDESIGN_V2 + SQUEEZE_REDESIGN_V2_SHADOW_PROMOTE の 2 lever)
+    だが、旧 v2 評価器が live で None を返すため候補が永遠に到達しなかった。
+    live 呼び出し規約で生成された候補が score 敗北時に shadow promote へ
+    届くことを end-to-end で pin する。counterfactual: 層① の fallback を
+    戻すと候補が生成されず本テストが落ちる。
+    """
+    monkeypatch.setenv("SQUEEZE_REDESIGN_V2", "1")
+    monkeypatch.setenv("SQUEEZE_REDESIGN_V2_SHADOW_PROMOTE", "1")
+    BBSqueezeBreakout.reset_dedup_state()
+
+    squeeze = BBSqueezeBreakout().evaluate(_ctx(_df(), backtest_mode=False, bar_time=None))
+    assert squeeze is not None
+
+    engine = ScalperEngine()
+    best = Candidate("BUY", 60, 1.0, 1.2, ["best"], "ema_trend_scalp", 99.0)
+    assert engine.split_shadow_always([best, squeeze], best) == [squeeze]
 
 
 def test_v2_dedups_same_symbol_signal_bar(monkeypatch):
