@@ -19,9 +19,14 @@
       auto_start=True のまま **shadow 1 行すら出せないモード**だった。
 
 本テストは (1) の分離を挙動レベルで pin し、(2) を「既知ドリフト集合との
-完全一致」で pin する。(2) の解消 (= 登録) は Rule 1 (365d BT + Bonferroni
-+ pre-reg + user 決裁) 事項なので、ここでは解消せず**検出可能な状態に固定**
-する — 集合が変わればテストが落ちて必ず判断が要求される。
+完全一致」で pin する。
+
+(2) は 2026-09-10 に解消済み — stage-1 構造的 shadow-only 登録 (rule:R1,
+user 承認 2026-09-10「進めて」, packet:
+knowledge-base/wiki/decisions/rnb-support-bounce-r1-packet-2026-09-10.md)。
+既知ドリフト集合は空になり、完全一致 pin は「新規ドリフトの検出」専用に
+戻った。登録後の構造 (shadow-only 3 点 block / QUALIFIED 化 / sentinel
+非追加) は tests/test_rnb_shadow_only_registration.py が pin する。
 
 分析: knowledge-base/wiki/analyses/rnb-dead-mode-and-block-estimand-2026-09-05.md
 教訓: knowledge-base/wiki/lessons/lesson-block-counter-unmeasured-estimand-2026-09-05.md
@@ -148,40 +153,53 @@ def _rnb_sig(signal: str) -> dict:
     }
 
 
-def _drive(signal: str, tmp_path, monkeypatch) -> dict:
+def _drive(signal: str, tmp_path, monkeypatch):
     monkeypatch.setattr(data_mod, "fetch_oanda_bid_ask", lambda _inst: None)
     monkeypatch.setattr(demo_trader_mod, "datetime", _pinned_datetime(_LONDON_THU))
     trader = _make_trader(tmp_path, monkeypatch)
     cfg = dict(MODE_CONFIG["rnb_usdjpy"])
     trader._tick_entry("rnb_usdjpy", cfg, _rnb_sig(signal), "15m", "USD_JPY")
-    return dict(getattr(trader, "_block_counts", {}))
+    return dict(getattr(trader, "_block_counts", {})), trader
 
 
 def test_wait_is_counted_as_no_signal_not_direction_filter(tmp_path, monkeypatch):
     """WAIT は「方向棄却」ではない — 旧実装はここを direction_filter と数えていた。"""
-    counts = _drive("WAIT", tmp_path, monkeypatch)
+    counts, _trader = _drive("WAIT", tmp_path, monkeypatch)
     assert counts.get("rnb_usdjpy:no_signal") == 1, counts
     assert "rnb_usdjpy:direction_filter" not in counts, counts
 
 
 def test_opposite_direction_is_still_counted_as_direction_filter(tmp_path, monkeypatch):
     """本物の方向棄却 (SELL vs BUY-only) は direction_filter のまま。"""
-    counts = _drive("SELL", tmp_path, monkeypatch)
+    counts, _trader = _drive("SELL", tmp_path, monkeypatch)
     assert counts.get("rnb_usdjpy:direction_filter") == 1, counts
     assert "rnb_usdjpy:no_signal" not in counts, counts
 
 
-def test_buy_passes_the_direction_gate_and_dies_at_unknown_type(tmp_path, monkeypatch):
-    """許可方向 (BUY) はこの gate を通る。
+def test_buy_passes_direction_gate_and_lands_as_shadow_row(tmp_path, monkeypatch):
+    """許可方向 (BUY) は direction gate と unknown_type を通過し shadow 行になる。
 
-    通った先で `unknown_type:rnb_support_bounce` に落ちることを同時に pin する
-    = rnb_usdjpy が「shadow 1 行も出せないモード」であるという事実の回帰固定。
-    登録 (Rule 1) が行われたらこのテストが落ちて判断が要求される。
+    2026-09-10 stage-1 shadow-only 登録 (rule:R1, packet
+    rnb-support-bounce-r1-packet-2026-09-10) 後の挙動 pin:
+      - `unknown_type:rnb_support_bounce` はもう発生しない (dead mode 解消)
+      - 行は必ず is_shadow=1 で永続化 (shadow_only=True の write-path 保証)
+      - OANDA open_trade は呼ばれない (送信ガード最終段)
+    登録が黙って外れたら unknown_type 復活で本テストが落ちる。
     """
-    counts = _drive("BUY", tmp_path, monkeypatch)
+    counts, trader = _drive("BUY", tmp_path, monkeypatch)
     assert "rnb_usdjpy:no_signal" not in counts, counts
     assert "rnb_usdjpy:direction_filter" not in counts, counts
-    assert counts.get("rnb_usdjpy:unknown_type:rnb_support_bounce") == 1, counts
+    assert not any(k.startswith("rnb_usdjpy:unknown_type") for k in counts), counts
+    with trader._db._safe_conn() as conn:
+        rows = conn.execute(
+            "SELECT entry_type, mode, is_shadow FROM demo_trades"
+        ).fetchall()
+    assert rows, f"shadow 行が書かれていない (counts={counts})"
+    assert rows[0]["entry_type"] == "rnb_support_bounce"
+    assert rows[0]["mode"] == "rnb_usdjpy"
+    assert rows[0]["is_shadow"] == 1
+    assert not trader._oanda.open_trade.called, (
+        "shadow-only mode から OANDA open_trade が呼ばれた")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -216,9 +234,11 @@ def test_compute_rnb_signal_cannot_emit_sell():
         f"compute_rnb_signal の signal literal が変化した: {sorted(signals)}")
 
 
-# 既知の registration drift (2026-09-05 検出)。解消は Rule 1 = user 決裁事項。
-# registry: rnb-support-bounce-registration-decision
-KNOWN_REGISTRATION_DRIFT = {("rnb_usdjpy", "rnb_support_bounce")}
+# 既知の registration drift: **空** (2026-09-10 に唯一の既知ドリフト
+# ("rnb_usdjpy", "rnb_support_bounce") を stage-1 shadow-only 登録で解消 —
+# rule:R1, user 承認 2026-09-10, packet rnb-support-bounce-r1-packet-2026-09-10)。
+# 新規ドリフトが 1 件でも生まれれば完全一致 pin が落ちて判断が要求される。
+KNOWN_REGISTRATION_DRIFT: set = set()
 
 
 def test_auto_start_modes_have_no_unknown_registration_drift():

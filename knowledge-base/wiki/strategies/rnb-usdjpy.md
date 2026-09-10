@@ -1,11 +1,11 @@
-# RNB USD/JPY — Round Number Barrier
+# RNB USD/JPY — Round Number Barrier (mode カード)
 
 ## Overview
-- **Entry Type**: `rnb_usdjpy`
+- **Entry Type**: `rnb_support_bounce` (戦略カード: [[rnb-support-bounce]])
 - **Category**: Round Number / Barrier
 - **Pair**: USD_JPY
 - **Mode**: rnb_usdjpy (auto_start=True, v9.0)
-- **Status**: SHADOW (data collection)
+- **Status**: SHADOW — 2026-09-10 stage-1 構造的 shadow-only 登録済み (`shadow_only: True`、rule:R1 user 承認)。OANDA 発注ゼロを mode レベルで構造保証
 
 ## Hypothesis
 USD/JPY is heavily influenced by round number levels (e.g., 150.000, 151.000). These levels act as psychological barriers where institutional order flow clusters, creating predictable bounce/break patterns.
@@ -24,11 +24,13 @@ Detects proximity to round number barriers on USD_JPY and generates signals base
 ⚠️ config コメントの「BUY EV=+7.7」は BE/Trail ablation 前 (2026-04-05) の数字で引用禁止。
 
 ## Live Performance
-**行ゼロは仕様ではなくバグ由来**: `rnb_support_bounce` が QUALIFIED_TYPES 未登録のため 2026-04-05 以来 shadow 1 行も出せない ([[../analyses/rnb-dead-mode-and-block-estimand-2026-09-05]])。
-登録の可否は R1 パケット [[../decisions/rnb-support-bounce-r1-packet-2026-09-10]] で user 決裁待ち (stage-1 = 構造的 shadow-only 案)。
+**履歴**: 2026-04-05〜09-10 は QUALIFIED_TYPES 未登録の dead mode で shadow 行ゼロだった ([[../analyses/rnb-dead-mode-and-block-estimand-2026-09-05]])。
+**2026-09-10 登録執行** (user 決裁 GO、[[../decisions/rnb-support-bounce-r1-packet-2026-09-10]] §9): stage-1 構造的 shadow-only — shadow 行の蓄積はここから開始。LIVE 発火は `shadow_only: True` で構造的にゼロ。
+forward 判定は 🔒 LOCK `rnb-support-bounce-shadow-forward` (first look shadow N≥41 or 2027-01-15) に凍結 — 中間読み禁止 (P-10)。
 
 ## Related
+- [[rnb-support-bounce]] — 戦略カード (BT 実測 / LOCK / R2 gate)
 - [[index]] — Tier classification
 - [[system-reference]] — Mode details
-- [[../decisions/rnb-support-bounce-r1-packet-2026-09-10]] — 登録 R1 パケット (2026-09-10)
+- [[../decisions/rnb-support-bounce-r1-packet-2026-09-10]] — 登録 R1 パケット + §9 執行記録 (2026-09-10)
 - [[../analyses/rnb-dead-mode-and-block-estimand-2026-09-05]] — 153 日 dead mode の経緯

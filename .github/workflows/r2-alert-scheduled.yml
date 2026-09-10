@@ -33,6 +33,19 @@ jobs:
         run: |
           python3 tools/shadow_promote_r2_alert.py --json --include-all-static --apply-demote
 
+      # rnb stage-1 shadow-only 登録の R2 auto-demote gate (2026-09-10, rule:R1
+      # user 承認 — packet rnb-support-bounce-r1-packet-2026-09-10 §5)。
+      # shadow closed N>=30 (dedup_violation=0) ∧ Wilson_hi<42.9% で exit 1
+      # = auto_start=False の R2 起案。読み手配線は
+      # tests/test_rnb_shadow_demote_gate.py が pin (write-only 検知器防止)。
+      - name: Run rnb shadow demote gate
+        id: rnb-demote-gate
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 tools/rnb_shadow_demote_gate.py --json
+
       - name: Commit R2 alert report
         id: kb-commit
         continue-on-error: true
@@ -51,6 +64,9 @@ jobs:
             echo "No R2 alert report changes to commit"
           fi
 
-      - name: Fail on R2 critical or fetch error
-        if: steps.r2-alert.outcome != 'success'
+      # 両 gate の発火/故障を workflow 失敗として fail-loud にする
+      # (continue-on-error は KB commit ステップを先に走らせるためだけの措置 —
+      # ここで折り畳むと write-only 検知器に戻る)
+      - name: Fail on R2 critical, rnb demote gate, or fetch error
+        if: steps.r2-alert.outcome != 'success' || steps.rnb-demote-gate.outcome != 'success'
         run: exit 1

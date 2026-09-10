@@ -1,9 +1,11 @@
-# rnb_support_bounce 登録 R1 パケット (2026-09-10 起案 — user 決裁待ち)
+# rnb_support_bounce 登録 R1 パケット (2026-09-10 起案 → 同日 user 決裁済み・執行済み)
+
+> **決裁記録 (2026-09-10)**: user「進めて」により推奨案を承認 — D1 = GO (stage-1 構造的 shadow-only 登録)、D2 = 承認 (§6 LOCK 草案 → §9 で正式 LOCK 化)、D3 = GO。執行記録は §9 参照。
 
 **rule**: R3 (起案・分析) / 執行は R1 (user 最終承認必須)
 **背景**: [[process-meta-audit-2026-09-07]] §4.2 R1(a) — 「live 層の無料 N 源回収」の前倒し起案 (user 2026-09-10「全て進めて」承認は*起案*に対するもの。登録の執行承認は本パケット §7)。
 **一次資料**: [[../analyses/rnb-dead-mode-and-block-estimand-2026-09-05]] (153 日登録漏れ) / registry `rnb-support-bounce-registration-decision` (期日 2026-10-06) / BT evidence: `raw/bt-results/rnb-support-bounce-ablated-bt-2026-09-10.md`
-**本パケットは文書のみ。live コード変更なし。**
+**本パケットの起案コミットは文書のみ (live コード変更なし)。** 執行 (コード変更) は user 決裁後の別 PR — §9 執行記録参照。
 
 ---
 
@@ -101,9 +103,11 @@ lot floor: stage-1 は shadow のため発注なし。**stage-2 (live) 移行時
 
 | # | 決裁事項 | 選択肢 |
 |---|---|---|
-| D1 | stage-1 shadow-only 登録 (§4) を執行するか | [ ] GO / [ ] NO-GO / [ ] 期日 10-06 の頻度実測 (§2.3) を見てから再提出 |
-| D2 | §6 pre-reg LOCK 草案の承認 (D1 GO の場合のみ) | [ ] 承認 / [ ] 修正指示 |
-| D3 | §2.3 の block-counts 日次読み手 (手順のみ、コード変更なし) の実施 | [ ] GO / [ ] 不要 |
+| D1 | stage-1 shadow-only 登録 (§4) を執行するか | [x] **GO** / [ ] NO-GO / [ ] 期日 10-06 の頻度実測 (§2.3) を見てから再提出 |
+| D2 | §6 pre-reg LOCK 草案の承認 (D1 GO の場合のみ) | [x] **承認** (→ §9 で LOCK 正式化) / [ ] 修正指示 |
+| D3 | §2.3 の block-counts 日次読み手 (手順のみ、コード変更なし) の実施 | [x] **GO** / [ ] 不要 |
+
+**決裁**: user「進めて」2026-09-10 (推奨案 = stage-1 構造的 shadow-only 登録の実装承認)。
 
 **推奨**: D3 = GO (期日 10-06 の判定成立に必須)。D1 は「shadow N 源の価値 (2.99/週、M1/M3 の統計 power への寄与) が登録複雑性を上回る」かの判断 — BT evidence は昇格を支持しないが登録 (観測) を妨げる水準でもない (net EV +0.04p は境界内。net EV < −1.0p なら起案自体を見送る基準で設計)。
 
@@ -111,3 +115,31 @@ lot floor: stage-1 は shadow のため発注なし。**stage-2 (live) 移行時
 
 - `rnb-support-bounce-registration-decision` の message に追記: 「R1 パケット起案済み ([[rnb-support-bounce-r1-packet-2026-09-10]])。BT evidence は昇格 gate 不成立 (net EV +0.04p / Wilson_lo 46.8% < BEV 49.0%)。期日判定は §2.3 の active-hours 込み実測で行う。決裁は packet §7」
 - D1 GO 時: `rnb-support-bounce-shadow-forward` LOCK エントリ新設 (§6 の数値境界をそのまま転記)
+
+---
+
+## 9. 🔒 LOCK 確定 + 執行記録 (2026-09-10, rule:R1 — user 承認「進めて」2026-09-10)
+
+### 9.1 pre-reg LOCK: `rnb-support-bounce-shadow-forward` (§6 草案を無修正で正式化)
+
+- **LOCK 日**: 2026-09-10 (登録デプロイ日 = forward 母集団起点 `since: 2026-09-10`)
+- **estimand**: 登録デプロイ後の forward shadow rows (USD_JPY, BUY, closed, dedup_violation=0, 厳格 shadow = `is_shadow=1 ∧ oanda_trade_id 空`) の WR / net EV (friction 2.14p)
+- **first look**: shadow N≥41 到達時 or 2027-01-15 の早い方。**それまで gate×outcome joint 計算禁止 (P-10 型)、中間再計算禁止** (sr_anti_hunt forward 枠と同型)
+- **採用境界 (stage-2 R1 起案条件)**: N≥41 で Wilson_lo(WR) > 49.0% ∧ net EV > 0
+- **棄却境界**: Wilson_hi(WR) < 42.9% (gross BEV) → クローズ + auto_start=False 提案。棄却側は**事前登録済みの継続監視** (非対称機動性 Rule 2) として `tools/rnb_shadow_demote_gate.py` が N≥30 から評価する — 採用側 estimand (Wilson_lo / net EV) は first look まで計算・出力しない
+- **どちらでもない場合**: N≥82 まで継続し再判定 (1 回限り)
+- **監視エントリ**: registry `rnb-support-bounce-shadow-forward` (type: shadow_count_decision, n_decide=41, n_floor=41, deadline=2027-01-15 — 評価主体 = `tools/prereg_trigger_watch.py` 日次 Tier A cron)
+
+### 9.2 執行記録 (同期 4 点 + 併設物)
+
+| # | 項目 | 実施内容 |
+|---|---|---|
+| 1 | QUALIFIED_TYPES | `modules/demo_trader.py` `_tick_entry` 内に `"rnb_support_bounce"` 追加 (packet ID コメント付き) |
+| 2 | MODE_CONFIG | `rnb_usdjpy` に `"shadow_only": True` 追加 (daytrade_audjpy 前例の 3 点 block: 送信ガード最終段 / resend gate / write-path)。`_UNIVERSAL_SENTINEL` には**追加しない** (§4 のとおり) |
+| 3 | drift-pin テスト | `tests/test_rnb_block_reason_estimand.py` KNOWN_REGISTRATION_DRIFT=空 + BUY→shadow 行 pin / `tests/test_rnb_shadow_only_registration.py` 新設 (QUALIFIED 化・shadow_only・sentinel 非追加・3 点 block の worst-case + control) / `tests/test_daytrade_audjpy_shadow_only_mode.py` `tests/test_preserve_types_tick_entry.py` の完全一致 pin 更新 |
+| 4 | KB 同期 | `tools/sync_kb_index.py --write` + `tools/tier_integrity_check.py --write` (--check ERROR=0) + strategy card `wiki/strategies/rnb-support-bounce.md` 新設 / `rnb-usdjpy.md` 更新 |
+| 5 | R2 demote gate | `tools/rnb_shadow_demote_gate.py` 新設 (§5 stage-1 gate: shadow closed N≥30 ∧ Wilson_hi<42.9% → auto_start=False の R2 起案、exit 1)。読み手 = `.github/workflows/r2-alert-scheduled.yml` (6h 毎)、配線は `tests/test_rnb_shadow_demote_gate.py` が pin。counterfactual テスト同梱 (発火側/非発火側/母集団フィルタ/P-10 出力制限) |
+| 6 | registry | `rnb-support-bounce-registration-decision` resolve (期日 10-06 前倒し) + `rnb-support-bounce-shadow-forward` 新設 (§9.1) |
+
+- **D3 (block-counts 手動読み手)**: GO — ただし登録執行により forward shadow 行が頻度の直接測定器になったため、§2.3 手順は補助 (登録デプロイ前の窓・forming-bar 側の突き合わせ用) に位置づけを変更。registry 期日 10-06 判定そのものは resolve 済み
+- **stage-2 (live 1000u = lot ladder 第 1 段) は別途 R1** — 本 LOCK の first look 通過 (採用境界) が前提条件
