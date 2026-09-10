@@ -20,6 +20,16 @@
 - テスト: 16 → **18 本**。counterfactual 2/2
 - 分析: [[roster-d-class-estimand-audit-2026-09-10]] / 改定対象: [[live-roster-attrition-2026-09-06]] §2.1
 
+## 2026-09-10 — feat(quality): estimand 宣言表 + 配線チェッカー — 検知器の「名乗る量」を台帳化 (rule:R3)
+
+- **メタ監査 §4.2 R3 の執行** ([[process-meta-audit-2026-09-07]]、user 承認 09-10): 監視バグ潜伏中央値 124 日・QA 起点発見 0/8 の根因 = estimand 混同 (PR #221/#224/#207/#209/#228 が同型) に対し、検知器の estimand を 1 ファイルに外部化した
+- **宣言表**: `monitoring/estimand_declarations.yml` — 本番監視 **14 系列** (engine_tick_stall / candidate_stagnation / trade_row_freshness / live_n_stagnation / live_fill_stagnation / db_write_probe / disk_capacity / api_reachability / m1_clean_live_kpi / prereg_trigger_watch / shadow_promote_r2_alert / live_roster_attrition / trade_monitor_activity / demo_trader_watchdog) について claims (名乗る量) / population (母集団) / clock (wall|market_open) / threshold_source (SSOT) / reader (読み手) / counterfactual_test を宣言。**全宣言はコード読解で確認済み — 推測記載ゼロ** (推測で書くこと自体が estimand 混同)
+- **チェッカー**: `tools/estimand_declaration_check.py` — schema 検証 + reader/threshold_source/detector の **grep レベル配線検証** (ファイル実在 + 宣言文字列の参照)。counterfactual 不在は WARN (exit 0)、`--strict` で exit 1。PyYAML 依存を避け厳格サブセットを自前パース (逸脱は ParseError — 黙って読み飛ばさない)。モジュールトップ副作用ゼロ
+- **チェッカー自体の counterfactual**: `tests/test_estimand_declarations.py` 13 本 — reader を偽パス化 / 参照文字列を偽トークン化 / counterfactual_test を偽パス化 / 閾値シンボル改名 / clock 値域外 / typo フィールド、の各 fixture で checker が ERROR を出すことを pin (「検査を書いたら検査対象を壊して落ちることを確認」)。実宣言表の配線整合も CI で常時 pin
+- **既知の負債を可視化**: counterfactual 不在 **8 系列** (candidate_stagnation / db_write_probe / disk_capacity / prereg_trigger_watch / shadow_promote_r2_alert / live_roster_attrition / trade_monitor_activity / demo_trader_watchdog) + 自動読み手なし 1 系列 (live_roster_attrition = ON_DEMAND)。返済計画は [[estimand-declaration-system-2026-09-10]] §5 — 全返済後に `--strict` を CI 既定へ
+- **修理 PR 3 フィールド規約**: `.github/pull_request_template.md` 新設 — bugfix PR に「混入日 / 発見日 / 発見手段」欄 (欠陥税の継続測定用、bugfix 以外は N/A) + 検知器追加時のチェックリスト (宣言 + reader + counterfactual test を同一コミット)
+- **本番挙動変更ゼロ** (新規ファイル + テンプレのみ、既存 .py 非接触)。`scripts/check.py` への組込みは提案のみ (analyses §6、親セッションが別途実施)
+- 分析: [[estimand-declaration-system-2026-09-10]]
 
 ## 2026-09-06 — diag(monitoring): LIVE 発火セル 124→3 の帰属 — 88.7% は設計通り、11.3% は帰属不能 (rule:R3)
 
