@@ -4396,6 +4396,16 @@ Cutoff後累計では N=6、WR=50.0%、PnL=**−86.6p**（累計赤字）。
 - 27モード稼働中、実際のエントリーは皆無
 - **主因推定**: block_countsが示す通り、`order_bar_dedup`・`hedge_block`・`r2_shadow_demoted_cell`が連鎖的に稼働を抑制
 
+### 2026-09-10 (Post-London Report)
+| PnL | **0.0 pips** |
+- **`hedge_block`系（合計484件超）が最大カテゴリ。** OANDA側で1件オープントレードが存在しており、これがヘッジ制限を発動させ続けている可能性が高い。単一のオープンポジションがシステム全体の執行を抑制する構造的圧力となっている。
+- **`r2_shadow_demoted_cell`系（合計288件超）が第二カテゴリ。** scalp系3モード（scalp, scalp_eur, scalp_5m, scalp_5m_eur）でセル降格フィルタが大量発動。スキャルプ戦略の有効セルが枯渇気味であることを示す。
+- **`order_bar_dedup`系（合計238件）が第三カテゴリ。** EUR/GBP系のday tradeで同バー内重複注文制限が多発。シグナル自体は発生しているが、時間軸の重複で弾かれている。
+| PnL | +0.6 pips | 0.0 pips |
+| WR | 100%（N=1） | N/A |
+- **USD/JPY (VOLATILE, 79%ile)**: NYオープンで米国指標への反応リスク高。ボラティリティがさらに上昇する可能性。
+- **EUR/USD / GBP/USD (RANGING, 34–38%ile)**: NY移行でロンドン・フィックス後のドリフトに注意。方向感が出る場合はscalp系に好機。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
