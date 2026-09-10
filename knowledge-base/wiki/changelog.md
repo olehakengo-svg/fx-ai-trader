@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-10 — docs(packet): rnb R1 パケット起案 + E2_SILENT 4 セル判別 (rule:R3)
+
+- **rnb_support_bounce 登録 R1 パケット起案** ([[rnb-support-bounce-r1-packet-2026-09-10]]、meta 監査 R4.2-R1(a) の前倒し) — **365d BE/Trail-ablated BT を初実施: N=126 WR 55.6% net EV +0.04p (≈0、p=0.082 NS)、730d は −2.20p、2026-03 単月 +160.9p 依存 ⇒ live 昇格根拠なし**。提案は stage-1 構造的 shadow-only 登録 (`shadow_only: True`、daytrade_audjpy 前例) に限定 + R2 auto demote gate 併設 + pre-reg LOCK 草案 (first look N≥41 or 2027-01-15)。user 決裁欄 D1-D3。BT: `raw/bt-results/rnb-support-bounce-ablated-bt-2026-09-10.md`
+- **live 実測頻度の中間読みは無情報と判明** — 現 counter 窓 (09-09 23:28 再デプロイ以降 736 tick) は active hours (UTC 7-20) を 1 分も含まず `unknown_type:rnb_support_bounce`=0 は設計整合。**09-05 以降に active hours を含んだ counter 窓 2 本 (計 ~39h) は snapshot されずに再起動で消滅** — 期日 10-06 判定には UTC 19:5x の block-counts pull 手順 (packet §2.3) が必要
+- 🛑 **E2_SILENT 4 セル判別 ([[e2-silent-cells-triage-2026-09-10]]): registry 前提「05-06 以降 4 セル行ゼロ」は本番 DB 実測で 2/4 が偽** — ema200×USD_JPY×SELL は 19 行 (〜08-05)、SRM×GBP_USD は 51 行 (〜08-31) が実在。attrition tool の 30d 窓を「05-06 以降ゼロ」と読み替えた**窓天井の再発** (クラス名が estimand を運んだ)
+- 🛑 **真の沈黙は bb_squeeze_breakout×EUR_USD の 2 セルのみ = 配線落ち 3 層** (commit `942e3800` 2026-05-06、最終行と rollout が分単位で一致): (1) v2 評価器が live 呼び出し規約 (bar_time=None) で**構造的 None** — 「shadow で実測する」目的の v2 が実測経路で恒久沈黙、(2) v2 reasons に ✅ 欠落 → 仮に発火しても `no_confirm` gate で死ぬ、(3) loser-shadow 経路は評価器 None で不達。「意図的無効」の決裁は存在せず _PAIR_PROMOTED 現役掲載のまま 127 日
+- ema200/SRM の頻度低下は **PR #168 (08-09 ctx.hour_utc 凍結修復) で session gate が 123 日ぶりに実効化した帰結** (意図された設計) + SELL は USD_JPY 上昇 regime で条件不成立 — E1 (supply present) へ再分類を提案
+- 観測基盤の欠陥 2 件を起票提案: `/api/demo/live-enable-flags` が REDESIGN_V2 系 ~40 lever を返さず registry の判別手順が実行不能だった / attrition tool に全期間 `last_row_at` が無く「いつから沈黙か」に答えられない
+- registry 変更提案 (執行せず): `rnb-support-bounce-registration-decision` へ packet 参照追記 / `roster-e2-silent-promoted-cells` の E2 実体を bb_squeeze 2 セルへ訂正
+
 ## 2026-09-06 — diag(monitoring): LIVE 発火セル 124→3 の帰属 — 88.7% は設計通り、11.3% は帰属不能 (rule:R3)
 
 - 🛑 **09-04 が M3 スループットを「独立ボトルネック」へ昇格させた際の帰属 (「7-8 月の R2 降格バッチ = 設計通り」) は検証されていなかった** — どのセルがどの停止機構で消えたかを機械的に突き合わせた主体が存在しなかった。本コミットで読み手を新設し突合した
