@@ -402,6 +402,33 @@ def check_env_gate_declarations() -> tuple[list[str], list[str]]:
     return errors, warns
 
 
+def check_prereg_registry_schema() -> tuple[list[str], list[str]]:
+    """pre-reg trigger registry の型別スキーマ整合 (rule:R3, 2026-09-08)。
+
+    2026-09-06 に artifact_presence を名乗りながら requirements を欠く
+    エントリが main に着地し、daily の trigger watch が KeyError で落ちて
+    **51 エントリ全ての監視が 2 日間停止**した。監視器の入力は authoring 時に
+    落とす — 実行時に落ちると「監視していない」ことに誰も気づかない。
+    """
+    errors: list[str] = []
+    warns: list[str] = []
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    try:
+        from tools.prereg_trigger_watch import lint_registry
+    except Exception as e:  # noqa: BLE001
+        # skip に落とさない: 検査できないことを「合格」と読ませない
+        # (write-only guard の再発防止)。
+        return [f"  ❌ prereg registry lint が実行不能: {e}"], []
+    try:
+        violations = lint_registry()
+    except Exception as e:  # noqa: BLE001
+        return [f"  ❌ prereg registry の読込に失敗: {e}"], []
+    for v in violations:
+        errors.append(f"  ❌ prereg registry: {v}")
+    return errors, warns
+
+
 def check_ai_task_governance() -> tuple[list[str], list[str]]:
     """Codexタスク運用の機械的整合チェック (rule:R3, 2026-07-02)。
 
@@ -731,6 +758,15 @@ def main() -> int:
     warnings.extend(env_warns)
     if not env_errors:
         ok("env gate 宣言OK")
+        ok_count += 1
+
+    # ── 9. pre-reg trigger registry スキーマ (監視器を authoring 時に守る) ──
+    section("pre-reg trigger registry スキーマ + 到達経路 lint")
+    reg_errors, reg_warns = check_prereg_registry_schema()
+    errors.extend(reg_errors)
+    warnings.extend(reg_warns)
+    if not reg_errors:
+        ok("prereg registry lint OK")
         ok_count += 1
 
     # ── Summary ──

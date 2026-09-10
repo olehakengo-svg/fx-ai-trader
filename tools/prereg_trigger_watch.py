@@ -24,7 +24,10 @@ Registry: knowledge-base/wiki/decisions/prereg-trigger-registry.json
 from __future__ import annotations
 
 import argparse
+import ast
 import json
+import math
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +40,9 @@ APP_BASE_DEFAULT = "https://fx-ai-trader.onrender.com"
 STATE_TRIGGERED = "TRIGGERED"
 STATE_WATCHING = "WATCHING"
 STATE_UNAVAILABLE = "DATA_UNAVAILABLE"
+# 「評価器が落ちた」は「データが取れなかった」と別事象。折り畳むと
+# 壊れた監視器が「異常なし」と区別できなくなる (2026-09-08 実発生)。
+STATE_ERROR = "EVAL_ERROR"
 
 
 # ── 純関数 (テスト対象) ──────────────────────────────────────────────
@@ -575,12 +581,65 @@ def fetch_ingest_health(app_base: str, endpoint: str) -> dict[str, Any] | None:
 
 # ── registry 評価 ────────────────────────────────────────────────────
 
-def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
+def load_registry_raw(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
+    """active フィルタ前の全エントリ。lint は必ずこちらを見る。
+
+    2026-09-08 (PR #227 Codex P2 9 巡目): `active` は truthiness で消費される
+    ため `active: "false"` は **true** 扱いで評価され、逆に壊れた falsey 値は
+    lint に届く前に消える。フィルタ後だけを検査する lint は `active` 自身の
+    不正を構造的に見られない。
+    """
     data = json.loads(path.read_text(encoding="utf-8"))
-    return [t for t in data.get("triggers", []) if t.get("active", True)]
+    # `.get("triggers", [])` は root キーの綴り違い/欠落を**空の台帳**に畳んで
+    # しまう。すると check.py も本監視器も exit 0 のまま「active な trigger は
+    # 無い」と報告し、**51 エントリ全部が黙って消える** — 本 PR が直している
+    # 2 日間 blind と同じ帰結を、もっと静かな形で作る (Codex P1 16 巡目)。
+    # 監視器の不変条件: **検査不能を「異常なし」に折り畳まない**。
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            f"{path}: registry の root が dict でない "
+            f"({type(data).__name__}) — 台帳として読めない")
+    if "triggers" not in data:
+        near = [k for k in data if "trig" in k.lower()]
+        raise RuntimeError(
+            f"{path}: root に 'triggers' キーが無い (実在キー: {sorted(data)})"
+            + (f" — 綴り違いの候補: {near}" if near else "")
+            + "。空の台帳に畳むと全 trigger が黙って消える")
+    trigs = data["triggers"]
+    if not isinstance(trigs, list):
+        raise RuntimeError(
+            f"{path}: 'triggers' が list でない ({type(trigs).__name__})")
+    if not trigs:
+        # 「意図的に空」と「台帳が消えた」を区別できないので、監視器としては
+        # 後者を仮定する。本当に空の台帳を運用するなら本 guard を明示的に外す。
+        raise RuntimeError(
+            f"{path}: 'triggers' が空 — 監視器は「意図的に空」と「台帳が"
+            "消えた」を区別できないため異常として扱う")
+    return list(trigs)
 
 
-def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict[str, Any]:
+def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
+    """active フィルタ後のエントリ。
+
+    ⚠️ `active` フィルタの前に**要素が dict であること**を確かめる。
+    `{"triggers": [null, {...}]}` は list 形の検査を通るが `null.get()` で
+    ここが落ち、`evaluate_trigger` の隔離ラッパに届く前に**後続の正常な
+    trigger すべてが未評価**になる (PR #227 Codex P2 18 巡目) —
+    隔離ラッパが防ぐはずの盲点を、その手前の層で作り直していた。
+    """
+    raw = load_registry_raw(path)
+    bad = [i for i, t in enumerate(raw) if not isinstance(t, dict)]
+    if bad:
+        kinds = {i: type(raw[i]).__name__ for i in bad}
+        raise RuntimeError(
+            f"{path}: triggers の要素が dict でない (index→型: {kinds}) — "
+            "active フィルタより手前で落ちるため隔離ラッパでは救えない")
+    return [t for t in raw if t.get("active", True)]
+
+
+def _evaluate_trigger_impl(
+    trig: dict[str, Any], *, today: str, app_base: str,
+) -> dict[str, Any]:
     ttype = trig.get("type")
     if ttype == "price_below":
         res = evaluate_price_below(
@@ -601,9 +660,16 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
                                closed_only=bool(trig.get("closed_only"))),
             int(trig["n_decide"]), int(trig["n_floor"]), trig["deadline"], today)
     elif ttype == "shadow_count_info":
+        # 2026-09-10 (PR #227 Codex P2 14 巡目): instrument / direction は
+        # allowlist にあるのに評価器へ渡されていなかった = 綴りが正しくても
+        # **黙って全ペア/全方向を計上**する。shadow_count_decision 側は
+        # 2026-08-18 に同じ穴を塞いでいる (sr-anti-hunt 偽発火)。
+        # allowlist に入れた selector は必ず評価器まで配線すること。
         res = evaluate_shadow_count_info(
             fetch_shadow_count(trig["entry_type"], trig["since"], app_base,
                                prefix=trig.get("match") == "prefix",
+                               instrument=trig.get("instrument", ""),
+                               direction=trig.get("direction", ""),
                                mode=trig.get("mode", ""),
                                exclude_dedup_violation=(
                                    trig.get("count_basis") == "unique")),
@@ -650,11 +716,693 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
             "message": trig.get("message", ""), **res}
 
 
+def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict[str, Any]:
+    """1 エントリの評価を隔離する。
+
+    2026-09-08: registry の 1 エントリ (roster-e2-silent-promoted-cells) が
+    type に必要なフィールドを欠いていたため `trig["requirements"]` が
+    KeyError を投げ、**51 エントリ全ての監視が 2 日間停止**した。1 件の
+    不整合が全体を落とす設計は監視器として不可。壊れたエントリは自分だけ
+    EVAL_ERROR を名乗り、残りは通常どおり評価される。
+    """
+    try:
+        return _evaluate_trigger_impl(trig, today=today, app_base=app_base)
+    except Exception as exc:  # noqa: BLE001 - 監視器を 1 件で落とさない境界
+        return {"id": trig.get("id", "(no id)"), "doc": trig.get("doc", ""),
+                "message": trig.get("message", ""),
+                "state": STATE_ERROR,
+                "detail": f"評価器が例外で停止: {type(exc).__name__}: {exc}"}
+
+
 MACHINE_EVALUABLE_TYPES = {
     "price_below", "shadow_count_decision", "shadow_count_info",
     "live_count_decision", "deadline_info", "ingest_freshness",
     "artifact_presence", "data_coverage", "csv_row_match",
 }
+
+
+# type ごとに評価器が「必ず添字アクセスする」フィールド。
+# 欠けたエントリは実行時 KeyError になるため、authoring 時に落とす。
+REQUIRED_FIELDS_BY_TYPE: dict[str, tuple[str, ...]] = {
+    "price_below": ("symbol", "threshold"),
+    "shadow_count_decision": ("entry_type", "since", "n_decide", "n_floor",
+                              "deadline"),
+    "shadow_count_info": ("entry_type", "since", "expected_per_week"),
+    "live_count_decision": ("entry_type", "since", "n_decide", "deadline"),
+    "deadline_info": ("deadline",),
+    "ingest_freshness": ("checks",),
+    "artifact_presence": ("requirements",),
+    "data_coverage": ("source", "source.path", "threshold_date"),
+    "csv_row_match": ("source", "source.path", "source.match"),
+    "info": (),
+    "conditional_info": (),
+}
+
+# コレクション型フィールドの要素スキーマ: (dotted path, 要素が持つべきキー)。
+# 上の top-level 検査だけでは `requirements: [{}]` のような形が素通りし、
+# 実行時に scan_artifacts / evaluate_ingest_freshness が KeyError を投げる
+# (PR #227 Codex P2)。評価器が添字アクセスする深さまで authoring 時に見る。
+# 空文字が「ワイルドカード (絞り込まない)」として正当な意味を持つフィールド。
+# 例: hourblock-class-exempt-r2-rollback は entry_type="" で全戦略を対象にし、
+# 母集団は reasons_marker で定義する。ただし**何かが母集団を定義している**ことは
+# 下の ALTERNATIVE_FIELDS_BY_TYPE で必須にする — 両方空なら全 live トレードを
+# 数える無言の過大計上になる (sr-anti-hunt 偽発火と同型)。
+# 空文字が「絞り込まない」の正当な表明である絞り込み系フィールド。
+# 型 (str) は要求するが空であること自体は違反にしない。
+# 純粋な絞り込み (空 = 全件、母集団は entry_type が定義する) — 全 type 共通。
+EMPTY_OK_FIELDS = frozenset({"instrument", "direction", "mode",
+                             "reasons_marker"})
+
+# entry_type 自体を空にできるのは、母集団を別の field が定義する type だけ。
+# shadow_count 系は entry_type が唯一の母集団定義なので、空 + match:"prefix" は
+# `startswith("")` で全 shadow トレードを数え判定を極端に早める
+# (PR #227 Codex P2 10 巡目)。
+EMPTY_ENTRY_TYPE_OK_TYPES = frozenset({"live_count_decision"})
+
+# type ごとの「いずれか 1 つは非空でなければならない」トップレベル field 群。
+ALTERNATIVE_FIELDS_BY_TYPE: dict[str, tuple[tuple[str, ...], ...]] = {
+    "live_count_decision": (("entry_type", "reasons_marker"),),
+}
+
+# 各要素は (dotted path, 常に必要なキー, 「いずれか 1 つ」で足りるキー群)。
+# ingest_freshness の check は prefix があれば key 不要、無ければ chk["key"] を
+# 添字アクセスする — 「どちらか必須」を表現できないと片方の欠落を見逃す
+# (PR #227 Codex P2 の 2 巡目)。
+# dict 型の入れ子 spec — 中の既知フィールドは任意でも検査する。
+# `source.label_columns: 1` は top-level 走査では見つからず、行が一致した
+# 瞬間に TypeError になる (PR #227 Codex P2 10 巡目)。
+#
+# 値は**その spec 内で許可されるキー**の集合 = 評価器が実際に添字 / `get` する
+# キーだけを列挙する (SSOT)。top-level と コレクション要素は
+# reject-by-default にしたが、**その間の層**は素通りしていた:
+# `source.date_colum` は lint を通り、`fetch_data_coverage_max` が
+# `spec.get("date_column", "")` で空に落ちて日付列なしのまま毎日
+# DATA_UNAVAILABLE を返し続ける (PR #227 Codex P2 14 巡目)。
+# ⚠️ 「走査対象の一覧」と「許可キー」を**別の定数に分けない** — 14 巡目で
+# 一度分けたら名前衝突で既存の走査を静かに壊した。1 本に保つこと。
+NESTED_SPEC_ALLOWED_KEYS: dict[str, dict[str, frozenset[str]]] = {
+    "data_coverage": {"source": frozenset({"path", "date_column"})},
+    "csv_row_match": {"source": frozenset({"path", "match",
+                                           "label_columns"})},
+}
+
+# コレクション要素内で**排他**の selector 群。少なくとも 1 つ必須
+# (ALTERNATIVE 側) に加えて、2 つ以上あってはならない: 評価器は
+# `if prefix:` で分岐するため `key` を黙って無視し、明示したキーが
+# 完全に未監視になる (PR #227 Codex P2 18 巡目)。
+EXCLUSIVE_ELEMENT_GROUPS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "ingest_freshness": (("key", "prefix"),),
+}
+
+# list[str] を要求するフィールド。
+STRING_LIST_FIELDS = frozenset({"label_columns"})
+
+
+# (dotted, 必須キー, 択一グループ, 任意キー)。任意キー = 評価器が
+# `elem.get(...)` で読む field。ここに無いキーは**綴り違い**として落とす:
+# `{"column": "n", "value": 10, "opp": ">"}` は要素キー allow-by-default だと
+# lint を通り、_csv_row_predicate が op 既定値 "==" で**別の条件**を黙って
+# 監視し続ける (PR #227 Codex P2 13 巡目 — top-level と同じ reject-by-default
+# を要素レベルまで降ろす)。
+COLLECTION_ELEMENT_FIELDS: dict[
+    str,
+    tuple[
+        tuple[str, tuple[str, ...], tuple[tuple[str, ...], ...],
+              tuple[str, ...]],
+        ...,
+    ],
+] = {
+    "artifact_presence": (
+        ("requirements", ("path",), (), ("min_files", "label")),),
+    "ingest_freshness": (
+        ("checks", ("max_age_hours",), (("key", "prefix"),), ("min_keys",)),),
+    "csv_row_match": (
+        ("source.match", ("column", "value"), (), ("op",)),),
+}
+
+
+# 評価器が float()/int() で数値化するフィールド (dotted / 要素キー)。
+# 値の型まで見ないと `max_age_hours: null` が lint を通り実行時に落ちる
+# (PR #227 Codex P2 4 巡目)。
+NUMERIC_FIELDS = frozenset({
+    "threshold", "n_decide", "n_floor", "expected_per_week", "max_age_hours",
+    "min_files", "min_keys",
+})
+
+# 評価器が文字列として扱うフィールド (Path.glob / 日付比較 / API パラメータ)。
+# 型を見ないと `deadline: 123` が lint を通り `today > deadline` で TypeError、
+# `path: 123` が Path.glob(123) で落ちる (PR #227 Codex P2 5 巡目)。
+STRING_FIELDS = frozenset({
+    "path", "deadline", "since", "symbol", "threshold_date", "key", "prefix",
+    "column", "entry_type", "instrument", "direction", "reasons_marker",
+    "mode", "date_column", "label", "endpoint",
+})
+# int() で消費される field。float() だけ通る "1.5" を素通りさせない
+# (PR #227 Codex P2 6 巡目)。
+INT_FIELDS = frozenset({"n_decide", "n_floor", "min_files", "min_keys"})
+
+# 日付として比較される field。`deadline: "soon"` は文字列比較で常に
+# `today > deadline` が false になり、**永久に watching のまま**期日に
+# 到達しない — 「watching 表示を健全性の証拠と誤読する」ZN 教訓の型。
+DATE_FIELDS = frozenset({"deadline", "since", "threshold_date"})
+# **辞書順比較**される日付 field。評価器は `today > deadline` のように
+# YYYY-MM-DD の today と文字列比較するので、`"2026-09-10T23:00:00"` は
+# `"2026-09-10"` より辞書順で**後ろ**になり、期日当日に成立しない
+# = 予定されたレビューが黙って 1 日以上遅れる (PR #227 Codex P2 17 巡目)。
+# `since` は `fromisoformat` で**パースされる**ので datetime 可。
+LEXICAL_DATE_FIELDS = frozenset({"deadline", "threshold_date"})
+# sentinel を実装しているのは deadline を読む評価器だけ。
+# threshold_date / since に "no-deadline" が入ると通常の ISO 日付と比較され
+# 永久 WATCHING / DATA_UNAVAILABLE になる (PR #227 Codex P2 10 巡目)。
+DATE_SENTINELS_BY_FIELD: dict[str, frozenset[str]] = {
+    "deadline": frozenset({"no-deadline"}),
+}
+# sentinel 分岐を実際に実装しているのは evaluate_manual_info だけ
+# (`deadline != "no-deadline"` を明示チェックする)。evaluate_deadline_info は
+# `today > deadline` しか見ないので、"no-deadline" を渡すと永久 WATCHING に
+# なる (PR #227 Codex P2 11 巡目)。deadline を消費しない type は無害なので許可。
+DEADLINE_CONSUMING_TYPES = frozenset({"deadline_info", "info",
+                                      "conditional_info",
+                                      "shadow_count_decision",
+                                      "live_count_decision"})
+SENTINEL_OK_TYPES = frozenset({"info", "conditional_info"})
+
+# 評価器が bool として消費するフィールド。`closed_only: "false"` は
+# `bool(trig.get("closed_only"))` で **true** になり、監視母集団を黙って
+# 変える (PR #227 Codex P2 8 巡目)。
+BOOL_FIELDS = frozenset({"closed_only"})
+
+# 評価器が `== 0` 等の値一致で消費するフィールド (文字列 "0" は一致しない)。
+EXACT_INT_FIELDS = frozenset({"dedup_violation"})
+
+# top-level のみで解釈される列挙フィールド (leaf 名 "match" は
+# source.match のリストと衝突するので **top-level 限定**で扱う)。
+ENUM_FIELDS: dict[str, frozenset[Any]] = {
+    "match": frozenset({"prefix"}),
+    "count_basis": frozenset({"unique"}),
+    # 評価器は `trig.get("dedup_violation") == 0` でしか dedup を有効にしない。
+    # 1 や 2 は黙って無視され重複行が母集団に入る (PR #227 Codex P2 12 巡目)。
+    "dedup_violation": frozenset({0}),
+}
+
+# 空文字が正当なワイルドカードである field の enum。空なら絞り込まない
+# (= ENUM_FIELDS には入れられない) が、**非空なら評価器が解釈できる値**
+# でなければならない。`direction: "BYU"` は `t.get("direction") == "BYU"` が
+# 全行 false になり、母集団が**黙って空**になる → N ベースの判定が永久に
+# WATCHING に留まるか、低 N の deadline 分岐 (retire) を誤って踏む
+# (PR #227 Codex P2 15 巡目)。ENUM_FIELDS と同じ「評価器が解釈する値だけ」
+# の原則を、ワイルドカード許容 field にも適用する。
+ENUM_FIELDS_IF_NONEMPTY: dict[str, frozenset[Any]] = {
+    "direction": frozenset({"BUY", "SELL"}),
+}
+
+# 非空なら形が決まっている field の正規表現。instrument は新ペア追加が
+# 常時ありうるので閉じた enum にはできないが、**形**は OANDA の
+# `CCY_CCY` に固定されている。`USDJPY` / `USD_JPYY` のような綴り違いは
+# 同じ「母集団が黙って空になる」故障を起こすので形で落とす
+# (値そのものの妥当性は落とせない — 限界を明示しておく)。
+SHAPE_IF_NONEMPTY: dict[str, str] = {
+    "instrument": r"^[A-Z]{3}_[A-Z]{3}$",
+    # `fetch_ingest_health` は `f"{app_base}{endpoint}"` と**素の連結**をする。
+    # `"api/..."` だと `https://host.comapi/...` という壊れた URL になり、
+    # lint は通ったまま毎日 DATA_UNAVAILABLE を返し続ける
+    # (PR #227 Codex P2 17 巡目)。絶対パスを要求する。
+    "endpoint": r"^/[^\s]*$",
+}
+
+# `mode` は `/api/demo/trades` へ素通しされ、open/closed 両経路で完全一致に
+# 使われる。`mode: "daytrade_eurgpp"` は API 呼び出しが**成功して 0 行**を
+# 返すので、判定は永久 WATCHING か低 N の deadline 分岐を誤って踏む
+# (Codex P2 16 巡目 — direction/instrument と同クラスの 3 例目)。
+#
+# 許可集合は**ハンドコピーせず** `modules/demo_trader.py` の `MODE_CONFIG` を
+# AST で読む (9 巡目の学び: lint は評価器の写しなので写し間違いが必ず起きる)。
+# import しないのは demo_trader の import が本番スレッドを起動しうるため。
+DEMO_TRADER_PATH = ROOT / "modules" / "demo_trader.py"
+
+# MODE_CONFIG から退役したが registry が参照し続けてよい歴史的 mode。
+# 退役 mode を持つ既存エントリを壊さずに guard を入れるための明示的な逃げ道。
+# ⚠️ ここに足すのは「その mode の行が DB に残っていて母集団として正当」な
+# 場合のみ。単に綴りを通したいだけなら足さないこと。
+HISTORICAL_MODES: frozenset[str] = frozenset()
+
+
+def app_mode_names(path: Path | None = None) -> frozenset[str]:
+    """`MODE_CONFIG` のキー = アプリが実際に produce しうる mode 名。
+
+    読めない/形が違う場合は **例外**。空集合に畳むと「mode の検査をした」と
+    「検査できなかった」が区別できなくなる (本ファイル全体の不変条件)。
+    """
+    target = path or DEMO_TRADER_PATH
+    tree = ast.parse(target.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        for t in node.targets:
+            if getattr(t, "id", None) == "MODE_CONFIG":
+                if not isinstance(node.value, ast.Dict):
+                    raise RuntimeError(
+                        f"{target}: MODE_CONFIG が dict literal でない — "
+                        "mode の許可集合を導出できない")
+                names = {k.value for k in node.value.keys
+                         if isinstance(k, ast.Constant)
+                         and isinstance(k.value, str)}
+                if len(names) != len(node.value.keys):
+                    raise RuntimeError(
+                        f"{target}: MODE_CONFIG に非文字列リテラルのキーが"
+                        "ある — 許可集合が不完全になる")
+                return frozenset(names)
+    raise RuntimeError(f"{target}: MODE_CONFIG が見つからない")
+
+# 各カウント field の下限 (評価器の意味論)。n_decide=-1 は即時 TRIGGERED、
+# min_files=-1 は不在の成果物を「充足」と報告する。
+INT_MIN = {"n_decide": 1, "n_floor": 0, "min_files": 1, "min_keys": 1}
+
+# int() を経ない (float のまま使われる) 数値 field の**下限 (排他)**。
+# INT_FIELDS は INT_MIN 側で見ているので、ここは float のまま比較に入る
+# field だけを持つ。非正値は「型は通るが比較の意味が反転/到達不能」になる:
+#   max_age_hours <= 0 → `age > max_h` が常に true = 1 秒前の記録まで stale
+#     と報告し、毎日 false TRIGGERED を出す (PR #227 Codex P2 13 巡目)
+#   threshold <= 0     → FX 価格として到達不能 = 永久 watching (期日が来ない)
+FLOAT_MIN_EXCLUSIVE = {"max_age_hours": 0.0, "threshold": 0.0}
+# 下限 (包含)。0/週 を期待値に置くのは authoring 誤りだが gate はしないので
+# 負値のみ落とす。
+FLOAT_MIN_INCLUSIVE = {"expected_per_week": 0.0}
+
+# 全 type 共通のメタデータ (評価に使われないが台帳として必要)。
+META_FIELDS = frozenset({
+    "id", "active", "type", "doc", "message", "condition", "reachability",
+    "resolved", "resolved_at", "resolution", "eval_record", "note", "notes",
+    # 実行主体メタ (2026-09-10 救済時に main 側 ps-seat-supply-remeasure-30d が
+    # 既に使用): 評価器は読まないが「誰が/何で状態を進めるか」を台帳に運ぶ。
+    # ad-hoc な日付付きキー (診断スナップショット等) はここに足さず
+    # `note` の下に入れ子で置くこと — reject-by-default を保つ。
+    "harness", "execution_command", "execution_subject",
+})
+
+# type ごとに評価器が実際に読む selector。ここに無いキーは**綴り違い**として
+# 落とす。`instrumnt: "USD_JPY"` は黙って無視され全ペアを計上する
+# (PR #227 Codex P2 12 巡目) — allow-by-default をやめ reject-by-default へ。
+OPTIONAL_FIELDS_BY_TYPE: dict[str, frozenset[str]] = {
+    "price_below": frozenset(),
+    "shadow_count_decision": frozenset({
+        "instrument", "direction", "match", "mode", "count_basis",
+        "closed_only", "dedup_violation"}),
+    "shadow_count_info": frozenset({"instrument", "direction", "match", "mode",
+                                    "count_basis"}),
+    "live_count_decision": frozenset({"instrument", "direction", "match",
+                                      "reasons_marker"}),
+    "deadline_info": frozenset(),
+    "ingest_freshness": frozenset({"endpoint"}),
+    "artifact_presence": frozenset({"deadline"}),
+    "data_coverage": frozenset({"deadline"}),
+    "csv_row_match": frozenset({"deadline"}),
+    "info": frozenset({"deadline"}),
+    "conditional_info": frozenset({"deadline"}),
+}
+
+
+# 値の形が分かっている全フィールド。必須/任意・top-level/要素を問わず
+# 存在すれば検査する唯一の集合 (軸ごとに検査漏れを作らないため)。
+KNOWN_VALUE_FIELDS = (NUMERIC_FIELDS | STRING_FIELDS | DATE_FIELDS
+                      | BOOL_FIELDS | EXACT_INT_FIELDS)
+
+# 注: "match" は leaf 名が衝突する — shadow/live count 系では文字列 "prefix"、
+# csv_row_match では述語のリスト。leaf 名だけでは型を決められないので
+# STRING_FIELDS には入れない。
+
+
+def _unusable_reason(field: str, value: Any, *,
+                     empty_ok: frozenset[str] = EMPTY_OK_FIELDS,
+                     date_sentinels: frozenset[str] = frozenset()) -> str | None:
+    """必須値が「存在するが評価器が使えない」ケースを名指しする。
+
+    presence だけの検査は `path: null` / `max_age_hours: null` を通してしまい、
+    scan_artifacts の Path.glob(None) や float(None) が daily 実行時に落ちる。
+    """
+    leaf = field.rsplit(".", 1)[-1]
+    if value is None:
+        return "null"
+    if isinstance(value, str) and not value.strip():
+        # 絞り込み系は空 = ワイルドカードが正当 (母集団が誰かに定義されて
+        # いることは ALTERNATIVE_FIELDS_BY_TYPE 側で別途担保する)。
+        return None if leaf in empty_ok else "空文字"
+    if isinstance(value, (list, dict)) and not value:
+        return "空のコレクション"
+    if leaf in BOOL_FIELDS:
+        if not isinstance(value, bool):
+            return (f"bool でない ({type(value).__name__}: {value!r}) — "
+                    'bool("false") は true になり母集団が黙って変わる')
+        return None
+    if leaf in EXACT_INT_FIELDS:
+        if isinstance(value, bool) or not isinstance(value, int):
+            return (f"int でない ({type(value).__name__}: {value!r}) — "
+                    "評価器は値一致 (== 0) で比較する")
+        return None
+    if leaf in NUMERIC_FIELDS:
+        if isinstance(value, bool):
+            return f"数値でなく bool ({value!r})"
+        try:
+            num = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return f"数値化できない ({value!r})"
+        if leaf in INT_FIELDS:
+            # 評価器と**同じ変換** (int(value)) で検査する。float 経由だと
+            # `"1.0"` が通り int("1.0") が ValueError になる
+            # (PR #227 Codex P2 9 巡目)。lint は評価器の写しではなく
+            # 評価器と同じ呼び出しをすること。
+            try:
+                as_int = int(value)
+            except (TypeError, ValueError, OverflowError):
+                return f"int() で変換できない ({value!r})"
+            if not math.isfinite(num) or num != as_int:
+                return f"整数でない ({value!r}) — int() が黙って切り捨てる"
+            low = INT_MIN.get(leaf, 0)
+            if as_int < low:
+                return (f"下限 {low} 未満 ({value!r}) — "
+                        "閾値が即時成立/常時充足になる")
+        # nan/inf は変換は通るが比較を静かに壊す: max_age_hours=nan は
+        # `age > max_h` が常に false になり、古い ingest を fresh と報告する
+        # (PR #227 Codex P2 7 巡目)。
+        if not math.isfinite(num):
+            return f"有限数でない ({value!r}) — 比較が静かに壊れる"
+        low_x = FLOAT_MIN_EXCLUSIVE.get(leaf)
+        if low_x is not None and num <= low_x:
+            return (f"{low_x:g} 以下 ({value!r}) — "
+                    "比較の向きが反転し常時成立/到達不能になる")
+        low_i = FLOAT_MIN_INCLUSIVE.get(leaf)
+        if low_i is not None and num < low_i:
+            return f"{low_i:g} 未満 ({value!r}) — 期待レートが負になる"
+    elif leaf in STRING_FIELDS and not isinstance(value, str):
+        return f"文字列でない ({type(value).__name__}: {value!r})"
+    if leaf in DATE_FIELDS and isinstance(value, str):
+        # 評価器は**元の文字列**を消費するので、lint 側で strip して
+        # 判定すると `" 2026-09-10"` が通る。先頭空白は辞書順で数字より
+        # 前に来るため `today > deadline` が常に真 = **前日から期限切れ**扱い
+        # になり、`since` では `fromisoformat` が落ちて DATA_UNAVAILABLE
+        # (PR #227 Codex P2 18 巡目)。**書かれたまま**の正準性を要求する。
+        if value != value.strip():
+            return (f"前後に空白がある ({value!r}) — 評価器は strip しないので"
+                    "辞書順比較が前倒しになり、パースは失敗する")
+        v = value.strip()
+        if (leaf in LEXICAL_DATE_FIELDS and v not in date_sentinels
+                and len(v) != 10 and _is_iso_date(v)):
+            return (f"日付のみ (YYYY-MM-DD) でない ({value!r}) — この field は "
+                    "today と**辞書順比較**されるので時刻が付くと期日当日に"
+                    "成立せず、判定が黙って遅れる")
+        if v not in date_sentinels and not _is_iso_date(v):
+            return (f"日付として解釈できない ({value!r}) — "
+                    "文字列比較で永久に watching になる")
+    return None
+
+
+def _is_iso_date(value: str) -> bool:
+    """評価器が today (YYYY-MM-DD) と辞書順比較し、since は fromisoformat する。
+
+    2026-09-08 (PR #227 Codex P2 8 巡目): 先頭 10 文字だけ見て残りを
+    素通りさせると `2026-01-01Tgarbage` が lint を通り、
+    fromisoformat() が毎回 DATA_UNAVAILABLE を返し続ける。**全体**を解釈する。
+    """
+    try:
+        d = datetime.strptime(value[:10], "%Y-%m-%d")
+        if len(value) > 10:
+            datetime.fromisoformat(value)
+    except ValueError:
+        return False
+    # strptime は `2026-9-1` を受けるが辞書順比較では 2026-12-31 より後ろに
+    # なり、期限切れが永久 WATCHING になる。**正準形 (0 埋め) を要求する**
+    # (PR #227 Codex P2 9 巡目)。
+    return value[:10] == d.strftime("%Y-%m-%d")
+
+
+def _scalar_predicate_reason(value: Any) -> str | None:
+    """CSV 述語の `value` はスカラー限定 (PR #227 Codex P2 17 巡目)。
+
+    `_csv_row_predicate` は数値なら `float()`、それ以外は `str()` で潰すので
+    dict / list を渡すと「`{'a': 1}` という文字列」との比較になる。
+    `op: "!="` ならほぼ全ての通常値に一致し**偽 TRIGGERED** を出す。
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, (dict, list, tuple, set)):
+        return f"コレクション ({type(value).__name__})"
+    if isinstance(value, bool):
+        return None  # str(True) との比較は意図的に使える
+    if isinstance(value, (int, float)):
+        if not math.isfinite(value):
+            return f"有限数でない ({value!r}) — 比較が静かに壊れる"
+        return None
+    if isinstance(value, str):
+        return None
+    return f"スカラーでない ({type(value).__name__})"
+
+
+def _get_path(obj: Any, dotted: str) -> Any:
+    cur = obj
+    for part in dotted.split("."):
+        cur = cur[part]
+    return cur
+
+
+def _has_path(obj: Any, dotted: str) -> bool:
+    """"a.b" 形式のネストしたキー存在チェック (評価器の添字と同じ深さで見る)。"""
+    cur = obj
+    for part in dotted.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return False
+        cur = cur[part]
+    return True
+
+
+def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
+    """type が要求するフィールドの欠落を authoring 時に検出する。
+
+    2026-09-08: artifact_presence を名乗りながら requirements を持たない
+    エントリが main に着地し、daily の trigger watch 全体 (51 件) が
+    KeyError で 2 日間停止した。lint_reachability は機械評価型を素通り
+    させる設計だったため、この層に穴が空いていた。
+    """
+    errors: list[str] = []
+    for t in triggers:
+        tid = t.get("id", "(no id)")
+        ttype = t.get("type")
+        # id は全 type 共通の必須。_evaluate_trigger_impl が trig["id"] を
+        # 添字アクセスするので、欠けると daily 実行時 EVAL_ERROR になる
+        # (PR #227 Codex P2)。
+        if "active" in t and not isinstance(t["active"], bool):
+            errors.append(
+                f"{tid}: active が bool でない "
+                f"({type(t['active']).__name__}: {t['active']!r}) — "
+                'truthiness で消費されるので "false" は true になる')
+        if not str(t.get("id", "")).strip():
+            errors.append(
+                f"(no id): id が無い/空 — 評価器が trig[\"id\"] を添字アクセスする")
+            continue
+        if ttype not in REQUIRED_FIELDS_BY_TYPE:
+            errors.append(f"{tid}: unknown type {ttype!r} — 評価器が無い")
+            continue
+        missing = [f for f in REQUIRED_FIELDS_BY_TYPE[ttype]
+                   if not _has_path(t, f)]
+        if missing:
+            errors.append(
+                f"{tid}: type={ttype} に必須の {missing} が無い — "
+                "実行時 KeyError で監視器全体が落ちる")
+            continue
+        # 必須だけでなく **存在する既知フィールドを全て** 検査する。
+        # 「必須は見るが任意は見ない」「top-level は見るが要素は見ない」で
+        # 同じ欠陥クラスを 3 巡繰り返したため、両軸を統一した
+        # (PR #227 Codex P2 7 巡目)。
+        present = [f for f in REQUIRED_FIELDS_BY_TYPE[ttype] if _has_path(t, f)]
+        present += [k for k in t if k in KNOWN_VALUE_FIELDS and k not in present]
+        empty_ok = EMPTY_OK_FIELDS
+        if ttype in EMPTY_ENTRY_TYPE_OK_TYPES:
+            empty_ok = empty_ok | {"entry_type"}
+        for f in present:
+            leaf = f.rsplit(".", 1)[-1]
+            sentinels = DATE_SENTINELS_BY_FIELD.get(leaf, frozenset())
+            # sentinel は「実装している評価器」+「その field を消費しない
+            # type」でのみ許可する。
+            if (sentinels and ttype in DEADLINE_CONSUMING_TYPES
+                    and ttype not in SENTINEL_OK_TYPES):
+                sentinels = frozenset()
+            why = _unusable_reason(
+                f, _get_path(t, f), empty_ok=frozenset(empty_ok),
+                date_sentinels=sentinels)
+            if why:
+                errors.append(
+                    f"{tid}: type={ttype} の {f} が使えない値 ({why}) — "
+                    "評価器が実行時に落ちる")
+        for f, allowed in ENUM_FIELDS_IF_NONEMPTY.items():
+            v = t.get(f)
+            if isinstance(v, str) and v.strip() and v not in allowed:
+                errors.append(
+                    f"{tid}: type={ttype} の {f}={v!r} は評価器が解釈しない値 "
+                    f"— 解釈するのは {sorted(allowed)} のみ (空文字 = 絞り込まない)。"
+                    "綴り違いは母集団が**黙って空**になり、N ベースの判定が"
+                    "永久 WATCHING か低 N の retire 分岐を誤って踏む")
+        mode_v = t.get("mode")
+        if isinstance(mode_v, str) and mode_v.strip():
+            allowed_modes = app_mode_names() | HISTORICAL_MODES
+            if mode_v not in allowed_modes:
+                near = sorted(m for m in allowed_modes
+                              if m.startswith(mode_v[:6]))
+                errors.append(
+                    f"{tid}: type={ttype} の mode={mode_v!r} は "
+                    "MODE_CONFIG に無い — API 呼び出しは成功して **0 行**を"
+                    "返すので、判定が永久 WATCHING か低 N の retire 分岐を"
+                    f"誤って踏む{f' (近い mode: {near})' if near else ''}")
+        for f, pattern in SHAPE_IF_NONEMPTY.items():
+            v = t.get(f)
+            if isinstance(v, str) and v.strip() and not re.match(pattern, v):
+                errors.append(
+                    f"{tid}: type={ttype} の {f}={v!r} は形が {pattern} に"
+                    "合わない — 綴り違いなら母集団が黙って空になる")
+        for f, allowed in ENUM_FIELDS.items():
+            if f in t and t[f] not in allowed:
+                errors.append(
+                    f"{tid}: type={ttype} の {f}={t[f]!r} は未知の値 — "
+                    f"評価器が解釈するのは {sorted(allowed)} のみ "
+                    "(綴り違いは黙って無効化される)")
+        for group in ALTERNATIVE_FIELDS_BY_TYPE.get(ttype, ()):
+            if not any(str(t.get(k) or "").strip() for k in group):
+                errors.append(
+                    f"{tid}: type={ttype} は {list(group)} のいずれかが"
+                    "非空で必須 — 全て空だと母集団が定義されず過大計上する")
+        for spec_key in NESTED_SPEC_ALLOWED_KEYS.get(ttype, {}):
+            spec = t.get(spec_key)
+            if not isinstance(spec, dict):
+                continue
+            for k, v in spec.items():
+                if k in STRING_LIST_FIELDS:
+                    if not (isinstance(v, list) and v
+                            and all(isinstance(x, str) and x.strip()
+                                    for x in v)):
+                        errors.append(
+                            f"{tid}: {spec_key}.{k} が非空の文字列リストでない "
+                            f"({v!r}) — 評価器が要素を走査して落ちる")
+                elif k in KNOWN_VALUE_FIELDS:
+                    why = _unusable_reason(
+                        k, v, date_sentinels=DATE_SENTINELS_BY_FIELD.get(
+                            k, frozenset()))
+                    if why:
+                        errors.append(
+                            f"{tid}: {spec_key}.{k} が使えない値 ({why}) — "
+                            "評価器が実行時に落ちる")
+        allowed = (META_FIELDS | OPTIONAL_FIELDS_BY_TYPE.get(ttype, frozenset())
+                   | {f.split(".", 1)[0] for f in REQUIRED_FIELDS_BY_TYPE[ttype]})
+        for k in sorted(set(t) - allowed):
+            errors.append(
+                f"{tid}: type={ttype} に未知のキー {k!r} — 評価器は読まないので "
+                "綴り違いなら母集団が黙って広がる (許可キー: "
+                f"{sorted(allowed - META_FIELDS)} + メタ)")
+        errors.extend(_lint_nested_specs(t, tid, ttype))
+        errors.extend(_lint_collections(t, tid, ttype))
+    return errors
+
+
+def _lint_nested_specs(t: dict[str, Any], tid: str,
+                       ttype: str) -> list[str]:
+    """ネストした dict spec の未知キーを落とす (reject-by-default の 3 層目)。"""
+    errors: list[str] = []
+    for dotted, allowed in NESTED_SPEC_ALLOWED_KEYS.get(ttype, {}).items():
+        spec = _get_path(t, dotted)
+        if not isinstance(spec, dict):
+            continue  # 形の検査は REQUIRED_FIELDS_BY_TYPE 側の責務
+        for k in sorted(set(spec) - allowed):
+            errors.append(
+                f"{tid}: {dotted}.{k} は未知のキー — 評価器は読まないので、"
+                "綴り違いなら既定値に落ちて毎日 DATA_UNAVAILABLE を返し"
+                f"続ける (許可キー: {sorted(allowed)})")
+    return errors
+
+
+def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
+    """コレクション型フィールドの形と要素キーを検査する。"""
+    errors: list[str] = []
+    for dotted, keys, alternatives, optional in COLLECTION_ELEMENT_FIELDS.get(
+            ttype, ()):
+        allowed = (set(keys) | set(optional)
+                   | {k for g in alternatives for k in g})
+        coll = _get_path(t, dotted)
+        if not isinstance(coll, list) or not coll:
+            errors.append(
+                f"{tid}: type={ttype} の {dotted} が非空のリストでない "
+                f"({type(coll).__name__}) — 評価器が要素を走査できない")
+            continue
+        for i, elem in enumerate(coll):
+            if not isinstance(elem, dict):
+                errors.append(
+                    f"{tid}: {dotted}[{i}] が dict でない "
+                    f"({type(elem).__name__})")
+                continue
+            lack = [k for k in keys if k not in elem]
+            if lack:
+                errors.append(
+                    f"{tid}: {dotted}[{i}] に必須の {lack} が無い — "
+                    "実行時 KeyError")
+            # 必須キーだけでなく、要素に**存在する**既知フィールドは全て
+            # 型検査する。min_files / min_keys は任意だが評価器が int() する
+            # ので null が入ると実行時 TypeError になる (PR #227 Codex P2)。
+            checked = set(keys) | {k for g in alternatives for k in g}
+            checked |= {k for k in elem if k in KNOWN_VALUE_FIELDS}
+            for k in sorted(checked):
+                if k in elem:
+                    why = _unusable_reason(
+                        k, elem[k],
+                        date_sentinels=DATE_SENTINELS_BY_FIELD.get(
+                            k, frozenset()))
+                    if why:
+                        errors.append(
+                            f"{tid}: {dotted}[{i}].{k} が使えない値 ({why}) — "
+                            "評価器が実行時に落ちる")
+            for k in sorted(set(elem) - allowed):
+                errors.append(
+                    f"{tid}: {dotted}[{i}] に未知のキー {k!r} — 評価器は"
+                    "読まないので、綴り違いなら既定値で**別の条件**を"
+                    f"黙って監視し続ける (許可キー: {sorted(allowed)})")
+            if dotted == "source.match" and "value" in elem:
+                why = _scalar_predicate_reason(elem["value"])
+                if why:
+                    errors.append(
+                        f"{tid}: {dotted}[{i}].value が使えない値 ({why}) — "
+                        "評価器は str()/float() で潰すので、コレクションは"
+                        "ほぼ全ての通常値に `!=` で一致し偽 TRIGGERED を出す")
+            if "op" in elem and elem["op"] not in _CSV_OPS:
+                errors.append(
+                    f"{tid}: {dotted}[{i}].op={elem['op']!r} は未知の演算子 — "
+                    f"評価器は {sorted(_CSV_OPS)} のみ解釈し、"
+                    "それ以外は毎日 DATA_UNAVAILABLE を返し続ける")
+            for group in EXCLUSIVE_ELEMENT_GROUPS.get(ttype, ()):
+                present = [k for k in group
+                           if str(elem.get(k) or "").strip()]
+                if len(present) > 1:
+                    errors.append(
+                        f"{tid}: {dotted}[{i}] は {list(group)} の"
+                        f"**どちらか一方のみ**指定すること (両方あり: {present}) "
+                        "— 評価器は `if prefix:` で分岐するので key は黙って"
+                        "無視され、明示したキーが完全に未監視になる")
+            for group in alternatives:
+                # 存在だけでは足りない: evaluate_ingest_freshness は
+                # `if prefix:` で分岐するので prefix="" は key 側へ落ち、
+                # 欠けた chk["key"] を添字アクセスする (PR #227 Codex P2)。
+                # 評価器の truthiness と同じ判定で見る。
+                if not any(str(elem.get(k) or "").strip() for k in group):
+                    errors.append(
+                        f"{tid}: {dotted}[{i}] は {list(group)} の"
+                        "いずれか 1 つが**非空の値**で必須 — "
+                        "空文字は評価器の分岐で false 扱いになり KeyError")
+    return errors
+
+
+def lint_registry(triggers: list[dict[str, Any]] | None = None) -> list[str]:
+    """authoring 時 lint の入口 (schema + 到達経路)。
+
+    既定は **active フィルタ前**の全エントリ — `active` 自身の不正や、
+    誤って falsey になって消えたエントリを見るため。
+    """
+    if triggers is None:
+        triggers = load_registry_raw()
+    return lint_schema(triggers) + lint_reachability(triggers)
 
 
 def lint_reachability(triggers: list[dict[str, Any]]) -> list[str]:
@@ -689,6 +1437,9 @@ def build_report(*, today: str | None = None, app_base: str | None = None) -> di
         "triggered": [r for r in results if r["state"] == STATE_TRIGGERED],
         "watching": [r for r in results if r["state"] == STATE_WATCHING],
         "unavailable": [r for r in results if r["state"] == STATE_UNAVAILABLE],
+        # 評価器自身の故障。DATA_UNAVAILABLE に混ぜると「取れなかった」と
+        # 「壊れている」が区別できなくなる。
+        "errors": [r for r in results if r["state"] == STATE_ERROR],
     }
 
 
@@ -706,7 +1457,12 @@ def to_markdown(report: dict[str, Any]) -> str:
         lines.append("### ⚠️ data unavailable")
         for r in report["unavailable"]:
             lines.append(f"- {r['id']}: {r['detail']}")
-    if not any((report["triggered"], report["watching"], report["unavailable"])):
+    if report.get("errors"):
+        lines.append("### 🔴 EVAL ERROR — 監視器自身の故障 (registry を直せ)")
+        for r in report["errors"]:
+            lines.append(f"- **{r['id']}**: {r['detail']}")
+    if not any((report["triggered"], report["watching"], report["unavailable"],
+                report.get("errors"))):
         lines.append("- (active な trigger なし)")
     return "\n".join(lines)
 
@@ -714,21 +1470,23 @@ def to_markdown(report: dict[str, Any]) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Pre-reg trigger watch")
     ap.add_argument("--lint", action="store_true",
-                    help="到達経路 lint のみ実行 (違反があれば exit 1)")
+                    help="registry lint のみ実行 (schema + 到達経路、違反で exit 1)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
     if args.lint:
-        errors = lint_reachability(load_registry())
+        errors = lint_registry()
         for e in errors:
             print(f"ERROR {e}", file=sys.stderr)
-        print(f"到達経路 lint: {len(errors)} 件の違反")
+        print(f"registry lint (schema + 到達経路): {len(errors)} 件の違反")
         return 1 if errors else 0
     report = build_report()
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
         print(to_markdown(report))
-    return 0
+    # 評価器が壊れているときは exit code でも名乗る (呼び出し側が
+    # 「壊れた」と「異常なし」を区別できるように)。
+    return 2 if report.get("errors") else 0
 
 
 if __name__ == "__main__":

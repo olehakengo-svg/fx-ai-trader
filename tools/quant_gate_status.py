@@ -84,6 +84,80 @@ def summarize_candidate_queue(days: int = 7) -> dict[str, Any]:
     return {"total": total, "pass": passed, "shadow_only": shadow, "recent_names": names[:10]}
 
 
+# 監視器自身の故障を示すマーク。Discord は 1 メッセージ 1900 字 × 最大 4 通
+# (_discord_chunks) で送られ、watch 節は最後尾なので、溢れ (chunks[:4] の
+# 黙った切り捨て / 単一節の hard cut) が起きた日はこの行が読み手に届かない。
+# この行だけは M1 より前 (第 1 メッセージの先頭側 = 切られない位置) へ引き上げる
+# (PR #227 Codex P1 — 「本文には出ているが読み手には届かない」の再発防止)。
+WATCH_ALERT_MARK = "🔴🔴"
+
+
+# TRIGGERED 節の見出し (prereg_trigger_watch.to_markdown と対で保つ)。
+WATCH_TRIGGERED_HEADING = "### 🔴 TRIGGERED"
+
+
+def extract_watch_alert(watch_text: str) -> str:
+    """watch 本文から監視器故障の 1 行だけを抜き出す (無ければ空文字)。"""
+    for line in (watch_text or "").splitlines():
+        if line.startswith(WATCH_ALERT_MARK):
+            return line.strip()
+    return ""
+
+
+def extract_watch_triggered(watch_text: str) -> str:
+    """TRIGGERED 節 (執行/判定期日 = 要行動) を抜き出す。
+
+    PR #227 Codex P1 12 巡目: 故障 banner だけを前方へ上げても、**行動を
+    要する TRIGGERED** が 1900 字カットの外に残っていては意味がない。
+    実際、2026-09-08 に復旧するまでの 2 日間、T5 第1要件 TRIGGERED は
+    誰にも届いていなかった。
+    """
+    out: list[str] = []
+    inside = False
+    used = 0
+    dropped = 0
+    budget = TRIGGERED_SECTION_CHARS - TRIGGERED_OVERFLOW_RESERVE
+    for line in (watch_text or "").splitlines():
+        if line.startswith(WATCH_TRIGGERED_HEADING):
+            inside = True
+            out.append(line)
+            used += len(line) + 1
+            continue
+        if inside:
+            if line.startswith("###"):
+                break
+            if line.strip():
+                # registry の message は数百字あるので、前方枠を守るため
+                # id + detail 相当だけを残す (全文は下の watch 節にある)。
+                entry = _clip(line.rstrip(), TRIGGERED_LINE_CHARS)
+                # 行ごとの clip だけでは合計が縛れない: 220 字 × 8 件で
+                # 前方枠を食い潰し、**後続の TRIGGERED と M1 節**を 1900 字
+                # カットの外へ押し出す (PR #227 Codex P1 13 巡目 —
+                # 「行は縛ったが合計を縛っていない」)。少なくとも 1 件は
+                # 必ず出し、溢れた件数は下の watch 節へ送る。
+                if out and len(out) > 1 and used + len(entry) + 1 > budget:
+                    dropped += 1
+                    continue
+                out.append(entry)
+                used += len(entry) + 1
+    if dropped:
+        out.append(f"- … 他 {dropped} 件の TRIGGERED は下記 watch 節 "
+                   f"(前方枠 {TRIGGERED_SECTION_CHARS} 字)")
+    return "\n".join(out).strip()
+
+
+TRIGGERED_LINE_CHARS = 220
+# 前方 (Discord 第 1 メッセージの 1900 字枠) で TRIGGERED 節に割り当てる**総量**。
+# M1 は最重要 KPI なので TRIGGERED が枠を食い潰して押し出してはならない。
+TRIGGERED_SECTION_CHARS = 700
+# 溢れ通知行の分を先に取り置く (通知自体が枠を超えないため)。
+TRIGGERED_OVERFLOW_RESERVE = 70
+
+
+def _clip(line: str, limit: int) -> str:
+    return line if len(line) <= limit else line[:limit - 1] + "…"
+
+
 def run_prereg_trigger_watch() -> str:
     """tools/prereg_trigger_watch.py の Markdown を subprocess で取得。
 
@@ -95,9 +169,33 @@ def run_prereg_trigger_watch() -> str:
             ["python3", str(ROOT / "tools" / "prereg_trigger_watch.py")],
             capture_output=True, text=True, timeout=90,
         )
-        return r.stdout or r.stderr or "(no output)"
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        return f"(prereg_trigger_watch.py error: {e})"
+        return (f"## Pre-reg Trigger Watch\n{WATCH_ALERT_MARK} "
+                f"**監視器が実行不能**: {e}")
+    if r.returncode != 0:
+        # 2026-09-08: registry の 1 エントリ欠損で本監視器が KeyError 落ちし、
+        # traceback が本文としてそのまま Discord に載っていた (2 日間、51
+        # エントリ全て未監視)。returncode を無視すると「監視器が落ちた」と
+        # 「監視器が異常なしと言った」が読み手にとって同じに見える。
+        #
+        # ただし exit 2 = 「一部エントリが EVAL_ERROR、残りは正常評価」なので
+        # 本文を捨ててはならない (PR #227 Codex P1)。捨てると壊れた 1 件が
+        # 他エントリの TRIGGERED を隠し、隔離ラッパが防ぐはずの盲点が
+        # そのまま再現する。構造化レポートが出ていれば必ず併記する。
+        err = (r.stderr or "").strip()
+        if r.stdout.strip():
+            banner = (f"{WATCH_ALERT_MARK} **監視器が exit {r.returncode} — "
+                      "一部 trigger が評価不能 (下記 EVAL ERROR 節を見よ)**")
+            body = r.stdout.strip()
+            if err:
+                banner += "\n```\n" + "\n".join(err.splitlines()[-6:]) + "\n```"
+            return f"{banner}\n{body}"
+        tail = (err or "(no output)").splitlines()[-6:]
+        return ("## Pre-reg Trigger Watch\n"
+                f"{WATCH_ALERT_MARK} **監視器が exit {r.returncode} で失敗 — "
+                "全 trigger 未監視**\n"
+                "```\n" + "\n".join(tail) + "\n```")
+    return r.stdout or "(no output)"
 
 
 def run_m1_readout(strong: bool = False) -> dict[str, Any]:
@@ -135,7 +233,26 @@ def to_markdown(report: dict[str, Any]) -> str:
     lines = ["# Quant Gate Status"]
     lines.append(f"_Generated: {report['generated_at']}_")
     lines.append("")
-    # M1 は最重要 KPI かつ Discord 側で 1900 字に切られるので先頭に固定する。
+    # 監視器の故障は M1 より先頭に置く。M1 節はセル数に比例して伸びる
+    # (strategy×instrument×direction ごとに 1 行) ので、その後ろに置くと
+    # セルが増えた日に第 1 メッセージ (1900 字) の外へ押し出される
+    # (PR #227 Codex P1 7 巡目 — 「読み手に届く位置」は相対順序で決まる)。
+    # _discord_chunks の分割送信は溢れを軽減するが、chunks[:4] の黙った
+    # 切り捨てと単一節の hard cut が残るため、前方固定は依然必要。
+    watch_text = report.get("prereg_trigger_watch", "")
+    alert = extract_watch_alert(watch_text)
+    if alert:
+        lines.append("## ⚠️ Pre-reg Trigger Watch — 監視器故障")
+        lines.append(alert)
+        lines.append("")
+    # 要行動 (TRIGGERED) も M1 より前へ。故障だけ届いて執行期日が届かないと
+    # 「見えているのに動けない」になる。
+    triggered = extract_watch_triggered(watch_text)
+    if triggered:
+        lines.append("## 🔴 Pre-reg TRIGGERED — 要行動")
+        lines.append(triggered)
+        lines.append("")
+    # M1 は最重要 KPI なので (故障 banner / TRIGGERED の次に) 前方へ固定する。
     m1_report = report.get("m1_readout") or {}
     if m1_report.get("error"):
         lines.append("## M1 KPI (clean live 30d PnL)")
