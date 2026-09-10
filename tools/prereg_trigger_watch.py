@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -848,6 +849,26 @@ ENUM_FIELDS: dict[str, frozenset[Any]] = {
     "dedup_violation": frozenset({0}),
 }
 
+# 空文字が正当なワイルドカードである field の enum。空なら絞り込まない
+# (= ENUM_FIELDS には入れられない) が、**非空なら評価器が解釈できる値**
+# でなければならない。`direction: "BYU"` は `t.get("direction") == "BYU"` が
+# 全行 false になり、母集団が**黙って空**になる → N ベースの判定が永久に
+# WATCHING に留まるか、低 N の deadline 分岐 (retire) を誤って踏む
+# (PR #227 Codex P2 15 巡目)。ENUM_FIELDS と同じ「評価器が解釈する値だけ」
+# の原則を、ワイルドカード許容 field にも適用する。
+ENUM_FIELDS_IF_NONEMPTY: dict[str, frozenset[Any]] = {
+    "direction": frozenset({"BUY", "SELL"}),
+}
+
+# 非空なら形が決まっている field の正規表現。instrument は新ペア追加が
+# 常時ありうるので閉じた enum にはできないが、**形**は OANDA の
+# `CCY_CCY` に固定されている。`USDJPY` / `USD_JPYY` のような綴り違いは
+# 同じ「母集団が黙って空になる」故障を起こすので形で落とす
+# (値そのものの妥当性は落とせない — 限界を明示しておく)。
+SHAPE_IF_NONEMPTY: dict[str, str] = {
+    "instrument": r"^[A-Z]{3}_[A-Z]{3}$",
+}
+
 # 各カウント field の下限 (評価器の意味論)。n_decide=-1 は即時 TRIGGERED、
 # min_files=-1 は不在の成果物を「充足」と報告する。
 INT_MIN = {"n_decide": 1, "n_floor": 0, "min_files": 1, "min_keys": 1}
@@ -1066,6 +1087,20 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
                 errors.append(
                     f"{tid}: type={ttype} の {f} が使えない値 ({why}) — "
                     "評価器が実行時に落ちる")
+        for f, allowed in ENUM_FIELDS_IF_NONEMPTY.items():
+            v = t.get(f)
+            if isinstance(v, str) and v.strip() and v not in allowed:
+                errors.append(
+                    f"{tid}: type={ttype} の {f}={v!r} は評価器が解釈しない値 "
+                    f"— 解釈するのは {sorted(allowed)} のみ (空文字 = 絞り込まない)。"
+                    "綴り違いは母集団が**黙って空**になり、N ベースの判定が"
+                    "永久 WATCHING か低 N の retire 分岐を誤って踏む")
+        for f, pattern in SHAPE_IF_NONEMPTY.items():
+            v = t.get(f)
+            if isinstance(v, str) and v.strip() and not re.match(pattern, v):
+                errors.append(
+                    f"{tid}: type={ttype} の {f}={v!r} は形が {pattern} に"
+                    "合わない — 綴り違いなら母集団が黙って空になる")
         for f, allowed in ENUM_FIELDS.items():
             if f in t and t[f] not in allowed:
                 errors.append(

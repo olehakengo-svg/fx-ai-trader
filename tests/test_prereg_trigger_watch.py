@@ -1396,3 +1396,39 @@ def test_allowlisted_selectors_are_wired_into_the_evaluator():
         assert "N=1" in res["detail"], res["detail"]
     finally:
         w.fetch_trades_window = orig_window
+
+
+def test_direction_typo_is_rejected_not_silently_emptied():
+    """`direction: "BYU"` は母集団を黙って空にする。
+
+    PR #227 Codex P2 15 巡目: `direction` は str 型検査だけで通っていた。
+    `count_matching()` / `count_live_matching()` は完全一致で絞るので、
+    綴り違いは**全行 false** = 母集団ゼロ。N ベースの判定は永久 WATCHING に
+    留まるか、低 N の deadline 分岐 (retire) を誤って踏む。
+    """
+    from tools import prereg_trigger_watch as w
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert w.lint_schema([dict(base, direction="BUY")]) == []
+    assert w.lint_schema([dict(base, direction="SELL")]) == []
+    assert w.lint_schema([dict(base, direction="")]) == [], "空 = 絞り込まない は正当"
+    assert w.lint_schema([dict(base, direction="BYU")]) != []
+    assert w.lint_schema([dict(base, direction="buy")]) != [], "大小も評価器は区別する"
+    # 評価器側で「綴り違い = 母集団が空」を実証する
+    rows = [{"entry_type": "e", "instrument": "USD_JPY", "direction": "BUY",
+             "is_shadow": 1, "entry_time": "2026-08-12T00:00:00Z"}]
+    assert w.count_matching(rows, "e", direction="BUY") == 1
+    assert w.count_matching(rows, "e", direction="BYU") == 0
+
+
+def test_instrument_shape_typo_is_rejected():
+    """instrument は閉じた enum にできないが**形**は固定されている。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, instrument="USD_JPY")]) == []
+    assert lint_schema([dict(base, instrument="")]) == []
+    assert lint_schema([dict(base, instrument="USDJPY")]) != []
+    assert lint_schema([dict(base, instrument="USD_JPYY")]) != []
