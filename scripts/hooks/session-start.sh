@@ -129,10 +129,12 @@ fi
 # ── Quick Reference: ロードマップ + 摩擦 + BT TOP戦略 + 判断プロトコル ──
 QUICK_REF=""
 
-# ロードマップv2.1サマリー
-ROADMAP_FILE="$ROOT/knowledge-base/wiki/syntheses/roadmap-v2.1.md"
+# ロードマップ v2.3 サマリー (旧 v2.1 参照は 5 ヶ月陳腐化していた —
+# process-meta-audit-2026-09-07 arch-3。「必ず確認」ラベルで demote 済み戦略を
+# 供給していた。以後 roadmap 改版時は本行のファイル名を同一コミットで更新)
+ROADMAP_FILE="$ROOT/knowledge-base/wiki/syntheses/roadmap-v2.3-payoff-friction-repair.md"
 if [[ -f "$ROADMAP_FILE" ]]; then
-    ROADMAP=$(awk '/^## コンセプト/,/^## 二軸構造/' "$ROADMAP_FILE" 2>/dev/null | head -10 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+    ROADMAP=$(awk '/^## コンセプト/,/^## WS1/' "$ROADMAP_FILE" 2>/dev/null | head -10 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
     QUICK_REF="${QUICK_REF}ROADMAP: ${ROADMAP}\\n"
 fi
 
@@ -143,12 +145,11 @@ if [[ -f "$FRICTION_FILE" ]]; then
     QUICK_REF="${QUICK_REF}FRICTION: ${FRICTION}\\n"
 fi
 
-# BT TOP 5 正EV戦略
-BT_FILE="$ROOT/knowledge-base/raw/bt-results/comprehensive-bt-scan-2026-04-14.md"
-if [[ -f "$BT_FILE" ]]; then
-    BT_TOP=$(awk '/^## クオンツ判断/,/^## 注意/' "$BT_FILE" 2>/dev/null | head -15 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
-    QUICK_REF="${QUICK_REF}BT_TOP5: ${BT_TOP}\\n"
-fi
+# BT TOP5 注入は廃止 (process-meta-audit-2026-09-07 arch-3): 2026-04-14 の
+# スナップショットを「判断前に必ず確認」ラベルで注入し続け、demote 済み
+# trendline_sweep×GBP_USD 等を推奨し続けていた。現役 tier は tier-master.md
+# (自動生成) が SSOT — ポインタのみ注入する。
+QUICK_REF="${QUICK_REF}TIER_SSOT: 戦略 tier の SSOT は wiki/tier-master.md (自動生成)。BT スナップショットの静的注入は 2026-09-10 に廃止 — 古い TOP5 を引用しない\\n"
 
 # 判断プロトコルリマインダー
 QUICK_REF="${QUICK_REF}DECISION_PROTOCOL: 判断前に必ず確認: (1)根拠=365日BT or Live N>=30か？ (2)どのKBページを読んだか？ (3)バグ修正かパラメータ変更か？ (4)感情的動機でないか？ → 1日データで対策実装は禁止（lesson-reactive-changes参照）\\n"
