@@ -265,6 +265,15 @@
       "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3)。第3次 2026-08-14 実行済 (採用 E21/E22・棄却 E24/E25・保留 E23)。**第4次 2026-09-10 実行済 (期日 09-18 の 8 日前倒し、WIP 原則 — [[external-hypothesis-scan-round4-2026-09-10]])**: family A 採用 (台帳 #27、敵対的検証+凍結は family-a-adversarial-freeze-deadline) / family B 不採用 (park、再裁定 = #27 verdict + mof-next-episode-reverdict 完了後) / family C 台帳整合 (FAIL 不変) / E23 testable form DRAFT→LOCK (残 item 3 完遂) / 新規 E26-E28 全棄却 / U4 材料 §4 凍結 / rate-anchor-daily+zn-cache-refresh 修復 (FRED WAF + git add ignored-path の二重根因)。次回第5次 = 2026-10-18。四半期モダリティ棚卸しは第6次に同乗。到達経路 (第5次の材料、性質 pin 継続): A forward 材料 = mof-statements-daily cron (lexicon_scores.csv 日次) — 基盤着地は statement-ladder-foundation-readiness で resolve 済み / B 再裁定入力 = intervention-watch workflow (E-A 凍結検知器、00:20 UTC) + mof-next-episode-reverdict / C 残置材料 = rate-anchor-daily workflow (平日 21:15 UTC、本 PR 修復 — 初回 green は dispatch 検証で確認)。"
     },
     {
+      "id": "e23-explore-verdict-deadline",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-09-20",
+      "doc": "knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-10.md",
+      "message": "E23 中銀声明テキスト explore pre-reg (🔒 LOCKED 2026-09-10、台帳 #25、explore 枠 1/3) の verdict 期日 (LOCK+10日、T5 型ギャップ防止)。執行 = LOCK 後の別タスク: pass-0 コーパス取得ハーネス + census (outcome 非接触、per-CB 被覆 gate / 生存 <2 CB = DATA-BLOCKED) → コミット → pass-1 (イベント列挙、fwd 非接触) → コミット → pass-2 (測定、seed 20260910)。凍結辞書 sha256=f49586ca... を測定ハーネスが assert。期日到達で未執行なら stale レビュー。TDW/WCB (CC BY-NC) は事前コミット節どおり secondary 保留 = user 決裁点。",
+      "reachability": "Claude セッション手動 (Tier-A cron が TRIGGERED 表示)。前進経路 = コーパスは各中銀公式サイト (無料・keyless) — 取得ハーネスが pass-0 の成果物。"
+    },
+    {
       "id": "family-a-adversarial-freeze-deadline",
       "active": true,
       "type": "deadline_info",

@@ -1,6 +1,6 @@
 # E23 central_bank_statement_text (台帳 #25) explore pre-reg — testable form (2026-09-10)
 
-**状態**: 📝 DRAFT (本コミット) → 🔒 LOCK は**別 commit** (規約 — queue ticket item 3)。**LOCK まで、および LOCK 後も測定ハーネス実行まで、イベント×リターン結合統計は全面計算禁止 (S2 規律 / P-10 型)。本 doc 起草で結合量は一切計算していない。**
+**状態**: 🔒 **FROZEN (2026-09-10 — 本 LOCK commit が凍結点。以後の定義・閾値・語彙変更禁止、逸脱は verdict 無効)**。DRAFT 起草 + 敵対的検証 (自己、§7) は先行 commit `325359ef`。**凍結辞書 pin**: `tools/e23_lexicon_apel_grimaldi.py` sha256 = `f49586cad6e40e9c53e24adefeba78dcc5c9b925496c4b5b3808636c84b7bde8` (@ `325359ef`) — 測定ハーネスは実行時にこの sha を assert すること。**explore 枠 1/3 を本 LOCK で消費** (0/3 → 1/3)。**測定ハーネス実行まで、イベント×リターン結合統計は全面計算禁止 (S2 規律 / P-10 型)。本 doc 起草〜LOCK で結合量は一切計算していない。** registry: `e23-explore-verdict-deadline` (2026-09-20) 併設。
 **family**: text モダリティ (中銀声明 tone 差分 × 自国通貨方向)。台帳 #25 (採用 = S2 診断枠 2026-08-18、[[../research/e23-cb-text-adjudication-s2-2026-08-18|裁定 doc]])。
 **起点**: `.ai/tasks/queue/20260818-e23-cb-text-adjudication-s2.md` 残 item 3 (SLA waiver 期限 09-18 を scan#4 前倒し 2026-09-10 に同乗して処理 — [[../research/external-hypothesis-scan-round4-2026-09-10|scan#4]] §5)。
 **先行物流**: [[../../raw/analysis/e23-data-availability-dossier-2026-08-18|データ実在 dossier]] (2026-08-18、45 tool 参照)。
