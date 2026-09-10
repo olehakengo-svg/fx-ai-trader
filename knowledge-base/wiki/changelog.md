@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-10 — fix(ci): zn-cache-refresh の git add -f 修正 + ZN cache 鮮度 pin — round-4 発火条件の恒久死亡を解消 (rule:R3)
+
+- **実測根因** (gh run log 4/4、run 34124847021 ほか): `zn-cache-refresh.yml` は fetch 成功 (rows 14225→14537、右端 2026-09-04 まで取得) の直後、commit 段の素の `git add data/cache/yield/ZN_F_1h.parquet` が `.gitignore` の `data/cache/` に拒否され exit 1 — **2026-08-17〜09-07 の全 run が取得データを捨てて死亡**。ファイルは track 済みだが git >= 2.5x は ignored dir 配下への素の add を advice + exit 1 で拒否する (ローカル 2.50.1 で再現確認)。放置すると registry `ws3-round4-eur-divergence-conditional` の発火条件 (cache 被覆 2026-11-15+) が永遠に不成立 = E1 FAIL 時の代替供給 1 本が無期限死亡
+- **修理**: `git add -f data/cache/yield/ZN_F_1h.parquet` へ変更 (workflow 内に根因コメント併記)
+- **鮮度 pin (読み手の新設)** — 4 回の赤 run を誰も読んでいなかった (「収集済み ≠ 監視済み」の再演): `scripts/check_zn_cache_freshness.py` 新設 — cache 右端が `ZN_CACHE_MAX_AGE_DAYS = 8` 日 (SSOT: `modules/freshness_policy.py`、較正: 正常時 ≈5.8 日 / refresh 1 回失敗 ≈12.8 日の中間) を超えたら Discord 通知 + exit 1。欠損/空/読取り不能も fail 側に倒す (「無ければ skip」禁止)。読み手 = `weekly-audit.yml` の独立 job `zn-cache-freshness` (週次日曜 02:00 UTC)
+- **counterfactual pin**: `tests/test_zn_cache_freshness_pin.py` 11 本 — `-f` を外す / weekly-audit の配線を消す の双方で red になることを実地確認 (3 fail)、復元で green。閾値較正域 (6〜12 日) も pin
+- **同一ファイル semgrep gate 対応**: weekly-audit.yml の actions を full SHA pin 化 + `github.event.inputs` の run 直接展開を env 経由へ (script injection 防止)
+- **マージ後検証 (push ≠ 完了)**: `gh workflow run zn-cache-refresh.yml` → run green → `git show origin/main:data/cache/yield/ZN_F_1h.parquet` の右端が前進したことを実測 (手順は PR 本文)
+
 ## 2026-09-10 — feat(wg): 執行契約 (B) エントリー繰り下げ — halt 決定論 fill 0% の修理 (rule:R1 user 承認 2026-09-10)
 
 - **決裁執行**: [[weekend-gap-execution-contract-r1-packet-2026-09-10]] §4 AMENDMENT (user「進めて」2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap_fade の live fill 0/3 の機構 = エンジン発火 21:01 UTC < OANDA 実開場 21:04-21:05 (48/48 実測) → 旧契約 (即時 FOK 1 回) は MARKET_HALTED cancel が決定論的。**次イベント 2026-09-13 (日) 21:00 UTC が改定後初の検証点**
