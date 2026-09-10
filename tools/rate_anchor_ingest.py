@@ -9,7 +9,12 @@
 ソース (全て keyless、e20_rates_ingest の配管様式を踏襲):
   - JGB 全テナー: MoF jgbcm_all.csv (歴史、Shift-JIS + 和暦、月次ラグあり)
                 + MoF 英語版 jgbcme.csv (当月分、日次更新) — 両者 union で日次鮮度を確保
-  - US Treasury: FRED fredgraph.csv (DGS1/DGS2/DGS5/DGS10、日次)
+  - US Treasury: FRED fredgraph.csv (DGS1/DGS2/DGS5/DGS10、日次) を primary、
+                失敗時は home.treasury.gov 公式 par yield curve CSV へ fallback。
+                FRED fredgraph.csv は GitHub Actions (Azure) IP から read timeout で
+                ハングする (2026-08-18〜09-09 の 17/17 run で実測 — WAF 型遮断)。
+                Treasury CSV は同一値の一次ソース (FRED DGS* は Treasury 日次 par yield
+                curve の再配布 — 2026-08-14 行で 4 系列一致を実測)
   - ZN=F 日足:  data/cache/yield/ZN_F_1h.parquet (zn-cache-refresh / 本ジョブが延伸) を
                 UTC-day に集計 (US10y の intraday proxy — modules/yield_data.py 参照)
 
@@ -55,15 +60,24 @@ _MOF_EN_COLS = {t.upper(): t for t in _TENORS}
 
 _FRED_SERIES = ("DGS1", "DGS2", "DGS5", "DGS10")
 
+# Treasury 公式 par yield curve CSV の列名 → FRED 系列名 (値は同一 — FRED は再配布)
+_TREASURY_COLS = {"1 Yr": "DGS1", "2 Yr": "DGS2", "5 Yr": "DGS5", "10 Yr": "DGS10"}
+
 URLS = {
     "mof_jgb_all": "https://www.mof.go.jp/jgbs/reference/interest_rate/data/jgbcm_all.csv",
     "mof_jgb_current": ("https://www.mof.go.jp/english/policy/jgbs/reference/"
                         "interest_rate/jgbcme.csv"),
     "fred_dgs": ("https://fred.stlouisfed.org/graph/fredgraph.csv?id="
                  + ",".join(_FRED_SERIES)),
+    # {year} を format で埋める (年単位取得。fallback は当年 + 前年の 2 リクエスト)
+    "treasury_par": ("https://home.treasury.gov/resource-center/data-chart-center/"
+                     "interest-rates/daily-treasury-rates.csv/{year}/all"
+                     "?type=daily_treasury_yield_curve"
+                     "&field_tdr_date_value={year}&page&_format=csv"),
 }
 
-_ALLOWED_PREFIXES = ("https://www.mof.go.jp/", "https://fred.stlouisfed.org/")
+_ALLOWED_PREFIXES = ("https://www.mof.go.jp/", "https://fred.stlouisfed.org/",
+                     "https://home.treasury.gov/")
 
 
 def _http_get(url: str, timeout: int = 180) -> bytes:
@@ -132,6 +146,49 @@ def parse_fred(text: str) -> pd.DataFrame:
         index=pd.DatetimeIndex(pd.to_datetime(df[date_col]), name="date"),
     )
     return out.sort_index()
+
+
+def parse_treasury(text: str) -> pd.DataFrame:
+    """home.treasury.gov 日次 par yield curve CSV → FRED 系列名の frame。
+
+    列 "1 Yr"/"2 Yr"/"5 Yr"/"10 Yr" を DGS1/DGS2/DGS5/DGS10 へ写像 (値は FRED と同一 —
+    FRED DGS* は本 CSV の再配布)。日付は MM/DD/YYYY。欠損は NaN。
+    """
+    df = pd.read_csv(io.StringIO(text))
+    missing = [c for c in _TREASURY_COLS if c not in df.columns]
+    if missing:
+        raise ValueError(
+            f"Treasury csv に想定列が無い: {missing} / 実列 {list(df.columns)[:8]}")
+    out = pd.DataFrame(
+        {canon: pd.to_numeric(df[col], errors="coerce").values
+         for col, canon in _TREASURY_COLS.items()},
+        index=pd.DatetimeIndex(
+            pd.to_datetime(df["Date"], format="%m/%d/%Y"), name="date"),
+    )
+    return out.sort_index()
+
+
+def fetch_us_yields(today: "pd.Timestamp | None" = None) -> tuple[pd.DataFrame, str]:
+    """US 金利の取得。FRED (全歴史) primary → home.treasury.gov (当年+前年) fallback。
+
+    FRED fredgraph.csv は GitHub Actions runner (Azure IP) から read timeout で
+    恒常ハングする (rate-anchor-daily 17/17 失敗の根因、2026-09-10 実測)。
+    Treasury CSV は同一値の一次ソースなので、fallback しても系列の意味は変わらない。
+    戻り値 = (frame, source) — source は manifest/ログ用の "fred" | "treasury"。
+    """
+    try:
+        return parse_fred(_http_get(URLS["fred_dgs"], timeout=45).decode("utf-8")), "fred"
+    except Exception as exc:  # noqa: BLE001 — 失敗は明示ログ + 同値ソースへ fallback
+        print(f"FRED fetch failed ({type(exc).__name__}: {exc}) -> "
+              "fallback to home.treasury.gov")
+    year = int((today or pd.Timestamp.utcnow()).year)
+    frames = [
+        parse_treasury(_http_get(URLS["treasury_par"].format(year=y)).decode("utf-8"))
+        for y in (year - 1, year)
+    ]
+    merged = pd.concat(frames)
+    merged = merged[~merged.index.duplicated(keep="last")].sort_index()
+    return merged, "treasury"
 
 
 def zn_daily_from_cache(cache_path: str = ZN_CACHE) -> pd.DataFrame:
@@ -240,39 +297,60 @@ def refresh_zn_cache() -> None:
 
 
 def run(out_dir: str = OUT_DIR, fetch: bool = True, refresh_zn: bool = False) -> dict:
+    """各ソースを独立に取得・蓄積し、失敗は集約して最後に大声で raise する。
+
+    1 ソースの外部障害 (FRED WAF 等) で他ソースの当日進捗まで捨てない —
+    17/17 失敗期間は FRED だけが死んでいたのに JGB/ZN の 23 日分も未蓄積になった
+    (fail-fast 単一 try の構造欠陥)。silent except ではない: 失敗は都度 print +
+    終端 RuntimeError (workflow は部分進捗を commit した上で run を失敗表示にする)。
+    """
     os.makedirs(out_dir, exist_ok=True)
-    files = {}
+    errors: list[str] = []
 
     if refresh_zn:
-        refresh_zn_cache()
+        try:
+            refresh_zn_cache()
+        except Exception as exc:  # noqa: BLE001 — 集約して終端で raise
+            errors.append(f"zn_refresh: {type(exc).__name__}: {exc}")
+            print(f"zn_refresh FAILED: {type(exc).__name__}: {exc}")
 
     if fetch:
-        jgb_all = parse_mof_all(_http_get(URLS["mof_jgb_all"]))
-        jgb_cur = parse_mof_current(_http_get(URLS["mof_jgb_current"]))
-        # 歴史 + 当月を結合 (重複日は当月版採用) → START で切って蓄積
-        jgb = pd.concat([jgb_all, jgb_cur])
-        jgb = jgb[~jgb.index.duplicated(keep="last")].sort_index()
-        jgb = jgb[jgb.index >= START]
-        p = os.path.join(out_dir, "jgb_yields.csv")
-        merged = update_store(p, jgb)
-        files["jgb_yields"] = p
-        print(f"jgb_yields: {len(merged)} rows | {merged.index.min().date()}"
-              f" -> {merged.index.max().date()}")
+        try:
+            jgb_all = parse_mof_all(_http_get(URLS["mof_jgb_all"]))
+            jgb_cur = parse_mof_current(_http_get(URLS["mof_jgb_current"]))
+            # 歴史 + 当月を結合 (重複日は当月版採用) → START で切って蓄積
+            jgb = pd.concat([jgb_all, jgb_cur])
+            jgb = jgb[~jgb.index.duplicated(keep="last")].sort_index()
+            jgb = jgb[jgb.index >= START]
+            p = os.path.join(out_dir, "jgb_yields.csv")
+            merged = update_store(p, jgb)
+            print(f"jgb_yields: {len(merged)} rows | {merged.index.min().date()}"
+                  f" -> {merged.index.max().date()}")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"jgb_yields: {type(exc).__name__}: {exc}")
+            print(f"jgb_yields FAILED: {type(exc).__name__}: {exc}")
 
-        us = parse_fred(_http_get(URLS["fred_dgs"]).decode("utf-8"))
-        us = us[us.index >= START]
-        p = os.path.join(out_dir, "us_treasury_yields.csv")
-        merged = update_store(p, us)
-        files["us_treasury_yields"] = p
-        print(f"us_treasury_yields: {len(merged)} rows | {merged.index.min().date()}"
-              f" -> {merged.index.max().date()}")
+        try:
+            us, us_source = fetch_us_yields()
+            us = us[us.index >= START]
+            p = os.path.join(out_dir, "us_treasury_yields.csv")
+            merged = update_store(p, us)
+            print(f"us_treasury_yields: {len(merged)} rows "
+                  f"| {merged.index.min().date()} -> {merged.index.max().date()}"
+                  f" | source={us_source}")
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"us_treasury_yields: {type(exc).__name__}: {exc}")
+            print(f"us_treasury_yields FAILED: {type(exc).__name__}: {exc}")
 
-    zn = zn_daily_from_cache()
-    p = os.path.join(out_dir, "zn_f_daily.csv")
-    merged = update_store(p, zn)
-    files["zn_f_daily"] = p
-    print(f"zn_f_daily: {len(merged)} rows | {merged.index.min().date()}"
-          f" -> {merged.index.max().date()}")
+    try:
+        zn = zn_daily_from_cache(ZN_CACHE)   # 明示引数 = 実行時解決 (test で差し替え可)
+        p = os.path.join(out_dir, "zn_f_daily.csv")
+        merged = update_store(p, zn)
+        print(f"zn_f_daily: {len(merged)} rows | {merged.index.min().date()}"
+              f" -> {merged.index.max().date()}")
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"zn_f_daily: {type(exc).__name__}: {exc}")
+        print(f"zn_f_daily FAILED: {type(exc).__name__}: {exc}")
 
     # manifest は out_dir の実在ファイル全部で決定的に再生成
     all_files = {n: os.path.join(out_dir, f"{n}.csv")
@@ -280,6 +358,9 @@ def run(out_dir: str = OUT_DIR, fetch: bool = True, refresh_zn: bool = False) ->
                  if os.path.exists(os.path.join(out_dir, f"{n}.csv"))}
     manifest = write_manifest(out_dir, all_files)
     print(f"manifest: {os.path.join(out_dir, 'manifest.json')}")
+
+    if errors:
+        raise RuntimeError("partial ingest failure: " + " | ".join(errors))
     return manifest
 
 

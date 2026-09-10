@@ -14,6 +14,16 @@
 #   全出力は union-merge (行数単調非減少 / 既存日付欠落なし / 左端保持 — 違反は即例外)。
 #   不変条件は tests/test_rate_anchor_ingest.py が pin。計測も判定もしない
 #   純データ基盤ジョブ (rule:R3)。
+#
+# 修復履歴 (2026-09-10, rule:R3 — 設置以来 17/17 全失敗の二重根因):
+#   (1) FRED fredgraph.csv が GH Actions (Azure) IP から read timeout でハング
+#       → tools/rate_anchor_ingest.py に home.treasury.gov fallback (同一値の一次
+#       ソース) を実装。ingest は per-source 隔離になり、1 ソース失敗でも他ソースの
+#       進捗を蓄積してから非ゼロ exit する。
+#   (2) data/cache/ は .gitignore 対象 — runner の git (2.54+) は tracked ファイルでも
+#       ignored パスの `git add` を拒否する → `git add -f` に変更 (zn-cache-refresh
+#       も同修理)。commit step は `if: !cancelled()` で部分進捗も必ず永続化する
+#       (run 自体の成否は ingest step が正しく表示する)。
 name: rate-anchor-daily
 
 on:
@@ -43,11 +53,14 @@ jobs:
         run: python3 tools/rate_anchor_ingest.py fetch --refresh-zn
 
       - name: Commit accumulated data
+        if: ${{ !cancelled() }}   # ingest が部分失敗しても成功分は永続化 (union-merge は冪等)
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/external/rate_anchor/ data/cache/yield/ZN_F_1h.parquet
+          # -f 必須: data/cache/ は .gitignore 対象 (tracked でも runner git 2.54+ は拒否)
+          git add data/external/rate_anchor/
+          git add -f data/cache/yield/ZN_F_1h.parquet
           if git diff --cached --quiet; then
             echo "no changes"
             exit 0

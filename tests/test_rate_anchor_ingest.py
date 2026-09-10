@@ -72,6 +72,66 @@ def test_parse_fred_blank_is_nan():
     assert df.loc["2026-08-14", "DGS10"] == pytest.approx(4.68)
 
 
+# ─── Treasury fallback パーサ ────────────────────────────────────────────────
+_TREASURY_HEADER = ('Date,"1 Mo","1.5 Month","2 Mo","3 Mo","4 Mo","6 Mo",'
+                    '"1 Yr","2 Yr","3 Yr","5 Yr","7 Yr","10 Yr","20 Yr","30 Yr"')
+
+
+def test_parse_treasury_maps_to_fred_series():
+    text = "\n".join([
+        _TREASURY_HEADER,
+        "09/09/2026,3.81,3.88,3.93,3.95,4.06,4.01,4.17,4.43,4.49,4.61,4.71,4.83,5.28,5.28",
+        "08/14/2026,3.79,3.80,3.81,3.86,3.88,3.95,3.98,4.17,4.24,4.36,4.51,4.68,5.25,",
+    ])
+    df = R.parse_treasury(text)
+    assert list(df.columns) == list(R._FRED_SERIES)
+    assert df.index.is_monotonic_increasing
+    # 2026-08-14 実測: FRED DGS 系列と同一値 (FRED は Treasury の再配布)
+    assert df.loc["2026-08-14", "DGS1"] == pytest.approx(3.98)
+    assert df.loc["2026-08-14", "DGS2"] == pytest.approx(4.17)
+    assert df.loc["2026-08-14", "DGS5"] == pytest.approx(4.36)
+    assert df.loc["2026-08-14", "DGS10"] == pytest.approx(4.68)
+    assert df.loc["2026-09-09", "DGS10"] == pytest.approx(4.83)
+
+
+def test_parse_treasury_missing_column_raises():
+    with pytest.raises(ValueError):
+        R.parse_treasury('Date,"1 Mo"\n09/09/2026,3.81')
+
+
+def test_fetch_us_yields_falls_back_to_treasury(monkeypatch):
+    """FRED がハング (GH runner 実測 17/17) しても Treasury 当年+前年で自己修復する。"""
+    calls = []
+
+    def fake_get(url, timeout=180):
+        calls.append(url)
+        if "fred.stlouisfed.org" in url:
+            raise RuntimeError("Read timed out (WAF)")
+        year = "2025" if "2025" in url else "2026"
+        rows = {"2025": "12/31/2025,3.7,3.7,3.7,3.7,3.7,3.6,3.5,3.5,3.5,3.7,3.9,4.2,4.8,4.9",
+                "2026": "09/09/2026,3.81,3.88,3.93,3.95,4.06,4.01,4.17,4.43,4.49,4.61,4.71,4.83,5.28,5.28"}
+        return ("\n".join([_TREASURY_HEADER, rows[year]])).encode("utf-8")
+
+    monkeypatch.setattr(R, "_http_get", fake_get)
+    df, source = R.fetch_us_yields(today=pd.Timestamp("2026-09-10"))
+    assert source == "treasury"
+    assert len(calls) == 3                              # FRED 1 + Treasury 2 (前年+当年)
+    assert len(df) == 2                                 # 前年末 + 当年、union 済み
+    assert df.loc["2026-09-09", "DGS2"] == pytest.approx(4.43)
+    assert df.loc["2025-12-31", "DGS10"] == pytest.approx(4.2)
+
+
+def test_fetch_us_yields_fred_primary(monkeypatch):
+    def fake_get(url, timeout=180):
+        assert "fred.stlouisfed.org" in url             # primary は FRED のみ叩く
+        return b"observation_date,DGS1,DGS2,DGS5,DGS10\n2026-09-08,4.15,4.39,4.57,4.80\n"
+
+    monkeypatch.setattr(R, "_http_get", fake_get)
+    df, source = R.fetch_us_yields(today=pd.Timestamp("2026-09-10"))
+    assert source == "fred"
+    assert df.loc["2026-09-08", "DGS10"] == pytest.approx(4.80)
+
+
 # ─── union-merge 不変条件 ────────────────────────────────────────────────────
 def _frame(dates, val):
     return pd.DataFrame({"a": [val] * len(dates)},
@@ -149,3 +209,33 @@ def test_http_get_rejects_non_allowlisted():
         R._http_get("https://evil.example.com/x.csv")
     with pytest.raises(ValueError):
         R._http_get("file:///etc/passwd")
+
+
+def test_treasury_url_is_allowlisted():
+    url = R.URLS["treasury_par"].format(year=2026)
+    assert url.startswith(R._ALLOWED_PREFIXES)
+
+
+# ─── run() の per-source 隔離 (部分失敗でも成功分は蓄積 + 終端で loud) ─────────
+def test_run_partial_failure_accumulates_then_raises(tmp_path, monkeypatch):
+    def fake_get(url, timeout=180):
+        raise RuntimeError("network down")              # MoF/FRED/Treasury 全滅
+
+    monkeypatch.setattr(R, "_http_get", fake_get)
+    # ZN cache だけは生きている状況を再現
+    idx = pd.DatetimeIndex(["2026-09-09 10:00"], tz="UTC")
+    bars = pd.DataFrame({"Open": [110.0], "High": [110.5], "Low": [109.9],
+                         "Close": [110.2], "Volume": [10]}, index=idx)
+    zn_path = str(tmp_path / "zn.parquet")
+    bars.to_parquet(zn_path)
+    monkeypatch.setattr(R, "ZN_CACHE", zn_path)
+
+    out_dir = str(tmp_path / "out")
+    with pytest.raises(RuntimeError, match="partial ingest failure"):
+        R.run(out_dir=out_dir, fetch=True, refresh_zn=False)
+    # 失敗ソースがあっても ZN 日足と manifest は書かれている (write 経路の保全)
+    zn_df = pd.read_csv(f"{out_dir}/zn_f_daily.csv")
+    assert len(zn_df) == 1
+    manifest = json.loads(open(f"{out_dir}/manifest.json").read())
+    assert "zn_f_daily" in manifest["files"]
+    assert "jgb_yields" not in manifest["files"]
