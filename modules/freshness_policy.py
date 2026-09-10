@@ -89,6 +89,24 @@ FX_WEEKEND_CLOSE_HOURS = 48  # 金 21:00 UTC → 日 21:00 UTC
 # ⚠️ n=15 は薄い。誤発火が出たら**上げる** (下げるのは実測を取り直してから)。
 LIVE_FILL_STAGNATION_HOURS = 120
 
+# ZN=F 1h キャッシュ (data/cache/yield/ZN_F_1h.parquet) の右端鮮度上限。
+# 実時間 (wall clock) の日数で数える — ZN は CME 週末閉場を持つが、閾値が
+# 週次リフレッシュ周期 (7 日) + 週末 1 日ぶんを既に内包するため市場オープン
+# 換算は不要 (換算を入れると閾値とリフレッシュ周期の対応が読めなくなる)。
+#
+# 較正 (2026-09-10, rule:R3):
+#   refresh は月曜 06:40 UTC (zn-cache-refresh.yml)、読み手の weekly-audit は
+#   日曜 02:00 UTC。正常時の右端年齢 ≈ 5.8 日 / リフレッシュ 1 回失敗で
+#   ≈ 12.8 日。8 日はその中間で、正常を誤検知せず 1 回の失敗を翌週の
+#   audit で必ず捕捉する。
+#
+# なぜ pin が要るか: zn-cache-refresh.yml は 2026-08-17〜09-07 に 4/4 全 run
+# 失敗していた (fetch 成功 → commit 段の `git add` が .gitignore に拒否され
+# 全部捨てられた) が、run の赤を読む者がいなかった。「収集済み ≠ 監視済み」。
+# 読み手は scripts/check_zn_cache_freshness.py (weekly-audit.yml から週次実行、
+# 配線は tests/test_zn_cache_freshness_pin.py が counterfactual pin)。
+ZN_CACHE_MAX_AGE_DAYS = 8
+
 
 def market_open_hours(start: datetime, end: datetime) -> float:
     """[start, end] の実時間から FX 週末閉場 (金 21:00 → 日 21:00 UTC) を除く.
