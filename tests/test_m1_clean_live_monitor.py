@@ -334,6 +334,64 @@ def test_partial_eval_error_keeps_the_healthy_trigger_results(monkeypatch):
     assert "全 trigger 未監視" not in out, "部分故障を全滅と誤って名乗っている"
 
 
+def test_quant_readiness_crash_is_reported_as_failure_not_content(monkeypatch):
+    """run_quant_readiness の同型欠陥 (2026-09-10 trigger-watch 監査)。
+
+    旧実装 `r.stdout or r.stderr` は returncode を見ないため、stdout 空の
+    非ゼロ exit で素の traceback が Readiness 節の本文として流れ、読み手に
+    とって「Readiness が落ちた」と「Readiness が出た」が同じに見えていた。
+    """
+    import subprocess
+
+    from tools import quant_gate_status as qgs
+
+    class _R:
+        returncode = 1
+        stdout = ""
+        stderr = "Traceback (most recent call last):\nValueError: boom"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _R())
+    out = qgs.run_quant_readiness()
+    assert qgs.WATCH_ALERT_MARK in out and "exit 1" in out
+    assert "ValueError" in out, "原因が読み手に届いていない"
+    assert "```" not in out, "Readiness 節はフェンス内描画 — 入れ子フェンス禁止"
+
+
+def test_quant_readiness_partial_output_keeps_body_and_names_failure(monkeypatch):
+    """非ゼロ exit + 部分 stdout: 旧実装は stderr を黙って捨て、途中まで
+    印字された本文が健全なレポートに見えた。本文は残しつつ故障を名乗る。"""
+    import subprocess
+
+    from tools import quant_gate_status as qgs
+
+    class _R:
+        returncode = 1
+        stdout = "M1 gate: partial line"
+        stderr = "Traceback (most recent call last):\nKeyError: 'x'"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _R())
+    out = qgs.run_quant_readiness()
+    assert "M1 gate: partial line" in out, "部分本文が消えている"
+    assert qgs.WATCH_ALERT_MARK in out and "exit 1" in out
+    assert "KeyError" in out, "stderr が握り潰されている"
+
+
+def test_quant_readiness_success_returns_plain_body(monkeypatch):
+    import subprocess
+
+    from tools import quant_gate_status as qgs
+
+    class _R:
+        returncode = 0
+        stdout = "M1 gate: OK"
+        stderr = ""
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _R())
+    out = qgs.run_quant_readiness()
+    assert out == "M1 gate: OK"
+    assert qgs.WATCH_ALERT_MARK not in out
+
+
 def test_watcher_failure_appears_before_the_discord_cutoff(monkeypatch):
     """Discord は 1900 字で切られ watch 節は最後尾 — 故障が届かない。
 

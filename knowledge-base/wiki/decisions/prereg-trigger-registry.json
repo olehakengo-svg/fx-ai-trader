@@ -216,7 +216,10 @@
       ],
       "doc": "knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md",
       "message": "E1 positioning ingest 鮮度監視 (機械評価) — 2026-09-02 移行: 旧 conditional_info の条件『MYFXBOOK creds 投入待ち』は 2026-07-16 に成立済みだった (e1-positioning-contrarian-prereg-2026-07-16 冒頭 (2) が first login 2026-07-16T23:04Z を記録) のに、conditional_info は機械評価対象外のため 7 週間陳腐化して看板だけ残っていた → 約束どおり ingest_freshness 型へ移行 (r3-market-data-ingest-freshness と同型)。判定 = /api/positioning/status の health verified:{PAIR}:outlook 13 キー (poll 1200s、実測 stale p99 < 2h — 48 日で 2h 超 gap は 1 回のみ、それは 2026-08-23→08-26 の Render Disk 満杯 71.3h 停止 = 真検知で修復済み PR #205/#206)。⚠️ その 71.3h 停止は first look (2026-10-15) 評価窓の market-time ~54.6h ≈ 5.7% を消費済み (coverage 予測 94.3% > gate 90%、ただし残 budget ~41h) — verdict 時に §2.5 既知 debit として扱う。ペア追加/削除時は min_keys=13 を同時更新",
-      "reachability": "prereg_trigger_watch evaluate_ingest_freshness が daily cron 経由で機械評価。stale 時は Render ログ [positioning] と status の last_error / consecutive_cycle_failures / myfxbook.logged_in を確認"
+      "reachability": "prereg_trigger_watch evaluate_ingest_freshness が daily cron 経由で機械評価 (検知遅延 ~24h)。2026-09-10 以降は scripts/anomaly_watcher.py (15 分 cron) が positioning_auth_failed (毎時 Discord) / positioning_stale (6h バケット) で先行検知する。stale 時は Render ログ [positioning] と status の last_error / consecutive_cycle_failures / myfxbook.logged_in / myfxbook.auth_failure_streak を確認",
+      "note": {
+        "incident_2026_09_10_auth_outage": "Myfxbook 認証失敗停止 (P1, rule:R3)。最終 verified 2026-09-10T06:58:44Z → 認証失敗開始 ~07:18Z (『Wrong email/password.』) → §2.2 stale cap NA 燃焼開始 08:58:44Z。14:44:46Z 実測: 13 キー全 stale 7.76h / logins_total=0 / consecutive_cycle_failures=10。§2.5 残 budget = 33.2h (h=24h)〜35.2h (h=4h) — 既往 debit 54.6h (disk 満杯) + 本件 5.78h 控除後。停止継続時の breach 予測 = 2026-09-13T23:57Z〜09-14T01:57Z → 6 primary 全ペア機械除外 → §2.5-3 family gate = first look 2026-10-15 → ~11-12 の 4 週 postpone。§2.5-2 連続欠測 24h (market-time) 到達 = 2026-09-11T08:59Z。修理 = ingest auth backoff (上限 6h、lockout 防止) + anomaly_watcher 配線。復旧は user の credentials 再投入のみ: knowledge-base/wiki/analyses/e1-ingest-outage-2026-09-10.md §5"
+      }
     },
     {
       "id": "e1-prereg-lock-decision-stale",
@@ -592,12 +595,14 @@
     },
     {
       "id": "carry-dip-live-to-shadow-drop-cause",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-30",
       "doc": "knowledge-base/wiki/lessons/lesson-live-fill-estimand-shadow-conflation-2026-09-03.md",
       "message": "2026-08-27T16:02Z の usdjpy_carry_dip_accumulator (roadmap T8 で live 稼働中のはず) が is_shadow=1 で記録され +15.5p の WIN。live 資格セルが shadow へ落ちた理由が未特定 (spread / HTF / DD defensive / cooldown / lot floor / carve-out ゲートのいずれか)。同セルは 08-05〜08-20 に LIVE 9 件を出しているので恒久的な資格喪失ではない。次に同セルが shadow で記録されたら block/gate ログと突き合わせて原因を特定する。2026-11-30 までに再現ゼロなら単発として close。**観測枠。lot 変更・降格 (R1/R2) は含まない。**",
-      "reachability": "usdjpy_carry_dip_accumulator は稼働中で shadow/LIVE いずれかの行を出し続ける (自動)。deadline 到達で TRIGGERED、判定は Claude。前進経路 = 新規発火の蓄積。"
+      "reachability": "usdjpy_carry_dip_accumulator は稼働中で shadow/LIVE いずれかの行を出し続ける (自動)。deadline 到達で TRIGGERED、判定は Claude。前進経路 = 新規発火の蓄積。",
+      "resolved": "2026-09-10",
+      "resolution": "原因確定 (Render ログ実査、log ID 付き原文保全済み): alpha_scan H16-20_USD_JPY 静的 hour block (modules/demo_trader.py の _tick_entry USD_JPY H16-20 gate、現行 commit 1edd2ce2 で L5975-5983)。16:02 UTC = H16 で QUALBAR emit=True → [SHADOW] H16 USD_JPY block → SENTINEL_BLOCK_DIAG shadow-downgraded → OANDA SKIP (shadow_tracking) → trade id 16624 (is_shadow=1, +15.5p WIN)。仮説列挙されていた spread/HTF/DD/cooldown/lot floor/carve-out はいずれも非発火 (窓ログ全件で確認)。再現性ゼロ確定: 2026-09-04 commit 0268ad09 の _STATIC_HOURBLOCK_CLASS_EXEMPT (rule:R1 user 承認 09-02) に usdjpy_carry_dip_accumulator が所属し、同 gate は本セルを [HOURBLOCK_CLASS_EXEMPT] marker 付きで免除通過させるため同一原因の shadow 落ち経路は存在しない (免除の巻き戻しは hourblock-class-exempt-r2-rollback が管理)。一次証拠 (原本は Render retention 30 日で ~09-26 消滅): knowledge-base/raw/audits/carry-dip-shadow-drop-evidence-2026-08-27.md"
     },
     {
       "id": "rnb-support-bounce-registration-decision",

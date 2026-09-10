@@ -66,10 +66,9 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # -f 必須: data/cache/ は .gitignore 対象 — tracked ファイルでも runner の
-          # git 2.54+ は ignored パスの add を拒否する (設置以来 4/4 全失敗の根因、
-          # 2026-09-10 修復。python step は毎回成功していたが commit が一度も走らず
-          # write-only だった)
+          # -f 必須: data/cache/ は .gitignore 対象。ファイル自体は track 済みだが、
+          # git >= 2.5x は ignored dir 配下への素の `git add` を advice + exit 1 で拒否する
+          # (4/4 全 run がここで死亡していた — fetch は成功し commit 段で全部捨てられた)。
           git add -f data/cache/yield/ZN_F_1h.parquet
           if git diff --cached --quiet; then
             echo "no changes"
