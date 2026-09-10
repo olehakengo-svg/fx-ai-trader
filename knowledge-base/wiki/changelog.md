@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-11 — fix(keeper): emergency_kill 参照 — kill 状態下の実弾 round-trip 継続を封鎖 (rule:R3)
+
+- **ギャップ確定 (P10、反証レビュー指摘 → コード実読 + 本番 API 実測で自己検証)**: `modules/status_volume_keeper.py` (2026-09-01 user 決裁 案 A、本番稼働中 — 09-10 時点 RT 21 回 / $420k を `/api/demo/status` 実測) は emergency/killed 状態を一切参照していなかった。emergency_kill は口座をフラット化するため、keeper の唯一の補償統制 `openTradeCount != 0` skip は**むしろ外れ**、kill 状態下でも 10,000u USD_JPY 実弾往復が継続する構造 — 549250 事故・watchdog 再武装と同型の「防御が名乗る範囲をカバーしない」クラス
+- **修理 (防御の追加のみ — keeper のマンデート/ガード値は不変更)**: 新規発注前に `_emergency_kill_blocked()` を追加 — 共有 DB `system_kv.emergency_killed` (demo_trader の kill/resume と同一キー) を **read-only SQLite で読む** (in-memory 不可、プロセス境界教訓)。kill 中は `skip("emergency_kill")` + transition ログ、**読めない場合も fail-closed** (`kill_state_unreadable`、失敗を `{}` に潰さない)。stale SVK 玉回収は kill 中も実行 (close-only = フラット化整合、emergency_kill は trade_map 経由でしか閉じないため SVK 玉の唯一の回収経路)
+- **テスト pin** (`tests/test_status_volume_keeper.py` +4 本 + helper に共有 DB 注入): kill=1 で発注が構造的に起きない / **counterfactual 実施済み** (参照除去で kill 下 "RT done" 発生 = テスト red を実地確認 → 復元 green) / kill=0・行なしでマンデート非影響 / read 失敗 fail-closed / kill 中回収 close-only
+- **起票**: 監査盲点 2 (実弾ガバナンス — 自走マージ→auto-deploy→実弾 経路のゲート実効性) を [[decisions/live-governance-gap-audit-packet-2026-09-10]] として起票 (実施は次回監査)。防御追記の記録: [[decisions/status-volume-keeper-2026-09-01]] 追記 2026-09-11
+
 ## 2026-09-10 — research(scan#4): 第4次外部仮説スキャン前倒し + E23 S2 完遂 + rate-anchor 修復 (rule:R3、WIP 原則)
 
 - **第4次スキャン (期日 09-18 を 8 日前倒し、WIP 原則 — 能動測定ライン 08-19 以降ゼロ)**: [[research/external-hypothesis-scan-round4-2026-09-10]]。**family A/B/C 統合裁定**: family A (MoF 発言ラダー→介入確率) **採用 = 台帳 #27** (explore 枠は敵対的検証→凍結時に消費、registry `family-a-adversarial-freeze-deadline` 09-24。凍結まで発言×介入ラベル joint 計算禁止) / family B (介入イベント→回避/執行) **不採用 park** (公式ラベル四半期ラグ×価格シグネチャ認定禁止で執行 estimand が構造的に組めない + blocks ≤4 + 2026-05 outcome 既公表。再裁定 = #27 verdict + mof-next-episode-reverdict 完了後) / family C 台帳整合のみ (FAIL 不変)。新規候補 E26 (介入情報リリース) C1 棄却 / E27 (CFTC TFF) #16 ban 正面衝突で棄却 / E28 (ML-FX 文献群) C2/C3 棄却 — **新規採用 0、無料×非隣接空間の枯渇を再確認**。**U4 決裁材料** (有償データ feasibility) を §4 に凍結: 購買推奨ゼロ (ロック済み 4 本は金で前倒し不能)、再上程 = U1「継続」+ verdict 到達後に OTC IV 面 → Databento → OIS の優先順
