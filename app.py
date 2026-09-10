@@ -4479,13 +4479,16 @@ def compute_rnb_signal(df: pd.DataFrame, tf: str = "15m",
     tp_price = entry_price + _tp_dist
     sl_price = entry_price - _sl_dist
 
-    # Reasons
+    # Reasons — 確定条件は "✅" prefix 必須 (rule:R3 2026-09-10):
+    # _tick_entry の QUALIFIED_TYPES confirm gate は「✅ を含む reason >= 1」を
+    # 要求する (demo_trader.py `no_confirm:` block)。旧 reasons は marker ゼロで
+    # conf 単位バグと独立に 100% no_confirm block = shadow レーン無発火だった。
     _rn_label = f"{_rn:.2f}" if _is_jpy else f"{_rn:.4f}"
-    _reasons.append(f"RNB support {_rn_label}")
+    _reasons.append(f"✅ RNB support {_rn_label}")
     if _is_wick:
-        _reasons.append(f"wick {_wick_ratio:.0%}")
+        _reasons.append(f"✅ wick {_wick_ratio:.0%}")
     if _is_engulfing:
-        _reasons.append("engulfing")
+        _reasons.append("✅ engulfing")
     _reasons.append(f"mom {_mom * _pm:.1f}pip/{_LB}bar")
     if _overshoot > 0:
         _reasons.append(f"overshoot {_overshoot * _pm:.1f}pip")
@@ -4503,6 +4506,13 @@ def compute_rnb_signal(df: pd.DataFrame, tf: str = "15m",
     if abs(_rn % 1.0) < 0.01 or abs(_rn % 1.0 - 1.0) < 0.01:
         _score += 0.2  # .00 level premium
 
+    # ── confidence: 0-100 スケール (rule:R3 単位不一致修理 2026-09-10) ──
+    # 旧: round(min(_score/2.5, 1.0), 2) = 0-1 スケール。demo_trader の conf gate
+    # (confidence_threshold=30) は全戦略共通で 0-100 スケールを前提とするため、
+    # rnb BUY (max 1.0) は 100% `conf<30` で block = shadow レーン構造的無発火
+    # (2026-09-10 PR #238 登録直後に発覚)。他戦略 (daytrade/swing/hourly/scalp/
+    # weekend_gap) は全て 0-100 int を返しており、0-1 は本関数のみだった。
+    # _score レンジ 1.0-2.4 → confidence 40-96 (>=30 で gate 通過、BT/本番共用)。
     return {
         "signal": "BUY",
         "entry": entry_price,
@@ -4512,7 +4522,7 @@ def compute_rnb_signal(df: pd.DataFrame, tf: str = "15m",
         "reasons": _reasons,
         "score": round(_score, 2),
         "atr": atr,
-        "confidence": round(min(_score / 2.5, 1.0), 2),
+        "confidence": int(round(min(_score / 2.5, 1.0) * 100)),
         "round_number": _rn,
     }
 

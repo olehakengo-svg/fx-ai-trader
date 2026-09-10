@@ -9,9 +9,14 @@
   5. 読み手併設: /api/demo/status に telemetry が出る + heartbeat が
      ensure_worker_running に到達する (write-only 検知器の教訓)
   6. clientExtensions tag が order/trade 両方に付く (監査の機械識別)
+  7. emergency_kill 尊重 (2026-09-11, rule:R3): 共有 DB の
+     system_kv.emergency_killed="1" 中は新規発注が構造的に起きない。
+     kill 状態が読めない場合も fail-closed。kill=0 / 行なしでは
+     keeper のマンデート (2026-09-01 案 A) は一切影響を受けない。
 """
 
 import json
+import sqlite3
 from datetime import datetime, timezone
 
 import pytest
@@ -60,14 +65,31 @@ class FakeClient:
         return True, {"orderFillTransaction": {"pl": "-7.0"}}
 
 
-def _keeper(tmp_path, monkeypatch, client=None, now=WEDNESDAY_TOKYO, **env):
+def _kill_db(tmp_path, value=None):
+    """system_kv を持つ共有 DB を tmp に作る (value=None は行なし)。"""
+    path = str(tmp_path / "demo_trades.db")
+    conn = sqlite3.connect(path)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS system_kv (key TEXT PRIMARY KEY, value TEXT)")
+    if value is not None:
+        conn.execute(
+            "INSERT OR REPLACE INTO system_kv (key, value) "
+            "VALUES ('emergency_killed', ?)", (value,))
+    conn.commit()
+    conn.close()
+    return path
+
+
+def _keeper(tmp_path, monkeypatch, client=None, now=WEDNESDAY_TOKYO,
+            kill_db_path=None, **env):
     monkeypatch.setenv("STATUS_VOLUME_KEEPER_ENABLE", "1")
     for k, v in env.items():
         monkeypatch.setenv(k, v)
     return StatusVolumeKeeper(
         client=client or FakeClient(),
         state_path=str(tmp_path / "svk.json"),
-        now_fn=lambda: now)
+        now_fn=lambda: now,
+        kill_db_path=kill_db_path or _kill_db(tmp_path, "0"))
 
 
 def test_disabled_by_default_no_worker_no_orders(tmp_path, monkeypatch):
@@ -136,6 +158,68 @@ def test_time_and_budget_guards(tmp_path, monkeypatch):
     assert k.maybe_execute() is False
     assert k.last_skip_reason == "daily_cap"
     assert fake.orders == []
+
+
+def test_emergency_kill_blocks_round_trip(tmp_path, monkeypatch):
+    """kill 状態下では新規発注が構造的に起きない (2026-09-11, rule:R3)。
+
+    counterfactual: maybe_execute から _emergency_kill_blocked 参照を外すと
+    happy-path 条件のため order が飛び、このテストが落ちる。
+    """
+    fake = FakeClient()
+    k = _keeper(tmp_path, monkeypatch, client=fake,
+                kill_db_path=_kill_db(tmp_path, "1"))
+    assert k.maybe_execute() is False
+    assert k.last_skip_reason == "emergency_kill"
+    assert fake.orders == []
+    assert fake.closes == []
+
+
+def test_emergency_kill_read_failure_fails_closed(tmp_path, monkeypatch):
+    """kill 状態が読めない場合は発注しない (fail-closed)。
+
+    kill 中か不明のまま実弾を撃たない。失敗は skip reason に露出し
+    {} に潰れない (監視 blind の教訓、PR #210)。
+    """
+    fake = FakeClient()
+    k = _keeper(tmp_path, monkeypatch, client=fake,
+                kill_db_path=str(tmp_path / "does_not_exist.db"))
+    assert k.maybe_execute() is False
+    assert k.last_skip_reason.startswith("kill_state_unreadable")
+    assert fake.orders == []
+
+
+@pytest.mark.parametrize("flag", ["0", None])
+def test_kill_flag_clear_does_not_touch_mandate(tmp_path, monkeypatch, flag):
+    """通常時 (kill=0 / 行なし) は keeper のマンデートに一切影響しない。
+
+    2026-09-01 user 決裁 案 A の動作 (happy-path round-trip) が
+    防御追加後も不変であることの pin。
+    """
+    fake = FakeClient()
+    k = _keeper(tmp_path, monkeypatch, client=fake,
+                kill_db_path=_kill_db(tmp_path, flag))
+    assert k.maybe_execute() is True
+    assert len(fake.orders) == 1
+    assert k.state["volume_usd"] == k.units * 2
+
+
+def test_recovery_still_closes_stale_during_kill(tmp_path, monkeypatch):
+    """kill 中でも stale SVK 玉の回収 (close-only) は走る。
+
+    emergency_kill は demo trade_map 経由でしか閉じないため、DB 非経由の
+    SVK 玉はこの経路が唯一の回収手段 — フラット化マンデートに整合。
+    新規 open は発生しない。
+    """
+    fake = FakeClient()
+    k = _keeper(tmp_path, monkeypatch, client=fake,
+                kill_db_path=_kill_db(tmp_path, "1"))
+    k.state["open_trade_ids"] = ["T9"]
+    k._save_state()
+    assert k.maybe_execute() is False
+    assert fake.closes == ["T9"]
+    assert fake.orders == []  # close-only、新規なし
+    assert k.state["open_trade_ids"] == []
 
 
 def test_crash_recovery_closes_stale_before_new_order(tmp_path, monkeypatch):
