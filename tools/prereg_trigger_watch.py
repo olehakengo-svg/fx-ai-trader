@@ -842,6 +842,12 @@ INT_FIELDS = frozenset({"n_decide", "n_floor", "min_files", "min_keys"})
 # `today > deadline` が false になり、**永久に watching のまま**期日に
 # 到達しない — 「watching 表示を健全性の証拠と誤読する」ZN 教訓の型。
 DATE_FIELDS = frozenset({"deadline", "since", "threshold_date"})
+# **辞書順比較**される日付 field。評価器は `today > deadline` のように
+# YYYY-MM-DD の today と文字列比較するので、`"2026-09-10T23:00:00"` は
+# `"2026-09-10"` より辞書順で**後ろ**になり、期日当日に成立しない
+# = 予定されたレビューが黙って 1 日以上遅れる (PR #227 Codex P2 17 巡目)。
+# `since` は `fromisoformat` で**パースされる**ので datetime 可。
+LEXICAL_DATE_FIELDS = frozenset({"deadline", "threshold_date"})
 # sentinel を実装しているのは deadline を読む評価器だけ。
 # threshold_date / since に "no-deadline" が入ると通常の ISO 日付と比較され
 # 永久 WATCHING / DATA_UNAVAILABLE になる (PR #227 Codex P2 10 巡目)。
@@ -894,6 +900,11 @@ ENUM_FIELDS_IF_NONEMPTY: dict[str, frozenset[Any]] = {
 # (値そのものの妥当性は落とせない — 限界を明示しておく)。
 SHAPE_IF_NONEMPTY: dict[str, str] = {
     "instrument": r"^[A-Z]{3}_[A-Z]{3}$",
+    # `fetch_ingest_health` は `f"{app_base}{endpoint}"` と**素の連結**をする。
+    # `"api/..."` だと `https://host.comapi/...` という壊れた URL になり、
+    # lint は通ったまま毎日 DATA_UNAVAILABLE を返し続ける
+    # (PR #227 Codex P2 17 巡目)。絶対パスを要求する。
+    "endpoint": r"^/[^\s]*$",
 }
 
 # `mode` は `/api/demo/trades` へ素通しされ、open/closed 両経路で完全一致に
@@ -1058,6 +1069,11 @@ def _unusable_reason(field: str, value: Any, *,
         return f"文字列でない ({type(value).__name__}: {value!r})"
     if leaf in DATE_FIELDS and isinstance(value, str):
         v = value.strip()
+        if (leaf in LEXICAL_DATE_FIELDS and v not in date_sentinels
+                and len(v) != 10 and _is_iso_date(v)):
+            return (f"日付のみ (YYYY-MM-DD) でない ({value!r}) — この field は "
+                    "today と**辞書順比較**されるので時刻が付くと期日当日に"
+                    "成立せず、判定が黙って遅れる")
         if v not in date_sentinels and not _is_iso_date(v):
             return (f"日付として解釈できない ({value!r}) — "
                     "文字列比較で永久に watching になる")
@@ -1081,6 +1097,28 @@ def _is_iso_date(value: str) -> bool:
     # なり、期限切れが永久 WATCHING になる。**正準形 (0 埋め) を要求する**
     # (PR #227 Codex P2 9 巡目)。
     return value[:10] == d.strftime("%Y-%m-%d")
+
+
+def _scalar_predicate_reason(value: Any) -> str | None:
+    """CSV 述語の `value` はスカラー限定 (PR #227 Codex P2 17 巡目)。
+
+    `_csv_row_predicate` は数値なら `float()`、それ以外は `str()` で潰すので
+    dict / list を渡すと「`{'a': 1}` という文字列」との比較になる。
+    `op: "!="` ならほぼ全ての通常値に一致し**偽 TRIGGERED** を出す。
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, (dict, list, tuple, set)):
+        return f"コレクション ({type(value).__name__})"
+    if isinstance(value, bool):
+        return None  # str(True) との比較は意図的に使える
+    if isinstance(value, (int, float)):
+        if not math.isfinite(value):
+            return f"有限数でない ({value!r}) — 比較が静かに壊れる"
+        return None
+    if isinstance(value, str):
+        return None
+    return f"スカラーでない ({type(value).__name__})"
 
 
 def _get_path(obj: Any, dotted: str) -> Any:
@@ -1286,6 +1324,13 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
                     f"{tid}: {dotted}[{i}] に未知のキー {k!r} — 評価器は"
                     "読まないので、綴り違いなら既定値で**別の条件**を"
                     f"黙って監視し続ける (許可キー: {sorted(allowed)})")
+            if dotted == "source.match" and "value" in elem:
+                why = _scalar_predicate_reason(elem["value"])
+                if why:
+                    errors.append(
+                        f"{tid}: {dotted}[{i}].value が使えない値 ({why}) — "
+                        "評価器は str()/float() で潰すので、コレクションは"
+                        "ほぼ全ての通常値に `!=` で一致し偽 TRIGGERED を出す")
             if "op" in elem and elem["op"] not in _CSV_OPS:
                 errors.append(
                     f"{tid}: {dotted}[{i}].op={elem['op']!r} は未知の演算子 — "

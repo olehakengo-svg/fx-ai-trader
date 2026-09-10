@@ -1502,3 +1502,54 @@ def test_mode_allowlist_derivation_raises_instead_of_returning_empty(tmp_path):
     nonliteral.write_text("MODE_CONFIG = dict(a=1)\n")
     with pytest.raises(RuntimeError):
         app_mode_names(nonliteral)
+
+
+def test_lexically_compared_deadlines_must_be_date_only():
+    """`deadline` は today と辞書順比較される — 時刻が付くと期日当日に成立しない。
+
+    PR #227 Codex P2 17 巡目: `"2026-09-10T23:00:00"` は `"2026-09-10"` より
+    辞書順で後ろなので、期日当日の評価が黙って WATCHING に留まる。
+    `since` は `fromisoformat` でパースされるので datetime を許す。
+    """
+    from tools import prereg_trigger_watch as w
+    base = {"id": "x", "type": "live_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 10}
+    assert w.lint_schema([dict(base, deadline="2026-09-10")]) == []
+    assert w.lint_schema([dict(base, deadline="2026-09-10T23:00:00")]) != []
+    # since は datetime 可 (評価器が fromisoformat する)
+    assert w.lint_schema([dict(base, since="2026-08-05T12:00:00",
+                               deadline="2026-09-10")]) == []
+    # 辞書順比較の害を評価器側でも示す
+    assert not ("2026-09-10" >= "2026-09-10T23:00:00")
+    assert "2026-09-10" >= "2026-09-10"
+
+
+def test_ingest_endpoint_must_be_an_absolute_path():
+    """`fetch_ingest_health` は素の文字列連結をする。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "ingest_freshness",
+            "checks": [{"key": "k", "max_age_hours": 24}]}
+    assert lint_schema([dict(base, endpoint="/api/marketdata/status")]) == []
+    assert lint_schema([dict(base, endpoint="api/marketdata/status")]) != []
+    assert lint_schema([dict(base, endpoint="/api/x y")]) != []
+    # 連結が壊れることを実演
+    assert (f"{'https://h.com'}{'api/x'}") == "https://h.comapi/x"
+
+
+def test_csv_predicate_values_must_be_finite_scalars():
+    """コレクション value は `!=` でほぼ全ての行に一致し偽 TRIGGERED を出す。"""
+    from tools import prereg_trigger_watch as w
+    def entry(v, op="=="):
+        return {"id": "x", "type": "csv_row_match",
+                "source": {"path": "a.csv",
+                           "match": [{"column": "c", "value": v, "op": op}]}}
+    assert w.lint_schema([entry(10)]) == []
+    assert w.lint_schema([entry("abc")]) == []
+    assert w.lint_schema([entry(True)]) == []
+    assert w.lint_schema([entry({"a": 1})]) != []
+    assert w.lint_schema([entry(["a"])]) != []
+    assert w.lint_schema([entry(None)]) != []
+    assert w.lint_schema([entry(float("nan"))]) != []
+    # 害の実演: dict value + `!=` は通常値に一致する
+    assert w._csv_row_predicate({"c": "5"},
+                                {"column": "c", "value": {"a": 1}, "op": "!="})
