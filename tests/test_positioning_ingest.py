@@ -1147,3 +1147,163 @@ def test_worker_cycle_writes_health_log_series(db_path):
     key = f"verified:USD_JPY:{OUTLOOK_BOOK_TYPE}"
     series = export_health_log(db_path, key=key)
     assert len(series) == 2
+
+
+# ══════════════════════════════════════════════════════════════════
+# (j) 認証失敗 backoff — 2026-09-10 E1 ingest 停止インシデント (rule:R3)
+#     Myfxbook が credentials を拒否している間、毎 cycle の login リトライは
+#     Myfxbook 側 account lockout を悪化させ user の復旧を妨げる。
+#     exponential backoff (上限 6h) + 連続 N 回で長期 pause + 成功で即通常化。
+#     導出: knowledge-base/wiki/analyses/e1-ingest-outage-2026-09-10.md
+# ══════════════════════════════════════════════════════════════════
+
+from modules.myfxbook_client import is_auth_failure
+from modules.positioning_ingest import (
+    AUTH_BACKOFF_BASE_SEC,
+    AUTH_BACKOFF_MAX_SEC,
+    AUTH_PAUSE_AFTER_FAILS,
+)
+
+# 本番実測の message (2026-09-10, /api/positioning/status last_error)
+AUTH_FAIL_RESP = (False, {"error": "api", "message": "Wrong email/password."})
+
+
+def _clocked(w, start=1_000_000.0):
+    """worker の backoff 時計を決定的にする (実時間非依存テスト)。"""
+    t = [start]
+    w._now_epoch = lambda: t[0]
+    return t
+
+
+def test_is_auth_failure_markers():
+    assert is_auth_failure({"message": "Wrong email/password."})
+    assert is_auth_failure({"message": "Your account has been LOCKED"})
+    # session 失効は自己回復系 — auth 失敗に分類しない (再 login で直る)
+    assert not is_auth_failure({"message": "Invalid session."})
+    # transport/HTTP は credentials の正否について何も言っていない
+    assert not is_auth_failure({"message": "login.json: http=502"})
+    assert not is_auth_failure({})
+    assert not is_auth_failure(None)
+
+
+def test_auth_failure_backoff_counterfactual(db_path):
+    """**counterfactual pin**: backoff 配線を殺すと 2 cycle 目が fetch して落ちる。
+
+    認証失敗の直後 cycle では client を一切叩かない (requests_total が
+    増えない) こと自体が lockout 防止の実体。backoff の分岐を外す・
+    _register_auth_failure の呼び出しを消す・remaining 判定を反転する —
+    いずれの破壊でもこのテストは fail する。
+    """
+    w, client = make_myfx_worker(db_path, [AUTH_FAIL_RESP])
+    t = _clocked(w)
+    counters = w.poll_once()
+    assert counters["failed"] == len(DEFAULT_INSTRUMENTS)
+    assert client.requests_total == 1
+    assert w._auth_fail_streak == 1
+    # 通常 poll 間隔 (1200s) 後の次 cycle は backoff 窓内 → fetch しない
+    t[0] += 1200
+    counters = w.poll_once()
+    assert client.requests_total == 1          # ← 配線を殺すと 2 になる
+    assert counters == {"saved": 0, "skipped": 0, "failed": 0,
+                        "auth_backoff": 1}
+    assert w._poll_cycles == 2
+    assert w._auth_backoff_skips == 1
+    # backoff skip 中も heartbeat は書く (worker 生存と鮮度劣化を外部が
+    # 区別できる) が、verified:* は書かない (stale 検知を殺さない)
+    h = _health(db_path)
+    assert "last_cycle_at" in h
+    assert not any(k.startswith("verified:") for k in h)
+
+
+def test_auth_backoff_exponential_growth_and_cap(db_path):
+    """1800 → 3600 → 7200 → 14400 → 21600 (cap 6h) で頭打ち。"""
+    w, _ = make_myfx_worker(db_path, [AUTH_FAIL_RESP])
+    t = _clocked(w)
+    expected = [1800, 3600, 7200, 14400, 21600, 21600]
+    for want in expected:
+        # backoff が切れる時刻まで進めてから次の試行をさせる
+        t[0] += AUTH_BACKOFF_MAX_SEC + 1
+        w.poll_once()
+        assert w._auth_backoff_remaining() == pytest.approx(want)
+    assert w._auth_fail_streak == len(expected)
+    assert AUTH_BACKOFF_BASE_SEC == 1800
+    assert AUTH_BACKOFF_MAX_SEC == 6 * 3600
+
+
+def test_auth_backoff_long_pause_after_consecutive_fails(db_path):
+    """連続 AUTH_PAUSE_AFTER_FAILS 回で長期 pause を宣言 (status に露出)。"""
+    w, _ = make_myfx_worker(db_path, [AUTH_FAIL_RESP])
+    t = _clocked(w)
+    for i in range(AUTH_PAUSE_AFTER_FAILS):
+        t[0] += AUTH_BACKOFF_MAX_SEC + 1
+        w.poll_once()
+        assert w._auth_paused is (i + 1 >= AUTH_PAUSE_AFTER_FAILS)
+    st = w.status()["myfxbook"]
+    assert st["auth_paused"] is True
+    assert st["auth_failure_streak"] == AUTH_PAUSE_AFTER_FAILS
+    assert st["auth_backoff_active"] is True
+    assert st["auth_backoff_remaining_sec"] > 0
+    assert st["last_auth_failure_at"]
+
+
+def test_auth_backoff_resets_immediately_on_success(db_path):
+    """認証成功で即通常化 — streak/backoff/pause が全てクリアされる。"""
+    resp_ok = (True, make_outlook_response())
+    w, client = make_myfx_worker(db_path, [AUTH_FAIL_RESP, resp_ok])
+    t = _clocked(w)
+    w.poll_once()
+    assert w._auth_fail_streak == 1
+    # backoff 満了後に再試行 → 成功 → 即リセット
+    t[0] += AUTH_BACKOFF_MAX_SEC + 1
+    counters = w.poll_once()
+    assert counters["saved"] == len(DEFAULT_INSTRUMENTS)
+    assert w._auth_fail_streak == 0
+    assert w._auth_backoff_remaining() == 0.0
+    assert w._auth_paused is False
+    st = w.status()["myfxbook"]
+    assert st["auth_backoff_active"] is False
+    assert st["auth_backoff_until"] is None
+    # 直後の cycle は backoff なしで通常 fetch する (即通常化の実体)
+    before = client.requests_total
+    w.poll_once()
+    assert client.requests_total == before + 1
+
+
+def test_non_auth_failure_does_not_backoff(db_path):
+    """session 失効/transport 失敗は自己回復系 — backoff を張らない。
+
+    誤って全 failure に backoff を張ると、Myfxbook 側の一過性障害の度に
+    E1 の鮮度が最大 6h 劣化する (coverage budget の自傷)。
+    """
+    w, client = make_myfx_worker(
+        db_path,
+        [(False, {"error": "api", "message": "Invalid session."}),
+         (False, {"error": "transport", "message": "login.json: Timeout"}),
+         (True, make_outlook_response())])
+    _clocked(w)
+    w.poll_once()
+    assert w._auth_fail_streak == 0
+    assert w._auth_backoff_remaining() == 0.0
+    w.poll_once()   # transport 失敗 — 依然 backoff なし
+    assert client.requests_total == 2
+    w.poll_once()   # 3 cycle 目は通常どおり fetch して成功
+    assert client.requests_total == 3
+
+
+def test_auth_backoff_status_contains_no_secrets(db_path):
+    """backoff 露出フィールドに credentials/session を一切含めない (既存 pin の拡張)。
+
+    last_error は Myfxbook のエラー本文 ("Wrong email/password.") をそのまま
+    運ぶ既存フィールドなので対象外 — ここで pin するのは新設 auth_* 群が
+    数値/bool/時刻のみで構成されることと、環境変数値が漏れないこと。
+    """
+    w, _ = make_myfx_worker(db_path, [AUTH_FAIL_RESP])
+    _clocked(w)
+    w.poll_once()
+    st = w.status()["myfxbook"]
+    auth_fields = {k: v for k, v in st.items()
+                   if k.startswith("auth_") or k == "last_auth_failure_at"}
+    assert auth_fields  # 露出されていること自体を pin (読み手の前提)
+    blob = json.dumps(auth_fields).lower()
+    for secret in ("email", "password", "session"):
+        assert secret not in blob

@@ -18,6 +18,7 @@ Protocol: knowledge-base/wiki/analyses/daily-tierB-protocol.md §6
     7. シグナル評価の停止 (候補行の鮮度、市場オープン6h) — 2026-08-27 追加
     8. エンジン停止 (tick 前進の実時刻、15分) — 2026-08-28 追加
     9. API 到達不能 (本番 web service そのものの死) — 2026-08-30 追加
+    10. E1 positioning ingest の認証失敗 / 鮮度劣化 — 2026-09-10 追加
 
 **禁止事項**:
     - 判断しない (昇格/降格推奨は出さない)
@@ -50,6 +51,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from modules import freshness_policy as _fp  # noqa: E402
+from modules.myfxbook_client import is_auth_failure as _is_myfx_auth_failure  # noqa: E402
 
 API_BASE = os.environ.get("API_BASE", "https://fx-ai-trader.onrender.com")
 
@@ -105,13 +107,18 @@ NOTIFY_EVERY_HOURS = {
     "api_endpoint_failed": 6,
     "nav_floor": 6,
     "svk_behind_pace": 24,
+    # E1 positioning ingest (2026-09-10 rule:R3): 認証失敗は pre-reg §2.5
+    # coverage budget を market-hour 毎に不可逆に燃やすので毎時。stale 単独
+    # (認証以外の原因) は 6h — registry の daily 評価より 4 倍以上速い。
+    "positioning_auth_failed": 1,
+    "positioning_stale": 6,
 }
 # Discord に流さない type。write_probe_missing はデプロイ直後の cron/web
 # バージョン不一致で必ず一度は起きる (cron は数十秒で新コード化、web は
 # build 完了まで旧 API を返す)。web が旧版のまま固着するケースは Render の
 # デプロイ失敗通知が受け持つので、ここは記録のみに降格する。
 NOTIFY_NEVER = {"write_probe_missing", "candidate_freshness_missing",
-                "engine_tick_missing"}
+                "engine_tick_missing", "positioning_freshness_missing"}
 
 
 class FetchOutcome(NamedTuple):
@@ -165,6 +172,7 @@ WATCHED_PATHS = (
     "/api/oanda/status",
     "/api/demo/status",
     "/api/admin/disk_status",
+    "/api/positioning/status",
 )
 
 
@@ -866,6 +874,140 @@ def check_engine_tick_stall(
     return events
 
 
+# E1 positioning ingest の stale 閾値 (秒)。SSOT はサーバ payload の
+# stale_alert_sec (modules/positioning_ingest.STALE_ALERT_SEC) — ここは
+# 旧版 web (フィールド無し) へのフォールバックのみ。registry
+# `e1-positioning-ingest-freshness` の max_age_hours=2 と同水準。
+POSITIONING_STALE_FALLBACK_SEC = 2 * 3600
+
+
+def check_positioning_ingest(
+    payload: dict[str, Any], now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """E1 positioning ingest の認証失敗・鮮度劣化を検知する (rule:R3, 2026-09-10).
+
+    **なぜ 2026-09-10 の認証失敗停止は 7h+ 無言だったか (実測)**:
+
+    - 既存 10 検知器はどれも ``/api/positioning/status`` を見ていない —
+      WATCHED_PATHS は取引系 4 本のみで、E1 ingest は監視スタックの盲点
+      だった (全数 grep 済み)。
+    - registry ``e1-positioning-ingest-freshness`` (verified:* age > 2h) は
+      機械評価されるが、経路は ``quant_gate_status.py`` → ``prereg_trigger_watch``
+      の **daily cron (00:20 UTC) のみ**。07:18Z 開始の停止は最悪 翌日 00:20Z
+      まで届かない (検知遅延 ~17h)。
+    - Render ログには ``[positioning] FETCH FAILED`` が毎 cycle 出ていたが、
+      **ログに読み手はいない** (「書ける/読める/意味を持つ」の 3 段階の
+      1 段目止まり — C1 candidate テーブル 4 ヶ月 write-only と同型)。
+
+    E1 は唯一の主力供給ラインで、ingest 停止は pre-reg §2.5 coverage budget
+    (10% NA 許容) を market-hour 毎に**不可逆に**燃やす。15 分 cron のここに
+    配線して検知遅延を ~17h → ~15 分に縮める。
+
+    estimand の分離:
+    - ``positioning_auth_failed`` = **認証が拒否されている** (user の
+      credentials 再投入以外で直らない。ingest 側は backoff 中でも鳴らし
+      続ける — backoff の静けさを「回復」と誤読させない)。
+    - ``positioning_stale`` = **verified:* が閾値超に古い** (原因を問わない
+      鮮度劣化。認証失敗以外 — Myfxbook 側障害・worker 死 — も拾う)。
+    - ``positioning_freshness_missing`` = 計装契約の破れ (version skew)。
+      記録のみ (NOTIFY_NEVER)。
+
+    stale 閾値はサーバ payload の ``stale_alert_sec`` を使う (閾値 SSOT を
+    検知器側に複製しない — disk_guard と同じ分業)。verified は成功 cycle
+    毎に週末も進む (dedup skip でも更新される) ため週末除外は不要 —
+    registry の実測 (48 日で 2h 超 gap 1 回、それは真検知) と整合。
+    """
+    events: list[dict[str, Any]] = []
+    if not payload:
+        # 到達不能は check_api_reachability が真の理由付きで報告する
+        return events
+
+    health = payload.get("health")
+    mfx = payload.get("myfxbook")
+    if not isinstance(health, dict) or not isinstance(mfx, dict):
+        # worker 未起動 (enabled=False) も version skew もここに来る。
+        # どちらも E1 の観測が立っていない事実として記録する (通知はしない
+        # — enabled=False は env 判断、skew はデプロイ直後の常態)。
+        events.append(
+            {
+                "type": "positioning_freshness_missing",
+                "detail": (
+                    "no health/myfxbook in /api/positioning/status "
+                    f"(enabled={payload.get('enabled')!r}, "
+                    f"reason={str(payload.get('reason'))[:120]!r})"
+                ),
+            }
+        )
+        return events
+
+    now = now or datetime.now(timezone.utc)
+    last_error = str(payload.get("last_error") or "")
+
+    # verified:* の鮮度 (registry と同じ対象を 15 分 cron で見る)
+    try:
+        threshold_sec = float(payload.get("stale_alert_sec")
+                              or POSITIONING_STALE_FALLBACK_SEC)
+    except (TypeError, ValueError):
+        threshold_sec = POSITIONING_STALE_FALLBACK_SEC
+    ages_sec: dict[str, float] = {}
+    unparseable: list[str] = []
+    for key, raw in health.items():
+        if not key.startswith("verified:"):
+            continue
+        try:
+            dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            unparseable.append(key)
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        ages_sec[key] = (now - dt).total_seconds()
+    oldest_h = (max(ages_sec.values()) / 3600) if ages_sec else None
+
+    # 1) 認証失敗 — 最優先で名指しする (user アクションが必要な故障モード)
+    streak = mfx.get("auth_failure_streak") or 0
+    if bool(mfx.get("configured")) and not bool(mfx.get("logged_in")) and (
+        streak > 0 or _is_myfx_auth_failure({"message": last_error})
+    ):
+        events.append(
+            {
+                "type": "positioning_auth_failed",
+                "last_error": last_error[:200],
+                "auth_failure_streak": streak,
+                "auth_backoff_active": mfx.get("auth_backoff_active"),
+                "auth_backoff_until": mfx.get("auth_backoff_until"),
+                "auth_paused": mfx.get("auth_paused"),
+                "consecutive_cycle_failures": payload.get(
+                    "consecutive_cycle_failures"),
+                "oldest_verified_age_hours": (
+                    round(oldest_h, 1) if oldest_h is not None else None),
+            }
+        )
+
+    # 2) 鮮度劣化 (原因を問わない) — キー欠落/parse 不能も stale 側に倒す
+    n_expected = len(payload.get("instruments") or []) or None
+    stale_keys = [k for k, a in ages_sec.items() if a > threshold_sec]
+    missing = ((n_expected - len(ages_sec) - len(unparseable))
+               if n_expected else 0)
+    if stale_keys or unparseable or (missing and missing > 0):
+        events.append(
+            {
+                "type": "positioning_stale",
+                "n_stale": len(stale_keys),
+                "n_unparseable": len(unparseable),
+                "n_keys": len(ages_sec) + len(unparseable),
+                "n_expected": n_expected,
+                "oldest_verified_age_hours": (
+                    round(oldest_h, 1) if oldest_h is not None else None),
+                "threshold_hours": round(threshold_sec / 3600, 1),
+                "running": payload.get("running"),
+                "last_cycle_at": health.get("last_cycle_at"),
+                "last_error": last_error[:200],
+            }
+        )
+    return events
+
+
 NAV_FLOOR_ALERT_JPY = 262000.0  # OANDA API 存続条件 (残高 25 万円) + 執行バッファ
 
 
@@ -1076,6 +1218,32 @@ def _event_line(e: dict[str, Any]) -> str:
             f"**この間、他の全検知器は盲目である** (取引停止も書込み停止も報告されない)。"
             f"Render の web service ステータスとデプロイログを確認"
         )
+    if et == "positioning_auth_failed":
+        return (
+            f"- 🛑 **E1 positioning ingest 認証失敗**: Myfxbook login が拒否"
+            f"されている (last_error={e.get('last_error')!r}, "
+            f"streak={e.get('auth_failure_streak')}, "
+            f"backoff={e.get('auth_backoff_active')}, "
+            f"paused={e.get('auth_paused')}, "
+            f"verified 最古 {e.get('oldest_verified_age_hours')}h)。"
+            f"E1 pre-reg §2.5 coverage budget を market-hour 毎に不可逆に"
+            f"燃焼中 — **復旧は user の credentials 再投入のみ** "
+            f"(Claude は資格情報に触らない)。手順: "
+            f"knowledge-base/wiki/analyses/e1-ingest-outage-2026-09-10.md"
+        )
+    if et == "positioning_stale":
+        return (
+            f"- positioning_stale: E1 verified {e.get('n_stale')}/"
+            f"{e.get('n_keys')} keys stale (最古 "
+            f"{e.get('oldest_verified_age_hours')}h > 閾値 "
+            f"{e.get('threshold_hours')}h, expected {e.get('n_expected')}"
+            f" keys, running={e.get('running')})。"
+            f"last_error={e.get('last_error')!r}。"
+            f"/api/positioning/status の consecutive_cycle_failures と "
+            f"Render ログ [positioning] を確認"
+        )
+    if et == "positioning_freshness_missing":
+        return f"- {et}: {e.get('detail')} — E1 鮮度計装の契約が破れている"
     if et == "api_endpoint_failed":
         return (
             f"- api_endpoint_failed: {e.get('n_failed')}/{e.get('n_watched')} 本が失敗 "
@@ -1138,6 +1306,7 @@ def main() -> int:
     oanda_status = outcomes["/api/oanda/status"].payload
     status = outcomes["/api/demo/status"].payload
     disk_payload = outcomes["/api/admin/disk_status"].payload
+    positioning_payload = outcomes["/api/positioning/status"].payload
 
     all_events: list[dict[str, Any]] = []
     # 他の検知器は全て「API が答えること」を前提にしている。到達不能の検知は
@@ -1155,6 +1324,7 @@ def main() -> int:
     all_events.extend(check_live_fill_stagnation(status, now=now))
     all_events.extend(check_engine_tick_stall(status, now=now))
     all_events.extend(check_account_survival(status))
+    all_events.extend(check_positioning_ingest(positioning_payload, now=now))
 
     if all_events:
         path = save_events(all_events)

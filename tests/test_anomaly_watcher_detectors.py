@@ -802,3 +802,154 @@ def test_account_survival_svk_behind_pace_requires_enabled():
         "volume_usd": 40000.0, "target_usd": 520000.0})
     events = check_account_survival(status)
     assert [e["type"] for e in events] == ["svk_behind_pace"]
+
+
+class TestPositioningIngestDetector:
+    """E1 positioning ingest の認証失敗/鮮度検知 (rule:R3, 2026-09-10).
+
+    2026-09-10 の Myfxbook 認証失敗停止は **7h+ 無言**だった: 既存検知器は
+    どれも /api/positioning/status を見ておらず、registry
+    ``e1-positioning-ingest-freshness`` は daily cron (00:20 UTC) のみ、
+    Render ログの [positioning] FETCH FAILED には読み手がいなかった。
+    ここは「検知器が本番形状の payload で鳴る」「読み手 (main 配線 /
+    Discord バケット / event line) が存在する」の両方を pin する。
+    """
+
+    NOW = datetime(2026, 9, 10, 14, 44, 46, tzinfo=timezone.utc)
+
+    def _outage_payload(self, **over):
+        """2026-09-10T14:44Z の本番 /api/positioning/status 実測形状。"""
+        verified = "2026-09-10T06:58:44.973617Z"   # 実測: 最終 verified
+        payload = {
+            "enabled": True,
+            "source": "myfxbook",
+            "running": True,
+            "poll_cycles": 10,
+            "consecutive_cycle_failures": 10,
+            "last_error": "2026-09-10T14:27:24Z outlook: api: "
+                          "Wrong email/password.",
+            "stale_alert_sec": 7200,
+            "instruments": ["USD_JPY", "EUR_USD", "GBP_USD"],
+            "health": {
+                "last_cycle_at": "2026-09-10T14:27:24Z",
+                "verified:USD_JPY:outlook": verified,
+                "verified:EUR_USD:outlook": verified,
+                "verified:GBP_USD:outlook": verified,
+            },
+            "myfxbook": {
+                "configured": True,
+                "logged_in": False,
+                "logins_total": 0,
+                "auth_failure_streak": 3,
+                "auth_backoff_active": True,
+                "auth_backoff_until": "2026-09-10T16:27:24Z",
+                "auth_paused": False,
+            },
+        }
+        payload.update(over)
+        return payload
+
+    def _healthy_payload(self):
+        fresh = (self.NOW - timedelta(minutes=20)).strftime(
+            "%Y-%m-%dT%H:%M:%S.%fZ")
+        p = self._outage_payload()
+        p["consecutive_cycle_failures"] = 0
+        p["last_error"] = ""
+        for k in list(p["health"]):
+            if k.startswith("verified:"):
+                p["health"][k] = fresh
+        p["myfxbook"].update({"logged_in": True, "logins_total": 1,
+                              "auth_failure_streak": 0,
+                              "auth_backoff_active": False,
+                              "auth_backoff_until": None})
+        return p
+
+    def test_fires_on_production_shaped_outage(self):
+        """2026-09-10 実測形状で auth + stale の両方が名指しされる。"""
+        events = aw.check_positioning_ingest(self._outage_payload(),
+                                             now=self.NOW)
+        types = [e["type"] for e in events]
+        assert types == ["positioning_auth_failed", "positioning_stale"]
+        auth = events[0]
+        assert auth["auth_failure_streak"] == 3
+        assert "Wrong email/password" in auth["last_error"]
+        stale = events[1]
+        assert stale["n_stale"] == 3
+        assert stale["oldest_verified_age_hours"] == pytest.approx(7.8, abs=0.1)
+        assert stale["threshold_hours"] == pytest.approx(2.0)
+
+    def test_auth_fires_even_without_new_backoff_fields(self):
+        """version skew (backoff 未デプロイの web) でも last_error の
+        auth 文字列だけで鳴る — marker の SSOT は modules.myfxbook_client。"""
+        p = self._outage_payload()
+        p["myfxbook"] = {"configured": True, "logged_in": False}
+        events = aw.check_positioning_ingest(p, now=self.NOW)
+        assert "positioning_auth_failed" in [e["type"] for e in events]
+
+    def test_healthy_payload_is_silent(self):
+        assert aw.check_positioning_ingest(self._healthy_payload(),
+                                           now=self.NOW) == []
+
+    def test_stale_without_auth_failure_is_stale_only(self):
+        """認証は生きているが verified が古い (Myfxbook 側障害/worker 死) —
+        auth と混同せず stale のみで報告する (estimand の分離)。"""
+        p = self._healthy_payload()
+        old = (self.NOW - timedelta(hours=3)).strftime(
+            "%Y-%m-%dT%H:%M:%S.%fZ")
+        for k in list(p["health"]):
+            if k.startswith("verified:"):
+                p["health"][k] = old
+        events = aw.check_positioning_ingest(p, now=self.NOW)
+        assert [e["type"] for e in events] == ["positioning_stale"]
+
+    def test_missing_verified_keys_counts_as_stale(self):
+        """13 ペア期待のうちキーが欠けるのは min_keys 欠落 (worker 未稼働の
+        兆候) — registry と同じく stale 側に倒す。"""
+        p = self._healthy_payload()
+        del p["health"]["verified:GBP_USD:outlook"]
+        events = aw.check_positioning_ingest(p, now=self.NOW)
+        assert [e["type"] for e in events] == ["positioning_stale"]
+        assert events[0]["n_expected"] == 3
+        assert events[0]["n_keys"] == 2
+
+    def test_unreachable_api_is_silent(self):
+        """payload 空 = 到達不能 — check_api_reachability が真の理由付きで
+        報告する (blind ≠ 正常、PR #210 規律)。"""
+        assert aw.check_positioning_ingest({}, now=self.NOW) == []
+
+    def test_version_skew_is_recorded_not_notified(self):
+        p = {"enabled": False, "running": False,
+             "reason": "worker not started"}
+        events = aw.check_positioning_ingest(p, now=self.NOW)
+        assert [e["type"] for e in events] == ["positioning_freshness_missing"]
+        assert events[0]["type"] in aw.NOTIFY_NEVER
+
+    def test_notify_buckets(self):
+        """読み手 pin (Discord): 認証失敗は毎時、stale は 6h バケット。"""
+        assert aw.NOTIFY_EVERY_HOURS["positioning_auth_failed"] == 1
+        assert aw.NOTIFY_EVERY_HOURS["positioning_stale"] == 6
+        assert "positioning_auth_failed" not in aw.NOTIFY_NEVER
+        assert "positioning_stale" not in aw.NOTIFY_NEVER
+
+    def test_event_lines_are_actionable(self):
+        """読み手 pin (通知本文): user の復旧手順 doc へ誘導し、Claude が
+        資格情報に触らない旨を明記する。"""
+        events = aw.check_positioning_ingest(self._outage_payload(),
+                                             now=self.NOW)
+        auth_line = aw._event_line(events[0])
+        assert "認証失敗" in auth_line
+        assert "e1-ingest-outage-2026-09-10.md" in auth_line
+        assert "credentials 再投入" in auth_line
+        assert not auth_line.startswith("- positioning_auth_failed: {")
+        stale_line = aw._event_line(events[1])
+        assert "positioning_stale" in stale_line
+        assert "[positioning]" in stale_line
+
+    def test_detector_is_wired_into_main(self):
+        """配線 pin: 検知器を書いても main() から呼ばれなければ 7h 無言の
+        再演になる (engine_tick_stall と同じ counterfactual 型)。"""
+        src = (ROOT / "scripts" / "anomaly_watcher.py").read_text(
+            encoding="utf-8")
+        assert "all_events.extend(check_positioning_ingest(" in src
+        assert '"/api/positioning/status"' in src
+        assert "/api/positioning/status" in aw.WATCHED_PATHS

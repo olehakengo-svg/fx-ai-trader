@@ -49,6 +49,17 @@ BASE_URL = "https://www.myfxbook.com/api"
 _TIMEOUT_SEC = 20
 # session 失効を示す message 断片 (Myfxbook は HTTP 200 + error:true で返す)
 _INVALID_SESSION_MARKERS = ("invalid session", "please login")
+# 認証失敗 (credentials 不正 / アカウントロック) を示す message 断片。
+# session 失効 (_INVALID_SESSION_MARKERS) とは**故障モードが別**: session
+# 失効は再 login で自己回復するが、認証失敗は user が credentials を再投入
+# するまで直らず、連続リトライは Myfxbook 側の account lockout を悪化させて
+# user の復旧を妨げる (2026-09-10 E1 ingest 停止インシデント、rule:R3)。
+# 実測 message: "Wrong email/password." (2026-09-10 本番)。
+_AUTH_FAILURE_MARKERS = (
+    "wrong email", "wrong password", "wrong email/password",
+    "invalid email", "invalid password", "invalid credentials",
+    "locked",
+)
 
 
 class MyfxbookClient:
@@ -191,3 +202,22 @@ class MyfxbookClient:
 def _looks_like_invalid_session(data: dict) -> bool:
     msg = str((data or {}).get("message", "")).lower()
     return any(marker in msg for marker in _INVALID_SESSION_MARKERS)
+
+
+def is_auth_failure(data: dict) -> bool:
+    """(ok=False の) data が認証失敗 (credentials 不正/ロック) かを判定する。
+
+    呼び出し側の使い分け (2026-09-10 rule:R3):
+      - positioning_ingest: True なら login リトライを exponential backoff で
+        抑制する (lockout 防止)。
+      - scripts/anomaly_watcher: status の last_error 文字列に対して同じ
+        判定を再利用し Discord へ fail-loud に流す (marker の SSOT を
+        ここ 1 箇所に保つ)。
+    session 失効 (_looks_like_invalid_session) は**含めない** — あちらは
+    再 login で自己回復する正常系。transport/HTTP エラーも含めない
+    (credentials の正否について何も言っていない)。
+    """
+    msg = str((data or {}).get("message", "")).lower()
+    if _looks_like_invalid_session(data):
+        return False
+    return any(marker in msg for marker in _AUTH_FAILURE_MARKERS)
