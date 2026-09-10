@@ -590,7 +590,8 @@
       "doc": "knowledge-base/wiki/analyses/live-roster-attrition-2026-09-06.md",
       "message": "E2_SILENT 4 セル (bb_squeeze_breakout×EUR_USD BUY/SELL, ema200_trend_reversal×USD_JPY×SELL, squeeze_release_momentum×GBP_USD×BUY) は昇格集合 (_PAIR_PROMOTED / _UNIVERSAL_SENTINEL) に 登録され wiki/index.md の Current Portfolio にも現役掲載されているが、LIVE/shadow を問わず 行の出力が 2026-05-06 以降ゼロ (rnb と同型の『現役掲載だが無出力』シグネチャ)。到達経路: (1) /api/demo/live-enable-flags で SQUEEZE_REDESIGN_V2 等 env 実値を確認し 『意図的に無効』と『配線落ち』を分離 → (2) 配線落ちなら R3 修復、無効化の解除は R1 = user 決裁。読み手: tools/live_roster_attrition.py (E2_SILENT が 0 になれば解消)。⚠️ 未帰属 = バグではない — CLAUDE.md 原則 3 により LIVE 側 winning-location フィルタは意図的に維持される",
       "condition": "E2_SILENT 4 セルの『意図的無効 vs 配線落ち』判別 (期日 2026-10-06)",
-      "reachability": "セッション作業: /api/demo/live-enable-flags の env 実値を確認し 意図的無効/配線落ちを分離 → 配線落ちなら R3 修復 PR、無効解除は R1 = user 決裁。進捗の読み手は tools/live_roster_attrition.py (E2_SILENT が 0 になれば resolve)。deadline 超過で TRIGGERED。"
+      "reachability": "セッション作業: /api/demo/live-enable-flags の env 実値を確認し 意図的無効/配線落ちを分離 → 配線落ちなら R3 修復 PR、無効解除は R1 = user 決裁。進捗の読み手は tools/live_roster_attrition.py (E2_SILENT が 0 になれば resolve)。deadline 超過で TRIGGERED。⚠️ 判別自体は 2026-09-10 の triage (eval_record) で実質完了 — 配線落ち 2 (bb_squeeze×EUR_USD 両方向、commit 942e3800) + 窓アーティファクト 2 (E2 分類の premise が偽)、意図的無効 0。残作業 = 修復可否の disposition (resolve は親セッション/次セッション判断)。",
+      "eval_record": "knowledge-base/wiki/analyses/e2-silent-cells-triage-2026-09-10.md"
     },
     {
       "id": "project-falsification-f1-supply-space",

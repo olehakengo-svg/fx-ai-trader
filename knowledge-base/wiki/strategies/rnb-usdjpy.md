@@ -19,11 +19,16 @@ Detects proximity to round number barriers on USD_JPY and generates signals base
 - **Lot**: default (sentinel)
 
 ## BT Performance
-BT data not yet available. Data collection phase.
+**365d BE/Trail-ablated BT (2026-09-10)**: N=126 WR 55.6% net EV **+0.04p** (friction 2.14p 込み、p=0.082 NS)、730d net EV **−2.20p**、2026-03 単月 +160.9p 依存。**live 昇格根拠なし**。
+詳細: `raw/bt-results/rnb-support-bounce-ablated-bt-2026-09-10.md`
+⚠️ config コメントの「BUY EV=+7.7」は BE/Trail ablation 前 (2026-04-05) の数字で引用禁止。
 
 ## Live Performance
-No live trades recorded yet. Monitoring for initial signal generation.
+**行ゼロは仕様ではなくバグ由来**: `rnb_support_bounce` が QUALIFIED_TYPES 未登録のため 2026-04-05 以来 shadow 1 行も出せない ([[../analyses/rnb-dead-mode-and-block-estimand-2026-09-05]])。
+登録の可否は R1 パケット [[../decisions/rnb-support-bounce-r1-packet-2026-09-10]] で user 決裁待ち (stage-1 = 構造的 shadow-only 案)。
 
 ## Related
 - [[index]] — Tier classification
 - [[system-reference]] — Mode details
+- [[../decisions/rnb-support-bounce-r1-packet-2026-09-10]] — 登録 R1 パケット (2026-09-10)
+- [[../analyses/rnb-dead-mode-and-block-estimand-2026-09-05]] — 153 日 dead mode の経緯
