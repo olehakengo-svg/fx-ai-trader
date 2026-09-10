@@ -7,6 +7,19 @@
 - **fail-loud 化** (`scripts/anomaly_watcher.py`): 7h+ 無言だった経路を解剖 — 既存 10 検知器は `/api/positioning/status` を見ておらず、registry `e1-positioning-ingest-freshness` は daily cron (00:20Z) のみ、Render ログ [positioning] は読み手ゼロ。WATCHED_PATHS に追加し `positioning_auth_failed` (Discord 毎時) / `positioning_stale` (6h バケット) / `positioning_freshness_missing` (記録のみ) を新設 — 検知遅延 ~17h → **~15 分**
 - **テスト**: `tests/test_positioning_ingest.py` +8 本 (**counterfactual pin**: backoff 配線 kill で `test_auth_failure_backoff_counterfactual` が fail / exponential+cap / 長期 pause / 成功即リセット / 非 auth 失敗は backoff しない / no-secrets)、`tests/test_anomaly_watcher_detectors.py` +10 本 (本番実測形状で発火 / estimand 分離 / 読み手 pin = main 配線・通知バケット・event line)
 - registry `e1-positioning-ingest-freshness`: note に incident 台帳追記 + reachability に watcher 先行検知経路を追記
+## 2026-09-10 — fix(watch): trigger 評価の全面クラッシュ耐性検証 + 評価空白 09-06〜09-10 の影響監査 (rule:R3)
+
+- **検証 (最重要)**: 反証レビュー主張「registry 欠損で prereg_trigger_watch 全面クラッシュ、日次評価 09-06 から死亡」は**PR #236 で修復済み**と実測確定 — origin/main で exit 0 / active 40 エントリ全評価 / EVAL_ERROR 0 件。隔離ラッパ・EVAL_ERROR 別箱・registry lint (check.py 第 9 チェック)・counterfactual テスト (欠落 fixture / fault injection / 型網羅 pin) の全てが導入済みのため重複修理はしない
+- **評価空白の影響監査**: [[trigger-watch-gap-audit-2026-09-10|raw/audits/trigger-watch-gap-audit-2026-09-10]] — Tier-A cron 4 run (09-07〜09-10 00:20 UTC) が影響。期日超過・N 到達の見逃しは**ゼロ**。TRIGGERED 2 件: t5-jpy-cap-restore-price (既知・空白起因でない) と **e1-positioning-ingest-freshness (新規・進行中 — 本番 ingest 2026-09-10T06:58Z 停止、全 13 ペア stale 7.9h+、E1 残 coverage budget ~41h への現在進行形の消費)**。E1 復旧は別タスクで追跡。修復後初の cron 配信は 09-11 00:20 UTC のため本監査が修復後最初の読み手
+- **残欠陥の同型修理**: `quant_gate_status.run_quant_readiness()` — `r.stdout or r.stderr` が returncode を見ず、非ゼロ exit + 部分 stdout で stderr traceback を黙殺 / stdout 空で素の traceback が本文として流れる (run_prereg_trigger_watch の 2026-09-08 欠陥と同型)。fail-loud 化 (banner + stderr 末尾 6 行 + 部分本文保持、フェンス内描画のため入れ子フェンス回避) + counterfactual テスト 3 本 (`tests/test_m1_clean_live_monitor.py`)
+## 2026-09-10 — fix(ci): zn-cache-refresh の git add -f 修正 + ZN cache 鮮度 pin — round-4 発火条件の恒久死亡を解消 (rule:R3)
+
+- **実測根因** (gh run log 4/4、run 34124847021 ほか): `zn-cache-refresh.yml` は fetch 成功 (rows 14225→14537、右端 2026-09-04 まで取得) の直後、commit 段の素の `git add data/cache/yield/ZN_F_1h.parquet` が `.gitignore` の `data/cache/` に拒否され exit 1 — **2026-08-17〜09-07 の全 run が取得データを捨てて死亡**。ファイルは track 済みだが git >= 2.5x は ignored dir 配下への素の add を advice + exit 1 で拒否する (ローカル 2.50.1 で再現確認)。放置すると registry `ws3-round4-eur-divergence-conditional` の発火条件 (cache 被覆 2026-11-15+) が永遠に不成立 = E1 FAIL 時の代替供給 1 本が無期限死亡
+- **修理**: `git add -f data/cache/yield/ZN_F_1h.parquet` へ変更 (workflow 内に根因コメント併記)
+- **鮮度 pin (読み手の新設)** — 4 回の赤 run を誰も読んでいなかった (「収集済み ≠ 監視済み」の再演): `scripts/check_zn_cache_freshness.py` 新設 — cache 右端が `ZN_CACHE_MAX_AGE_DAYS = 8` 日 (SSOT: `modules/freshness_policy.py`、較正: 正常時 ≈5.8 日 / refresh 1 回失敗 ≈12.8 日の中間) を超えたら Discord 通知 + exit 1。欠損/空/読取り不能も fail 側に倒す (「無ければ skip」禁止)。読み手 = `weekly-audit.yml` の独立 job `zn-cache-freshness` (週次日曜 02:00 UTC)
+- **counterfactual pin**: `tests/test_zn_cache_freshness_pin.py` 11 本 — `-f` を外す / weekly-audit の配線を消す の双方で red になることを実地確認 (3 fail)、復元で green。閾値較正域 (6〜12 日) も pin
+- **同一ファイル semgrep gate 対応**: weekly-audit.yml の actions を full SHA pin 化 + `github.event.inputs` の run 直接展開を env 経由へ (script injection 防止)
+- **マージ後検証 (push ≠ 完了)**: `gh workflow run zn-cache-refresh.yml` → run green → `git show origin/main:data/cache/yield/ZN_F_1h.parquet` の右端が前進したことを実測 (手順は PR 本文)
 
 ## 2026-09-10 — feat(wg): 執行契約 (B) エントリー繰り下げ — halt 決定論 fill 0% の修理 (rule:R1 user 承認 2026-09-10)
 
