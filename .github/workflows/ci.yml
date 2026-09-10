@@ -15,7 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # supply-chain: mutable tag ではなく full SHA pin (semgrep gate)
+      # fetch-depth 0 (PR #230): tests/test_roster_d_class_estimand_audit.py は
+      # 実 git 履歴 (tier gate 導入 commit 293165ef / 全送信期 8a42d776 /
+      # origin/main first-parent) を読んで pin する。shallow clone だと
+      # 「歴史が読めない」が「定数が誤り」に化けるため全履歴を取得する。
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
 
       - name: Set up Python 3.11
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0

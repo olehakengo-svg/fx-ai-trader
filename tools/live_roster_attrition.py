@@ -34,9 +34,32 @@ M3 (clean live N>=30 のセルを 3 個) の到達を最短 ~14 ヶ月と見積�
     B_LIVE_STOPPED        コード上の live 停止集合に載っている
                           (_FORCE_DEMOTED / _PAIR_DEMOTED / HTF_MIXED_LIVE_STOP_CELLS)
     C_SHADOW_DEMOTED      shadow 降格/退役registry・SHADOW_ALWAYS に載っている
-    D_NEVER_PROMOTED      昇格集合 (_PAIR_PROMOTED ∪ _UNIVERSAL_SENTINEL) に無い
-                          → shadow のみが設計状態であり、**anchor 窓の LIVE 行の方が異常**
-                          (2026-07 の watchdog DECREMENT 再武装バグ / preserve 型バグ期と整合)
+    D_NOT_LIVE_ELIGIBLE_NOW
+                          **現在の**昇格集合 (_PAIR_PROMOTED ∪ _UNIVERSAL_SENTINEL) に無い
+                          D1_PRE_TIER_GATE  : anchor 窓の clean LIVE 約定が全て
+                                              Phase-0 tier gate (2026-04-14) より前
+                                              = `_is_promoted()` 既定 True の
+                                              **allow-by-default 期**の発火
+                          D2_POST_TIER_GATE : gate 後の約定を含む = 要説明
+                                              (**attributed_share の分子に
+                                              数えない** — D1 のみ帰属済み)
+
+                          ⚠️ **旧称 `D_NEVER_PROMOTED` と旧解釈「本来出てはいけなかった
+                          発火」は 2026-09-10 の estimand 監査で棄却された。**
+                          根拠は「**現在**の昇格集合に不在」だけで、当時の昇格状態を
+                          何も含意していなかった (PR #226 Codex P1 finding #2)。
+                          実測 (2026-09-10 監査、PR #230 レビューで改訂):
+                          **静的方針に反する発火は 1 セル 2 約定のみ**。
+                          残 28 約定中 5 は無条件に許可と確定 (昇格ゲート
+                          未実装 / 全送信期)、21 は静的コードが許可だが
+                          ランタイム降格状態が再構成不能な**条件付き**。
+                          ⚠️ 初版の「26/28 約定は正当」は言い過ぎとして
+                          **撤回済み** — 引用しないこと。B/C/E は「今なにが
+                          止めているか」= 現在形の問いなので現在の集合を読むのが
+                          正しい estimand だが、D だけが過去形の主張をしていた。
+                          個別判定は `tools/roster_d_class_estimand_audit.py`
+                          (約定 1 件ごとに当時デプロイされていたコードを再構成)。
+                          分析: analyses/roster-d-class-estimand-audit-2026-09-10.md
     E_PROMOTED_UNATTRIBUTED
                           昇格集合にあり、どの停止機構にも載らず、LIVE ゼロ
                           E1_SUPPLY_PRESENT : 現在窓でも候補行は出ている = 供給あり/転換ゼロ
@@ -61,6 +84,17 @@ from typing import Any
 
 import requests
 
+# Phase-0 三層化 (`_SHADOW_MODE` + `_ELITE_LIVE` + Phase0 tier gate) の
+# デプロイ時刻。これより前は `_is_promoted()` が既定 `return True` =
+# OANDA 送信 allow-by-default だったため、昇格集合に無いセルの LIVE 約定は
+# **異常ではなく設計状態**だった。
+# 手順と limitation の SSOT は `tools/roster_d_class_estimand_audit.py`。
+# 値をそちらから import しないのは、tools/*.py が「スクリプトかつライブラリ」
+# の二重存在でモジュールトップの sys.path 操作が禁止されているため (lesson)。
+# 代わりに **両者の一致をテストで pin** する
+# (tests/test_roster_d_class_estimand_audit.py)。
+TIER_GATE_UTC = datetime(2026, 4, 14, 8, 16, 58, tzinfo=timezone.utc)
+
 DEFAULT_API = "https://fx-ai-trader.onrender.com"
 DEFAULT_ANCHOR = "2026-05-01"
 DEFAULT_DAYS = 30
@@ -70,7 +104,7 @@ CLASSES = (
     "A_STILL_LIVE",
     "B_LIVE_STOPPED",
     "C_SHADOW_DEMOTED",
-    "D_NEVER_PROMOTED",
+    "D_NOT_LIVE_ELIGIBLE_NOW",
     "E_PROMOTED_UNATTRIBUTED",
 )
 
@@ -191,7 +225,10 @@ def classify(cell: tuple[str, str, str], *, still_live: bool, stops: dict[str, s
     ):
         return "C_SHADOW_DEMOTED"
     if (entry_type, instrument) not in stops["pair_promoted"] and entry_type not in stops["universal_sentinel"]:
-        return "D_NEVER_PROMOTED"
+        # 「**今** live 資格が無い」までしか言えない。当時も無かったかは
+        # 別の estimand で、それを名乗るには当時のコードの再構成が要る
+        # (2026-09-10 監査で旧称 D_NEVER_PROMOTED は棄却)。
+        return "D_NOT_LIVE_ELIGIBLE_NOW"
     return "E_PROMOTED_UNATTRIBUTED"
 
 
@@ -229,6 +266,12 @@ def build_report(
         subclass = None
         if klass == "E_PROMOTED_UNATTRIBUTED":
             subclass = "E1_SUPPLY_PRESENT" if supply > 0 else "E2_SILENT"
+        elif klass == "D_NOT_LIVE_ELIGIBLE_NOW":
+            stamps = [parse_ts(r.get("created_at")) for r in cell_rows]
+            latest = max((t for t in stamps if t is not None), default=None)
+            subclass = ("D1_PRE_TIER_GATE"
+                        if latest is not None and latest < TIER_GATE_UTC
+                        else "D2_POST_TIER_GATE")
         cells.append(
             {
                 "entry_type": cell[0],
@@ -246,7 +289,14 @@ def build_report(
     counts = Counter(c["class"] for c in cells)
     sub = Counter(c["subclass"] for c in cells if c["subclass"])
     total = len(cells)
-    explained = sum(counts[k] for k in ("A_STILL_LIVE", "B_LIVE_STOPPED", "C_SHADOW_DEMOTED", "D_NEVER_PROMOTED"))
+    # D は subclass で意味が割れる: D1 (tier gate 前のみ) は「設計変更で
+    # live 資格を失った」= 帰属済み、D2 (gate 後の発火を含む) は定義上
+    # **要説明**なので帰属済みに数えてはならない。--anchor を gate 後に
+    # 動かすと D2 が現れて attributed_share を黙って膨らませていた
+    # (2026-09-10 PR #230 Codex P2)。
+    d1 = sum(1 for c in cells if c["subclass"] == "D1_PRE_TIER_GATE")
+    explained = sum(counts[k] for k in ("A_STILL_LIVE", "B_LIVE_STOPPED",
+                                       "C_SHADOW_DEMOTED")) + d1
     return {
         "generated_at": cur_end.isoformat(),
         "anchor_window_end": anchor_end.isoformat(),
