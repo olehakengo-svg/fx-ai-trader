@@ -1,6 +1,6 @@
 # weekend_gap 執行契約 R1 改定パケット (2026-09-10)
 
-> **Status: 📋 DRAFT — user 決裁待ち (R1)。決裁期限: 2026-09-12 (土) 中 — 次イベント 2026-09-13 (日) 21:00 UTC の前に実装 PR + deploy を完了するため。**
+> **Status: ✅ APPROVED + 実装済み — user「進めて」2026-09-10 で案 (B) 承認 (rule:R1)。同日、実装 PR (feat/wg-execution-contract-b-20260910) で §4 AMENDMENT を執行: `_weekend_gap_tick` tradeable 前置条件 + 打ち切り +15 分 + drift 放棄 +8.0p + halt-race 限定再送 1 回 + §4.6 観測強化 + registry §7 反映。初回検証イベント = 2026-09-13 (日) 21:00 UTC (§6 G0' 判定点、registry `weekend-gap-execution-amendment-g0prime`)。**
 > 起点: [[process-meta-audit-2026-09-07]] §4.2 R1(b) 勧告 + §6 F2 (2026-12-31 までに live 執行 N=0 なら「PASS→live PnL」変換未実証と正式認定)。user 09-10 「全て進めて」承認によるパケット起案。
 > 本パケットは**文書のみ** — live コード変更なし。実装は user 承認後の別 PR (レビュー必須)。
 > rule:R3 (観測は read-only 実測、契約変更本体は R1 = user 最終承認)

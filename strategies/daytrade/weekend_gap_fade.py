@@ -78,6 +78,24 @@ WEEKEND_GAP_TP_SENTINEL_PIPS = 500.0
 # (15m -> 60 min from the first Sunday bar's open timestamp).
 WEEKEND_GAP_ENTRY_WINDOW_BARS = 4
 
+# ── Execution contract (B) — pre-reg §2.2 AMENDMENT, user 承認 2026-09-10 ──
+# 決裁: knowledge-base/wiki/decisions/
+#   weekend-gap-execution-contract-r1-packet-2026-09-10.md §4 (rule:R1)
+# 機構: エンジン発火 21:01 UTC < OANDA 実開場 21:04-21:05 (48/48 実測) →
+# 現行 FOK 1 回契約は MARKET_HALTED cancel が決定論的 = live fill ~0%。
+# 改定: live 送信を「OANDA tradeable 確認後の最初の評価 tick」へ繰り下げる。
+# G1/G2/G3・qualify 閾値・cap 10.0p・1000u・4h exit は一切不変更。
+# 全て凍結値 — 変更は R1。
+WEEKEND_GAP_HALT_ABANDON_MIN = 15         # §4.2: 初バー ts +15 分超で halt 継続 → 放棄
+WEEKEND_GAP_DRIFT_ABANDON_PIPS = 8.0      # §4.3: fade 方向 adverse drift > +8.0p → 放棄
+WEEKEND_GAP_TRADEABLE_POLL_MAX_SEC = 60.0  # §4.1: tradeable poll 間隔 ≤ 60s
+WEEKEND_GAP_QUOTE_MAX_AGE_SEC = 10.0      # §4.1: 開場確認に使う quote は age < 10s
+WEEKEND_GAP_HALT_RACE_RESEND_DELAY_SEC = 30.0  # §4.4: halt-race 限定再送は 30s 後 1 回のみ
+# latch 新値 (§4.2/§4.3) — 既存 'EXECUTED' / 'SKIPPED_SPREAD' に追加。
+# 放棄でも shadow row は従来どおり記録 (分母保存)。
+WEEKEND_GAP_LATCH_ABANDONED_HALT = "ABANDONED_HALT"
+WEEKEND_GAP_LATCH_ABANDONED_DRIFT = "ABANDONED_DRIFT"
+
 # Explore-definition guards (estimand definition — hours, not TF windows).
 FRI_CLOSE_GUARD_H = 6
 SUN_OPEN_GUARD_H = 24
@@ -116,6 +134,71 @@ def weekend_gap_spread_cap_skip(spread_pips: float) -> bool:
     weekend_gap_fade; all other entry_types keep the standard E1 spread filter.
     """
     return float(spread_pips) > WEEKEND_GAP_SPREAD_CAP_PIPS
+
+
+def weekend_gap_adverse_drift_pips(direction: str, sunday_open: float,
+                                   current_mid: float, instrument: str) -> float:
+    """Fade-direction adverse drift in pips (execution contract B §4.3).
+
+    符号規約 (AMENDMENT 原文「送信時 mid − シグナル mid、fade 方向を正」):
+    シグナル mid = Sunday open (gap シグナルの estimand 基準点 — §5.3 の
+    実測 mean +3.15p / p90 6.7p と同一定義)。fade 方向 (Friday close へ戻る
+    向き) に価格が既に動いた分を正で返す — その分だけ per-event の残余
+    リバージョン (凍結 stressed-net +7.90p) が消費されているため。
+      BUY fade (gap down): mid 上昇 = adverse → (mid − open)/pip
+      SELL fade (gap up) : mid 下落 = adverse → (open − mid)/pip
+    負値 = gap がさらに走った (favorable entry) — 放棄しない。
+    """
+    pip = WEEKEND_GAP_PIP_SIZE[instrument]
+    if direction == "BUY":
+        return (float(current_mid) - float(sunday_open)) / pip
+    return (float(sunday_open) - float(current_mid)) / pip
+
+
+def weekend_gap_entry_send_decision(direction: str, instrument: str,
+                                    now_utc: datetime, first_bar_ts,
+                                    tradeable, quote_age_sec,
+                                    sunday_open: float,
+                                    current_mid: float) -> tuple:
+    """Execution contract (B) send decision — pure, unit-testable (§4.1-4.3).
+
+    Args:
+      tradeable: OANDA pricing の instrument tradeable 状態。None = pricing
+        取得不能 (未確認として扱う — fail-closed で送信しない)。
+      quote_age_sec: pricing quote の鮮度 (秒)。None = 不明 (未確認扱い)。
+      first_bar_ts: Sunday open 初バーの stamped ts (tz-aware)。
+      sunday_open / current_mid: drift 判定入力 (§4.3)。
+
+    Returns (decision, drift_pips):
+      "SEND"            — 実開場確認済み・drift 境界内 → 最初の評価 tick で送信
+      "HOLD"            — 実開場未確認・打ち切り前 → latch を立てず次 tick へ
+      "ABANDONED_HALT"  — 初バー ts +15 分を過ぎても halt 継続 (§4.2)
+      "ABANDONED_DRIFT" — fade 方向 adverse drift > +8.0p (§4.3、境界値ちょうどは送信)
+
+    凍結境界: 打ち切りは「+15 分を過ぎても」= strictly after / drift は
+    strictly greater (> +8.0p)。いずれの放棄も shadow row は記録する
+    (呼び出し側の責務 — 分母保存)。
+    """
+    drift = 0.0
+    if current_mid and float(current_mid) > 0:
+        # 0.0001p 精度へ量子化 — float 表現誤差 (8.0 が 8.000000000000005 に
+        # なる類) が凍結境界「> +8.0p」の判定を歪めるのを防ぐ。実 quote の
+        # 分解能は 0.1p (JPY 3 桁 / 非 JPY 5 桁) なので情報は落ちない。
+        drift = round(weekend_gap_adverse_drift_pips(
+            direction, sunday_open, current_mid, instrument), 4)
+    confirmed_open = bool(
+        tradeable is True
+        and quote_age_sec is not None
+        and 0.0 <= float(quote_age_sec) < WEEKEND_GAP_QUOTE_MAX_AGE_SEC
+    )
+    if not confirmed_open:
+        deadline = first_bar_ts + timedelta(minutes=WEEKEND_GAP_HALT_ABANDON_MIN)
+        if now_utc > deadline:
+            return WEEKEND_GAP_LATCH_ABANDONED_HALT, drift
+        return "HOLD", drift
+    if drift > WEEKEND_GAP_DRIFT_ABANDON_PIPS:
+        return WEEKEND_GAP_LATCH_ABANDONED_DRIFT, drift
+    return "SEND", drift
 
 
 def _last_friday_cut(now_utc: datetime) -> datetime:
