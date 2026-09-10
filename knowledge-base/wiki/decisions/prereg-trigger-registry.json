@@ -574,12 +574,14 @@
     },
     {
       "id": "carry-dip-live-to-shadow-drop-cause",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-30",
       "doc": "knowledge-base/wiki/lessons/lesson-live-fill-estimand-shadow-conflation-2026-09-03.md",
       "message": "2026-08-27T16:02Z の usdjpy_carry_dip_accumulator (roadmap T8 で live 稼働中のはず) が is_shadow=1 で記録され +15.5p の WIN。live 資格セルが shadow へ落ちた理由が未特定 (spread / HTF / DD defensive / cooldown / lot floor / carve-out ゲートのいずれか)。同セルは 08-05〜08-20 に LIVE 9 件を出しているので恒久的な資格喪失ではない。次に同セルが shadow で記録されたら block/gate ログと突き合わせて原因を特定する。2026-11-30 までに再現ゼロなら単発として close。**観測枠。lot 変更・降格 (R1/R2) は含まない。**",
-      "reachability": "usdjpy_carry_dip_accumulator は稼働中で shadow/LIVE いずれかの行を出し続ける (自動)。deadline 到達で TRIGGERED、判定は Claude。前進経路 = 新規発火の蓄積。"
+      "reachability": "usdjpy_carry_dip_accumulator は稼働中で shadow/LIVE いずれかの行を出し続ける (自動)。deadline 到達で TRIGGERED、判定は Claude。前進経路 = 新規発火の蓄積。",
+      "resolved": "2026-09-10",
+      "resolution": "原因確定 (Render ログ実査、log ID 付き原文保全済み): alpha_scan H16-20_USD_JPY 静的 hour block (modules/demo_trader.py の _tick_entry USD_JPY H16-20 gate、現行 commit 1edd2ce2 で L5975-5983)。16:02 UTC = H16 で QUALBAR emit=True → [SHADOW] H16 USD_JPY block → SENTINEL_BLOCK_DIAG shadow-downgraded → OANDA SKIP (shadow_tracking) → trade id 16624 (is_shadow=1, +15.5p WIN)。仮説列挙されていた spread/HTF/DD/cooldown/lot floor/carve-out はいずれも非発火 (窓ログ全件で確認)。再現性ゼロ確定: 2026-09-04 commit 0268ad09 の _STATIC_HOURBLOCK_CLASS_EXEMPT (rule:R1 user 承認 09-02) に usdjpy_carry_dip_accumulator が所属し、同 gate は本セルを [HOURBLOCK_CLASS_EXEMPT] marker 付きで免除通過させるため同一原因の shadow 落ち経路は存在しない (免除の巻き戻しは hourblock-class-exempt-r2-rollback が管理)。一次証拠 (原本は Render retention 30 日で ~09-26 消滅): knowledge-base/raw/audits/carry-dip-shadow-drop-evidence-2026-08-27.md"
     },
     {
       "id": "rnb-support-bounce-registration-decision",
