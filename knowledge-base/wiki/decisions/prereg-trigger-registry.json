@@ -108,7 +108,7 @@
       "n_floor": 5,
       "deadline": "2026-10-28",
       "doc": "knowledge-base/wiki/decisions/sweep-reversion-ps1a-execution-runbook-2026-07-31.md",
-      "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-10-28 に N<5 なら retire (R2、旧 09-30 — 2026-08-17 user 決裁で計数器故障 07-16〜08-12 の 28 日分繰り延べ、forensic doc §4-2)。計数 = dedup_violation!=1 (packet §1.4)。TRIGGERED 時: tools/ps1a_execution_check.py で凍結判定を dry-run → runbook (doc) を上から実行。AMENDMENT (runbook §2.5、第3/第4 ブロッカー修正) は user 承認済み (2026-08-03「進めて」、packet §8 決裁記録) — commit 1+2 で直接執行可。Option B 実装は draft/ps1a-option-b-20260731 に準備済み",
+      "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-10-28 に N<5 なら retire (R2、旧 09-30 — 2026-08-17 user 決裁で計数器故障 07-16〜08-12 の 28 日分繰り延べ、forensic doc §4-2)。計数 = dedup_violation!=1 (packet §1.4)。TRIGGERED 時: tools/ps1a_execution_check.py で凍結判定を dry-run → runbook (doc) を上から実行。AMENDMENT (runbook §2.5、第3/第4 ブロッカー修正) は user 承認済み (2026-08-03「進めて」、packet §8 決裁記録) — commit 1+2 で直接執行可。Option B 実装は draft/ps1a-option-b-20260731 に準備済み 【2026-09-11 追記】draft/ps1a-option-b-20260731 は origin/main (b08f874d) と再解決済み (99e3560d、conflict 4 ファイル解消・pin 3267 green) — トリガ成立日に即マージ可能状態。⚠️ 同日 forensic (raw/audits/t8-ps1a-readiness-2026-09-10.md): LATE 窓 28 日 zero-fire は市場要因ではなく第4ブロッカー (静的 spread_wide 1.5p が gbp_asia rescue 後の行書込みを rowless kill) の継続 — 08-12 以降 4 イベント (08-20/09-01/09-07/09-09) が全て計数漏れ。本トリガの unique N は現行 main のままでは実質増えない (修正は draft 側 AMENDMENT にのみ存在 = デッドロック)。08-17 繰り延べ決裁と同型につき、計数救済 or shadow-row 記録の先行切り出し or 期日待ち は user 決裁事項 (選択肢整理は forensic §3)。",
       "mode": "daytrade_eurgbp",
       "count_basis": "unique"
     },
