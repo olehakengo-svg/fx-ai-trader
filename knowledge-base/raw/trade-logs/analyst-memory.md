@@ -4386,6 +4386,16 @@ Cutoff後累計は N=6、WR=50.0%、PnL=**−86.6p**（EV平均は計算上著�
 | 時間帯（JST） | 内容 | 注意点 |
 - **USD/JPY 79%ile**は高ボラ環境の最終域。急落・急騰いずれも起こりやすい。`usdjpy_carry_dip_accumulator`が再エントリーする場合、損失が大きくなるリスク（AUD/JPY事例のEV−77.5pの再現懸念）。
 
+### 2026-09-10 (Pre-Tokyo Briefing)
+Cutoff後累計では N=6、WR=50.0%、PnL=**−86.6p**（累計赤字）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- 全3戦略でN<10 → 統計的判断不能。数値はノイズ水準
+- `price_shock_rev_aud_jpy_h1_long` のEV=−77.5は単一大損失によるアーティファクト
+- `usdjpy_carry_dip_accumulator` は N=4でEV負傾向。N=30到達まで判断保留
+- **昇格基準（N≥30 & EV≥1.0）達成戦略：ゼロ**
+- 27モード稼働中、実際のエントリーは皆無
+- **主因推定**: block_countsが示す通り、`order_bar_dedup`・`hedge_block`・`r2_shadow_demoted_cell`が連鎖的に稼働を抑制
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
