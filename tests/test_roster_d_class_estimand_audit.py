@@ -38,7 +38,10 @@ def test_tier_gate_is_anchored_to_a_real_commit_that_introduced_the_gate():
     日付だけを pin すると「なぜその日か」が失われ、後から誰も検証できない。
     """
     src = aud._git("show", f"{aud.TIER_GATE_COMMIT}:modules/demo_trader.py")
-    assert src is not None, "tier gate commit が repo に無い"
+    assert src is not None, (
+        "tier gate commit が repo から読めない。定数の誤りか、shallow clone "
+        "(CI は checkout fetch-depth: 0 が必須 — ci.yml test job) かを区別せよ"
+    )
     assert "_SHADOW_MODE" in src and "_ELITE_LIVE" in src
     parent = aud._git("rev-parse", f"{aud.TIER_GATE_COMMIT}^")
     assert parent is not None

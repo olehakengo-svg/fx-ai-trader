@@ -18,6 +18,7 @@
 - テスト: 11 → **16 本** (方針 3 形の判別 / 条件性の pin / deny-by-default を許可と呼ばない / UNKNOWN が UNRESOLVED へ流れる / D2 除外)。counterfactual **3/3** (方針を不在から推論 / 条件付きを無条件扱い / D2 を帰属済みに数える)
 - **PR #230 レビュー 2 巡目 (P2 2 件)**: (a) **`demote_sets_at` が個別代入の解析失敗を `continue` で飛ばしていた** — 部分的にしか読めていない降格集合を「完全に読めた」として扱い、在籍していたセルを PERMITTED 側へ落とす。1 つでも読めなければ `None` (= 再構成不能) を返す **fail closed** へ。(b) 🛑 **撤回した「26/28 約定は正当」が `live_roster_attrition.py` の docstring に残っていた** — 引用可否を KB に書いても、**ツールの docstring は readout の一部**なので毎回の readout で再生産される。撤回を明記した記述に差し替え、**「撤回済み主張が readout に残っていないこと」を CI で pin** (`26/28` に触れるなら「撤回」の語を必須にする性質 pin)。教訓: **主張を撤回したら、その主張を運んでいる全ての readout 面 (docstring / markdown / MEMORY) を同じコミットで洗う**
 - テスト: 16 → **18 本**。counterfactual 2/2
+- **CI 修理 (座礁救済、3 巡目)**: `test` job の checkout が shallow (fetch-depth 既定 1) のため、実 git 履歴 (gate commit `293165ef` / 全送信期 `8a42d776` / `origin/main` first-parent) を読む pin テスト群が **CI でのみ** fail していた (ローカル full clone は 38/38 pass)。`ci.yml` test job に `fetch-depth: 0` を追加 (hip1-holdout-guard job は既に 0 で前例あり)。assertion message に「定数の誤り vs shallow clone」の区別導線を追記 — 「歴史が読めない」を「定数が誤り」に折り畳まない
 - 分析: [[roster-d-class-estimand-audit-2026-09-10]] / 改定対象: [[live-roster-attrition-2026-09-06]] §2.1
 
 ## 2026-09-10 — feat(quality): estimand 宣言表 + 配線チェッカー — 検知器の「名乗る量」を台帳化 (rule:R3)
