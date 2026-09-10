@@ -47,13 +47,32 @@
 | `A_STILL_LIVE` | 現在窓でも LIVE 約定あり | 0 | — | — |
 | `B_LIVE_STOPPED` | `_FORCE_DEMOTED` / `_PAIR_DEMOTED` / `HTF_MIXED_LIVE_STOP_CELLS` | **83** | 609 | **−469.8** |
 | `C_SHADOW_DEMOTED` | `SHADOW_RETIRED_STRATEGIES` / `SHADOW_DEMOTED_CELLS` / `SHADOW_ALWAYS_STRATEGIES` | **12** | 54 | −52.4 |
-| `D_NEVER_PROMOTED` | `_PAIR_PROMOTED` ∪ `_UNIVERSAL_SENTINEL` に無い | **15** | 28 | −26.2 |
+| ~~`D_NEVER_PROMOTED`~~ → `D_NOT_LIVE_ELIGIBLE_NOW` | **現在の** `_PAIR_PROMOTED` ∪ `_UNIVERSAL_SENTINEL` に無い | **15** | 28 | −26.2 |
 | `E_PROMOTED_UNATTRIBUTED` | 昇格済み・停止なし・LIVE ゼロ | **14** | 34 | −25.1 |
 
 A が 0 なのは定義どおり — 現在窓の LIVE 3 セル (`carry_dip` / `price_shock_rev` ×2) は
 いずれも anchor 窓には存在しなかった**後発**のセルである。
 
-### 2.1 D クラスの意味 — anchor 側が異常
+### 2.1 D クラスの意味 — ❌ **本節は 2026-09-10 の estimand 監査で棄却された**
+
+> 🛑 **引用禁止**: 以下の旧解釈は [[roster-d-class-estimand-audit-2026-09-10]] で
+> 反証された。根拠が「**現在**の昇格集合に不在」だけで、当時の昇格状態を
+> 何も測っていなかった (PR #226 Codex P1 finding #2 の指摘どおり)。
+>
+> **改定後の事実**: D 15 セルの clean LIVE 約定 28 件は **すべて
+> 2026-04-02〜04-14T02:54Z** に閉じており、Phase-0 三層化 (`293165ef`
+> 2026-04-14T08:16:58Z) の**導入前**である。gate 前の `_is_promoted()` は
+> 既定 `return True` = **OANDA 送信 allow-by-default** だったため、
+> 昇格集合に無いセルの LIVE 約定は**異常ではなく設計状態**だった。
+> 約定 1 件ごとの判定 = 正当 26 / 違反 **2** (`dual_sr_bounce × USD_JPY × BUY`
+> のみ、当時 `_FORCE_DEMOTED` 在籍中)。
+>
+> - 「帰属済み 88.7%」は**引用可・数値不変** (帰属先の機構が変わるだけ =
+>   列挙外だった第 5 の停止機構 = tier 設計変更)
+> - 「M3 の分子外」は**根拠が変わる** — バグ判定ではなく政策判断。ただし
+>   N=28 / −26.2p で経済的には無視可能なので ETA・結論は不変
+
+<details><summary>旧記述 (履歴として保存)</summary>
 
 D の 15 セルは昇格集合に**一度も**入っていない。にもかかわらず 2026-04〜05 に
 LIVE 約定を出していた。これは既知の 2 バグ期
@@ -61,6 +80,8 @@ LIVE 約定を出していた。これは既知の 2 バグ期
 `project_preserve_bug_fixed_10cells_live`) と時期が整合する。
 **つまり D は「失われた発火機会」ではなく「本来出てはいけなかった発火」**であり、
 M3 の分子に数えてはならない。
+
+</details>
 
 ## 3. E クラス — 昇格済みだが LIVE ゼロ (未帰属)
 

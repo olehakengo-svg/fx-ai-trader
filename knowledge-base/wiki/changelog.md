@@ -1,5 +1,20 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-10 — audit(estimand): D クラス「本来出てはいけなかった発火」を棄却 — 15 セル中 1 セルだった (rule:R3)
+
+- 🛑 **旧 `D_NEVER_PROMOTED` の解釈は反証された** — registry `roster-attrition-88pct-estimand-audit` (期日 09-22) の執行。出所は **PR #226 の Codex P1 finding #2** (レビュー到着直後にマージされ未読だった 2 件の 1 件)。指摘どおり判定根拠は「**現在**の昇格集合に不在」だけで、当時の昇格状態を何も測っていなかった
+- **実測: D 15 セルの clean LIVE 約定 28 件は全て 2026-04-02〜04-14T02:54Z に閉じている** — Phase-0 三層化 (`_SHADOW_MODE` + `_ELITE_LIVE` + Phase0 tier gate、commit `293165ef` **2026-04-14T08:16:58Z**) の**導入前**。gate 前の `_is_promoted()` は既定 `return True` = **OANDA 送信 allow-by-default** で、2026-04-03 の `8a42d776` は commit message 自体が "temp: disable OANDA strategy promotion filter — send all entries to OANDA" だった ⇒ 昇格集合に無いセルの LIVE 約定は**異常ではなく設計状態**
+- **約定 1 件ごとの verdict: 正当 26 / 違反 2** (セル単位 14 / 1)。違反は `dual_sr_bounce × USD_JPY × BUY` の 2 約定 (04-13T13:01Z / 16:01Z、当時 `_FORCE_DEMOTED` 在籍) のみ。⚠️ limitation = `get_strategy_mode()` の手動 override はランタイム DB 状態で再構成不能 → ILLEGIT は条件付き、**LEGIT 側は override の有無に不感なので結論の向きは非対称に安全**
+- **クラス別 gate 前後分解で欠陥が D に局在することを確認** — B は 48/83 セルが gate 後も発火 (列挙済み降格機構で実際に止まっている = 帰属妥当)、D は **15/15 が gate 前のみ**で完全分離。B/C/E は「**今**なにが止めているか」= 現在形の問いなので現在の集合を読むのが正しい estimand、**D だけが過去形の主張を運んでいた**
+- **引用可否**: 「帰属済み 88.7%」は**引用可・数値不変** (帰属先の機構が変わるだけ = 列挙外だった第 5 の停止機構 = tier 設計変更) / 「停止済み 83 セル N=609 −469.8p」も引用可 / **「D は本来出てはいけなかった発火」は引用禁止** / 「M3 の分子外」は根拠が政策判断へ変わる (経済的には N=28 −26.2p で無視可能、~14 ヶ月 ETA と [[friction-adjusted-ev-map-2026-07-07]] の結論は不変)
+- **分類器が見ていない当時の LIVE 資格集合を列挙** — `_ELITE_LIVE` (現 HEAD に**消滅**) / `_GRAIL_CANDIDATES` / `_C1_PROMOTE_CANDIDATES` / PRIME tier A/B (`modules/prime_gate.py`) / `_SCALP_SENTINEL`。`load_stop_sets()` は `_PAIR_PROMOTED` と `_UNIVERSAL_SENTINEL` の 2 本しか読んでいない
+- **是正**: `D_NEVER_PROMOTED` → **`D_NOT_LIVE_ELIGIBLE_NOW`** (クラス名が過去形の主張を運ばないように / 旧称復活は pin で防止) + subclass `D1_PRE_TIER_GATE` / `D2_POST_TIER_GATE` 新設 + docstring に棄却と導線。読み手 `tools/roster_d_class_estimand_audit.py` 新設 (約定 1 件ごとに当時デプロイされていた commit を `origin/main` first-parent から特定し `_FORCE_DEMOTED`/`_PAIR_DEMOTED` を AST で読む)
+- 🛑 **監査ツールの実装中に自分で同型の欠陥を作りかけた** — `demote_sets_at` が「読めたが集合が無い」を `None` (= 読めなかった) に折り畳み、5 約定が UNRESOLVED に化けていた (2026-08-30 の `fetch_json` blind と同型)。**合成 cache を注入するテストは関数を迂回して検出できない → 契約は関数で pin する**
+- テスト: `tests/test_roster_d_class_estimand_audit.py` **11 本** 新設 (定数一致 / gate commit の実在と親 commit に gate が無いこと / 逆方向 (gate 前でも降格中なら違反) / 折り畳み禁止の契約 pin / D subclass 分岐 / 旧称復活防止)。**counterfactual 3/3** が所望のテストのみを落とすことを確認 (折り畳み復活 / 定数不一致 / 降格集合を読まない)
+- 教訓: **現在形の集合で過去形の主張をするな。クラス名は estimand を運ぶ** — `D_NEVER_PROMOTED` という名前自体が、根拠より強い主張を毎回の readout で再生産していた
+- 分析: [[roster-d-class-estimand-audit-2026-09-10]] / 改定対象: [[live-roster-attrition-2026-09-06]] §2.1
+
+
 ## 2026-09-06 — diag(monitoring): LIVE 発火セル 124→3 の帰属 — 88.7% は設計通り、11.3% は帰属不能 (rule:R3)
 
 - 🛑 **09-04 が M3 スループットを「独立ボトルネック」へ昇格させた際の帰属 (「7-8 月の R2 降格バッチ = 設計通り」) は検証されていなかった** — どのセルがどの停止機構で消えたかを機械的に突き合わせた主体が存在しなかった。本コミットで読み手を新設し突合した
