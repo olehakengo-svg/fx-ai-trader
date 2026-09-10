@@ -617,9 +617,16 @@ def _evaluate_trigger_impl(
                                closed_only=bool(trig.get("closed_only"))),
             int(trig["n_decide"]), int(trig["n_floor"]), trig["deadline"], today)
     elif ttype == "shadow_count_info":
+        # 2026-09-10 (PR #227 Codex P2 14 巡目): instrument / direction は
+        # allowlist にあるのに評価器へ渡されていなかった = 綴りが正しくても
+        # **黙って全ペア/全方向を計上**する。shadow_count_decision 側は
+        # 2026-08-18 に同じ穴を塞いでいる (sr-anti-hunt 偽発火)。
+        # allowlist に入れた selector は必ず評価器まで配線すること。
         res = evaluate_shadow_count_info(
             fetch_shadow_count(trig["entry_type"], trig["since"], app_base,
                                prefix=trig.get("match") == "prefix",
+                               instrument=trig.get("instrument", ""),
+                               direction=trig.get("direction", ""),
                                mode=trig.get("mode", ""),
                                exclude_dedup_violation=(
                                    trig.get("count_basis") == "unique")),
@@ -741,9 +748,19 @@ ALTERNATIVE_FIELDS_BY_TYPE: dict[str, tuple[tuple[str, ...], ...]] = {
 # dict 型の入れ子 spec — 中の既知フィールドは任意でも検査する。
 # `source.label_columns: 1` は top-level 走査では見つからず、行が一致した
 # 瞬間に TypeError になる (PR #227 Codex P2 10 巡目)。
-NESTED_SPEC_FIELDS: dict[str, tuple[str, ...]] = {
-    "data_coverage": ("source",),
-    "csv_row_match": ("source",),
+#
+# 値は**その spec 内で許可されるキー**の集合 = 評価器が実際に添字 / `get` する
+# キーだけを列挙する (SSOT)。top-level と コレクション要素は
+# reject-by-default にしたが、**その間の層**は素通りしていた:
+# `source.date_colum` は lint を通り、`fetch_data_coverage_max` が
+# `spec.get("date_column", "")` で空に落ちて日付列なしのまま毎日
+# DATA_UNAVAILABLE を返し続ける (PR #227 Codex P2 14 巡目)。
+# ⚠️ 「走査対象の一覧」と「許可キー」を**別の定数に分けない** — 14 巡目で
+# 一度分けたら名前衝突で既存の走査を静かに壊した。1 本に保つこと。
+NESTED_SPEC_ALLOWED_KEYS: dict[str, dict[str, frozenset[str]]] = {
+    "data_coverage": {"source": frozenset({"path", "date_column"})},
+    "csv_row_match": {"source": frozenset({"path", "match",
+                                           "label_columns"})},
 }
 
 # list[str] を要求するフィールド。
@@ -1060,7 +1077,7 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
                 errors.append(
                     f"{tid}: type={ttype} は {list(group)} のいずれかが"
                     "非空で必須 — 全て空だと母集団が定義されず過大計上する")
-        for spec_key in NESTED_SPEC_FIELDS.get(ttype, ()):
+        for spec_key in NESTED_SPEC_ALLOWED_KEYS.get(ttype, {}):
             spec = t.get(spec_key)
             if not isinstance(spec, dict):
                 continue
@@ -1087,7 +1104,24 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
                 f"{tid}: type={ttype} に未知のキー {k!r} — 評価器は読まないので "
                 "綴り違いなら母集団が黙って広がる (許可キー: "
                 f"{sorted(allowed - META_FIELDS)} + メタ)")
+        errors.extend(_lint_nested_specs(t, tid, ttype))
         errors.extend(_lint_collections(t, tid, ttype))
+    return errors
+
+
+def _lint_nested_specs(t: dict[str, Any], tid: str,
+                       ttype: str) -> list[str]:
+    """ネストした dict spec の未知キーを落とす (reject-by-default の 3 層目)。"""
+    errors: list[str] = []
+    for dotted, allowed in NESTED_SPEC_ALLOWED_KEYS.get(ttype, {}).items():
+        spec = _get_path(t, dotted)
+        if not isinstance(spec, dict):
+            continue  # 形の検査は REQUIRED_FIELDS_BY_TYPE 側の責務
+        for k in sorted(set(spec) - allowed):
+            errors.append(
+                f"{tid}: {dotted}.{k} は未知のキー — 評価器は読まないので、"
+                "綴り違いなら既定値に落ちて毎日 DATA_UNAVAILABLE を返し"
+                f"続ける (許可キー: {sorted(allowed)})")
     return errors
 
 

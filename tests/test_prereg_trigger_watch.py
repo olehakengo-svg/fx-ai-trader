@@ -1335,3 +1335,64 @@ def test_non_int_numeric_fields_have_semantic_lower_bounds():
     assert lint_schema([{"id": "x", "type": "shadow_count_info",
                          "entry_type": "e", "since": "2026-08-11",
                          "expected_per_week": -1.0}]) != []
+
+
+def test_nested_spec_unknown_keys_are_rejected():
+    """reject-by-default の 3 層目 — dict spec の中身も落とす。
+
+    PR #227 Codex P2 14 巡目: `source.date_colum` は lint を通り、
+    `fetch_data_coverage_max` が既定値 "" に落ちて日付列なしのまま
+    毎日 DATA_UNAVAILABLE を返し続ける。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    ok = {"id": "x", "type": "data_coverage", "threshold_date": "2026-11-15",
+          "source": {"path": "a.parquet", "date_column": "ts"}}
+    assert lint_schema([ok]) == []
+    bad = {"id": "x", "type": "data_coverage", "threshold_date": "2026-11-15",
+           "source": {"path": "a.parquet", "date_colum": "ts"}}
+    assert lint_schema([bad]) != []
+    # csv_row_match 側も同様 (label_columns は評価器が読むので許可)
+    base = {"id": "x", "type": "csv_row_match"}
+    assert lint_schema([dict(base, source={
+        "path": "a.csv", "match": [{"column": "n", "value": 1}],
+        "label_columns": ["n"]})]) == []
+    assert lint_schema([dict(base, source={
+        "path": "a.csv", "match": [{"column": "n", "value": 1}],
+        "label_colums": ["n"]})]) != []
+
+
+def test_allowlisted_selectors_are_wired_into_the_evaluator():
+    """allowlist に入れた selector は評価器まで配線されていること。
+
+    PR #227 Codex P2 14 巡目: shadow_count_info は instrument / direction を
+    allowlist していたのに `fetch_shadow_count` へ渡しておらず、綴りが正しい
+    entry でも**黙って全ペア/全方向**を計上していた (shadow_count_decision で
+    2026-08-18 に塞いだ sr-anti-hunt 偽発火と同型)。性質で pin する —
+    instrument を指定した entry の実測 N が絞り込み後の値になること。
+    """
+    from tools import prereg_trigger_watch as w
+
+    rows = [
+        {"entry_type": "e", "instrument": "USD_JPY", "direction": "BUY",
+         "is_shadow": 1, "entry_time": "2026-08-12T00:00:00Z"},
+        {"entry_type": "e", "instrument": "EUR_USD", "direction": "BUY",
+         "is_shadow": 1, "entry_time": "2026-08-13T00:00:00Z"},
+        {"entry_type": "e", "instrument": "USD_JPY", "direction": "SELL",
+         "is_shadow": 1, "entry_time": "2026-08-14T00:00:00Z"},
+    ]
+    def fake_window(since, app_base, mode=""):
+        return rows
+
+    orig_window = w.fetch_trades_window
+    w.fetch_trades_window = fake_window
+    try:
+        trig = {"id": "t", "type": "shadow_count_info", "entry_type": "e",
+                "since": "2026-08-11", "expected_per_week": 1.0,
+                "instrument": "USD_JPY", "direction": "BUY"}
+        assert w.lint_schema([trig]) == []
+        res = w._evaluate_trigger_impl(
+            trig, today="2026-09-10", app_base="https://x")
+        # 絞り込みが効いていれば N=1、無配線なら N=3
+        assert "N=1" in res["detail"], res["detail"]
+    finally:
+        w.fetch_trades_window = orig_window
