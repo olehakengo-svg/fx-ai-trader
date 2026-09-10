@@ -587,6 +587,80 @@
       "deadline": "2026-10-06",
       "doc": "knowledge-base/wiki/analyses/live-roster-attrition-2026-09-06.md",
       "message": "E2_SILENT 4 セル (bb_squeeze_breakout×EUR_USD BUY/SELL, ema200_trend_reversal×USD_JPY×SELL, squeeze_release_momentum×GBP_USD×BUY) は昇格集合 (_PAIR_PROMOTED / _UNIVERSAL_SENTINEL) に 登録され wiki/index.md の Current Portfolio にも現役掲載されているが、LIVE/shadow を問わず 行の出力が 2026-05-06 以降ゼロ (rnb と同型の『現役掲載だが無出力』シグネチャ)。到達経路: (1) /api/demo/live-enable-flags で SQUEEZE_REDESIGN_V2 等 env 実値を確認し 『意図的に無効』と『配線落ち』を分離 → (2) 配線落ちなら R3 修復、無効化の解除は R1 = user 決裁。読み手: tools/live_roster_attrition.py (E2_SILENT が 0 になれば解消)。⚠️ 未帰属 = バグではない — CLAUDE.md 原則 3 により LIVE 側 winning-location フィルタは意図的に維持される"
+    },
+    {
+      "id": "project-falsification-f1-supply-space",
+      "active": true,
+      "type": "info",
+      "condition": "E1 (first look 2026-10-15 / second 2027-01-06)・ECG #22 (2026-11-06)・E12 (2027-02-05) の 3 時限系統から OOS PASS が 1 つも出ないこと",
+      "deadline": "2027-02-05",
+      "reachability": "各 first-look verdict は各 pre-reg の §8 に記録される (registry の e1-prereg-verdict-deadline / ecg-forward-first-look / e12-volume-first-look-deadline が個別に機械監視)。本エントリは E12 first look 期日に総合判定として escalation する。",
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト falsification 条件 F1 (user 承認 2026-09-10「全て進めて」= U7)。TRIGGERED 時: 3 系統の §8 verdict を集計し、全て PASS ゼロなら『第3次スキャンで枚挙した C1 実現可能空間は消滅』と正式認定 → 現行パイプライン棄却、有償データ / venue 変更 / 終了 の三択を user 決裁へ強制起票 (結合 FAIL 確率の事前見積り ~61-89%)。1 つでも PASS があれば F1 は不成立 = 『継続は正当』の on-record 根拠として resolve。"
+    },
+    {
+      "id": "project-falsification-f2-wg-live-conversion",
+      "active": true,
+      "type": "live_count_decision",
+      "entry_type": "weekend_gap",
+      "match": "prefix",
+      "instrument": "",
+      "direction": "",
+      "since": "2026-07-25",
+      "n_decide": 1,
+      "deadline": "2026-12-31",
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト falsification 条件 F2 (U7、user 承認 2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap の clean live (oanda_trade_id 非空) 約定が live 化 (2026-07-25) 以降ゼロのまま。N>=1 到達 = PASS→live 変換の初実証として resolve。期日 2026-12-31 に N=0 なら『PASS→live PnL 変換は未実証』と正式認定 — 以後の全 PASS の価値を執行実証まで割引き、pre-reg テンプレに fill 成立率の事前見積りを必須化する。関連: weekend-gap-execution-contract R1 パケット (2026-09-10 起案)。"
+    },
+    {
+      "id": "project-falsification-f3-m1-durable-cell",
+      "active": true,
+      "type": "info",
+      "condition": "clean live (oanda_trade_id 非空 ∧ dedup_violation!=1) N>=30 で PnL>0 のセルが 1 本も立たないこと",
+      "deadline": "2027-03-31",
+      "reachability": "tools/m1_clean_live_monitor.py の強定義 readout (2026-09-10 実装 PR) を Tier A cron が日次実行 — セル単位 N/EV/Wilson が毎日記録される。本エントリは期日で escalation。",
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト falsification 条件 F3 (U7、user 承認 2026-09-10)。TRIGGERED 時 (2027-03-31 に M1_STRONG 該当セル 0): M1→M2→M3 の段階設計自体を再導出する (KPI の存置ではなく設計の再検証)。達成セルが立てば resolve。"
+    },
+    {
+      "id": "project-falsification-f4-nav-floor-clock",
+      "active": true,
+      "type": "csv_row_match",
+      "source": {
+        "path": "data/monitoring/nav_floor_projection.csv",
+        "match": [
+          {
+            "column": "days_to_floor",
+            "op": "<=",
+            "value": 90
+          },
+          {
+            "column": "date",
+            "op": ">",
+            "value": "2026-09-09"
+          }
+        ],
+        "label_columns": [
+          "date",
+          "nav_jpy",
+          "burn_per_day_jpy",
+          "days_to_floor",
+          "floor_date_est",
+          "method"
+        ]
+      },
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト falsification 条件 F4 = NAV floor 資金時計 (U3/U7、user 承認 2026-09-10)。書き手 = daily-report.yml が tools/nav_floor_projection.py --append を日次実行 (floor ¥262,000 = OANDA JP API 存続の残高 25 万 + バッファ)。TRIGGERED (floor 到達まで 90 日以内、現行推定では 2026-11〜12 に発火見込み) 時: 入金 / 縮退 / 停止 の user 決裁を強制起票する — floor 到達で OANDA API 停止 = 目標系は物理停止するため、到達前に決めるのが本エントリの目的。⚠️ CSV が 7 日以上未更新なら『安全』でなく『書き手死亡』(monitoring-blind 教訓) — daily-report.yml を疑う。"
+    },
+    {
+      "id": "project-global-stop-quarterly",
+      "active": true,
+      "type": "info",
+      "condition": "連続 2 四半期にわたり『新規 OOS PASS ゼロ ∧ clean live 正セル (N>=30) ゼロ』",
+      "deadline": "2027-03-31",
+      "reachability": "分子は hypothesis-catalog 台帳 (verdict 記録) と m1_clean_live_monitor 強定義 readout。初回判定 2027-03-31 (2026-Q4 + 2027-Q1)、以後四半期ごとに deadline を +3 ヶ月 roll。",
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト global stop 条件 (U7、user 承認 2026-09-10)。TRIGGERED 時: 全面棚卸し (パイプライン・目標・資本の三点を process-meta-audit の §5 三択で user 決裁)。sunk cost による延命判断の構造排除が目的 — 条件不成立なら『継続は正当』の on-record 根拠として deadline を roll。"
     }
   ]
 }

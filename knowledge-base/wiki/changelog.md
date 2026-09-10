@@ -10,6 +10,27 @@
 - 観測基盤の欠陥 2 件を起票提案: `/api/demo/live-enable-flags` が REDESIGN_V2 系 ~40 lever を返さず registry の判別手順が実行不能だった / attrition tool に全期間 `last_row_at` が無く「いつから沈黙か」に答えられない
 - registry 変更提案 (執行せず): `rnb-support-bounce-registration-decision` へ packet 参照追記 / `roster-e2-silent-promoted-cells` の E2 実体を bb_squeeze 2 セルへ訂正
 
+## 2026-09-10 — feat(kpi): M1 強定義 readout + M3 二定義分離 (rule:R3)
+
+- 🛑 **meta-audit R4(a)/(b) 修復 (user 承認 2026-09-10)** — M1 弱定義 (30d rolling 符号) は新規約定ゼロの機械的反転で「達成」表示になる縮退 KPI で、承認済み強定義が 59 日未実装だった。`tools/m1_clean_live_monitor.py` に `--strong` を追加し、**弱定義 readout は無変更のまま** M1_STRONG + M3a/M3b を追記
+- **M1_STRONG は文書 2 系統の定義を両方実装** — セル定義 (rederivation §4 系: clean live 累積 N≥30 ∧ EV≥+1.0p/t ∧ Wilson95下限>0、達成=該当セル≥1) / book 定義 (m1-kpi §8 案: sum>0 ∧ bootstrap P(sum≤0)<0.05) / FULL (両方)。**文書間矛盾 4 件** (資格母集団 / EV 閾値 +1.0 vs >0 / Wilson「>0」は win-rate 解釈で非拘束 / M3b 目標 +0.5% vs +2〜3%) は毎日出力に明示 — 裁定は user
+- **M3 を M3a (throughput: 累積 N≥30 セル数/3、線形外挿 ETA 付き) と M3b (return: 正EVセルの 30d 寄与、pips 一次 + JPY/%NAV 推定レイヤ) に分離**。M3a は累積/稼働の二母集団を分けて出力 (休眠 legacy セル `bb_rsi_reversion×USD_JPY` ×2 が累積 N≥30 に混じる — 09-04「0 個」は稼働側の読み)
+- **2026-09-10 実測**: M1 弱 = 🔴 NOT_MET (N=17 / −85.0p / P(sum≤0)=0.817、09-04 +19.8p から **MECHANICAL_FLIP で再反転** — 勝ち +92.7p の窓外脱落が主因)。**M1_STRONG 全変種 未達** (セル 0 / literal 1 = 休眠 bb_rsi SELL / book NOT_MET)。M3a **2/3 (稼働 0)**、3 本目 ETA 2026-10-26 (carry_dip)。M3b **−0.075%/月** vs +0.5% = 線形外挿で到達不能
+- **読み手を同一コミットで配線** — Tier A cron (`render.yaml` `fx-ai-tier-a-gate-status`) を `--strong` 込みへ更新、`tools/quant_gate_status.py` が pass-through。Discord 送信は 1900 字 hard-cut 単発 → **セクション境界で最大 4 分割**へ (strong 追加で Readiness / prereg watch が毎日切り落とされる副作用の除去)
+- テスト: `tests/test_m1_strong_and_m3.py` **25 本** (N=29/30 境界 / EV 0.99/1.00 境界 / Wilson 下限 0 跨ぎ / flip 分解の恒等式 sum_added−sum_aged=sum_now−sum_prev / cron 配線 pin / Discord 分割)。全 suite **3,026 passed** / `check.py` 9/9
+- 分析: [[m1-strong-definition-implementation-2026-09-10]] / roadmap KPI 表の反映は user 裁定後 (本コミットでは提案節のみ)
+
+## 2026-09-10 — feat(quality): estimand 宣言表 + 配線チェッカー — 検知器の「名乗る量」を台帳化 (rule:R3)
+
+- **メタ監査 §4.2 R3 の執行** ([[process-meta-audit-2026-09-07]]、user 承認 09-10): 監視バグ潜伏中央値 124 日・QA 起点発見 0/8 の根因 = estimand 混同 (PR #221/#224/#207/#209/#228 が同型) に対し、検知器の estimand を 1 ファイルに外部化した
+- **宣言表**: `monitoring/estimand_declarations.yml` — 本番監視 **14 系列** (engine_tick_stall / candidate_stagnation / trade_row_freshness / live_n_stagnation / live_fill_stagnation / db_write_probe / disk_capacity / api_reachability / m1_clean_live_kpi / prereg_trigger_watch / shadow_promote_r2_alert / live_roster_attrition / trade_monitor_activity / demo_trader_watchdog) について claims (名乗る量) / population (母集団) / clock (wall|market_open) / threshold_source (SSOT) / reader (読み手) / counterfactual_test を宣言。**全宣言はコード読解で確認済み — 推測記載ゼロ** (推測で書くこと自体が estimand 混同)
+- **チェッカー**: `tools/estimand_declaration_check.py` — schema 検証 + reader/threshold_source/detector の **grep レベル配線検証** (ファイル実在 + 宣言文字列の参照)。counterfactual 不在は WARN (exit 0)、`--strict` で exit 1。PyYAML 依存を避け厳格サブセットを自前パース (逸脱は ParseError — 黙って読み飛ばさない)。モジュールトップ副作用ゼロ
+- **チェッカー自体の counterfactual**: `tests/test_estimand_declarations.py` 13 本 — reader を偽パス化 / 参照文字列を偽トークン化 / counterfactual_test を偽パス化 / 閾値シンボル改名 / clock 値域外 / typo フィールド、の各 fixture で checker が ERROR を出すことを pin (「検査を書いたら検査対象を壊して落ちることを確認」)。実宣言表の配線整合も CI で常時 pin
+- **既知の負債を可視化**: counterfactual 不在 **8 系列** (candidate_stagnation / db_write_probe / disk_capacity / prereg_trigger_watch / shadow_promote_r2_alert / live_roster_attrition / trade_monitor_activity / demo_trader_watchdog) + 自動読み手なし 1 系列 (live_roster_attrition = ON_DEMAND)。返済計画は [[estimand-declaration-system-2026-09-10]] §5 — 全返済後に `--strict` を CI 既定へ
+- **修理 PR 3 フィールド規約**: `.github/pull_request_template.md` 新設 — bugfix PR に「混入日 / 発見日 / 発見手段」欄 (欠陥税の継続測定用、bugfix 以外は N/A) + 検知器追加時のチェックリスト (宣言 + reader + counterfactual test を同一コミット)
+- **本番挙動変更ゼロ** (新規ファイル + テンプレのみ、既存 .py 非接触)。`scripts/check.py` への組込みは提案のみ (analyses §6、親セッションが別途実施)
+- 分析: [[estimand-declaration-system-2026-09-10]]
+
 ## 2026-09-06 — diag(monitoring): LIVE 発火セル 124→3 の帰属 — 88.7% は設計通り、11.3% は帰属不能 (rule:R3)
 
 - 🛑 **09-04 が M3 スループットを「独立ボトルネック」へ昇格させた際の帰属 (「7-8 月の R2 降格バッチ = 設計通り」) は検証されていなかった** — どのセルがどの停止機構で消えたかを機械的に突き合わせた主体が存在しなかった。本コミットで読み手を新設し突合した
