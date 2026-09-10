@@ -750,12 +750,26 @@ NESTED_SPEC_FIELDS: dict[str, tuple[str, ...]] = {
 STRING_LIST_FIELDS = frozenset({"label_columns"})
 
 
+# (dotted, 必須キー, 択一グループ, 任意キー)。任意キー = 評価器が
+# `elem.get(...)` で読む field。ここに無いキーは**綴り違い**として落とす:
+# `{"column": "n", "value": 10, "opp": ">"}` は要素キー allow-by-default だと
+# lint を通り、_csv_row_predicate が op 既定値 "==" で**別の条件**を黙って
+# 監視し続ける (PR #227 Codex P2 13 巡目 — top-level と同じ reject-by-default
+# を要素レベルまで降ろす)。
 COLLECTION_ELEMENT_FIELDS: dict[
-    str, tuple[tuple[str, tuple[str, ...], tuple[tuple[str, ...], ...]], ...]
+    str,
+    tuple[
+        tuple[str, tuple[str, ...], tuple[tuple[str, ...], ...],
+              tuple[str, ...]],
+        ...,
+    ],
 ] = {
-    "artifact_presence": (("requirements", ("path",), ()),),
-    "ingest_freshness": (("checks", ("max_age_hours",), (("key", "prefix"),)),),
-    "csv_row_match": (("source.match", ("column", "value"), ()),),
+    "artifact_presence": (
+        ("requirements", ("path",), (), ("min_files", "label")),),
+    "ingest_freshness": (
+        ("checks", ("max_age_hours",), (("key", "prefix"),), ("min_keys",)),),
+    "csv_row_match": (
+        ("source.match", ("column", "value"), (), ("op",)),),
 }
 
 
@@ -820,6 +834,17 @@ ENUM_FIELDS: dict[str, frozenset[Any]] = {
 # 各カウント field の下限 (評価器の意味論)。n_decide=-1 は即時 TRIGGERED、
 # min_files=-1 は不在の成果物を「充足」と報告する。
 INT_MIN = {"n_decide": 1, "n_floor": 0, "min_files": 1, "min_keys": 1}
+
+# int() を経ない (float のまま使われる) 数値 field の**下限 (排他)**。
+# INT_FIELDS は INT_MIN 側で見ているので、ここは float のまま比較に入る
+# field だけを持つ。非正値は「型は通るが比較の意味が反転/到達不能」になる:
+#   max_age_hours <= 0 → `age > max_h` が常に true = 1 秒前の記録まで stale
+#     と報告し、毎日 false TRIGGERED を出す (PR #227 Codex P2 13 巡目)
+#   threshold <= 0     → FX 価格として到達不能 = 永久 watching (期日が来ない)
+FLOAT_MIN_EXCLUSIVE = {"max_age_hours": 0.0, "threshold": 0.0}
+# 下限 (包含)。0/週 を期待値に置くのは authoring 誤りだが gate はしないので
+# 負値のみ落とす。
+FLOAT_MIN_INCLUSIVE = {"expected_per_week": 0.0}
 
 # 全 type 共通のメタデータ (評価に使われないが台帳として必要)。
 META_FIELDS = frozenset({
@@ -913,6 +938,13 @@ def _unusable_reason(field: str, value: Any, *,
         # (PR #227 Codex P2 7 巡目)。
         if not math.isfinite(num):
             return f"有限数でない ({value!r}) — 比較が静かに壊れる"
+        low_x = FLOAT_MIN_EXCLUSIVE.get(leaf)
+        if low_x is not None and num <= low_x:
+            return (f"{low_x:g} 以下 ({value!r}) — "
+                    "比較の向きが反転し常時成立/到達不能になる")
+        low_i = FLOAT_MIN_INCLUSIVE.get(leaf)
+        if low_i is not None and num < low_i:
+            return f"{low_i:g} 未満 ({value!r}) — 期待レートが負になる"
     elif leaf in STRING_FIELDS and not isinstance(value, str):
         return f"文字列でない ({type(value).__name__}: {value!r})"
     if leaf in DATE_FIELDS and isinstance(value, str):
@@ -1062,7 +1094,10 @@ def lint_schema(triggers: list[dict[str, Any]]) -> list[str]:
 def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
     """コレクション型フィールドの形と要素キーを検査する。"""
     errors: list[str] = []
-    for dotted, keys, alternatives in COLLECTION_ELEMENT_FIELDS.get(ttype, ()):
+    for dotted, keys, alternatives, optional in COLLECTION_ELEMENT_FIELDS.get(
+            ttype, ()):
+        allowed = (set(keys) | set(optional)
+                   | {k for g in alternatives for k in g})
         coll = _get_path(t, dotted)
         if not isinstance(coll, list) or not coll:
             errors.append(
@@ -1095,6 +1130,11 @@ def _lint_collections(t: dict[str, Any], tid: str, ttype: str) -> list[str]:
                         errors.append(
                             f"{tid}: {dotted}[{i}].{k} が使えない値 ({why}) — "
                             "評価器が実行時に落ちる")
+            for k in sorted(set(elem) - allowed):
+                errors.append(
+                    f"{tid}: {dotted}[{i}] に未知のキー {k!r} — 評価器は"
+                    "読まないので、綴り違いなら既定値で**別の条件**を"
+                    f"黙って監視し続ける (許可キー: {sorted(allowed)})")
             if "op" in elem and elem["op"] not in _CSV_OPS:
                 errors.append(
                     f"{tid}: {dotted}[{i}].op={elem['op']!r} は未知の演算子 — "

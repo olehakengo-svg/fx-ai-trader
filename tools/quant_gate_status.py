@@ -108,10 +108,14 @@ def extract_watch_triggered(watch_text: str) -> str:
     """
     out: list[str] = []
     inside = False
+    used = 0
+    dropped = 0
+    budget = TRIGGERED_SECTION_CHARS - TRIGGERED_OVERFLOW_RESERVE
     for line in (watch_text or "").splitlines():
         if line.startswith(WATCH_TRIGGERED_HEADING):
             inside = True
             out.append(line)
+            used += len(line) + 1
             continue
         if inside:
             if line.startswith("###"):
@@ -119,11 +123,29 @@ def extract_watch_triggered(watch_text: str) -> str:
             if line.strip():
                 # registry の message は数百字あるので、前方枠を守るため
                 # id + detail 相当だけを残す (全文は下の watch 節にある)。
-                out.append(_clip(line.rstrip(), TRIGGERED_LINE_CHARS))
+                entry = _clip(line.rstrip(), TRIGGERED_LINE_CHARS)
+                # 行ごとの clip だけでは合計が縛れない: 220 字 × 8 件で
+                # 前方枠を食い潰し、**後続の TRIGGERED と M1 節**を 1900 字
+                # カットの外へ押し出す (PR #227 Codex P1 13 巡目 —
+                # 「行は縛ったが合計を縛っていない」)。少なくとも 1 件は
+                # 必ず出し、溢れた件数は下の watch 節へ送る。
+                if out and len(out) > 1 and used + len(entry) + 1 > budget:
+                    dropped += 1
+                    continue
+                out.append(entry)
+                used += len(entry) + 1
+    if dropped:
+        out.append(f"- … 他 {dropped} 件の TRIGGERED は下記 watch 節 "
+                   f"(前方枠 {TRIGGERED_SECTION_CHARS} 字)")
     return "\n".join(out).strip()
 
 
 TRIGGERED_LINE_CHARS = 220
+# 前方 (Discord 1900 字枠) で TRIGGERED 節に割り当てる**総量**。
+# M1 は最重要 KPI なので TRIGGERED が枠を食い潰して押し出してはならない。
+TRIGGERED_SECTION_CHARS = 700
+# 溢れ通知行の分を先に取り置く (通知自体が枠を超えないため)。
+TRIGGERED_OVERFLOW_RESERVE = 70
 
 
 def _clip(line: str, limit: int) -> str:

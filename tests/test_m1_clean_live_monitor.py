@@ -418,3 +418,48 @@ def test_no_triggered_section_when_nothing_is_triggered():
     from tools import quant_gate_status as qgs
     assert qgs.extract_watch_triggered(
         "## Pre-reg Trigger Watch\n### 👁 watching\n- a") == ""
+
+
+def test_many_triggered_entries_do_not_push_m1_out_of_the_discord_window():
+    """TRIGGERED 節は**合計**でも前方枠を食い潰してはならない。
+
+    PR #227 Codex P1 13 巡目: 行ごとの 220 字 clip は入れたが合計を縛って
+    いなかったため、8 件以上で 1900 字枠を食い潰し、後続の TRIGGERED と
+    M1 節が send_discord() のカットの外へ落ちていた。性質で pin する —
+    (a) M1 見出しが 1900 字以内に残る (b) 溢れは件数として告知される。
+    """
+    from tools import quant_gate_status as qgs
+    from tools.alpha_budget_tracker import _empty_state
+
+    entries = "".join(
+        f"- **trigger-{i:02d}**: " + "詳" * 400 + "\n" for i in range(20))
+    watch = ("## Pre-reg Trigger Watch\n"
+             "### 🔴 TRIGGERED — 執行/判定期日\n" + entries +
+             "### 👁 watching\n" + ("- noise\n" * 300))
+    report = {
+        "generated_at": "2026-09-10T00:00:00+00:00",
+        "m1_readout": m1.summarize([row(i, 1.0) for i in range(1, 200)], ANCHOR),
+        "quant_readiness": "readiness-body",
+        "alpha_budget": _empty_state("2026-09"),
+        "candidate_queue_7d": {"total": 0, "pass": 0, "shadow_only": 0,
+                               "recent_names": []},
+        "prereg_trigger_watch": watch,
+    }
+    md = qgs.to_markdown(report)
+    head = md[:1900]
+    assert "M1 KPI" in head, "TRIGGERED が M1 を Discord 枠の外へ押し出した"
+    assert "trigger-00" in head, "先頭の TRIGGERED すら届いていない"
+    assert "他" in head and "件の TRIGGERED は下記" in head, "溢れが未告知"
+    assert "noise" not in head
+
+
+def test_triggered_section_total_is_bounded_and_reports_the_overflow_count():
+    from tools import quant_gate_status as qgs
+    entries = "".join(f"- **t-{i:02d}**: " + "x" * 400 + "\n" for i in range(20))
+    out = qgs.extract_watch_triggered(
+        "### 🔴 TRIGGERED\n" + entries + "### 👁 watching\n- a")
+    assert len(out) <= qgs.TRIGGERED_SECTION_CHARS
+    # 何件落としたかを必ず言う (黙って捨てない)
+    shown = sum(1 for ln in out.splitlines() if ln.startswith("- **t-"))
+    assert f"他 {20 - shown} 件" in out
+    assert shown >= 1

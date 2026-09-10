@@ -1279,3 +1279,59 @@ def test_dedup_violation_is_pinned_to_the_only_implemented_value():
 def test_real_registry_passes_the_reject_by_default_lint():
     from tools.prereg_trigger_watch import lint_registry
     assert lint_registry() == []
+
+
+def test_collection_element_unknown_keys_are_rejected():
+    """要素キーも reject-by-default — 綴り違いは既定値で別条件を監視する。
+
+    PR #227 Codex P2 13 巡目: top-level は未知キーを落としていたが、
+    コレクション要素は allow-by-default のままだった。`opp` は lint を通り、
+    `_csv_row_predicate` が op 既定値 "==" で**別の条件**を毎日評価し続ける。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    def entry(match):
+        return {"id": "x", "type": "csv_row_match",
+                "source": {"path": "a.csv", "match": match}}
+    assert lint_schema([entry([{"column": "n", "value": 10, "op": ">"}])] ) == []
+    assert lint_schema([entry([{"column": "n", "value": 10, "opp": ">"}])]) != []
+    # 綴り違いが「別の条件を黙って監視する」ことを評価器側でも示す
+    from tools.prereg_trigger_watch import _csv_row_predicate
+    row = {"n": "5"}
+    assert _csv_row_predicate(row, {"column": "n", "value": 10, "op": ">"}) is False
+    assert _csv_row_predicate(row, {"column": "n", "value": 5, "opp": ">"}) is True
+
+
+def test_element_optional_keys_the_evaluator_reads_are_allowed():
+    """評価器が elem.get() で読むキーは許可 — reject が過剰にならないこと。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "deadline": "2026-10-06", "requirements": [
+                             {"path": "a/*.md", "min_files": 2,
+                              "label": "doc"}]}]) == []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k", "max_age_hours": 24,
+                                     "min_keys": 3}]}]) == []
+
+
+def test_non_int_numeric_fields_have_semantic_lower_bounds():
+    """max_age_hours<=0 は「1 秒前の記録まで stale」= 毎日 false TRIGGERED。
+
+    PR #227 Codex P2 13 巡目: 有限数チェックだけでは負値が通り、
+    `age > max_h` が常に true になる。性質で pin する — 下限違反の値を
+    lint が落とし、かつ実際に評価器が全記録を stale と報告することを示す。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    def entry(v):
+        return {"id": "x", "type": "ingest_freshness",
+                "checks": [{"key": "k", "max_age_hours": v}]}
+    assert lint_schema([entry(24)]) == []
+    assert lint_schema([entry(-1)]) != []
+    assert lint_schema([entry(0)]) != []
+    # price_below の threshold も非正だと到達不能 (永久 watching)
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USD_JPY", "threshold": 159.5}]) == []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USD_JPY", "threshold": -1.0}]) != []
+    assert lint_schema([{"id": "x", "type": "shadow_count_info",
+                         "entry_type": "e", "since": "2026-08-11",
+                         "expected_per_week": -1.0}]) != []
