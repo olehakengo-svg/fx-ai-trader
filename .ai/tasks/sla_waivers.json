@@ -1,0 +1,4 @@
+{
+  "_comment": "queue hard SLA (QUEUE_SLA_HARD_DAYS) の明示 waiver。無言の滞留を禁止し、待つなら理由と期限を書く (process-meta-audit-2026-09-07 R5)。期限切れ waiver は自動失効し ERROR に戻る。",
+  "waivers": []
+}

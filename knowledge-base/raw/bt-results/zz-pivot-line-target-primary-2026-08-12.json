@@ -1,0 +1,42 @@
+{
+ "stage": "primary",
+ "prereg": "zz-pivot-line-target-explore-prereg-2026-08-12",
+ "seed": 20260812,
+ "n_perm": 10000,
+ "m_tests_declared": 24,
+ "cells": {
+  "EUR_USD|x3.0": {
+   "n": 2365,
+   "wr_decided": 0.45907928388746805,
+   "timeouts": 19,
+   "mean_gross_pips": 1.1745454545454412,
+   "mean_net_pips": -0.8254545454545589,
+   "stressed_net_pips": -1.3254545454545588,
+   "perm_p_one_sided": 0.7674232576742326,
+   "gate_e_week_conc": false
+  },
+  "USD_JPY|x3.0": {
+   "n": 2255,
+   "wr_decided": 0.4417150513622153,
+   "timeouts": 16,
+   "mean_gross_pips": -1.804168957871392,
+   "mean_net_pips": -3.94416895787139,
+   "stressed_net_pips": -4.4791689578713925,
+   "perm_p_one_sided": 0.9999000099990001,
+   "gate_e_week_conc": false
+  },
+  "EUR_JPY|x3.0": {
+   "n": 2324,
+   "wr_decided": 0.44531590413943356,
+   "timeouts": 29,
+   "mean_gross_pips": -0.059083218588610376,
+   "mean_net_pips": -2.55908321858861,
+   "stressed_net_pips": -3.1840832185886105,
+   "perm_p_one_sided": 0.9615038496150385,
+   "gate_e_week_conc": false
+  }
+ },
+ "fdr_q010_pass": [],
+ "all_gates_pass": [],
+ "explore_verdict": "FAIL"
+}

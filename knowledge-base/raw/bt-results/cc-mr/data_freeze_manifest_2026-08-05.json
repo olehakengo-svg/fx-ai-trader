@@ -1,0 +1,22 @@
+{
+ "frozen": "2026-08-05",
+ "ledger": 21,
+ "note": "cc-mr explore data freeze; full parquets (post OANDA gap backfill 2026-08-05)",
+ "row_counts_1h": {
+  "AUD_NZD": 90959,
+  "AUD_CAD": 84620,
+  "NZD_CAD": 84572
+ },
+ "sha256": {
+  "data/cache/massive/AUD_NZD_1h.parquet": "ffc2bcbaed2c651bc80e1b7824fafece8e9a97cbdc5c2d79ea4c729392119326",
+  "data/cache/massive/AUD_NZD_1h.audit.json": "a794c94e3b999327350b4d1747e07d349fdf44f56df945b8619acd482d6393de",
+  "data/cache/massive/AUD_CAD_1h.parquet": "91e25ccd07ba16192e66323a8c59d2b63e0bde17de831e0cfcd3a5fe13b8aa7c",
+  "data/cache/massive/AUD_CAD_1h.audit.json": "f491d3ceb8067e636d6cce27c6ab67966658600e6634955fe3bbeca9560b1795",
+  "data/cache/massive/NZD_CAD_1h.parquet": "ba2b7a1b2e6422404bde6ebb2990a8d618711ca733cf36828b526bdfd9a9af7b",
+  "data/cache/massive/NZD_CAD_1h.audit.json": "499cf70d74ca4ab18015aec309977defeb7c3725702cee52bc08e6e9b325ffd5",
+  "knowledge-base/raw/bt-results/e20/e20_carry_level.csv": "0b03ea58606ee4f43d3a0cef5a85f8556071f8caefccd0a2475a75431c6378a4",
+  "knowledge-base/raw/bt-results/cc-g0-rt/2026-08-03.json": "d6212f14626c369328dfd7833192bc8d188195c1561215f7a2fdbca559855aa3",
+  "knowledge-base/raw/bt-results/cc-g0-rt/2026-08-04.json": "1a174abaa9e77d1f4f4610f69fc80c43fafd833fb9671b307cfd9124eea84f9e",
+  "knowledge-base/raw/bt-results/cc-mr/despike_replacements_2026-08-05.csv": "6b9036e0c104f5fa21476a43592ac9f33d2417e0e00c10c8e8613c925209e727"
+ }
+}

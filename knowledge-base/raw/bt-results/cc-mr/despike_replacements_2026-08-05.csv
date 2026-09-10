@@ -1,0 +1,3 @@
+pair,ts_utc,role,massive_close,oanda_mid_close,diff_pips,action,note
+AUD_CAD,2015-11-12T00:00:00Z,entry_hour_bar,0.94635,0.94639,0.4,use_oanda_mid_close,real market move (MASSIVE==OANDA within 0.5p); 8x flag false-positive handled deterministically
+AUD_CAD,2015-12-10T00:00:00Z,entry_hour_bar,0.99317,0.99322,0.5,use_oanda_mid_close,real market move (MASSIVE==OANDA within 0.5p); 8x flag false-positive handled deterministically

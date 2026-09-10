@@ -7,8 +7,17 @@ import json
 from pathlib import Path
 
 from tools.prereg_trigger_watch import (
+    MACHINE_EVALUABLE_TYPES,
     REGISTRY_PATH,
+    evaluate_artifact_presence,
+    evaluate_csv_row_match,
+    evaluate_data_coverage,
+    evaluate_trigger,
+    read_csv_rows,
     evaluate_ingest_freshness,
+    evaluate_manual_info,
+    lint_reachability,
+    scan_artifacts,
     evaluate_price_below,
     evaluate_shadow_count_decision,
     evaluate_shadow_count_info,
@@ -121,6 +130,74 @@ def test_count_live_matching_filters_cell_and_dedup():
          "direction": "SELL", "oanda_trade_id": "4", "dedup_violation": 0},
     ]
     assert count_live_matching(trades, "vix_carry_unwind", "USD_JPY", "SELL") == 1
+
+
+def test_count_live_matching_prefix_for_multi_variant_cell():
+    """t9-kalman-d7-live-n10-ev-check (2026-08-09): live 側も match=prefix を
+    honor すること。
+
+    kalman D7 は 1 セル = 3 entry_type (po_dn_flip / ema75_break / trail_atr)。
+    prefix 非対応のままだと entry_type=="kalman_d7" に完全一致する行が存在せず
+    count が恒久的に 0 になり、監視エントリが**沈黙して**退避条件が発火しない
+    (T5 の 18 日執行ギャップと同型の失敗モード)。
+    """
+    from tools.prereg_trigger_watch import count_live_matching
+    trades = [
+        {"entry_type": "kalman_d7_po_dn_flip", "instrument": "USD_JPY",
+         "oanda_trade_id": "1", "dedup_violation": 0},
+        {"entry_type": "kalman_d7_ema75_break", "instrument": "USD_JPY",
+         "oanda_trade_id": "2", "dedup_violation": 0},
+        # shadow / dedup 汚染 / 別戦略 は prefix でも除外される
+        {"entry_type": "kalman_d7_trail_atr", "instrument": "USD_JPY",
+         "oanda_trade_id": "", "dedup_violation": 0},
+        {"entry_type": "kalman_d7_trail_atr", "instrument": "USD_JPY",
+         "oanda_trade_id": "3", "dedup_violation": 1},
+        {"entry_type": "trendline_sweep", "instrument": "USD_JPY",
+         "oanda_trade_id": "4", "dedup_violation": 0},
+    ]
+    assert count_live_matching(trades, "kalman_d7", "USD_JPY", "",
+                               prefix=True) == 2
+    # 既定 (prefix=False) は完全一致のまま — 既存エントリの契約を壊さない
+    assert count_live_matching(trades, "kalman_d7", "USD_JPY", "") == 0
+    assert count_live_matching(trades, "trendline_sweep", "USD_JPY", "") == 1
+
+
+def test_registry_kalman_live_check_entry_is_wired(monkeypatch):
+    """registry の t9-kalman-d7-live-n10-ev-check が実際に評価経路へ届くこと。
+
+    entry_type が prefix 前提で書かれているのに type 側が prefix を渡さない、
+    という配線ミス (2026-08-09 に実際に踏んだ) を固定する。
+    """
+    import json
+    from pathlib import Path
+    p = (Path(__file__).resolve().parents[1]
+         / "knowledge-base/wiki/decisions/prereg-trigger-registry.json")
+    reg = json.loads(p.read_text())
+    hit = [t for t in reg["triggers"]
+           if t["id"] == "t9-kalman-d7-live-n10-ev-check"]
+    assert hit, "kalman live 退避条件の監視エントリが registry から消えている"
+    trig = hit[0]
+    assert trig["active"] is True
+    assert trig["match"] == "prefix", "3 variant 合算には prefix 必須"
+    assert trig["type"] == "live_count_decision"
+
+    # 2026-09-08: 構文 pin (evaluate_trigger のソース文字列検査) から性質 pin へ。
+    # 旧 pin は関数名の変更だけで壊れ、配線そのものは検査していなかった
+    # (MEMORY: pin は性質で書け)。実際に prefix=True が届くかで固定する。
+    from tools import prereg_trigger_watch as w
+    seen = {}
+
+    def fake_fetch(entry_type, instrument, direction, since, app_base,
+                   prefix=False, reasons_marker=""):
+        seen["prefix"] = prefix
+        return []
+
+    monkeypatch.setattr(w, "fetch_live_count", fake_fetch)
+    w.evaluate_trigger(trig, today="2026-09-08", app_base="http://t")
+    assert seen["prefix"] is True, (
+        "live_count_decision が match=prefix を fetch_live_count へ渡していない "
+        "— 3 variant 合算が沈黙する"
+    )
 
 
 def test_count_matching_instrument_filter_for_cell_granularity():
@@ -352,6 +429,7 @@ def test_registry_t8_sweep_defer_resolved_and_withdrawal_watch_active():
     """P-S1(a) Option B 執行後の registry pin (packet §3.3-4 の置換)。
 
     - t8-sweep-defer-decision は resolved (active=false) — load_registry から消える
+    - 決裁記録 (§1.4 unique basis / mode / 2026-08-17 繰り延べ期日) は raw に保持
     - 後継 ps1a-sweep-live-withdrawal-watch が LOCK Withdrawal trigger 1
       (live N>=10 EV 判定) を cell 粒度で機械監視する
     """
@@ -364,6 +442,10 @@ def test_registry_t8_sweep_defer_resolved_and_withdrawal_watch_active():
     old = raw["t8-sweep-defer-decision"]
     assert old["active"] is False
     assert old["count_basis"] == "unique"     # §1.4 決裁の記録は保持
+    assert old["mode"] == "daytrade_eurgbp"
+    assert old["n_decide"] == 10 and old["n_floor"] == 5
+    # 2026-08-17 user 決裁 (zero-fire forensic §4-2): 計数器故障 28 日分の繰り延べ
+    assert old["deadline"] == "2026-10-28"
     assert "resolution" in old
 
     trig = next(t for t in load_registry()
@@ -421,8 +503,10 @@ def test_evaluate_trigger_wires_mode_and_count_basis(monkeypatch):
     seen = {}
 
     def fake_fetch(entry_type, since, app_base, prefix=False, instrument="",
-                   mode="", exclude_dedup_violation=False):
-        seen[entry_type] = {"mode": mode, "uniq": exclude_dedup_violation}
+                   mode="", exclude_dedup_violation=False, direction="",
+                   closed_only=False):
+        seen[entry_type] = {"mode": mode, "uniq": exclude_dedup_violation,
+                            "dir": direction, "closed": closed_only}
         return 3
 
     monkeypatch.setattr(w, "fetch_shadow_count", fake_fetch)
@@ -438,6 +522,1105 @@ def test_evaluate_trigger_wires_mode_and_count_basis(monkeypatch):
          "instrument": "AUD_JPY",
          "n_decide": 100, "n_floor": 100, "deadline": "2027-01-31"},
         today="2026-07-24", app_base="http://t")
+    # 2026-08-18: sr-anti-hunt 偽発火の回帰 pin — direction / dedup_violation:0 /
+    # closed_only が entry からそのまま配線されること (無視すると凍結母集団の
+    # 過大計上で単発 look を早期 burn する)
+    w.evaluate_trigger(
+        {"id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+         "type": "shadow_count_decision",
+         "entry_type": "sr_anti_hunt_bounce", "since": "2026-08-05",
+         "instrument": "EUR_JPY", "direction": "BUY", "dedup_violation": 0,
+         "closed_only": True,
+         "n_decide": 40, "n_floor": 40, "deadline": "2027-02-28"},
+        today="2026-08-18", app_base="http://t")
     assert seen["sweep_reversion_eurgbp_late"] == {
-        "mode": "daytrade_eurgbp", "uniq": True}
-    assert seen["htf_false_breakout"] == {"mode": "", "uniq": False}
+        "mode": "daytrade_eurgbp", "uniq": True, "dir": "", "closed": False}
+    assert seen["htf_false_breakout"] == {
+        "mode": "", "uniq": False, "dir": "", "closed": False}
+    assert seen["sr_anti_hunt_bounce"] == {
+        "mode": "", "uniq": True, "dir": "BUY", "closed": True}
+
+
+def test_count_matching_direction_and_closed_only():
+    """2026-08-18 偽発火バグの単体 pin: 実測形 (40 → 22 相当) の縮約再現。"""
+    from tools.prereg_trigger_watch import count_matching
+
+    rows = [
+        {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+         "direction": "BUY", "status": "CLOSED", "dedup_violation": 0},
+        {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+         "direction": "BUY", "status": "CLOSED", "dedup_violation": 1},
+        {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+         "direction": "SELL", "status": "CLOSED", "dedup_violation": 0},
+        {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+         "direction": "BUY", "status": "OPEN", "dedup_violation": 0},
+    ]
+    # 旧計数 (フィルタなし) = 4 — 偽発火の形
+    assert count_matching(rows, "sr_anti_hunt_bounce",
+                          instrument="EUR_JPY") == 4
+    # 凍結母集団 = closed ∧ BUY ∧ dedup0 = 1
+    assert count_matching(rows, "sr_anti_hunt_bounce", instrument="EUR_JPY",
+                          direction="BUY", closed_only=True,
+                          exclude_dedup_violation=True) == 1
+
+
+def test_registry_automation_packet_triggers_wired():
+    """2026-08-18 自動化パケットのトリガ 3 点 pin — 到達経路明記 (ZN 教訓) 込み。"""
+    triggers = {t["id"]: t for t in load_registry()}
+
+    # mof-monthly-total-2026-08-29-check は 2026-08-31 に resolve 済み
+    # (active=false なので load_registry() には出ない)。旧 pin は
+    # 「type == deadline_info かつ deadline == 2026-08-31」という**構文**を
+    # 固定していたが、これは誤った設計 (期日待ち + 人手 URL 推測) をそのまま
+    # 固定してしまっていた。是正として、後継エントリが**機械評価可能である
+    # という性質**を pin する (PR #209 教訓: 構文でなく性質を pin せよ)。
+    succ = triggers["mof-monthly-disclosure-new-window"]
+    assert succ["type"] in MACHINE_EVALUABLE_TYPES, (
+        "MoF 月次開示の監視は機械評価可能でなければならない — "
+        "人手 URL 推測に戻すと 2026-08-28 の 404 誤読が再発する")
+    assert succ["type"] == "csv_row_match"
+    # 収集済み CSV を読む経路であること (write-only の再発防止の本体)
+    assert succ["source"]["path"] == (
+        "data/external/mof_statements/interventions_monthly_pending.csv")
+    assert (Path(__file__).resolve().parent.parent
+            / succ["source"]["path"]).exists()
+    # 日次帰属の禁止 (MoF #4 の 2026 窓 OOS burn 防止) を手順に残すこと
+    assert "価格シグネチャからの介入日推定は禁止" in succ["message"]
+
+    # 2026-08-19: 条件成立 (PR #194 着地) 後も発火できなかったため
+    # conditional_info -> artifact_presence へ移行。旧 pin (type と
+    # 並行セッション ID) は現行設計と整合しないので、より強い
+    # 「機械評価可能であること」の pin に置き換える。
+    t = next(x for x in json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))["triggers"]
+             if x["id"] == "statement-ladder-foundation-readiness")
+    assert t["type"] == "artifact_presence"
+    assert t["requirements"], "artifact_presence は requirements 必須"
+    assert "569dbe3f" in t["message"], "着地 commit を根拠として残すこと"
+
+    # 09-18 スキャンには A/B/C 統合裁定と各材料の到達経路が明記されていること
+    t = triggers["edge-supply-scan-monthly"]
+    assert "rate-anchor-daily" in t["message"]
+    assert "intervention-watch" in t["message"]
+    assert "statement-ladder-foundation-readiness" in t["message"]
+
+
+# ── 到達経路 (reachability) — 2026-08-19 ────────────────────────────
+# 背景: info/conditional_info が「常時 WATCHING」ハードコードで、条件が
+# 成立しても永久に発火しなかった (statement-ladder-foundation-readiness は
+# PR #194 の main 着地で成立済みだったのに watching のまま滞留)。
+# ZN 教訓「条件を書く」と「条件が起こりうる」は別物 の評価器レベル再発。
+
+def test_artifact_presence_triggers_only_when_all_requirements_met():
+    reqs = [
+        {"path": "a/*.jsonl", "min_files": 24, "label": "corpus"},
+        {"path": "b.csv", "min_files": 1, "label": "scores"},
+    ]
+    assert evaluate_artifact_presence(
+        {"a/*.jsonl": 56, "b.csv": 1}, reqs)["state"] == "TRIGGERED"
+    # 1 つでも不足なら watching、かつ不足分を detail に出す
+    part = evaluate_artifact_presence({"a/*.jsonl": 23, "b.csv": 1}, reqs)
+    assert part["state"] == "WATCHING"
+    assert "corpus (23/24)" in part["detail"]
+    assert evaluate_artifact_presence({}, reqs)["state"] == "WATCHING"
+    assert evaluate_artifact_presence(None, reqs)["state"] == "DATA_UNAVAILABLE"
+
+
+def test_data_coverage_triggers_strictly_past_threshold():
+    assert evaluate_data_coverage(
+        "2026-11-16", "2026-11-15")["state"] == "TRIGGERED"
+    assert evaluate_data_coverage(
+        "2026-11-15", "2026-11-15")["state"] == "WATCHING"
+    # datetime 文字列でも先頭 10 文字で日付比較できる
+    assert evaluate_data_coverage(
+        "2026-08-18 07:00:00", "2026-11-15")["state"] == "WATCHING"
+    assert evaluate_data_coverage(None, "2026-11-15")["state"] == "DATA_UNAVAILABLE"
+
+
+def test_manual_info_honors_deadline():
+    # 期日内は watching、超過で TRIGGERED (旧実装は deadline を無視していた)
+    assert evaluate_manual_info(
+        "", "2026-12-31", "2026-08-19", "")["state"] == "WATCHING"
+    over = evaluate_manual_info("", "2026-12-31", "2027-01-01", "shadow 蓄積")
+    assert over["state"] == "TRIGGERED"
+    assert "shadow 蓄積" in over["detail"]
+    # no-deadline は無期限 watching のまま (回帰防止)
+    assert evaluate_manual_info(
+        "cond", "no-deadline", "2099-01-01", "")["state"] == "WATCHING"
+
+
+def test_registry_every_manual_entry_declares_reachability():
+    """人手判定エントリは前進経路の明記を必須にする (再発防止の本体)。"""
+    assert lint_reachability(load_registry()) == []
+
+
+def test_lint_catches_manual_entry_without_reachability():
+    assert lint_reachability(
+        [{"id": "x", "type": "conditional_info", "condition": "何か"}])
+    assert lint_reachability(
+        [{"id": "x", "type": "conditional_info", "reachability": "  "}])
+    assert lint_reachability(
+        [{"id": "x", "type": "conditional_info", "reachability": "cron が進める"}]) == []
+    assert lint_reachability([{"id": "x", "type": "deadline_info"}]) == []
+
+
+def test_statement_ladder_entry_is_machine_evaluable_and_satisfied():
+    """PR #194 着地済み = 実ファイルで TRIGGERED になること。
+
+    2026-08-19 に発火 → resolve 済み (active=false) なので registry 全体を読む。
+    resolve 後も「機械評価可能かつ条件成立」であることを固定し、基盤ファイルが
+    消えたら気付けるようにする。
+    """
+    all_triggers = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))["triggers"]
+    trig = next(t for t in all_triggers
+                if t["id"] == "statement-ladder-foundation-readiness")
+    assert trig["active"] is False and trig["resolved_at"] == "2026-08-19"
+    assert trig["type"] == "artifact_presence"
+    reqs = trig["requirements"]
+    res = evaluate_artifact_presence(scan_artifacts(reqs), reqs)
+    assert res["state"] == "TRIGGERED", res["detail"]
+
+
+# ── csv_row_match — 2026-08-31 ──────────────────────────────────────
+# 背景: MoF 月次開示 (2026-07-30〜08-26 = 15兆3,993億円) を日次 cron が
+# 08-29 に CSV へ収集していたのに、その CSV を読む検知器が無く 2 日間
+# 誰も気付かなかった (write-only 6 例目)。書き手と読み手を対にする。
+
+MOF_PENDING_CSV = "data/external/mof_statements/interventions_monthly_pending.csv"
+
+
+def test_csv_row_match_separates_unavailable_from_no_match():
+    """取得不能と『一致ゼロ』を折り畳まない (PR #207 no_rows vs error 教訓)。"""
+    match = [{"column": "amount_yen_billions", "op": ">", "value": 0}]
+    # 一致ゼロ = WATCHING (正常な監視中)
+    assert evaluate_csv_row_match(
+        [{"amount_yen_billions": "0.0"}], match)["state"] == "WATCHING"
+    # 行ゼロも WATCHING (ファイルは読めている)
+    assert evaluate_csv_row_match([], match)["state"] == "WATCHING"
+    # 取得不能 = DATA_UNAVAILABLE
+    assert evaluate_csv_row_match(None, match)["state"] == "DATA_UNAVAILABLE"
+    # 列欠落 (schema 変化) を「一致ゼロ」に折り畳まない — 折り畳むと
+    # schema が壊れた瞬間から永久に「健全に監視中」を表示し続ける
+    broken = evaluate_csv_row_match([{"other_col": "1"}], match)
+    assert broken["state"] == "DATA_UNAVAILABLE"
+    assert "列欠落" in broken["detail"]
+
+
+def test_read_csv_rows_returns_none_for_missing_file():
+    """ファイル欠落は None (= DATA_UNAVAILABLE)。
+
+    空リストに折り畳むと「収集が止まってファイルが消えた」が永久に
+    「一致ゼロ = 健全に監視中」へ化ける。evaluate 側だけ分離しても
+    fetcher 側で折り畳んだら意味がないので、fetcher 単体で固定する。
+    """
+    assert read_csv_rows({"path": "data/external/__does_not_exist__.csv"}) is None
+    rows = read_csv_rows({"path": MOF_PENDING_CSV})
+    assert isinstance(rows, list) and rows, "実ファイルは非空で読めること"
+
+
+def test_csv_row_match_refuses_degenerate_predicates():
+    """述語不正を『一致ゼロ』にしない — 設定ミスが恒久 WATCHING に化ける。"""
+    rows = [{"a": "1"}]
+    # 空 match は全行一致 = 偽発火。評価しない
+    assert evaluate_csv_row_match(rows, [])["state"] == "DATA_UNAVAILABLE"
+    # 未知の op も同様 (typo が黙って無害化されない)
+    bad = evaluate_csv_row_match(
+        rows, [{"column": "a", "op": "=>", "value": 1}])
+    assert bad["state"] == "DATA_UNAVAILABLE" and "未知の op" in bad["detail"]
+
+
+def test_csv_row_match_numeric_vs_string_and_missing_values():
+    # 数値 value は数値比較 ("9" < "10" の文字列比較にならないこと)
+    rows = [{"amt": "9"}, {"amt": "10"}]
+    res = evaluate_csv_row_match(rows, [{"column": "amt", "op": ">", "value": 9.5}])
+    assert res["state"] == "TRIGGERED" and "amt=10" in res["detail"]
+    # 欠測/非数値は「一致」ではない
+    assert evaluate_csv_row_match(
+        [{"amt": ""}, {"amt": "n/a"}],
+        [{"column": "amt", "op": ">", "value": 0}])["state"] == "WATCHING"
+    # 文字列 value は ISO 日付の辞書順比較として機能する
+    rows = [{"window_end": "2026-08-26"}, {"window_end": "2026-07-29"}]
+    res = evaluate_csv_row_match(
+        rows, [{"column": "window_end", "op": ">", "value": "2026-07-29"}])
+    assert res["state"] == "TRIGGERED" and "2026-08-26" in res["detail"]
+
+
+def test_csv_row_match_would_have_caught_the_2026_08_26_disclosure():
+    """回帰の本体: 実データで『08-29 時点の正しい閾値』なら発火すること。
+
+    08-29 に cron が書き込んだ 2026-07-30〜08-26 窓 (15,399.3 十億円) は、
+    当時の baseline (直前窓末 = 2026-07-29) を閾値にした検知器があれば
+    その日のうちに TRIGGERED になっていた。実ファイルで固定する。
+    """
+    rows = read_csv_rows({"path": MOF_PENDING_CSV})
+    assert rows is not None, f"{MOF_PENDING_CSV} が読めない"
+    res = evaluate_csv_row_match(
+        rows,
+        [{"column": "window_end", "op": ">", "value": "2026-07-29"},
+         {"column": "amount_yen_billions", "op": ">", "value": 0}],
+        ["window_start", "window_end", "amount_yen_billions"])
+    assert res["state"] == "TRIGGERED", res["detail"]
+    assert "2026-08-26" in res["detail"] and "15399.3" in res["detail"]
+
+
+def test_mof_successor_entry_is_wired_into_the_dispatch():
+    """反実仮想: registry エントリが実際に評価器へ到達しているか。
+
+    MEMORY 教訓 (PR #208): 検知器を書いても呼ばれなければ全テスト green の
+    まま無音になる。evaluate_trigger() 経由で評価し、dispatch から
+    csv_row_match の分岐を外したら落ちることを確認済み
+    (外すと state が DATA_UNAVAILABLE / "unknown type" になる)。
+    """
+    trig = next(t for t in load_registry()
+                if t["id"] == "mof-monthly-disclosure-new-window")
+    res = evaluate_trigger(trig, today="2026-08-31", app_base="http://unused")
+    # 現閾値 (window_end > 2026-08-26) では次窓待ち = WATCHING。
+    # 重要なのは「unknown type で素通りしていない」こと。
+    assert res["state"] == "WATCHING", res
+    assert "unknown type" not in res["detail"]
+    assert "該当行なし" in res["detail"]
+
+
+def test_ws3_round4_entry_is_machine_evaluable():
+    trig = next(t for t in load_registry()
+                if t["id"] == "ws3-round4-eur-divergence-conditional")
+    assert trig["type"] == "data_coverage"
+    assert trig["threshold_date"] == "2026-11-15"
+    assert (Path(__file__).resolve().parent.parent
+            / trig["source"]["path"]).exists()
+
+
+# ── 監視器自身の堅牢性 — 2026-09-08 (51 エントリ 2 日間停止の再発防止) ──
+
+def test_registry_schema_lint_is_clean_on_the_real_registry():
+    """本番 registry の全 active エントリが type の必須フィールドを持つ。
+
+    2026-09-08: roster-e2-silent-promoted-cells が artifact_presence を
+    名乗りながら requirements を欠き、build_report() が KeyError で落ちて
+    51 エントリ全ての監視が 2 日間停止した。lint_reachability は機械評価型を
+    素通りさせる設計だったため、この層に穴があった。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema(load_registry()) == []
+
+
+def test_lint_schema_catches_the_exact_2026_09_08_defect():
+    from tools.prereg_trigger_watch import lint_schema
+    bad = [{"id": "x", "type": "artifact_presence", "active": True}]
+    errors = lint_schema(bad)
+    assert len(errors) == 1 and "requirements" in errors[0]
+    ok = [{"id": "x", "type": "artifact_presence",
+           "requirements": [{"path": "a", "min_files": 1}]}]
+    assert lint_schema(ok) == []
+
+
+def test_lint_schema_checks_nested_paths_the_evaluator_subscripts():
+    """csv_row_match の評価器は source["match"] を添字アクセスする。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv"}}]) != []
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv",
+                                    "match": [{"column": "c",
+                                               "value": 1}]}}]) == []
+
+
+def test_lint_schema_rejects_unknown_type():
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "not_a_type"}]) != []
+
+
+def test_required_fields_cover_every_machine_evaluable_type():
+    """評価器に type を足して lint 仕様を足し忘れる経路を塞ぐ。"""
+    from tools.prereg_trigger_watch import (MACHINE_EVALUABLE_TYPES,
+                                            REQUIRED_FIELDS_BY_TYPE)
+    assert MACHINE_EVALUABLE_TYPES <= set(REQUIRED_FIELDS_BY_TYPE)
+
+
+def test_one_broken_entry_does_not_blind_the_other_entries(monkeypatch):
+    """fault injection: 壊れたエントリは自分だけ EVAL_ERROR を名乗る。"""
+    from tools import prereg_trigger_watch as w
+    broken = {"id": "broken", "active": True, "type": "artifact_presence"}
+    healthy = {"id": "healthy", "active": True, "type": "deadline_info",
+               "deadline": "2099-01-01"}
+    monkeypatch.setattr(w, "load_registry", lambda: [broken, healthy])
+    report = w.build_report(today="2026-09-08", app_base="http://x")
+    assert [r["id"] for r in report["errors"]] == ["broken"]
+    assert [r["id"] for r in report["watching"]] == ["healthy"]
+    assert "KeyError" in report["errors"][0]["detail"]
+
+
+def test_eval_error_is_not_folded_into_data_unavailable(monkeypatch):
+    """「評価器が壊れた」と「データが取れなかった」を同じ箱に入れない。"""
+    from tools import prereg_trigger_watch as w
+    broken = {"id": "broken", "active": True, "type": "artifact_presence"}
+    monkeypatch.setattr(w, "load_registry", lambda: [broken])
+    report = w.build_report(today="2026-09-08", app_base="http://x")
+    assert report["unavailable"] == []
+    assert len(report["errors"]) == 1
+    md = w.to_markdown(report)
+    assert "EVAL ERROR" in md and "broken" in md
+
+
+def test_markdown_says_no_triggers_only_when_all_bins_empty():
+    from tools import prereg_trigger_watch as w
+    empty = {"triggered": [], "watching": [], "unavailable": [], "errors": []}
+    assert "active な trigger なし" in w.to_markdown(empty)
+    with_err = dict(empty, errors=[{"id": "b", "detail": "boom"}])
+    assert "active な trigger なし" not in w.to_markdown(with_err)
+
+
+def test_e2_silent_entry_is_machine_watchable_with_reachability():
+    """2026-09-08 修復の pin: 型を conditional_info へ直し到達経路を明記した。"""
+    from tools.prereg_trigger_watch import lint_registry
+    trig = next(t for t in load_registry()
+                if t["id"] == "roster-e2-silent-promoted-cells")
+    assert trig["type"] == "conditional_info"
+    assert trig["deadline"] == "2026-10-06"
+    assert trig["reachability"].strip()
+    assert lint_registry(load_registry()) == []
+
+
+def test_lint_schema_validates_collection_element_fields():
+    """top-level の器だけ見ると `requirements: [{}]` が素通りする (PR #227 P2)。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{}]}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": []}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": {}}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*.jsonl"}]}]) == []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k"}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k", "max_age_hours": 24}]}]) == []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"prefix": "p:", "max_age_hours": 24}]}]) == []
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv", "match": [{}]}}]) != []
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv",
+                                    "match": [{"column": "c",
+                                               "value": 1}]}}]) == []
+
+
+def test_data_coverage_and_csv_specs_declare_their_path():
+    """評価器は source["path"] を添字アクセスする。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "data_coverage",
+                         "source": {}, "threshold_date": "2026-01-01"}]) != []
+
+
+def test_lint_schema_requires_either_key_or_prefix_and_the_csv_value():
+    """評価器の添字を漏れなく写す (PR #227 Codex P2 2 巡目)。
+
+    prefix 無しの ingest check は `chk["key"]` を、csv 述語は `c["value"]` を
+    添字アクセスするが、初版のスキーマはどちらも必須にしていなかった。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"max_age_hours": 24}]}]) != []
+    assert lint_schema([{"id": "x", "type": "csv_row_match",
+                         "source": {"path": "a.csv",
+                                    "match": [{"column": "c"}]}}]) != []
+
+
+def test_lint_requires_a_nonempty_id_on_every_entry():
+    """_evaluate_trigger_impl は trig["id"] を添字アクセスする (PR #227 P2)。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"type": "deadline_info", "deadline": "2099-01-01"}]) != []
+    assert lint_schema([{"id": "  ", "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) != []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) == []
+
+
+def test_one_of_requires_a_usable_value_not_mere_presence():
+    """prefix="" は評価器の `if prefix:` で false になり chk["key"] へ落ちる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"prefix": "", "max_age_hours": 24}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "  ", "max_age_hours": 24}]}]) != []
+
+
+def test_lint_rejects_present_but_unusable_required_values():
+    """presence だけでは `path: null` / `max_age_hours: null` を止められない。
+
+    PR #227 Codex P2 4 巡目: scan_artifacts の Path.glob(None)、
+    float(None) は daily 実行時にしか落ちない。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": None}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k",
+                                     "max_age_hours": None}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k",
+                                     "max_age_hours": "soon"}]}]) != []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USDJPY=X", "threshold": None}]) != []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USDJPY=X", "threshold": 159.5}]) == []
+
+
+def test_empty_entry_type_is_a_wildcard_only_when_a_marker_defines_the_population():
+    """entry_type="" は「絞り込まない」の正当な表明だが、母集団は何かが定義せよ。
+
+    hourblock-class-exempt-r2-rollback は reasons_marker で母集団を定義する
+    実在エントリ。両方空なら全 live トレードを数える無言の過大計上になる。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision", "since": "2026-09-02",
+            "n_decide": 10, "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, entry_type="",
+                             reasons_marker="[MARKER]")]) == []
+    assert lint_schema([dict(base, entry_type="sweep_reversion")]) == []
+    assert lint_schema([dict(base, entry_type="", reasons_marker="")]) != []
+
+
+def test_the_real_rollback_entry_keeps_its_wildcard_shape():
+    """実在エントリの設計 (entry_type="" + reasons_marker) を性質で pin。"""
+    trig = next(t for t in load_registry()
+                if t["id"] == "hourblock-class-exempt-r2-rollback")
+    assert trig["entry_type"] == ""
+    assert trig["reasons_marker"].strip()
+
+
+def test_lint_type_checks_string_fields():
+    """`deadline: 123` は `today > deadline` で TypeError、`path: 123` は
+    Path.glob(123) で落ちる (PR #227 Codex P2 5 巡目)。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": 123}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": 123}]}]) != []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": 1, "threshold": 1.0}]) != []
+
+
+def test_lint_checks_optional_numeric_collection_fields():
+    """min_files / min_keys は任意だが評価器は int() する (PR #227 Codex P2)。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*", "min_files": None}]}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"prefix": "p:", "max_age_hours": 24,
+                                     "min_keys": None}]}]) != []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*", "min_files": 3}]}]) == []
+
+
+def test_csv_match_list_is_not_treated_as_a_string_field():
+    """leaf 名 `match` は type によって意味が違う (実 registry の回帰 pin)。"""
+    from tools.prereg_trigger_watch import lint_registry
+    assert lint_registry(load_registry()) == []
+
+
+def test_lint_rejects_dates_that_are_never_reached():
+    """`deadline: "soon"` は文字列比較で永久に watching になる (PR #227 P2 6 巡目)。
+
+    「条件を書いた」だけで期日に到達しない = ZN 教訓と同型の write-only。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "soon"}]) != []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2026-13-45"}]) != []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2026-10-06"}]) == []
+    # 2026-09-08 (11 巡目) 契約変更: no-deadline sentinel は
+    # evaluate_manual_info (info/conditional_info) だけが実装している。
+    assert lint_schema([{"id": "x", "type": "conditional_info",
+                         "deadline": "no-deadline",
+                         "reachability": "cron"}]) == []
+
+
+def test_lint_uses_int_conversion_for_int_consumed_fields():
+    """評価器は int() で消費する — float() だけ通る "1.5" を素通りさせない。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision",
+            "entry_type": "e", "since": "2026-09-02", "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, n_decide="1.5")]) != []
+    assert lint_schema([dict(base, n_decide=10)]) == []
+    assert lint_schema([dict(base, n_decide="10")]) == []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*",
+                                           "min_files": "2.5"}]}]) != []
+
+
+def test_lint_rejects_non_finite_numbers():
+    """nan/inf は変換を通るが比較を静かに壊す (PR #227 P2 7 巡目)。
+
+    max_age_hours=nan は `age > max_h` が常に false になり、古い ingest を
+    fresh と報告する。threshold=nan は price trigger を永久 watching にする。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USDJPY=X", "threshold": "nan"}]) != []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USDJPY=X", "threshold": float("inf")}]) != []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k",
+                                     "max_age_hours": "nan"}]}]) != []
+
+
+def test_lint_checks_optional_top_level_fields_too():
+    """必須/任意・top-level/要素の 4 象限すべてで同じ検査を効かせる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision", "entry_type": "e",
+            "since": "2026-09-02", "n_decide": 10, "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, reasons_marker=123)]) != []
+    assert lint_schema([{"id": "x", "type": "conditional_info",
+                         "deadline": 123,
+                         "reachability": "cron"}]) != []
+    assert lint_schema([dict(base, reasons_marker="[M]")]) == []
+
+
+def test_empty_filter_fields_stay_legal_wildcards():
+    """instrument/direction の空文字は「絞り込まない」の正当な表明。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "live_count_decision",
+                         "entry_type": "", "instrument": "", "direction": "",
+                         "reasons_marker": "[M]", "since": "2026-09-02",
+                         "n_decide": 10, "deadline": "2026-12-01"}]) == []
+
+
+def test_lint_parses_the_whole_date_not_just_the_prefix():
+    """`2026-01-01Tgarbage` は先頭 10 文字検査を通るが fromisoformat で落ちる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_info", "entry_type": "e",
+            "expected_per_week": 4.0}
+    assert lint_schema([dict(base, since="2026-01-01Tgarbage")]) != []
+    assert lint_schema([dict(base, since="2026-01-01 25:99:99")]) != []
+    assert lint_schema([dict(base, since="2026-01-01")]) == []
+
+
+def test_lint_validates_evaluator_control_fields():
+    """母集団を黙って変える制御 field を検査する (PR #227 P2 8 巡目)。
+
+    `closed_only: "false"` は bool() で true、`dedup_violation: "0"` は
+    `== 0` に一致しない — どちらも監視母集団が変わり判定期日が前後する。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, closed_only="false")]) != []
+    assert lint_schema([dict(base, closed_only=True)]) == []
+    assert lint_schema([dict(base, dedup_violation="0")]) != []
+    assert lint_schema([dict(base, dedup_violation=0)]) == []
+    assert lint_schema([dict(base, count_basis="uniqe")]) != []
+    assert lint_schema([dict(base, count_basis="unique")]) == []
+    assert lint_schema([dict(base, match="prefx")]) != []
+    assert lint_schema([dict(base, match="prefix")]) == []
+
+
+def test_lint_rejects_fractional_and_out_of_range_counts():
+    """int(1.5) は黙って 1 に切り捨て、n_decide=-1 は即時 TRIGGERED になる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision", "entry_type": "e",
+            "since": "2026-09-02", "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, n_decide=1.5)]) != []
+    assert lint_schema([dict(base, n_decide=-1)]) != []
+    assert lint_schema([dict(base, n_decide=0)]) != []
+    assert lint_schema([dict(base, n_decide=10)]) == []
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "requirements": [{"path": "a/*",
+                                           "min_files": -1}]}]) != []
+
+
+def test_lint_sees_active_before_the_filter_removes_entries():
+    """`active` は truthiness 消費 — "false" は true、壊れた falsey は消える。
+
+    PR #227 Codex P2 9 巡目: フィルタ後だけを見る lint は active 自身の
+    不正を構造的に検出できない。
+    """
+    from tools.prereg_trigger_watch import lint_schema, load_registry_raw
+    assert lint_schema([{"id": "x", "active": "false",
+                         "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) != []
+    assert lint_schema([{"id": "x", "active": 0, "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) != []
+    assert lint_schema([{"id": "x", "active": False, "type": "deadline_info",
+                         "deadline": "2099-01-01"}]) == []
+    # 既定の lint 入口は raw (inactive を含む) を見る
+    assert len(load_registry_raw()) > len(load_registry())
+
+
+def test_default_lint_entry_point_covers_inactive_entries():
+    from tools.prereg_trigger_watch import lint_registry
+    assert lint_registry() == []
+
+
+def test_int_lint_uses_the_same_conversion_as_the_evaluator():
+    """`int("1.0")` は ValueError — float 経由の検査では通ってしまう。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "live_count_decision", "entry_type": "e",
+            "since": "2026-09-02", "deadline": "2026-12-01"}
+    assert lint_schema([dict(base, n_decide="1.0")]) != []
+    assert lint_schema([dict(base, n_decide="10")]) == []
+
+
+def test_dates_must_be_canonical_zero_padded():
+    """`2026-9-1` は strptime を通るが辞書順比較で永久 WATCHING になる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2026-9-1"}]) != []
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "2026-09-01"}]) == []
+
+
+def test_empty_entry_type_is_not_a_wildcard_for_shadow_count_types():
+    """shadow 系は entry_type が唯一の母集団定義 — 空 + prefix は全件計上。
+
+    PR #227 Codex P2 10 巡目: `startswith("")` で全 shadow トレードを数え、
+    判定期日を極端に早める (sr-anti-hunt 偽発火と同クラス)。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    shadow = {"id": "x", "type": "shadow_count_decision", "since": "2026-08-05",
+              "n_decide": 40, "n_floor": 40, "deadline": "2027-02-28",
+              "match": "prefix"}
+    assert lint_schema([dict(shadow, entry_type="")]) != []
+    assert lint_schema([dict(shadow, entry_type="sr_anti_hunt_bounce")]) == []
+    info = {"id": "y", "type": "shadow_count_info", "since": "2026-08-09",
+            "expected_per_week": 4.0}
+    assert lint_schema([dict(info, entry_type="")]) != []
+    # live 側は reasons_marker が母集団を定義するので空が正当
+    live = {"id": "z", "type": "live_count_decision", "since": "2026-09-02",
+            "n_decide": 10, "deadline": "2026-12-01",
+            "reasons_marker": "[M]", "entry_type": ""}
+    assert lint_schema([live]) == []
+
+
+def test_date_sentinel_is_scoped_to_deadline_only():
+    """`no-deadline` を実装しているのは deadline を読む評価器だけ。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "data_coverage",
+                         "source": {"path": "a.parquet"},
+                         "threshold_date": "no-deadline"}]) != []
+    assert lint_schema([{"id": "x", "type": "shadow_count_info",
+                         "entry_type": "e", "since": "no-deadline",
+                         "expected_per_week": 1.0}]) != []
+    assert lint_schema([{"id": "x", "type": "conditional_info",
+                         "deadline": "no-deadline",
+                         "reachability": "cron"}]) == []
+
+
+def test_lint_traverses_optional_fields_inside_source_specs():
+    """`source.label_columns: 1` は行が一致した瞬間に TypeError になる。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "csv_row_match"}
+    bad = dict(base, source={"path": "a.csv", "match": [{"column": "c",
+                                                         "value": 1}],
+                             "label_columns": 1})
+    assert lint_schema([bad]) != []
+    bad2 = dict(base, source={"path": "a.csv", "match": [{"column": "c",
+                                                          "value": 1}],
+                              "date_column": 5})
+    assert lint_schema([bad2]) != []
+    ok = dict(base, source={"path": "a.csv", "match": [{"column": "c",
+                                                        "value": 1}],
+                            "label_columns": ["c"]})
+    assert lint_schema([ok]) == []
+
+
+def test_no_deadline_sentinel_only_for_evaluators_that_implement_it():
+    """evaluate_deadline_info は sentinel 分岐を持たない — 永久 WATCHING になる。
+
+    PR #227 Codex P2 11 巡目: sentinel を実装しているのは
+    evaluate_manual_info (`deadline != "no-deadline"` を明示チェック) だけ。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "deadline_info",
+                         "deadline": "no-deadline"}]) != []
+    assert lint_schema([{"id": "x", "type": "conditional_info",
+                         "deadline": "no-deadline",
+                         "reachability": "cron"}]) == []
+    # deadline を消費しない type では無害
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "deadline": "no-deadline",
+                         "requirements": [{"path": "a/*"}]}]) == []
+
+
+def test_lint_validates_csv_predicate_operators():
+    """`op: "=>"` は評価器が未知として毎日 DATA_UNAVAILABLE を返し続ける。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "csv_row_match"}
+    bad = dict(base, source={"path": "a.csv",
+                             "match": [{"column": "c", "op": "=>", "value": 1}]})
+    assert lint_schema([bad]) != []
+    ok = dict(base, source={"path": "a.csv",
+                            "match": [{"column": "c", "op": ">=", "value": 1}]})
+    assert lint_schema([ok]) == []
+
+
+def test_lint_validates_optional_ingest_endpoint():
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "ingest_freshness",
+            "checks": [{"key": "k", "max_age_hours": 24}]}
+    assert lint_schema([dict(base, endpoint=123)]) != []
+    assert lint_schema([dict(base, endpoint="")]) != []
+    assert lint_schema([dict(base, endpoint="/api/marketdata/status")]) == []
+
+
+def test_lint_rejects_unknown_registry_keys():
+    """`instrumnt` の綴り違いは黙って無視され全ペアを計上する。
+
+    PR #227 Codex P2 12 巡目: allow-by-default をやめ reject-by-default へ。
+    未知キーの家系はこれで構造的に閉じる。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, instrumnt="USD_JPY")]) != []
+    assert lint_schema([dict(base, instrument="USD_JPY")]) == []
+    # メタデータは全 type で許可
+    assert lint_schema([dict(base, doc="a.md", message="m",
+                             resolved="2026-01-01")]) == []
+    # type が読まない selector も拒否 (price_below に instrument は無い)
+    assert lint_schema([{"id": "x", "type": "price_below", "symbol": "S",
+                         "threshold": 1.0, "instrument": "USD_JPY"}]) != []
+
+
+def test_dedup_violation_is_pinned_to_the_only_implemented_value():
+    """評価器は `== 0` でしか dedup を有効にしない — 1/2 は黙って無視される。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, dedup_violation=1)]) != []
+    assert lint_schema([dict(base, dedup_violation=0)]) == []
+
+
+def test_real_registry_passes_the_reject_by_default_lint():
+    from tools.prereg_trigger_watch import lint_registry
+    assert lint_registry() == []
+
+
+def test_collection_element_unknown_keys_are_rejected():
+    """要素キーも reject-by-default — 綴り違いは既定値で別条件を監視する。
+
+    PR #227 Codex P2 13 巡目: top-level は未知キーを落としていたが、
+    コレクション要素は allow-by-default のままだった。`opp` は lint を通り、
+    `_csv_row_predicate` が op 既定値 "==" で**別の条件**を毎日評価し続ける。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    def entry(match):
+        return {"id": "x", "type": "csv_row_match",
+                "source": {"path": "a.csv", "match": match}}
+    assert lint_schema([entry([{"column": "n", "value": 10, "op": ">"}])] ) == []
+    assert lint_schema([entry([{"column": "n", "value": 10, "opp": ">"}])]) != []
+    # 綴り違いが「別の条件を黙って監視する」ことを評価器側でも示す
+    from tools.prereg_trigger_watch import _csv_row_predicate
+    row = {"n": "5"}
+    assert _csv_row_predicate(row, {"column": "n", "value": 10, "op": ">"}) is False
+    assert _csv_row_predicate(row, {"column": "n", "value": 5, "opp": ">"}) is True
+
+
+def test_element_optional_keys_the_evaluator_reads_are_allowed():
+    """評価器が elem.get() で読むキーは許可 — reject が過剰にならないこと。"""
+    from tools.prereg_trigger_watch import lint_schema
+    assert lint_schema([{"id": "x", "type": "artifact_presence",
+                         "deadline": "2026-10-06", "requirements": [
+                             {"path": "a/*.md", "min_files": 2,
+                              "label": "doc"}]}]) == []
+    assert lint_schema([{"id": "x", "type": "ingest_freshness",
+                         "checks": [{"key": "k", "max_age_hours": 24,
+                                     "min_keys": 3}]}]) == []
+
+
+def test_non_int_numeric_fields_have_semantic_lower_bounds():
+    """max_age_hours<=0 は「1 秒前の記録まで stale」= 毎日 false TRIGGERED。
+
+    PR #227 Codex P2 13 巡目: 有限数チェックだけでは負値が通り、
+    `age > max_h` が常に true になる。性質で pin する — 下限違反の値を
+    lint が落とし、かつ実際に評価器が全記録を stale と報告することを示す。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    def entry(v):
+        return {"id": "x", "type": "ingest_freshness",
+                "checks": [{"key": "k", "max_age_hours": v}]}
+    assert lint_schema([entry(24)]) == []
+    assert lint_schema([entry(-1)]) != []
+    assert lint_schema([entry(0)]) != []
+    # price_below の threshold も非正だと到達不能 (永久 watching)
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USD_JPY", "threshold": 159.5}]) == []
+    assert lint_schema([{"id": "x", "type": "price_below",
+                         "symbol": "USD_JPY", "threshold": -1.0}]) != []
+    assert lint_schema([{"id": "x", "type": "shadow_count_info",
+                         "entry_type": "e", "since": "2026-08-11",
+                         "expected_per_week": -1.0}]) != []
+
+
+def test_nested_spec_unknown_keys_are_rejected():
+    """reject-by-default の 3 層目 — dict spec の中身も落とす。
+
+    PR #227 Codex P2 14 巡目: `source.date_colum` は lint を通り、
+    `fetch_data_coverage_max` が既定値 "" に落ちて日付列なしのまま
+    毎日 DATA_UNAVAILABLE を返し続ける。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    ok = {"id": "x", "type": "data_coverage", "threshold_date": "2026-11-15",
+          "source": {"path": "a.parquet", "date_column": "ts"}}
+    assert lint_schema([ok]) == []
+    bad = {"id": "x", "type": "data_coverage", "threshold_date": "2026-11-15",
+           "source": {"path": "a.parquet", "date_colum": "ts"}}
+    assert lint_schema([bad]) != []
+    # csv_row_match 側も同様 (label_columns は評価器が読むので許可)
+    base = {"id": "x", "type": "csv_row_match"}
+    assert lint_schema([dict(base, source={
+        "path": "a.csv", "match": [{"column": "n", "value": 1}],
+        "label_columns": ["n"]})]) == []
+    assert lint_schema([dict(base, source={
+        "path": "a.csv", "match": [{"column": "n", "value": 1}],
+        "label_colums": ["n"]})]) != []
+
+
+def test_allowlisted_selectors_are_wired_into_the_evaluator():
+    """allowlist に入れた selector は評価器まで配線されていること。
+
+    PR #227 Codex P2 14 巡目: shadow_count_info は instrument / direction を
+    allowlist していたのに `fetch_shadow_count` へ渡しておらず、綴りが正しい
+    entry でも**黙って全ペア/全方向**を計上していた (shadow_count_decision で
+    2026-08-18 に塞いだ sr-anti-hunt 偽発火と同型)。性質で pin する —
+    instrument を指定した entry の実測 N が絞り込み後の値になること。
+    """
+    from tools import prereg_trigger_watch as w
+
+    rows = [
+        {"entry_type": "e", "instrument": "USD_JPY", "direction": "BUY",
+         "is_shadow": 1, "entry_time": "2026-08-12T00:00:00Z"},
+        {"entry_type": "e", "instrument": "EUR_USD", "direction": "BUY",
+         "is_shadow": 1, "entry_time": "2026-08-13T00:00:00Z"},
+        {"entry_type": "e", "instrument": "USD_JPY", "direction": "SELL",
+         "is_shadow": 1, "entry_time": "2026-08-14T00:00:00Z"},
+    ]
+    def fake_window(since, app_base, mode=""):
+        return rows
+
+    orig_window = w.fetch_trades_window
+    w.fetch_trades_window = fake_window
+    try:
+        trig = {"id": "t", "type": "shadow_count_info", "entry_type": "e",
+                "since": "2026-08-11", "expected_per_week": 1.0,
+                "instrument": "USD_JPY", "direction": "BUY"}
+        assert w.lint_schema([trig]) == []
+        res = w._evaluate_trigger_impl(
+            trig, today="2026-09-10", app_base="https://x")
+        # 絞り込みが効いていれば N=1、無配線なら N=3
+        assert "N=1" in res["detail"], res["detail"]
+    finally:
+        w.fetch_trades_window = orig_window
+
+
+def test_direction_typo_is_rejected_not_silently_emptied():
+    """`direction: "BYU"` は母集団を黙って空にする。
+
+    PR #227 Codex P2 15 巡目: `direction` は str 型検査だけで通っていた。
+    `count_matching()` / `count_live_matching()` は完全一致で絞るので、
+    綴り違いは**全行 false** = 母集団ゼロ。N ベースの判定は永久 WATCHING に
+    留まるか、低 N の deadline 分岐 (retire) を誤って踏む。
+    """
+    from tools import prereg_trigger_watch as w
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert w.lint_schema([dict(base, direction="BUY")]) == []
+    assert w.lint_schema([dict(base, direction="SELL")]) == []
+    assert w.lint_schema([dict(base, direction="")]) == [], "空 = 絞り込まない は正当"
+    assert w.lint_schema([dict(base, direction="BYU")]) != []
+    assert w.lint_schema([dict(base, direction="buy")]) != [], "大小も評価器は区別する"
+    # 評価器側で「綴り違い = 母集団が空」を実証する
+    rows = [{"entry_type": "e", "instrument": "USD_JPY", "direction": "BUY",
+             "is_shadow": 1, "entry_time": "2026-08-12T00:00:00Z"}]
+    assert w.count_matching(rows, "e", direction="BUY") == 1
+    assert w.count_matching(rows, "e", direction="BYU") == 0
+
+
+def test_instrument_shape_typo_is_rejected():
+    """instrument は閉じた enum にできないが**形**は固定されている。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, instrument="USD_JPY")]) == []
+    assert lint_schema([dict(base, instrument="")]) == []
+    assert lint_schema([dict(base, instrument="USDJPY")]) != []
+    assert lint_schema([dict(base, instrument="USD_JPYY")]) != []
+
+
+def test_root_triggers_key_is_required_not_defaulted_to_empty(tmp_path):
+    """root キーの綴り違い/欠落を「空の台帳」に畳まない。
+
+    PR #227 Codex P1 16 巡目: `.get("triggers", [])` だと `trigger` の綴り違いで
+    **51 エントリ全部が黙って消え**、check.py も監視器も exit 0 のまま
+    「active な trigger は無い」と報告する = 本 PR が直している 2 日間 blind と
+    同じ帰結の、もっと静かな版。
+    """
+    import json as _json
+    import pytest
+    from tools.prereg_trigger_watch import load_registry_raw
+
+    good = tmp_path / "good.json"
+    good.write_text(_json.dumps({"triggers": [{"id": "x", "type": "info"}]}))
+    assert len(load_registry_raw(good)) == 1
+
+    for name, payload in [
+        ("typo", {"trigger": [{"id": "x"}]}),
+        ("missing", {"_comment": "note"}),
+        ("not_list", {"triggers": {"id": "x"}}),
+        ("empty", {"triggers": []}),
+        ("root_list", [{"id": "x"}]),
+    ]:
+        bad = tmp_path / f"{name}.json"
+        bad.write_text(_json.dumps(payload))
+        with pytest.raises(RuntimeError):
+            load_registry_raw(bad)
+
+
+def test_mode_allowlist_is_derived_from_mode_config_not_handcopied():
+    """許可 mode は `MODE_CONFIG` から導出する (写し間違いを構造的に防ぐ)。"""
+    from tools.prereg_trigger_watch import app_mode_names
+    names = app_mode_names()
+    assert "daytrade" in names and "scalp" in names
+    # registry が現に使っている mode は許可集合に含まれること
+    from tools.prereg_trigger_watch import load_registry_raw, HISTORICAL_MODES
+    used = {t["mode"] for t in load_registry_raw()
+            if isinstance(t.get("mode"), str) and t["mode"].strip()}
+    assert used <= (names | HISTORICAL_MODES), f"許可外の mode: {used - names}"
+
+
+def test_mode_typo_is_rejected_not_silently_zero_rows(tmp_path):
+    """`mode` の綴り違いは API 成功 + 0 行 = 永久 WATCHING を作る。
+
+    PR #227 Codex P2 16 巡目 — direction / instrument と同クラスの 3 例目。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "shadow_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 40, "n_floor": 40,
+            "deadline": "2027-02-28"}
+    assert lint_schema([dict(base, mode="daytrade_eurgbp")]) == []
+    assert lint_schema([dict(base, mode="")]) == [], "空 = 絞り込まない は正当"
+    assert lint_schema([dict(base, mode="daytrade_eurgpp")]) != []
+    assert lint_schema([dict(base, mode="daytrade_nope")]) != []
+
+
+def test_mode_allowlist_derivation_raises_instead_of_returning_empty(tmp_path):
+    """導出できないときは空集合でなく例外 — 「検査した」と「できなかった」を分ける。"""
+    import pytest
+    from tools.prereg_trigger_watch import app_mode_names
+    absent = tmp_path / "no_mode_config.py"
+    absent.write_text("OTHER = {'a': 1}\n")
+    with pytest.raises(RuntimeError):
+        app_mode_names(absent)
+    nonliteral = tmp_path / "nonliteral.py"
+    nonliteral.write_text("MODE_CONFIG = dict(a=1)\n")
+    with pytest.raises(RuntimeError):
+        app_mode_names(nonliteral)
+
+
+def test_lexically_compared_deadlines_must_be_date_only():
+    """`deadline` は today と辞書順比較される — 時刻が付くと期日当日に成立しない。
+
+    PR #227 Codex P2 17 巡目: `"2026-09-10T23:00:00"` は `"2026-09-10"` より
+    辞書順で後ろなので、期日当日の評価が黙って WATCHING に留まる。
+    `since` は `fromisoformat` でパースされるので datetime を許す。
+    """
+    from tools import prereg_trigger_watch as w
+    base = {"id": "x", "type": "live_count_decision", "entry_type": "e",
+            "since": "2026-08-05", "n_decide": 10}
+    assert w.lint_schema([dict(base, deadline="2026-09-10")]) == []
+    assert w.lint_schema([dict(base, deadline="2026-09-10T23:00:00")]) != []
+    # since は datetime 可 (評価器が fromisoformat する)
+    assert w.lint_schema([dict(base, since="2026-08-05T12:00:00",
+                               deadline="2026-09-10")]) == []
+    # 辞書順比較の害を評価器側でも示す
+    assert not ("2026-09-10" >= "2026-09-10T23:00:00")
+    assert "2026-09-10" >= "2026-09-10"
+
+
+def test_ingest_endpoint_must_be_an_absolute_path():
+    """`fetch_ingest_health` は素の文字列連結をする。"""
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "ingest_freshness",
+            "checks": [{"key": "k", "max_age_hours": 24}]}
+    assert lint_schema([dict(base, endpoint="/api/marketdata/status")]) == []
+    assert lint_schema([dict(base, endpoint="api/marketdata/status")]) != []
+    assert lint_schema([dict(base, endpoint="/api/x y")]) != []
+    # 連結が壊れることを実演
+    assert (f"{'https://h.com'}{'api/x'}") == "https://h.comapi/x"
+
+
+def test_csv_predicate_values_must_be_finite_scalars():
+    """コレクション value は `!=` でほぼ全ての行に一致し偽 TRIGGERED を出す。"""
+    from tools import prereg_trigger_watch as w
+    def entry(v, op="=="):
+        return {"id": "x", "type": "csv_row_match",
+                "source": {"path": "a.csv",
+                           "match": [{"column": "c", "value": v, "op": op}]}}
+    assert w.lint_schema([entry(10)]) == []
+    assert w.lint_schema([entry("abc")]) == []
+    assert w.lint_schema([entry(True)]) == []
+    assert w.lint_schema([entry({"a": 1})]) != []
+    assert w.lint_schema([entry(["a"])]) != []
+    assert w.lint_schema([entry(None)]) != []
+    assert w.lint_schema([entry(float("nan"))]) != []
+    # 害の実演: dict value + `!=` は通常値に一致する
+    assert w._csv_row_predicate({"c": "5"},
+                                {"column": "c", "value": {"a": 1}, "op": "!="})
+
+
+def test_non_dict_trigger_elements_are_rejected_before_the_active_filter(tmp_path):
+    """`[null, {...}]` は隔離ラッパの手前で落ちて全 trigger を未評価にする。
+
+    PR #227 Codex P2 18 巡目: `evaluate_trigger` の隔離は「1 件の不整合が
+    全体を落とす」設計を防ぐためのものだが、`load_registry` の
+    `t.get("active")` はそれより手前で走るので `null` 要素で全滅する。
+    """
+    import json as _json
+    import pytest
+    from tools.prereg_trigger_watch import load_registry
+    good = tmp_path / "g.json"
+    good.write_text(_json.dumps({"triggers": [{"id": "x", "type": "info"}]}))
+    assert len(load_registry(good)) == 1
+    for payload in ([None, {"id": "x"}], [{"id": "x"}, "str"], [[1], {"id": "x"}]):
+        bad = tmp_path / "b.json"
+        bad.write_text(_json.dumps({"triggers": payload}))
+        with pytest.raises(RuntimeError):
+            load_registry(bad)
+
+
+def test_date_values_must_be_canonical_as_written():
+    """評価器は元の文字列を消費する — lint 側で strip して判定してはいけない。
+
+    PR #227 Codex P2 18 巡目: `" 2026-09-10"` は先頭空白が辞書順で数字より
+    前に来るので `today > deadline` が常に真 = **前日から期限切れ**扱い。
+    """
+    from tools.prereg_trigger_watch import lint_schema
+    base = {"id": "x", "type": "deadline_info"}
+    assert lint_schema([dict(base, deadline="2026-09-10")]) == []
+    assert lint_schema([dict(base, deadline=" 2026-09-10")]) != []
+    assert lint_schema([dict(base, deadline="2026-09-10 ")]) != []
+    # 害の実演: 先頭空白は辞書順で数字より前
+    assert "2026-09-09" > " 2026-09-10"
+
+
+def test_ingest_selectors_are_exclusive_not_merely_present():
+    """`key` と `prefix` の両方指定は key が黙って無視される。"""
+    from tools.prereg_trigger_watch import lint_schema
+    def entry(chk):
+        return {"id": "x", "type": "ingest_freshness", "checks": [chk]}
+    assert lint_schema([entry({"key": "k", "max_age_hours": 24})]) == []
+    assert lint_schema([entry({"prefix": "p:", "max_age_hours": 24})]) == []
+    assert lint_schema([entry({"key": "k", "prefix": "p:",
+                               "max_age_hours": 24})]) != []
+    # `prefix: ""` は 2 巡目で既に禁止済み (評価器の `if prefix:` で key 側へ
+    # 落ちて `chk["key"]` を添字アクセスする) — 排他検査とは別の理由で NG
+    errs = lint_schema([entry({"key": "k", "prefix": "",
+                               "max_age_hours": 24})])
+    assert errs and all("どちらか一方のみ" not in e for e in errs), errs

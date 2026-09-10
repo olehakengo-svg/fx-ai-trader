@@ -1,0 +1,193 @@
+{
+  "generated_at": "2026-08-05T04:08:46.390167+00:00",
+  "purpose": "R1 promotion evidence: sr_anti_hunt_bounce × EUR_JPY cell-conditional 365d BT",
+  "pre_declared_gate": "BUY cell: N>=30 AND EV_R>0 AND wilson_lo>0.337 (declared 2026-08-05 before run)",
+  "pair": "EUR_JPY",
+  "lookback_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest (production path, strategy-only compute patch, friction-inclusive R units)",
+  "runs": {
+    "v2_off_production_default": {
+      "all": {
+        "N": 82,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -8.3006,
+        "PnL_R": -680.6497,
+        "PF": 0.0
+      },
+      "dir_BUY": {
+        "N": 58,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -8.6063,
+        "PnL_R": -499.1633,
+        "PF": 0.0
+      },
+      "dir_SELL": {
+        "N": 24,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -7.5619,
+        "PnL_R": -181.4864,
+        "PF": 0.0
+      },
+      "sess_tokyo": {
+        "N": 12,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -8.7567,
+        "PnL_R": -105.0803,
+        "PF": 0.0
+      },
+      "sess_london": {
+        "N": 26,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -7.8352,
+        "PnL_R": -203.7161,
+        "PF": 0.0
+      },
+      "sess_overlap": {
+        "N": 25,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -7.7213,
+        "PnL_R": -193.0322,
+        "PF": 0.0
+      },
+      "sess_ny": {
+        "N": 18,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -9.2116,
+        "PnL_R": -165.8092,
+        "PF": 0.0
+      },
+      "sess_late": {
+        "N": 1,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -13.0119,
+        "PnL_R": -13.0119,
+        "PF": 0.0
+      },
+      "dir_BUY_sess_tokyo": {
+        "N": 9,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -9.33,
+        "PnL_R": -83.9697,
+        "PF": 0.0
+      },
+      "bt_error": null,
+      "bars_fetched": 23580,
+      "data_source": "massive-parquet"
+    },
+    "v2_on": {
+      "all": {
+        "N": 60,
+        "wins": 1,
+        "WR": 0.0167,
+        "wilson_lo": 0.0029,
+        "EV_R": -8.7278,
+        "PnL_R": -523.6666,
+        "PF": 0.0026
+      },
+      "dir_BUY": {
+        "N": 43,
+        "wins": 1,
+        "WR": 0.0233,
+        "wilson_lo": 0.0041,
+        "EV_R": -8.6602,
+        "PnL_R": -372.3883,
+        "PF": 0.0037
+      },
+      "dir_SELL": {
+        "N": 17,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -8.8987,
+        "PnL_R": -151.2783,
+        "PF": 0.0
+      },
+      "sess_tokyo": {
+        "N": 10,
+        "wins": 1,
+        "WR": 0.1,
+        "wilson_lo": 0.0179,
+        "EV_R": -8.9583,
+        "PnL_R": -89.5832,
+        "PF": 0.0151
+      },
+      "sess_london": {
+        "N": 19,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -8.7258,
+        "PnL_R": -165.7896,
+        "PF": 0.0
+      },
+      "sess_overlap": {
+        "N": 17,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -8.6181,
+        "PnL_R": -146.5084,
+        "PF": 0.0
+      },
+      "sess_ny": {
+        "N": 14,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": -8.699,
+        "PnL_R": -121.7854,
+        "PF": 0.0
+      },
+      "sess_late": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "wilson_lo": 0.0,
+        "EV_R": 0.0,
+        "PnL_R": 0,
+        "PF": 0.0
+      },
+      "dir_BUY_sess_tokyo": {
+        "N": 6,
+        "wins": 1,
+        "WR": 0.1667,
+        "wilson_lo": 0.0301,
+        "EV_R": -7.8505,
+        "PnL_R": -47.1028,
+        "PF": 0.0283
+      },
+      "bt_error": null,
+      "bars_fetched": 23580,
+      "data_source": "massive-parquet"
+    }
+  },
+  "gate_on": "v2_off_production_default.dir_BUY",
+  "gate": {
+    "checks": {
+      "N>=30": true,
+      "EV_R>0": false,
+      "wilson_lo>BEV_33.7%": false
+    },
+    "verdict": "FAIL"
+  },
+  "elapsed_s": 700.3
+}

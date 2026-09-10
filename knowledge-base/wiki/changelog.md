@@ -1,9 +1,617 @@
 # Changelog — バージョン別変更と評価基準日
 
-## 2026-07-29 — docs(KB): 初 live fill 検証記録 + BE_LOCK §8 per-strategy 追補 (rule:R3 文書化、live 変更なし)
+## 2026-09-10 — research(scan#4): 第4次外部仮説スキャン前倒し + E23 S2 完遂 + rate-anchor 修復 (rule:R3、WIP 原則)
+
+- **第4次スキャン (期日 09-18 を 8 日前倒し、WIP 原則 — 能動測定ライン 08-19 以降ゼロ)**: [[research/external-hypothesis-scan-round4-2026-09-10]]。**family A/B/C 統合裁定**: family A (MoF 発言ラダー→介入確率) **採用 = 台帳 #27** (explore 枠は敵対的検証→凍結時に消費、registry `family-a-adversarial-freeze-deadline` 09-24。凍結まで発言×介入ラベル joint 計算禁止) / family B (介入イベント→回避/執行) **不採用 park** (公式ラベル四半期ラグ×価格シグネチャ認定禁止で執行 estimand が構造的に組めない + blocks ≤4 + 2026-05 outcome 既公表。再裁定 = #27 verdict + mof-next-episode-reverdict 完了後) / family C 台帳整合のみ (FAIL 不変)。新規候補 E26 (介入情報リリース) C1 棄却 / E27 (CFTC TFF) #16 ban 正面衝突で棄却 / E28 (ML-FX 文献群) C2/C3 棄却 — **新規採用 0、無料×非隣接空間の枯渇を再確認**。**U4 決裁材料** (有償データ feasibility) を §4 に凍結: 購買推奨ゼロ (ロック済み 4 本は金で前倒し不能)、再上程 = U1「継続」+ verdict 到達後に OTC IV 面 → Databento → OIS の優先順
+- **E23 (台帳 #25) 残 item 3 完遂**: testable form DRAFT [[decisions/e23-cb-text-explore-prereg-2026-09-10]] — **Apel–Blix Grimaldi 2012 凍結辞書 primary** (`tools/e23_lexicon_apel_grimaldi.py` 新設 — Riksbank WP 261 原本 PDF から語彙逐語転記: 名詞 11 語幹 + hawk/dove 各 4 形容詞語幹 + unemployment 極性反転、Net Index = (H−D)/(H+D+1)、test pin 8 本)。設計 = ΔNH sign-follow × G4 中銀 (1 中銀 1 文書種) × D1+5 pooled bp、explore 2014-2023 / OOS 2024-2026H1、pass-0 census gates、敵対的検証 (自己) 10 条消化。TDW/WCB (CC BY-NC) は E22 §2.1 型事前コミット節で secondary 保留。**イベント×リターン結合統計は未計算 (S2 規律)、LOCK は別 commit、測定は LOCK 後の別タスク**
+- **rate-anchor-daily 修復 (設置以来 17/17 全失敗、rule:R3)**: 二重根因 = (1) FRED fredgraph.csv が GH Actions IP から read timeout 恒常ハング (WAF 型) → `tools/rate_anchor_ingest.py` に home.treasury.gov 公式 CSV fallback (同一値の一次ソース — 08-14 行 4 系列一致を実測) + per-source 隔離 (部分失敗でも成功分を蓄積して終端 raise)、(2) `data/cache/` が gitignore 対象で runner git 2.54+ は tracked でも add 拒否 → `git add -f`。**zn-cache-refresh (4/4 全失敗) も根因 (2) 単独で同時修復** — python step は成功していたのに commit が一度も走らない write-only workflow だった。test pin 6 本追加。恒久データ損失ゼロ (23 日停止のみ、初回 green run で自己修復)。**マージ後 dispatch 検証まで「修復完了」と言わない** (scan#4 §1.1 手順)
+- registry: `edge-supply-scan-monthly` deadline → 2026-10-18 + 第4次実行記録 / 新規 `family-a-adversarial-freeze-deadline` (09-24)。台帳: #25 更新 + #27 新設 + scan#4 triage 節 (family B/E26-E28)
+- **🔒 E23 explore pre-reg LOCK (別 commit、規約)**: 辞書 sha256 = f49586ca... pin + explore 枠 1/3 消費 + registry `e23-explore-verdict-deadline` (09-20) 併設。queue ticket 20260818-e23 を done へ移送 + SLA waiver 削除 (方針どおり scan#4 と同時処理、期日 09-18 を前倒し履行)。測定 (pass-0 census → two-pass) は LOCK 後の別タスク
+## 2026-09-10 — fix(e1): ingest 認証失敗インシデント — backoff + fail-loud + 復旧手順 (rule:R3)
+
+- **P1 進行中インシデント**: Myfxbook 認証失敗 (`Wrong email/password.`) で E1 positioning ingest が 2026-09-10T~07:18Z から停止。最終 verified 06:58:44Z、13 キー全 stale (14:44Z 実測 7.76h)、logins_total=0。§2.5 coverage budget 残 **33.2〜35.2h**、停止継続時の breach 予測 **09-13T23:57Z〜09-14T01:57Z** → 6 primary 全ペア機械除外 → family gate 4 週 postpone (first look 10-15 → ~11-12 = M1 経路 ~4 週遅延)。全会計と復旧手順: [[e1-ingest-outage-2026-09-10]]
+- **lockout 防止 backoff** (`modules/positioning_ingest.py` / `modules/myfxbook_client.py`): 認証失敗 (`is_auth_failure` — session 失効/transport と分類分離、marker SSOT は myfxbook_client) で login リトライを exponential backoff 1800s×2^n・**上限 6h**。連続 4 回で長期 pause を明示ログ宣言 (以後 6h 毎 1 回のみ再試行)。**認証成功で即通常化**。backoff skip 中も heartbeat (`last_cycle_at`) は書き verified:* は書かない — 鮮度検知 (registry / watcher) を殺さない。状態は status API `myfxbook.auth_*` に全露出。live 取引経路 非接触 (demo_trader/oanda_bridge/strategies からの参照ゼロ、全数 grep — positioning は E1 データ収集専用)
+- **fail-loud 化** (`scripts/anomaly_watcher.py`): 7h+ 無言だった経路を解剖 — 既存 10 検知器は `/api/positioning/status` を見ておらず、registry `e1-positioning-ingest-freshness` は daily cron (00:20Z) のみ、Render ログ [positioning] は読み手ゼロ。WATCHED_PATHS に追加し `positioning_auth_failed` (Discord 毎時) / `positioning_stale` (6h バケット) / `positioning_freshness_missing` (記録のみ) を新設 — 検知遅延 ~17h → **~15 分**
+- **テスト**: `tests/test_positioning_ingest.py` +8 本 (**counterfactual pin**: backoff 配線 kill で `test_auth_failure_backoff_counterfactual` が fail / exponential+cap / 長期 pause / 成功即リセット / 非 auth 失敗は backoff しない / no-secrets)、`tests/test_anomaly_watcher_detectors.py` +10 本 (本番実測形状で発火 / estimand 分離 / 読み手 pin = main 配線・通知バケット・event line)
+- registry `e1-positioning-ingest-freshness`: note に incident 台帳追記 + reachability に watcher 先行検知経路を追記
+## 2026-09-10 — fix(watch): trigger 評価の全面クラッシュ耐性検証 + 評価空白 09-06〜09-10 の影響監査 (rule:R3)
+
+- **検証 (最重要)**: 反証レビュー主張「registry 欠損で prereg_trigger_watch 全面クラッシュ、日次評価 09-06 から死亡」は**PR #236 で修復済み**と実測確定 — origin/main で exit 0 / active 40 エントリ全評価 / EVAL_ERROR 0 件。隔離ラッパ・EVAL_ERROR 別箱・registry lint (check.py 第 9 チェック)・counterfactual テスト (欠落 fixture / fault injection / 型網羅 pin) の全てが導入済みのため重複修理はしない
+- **評価空白の影響監査**: [[trigger-watch-gap-audit-2026-09-10|raw/audits/trigger-watch-gap-audit-2026-09-10]] — Tier-A cron 4 run (09-07〜09-10 00:20 UTC) が影響。期日超過・N 到達の見逃しは**ゼロ**。TRIGGERED 2 件: t5-jpy-cap-restore-price (既知・空白起因でない) と **e1-positioning-ingest-freshness (新規・進行中 — 本番 ingest 2026-09-10T06:58Z 停止、全 13 ペア stale 7.9h+、E1 残 coverage budget ~41h への現在進行形の消費)**。E1 復旧は別タスクで追跡。修復後初の cron 配信は 09-11 00:20 UTC のため本監査が修復後最初の読み手
+- **残欠陥の同型修理**: `quant_gate_status.run_quant_readiness()` — `r.stdout or r.stderr` が returncode を見ず、非ゼロ exit + 部分 stdout で stderr traceback を黙殺 / stdout 空で素の traceback が本文として流れる (run_prereg_trigger_watch の 2026-09-08 欠陥と同型)。fail-loud 化 (banner + stderr 末尾 6 行 + 部分本文保持、フェンス内描画のため入れ子フェンス回避) + counterfactual テスト 3 本 (`tests/test_m1_clean_live_monitor.py`)
+## 2026-09-10 — fix(ci): zn-cache-refresh の git add -f 修正 + ZN cache 鮮度 pin — round-4 発火条件の恒久死亡を解消 (rule:R3)
+
+- **実測根因** (gh run log 4/4、run 34124847021 ほか): `zn-cache-refresh.yml` は fetch 成功 (rows 14225→14537、右端 2026-09-04 まで取得) の直後、commit 段の素の `git add data/cache/yield/ZN_F_1h.parquet` が `.gitignore` の `data/cache/` に拒否され exit 1 — **2026-08-17〜09-07 の全 run が取得データを捨てて死亡**。ファイルは track 済みだが git >= 2.5x は ignored dir 配下への素の add を advice + exit 1 で拒否する (ローカル 2.50.1 で再現確認)。放置すると registry `ws3-round4-eur-divergence-conditional` の発火条件 (cache 被覆 2026-11-15+) が永遠に不成立 = E1 FAIL 時の代替供給 1 本が無期限死亡
+- **修理**: `git add -f data/cache/yield/ZN_F_1h.parquet` へ変更 (workflow 内に根因コメント併記)
+- **鮮度 pin (読み手の新設)** — 4 回の赤 run を誰も読んでいなかった (「収集済み ≠ 監視済み」の再演): `scripts/check_zn_cache_freshness.py` 新設 — cache 右端が `ZN_CACHE_MAX_AGE_DAYS = 8` 日 (SSOT: `modules/freshness_policy.py`、較正: 正常時 ≈5.8 日 / refresh 1 回失敗 ≈12.8 日の中間) を超えたら Discord 通知 + exit 1。欠損/空/読取り不能も fail 側に倒す (「無ければ skip」禁止)。読み手 = `weekly-audit.yml` の独立 job `zn-cache-freshness` (週次日曜 02:00 UTC)
+- **counterfactual pin**: `tests/test_zn_cache_freshness_pin.py` 11 本 — `-f` を外す / weekly-audit の配線を消す の双方で red になることを実地確認 (3 fail)、復元で green。閾値較正域 (6〜12 日) も pin
+- **同一ファイル semgrep gate 対応**: weekly-audit.yml の actions を full SHA pin 化 + `github.event.inputs` の run 直接展開を env 経由へ (script injection 防止)
+- **マージ後検証 (push ≠ 完了)**: `gh workflow run zn-cache-refresh.yml` → run green → `git show origin/main:data/cache/yield/ZN_F_1h.parquet` の右端が前進したことを実測 (手順は PR 本文)
+
+## 2026-09-10 — feat(wg): 執行契約 (B) エントリー繰り下げ — halt 決定論 fill 0% の修理 (rule:R1 user 承認 2026-09-10)
+
+- **決裁執行**: [[weekend-gap-execution-contract-r1-packet-2026-09-10]] §4 AMENDMENT (user「進めて」2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap_fade の live fill 0/3 の機構 = エンジン発火 21:01 UTC < OANDA 実開場 21:04-21:05 (48/48 実測) → 旧契約 (即時 FOK 1 回) は MARKET_HALTED cancel が決定論的。**次イベント 2026-09-13 (日) 21:00 UTC が改定後初の検証点**
+- **§4.1 entry 繰り下げ**: `_weekend_gap_tick` (scoped runner) に前置条件 — live 送信は OANDA 実開場確認 (pricing `tradeable`、quote age <10s、poll ≤60s = tick 周期) 後の**最初の評価 tick**へ。HOLD 中は latch を立てず検出継続。新規 read-only `modules/data.fetch_oanda_pricing_state` + 純関数 `weekend_gap_entry_send_decision` (unit-testable)
+- **§4.2/§4.3 放棄境界 (凍結値)**: 初バー ts +15 分超で halt 継続 → latch=`ABANDONED_HALT` / fade 方向 adverse drift (基準 = Sunday open、§5.3 実測と同一定義) > +8.0p → latch=`ABANDONED_DRIFT`。いずれも shadow row は記録 (分母保存)
+- **§4.4 halt-race 限定再送**: bridge `open_trade(halt_race_resend=True)` (wg のみ配線) — tradeable 確認後の FOK が `MARKET_HALTED` cancel (cancel tx を response 内で確認済み) で返った場合のみ 30s 後 1 回だけ FOK 再送 (最大計 2 送信)。他 reason / transport error は従来どおり再送禁止 (`max_attempts=1` 不変)
+- **§4.5 G1 基準保存**: fill slippage 基準 = 「実際に fill した送信 attempt の直前 quote」— 再送時は再送直前の同サイド quote に基準を差し替え (初回 quote 固定だと繰下げドリフト mean +3.15p が G1 に混入し N=6 で恒久誤停止 = packet §3 の案 A 棄却理由)。通常 fill の基準は従来どおり送信時 quote (非回帰 pin あり)
+- **§4.6 観測強化**: 評価ごと `[WEEKEND_GAP][EXEC_B]` ログ (tradeable/quote_age/drift/send_mid) + demo row reasons `[WG_EXEC_B]` 永続化。cap 10.0p 判定は実開場後の実 quote に構造的に移行 (indicative 判定消滅)。`_tick_entry` backstop: tradeable 未確認 sig の live 送信は `weekend_gap_tradeable_unconfirmed` で block (row/latch なし — 冗長エンジン経路の開場前送信も封鎖)
+- **不変更 (絶対)**: シグナル定義・qualify 閾値・cap 10.0p・1000u・4h exit・disaster SL 150p・**G1 (+2.0p)/G2 (−60p)/G3 の全定義と閾値**。BT 側変更なし (live 執行層のみの修理 — estimand コスト mean +3.15p は packet §5.3 織り込み済み、実効 EV ≈ +4.75p/event)
+- registry (同一コミット): `weekend-gap-live-g1-slippage` / `weekend-gap-live-g2-cumloss` / `project-falsification-f2-wg-live-conversion` に AMENDMENT 発効 + live N カウント起点を追記。新規 `weekend-gap-execution-amendment-g0prime` (期日 09-28) — 改定後最初の 2 qualifying イベントの G0' 検証手順 (EXEC_B ログ / 送信時刻 = 実開場 +0〜2 分 / fill or 正当放棄の分類 / slippage 突合 / 再送 ≤2)。**2 連続 fill 不成立 → 執行モダリティ再審 (R1 再起案)**
+- tests: `tests/test_weekend_gap_execution_contract_b.py` **26 本** 新設 — 境界 (tradeable 直後 / +15 分 strictly-after / drift strictly >+8.0p / 符号規約) + **counterfactual kill pin** (繰り下げ配線 kill で 5 tests fail、basis swap kill で 1 test fail を実証) + 再送上限 / fail-closed。既存 29 本は不変 green。`test_preserve_types_tick_entry.py` の wg fixture に runner marker (`_wg_exec_send_ok`) を付与 (backstop 準拠、estimand 不変)
+- KB 同一コミット: 戦略カード §執行仕様 AMENDMENT 註記 + イベントログ / packet Status → APPROVED+実装済み / stage-2 pre-reg §2.2 に置換ポインタ (原文保存)
+## 2026-09-10 — feat(rnb): rnb_support_bounce stage-1 構造的 shadow-only 登録 + R2 auto-demote gate + pre-reg LOCK (rule:R1 user 承認 2026-09-10)
+
+- **158 日 dead mode の解消** — `rnb_support_bounce` を QUALIFIED_TYPES に登録 + MODE_CONFIG `rnb_usdjpy` に `shadow_only: True` (daytrade_audjpy 前例の 3 点 block: 送信ガード最終段 / resend gate / write-path で **OANDA 発注ゼロを構造保証**)。`_UNIVERSAL_SENTINEL` には意図的に非追加 (sentinel = minlot live 経路 — stage-1 では開けない)。決裁: [[rnb-support-bounce-r1-packet-2026-09-10]] §7 (D1 GO / D2 承認 / D3 GO、user「進めて」2026-09-10)
+- **登録は昇格ではない**: 365d BE/Trail-ablated BT は N=126 WR55.6% net EV **+0.04p NS** (p=0.082、2026-03 単月依存)、730d **−2.20p**、Wilson_lo 46.8% < BEV 49.0% = 昇格 gate 不成立 — 正当化は「~3.0 setups/週の無料 shadow N 源」(観測レーンの開通) のみ。BT: `raw/bt-results/rnb-support-bounce-ablated-bt-2026-09-10.md`
+- **🔒 pre-reg LOCK `rnb-support-bounce-shadow-forward` 正式化** (packet §9.1): estimand = 2026-09-10 以降 forward shadow rows (USD_JPY×BUY, closed, dedup_violation=0, 厳格 shadow) の WR / net EV (friction 2.14p)。first look = **shadow N≥41 or 2027-01-15 の早い方** (それまで gate×outcome joint 計算禁止 P-10 / 中間再計算禁止)。採用境界 = Wilson_lo>49.0% ∧ net EV>0 (stage-2 R1 起案)、棄却境界 = Wilson_hi<42.9% (gross BEV)、どちらでもなければ N≥82 で 1 回限り再判定。registry: `rnb-support-bounce-shadow-forward` (shadow_count_decision, prereg_trigger_watch 日次評価) 新設 + `rnb-support-bounce-registration-decision` resolve (期日 10-06 前倒し)
+- **R2 auto-demote gate 併設** (「無条件 emit は EV<0 で汚染源化」教訓): `tools/rnb_shadow_demote_gate.py` 新設 — shadow closed N≥30 (dedup_violation=0) ∧ Wilson_hi<42.9% で exit 1 = `auto_start=False` 化の R2 起案 (read-only、執行は別 PR)。読み手 = `r2-alert-scheduled.yml` (6h 毎) に配線し、配線の存在自体を `tests/test_rnb_shadow_demote_gate.py` が pin (write-only 検知器の再発防止)。P-10 遵守: 採用側 estimand (Wilson_lo / net EV) は first look まで計算・出力しない
+- **テスト**: `tests/test_rnb_shadow_only_registration.py` 新設 (QUALIFIED 化 / shadow_only / sentinel 非追加 pin + worst-case OANDA ゼロ + 帰属証明 control + resend/write-path)、`tests/test_rnb_shadow_demote_gate.py` 新設 (counterfactual 発火/非発火/母集団フィルタ 12 本)、既存 drift pin 3 ファイル更新 (`test_rnb_block_reason_estimand.py` KNOWN_REGISTRATION_DRIFT=空 + BUY→shadow 行 pin / `test_daytrade_audjpy_shadow_only_mode.py` shadow_only 集合 = {daytrade_audjpy, rnb_usdjpy} / `test_preserve_types_tick_entry.py` rnb expect=row)
+- KB: strategy card [[rnb-support-bounce]] 新設 (BT 実測を正直に記載) + [[rnb-usdjpy]] mode カード更新 + sync_kb_index / tier_integrity_check --write
+## 2026-09-10 — fix(w4): bb_squeeze v2 の live 呼び出し規約 3 層配線落ちを修復 — 127 日沈黙の解消 (rule:R3)
+
+- **経緯**: registry `roster-e2-silent-promoted-cells` の判別 ([[e2-silent-cells-triage-2026-09-10]]、PR #235) で bb_squeeze_breakout×EUR_USD (BUY/SELL) が「配線落ち」と確定 (意図的無効の決裁は不在)。commit 942e3800 (2026-05-06 w4 v2 化) 以降 127 日間、_PAIR_PROMOTED 現役掲載のまま LIVE/shadow 行ゼロ。user「進めて」(2026-09-10) で R3 修復を執行
+- **層① live 恒久 None を修復** (`strategies/scalp/squeeze.py`): `_evaluate_v2` の hard-guard `not backtest_mode and bar_time is None → return None` は、live 呼び出し規約 (demo_trader._tick → `compute_fn(df, tf, sr, symbol)` = bar_time 常に None) で評価器を構造的に殺していた。同 wave の xs_momentum idiom (`bar_time or df.index[-1]`) に置換。評価本体は closed signal bar (`iloc[-2]`/`index[-2]`) のみ参照のため **BT (backtest_mode=True, 旧 guard 非適用) との評価 parity は不変** — 同一 df で live 規約と BT 規約の出力一致をテストで pin
+- **層② ✅ 欠落を修復**: v2 reasons に ✅ が 1 つもなく、発火しても QUALIFIED gate `no_confirm:bb_squeeze_breakout` (demo_trader.py) で live/shadow とも死んでいた。BUY/SELL の第 1 reason に ✅ 付与。BT 側 `SCALP_BT_QUALIFIED` gate (app.py run_scalp_backtest) も同一述語 `"✅" in r` のため **BT/本番が同時に同じ向きへ直る** (parity 維持)
+- **層③ loser-shadow 不達は層①で到達回復**: `split_shadow_always` の 2-lever 配線 (SQUEEZE_REDESIGN_V2 + _SHADOW_PROMOTE) は既存 — 評価器 None で候補が永遠に来なかっただけ。live 規約で生成した候補が score 敗北時に shadow promote へ届くことを end-to-end で pin
+- 🛑 **live 送信挙動は変えない — `SQUEEZE_V2_LIVE_HOLD` 新設** (`modules/demo_trader.py`、default=1): 修復単体だと winner 経路が _PAIR_PROMOTED×EUR_USD (2026-05-07 volume emergency 登録、根拠 shadow N=14 EV=+0.01 のみ) 経由で「一度も行使されたことのない live OANDA 送信」を開く — _PAIR_PROMOTED は spread_gate / spread_sl_gate / Phase0 SHADOW gate 免除で、GRAIL/C1/EDGE_CELLS/PRIME/kalman いずれにも bb_squeeze は不在のため **hold が唯一の deciding gate** (counterfactual テストで hold=0 → bridge.open_trade 発生を実測)。v2 wave の設計意図は shadow 実測 (verdict INSUFFICIENT_BT_EVIDENCE → RECOMMEND_SHADOW) であり live 化 R1 は未了 → v2 有効時は winner も shadow 固定。解除は fresh shadow N≥30 の R1 決裁後に env "0"。SQUEEZE_REDESIGN_V2 無効 (v1) 時は hold 不適用 = 挙動変更 scope を v2 に限定
+- **テスト**: `tests/test_squeeze_shadow_redesign_v2.py` 旧 pin `test_v2_live_without_bar_time_is_blocked` (壊れた挙動の pin) を修復 pin に反転 + parity/✅/loser-shadow の 3 本追加 (計 10 本)、`tests/test_bb_squeeze_v2_live_hold.py` 新設 4 本 (real _tick_entry 駆動、preserve-types パターン)。**counterfactual 5/5 実地確認** (squeeze.py revert → 4 fail / hold revert → 1 fail、既存 pin は green 維持)。全体 3152 passed
+- **BT 検証について (rule:R3 例外の明示)**: 本修復は数学/コード導出による構造バグ修正で 365d BT は skip (Rule 3)。挙動追加は shadow 行の発生のみで実弾リスクゼロ (hold で構造保証)。EUR_USD の エッジ有無は修復後の fresh shadow N で判定する — 旧 shadow N=14 EV=+0.01 / 5d shadow EV=-3.05 は v1 評価器由来で v2 の根拠に引用不可
+- registry `roster-e2-silent-promoted-cells`: bb_squeeze 2 セル = 修復実施を追記 (ema200×USD_JPY×SELL / SRM×GBP_USD×BUY は PR #235 で E1 = シグナル未発生に再分類済み)。読み手 `tools/live_roster_attrition.py` の E2_SILENT 解消は修復デプロイ後の行発生で確認
+- 決裁: [[e2-silent-cells-triage-2026-09-10]] §2.4 R3 修復案 / 戦略カード: [[bb-squeeze-breakout]]
+
+## 2026-09-10 — fix(process): PR #227 救済 — レビューゲート二重実装の統合とインシデント記録の保全 (rule:R3)
+
+- **経緯**: メタ監査 R2 (マージゲート) を 2 セッションが独立実装し、PR #231 版が main へ先着。座礁した PR #227 (18 巡レビュー済み・CONFLICTING) から**固有価値のみ**を origin/main 起点の救済ブランチへ移植した。ゲート実装自体は #231 版 (`tools/pr_review_gate.py`) を正とし、#227 版 (GraphQL threads / P0 fail-closed / ページング / HEAD_UNREVIEWED) は**移植見送り** — 記録は決裁文書に原文保存し採用可否は別途判断
+- **インシデント記録の保全**: [[pr-review-gate-2026-09-08]] 新設 — 「独立レビューは 5.5 ヶ月 write-only」の定量確認 (finding を持つ 35 PR の解決済みスレッド 0 件 / review→merge 中央値 2.8 分) と、**未読 P1 が prereg 監視器を 51 エントリ 2 日間止めていた**実害の一次記録。冒頭に救済経緯を追記済み。[[process-meta-audit-2026-09-07]] R2 行へ執行済みマークを追記
+- 🛑 **main の registry は依然壊れたままだった** — `roster-e2-silent-promoted-cells` は `artifact_presence` を名乗りながら `requirements` を欠き、`evaluate_trigger` が KeyError → **本日時点の main でも daily trigger watch は全滅停止し続けていた** (PR #226 で混入、2026-09-06)。`conditional_info` へ型修復 (estimand は成果物着地でなく期日までの判別作業)
+- **監視器の恒久堅牢化** (`tools/prereg_trigger_watch.py`、#227 の 18 巡分を一括移植): (a) `evaluate_trigger` 隔離ラッパ — 壊れたエントリは自分だけ `EVAL_ERROR` を名乗り残りは通常評価、(b) `STATE_ERROR` を `DATA_UNAVAILABLE` と別箱化 + `main()` exit 2、(c) `load_registry_raw` — root 台帳の欠落/綴り違い/空を「空の台帳」に畳まず RuntimeError、(d) **registry authoring lint** (`lint_schema` + `lint_registry`) — type 別必須/任意フィールドの reject-by-default、値の型/下限/日付正準形/enum/形 (instrument `CCY_CCY`、endpoint 絶対パス)、`mode` は `MODE_CONFIG` から AST 導出 (手写し禁止)、コレクション要素と入れ子 spec まで 3 層検査。`shadow_count_info` の instrument/direction 未配線 (allowlist にあるのに評価器へ渡らず全ペア計上) も修復
+- **`scripts/check.py` に第 9 チェック追加**: `check_prereg_registry_schema()` — registry lint を CI で強制、**検査不能は skip でなく ERROR** (write-only guard の再発防止)
+- **`tools/quant_gate_status.py`**: (a) `run_prereg_trigger_watch()` の returncode 検査 — 監視器の故障を「異常なし」と区別 (exit 2 では stdout を捨てない — 壊れた 1 件が他の TRIGGERED を隠さない)、(b) 監視器故障 banner (`WATCH_ALERT_MARK`) と **TRIGGERED 節を M1 より前方へ** — Discord 第 1 メッセージの 1900 字枠内に「要行動」が必ず入る (行 220 字 + 節 700 字の総量予算、溢れ件数は明示告知)。main 側 `_discord_chunks` (4 通分割) と相補
+- **registry 追加**: `roster-attrition-88pct-estimand-audit` (resolved — PR #230 が 12 日前倒しで執行済み、旧 D 解釈は棄却) / `registry-lint-declaration-generation` (期日 2026-12-31 — lint 手写しの恒久解 = 評価器側から検査宣言を生成、estimand 宣言表の適用先)
+- テスト: `tests/test_prereg_trigger_watch.py` +846 行 (lint 全 family + 隔離 + counterfactual)、`tests/test_m1_clean_live_monitor.py` +11 本 (returncode / banner 前方 / TRIGGERED 総量予算)。**`tests/test_pr_review_gate.py` は #231 実装のインターフェース (`evaluate(pr)->(code,msg)`、exit 0/2/3/4) に適合させて新規作成** — #227 版テスト (GraphQL 前提 10+ 本) の盲目移植はせず、#231 版が提供する性質のみ pin
+- **見送り (理由付き)**: #227 版 `tools/pr_review_gate.py` 実装 (main 版と二重実装になる)、CLAUDE.md のゲート節書き換え (#231 版が既に存在 — 「push 後は `@codex review` が必要」の運用注意 1 行のみ追加)、`hunt_events/2026-09-10.jsonl` (#230 と add/add 衝突を再生産するため — データは #227 ブランチに残存)、session log 2 本 (指定救済リスト外・hot file、価値の本体は決裁文書へ保全済み)
+- 決裁: [[pr-review-gate-2026-09-08]] / 親: [[process-meta-audit-2026-09-07]] §4.2 R2
+## 2026-09-10 — audit(estimand): D クラス「本来出てはいけなかった発火」を棄却 — 15 セル中 1 セルだった (rule:R3)
+
+- 🛑 **旧 `D_NEVER_PROMOTED` の解釈は反証された** — registry `roster-attrition-88pct-estimand-audit` (期日 09-22) の執行。出所は **PR #226 の Codex P1 finding #2** (レビュー到着直後にマージされ未読だった 2 件の 1 件)。指摘どおり判定根拠は「**現在**の昇格集合に不在」だけで、当時の昇格状態を何も測っていなかった
+- **実測: D 15 セルの clean LIVE 約定 28 件は全て 2026-04-02〜04-14T02:54Z に閉じている** — Phase-0 三層化 (`_SHADOW_MODE` + `_ELITE_LIVE` + Phase0 tier gate、commit `293165ef` **2026-04-14T08:16:58Z**) の**導入前**。gate 前の `_is_promoted()` は既定 `return True` = **OANDA 送信 allow-by-default** で、2026-04-03 の `8a42d776` は commit message 自体が "temp: disable OANDA strategy promotion filter — send all entries to OANDA" だった ⇒ 昇格集合に無いセルの LIVE 約定は**異常ではなく設計状態**
+- **約定 1 件ごとの verdict: 正当 26 / 違反 2** (セル単位 14 / 1)。違反は `dual_sr_bounce × USD_JPY × BUY` の 2 約定 (04-13T13:01Z / 16:01Z、当時 `_FORCE_DEMOTED` 在籍) のみ。⚠️ limitation = `get_strategy_mode()` の手動 override はランタイム DB 状態で再構成不能 → ILLEGIT は条件付き、**LEGIT 側は override の有無に不感なので結論の向きは非対称に安全**
+- **クラス別 gate 前後分解で欠陥が D に局在することを確認** — B は 48/83 セルが gate 後も発火 (列挙済み降格機構で実際に止まっている = 帰属妥当)、D は **15/15 が gate 前のみ**で完全分離。B/C/E は「**今**なにが止めているか」= 現在形の問いなので現在の集合を読むのが正しい estimand、**D だけが過去形の主張を運んでいた**
+- **引用可否**: 「帰属済み 88.7%」は**引用可・数値不変** (帰属先の機構が変わるだけ = 列挙外だった第 5 の停止機構 = tier 設計変更) / 「停止済み 83 セル N=609 −469.8p」も引用可 / **「D は本来出てはいけなかった発火」は引用禁止** / 「M3 の分子外」は根拠が政策判断へ変わる (経済的には N=28 −26.2p で無視可能、~14 ヶ月 ETA と [[friction-adjusted-ev-map-2026-07-07]] の結論は不変)
+- **分類器が見ていない当時の LIVE 資格集合を列挙** — `_ELITE_LIVE` (現 HEAD に**消滅**) / `_GRAIL_CANDIDATES` / `_C1_PROMOTE_CANDIDATES` / PRIME tier A/B (`modules/prime_gate.py`) / `_SCALP_SENTINEL`。`load_stop_sets()` は `_PAIR_PROMOTED` と `_UNIVERSAL_SENTINEL` の 2 本しか読んでいない
+- **是正**: `D_NEVER_PROMOTED` → **`D_NOT_LIVE_ELIGIBLE_NOW`** (クラス名が過去形の主張を運ばないように / 旧称復活は pin で防止) + subclass `D1_PRE_TIER_GATE` / `D2_POST_TIER_GATE` 新設 + docstring に棄却と導線。読み手 `tools/roster_d_class_estimand_audit.py` 新設 (約定 1 件ごとに当時デプロイされていた commit を `origin/main` first-parent から特定し `_FORCE_DEMOTED`/`_PAIR_DEMOTED` を AST で読む)
+- 🛑 **監査ツールの実装中に自分で同型の欠陥を作りかけた** — `demote_sets_at` が「読めたが集合が無い」を `None` (= 読めなかった) に折り畳み、5 約定が UNRESOLVED に化けていた (2026-08-30 の `fetch_json` blind と同型)。**合成 cache を注入するテストは関数を迂回して検出できない → 契約は関数で pin する**
+- テスト: `tests/test_roster_d_class_estimand_audit.py` **11 本** 新設 (定数一致 / gate commit の実在と親 commit に gate が無いこと / 逆方向 (gate 前でも降格中なら違反) / 折り畳み禁止の契約 pin / D subclass 分岐 / 旧称復活防止)。**counterfactual 3/3** が所望のテストのみを落とすことを確認 (折り畳み復活 / 定数不一致 / 降格集合を読まない)
+- 教訓: **現在形の集合で過去形の主張をするな。クラス名は estimand を運ぶ** — `D_NEVER_PROMOTED` という名前自体が、根拠より強い主張を毎回の readout で再生産していた
+- 🛑 **同日 PR #230 レビューで自分の監査に P1 2 件 + P2 1 件**。(a) **降格集合の不在から昇格方針を推論していた** — 04-02 の発火は `_is_promoted` が**そもそも存在しない**時期 (OANDA ミラーが無条件) で、根拠が別物だった。`promotion_policy_at()` を新設し `_is_promoted()` の既定を AST 分類 (`NO_GATE`/`ALL_SEND`/`ALLOW_BY_DEFAULT`/`DENY_BY_DEFAULT`/`UNKNOWN`、`UNKNOWN` は許可側でなく UNRESOLVED へ)。実測方針内訳 = ALLOW_BY_DEFAULT 23 / ALL_SEND 3 / NO_GATE 2。(b) **「LEGIT 側は override に不感」は誤り** — `_is_promoted()` は既定 return より**手前**で `get_strategy_mode()=="off"` と `_promoted_types` の `status=="demoted"` を見るので**ブロック方向**の再構成不能な自由度がある。verdict 名に条件性を埋め (`PERMITTED_STATIC_RUNTIME_UNKNOWN`)、無条件に確定するのは `PERMITTED_NO_GATE` / `PERMITTED_ALL_SEND` の 2 つだけと明示。(c) **D2 を `attributed_share` の分子に数えていた** — `--anchor` を gate 後に動かすと「定義上要説明」の D2 が share を黙って膨らませる → D1 のみ計上 (既定 anchor では D=15/15 が D1 なので **88.7% は不変**)
+- **改訂後の verdict**: 無条件に許可と確定 **5 約定** / 条件付き **21** / 静的方針に反する **2** (セル単位 4 / 11 / 1)。旧解釈の棄却は変わらない (根拠そのものが誤りだったため) が、初版の「26/28 は正当」は言い過ぎだった
+- 教訓 (追加): **「不在」から方針を推論するな** — 降格集合が無いことは「その 2 定数が無かった」しか示さない (2026-08-31 の「組み立てた URL の 404 は不在の証拠ではない」と同型)。**限界は verdict 名に書け** — 「LEGIT」は無条件の含意を運ぶので、引用する側が限界を落とせる
+- テスト: 11 → **16 本** (方針 3 形の判別 / 条件性の pin / deny-by-default を許可と呼ばない / UNKNOWN が UNRESOLVED へ流れる / D2 除外)。counterfactual **3/3** (方針を不在から推論 / 条件付きを無条件扱い / D2 を帰属済みに数える)
+- **PR #230 レビュー 2 巡目 (P2 2 件)**: (a) **`demote_sets_at` が個別代入の解析失敗を `continue` で飛ばしていた** — 部分的にしか読めていない降格集合を「完全に読めた」として扱い、在籍していたセルを PERMITTED 側へ落とす。1 つでも読めなければ `None` (= 再構成不能) を返す **fail closed** へ。(b) 🛑 **撤回した「26/28 約定は正当」が `live_roster_attrition.py` の docstring に残っていた** — 引用可否を KB に書いても、**ツールの docstring は readout の一部**なので毎回の readout で再生産される。撤回を明記した記述に差し替え、**「撤回済み主張が readout に残っていないこと」を CI で pin** (`26/28` に触れるなら「撤回」の語を必須にする性質 pin)。教訓: **主張を撤回したら、その主張を運んでいる全ての readout 面 (docstring / markdown / MEMORY) を同じコミットで洗う**
+- テスト: 16 → **18 本**。counterfactual 2/2
+- **CI 修理 (座礁救済、3 巡目)**: `test` job の checkout が shallow (fetch-depth 既定 1) のため、実 git 履歴 (gate commit `293165ef` / 全送信期 `8a42d776` / `origin/main` first-parent) を読む pin テスト群が **CI でのみ** fail していた (ローカル full clone は 38/38 pass)。`ci.yml` test job に `fetch-depth: 0` を追加 (hip1-holdout-guard job は既に 0 で前例あり)。assertion message に「定数の誤り vs shallow clone」の区別導線を追記 — 「歴史が読めない」を「定数が誤り」に折り畳まない
+- 分析: [[roster-d-class-estimand-audit-2026-09-10]] / 改定対象: [[live-roster-attrition-2026-09-06]] §2.1
+
+## 2026-09-10 — docs(packet): rnb R1 パケット起案 + E2_SILENT 4 セル判別 (rule:R3)
+
+- **rnb_support_bounce 登録 R1 パケット起案** ([[rnb-support-bounce-r1-packet-2026-09-10]]、meta 監査 R4.2-R1(a) の前倒し) — **365d BE/Trail-ablated BT を初実施: N=126 WR 55.6% net EV +0.04p (≈0、p=0.082 NS)、730d は −2.20p、2026-03 単月 +160.9p 依存 ⇒ live 昇格根拠なし**。提案は stage-1 構造的 shadow-only 登録 (`shadow_only: True`、daytrade_audjpy 前例) に限定 + R2 auto demote gate 併設 + pre-reg LOCK 草案 (first look N≥41 or 2027-01-15)。user 決裁欄 D1-D3。BT: `raw/bt-results/rnb-support-bounce-ablated-bt-2026-09-10.md`
+- **live 実測頻度の中間読みは無情報と判明** — 現 counter 窓 (09-09 23:28 再デプロイ以降 736 tick) は active hours (UTC 7-20) を 1 分も含まず `unknown_type:rnb_support_bounce`=0 は設計整合。**09-05 以降に active hours を含んだ counter 窓 2 本 (計 ~39h) は snapshot されずに再起動で消滅** — 期日 10-06 判定には UTC 19:5x の block-counts pull 手順 (packet §2.3) が必要
+- 🛑 **E2_SILENT 4 セル判別 ([[e2-silent-cells-triage-2026-09-10]]): registry 前提「05-06 以降 4 セル行ゼロ」は本番 DB 実測で 2/4 が偽** — ema200×USD_JPY×SELL は 19 行 (〜08-05)、SRM×GBP_USD は 51 行 (〜08-31) が実在。attrition tool の 30d 窓を「05-06 以降ゼロ」と読み替えた**窓天井の再発** (クラス名が estimand を運んだ)
+- 🛑 **真の沈黙は bb_squeeze_breakout×EUR_USD の 2 セルのみ = 配線落ち 3 層** (commit `942e3800` 2026-05-06、最終行と rollout が分単位で一致): (1) v2 評価器が live 呼び出し規約 (bar_time=None) で**構造的 None** — 「shadow で実測する」目的の v2 が実測経路で恒久沈黙、(2) v2 reasons に ✅ 欠落 → 仮に発火しても `no_confirm` gate で死ぬ、(3) loser-shadow 経路は評価器 None で不達。「意図的無効」の決裁は存在せず _PAIR_PROMOTED 現役掲載のまま 127 日
+- ema200/SRM の頻度低下は **PR #168 (08-09 ctx.hour_utc 凍結修復) で session gate が 123 日ぶりに実効化した帰結** (意図された設計) + SELL は USD_JPY 上昇 regime で条件不成立 — E1 (supply present) へ再分類を提案
+- 観測基盤の欠陥 2 件を起票提案: `/api/demo/live-enable-flags` が REDESIGN_V2 系 ~40 lever を返さず registry の判別手順が実行不能だった / attrition tool に全期間 `last_row_at` が無く「いつから沈黙か」に答えられない
+- registry 変更提案 (執行せず): `rnb-support-bounce-registration-decision` へ packet 参照追記 / `roster-e2-silent-promoted-cells` の E2 実体を bb_squeeze 2 セルへ訂正
+
+## 2026-09-10 — feat(kpi): M1 強定義 readout + M3 二定義分離 (rule:R3)
+
+- 🛑 **meta-audit R4(a)/(b) 修復 (user 承認 2026-09-10)** — M1 弱定義 (30d rolling 符号) は新規約定ゼロの機械的反転で「達成」表示になる縮退 KPI で、承認済み強定義が 59 日未実装だった。`tools/m1_clean_live_monitor.py` に `--strong` を追加し、**弱定義 readout は無変更のまま** M1_STRONG + M3a/M3b を追記
+- **M1_STRONG は文書 2 系統の定義を両方実装** — セル定義 (rederivation §4 系: clean live 累積 N≥30 ∧ EV≥+1.0p/t ∧ Wilson95下限>0、達成=該当セル≥1) / book 定義 (m1-kpi §8 案: sum>0 ∧ bootstrap P(sum≤0)<0.05) / FULL (両方)。**文書間矛盾 4 件** (資格母集団 / EV 閾値 +1.0 vs >0 / Wilson「>0」は win-rate 解釈で非拘束 / M3b 目標 +0.5% vs +2〜3%) は毎日出力に明示 — 裁定は user
+- **M3 を M3a (throughput: 累積 N≥30 セル数/3、線形外挿 ETA 付き) と M3b (return: 正EVセルの 30d 寄与、pips 一次 + JPY/%NAV 推定レイヤ) に分離**。M3a は累積/稼働の二母集団を分けて出力 (休眠 legacy セル `bb_rsi_reversion×USD_JPY` ×2 が累積 N≥30 に混じる — 09-04「0 個」は稼働側の読み)
+- **2026-09-10 実測**: M1 弱 = 🔴 NOT_MET (N=17 / −85.0p / P(sum≤0)=0.817、09-04 +19.8p から **MECHANICAL_FLIP で再反転** — 勝ち +92.7p の窓外脱落が主因)。**M1_STRONG 全変種 未達** (セル 0 / literal 1 = 休眠 bb_rsi SELL / book NOT_MET)。M3a **2/3 (稼働 0)**、3 本目 ETA 2026-10-26 (carry_dip)。M3b **−0.075%/月** vs +0.5% = 線形外挿で到達不能
+- **読み手を同一コミットで配線** — Tier A cron (`render.yaml` `fx-ai-tier-a-gate-status`) を `--strong` 込みへ更新、`tools/quant_gate_status.py` が pass-through。Discord 送信は 1900 字 hard-cut 単発 → **セクション境界で最大 4 分割**へ (strong 追加で Readiness / prereg watch が毎日切り落とされる副作用の除去)
+- テスト: `tests/test_m1_strong_and_m3.py` **25 本** (N=29/30 境界 / EV 0.99/1.00 境界 / Wilson 下限 0 跨ぎ / flip 分解の恒等式 sum_added−sum_aged=sum_now−sum_prev / cron 配線 pin / Discord 分割)。全 suite **3,026 passed** / `check.py` 9/9
+- 分析: [[m1-strong-definition-implementation-2026-09-10]] / roadmap KPI 表の反映は user 裁定後 (本コミットでは提案節のみ)
+
+## 2026-09-10 — feat(quality): estimand 宣言表 + 配線チェッカー — 検知器の「名乗る量」を台帳化 (rule:R3)
+
+- **メタ監査 §4.2 R3 の執行** ([[process-meta-audit-2026-09-07]]、user 承認 09-10): 監視バグ潜伏中央値 124 日・QA 起点発見 0/8 の根因 = estimand 混同 (PR #221/#224/#207/#209/#228 が同型) に対し、検知器の estimand を 1 ファイルに外部化した
+- **宣言表**: `monitoring/estimand_declarations.yml` — 本番監視 **14 系列** (engine_tick_stall / candidate_stagnation / trade_row_freshness / live_n_stagnation / live_fill_stagnation / db_write_probe / disk_capacity / api_reachability / m1_clean_live_kpi / prereg_trigger_watch / shadow_promote_r2_alert / live_roster_attrition / trade_monitor_activity / demo_trader_watchdog) について claims (名乗る量) / population (母集団) / clock (wall|market_open) / threshold_source (SSOT) / reader (読み手) / counterfactual_test を宣言。**全宣言はコード読解で確認済み — 推測記載ゼロ** (推測で書くこと自体が estimand 混同)
+- **チェッカー**: `tools/estimand_declaration_check.py` — schema 検証 + reader/threshold_source/detector の **grep レベル配線検証** (ファイル実在 + 宣言文字列の参照)。counterfactual 不在は WARN (exit 0)、`--strict` で exit 1。PyYAML 依存を避け厳格サブセットを自前パース (逸脱は ParseError — 黙って読み飛ばさない)。モジュールトップ副作用ゼロ
+- **チェッカー自体の counterfactual**: `tests/test_estimand_declarations.py` 13 本 — reader を偽パス化 / 参照文字列を偽トークン化 / counterfactual_test を偽パス化 / 閾値シンボル改名 / clock 値域外 / typo フィールド、の各 fixture で checker が ERROR を出すことを pin (「検査を書いたら検査対象を壊して落ちることを確認」)。実宣言表の配線整合も CI で常時 pin
+- **既知の負債を可視化**: counterfactual 不在 **8 系列** (candidate_stagnation / db_write_probe / disk_capacity / prereg_trigger_watch / shadow_promote_r2_alert / live_roster_attrition / trade_monitor_activity / demo_trader_watchdog) + 自動読み手なし 1 系列 (live_roster_attrition = ON_DEMAND)。返済計画は [[estimand-declaration-system-2026-09-10]] §5 — 全返済後に `--strict` を CI 既定へ
+- **修理 PR 3 フィールド規約**: `.github/pull_request_template.md` 新設 — bugfix PR に「混入日 / 発見日 / 発見手段」欄 (欠陥税の継続測定用、bugfix 以外は N/A) + 検知器追加時のチェックリスト (宣言 + reader + counterfactual test を同一コミット)
+- **本番挙動変更ゼロ** (新規ファイル + テンプレのみ、既存 .py 非接触)。`scripts/check.py` への組込みは提案のみ (analyses §6、親セッションが別途実施)
+- 分析: [[estimand-declaration-system-2026-09-10]]
+
+## 2026-09-06 — diag(monitoring): LIVE 発火セル 124→3 の帰属 — 88.7% は設計通り、11.3% は帰属不能 (rule:R3)
+
+- 🛑 **09-04 が M3 スループットを「独立ボトルネック」へ昇格させた際の帰属 (「7-8 月の R2 降格バッチ = 設計通り」) は検証されていなかった** — どのセルがどの停止機構で消えたかを機械的に突き合わせた主体が存在しなかった。本コミットで読み手を新設し突合した
+- **結果: 帰属済み 88.7%** — anchor 窓 (2026-05-01 終端 30d) の LIVE 発火 **124 セル**の内訳は `B_LIVE_STOPPED` **83** (`_FORCE_DEMOTED`/`_PAIR_DEMOTED`/`HTF_MIXED_LIVE_STOP_CELLS`) / `C_SHADOW_DEMOTED` **12** / `D_NEVER_PROMOTED` **15** / `E_PROMOTED_UNATTRIBUTED` **14**。窓系列は 09-04 の正準値を完全再現 (124/24/26/11/4/3) した上で分解
+- 🛑 **止血は損失の圧倒的部分を除去していた** — 停止済み 83 セルは anchor 窓で **N=609 / −469.8 pips**。一方 E の 14 セルは N=34 / −25.1p と小さい。**分母縮小の代償は主に「負け」だった**
+- 🛑 **D_NEVER_PROMOTED 15 セルは「失われた機会」ではない** — 昇格集合 (`_PAIR_PROMOTED` ∪ `_UNIVERSAL_SENTINEL`) に**一度も**入っていないのに 2026-04〜05 に LIVE 約定を出していた = 既知の昇格バグ期 (watchdog DECREMENT 再武装 / preserve 型) の残響で、**本来出てはいけなかった発火**。M3 の分子に数えてはならない
+- **E は「バグ」ではなく「未帰属」** — CLAUDE.md 原則 3 により LIVE 転送側の winning-location フィルタは**意図的に維持**されるので、昇格済みセルが LIVE ゼロであること自体は正常でありうる。E が閉じないのは **セル単位で「昇格候補が LIVE 約定に至らなかった理由」を永続化する系列が無い**ため (`block_counts` はモード × family 粒度、かつ市場オープン時間しか積み上がらない) = **読み手の粒度不足**であって新種の欠陥ではない
+- **E2_SILENT 4 セルは rnb 型シグネチャ** — `bb_squeeze_breakout × EUR_USD` (BUY/SELL) は `_PAIR_PROMOTED` 登録かつ `wiki/index.md` Current Portfolio に現役掲載だが**全行の最終出力が 2026-05-06 = 123 日前**。ただし scalp 側経路は env フラグ依存 (`SQUEEZE_REDESIGN_V2` ∧ `..._SHADOW_PROMOTE`) なので「意図的に無効」と「配線落ち」は **`/api/demo/live-enable-flags` の実測まで区別不能** — 断定しない
+- 🛑 **09-04 の含意 3 を部分的に否定** — E1 10 セルが候補行を**転換率 100%** で LIVE 化したと仮定した上限でも、それは原則 3 のフィルタを全部外すことと同義で v2.3 の M6 ゲート (摩擦調整 EV>0) に正面から反し、[[friction-adjusted-ev-map-2026-07-07]] の「live viable な正セル不在」を覆さない ⇒ **「発火機会不足」は摩擦調整 EV 不在の帰結であって独立原因ではない**。M3 行の「別の律速」記述の格下げを提案 (user 決裁、分析 §5)。~14 ヶ月 ETA 自体は不変
+- **実装**: `tools/live_roster_attrition.py` (帰属の唯一の再計算主体、markdown / `--json`)。fetch 失敗を空に畳まない (2026-08-30 監視 blind と同型の予防)。停止機構を足したら `load_stop_sets` と pin を同時に直す旨をコード内に明記
+- テスト: `tests/test_live_roster_attrition.py` **20 本** (分類優先順位 / 分母 / estimand / 窓境界 / fetch 非畳み込み)。**counterfactual 3/3 が所望のテストだけを落とす**ことを確認 (停止集合を読まない / 停止集合が空 / fetch 失敗を `[]` に畳む)、初回素通りゼロ
+- registry: `roster-e2-silent-promoted-cells` (2026-10-06、到達経路 = env 実値確認 → 配線落ちなら R3・無効化解除は R1) を新設
+- 分析: [[live-roster-attrition-2026-09-06]] / roadmap: [[roadmap-v2.3-payoff-friction-repair]] KPI 表 M3 行
+
+## 2026-09-05 — fix(monitoring): rnb_usdjpy の block カウンタ estimand 分離 + 153 日 dead mode の検出 (rule:R3)
+
+- 🛑 **監視ログ最古の un-actioned 🔴 (`rnb_usdjpy:direction_filter` の 8 回連続 escalation、2026-08-26→09-04) をクローズ。仮説「compute_rnb_signal の WAIT-path バグ」は外れで、実体は独立した 2 つの構造事実**
+- 🛑 **(A) カウンタが測っていない量を名乗っていた** — `direction_filter` は「方向が逆」と「そもそもシグナルが無い (WAIT)」を同名で数えていた。`direction_filter` を持つ唯一のモード `rnb_usdjpy` の signal_fn (`app.compute_rnb_signal`) は **SELL への return path を構造上持たない** ⇒ このカウンタの中身は **恒久的に 100% が WAIT**、「方向棄却」を一度も測っていなかった。実測 (MASSIVE USD_JPY 15m): **12.8y / 315,623 バーで SELL=0 / BUY 2,225 (0.705%) / WAIT 99.295%**、365d・60d でも SELL は厳密ゼロ。本番では 09-04 に **535/535 = 1.0000**、全システム block 集計の **15.6% (第 4 位 family)** = ダッシュボードの 1/6 が恒久的に無情報だった。副作用で WAIT が `conf<30` に到達せず「`conf<30`=ZERO」という**それ自体が異常に見える観測**を生み仮説を補強していた
+- 🛑 **(B) 153 日間「動いているが 1 行も出せない」モード** — `rnb_support_bounce` は `QUALIFIED_TYPES` (104 型) にも `CONDITIONAL_TYPES` (空) にも**未登録**。`unknown_type` gate は shadow bypass を持たない無条件 gate なので、BUY が出ても **shadow 1 行すら生まれない**。導入コミット `db5e3e4c` (2026-04-05) は MODE_CONFIG / signal_fn / `_1H_PRESERVE_SLTP` / `MAX_HOLD_SEC` の 4 箇所を配線して `QUALIFIED_TYPES` だけ忘れており、`git log -S` はこの 1 コミットのみ = 以後一度も登録されていない。既存テストは事実を正しく記録していたが**意図された設計として pin**しており、異常として上申する読み手がいなかった (M1 KPI と同じ読み手不在型)
+- **修正 (A のみ、挙動不変)**: 同一分岐内で `_block("no_signal" if signal not in ("BUY","SELL") else "direction_filter")` へラベル分離。**制御フロー・発注挙動・shadow 判定は一切不変**、作用域は `direction_filter` を持つ唯一のモード `rnb_usdjpy` に閉じる (作用域自体もテストで pin)
+- **恒久ガード新設**: 全 `auto_start` モード (22) の signal_fn が返す **literal** `entry_type` が `QUALIFIED ∪ CONDITIONAL ∪ BLOCKED` に含まれることを AST で検査。違反は `("rnb_usdjpy","rnb_support_bounce")` の **1 件のみ**で、**既知集合との完全一致 (== / ⊆ ではない)** で assert ⇒ 新規ドリフトも既知ドリフトの解消も必ずテストを落とす。変数経由で entry_type を組む関数からは WAIT sentinel の `"wait"` しか抽出できない = ガードは false positive を出さない保守側に倒れる
+- **B は修正しない (Rule 1 = user 決裁)**: `QUALIFIED_TYPES` 追加は `_UNIVERSAL_SENTINEL` 経由の minlot live 経路にも触れるため無条件 shadow ではない。確定足ベース頻度推定 **3.0/週 (365d) 〜 3.3/週 (12.8y)** は現行最速 live セル `usdjpy_carry_dip_accumulator` (2.10/週) を上回り **M3 スループット (発火機会不足) への寄与候補**だが、採用は BE/Trail ablated 365d BT + Bonferroni + pre-reg LOCK + R2 自動 demote gate 併設が前提。config コメントの `BUY EV=+7.7` は BE/Trail ablation 前の 2026-04-05 BT 由来で**引用不可**
+- **`auto_start: False` 化もしない**: ①このモードは元から 1 行も出せない = 止めるものが無い (原則 1 に抵触しない) ②`_price_history` への USD_JPY 実 Close 供給 (2026-07-06 `PRICE_HISTORY_GUARD` 修正の対象) を壊さない ③下記の予測 3 で live セットアップ頻度が無料で取れる
+- **検証可能な予測 (デプロイ後に答え合わせ)**: (1) `rnb_usdjpy:direction_filter` → 恒久 0 (非ゼロなら構造前提が壊れた合図) (2) `rnb_usdjpy:no_signal` ≈ tick 数 (~2,880/日) (3) `rnb_usdjpy:unknown_type:rnb_support_bounce` が**初めて可視化**され tick の ~0.5-0.7% に出る = RNB live セットアップ頻度の初の直接観測。⚠️ estimand 注意 — 上記推定は**確定足**評価、live は 30 秒ごとに**形成中バー**を評価するので消える一時的 BUY を拾い、実測はより高く・ノイジーになりうる
+- テスト: `tests/test_rnb_block_reason_estimand.py` 7 本 (挙動 pin 3 + 構造 pin 4)。**counterfactual 8/8 が所望のテストだけを落とす**ことを確認 (ラベル巻き戻し / 常時 no_signal / SELL path 追加 / rnb 登録 / 新規未登録型 / 2 つ目の direction_filter モード / 走査の空振り / 抽出器の無力化)、**初回素通りゼロ**。全 suite **2,960 passed** / `check.py` 9/9
+- registry: `rnb-support-bounce-registration-decision` (2026-10-06、到達経路 = 本デプロイで可視化される block family を読む) を新設
+- 分析: [[rnb-dead-mode-and-block-estimand-2026-09-05]] / 教訓: [[lesson-block-counter-unmeasured-estimand-2026-09-05]] / roadmap: [[roadmap-v2.3-payoff-friction-repair]] KPI 表 M3 行
+
+## 2026-09-04 — feat(monitoring): M1 KPI に読み手を新設 — 符号は反転していたが 60 日間誰も見ていなかった (rule:R3)
+
+- 🛑 **roadmap 最重要 KPI である M1 (clean live 30d PnL > 0) を再計算する主体がプロジェクトに存在しなかった**。roadmap の M1 行は 2026-07-06 の手動実測 (N=92 / −242.6p) のまま **60 日凍結**され、その間に KPI は符号を反転していた。`clean_n_tracker` は件数、`daily_live_monitor` は cutoff 累計、`anomaly_watcher` は鮮度 — **どれも M1 を測っていない**。08-31 MoF 教訓「収集経路を足したら読み手を同じコミットで足せ」の一段手前 = **指標自体に読み手が無かった**型
+- 🛑 **2026-09-04 現在 M1 は文言上は達成 (N=15 / +19.8p、6 月以来初のプラス)。しかしそれは成果ではない**: 08-30→09-01 の符号反転は **新規約定ゼロのまま** 2026-07-31 の `price_shock_rev_aud_jpy_h1_long` **−123.2p** が 30 日窓の外へ抜けたことだけで起きた (Δ=+123.2p、新規寄与 0) = **MECHANICAL_FLIP**
+- **符号は統計的に未解決**: bootstrap 95% CI = [−217.6p, +241.2p] (幅は合計値の 23 倍) / P(sum≤0) = **0.426** / 符号検定 p=0.696 / t=0.17。**15 件中 4 件は、その 1 件を抜くだけで符号が消える**
+- 🛑 **M3 スループットが独立ボトルネックに昇格 (roadmap 起票)**: LIVE 発火セル数は **124 セル/30d (2026-05) → 3 セル/30d (現在)**。現行レートでの M3 (clean live N≥30 セル 3 個) 到達は **最短 ~14 ヶ月** (carry_dip 2.3ヶ月 / ps_eur_gbp 6.4ヶ月 / ps_aud_jpy 13.8ヶ月、`weekend_gap_fade`・`kalman_d7` は LIVE 約定通算ゼロ)。**「エッジ不在」ではなく「発火機会不足」** — v2.3 が定義したボトルネックとは別の律速。分母縮小自体は 7-8 月 R2 降格による正しい止血だが、副作用として **M1 は「止めるほど達成しやすい」縮退 KPI** になった
+- **実装**: `tools/m1_clean_live_monitor.py` (M1 の唯一の SSOT 計算主体、verdict 3 状態 `MET`/`MET_UNDERPOWERED`/`NOT_MET` + 符号反転の帰属 + 1 件脆弱性) → `tools/quant_gate_status.py` (日次 Tier A cron UTC 00:20 → Discord) へ配線。**M1 の定義は変えない** — 生の符号に「その符号が雑音と区別できるか」を併記するだけ。定義への統計資格条件付与は user 決裁事項 (analyses §8)
+- **estimand 妥当性**: 新ハーネスで anchor=2026-07-06 を計算すると **N=92 / −242.6p / EV −2.64** = roadmap 記録値と完全一致。⚠️ pip 合計であって口座損益ではない (セル毎に lot が異なる) — M1 の定義由来の限界として明記
+- **設計上の罠 2 件**: (1) `send_discord` は 1900 字で切り詰めるので **M1 を末尾に置くと読み手を足したのに誰にも届かない** → `to_markdown` 先頭に固定し順序をテストで pin (2) bootstrap の seed 未固定だと日次 CI が毎回ぶれて読めない → seed 固定を pin
+- テスト: `tests/test_m1_clean_live_monitor.py` 17 本。**counterfactual 10/10 が所望どおり落ちる**ことを確認 (estimand 4 条件の各削除 / timestamp 破損の「今」扱い / 配線切断 / セクション末尾移動 / MECHANICAL_FLIP 無効化 / verdict 常時 MET / seed 除去)。初回素通りゼロ
+- registry: `m1-sign-flip-durability` (2026-10-06 再読み) / `carry-dip-live-to-shadow-drop-cause` (2026-11-30) を新設、`live-fill-drought-2026-08-26-disposition` は **条件 (a) 成立で RESOLVED** (09-03 に LIVE 約定 2 件発生、転送経路の健全性を再確認)
+- 分析: [[m1-kpi-readout-and-mechanical-flip-2026-09-04]] / roadmap: [[roadmap-v2.3-payoff-friction-repair]] KPI 表 M1/M3 + ボトルネック節
+
+## 2026-09-02 (4) — fix(registry): E1 positioning 鮮度監視の陳腐エントリを機械評価型へ移行 (rule:R3)
+
+- 🛑 **「MYFXBOOK 資格情報は user 投入待ち」という 7 週間陳腐化したブロッカー看板を撤去**: 実際は 2026-07-16 に投入済み・first login 同日・ingest は 13/13 ペアで継続稼働中 (本番 `/api/positioning/status` 実測: logged_in=true / consecutive_failures=0 / stale 12 分)。e1 pre-reg LOCK 時 (07-17) に解消が記録されていたのに、registry `e1-positioning-ingest-freshness` が `conditional_info` 型 (機械評価対象外) のまま「投入待ち」を主張し続け、セッション毎の UNRESOLVED リストに偽ブロッカーとして再生産されていた
+- **是正**: 約束どおり `ingest_freshness` 型へ移行 (`r3-market-data-ingest-freshness` と同型) — 判定 = health `verified:{PAIR}:outlook` 13 キー、閾値 2h (実測 48 日で 2h 超 gap は 1 回のみ = 08-23 Disk 満杯 71.3h 停止、真検知・修復済み PR #205/#206)
+- **first look (10-15) への影響を registry に明記**: 71.3h 停止は評価窓 market-time ~54.6h ≈ **5.7% を消費済み (coverage 予測 94.3% > gate 90%、残 budget ~41h)** — verdict 時に既知 debit として扱う (LOCKED pre-reg 本文は不変更)
+- 教訓の再確認: **conditional_info (機械評価なし) の「条件成立」は誰も検知しない** — 条件が Claude/機械で観測可能になった瞬間に型を移行する (evaluator レベル欠陥 PR #195 と同族の「常時 WATCHING」変種)
+
+## 2026-09-02 (3) — feat(gate): 静的 hour block class exemption — min-lot carve-out 契約群 (rule:R1 🔒 user 承認 2026-09-02)
+
+- **[[hourblock-recal-and-ema200-verdict-2026-09-02]] Study 1 推奨経路の執行** (user 承認 2026-09-02「どちらも進めて」、前例 = sweep gbp_asia 免除 08-03「進めて」)。min-lot carve-out 契約群 (`_STATIC_HOURBLOCK_CLASS_EXEMPT` = `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` **同一実体 alias**、12 戦略) に限り、6 つの静的 hour/session block (EUR_USD Tokyo / Late NY / H7-8 / H11、USD_JPY H13 / H16-20) の live 抑止を免除。**一般母集団への block は全て維持**、regime/方向系 block は不変更、demoted tier は fail-closed で対象外
+- **edge claim ではない**: 根拠 = ①再較正で相対毒性 0/6 (parity、独立窓複製済み) ②class 全員 1000u 固定契約 + binding R2 registry でリスク有界 ③期待効果 +3 イベント/月 (carry_dip 主)。PR #219 の B7/B8 live 層 +EV 観察 (post-hoc N=17/26) は**根拠に不使用** — その裁定は `alpha-scan-b7-b8-livecell-recheck` (11-30) に凍結のまま
+- **R2 rollback を同 PR で機械化**: 免除発火時に `[HOURBLOCK_CLASS_EXEMPT]` marker を reasons へ永続 → registry `hourblock-class-exempt-r2-rollback` (`live_count_decision` に `reasons_marker` フィルタを拡張) が **marker 付き clean live N≥10 ∧ pooled EV<0 で免除撤去**。母集団 = 免除で通過した行のみ (estimand 忠実)。期日 2026-12-01 stale review
+- テスト 10 本: 6 gate 両側 counterfactual (メンバー通過+marker / 非メンバー従来 block) + identity pin (免除クラス=min-lot set、**性質で pin**) + demoted 除外 + 窓外 marker 不付与 + 計数フィルタ。**counterfactual 実測 = class 空集合化で 7/10 fail → 復元 10/10 pass**
+- pre-reg: [[hourblock-class-exemption-prereg-2026-09-02]] (🔒 LOCKED)
+
+## 2026-09-02 (2) — fix(dedup): shadow_emit のプロセス境界 dedup 突破を write-time DB flag で塞ぐ + audit units:0 自己記述化 (rule:R3)
+
+- 🛑 **ema200 forensics ([[hourblock-recal-and-ema200-verdict-2026-09-02]] Study 2) の近接重複 22 ペアの機構を確定**: `_maybe_reserve_signal_emit` の dedup ゲートは **プロセスローカル in-memory 状態**でプロセス境界 (zero-downtime デプロイ重複 / コンテナ置換 / 一時的な第 2 インスタンスが同一 Render Disk SQLite に並走書込み) を越えられない。決め手 = `/api/admin/dedup_status` の counter 矛盾 (単一インスタンスで `shadow_called=1` なのに boot 後 shadow_emit 2 行 = 2 行目は今は存在しない別プロセス由来)。[[lesson-shadow-emit-dedup-2026-04-30]] の restart 消失の**並走版**、dedup 系 5 例目
+- 🛑 **boot 時 backfill の write-time ギャップ**: `_backfill_dedup_violation` は境界越え重複を retroactive に flag するが**起動時のみ**。boot 後に生じた重複は次回起動まで未 flag → **その窓で走った point-in-time 分析が N を水増しして見る** (実例 = 2026-07-31 ema200 quant-eval N=79 PASS は当時未 flag の重複込み。**churn 抑制で起動が稀になるほど盲点が広がる**)
+- **修正**: `demo_db.open_trade` に **write-time の DB 参照 dedup flag** を追加。shadow 行 INSERT 時、同一 (entry_type, instrument, direction) の dv=0 先行行が TF 窓内にあれば新行を `dedup_violation=1`。共有 DB 参照ゆえプロセス境界を越え、write-time ゆえ即時。**行は必ず保持 (挙動不変・データ非破壊、live 送信 `oanda_trade_id != ''` は対象外) — flag のみ変え、quant-eval/R2 audit が既に除外する列を使う**。boot backfill は歴史回収として存続 (相補的)。skip-insert 案は considered-but-rejected (害は測定 N 水増しのみ、live 重複なし → 既存 flag 方式を踏襲)
+- **他戦略への影響 (定量)**: 90d shadow の intra-window 重複 **1,434 行中 1,431 (99.8%) は boot backfill が既に dv=1、未 flag は 3 行 (0.04%)** = **集計 quant-eval への水増しは軽微**。実害は point-in-time 分析に限定 → write-time flag で恒久解消
+- **audit units:0 の自己記述化 (同 PR)**: `_open_shadow_emit_trade` の `_add_oanda_audit` block_reason を `shadow_tracking(shadow_emit_no_lot)` へ。units=0 = ロット未割当のトラッキングマーカーであってサイズ 0 の発注ではない旨をコメント併記。`shadow_tracking` prefix 維持で startswith 依存の guard/tool (drift_guard/breakdown/counterfactual) は互換
+- テスト: `test_shadow_dedup_write_time_flag.py` 3 本 (cross-process flag / TF 窓境界 / 非重複行 anchor、counterfactual = fix 前は dv=0 で fail 確認済み) + audit 自己記述の exact-value 更新 4 本 (shadow_emit_audit/kalman_v18e/sr_audit_pipeline)。`open_trade` に `entry_time` override 追加 (テストが distinct bar を seed するため、production は常に now)。全 2904 passed / check.py 9/9
+- lesson: [[lesson-shadow-emit-dedup-writetime-2026-09-02]] / forensics: [[hourblock-recal-and-ema200-verdict-2026-09-02]] Study 2
+
+## 2026-09-02 (1) — study(recal): v8.9 alpha_scan 静的ブロック 10 件の再較正 — 10/10 PREMISE-INTACT (rule:R3)
+
+- **コード変更ゼロ / 挙動不変。** 2026-04-14 較正 (N=9〜89) の静的ブロック 10 件を、較正と非重複の窓 (2026-04-15〜09-01、clean 11,840 行 = shadow 11,548 / LIVE 292) で再検定 → **全件 PREMISE-INTACT** (新 N=146〜1,404 = 較正の 10〜100 倍、摩擦調整後 EV −2.35〜−4.21、Bonferroni m=10 α=0.005 に対し全て p<1e-4)
+- **2026-09-01 readout の「静的 hour block が NY live を不当に削っている」仮説は全母集団水準で反証**。B8 (H16-20×USD_JPY) は N=675 EV_net −3.26 [−3.85, −2.67] = 正しい防御。live 頻度問題の主因は**セル構成 (6 月世代の R2 demote)** に確定
+- 事前予想 (§5「較正 N が薄い B6/B7/B10 は STALE だろう」) は**外れた**。母集団オーバーラップも 70.0〜93.8% で estimand 不一致仮説自体が否定
+- **post-hoc 観察 (claimable ではない)**: live 転送が現に可能なセルは shadow の 4.0% (462 行) にすぎず、この層では B7/B8 の gross EV が正 (+1.27/+1.09、WR 57.7-64.7%) に反転する。ただし **N=17/26 < 30 かつ post-hoc かつ shadow は BE/Trail 楽観** → **ブロック維持**、次 pre-reg の estimand として registry `alpha-scan-b7-b8-livecell-recheck` (期日 2026-11-30) に登録
+- **妥当性チェック (P0) 自体の設計欠陥を発見・是正**: `_is_live_tier_exempt` は時変なのに現在値の静的集合で pin していた → 違反 104 行は偽陽性。再構成の正しさは engine の読み出し経路との**コード同一性**で確定 (`demo_trader.py:5139` ↔ `demo_db.py:2135-2136`)、違反行は 2026-08 で 0/12 に消滅。教訓: [[lesson-validity-check-pins-proxy-2026-09-02]]
+- **測定ツール自身のバグを境界値テストが初回検出**: B1 の `(_utc_hour(r) or 99)` が hour==0 を falsy 取りこぼし → N 174→241 に是正 (verdict 不変)。counterfactual 3/3 + 実欠陥 1 = **4/4 が所望どおり失敗**
+- pre-reg/verdict: [[alpha-scan-static-block-recalibration-prereg-2026-09-02]] / 数値: `raw/bt-results/alpha-scan-block-recalibration-2026-09-02.json` / ツール: `tools/alpha_scan_block_recalibration.py` (テスト 35 本)
+
+## 2026-09-01 (5) — feat(kalman): min-lot carve-out — 05-28 決裁 live 化の実効化 (rule:R1 🔒 user 承認 2026-09-01)
+
+- 🛑 **kalman_d7 は 05-28 user 決裁 (SUCCESS = OANDA fill ≥1) から 96 日間 live fill ゼロだった**: `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` 非所属 + FLAT 5000u > bypass 上限 1000u の二重不適格 (直近 14 日で 6 件 block をログ確認)。gate 衝突は 08-09 設計時に未認識、初認識 = 2026-09-01 session
+- **carry_dip 同型の 1000u 固定契約 + bypass set 追加** (リスクは 5000u → 1000u の削減方向、シグナル/SL/TP 不変更)。R2 降格は既存 registry `t9-kalman-d7-live-n10-ev-check` が binding (LIVE N≥10 ∧ EV<0 → 停止)
+- テスト 12 本 + counterfactual 実施済み (set から外すと 3 本 fail)。**「live 化を決裁した」≠「送信が発生しうる」 — live 化決裁時は gate chain 最後までの到達性 + fill 発生監視を必須にする** (教訓)
+- pre-reg: [[kalman-d7-minlot-carveout-prereg-2026-09-01]] (🔒 LOCKED — user 承認 2026-09-01、同日マージ)
+## 2026-09-01 (4) — feat(infra): status volume keeper — OANDA API 存続のための出来高維持 (rule:R3, user 決裁 案 A)
+
+- 🛑 **OANDA JP REST API の存続条件を発見**: Gold ステータス (前月取引量 USD 50 万、新規+決済双方カウント) + プロコース + 残高 25 万円を**継続充足**しないと API 停止 + トークン再発行 (FAQ 720/1730)。8 月出来高 ≈ $28k → **10 月 SILVER 降格見込み = 自動売買・E1 収集・テレメトリの物理停止リスク**。エッジトレードは MIN lot 契約下で構造的に $500k に届かない (有機レバー全部で $82-106k)
+- **`modules/status_volume_keeper.py` 新設**: USD_JPY 10,000u の市場即時往復 (数秒保有) × 月 ~26 回で $520k を積む。**env `STATUS_VOLUME_KEEPER_ENABLE` default OFF — arm は user 最終確認後**。ガード = 口座完全フラット要求 (netting 干渉ゼロ) / NAV floor ¥262k / スプレッド >1.0p skip / 日次 3 RT / crash-safe 玉回収。**demo DB 非経由** (Kelly・鮮度検知の母集団を汚染しない — keeper が定期約定を作ると停滞検知が無効化されるため機能要件)。OANDA 側識別は `tradeClientExtensions.tag="SVK"` (market_order に clientExtensions サポート追加)
+- **読み手を同一コミットで併設**: `/api/demo/status`.status_volume_keeper telemetry + anomaly_watcher に `nav_floor` (¥262k 警報線、API 停止床 ¥250k) / `svk_behind_pace` 検知器新設 (status 空 run では判定しない — blind ≠ 正常)
+- テスト 16 本 (guard chain / 出来高両側カウント / crash 回収 / 月替りリセット / clientExtensions payload / telemetry 読み手 / heartbeat 到達性 pin / 検知器 4 本)
+- 決裁: [[status-volume-keeper-2026-09-01]] / 分析: [[live-frequency-and-oanda-status-survival-2026-09-01]]
+
+## 2026-09-01 (3) — fix(deploy): decisions/*.md の deploy churn を塞ぐ (rule:R3)
+
+- 🛑 **KB ドキュメント専用の commit が取引エンジンを再起動していた取りこぼしを発見**。`knowledge-base/wiki/decisions/**` が `buildFilter.ignoredPaths` に無く、**直近 60 日で 23 commit (~0.38 deploy/日) が decisions/*.md だけのために web service を再デプロイ**していた (1 回あたり ~60s の無 tick + ~2.5-3 分の 24 モード ramp)。PR #199/#201 が churn を would-deploy 0 まで落とした後に残っていた
+  - **発見の経緯 = 自分で踏んだから**: 本日の PR #214 (verdict、KB のみ) が `decisions/` に verdict doc を置いた結果デプロイが走り、本番が一時 502 → 復帰した。**自分の変更が起こした churn を追跡して初めて設定の穴に気付いた**
+- **修復は narrow に**: `decisions/**` を丸ごと ignore して**はならない** — 同ディレクトリの `prereg-trigger-registry.json` は `TRADING_PATH_READ_PATHS` が「cron が読む load-bearing な状態なので保守的にデプロイを起こさせる」と明示している。したがって **markdown だけ**を ignore (`decisions/*.md` + `decisions/**/*.md`、入れ子の `shadow-audit-2026-04-30/` も被覆)
+- **性質を対で pin** (構文でなく性質 — PR #209 教訓): `test_decisions_markdown_ignored_but_registry_json_still_deploys` が **①md は ignore される ②registry JSON は ignore されない**を同一 test で並べて固定。片方だけだと「全部 ignore」「全部 deploy」のどちらに倒れても気付けないため対で意味を持つ
+- **counterfactual 2 本、いずれも所望どおり失敗**: ⑦`decisions/**` を丸ごと ignore (registry を巻き込む誤り) → 新 test + 既存の取引パス guard の 2 本が落ちる ⑧md の ignore を削除 (churn が戻る) → 新 test が落ちる
+- pytest 2,836 passed / check.py 全 9 通過
+
+## 2026-09-01 (2) — verdict(obs): candidate_stagnation 閾値 6h = 据え置き、根拠を N=16 → 90 日実測へ置換 (rule:R3)
+
+- **判定: 閾値 `CANDIDATE_STAGNATION_HOURS = 6` を据え置く**。2026-08-27 以来の暫定値 (バースト実効 N=16 / 10 時間窓) を **90 日 / 書込みタイムスタンプ 274,862 / floor 30 分以上のギャップ 130 本**の実測へ置換 (PR #213 の `view=gaps` で初めて測定可能になった)
+- **実測** (窓 2026-06-03 → 2026-09-01): 市場オープン換算 **p50 1.486 / p90 3.000 / p99 3.736 / max 54.666 h**。**閾値 6h での発火は 90 日で 1 回のみ**
+- ✅ **その 1 回は誤発火ではなく真の検知**: `2026-08-21 21:59:57 → 2026-08-26 03:39:56` (wall 101.67h / market-open 54.67h) = **Disk 満杯事故 (全 SQLite 書込みが 3.5 日停止)** そのもの。`freshness_policy.py` docstring が「ダッシュボードには何の異常も出なかった」と記録している、監視スタック整備の動機そのものの事故 → **閾値 6h はこの一連の作業を生んだ当の事故を検知でき、かつ 90 日で誤発火ゼロ**
+- ✅ **PR #213 のコード由来の予測が的中**: 上位 13 本のうち **12 本が金曜→月曜の週次再開ギャップ**で **3.000〜3.736h に密集** (実時間 50.00〜51.74h)。ばらつきの出所は境界ではなく**金曜最終候補行の時刻** (実測 20:16〜21:59 UTC) — 境界の合成値 3.00h が下限で、最終行が早い週ほど上に伸びる
+- 🔵 **閾値が妥当な理由 = 分布に広い空白帯がある**: **3.736h と 54.666h の間に観測がゼロ**。この帯のどこに閾値を置いても 90 日の判定は同一 (誤発火 0 / 真検知 1)。6h は knife-edge ではなく広い平坦域の内側
+- ⚠️ **2026-08-27 の根拠記述「max 120.3 分の 3 倍」は誤りだった** — 日次 2h ブロックだけを見て**週次再開ギャップ (3.0〜3.7h) を見落としていた**。真の余裕は 3 倍ではなく **1.61 倍**。ただし空白帯があるため**結論 (据え置き) は不変** — 根拠の方を訂正する
+- **動かさなかったもの (意図的)**: 閾値 (下げる根拠も上げる根拠も無い) / **週末境界の 1 時間ずれ** (`freshness_policy` 金 21:00 vs `demo_trader` 金 22:00) — この 1h は週次ギャップ 3.00h に直接乗るが空白帯が広いため判定に影響せず、**実測で害が出ていないものを動かさない**
+- **再較正トリガ**: ①誤発火と判明したら**上げる** ②Layer-0 時間帯ブロックまたは週末境界の定義変更 ③候補行ケイデンスの構造変更。**下げるのは実測なしに行わない**
+- 詳細: [[candidate-stagnation-threshold-verdict-2026-09-01]] / 一次データ: `knowledge-base/raw/analysis/candidate-write-gaps-90d-2026-09-01.json`
+
+## 2026-09-01 — fix(obs): candidate_stagnation 閾値較正の読み経路の天井を外す (rule:R3)
+
+- 🛑 **未解決事項「`candidate_stagnation` 閾値 6h の再較正 (目安 09-03〜09-10)」は、待っても達成不能な待機だった**。`view=rows` の `LIMIT` は 2,000 行にハードコードされており、本番実測で **9.9 時間**しか遡れない (distinct `created_at` 1,790)。テーブルは **90 日 / 317,542 行**を保持しているのに読み手が見られるのはその **0.5%**。**6 時間の閾値を較正するのに 10 時間の窓しか無い** — 律速は経過時間ではなく**読み経路の天井**なので、1 週間待とうと標本は増えない
+  - 「集めたのに読み手が無い」型 (MoF 月次額 = write-only 6 例目 / C1 テーブル自体が 2026-08-24 まで無経路) の**変種**: **読み手はあるが窓が狭すぎて問う質問に答えられない**。到達経路 lint は「読み手が存在するか」は見るが「その読み手が当該の問いに答えられる窓を持つか」までは見ていない
+- **修復**: `view=gaps` を新設 (`query_candidate_write_gaps`)。生行をページングして運ぶのをやめ、**サーバ側で分布に畳んでから返す**。SQL の `LAG` で distinct `created_at` の連続差を作り (`idx_evcand_created` が範囲走査を支える)、317k 行を Python に運ばない
+  - **estimand**: 検知器は `now - MAX(created_at)` を市場オープン時間で測る。よって較正すべきは「連続書込み間隔の市場オープン時間分布」の**上側の裾**であって中央値ではない (候補行はバースト構造を持つので生の中央値 0.15 分は*バースト内*密度 — 2026-08-27 の自己訂正)。**「バースト」を人為的に定義せずに済む**のは、上側の裾が定義上そのままバースト間ギャップになるから
+  - **時計**: `freshness_policy.market_open_hours` (SSOT)。実時間で数えると毎週末 48h のギャップが立ち裾が週末で埋まる
+  - **計算量の縮約とその正当性**: 市場オープン時間 ≤ 実時間 が常に成立するので、実時間で floor 未満のギャップは換算後も floor 未満。よって floor (既定 30 分) 以上だけを換算すればよく、これは閾値 (floor よりはるかに大) の誤発火計数に一切影響しない
+  - **出力の中心 = 反実仮想の誤発火計数** `would_fire.count` (「この窓で閾値が X だったら何回発火していたか") + `top_gaps` (週末境界か / デプロイ再起動か / 本物の停止か を人間が突き合わせる)
+- 🔵 **副次的発見: 最大ギャップは確率的な裾ではない**。10 時間標本の最大は **21:59:59 → 00:00:01 UTC = ちょうど 120.0 分**で、端点が正確な時計値 = **決定論的な日次 2h 空白** (2026-08-27 の「max 120.3 分」も同一構造の可能性)。含意: 閾値 6h は「確率的裾の 3 倍」ではなく「**毎日必ず起きる 2h ブロックの 3 倍**」。較正で本当に見るべきは、この日次ブロックが**祝日・週末境界と重なって積み上がる**ケースが 90 日窓にあるか — 10 時間窓では原理的に見えない
+- **counterfactual 4 本、全て所望どおり失敗を確認** (初回素通りゼロ): ① `market_open_hours` → 実時間に差し替え → 週末系 2 test が落ちる ② 閾値既定を SSOT でなくリテラル 6.0 に → SSOT test が落ちる ③ floor 判定を削除し全ギャップで分位 → floor test が落ちる ④ `app.py` の `view=="gaps"` 分岐を削除 → endpoint test 2 本が落ちる
+- 🔵 **日次 2h 空白はコードで確定 (推測ではない)**: `is_trade_prohibited` が `hour_utc >= 22` を Layer-0 で禁止し (`tokyo_mode` は `hour_utc < 7` のみ)、その早期 return (`app.py:2325`) は `log_candidates` (`app.py:2742`) **より前**にある → **22:00〜23:59 UTC は毎日、設計上ゼロ行**
+- 🔵 **予測: 構造的な最大ギャップは日次 2h ではなく週次 3h** — 市場オープン計上の再開 (`freshness_policy` = 日 21:00 UTC) / エンジン再開 (`demo_trader._is_fx_market_closed` = 日 22:00 UTC) / Layer-0 解除 (`hour_utc>=22` = 月 00:00 UTC) の 3 境界が重なり、金曜最終行→月曜初回は実時間 50.0h・**市場オープン換算 3.00h** で毎週必ず起きる。含意: **閾値 6h の余裕は「max の 3 倍」ではなく約 2 倍**であり、08-27 の根拠記述は日次ブロックだけを見て週次再開を見落としていた可能性が高い。また **2 つの週末境界定義が 1 時間ずれている** (`freshness_policy` 21:00 vs `demo_trader` 22:00) — `freshness_policy` はこれを「24h 閾値に対しては無害」と明示的に許容しているが、**その許容は 24h 閾値に対する判断**で、6h 閾値ではこの 1h がそのまま 3.00h に乗る。⚠️ **コードからの予測であって実測ではない** — 90 日 ≈ 13 週末で readout を回して確定する
+- **⚠️ 本 PR は測る手段を敷いただけで、較正そのものは未実施**。デプロイ反映後に 90 日窓で実行して閾値を確定する。誤発火が出たら**上げる** — 下げるのは実測なしに行わない
+- 詳細: [[candidate-gap-readout-2026-09-01]] / tests: `tests/test_candidate_write_gaps.py` (8 本)
+
+## 2026-08-31 — data+fix(mof): 月次介入額 15兆3,993億円の開示確認 + 「収集したのに誰も読まない」経路の構造修復 (rule:R3)
+
+- **一次結果**: 財務省 月次開示で **令和8年7月30日〜8月26日 (2026-07-30〜08-26) の外国為替平衡操作額 = 15兆3,993億円** (= 15,399.3 十億円)。公表 2026-08-28、ページ `20260828.html`。**保有データ中で単一窓として過去最大** (2026-04/05 窓 11,734.9 の 1.31 倍、2024-04/05 窓 9,788.5 の 1.57 倍)
+  - 月次開示は**方向 (円買い/円売り) も日次帰属も与えない**。2026 年の日次開示済みオペが全て `sell_USD_buy_JPY` であることは断定の根拠にしない。日次は **Q3 四半期開示 (~2026-11-06)** 待ち
+  - **user の「7月の負けは介入」説は未決着に戻る**: 08-28 時点では直前窓 0円 で 07-01〜07-29 を反証済みだったが、ワースト 2 日 **07-30 / 07-31 は本窓に入る**。総額 >0 は「窓内のどこかに介入あり」までで、当該日への帰属は主張できない (総額 0 の反証力との非対称性)
+- 🛑 **開示は 08-28 に出て、08-29 にはリポジトリ内にあった。それでも 08-31 の期日まで誰も気付かなかった** — 独立した 2 つの欠陥が同時に露見した
+  - **(a) 人手経路が公表 URL を「推測」していた**: 過去 12 窓のページ名がたまたま全て月末営業日だったことから命名規則を「月末営業日」と推定し、`20260831.html` を直接叩いて 404 → 「未公表」と結論した。実際は `20260828.html`。**正しい規則は `window_end + 2〜4 日`** であり月末営業日との一致は偶然 (+2/+2/+4/+2)。**構築した URL の 404 は「未公表」の証拠ではなく「自分が予測した名前ではない」しか意味しない**。既存 `tools/mof_interventions_fetch.py` は**正しく index を列挙している** — 人手チェックがそのツールを迂回したことが欠陥
+  - **(b) 書き手はいたが読み手がいなかった (write-only 6 例目)**: 日次 cron (`mof-statements-daily`) は index を列挙して **08-29 の commit `b27277d1` で `interventions_monthly_pending.csv` に 15,399.3 を書き込み済み**だった。しかしこの CSV を読む検知器が存在せず、**値は 2 日間リポジトリに座ったまま**。registry のエントリは `deadline_info` = 期日まで何も評価しない型で、宣言された到達経路も (a) の人手経路だった
+- **修復**: `tools/prereg_trigger_watch.py` に **`csv_row_match` 型**を新設 — 収集済み CSV に述語一致行が現れたら TRIGGERED。後継エントリ `mof-monthly-disclosure-new-window` (window_end > 2026-08-26 ∧ amount > 0) を registry に登録し、**日次 cron が書く → Tier-A cron (00:20 UTC) が毎日読む**経路を敷設
+  - **「取得不能」と「一致ゼロ」を折り畳まない** (PR #207 の `no_rows` vs `error` と同型): ファイル欠落 / パース失敗 / **列欠落 (schema 変化)** / **述語不正 (空 match・未知 op)** はすべて `DATA_UNAVAILABLE`、一致ゼロのみ `WATCHING`。折り畳むと schema が壊れた瞬間から永久に「健全に監視中」を表示し続ける。空 match を弾くのは全行一致による偽発火の防止
+  - **回帰の本体**: 実ファイルに対し「08-29 時点の正しい閾値 (window_end > 2026-07-29)」なら TRIGGERED になることを固定 = **この検知器があれば当日に捕まえていた**ことの証明
+- **旧 pin が誤った設計そのものを固定していたので置換**: `test_registry_automation_packet_triggers_wired` は `type == "deadline_info"` かつ `deadline == "2026-08-31"` という**構文**を pin していた = 「期日待ち + 人手 URL 推測」という失敗 mode を固定していた。**後継が機械評価可能であるという「性質」**の pin に置換 (PR #209 教訓: 構文でなく性質を pin せよ / 是正は緩めるのでなく絞って強くする)
+- **counterfactual 3 本**。⚠️ **②が初回に素通りした**:
+  - ① dispatch から `csv_row_match` 分岐を削除 → 落ちる ✅
+  - ② `read_csv_rows` がファイル欠落を `[]` に折り畳む → **初回素通り**。evaluate 側で `None` と `[]` を分離しても、**fetcher 側で折り畳んだら意味がない**のに fetcher 単体の pin が無かった → `test_read_csv_rows_returns_none_for_missing_file` を追加して再確認
+  - ③ 列欠落を `WATCHING` に折り畳む → 落ちる ✅
+  - **教訓: counterfactual が初回に通ったら「安全」ではなく「pin が無い」の証拠** (PR #208 ⑥ / PR #210 ⑧⑨ に続き **3 度目**)
+- **T5 復帰第2要件は肯定側材料を初取得、ただし認定は保留 (R1 = user 決裁)**: 第1要件 (D1 close<159.50) は 08-03 以降常時点灯、第2要件は 08-28 時点で**否定側** (直前窓 0円) だったのが本開示で**肯定側に転じた**。本開示は MoF 公式の外部一次情報であり価格推定ではないため cross-LOCK に抵触しない。**しかし (a) 方向が非開示 (b) 介入日が特定できず「160 防衛」の文脈適合を一次情報で確認できない** → **lot 0.5x 維持、変更なし**。決裁材料が揃うのは Q3 四半期開示 (~2026-11-06)
+- **MoF family #4 (`mof-next-episode-reverdict`) は実質 load-bearing 化**: 単一窓最大の介入が確認された以上、Q3 開示に新規エピソードが載る公算は高い。ただし §10 の 1 回限り再判定は**四半期開示待ちのまま**で、**現時点で look を消費してはならない**。価格シグネチャからの介入日推定は 2026 窓 OOS を burn するため引き続き禁止
+- **live パラメータ・発注挙動は不変更** (監視配管と KB のみ)。テスト **6 件追加** (`tests/test_prereg_trigger_watch.py` 38 → 44)、全 2825 件 green、`scripts/check.py` 全 9 チェック通過
+
+## 2026-08-30 — fix(obs): API 到達不能の無検知を塞ぐ + fetch 失敗を「契約破綻」と誤診する経路を除去 (rule:R3)
+
+- **実測から出発した (仮説ではない)**: 積み残し「`ENGINE_TICK_STALL_MINUTES = 15` の実運用確認 — デプロイ再起動で誤発火しないか」を Render cron ログで検証した際、**別の・より重い欠陥**が露出した
+- **誤発火の検証結果 (先に結論)**: PR #208 の live 反映 (2026-08-28T05:59Z) 以降、web service のデプロイ再起動は **3 回** (08-29 03:22-03:24 / 08-29 23:29-23:31 / 08-30 05:15-05:16、いずれも build+deploy 100-110 秒)。この間の 15 分 cron 全 run で `engine_tick_stall` / `engine_tick_never` は **0 件**。⚠️ ただし**3 回中 1 回 (08-29 23:31) は watcher 自身が 502 を掴んで status を読めておらず、「正しく静かだった」のではなく「見えていなかった」** — 誤発火ゼロの母数は実質 2/3。閾値 15 分は据え置き (再較正の材料は増やす方向でのみ動かす)
+- 🛑 **露出した欠陥: 本番 web service が落ちている間、監視スタックは落ちていることを報告できない**
+  - 2026-08-29T23:31:00-02Z の実 run で `/api/demo/trades` `/api/oanda/status` `/api/demo/status` `/api/admin/disk_status` の **4 本すべてが 502 Bad Gateway** (直前 23:29 の `data(mof-statements)` commit によるデプロイ再起動)
+  - 8 検知器のうち **7 個が完全に沈黙**。残る 1 個 (`live_n_stagnation`) が **`stagnation_check_broken`「no parseable timestamp field in /api/demo/trades」** を上げたが、**真因は 502 でありペイロード契約ではない = 誤診**。しかも時間バケット抑制で Discord にすら出ず (`[notify] 1 event(s) suppressed`)
+  - **「本番が到達不能」を報告する検知器が存在しなかった**。cron は exit 0 で "finished successfully"、Render の `notifyOnFail` は cron 自身の失敗を見る経路なので発火しない → **web service が恒久的に死んでも通知はゼロ**
+  - 構図は 2026-08-21 の Disk 満杯事故 (「凍結した画面は静かな相場と区別がつかない」) の**監視器側での再演**。MEMORY の「検知器そのものも write-only になりうる」の直系
+- **根本原因は 1 行**: `fetch_json` が失敗時に `{}` を返し、**「取りに行けなかった」と「空だった」を呼び出し側で区別不能にしていた** — PR #207 で明文化した「`no_rows` と `error` を折り畳むな」と完全に同型
+- **修正**:
+  - `FetchOutcome(path, ok, payload, reason)` + `fetch_outcome()` を新設し、成否と理由を payload から分離。`fetch_json` は後方互換の薄いラッパとして残す (新規経路では使わないことを main の構造 pin が強制)
+  - `check_api_reachability()` を新設。**全滅 = `api_unreachable`** (サービスの死、通知バケット 1h) と **部分失敗 = `api_endpoint_failed`** (そのエンドポイント固有、6h) を**別 type に分ける** — 畳むと切り分け情報が通知から消える
+  - `check_live_n_stagnation(..., trades_ok=)`: 取得自体が失敗したときは**何も上げない**。本検知器の「黙って skip するな」という設計思想は維持されている — 沈黙するのは**別の検知器が同じ事実をより正確に報告するとき**だけ
+- **デプロイ blip と本物の停止を、状態を持たずに区別する**: `fetch_all()` が**全滅時のみ** `API_RETRY_BACKOFF_SEC = (30, 60, 120)` で再試行する。部分失敗は再試行しない (ramp なら 4 本とも落ちるので、1 本だけの失敗は最初からそのエンドポイント固有の異常)。**実測が閾値を裏付ける**: 08-29 の 502 は 23:31:00 に発生し、デプロイは 23:31:07 に完了している = **30 秒の 1 回目リトライだけで回復していた**。累積 3.5 分は KB 実測の ramp 3.6 分 (PR #199) 相当で、cron 間隔 15 分に対して十分な余裕がある。`attempts` / `waited_sec` は必ずイベントに載せる — 「ramp を跨いだ上でなお全滅」なのか「1 回で諦めた」のかが読み手に分からなければ blip と停止は区別できない
+- **cron の exit code は 0 のまま**: Render の `notifyOnFail` は cron 自身の異常を担当する経路であり、そこに web service の停止を混ぜると「どちらが壊れたか」が通知から読めなくなる。出力先は Discord (1h バケット) と stdout の恒久ログ
+- **counterfactual 9 本を実行**: ①main から検知器の配線削除 ②`trades_ok` を渡さない ③`trades_ok` ガード撤去 ④`api_unreachable` を NOTIFY_NEVER へ ⑤部分失敗を `api_unreachable` に畳む ⑥部分失敗でもリトライ ⑦リトライ廃止 ⑧`fetch_outcome` が失敗を `ok=True` に潰す ⑨Discord 行を汎用 fallback に戻す。⚠️ **⑧と⑨は初回に素通りした**:
+  - ⑧ — 検知器テストが `_fail()` で**手組みした** outcome を使うため、**ok/payload の分離が実際に生まれる場所** (`fetch_outcome` の except 節) が誰にも触られていなかった → `requests.get` を差し替える境界テストを追加
+  - ⑨ — 描画 pin の assertion が「長さ > 60」「'json.dumps' を含まない」で、**汎用 fallback 行もその両方を満たしていた** → 専用行にしか現れない文言 (「他の全検知器は盲目である」「エンドポイント固有の異常」) で pin し直し
+  - **教訓: counterfactual が初回に通ったら、それは「安全」ではなく「pin が無い」の証拠である** (PR #208 の ⑥ に続き 2 度目)
+- **インシデント再生テストを同梱**: 08-29 の 502 シナリオを `main()` に通し、`api_unreachable` が出ること **かつ** `stagnation_check_broken` が出ないことを両側で pin。健全時に `api_*` が出ないことも対で pin (健全時に鳴る検知器は使い物にならない)
+- **live パラメータ・発注挙動は不変更** (監視配管のみ)。テスト **25 件追加** (`tests/test_anomaly_watcher_detectors.py` 51 → 76)
+- **本番反映を実測確認 (2026-08-30)**: cron `fx-ai-tier-c-anomaly` が **12:50:43Z に `a4c271bf` を checkout**、直後の **13:00:24Z run が「No anomalies detected.」を 2.2 秒で完了**。健全時に `api_unreachable` は出ず、リトライ経路も engage していない (engage すれば最短 +30 秒なので、所要時間がそのまま「リトライしていない」証拠になる)。⚠️ **確認できたのは「健全時に鳴らない」側だけ** — 「デプロイ blip をリトライが吸収する」側は次の再起動待ち。08-29 の実測 (502 発生 23:31:00 / デプロイ完了 23:31:07) から 30 秒の 1 回目で足りる見込みだが、**見込みは観測ではない**
+
+## 2026-08-29 — feat(obs): 鮮度判定のダッシュボード露出 + 閾値/時計の SSOT 化 (rule:R3)
+
+- **積み残し「ダッシュボード UI 側での鮮度表示」を解消**。PR #205/#206 で alert 経路、PR #207/#208 で `/api/demo/status` の生値までは通したが、**人間が実際に見る画面は最後まで blind のままだった**
+- **なぜこれが load-bearing か**: 2026-08-21〜08-25 の Render Disk 満杯で全 SQLite 書込みが 3.5 日停止した際、**ダッシュボードは完全に正常に見えた**。凍結した画面は「静かな相場」と区別がつかない。生値 (`last_*_row_age_sec` 等) を payload に足しても、画面に判定が出ていなければ「読まれない計装」のまま (C1 candidate 4ヶ月 write-only と同型)
+- **追加**: `modules/freshness_policy.py` — 閾値・週末除外の時計・UI 判定の **SSOT**。`classify_freshness(status)` が 3 系統 (`engine_tick` / `candidate_row` / `trade_row`) の level を返し、`/api/demo/status` に `freshness_ui` として載る。画面 (`templates/index.html` の `renderFreshness`) は**色を塗るだけで閾値を持たない**
+- **時計の使い分けが本設計の中核** (混同するとどちらかが必ず誤る):
+  - `engine_tick` = **実時間 (wall clock)**、15 分。tick は市場が閉まっていても前進するので、ここで週末除外を噛ませると**本物の週末停止を毎週見逃す**
+  - `candidate_row` (6h) / `trade_row` (24h) = **市場オープン時間**。実時間で数えると毎週末必ず誤発火する
+- **本番実測で weekend 分岐を検証 (2026-08-29 03:30 UTC、閉場中)**: 候補行は実時間 **20.4 時間**経過だが市場オープン換算 **0.0h** → 正しく `ok`、かつ画面に「市場オープン換算 0.0h (閉場ぶんを除外)」と**理由まで出る**。エンジンは 1 秒 / 24 モード稼働で `ok`。**「古いが正常」と「凍結」を画面上で初めて分離できた**
+- **level を 4 状態に分離して折り畳まない**: `ok` / `stale` (閾値超過 = watcher が同じ入力で alert を上げる状態) / `idle` (全モード停止中・行なし = 「止まっている」でなく「**止められている**」、資格 vs 実状態) / `unknown` (値が無い・壊れている)。`unknown` を握り潰さないのは、沈黙こそが `live_n_stagnation` 126 日 no-op の原因だったため
+- **SSOT 化で `scripts/anomaly_watcher.py` の重複定義を撤去**: `N_STAGNATION_HOURS` / `CANDIDATE_STAGNATION_HOURS` / `ENGINE_TICK_STALL_MINUTES` / `FX_WEEKEND_CLOSE_HOURS` と `_market_open_hours` は `modules/freshness_policy` へ委譲。**閾値を検知器と画面で別々に持つと、片方を上げたときもう片方が古い閾値で判定し続け、しかも全テストは green のままになる** — PR #199 で実際に踏んだ型 (設定リストにコメントを足したら guard の regex が黙って打ち切られた) の予防
+- **counterfactual 4 本で pin の実効性を確認**: ①画面の `renderFreshness` call-site 削除 ②status payload から `freshness_ui` 削除 ③watcher が閾値を直書きに復帰 (SSOT 破れ) ④engine tick に週末除外を混入 — 全てで該当テストが落ちることを実測。**「読み手を併設したか」でなく「読み手が呼ばれているか」まで pin する** (PR #208 の counterfactual ⑥ が初回素通りした教訓の適用)
+- ⚠️ **副産物: 既存の構造 pin が実装形に過剰結合していたのを是正** (`tests/test_engine_tick_liveness.py::test_status_payload_includes_engine_tick`)。PR #208 の pin は `"**self._engine_tick_payload()," in SRC` という**ファイル全体へのリテラル一致**で、本 PR が呼び出しを局所変数に束ねる等価リファクタ (`_engine_raw = ...` → `**_engine_raw,`) をした瞬間、**配線は無傷のまま**落ちた。pin が守るべきは「payload が `get_status` の返す dict に到達している」という**性質**であって構文ではない → `get_status` 本体に**スコープを絞った**上で、直接展開・局所変数経由のどちらの形でも配線を確認する形へ。counterfactual 3 本で**旧 pin より強い**ことを確認 (①呼ぶが dict に展開しない ②呼び出し自体を削除 ③`get_status` の外に同じ構文を置く — **③は旧 pin なら素通りしていた**)
+- **live パラメータ・発注挙動は不変更** (表示と監視配管のみ)。テスト **17 件追加** (`tests/test_freshness_policy.py`)、既存 watcher テスト 51 件 green、全 736 件 green
+- ⚠️ **残る非目標**: 個別モード wedge の検知は引き続き未実装 (payload には `engine_tick_stalest_*` として露出済み)。`CANDIDATE_STAGNATION_HOURS = 6` はバースト実効 N=16 の暫定値のままで、**再較正は 1〜2 週の実運用後** (2026-08-27 起点、目安 09-03〜09-10) — 本 PR では動かしていない
+
+
+## 2026-08-28 — fix(obs): エンジン生存の真の検知 (tick 前進の実時刻) + MoF 月次介入額の一次確認 (rule:R3)
+
+- **前セッションの積み残しを解消**: 08-27 に「`tick_counts` 差分監視が要るが **cron は状態を持てない**ので設計が要る」として見送った項目。**差分をサーバ側で取れば cron は状態レスのままでよい**というのが解法 — `write_probe.last_ok_at` が既に採っていた形と同じ分業で、常駐プロセス側が経過秒を出す
+- **なぜ既存の観測系では足りなかったか (全て estimand がエンジンの下流)**:
+  - `main_loop_alive` / `watchdog_alive` は `Thread.is_alive()` = **生きたまま中で詰まっている状態を alive と報告する**
+  - `tick_counts` は単調増加カウンタだが **絶対値しか出ていない** ため単発観測では前進を判定できない
+  - `candidate_stagnation` (PR #207) は HTF Hard Block の**後**の行を数えるので「全候補ブロック」と「エンジン死亡」を区別できない (08-27 の 73 分ゼロ行が実際にこれで **benign** だった)
+  - `live_n_stagnation` は約定ベースで閾値 24h、`db_write_failed` は書込み経路の生死のみ
+- **追加**: `DemoTrader._record_tick(mode)` (カウンタ + 実時刻を**不可分**に更新) と `_engine_tick_payload()` → `/api/demo/status` に `engine_tick_{status,age_sec,running_modes,stalest_mode,stalest_age_sec}`。watcher 側に検知器 `check_engine_tick_stall` (`engine_tick_stall` / `engine_tick_never`)
+- **estimand が素直なのが本検知器の価値**: tick 前進は **HTF ゲートにもシグナル有無にも市場の開閉にも依存しない** (加算は `_tick` が戻った後で、`_tick` は週末なら early-return するだけ)。したがって `candidate_stagnation` と違い **発火 = エンジン異常と読んでよい唯一の系列**。逆に**週末を市場オープン時間へ換算してはいけない** — そうすると本物の週末停止を毎回見逃す (`live_n_stagnation` とは estimand が違う)
+- **閾値の実測根拠 (2026-08-28、本番 24 モード稼働中を 20 秒間隔 x 8 標本 = 142 秒窓で観測、前進イベント n=89)**: 走っている **24/24** モードが窓内で漏れなく前進。モード別間隔 **median 40.4s / p90 60.9s / max 81.2s** (`MODE_CONFIG` の interval_sec 10-60s と整合、max が 60s 超なのは単一 main loop が 24 モードを順に回す直列化ぶん)。engine レベル (= 最も新しい前進) は最速モード scalp (10s) に律速され通常 20s 未満。定常の天井 = 最長 interval 60s + tick タイムアウト 30s ≈ 1.5 分、デプロイ再起動 = PR #199 実測で無 tick 59.5s + ramp 2m39s ≈ **3.6 分**。`ENGINE_TICK_STALL_MINUTES = 15` は **デプロイ ramp の約 4 倍 / engine 定常値の約 30 倍**。検知遅延は cron 15 分で上限 30 分 = 既存 2 検知器 (6h / 24h) より**桁で速い**。⚠️ 標本化間隔 20 秒の **aliasing** で上記ギャップは 20 秒の倍数に量子化され真値より**上振れ** (真値 <= 測定値) = 閾値側に安全なので補正しない。誤発火時は**上げる**
+- **`_record_tick` に集約した理由 (call-site 欠落の 5 例目を作らないため)**: increment の 2 行を各 tick 経路にコピーする設計だと、新経路で片方だけ忘れて黙って壊れる。本プロジェクトはこの型を **4 回**踏んでいる (PR #168 `ctx.hour_utc` が live で 123 日定数固着 / PR #204 `bar_time` 全行 NULL 等)。increment とタイムスタンプを別々に書けば 5 回目になるだけなので**最初から不可分**にし、さらに **「`_record_tick` の外に生の increment が生えたら落ちる」構造 pin をテストに置いた**
+- **状態の切り分けを折り畳まない**: `ok` / `never_ticked` (起動したが 1 度も tick 未完 = 起動失敗の疑い) / `not_running` (全モード停止中 = **止まっているのではなく止められている**、資格 vs 実状態) を別扱い。web が旧版で field が無い場合は `engine_tick_missing` として**記録は残すが Discord には流さない** (デプロイ直後のバージョン不一致で必ず一度は起きる。沈黙が 126 日 no-op の原因だったので skip もしない)
+- ⚠️ **実装中に自分で踏んだ最悪ケースの無検知を塞いだ (レビュー前に実測発見)**: `_main_loop_start_ts` は `_main_loop` の先頭で設定されるため **main loop スレッドが一度も起動しなかった場合には存在しない**。一方 `start()` は `_runners[mode]["running"] = True` を先に立てるので、**「モードは running なのに tick ゼロ」= この検知器が存在する理由そのもの**の状態が作れる。初版はこのとき `engine_tick_age_sec = None` を返し、watcher が `engine_tick_missing` (= NOTIFY_NEVER、web 旧版と同じ袋) に分類して**完全に沈黙**した。本番相当の payload を組んで実測確認 → ①産出側に **モジュール定数 `_PROCESS_START_TS` のフォールバック**を入れて必ず数値を返す ②watcher 側も `never_ticked` かつ age 欠落なら **`engine_tick_never` として鳴らす側に倒す** (契約破れでも沈黙しない)。counterfactual ⑪⑫ で確認済み
+- **counterfactual 12 本を実行して確認**: ①タイムスタンプ書込み削除 ②`get_status` 配線削除 (write-only 化) ③生 increment の call-site 復活 ④newest→stalest 取り違え ⑤停止モードを分母に混入 ⑥main() 配線削除 ⑦欠落フィールドの silent skip ⑧週末除外の混入 ⑨`never_ticked` を stall に折り畳み ⑩`not_running` を停止扱い ⑪プロセス起動時刻フォールバック削除 ⑫`never_ticked`+age 欠落の沈黙化 — 全てで該当テストが落ちることを実測。**⑥は初回に素通りした** (検知器を書いても `main()` から呼ばれなければ意味が無い = C1 write-only と同型の失敗が**検知器側**にもあった) ため、配線 pin を追加してから再確認
+- **本番で graceful degradation を実測**: 現行 live (旧コード) に対し watcher を dry-run → `engine_tick_missing` 1 件のみ、Discord 通知なし。想定どおり
+- **live パラメータ・発注挙動は不変更** (計装と監視の追加のみ)。テスト **29 件追加** (`tests/test_engine_tick_liveness.py` 16 / `tests/test_anomaly_watcher_detectors.py` 13)
+- **意図的な非目標**: 個別モードの wedge (main loop は生きているが 1 モードだけ 30 秒タイムアウトを繰り返す) は検知しない — 閾値がモード別 interval 10-60s に依存し較正が別問題。判断材料の `engine_tick_stalest_mode` / `_age_sec` は payload に露出済みなので、必要になった時点で実測して足す
+
+### 付随: MoF 月次介入額の一次確認 (registry `mof-monthly-total-2026-08-29-check`, deadline 08-28)
+
+- **直前窓 令和8年6月29日〜7月29日 (2026-06-29〜07-29) の外国為替平衡操作額 = 0円** (一次ソース `feio/data/monthly/20260731.html`)
+- → **user の「7月の負けは介入をくらった」説は 07-29 までについて反証**。月次総額 0 は「窓内のどの日にも介入が無かった」を意味し、総額 >0 が「窓内のどこかに」までしか言えないのと**非対称でゼロの側が遥かに強い** (日次帰属は Q3 開示 ~11 月まで不明)
+- **ただしワースト 2 日は未決着**: 07-30 (−69,628円) / 07-31 (−21,370円) は**次の窓 (07-30〜08-27) に落ちる**。当該ページ `20260831.html` は 08-28 時点で **HTTP 404 = 未公表**
+- **registry 初稿の公表日想定「~08-29」は誤りだった**: 過去 12 窓のページ名は `20260731 / 20260630 / 20260529 / 20260430 / 20260331 / 20260227 / 20260130 …` = **全て月末営業日**。→ resolve せず **deadline を 2026-08-31 (月) へ再武装**
+- **T5 復帰第2要件への含意**: 本開示は**否定側の材料** (0円 = 介入なし)。`t5-jpy-cap-restore-price` は第1要件のみ点灯のまま **lot 0.5x 維持**、変更なし。cross-LOCK (MEMORY `project_t5_restore_mof_crosslock_2026_08_10`) どおり認定は外部一次情報のみで、価格シグネチャからの推定は `mof-next-episode-reverdict` の 2026 窓 OOS を burn するため引き続き禁止 — 本チェックは公式開示の読み取りのみなので抵触しない
+- 詳細: [[mof-monthly-total-check-2026-08-28]]
+
+- 教訓: **「cron は状態を持てない」は検知を諦める理由にならない — 状態を持てる側 (常駐プロセス) に差分を寄せればよい。** 観測の分業は「誰が測るか」でなく「誰が状態を保持できるか」で切る。そして **検知器そのものも write-only になりうる**: 今回 counterfactual ⑥ で、検知器を実装して通知文言まで書いても `main()` から呼ばれなければ全テスト green のまま無音である状態が実在した。**計装は「読み手を併設したか」だけでなく「読み手が呼ばれているか」まで pin する**
+
+## 2026-08-27 — fix(obs): 行鮮度を status に出し「凍結 vs 静かな相場」を分離 + 評価停止の新検知 (rule:R3)
+
+- **残穴の位置**: PR #205/#206 で alert 経路 (`write_probe` / `live_n_stagnation`) は塞いだが、`/api/demo/status` **自身**は最終書込み時刻を持たないままだった。08-21 事故で「ダッシュボードが正常に見えた」根本理由がこれ。ダッシュボードは 08-27 時点でも**凍結と閑散を区別できない**
+- **追加した読み出し経路**: `DemoDB.get_row_freshness()` → `last_{trade,candidate}_row_{at,age_sec,status}` を status payload へ。判定列は **`created_at`** (DB 側 DEFAULT で必ず埋まる)。`bar_time` は call-site 欠落で live 行が全 NULL だった前例 (PR #204) があり**鮮度の基準に使わない**
+- **status を 5 値に分離**: `ok` / `no_rows` / `no_table` / `unparseable` / `error`。**「行が無い」と「クエリが落ちた」を混同させないことが主目的** — silent except は「不発」と「ゼロ件」を区別不能にする (既存教訓)。契約 key は常に存在させる (key 欠落は下流の silent skip を生む = `live_n_stagnation` 126 日 no-op の直接原因)
+- **キー衝突の回避**: `get_row_freshness()` の `error`/`now` をそのまま展開すると `/api/demo/status` の汎用 `error` (例外ハンドラが使う) と衝突し、鮮度クエリの失敗が **status 全体の失敗に見える**。`row_freshness_error` / `row_freshness_now` へ名前空間化して詰め替える
+- **新検知器 `candidate_stagnation`** — 既存 3 検知器がいずれも見ていない故障モードを埋める: `write_probe` は**書込み経路**の生死しか見ず、評価スレッドが死んで候補がゼロでも ok を返す。`live_n_stagnation` は約定ベースで閾値 24h。そして **watcher はスレッド生存 (`main_loop_alive` 等) を一切見ていなかった** (全数 grep で確認)。`evaluated_candidates` はバー評価ごとの高頻度系列 (本番 315,173 行 vs 約定 16,548 行) なので、停止 ≒「エンジンが評価していない」を約定より遥かに速く捉える
+- **閾値の実測根拠 (⚠️ 初稿の統計を自己訂正)**: 候補行は「1 バー評価で複数戦略ぶんが一斉に書かれる」**バースト構造**を持つ (2,000 行 = distinct 時刻 1,608 = **16 バースト**)。よって素の行間隔 median 0.10 分は*バースト内*の密度であり、**停止判定のケイデンスではない** — 混同すると閾値を桁で誤る。正しい指標は**バースト間ギャップ**: **median 3.2 分 / p90 59.7 分 / max 120.3 分** (max = NY クローズ〜アジア early、水 22:00→00:00 UTC の薄商い帯)。`CANDIDATE_STAGNATION_HOURS = 6` は **max の 3 倍**で値としては不変。ただし **バースト実効 N=16** しかなく p90/max は粗い推定 = **暫定値**。1〜2 週後に*バースト間*分布を取り直す。誤発火時は**上げる** (下げる調整は実測なしに行わない)。週末は `_market_open_hours` で除外 (実時間で数えると毎週末誤発火する既知の罠)
+- ⚠️ **estimand の限界を本番で実測確認 (重要)**: 候補行は **HTF Hard Block が counter-HTF 候補を除去した後**に書かれるため、本検知器が測るのは「エンジンが評価しているか」ではなく **「候補が select_best 段階まで到達したか」**。08-27T02:25〜03:40 の **73 分ゼロ行**を調べたところ、**DTE 候補が `eurgbp_daily_mr` のみで全件 HTF Hard Block (htf=bull) に除去されていた**のが実体で、同時刻に `tick_counts` は前進 (daytrade 40→43/90s)、`block_counts` も 154 件計上 = **エンジンは完全に生きていた**。→ 通知文言を「engine 停止の疑い」から「候補が select_best に到達していない。benign 要因 (HTF block / 薄商い) を先に潰せ」に改め、docstring に確認手順を明記。**真の engine 停止判定には `tick_counts` の差分監視が必要だが cron は状態を持てないため未実装 (残タスク)**
+- **本番実測で自己検証した副産物**: 上記訂正は、デプロイ後に `evaluated_candidates` の行数が 31 分間 1 行も増えないのを見て「定数固着 = コードを疑え」を自分の計測に適用した結果。**当時の 70 分ギャップは p90 (59.7 分) と max の間 = 異常ではなかった**が、初稿の median 0.10 分を信じていれば「700σ の異常」と誤読していた
+- **counterfactual 4 本を実行して確認** (deploy-churn 教訓の適用): ①`no_rows`→`error` 折り畳み ②age の定数固着 ③`unparseable` の握り潰し ④市場オープン時間→実時間 のいずれでも該当テストが落ちることを実測。**green のまま無力化していないことの行動証拠**
+- **付随 (偽陽性の除去)**: `check.py` の queue SLA 検査が `status:` を読まずファイル名日付のみで判定していたため、**完了済み** (`status: done`) のまま `queue/` に残った family-a タスクを 8 日間「滞留」と警告し続けていた。done 残置を SLA 滞留と**別種の警告に分離** — 偽陽性の常時点灯は本物の停滞 (E23 = in_progress 9 日) を埋もれさせる。当該タスクは Claude Review を付して `done/` へ移送
+- **live パラメータ・発注挙動は不変更** (読み出し経路と監視の追加のみ)。テスト 20 件追加 (`tests/test_row_freshness.py` 10 / `tests/test_anomaly_watcher_detectors.py` 10)
+- 教訓: **観測基盤の 3 段階 (書ける / 読める / 読んだ値が意味を持つ) は、足した直後に 3 段目まで通しておかないと必ず 1 段目で止まる。** 今回 status に field を足すだけで終えれば C1 テーブルが 4 ヶ月 write-only だったのと同型になるため、**同じコミット内で読み手 (`candidate_stagnation`) を必ず併設した**。検知器を足すときは同時に「この検知器の偽陽性は何か」を実測で決める — 鳴りっぱなしの検知器は無いのと同じ
+
+## 2026-08-26 — fix(infra): Render Disk 満杯による全 DB 書込み停止が **継続中** と判明 → 自己回復 + 検知を新設 (rule:R3)
+
+- **事故は継続中**。本セッション実測 (08-26T03:16-03:18Z) で本番ログに `database or disk is full` が **consecutive=85**、positioning / health / `log_candidates` / `_tick_entry` の全書込み経路が失敗中。検出自体は 08-25 に済んでおり MEMORY 本文も「未復旧」を正しく記録していた (MEMORY.md の索引行だけが閉じた窓のまま = **索引が本文より古い**)。**差分は結論の方**: 前回の「user 操作なしには絶対に直らない」を覆し、`os.remove` によるファイル削除は書込み成功を必要としない = **コード経路で回復できる** (自走原則)
+- **実測**: trades 最終行 `entry_time=2026-08-21T18:46:24Z` / `evaluated-candidates` 直近 1・2・3 日いずれも **0 件** / disk = `/var/data` **1 GB**。**クリーン N 蓄積 (M1 の唯一のボトルネック) が 5 日間ゼロ**
+- **D1 自己増悪ループ**: `backup_database` が「コピー → ローテーション」順で、満杯時はコピーが例外を投げて**空きを作る唯一の処理に到達しない**。→ ローテーションを先頭へ移し、free-space pre-flight で不足時は `status="skipped_low_disk"` を返す。**counterfactual 確認済** (旧実装で `test_backup_rotates_before_copying` が FAIL)
+- **D2 計装ゼロ**: `shutil.disk_usage`/`statvfs` の参照がリポジトリ全体でゼロだった。→ `modules/disk_guard.py` + `GET /api/admin/disk_status` + anomaly_watcher の 15 分毎ポーリング (warn 75% / critical 90%、**閾値は API 応答に同梱 = 本番コードと単一ソース**)
+- **D3 retention 不在**: `evaluated_candidates` は 08-24 実測で 517,378 行。→ `prune_candidates` (90 日 = 観測最長読み出し窓 30 日 × 3 倍マージン、env `C1_RETENTION_DAYS`) を起動時 + 日次レビューで実行。⚠️ SQLite `DELETE` はファイルを縮めない = **将来の増加を止める対策であって既存容量の回収ではない** (`VACUUM` は満杯時に最も無い資源を要求するので意図的に不実行)
+- **D4 (最悪) 検知器が 126 日間 no-op**: `check_live_n_stagnation` は `status["last_trade_time"]` を読んでいたが、**この key は app.py のどこにも生成箇所が無い** (全数 grep)。docstring 自身が「あると仮定。無ければ skip」と書き、その仮定は一度も検証されなかった。**「24h トレード増加ゼロで警告」= まさにこの事故のための検知器が、事故の間ずっと沈黙していた**。→ 実在を本番応答で確認した `entry_time` を使用 + **時刻が読めない場合を `stagnation_check_broken` として異常報告** (黙って skip する旧挙動こそが欠陥)
+- **回復手段**: `disk_guard.emergency_reclaim()` を起動時 (DemoDB 生成より前) + `POST /api/admin/disk_reclaim` に配置。**書込み成功を前提としない `os.remove` によるバックアップ削除**が満杯からの唯一の脱出路。満杯で中断されたコピーは mtime が最新になるため、**readable なコピーを recent より優先**して残す。平常時は no-op
+- **live パラメータ・発注挙動は不変更**。テスト 23 件追加 (`tests/test_disk_guard.py` / `tests/test_anomaly_watcher_detectors.py`)
+- 教訓: **書込み停止は「異常」ではなく「凍結」として観測される** — メモリ内カウンタ駆動のダッシュボードは永続化層が全滅しても正常に見え続ける。生存監視は**永続化層に到達した最新レコードの時刻**で行う。そして **計装の field 契約は「仮定」ではなく「検証対象」**: 「無ければ skip」と書いた時点で検知器は飾りになる。**測れないなら測れないと鳴らせ**
+- 詳細: [[disk-full-write-outage-2026-08-26]]
+
+## 2026-08-24 — fix(obs): evaluated_candidates.bar_time が live 行で全て NULL (call-site 欠落 4 例目、rule:R3)
+
+- PR #203 で C1 テーブルの読み出し経路を新設した直後、本番を初めて読んだところ **hull_donchian_fade 直近 30 日 1,139 行すべて `bar_time IS NULL`**
+- 原因 = call site: `_log_cands(..., bar_time=bar_time)`。`bar_time` が渡るのは **BT 経路のみ**で、live 経路 (`demo_trader._tick` → `compute_fn(df, tf, sr, symbol)`) は渡さない → live 行は常に NULL。**2026-08-09 に修復した `ctx.hour_utc` 凍結 (PR #168) と同一の call-site 欠落** で、そのとき同関数内の他の派生値は直したがこの call site は見落とされていた (同型 **4 例目**)
+- **なぜ致命的か**: `bar_time` は C1 テーブルで唯一 bar 粒度への正規化を可能にする列。NULL だと **「1 バーを 30 秒 poll で 30 回記録した」と「30 本の別バー」が区別できない** — 実際 1,139 行は 12 日分の poll 膨張であって 1,139 バーではない。funnel 分解 (候補 → select_best → trade) が**原理的に計算できない**
+- fix = PR #168 が確立した fallback `_dt_bar_dt` (`bar_time or df.index[-1]`、UTC 正規化) を渡す。`df.index[-1]` は order 層 dedup の `_closed_bar_ts_from_df` と同一基準なので `order_bar_dedup` の 1 バー 1 emit と直接突合できる
+- **counterfactual 確認済** (deploy-churn 教訓の適用): 旧コード `bar_time=bar_time` に戻すと新テスト 2 件が落ちることを実行して確認。guard が無力化されていないことの行動証拠
+- **副産物 — hull は select_best に勝っていた**: 30 日で `total_candidates 1,139 / n_selected 998 (87.6%)`。`LIVE_PROMOTE_LOSERS` 登録根拠 (2026-06-12「score 3.0-5.0 は敗北し prod fires=0」) と実測が食い違う。さらに **08-07/11/12/13/18 にも selected** = 最終 trade (08-06) 以降も候補生成と選択は継続 → **残余 4.7x の落下点は `_tick_entry` / order 層に確定**
+- 付随: `view=meta` 実測 **517,378 行 / 54 戦略 / 2026-04-28〜08-21** (retention 不在の実測値)
+- **live パラメータ・発注挙動は不変更** (監査列の埋め戻しのみ)
+- 教訓: **「観測基盤を作った」は 3 段階ある — 書ける / 読める / 読んだ値が意味を持つ。** C1 は 4 ヶ月 1 段目しか満たしておらず、読み出しを繋いだ瞬間に 2 段目の欠陥が露出した = **読まれない計装は劣化を検知できない**
+
+## 2026-08-24 — fix(obs): C1 candidate テーブルの読み出し経路を新設 + hull 発火率 funnel 分解 (rule:R3)
+
+- **hull_donchian_fade の「13.3/週 期待 vs 1.62/週 実測」を funnel 分解**した ([[hull-fire-rate-funnel-2026-08-24]])。registry `t8-hull-shadow-freq` が 49 日間 info 表示のまま滞留していた案件
+- **平均値が階段関数を隠していた**: hull の trade は全 17 行 (全 shadow)、**最終発火 2026-08-06 で以後 18 日ゼロ**。週平均表示ではこの停止が見えない
+- **シグナル生成器は健全**: 凍結スペックを MASSIVE EUR_USD 15m にオフライン再生 (16.3 週) すると **205 signals = 12.59/週** で期待値 13.3 をほぼ再現。無発火だった 08-06〜08-21 窓にも **33 signals** が存在 → 「相場が setup を出さなかった」は棄却
+- **funnel**: 12.59/週 → HTF Hard Block **−25.4%** → 9.39/週 → 実測 hold 直列化 → 7.61/週 に対し実測 **1.62/週 = 残余 ~4.7x は未説明で実在**
+- **⚠️ 途中で誤結論しかけた点を記録**: `max_hold_bars=96` (24h) を直列化ブロック時間に使うと 3.07/週 まで落ち残余 1.90x = 「ほぼ説明できた」に見えた。だが本番 closed 17 件の実測保有は **median 0.57h** (p90 3.86h) で 24h キャップはほぼ不拘束 → 実測 hold だと残余は **4.7x**。**設計上のキャップを実効値の代理にすると残余を過小評価する**
+- **「MR は counter-HTF で kill 率 ~100%」を hull に外挿してはいけない**: 実測 **25.4%**。生存 153 件中 119 件が `htf=mixed` 窓 (Hard Block は bull/bear 限定で mixed 非発動)。sweep の「HTF gate 100% silent drop」は sweep 固有の観測であって family 一般則ではない
+- **🔴 真因 (診断が 49 日止まっていた理由) — C1 テーブルが write-only**: `evaluated_candidates` は [[lesson-select-best-bottleneck-2026-04-28]] を受け 2026-04-28 に新設され毎バー書かれ続けていたが、**HTTP route が無く `query_candidate_summary()` の呼び出し元は自身の unit test のみ** (本番参照ゼロ = 実質 dead code)。silent drop を可視化するための観測基盤が、観測できないまま 4 ヶ月データを溜めていた
+- **fix**: `GET /api/demo/evaluated-candidates` を新設 (read-only / GET のみ)。`view=summary|rows|meta`、`strategy` / `instrument` / `days` / `limit` フィルタ。`query_candidate_meta` / `query_candidate_rows` を `modules/candidate_logger.py` に追加。テスト 10 件追加 (関数 5 + endpoint 5)
+- **estimand 警告を route/関数 docstring に内蔵**: 本テーブルへの記録は **HTF Hard Block が候補リストを削った後**。HTF-blocked 候補は入らない (可視化は `[DTE] HTF_HARD_BLOCK` の stdout のみ) → **count=0 は「シグナルが出なかった」ではなく「select_best 段まで生き残った候補が無かった」**
+- **付随観測**: 本テーブルに retention/rotation が無く単調増加する。`view=meta` で総行数を露出させ可視化のみ実施 (挙動不変、retention は別 R3)
+- **live パラメータ・発注挙動は不変更** (観測系のみ)
+- 教訓: **観測基盤は「書ける」だけでは完成していない。読み出し経路が無い監査テーブルは、無いのと同じ — むしろ「計装済み」という誤った安心を与える分だけ悪い**
+
+## 2026-08-23 — docs(roadmap): T-MTF を CLOSE に是正 (KB drift、rule:R3)
+
+- roadmap v2.3 の **T-MTF 行が 47 日間 🔄「調査中 (別セッション)」のまま残存**していた。実体は **2026-07-07 に PR #58 でクローズ済** — コード側で確認 (`DaytradeEngine.HTF_MIXED_LIVE_STOP_CELLS` = `modules/demo_trader.py:8833` / 診断タグ文言の実装整合コメント = `app.py:2181-2185`)
+- 調査結果 (行に反映): 「シグナル抑制中」タグは**診断表示のみ**で、Hard Block は `htf_agreement` が bull/bear のときだけ効き **mixed は素通り**していた (mixed の実効果は legacy score×0.70 減衰のみ、DTE 候補は非抑制) = **バイパス確定**。fix は trendline_sweep×GBP_USD の cell stop 登録。再 live 化は R1
+- **なぜ問題か**: 「調査中」の残存は、次セッションが**クローズ済みのバグを再調査する**か、逆に**未解決だと誤認して判断を保留する**。spawn_task で別セッションに渡した項目は、着地確認がロードマップに戻ってこない構造欠陥がある
+- 教訓: **別セッションへ委譲した項目は、委譲元のロードマップ行に「誰が・いつ・どこで着地確認するか」を書く。書けないなら委譲しない**
+
+## 2026-08-23 — fix(deploy): 残存デプロイ churn を実測分解して恒久ゼロ化 (phase-2, rule:R3)
+
+- **phase-1 の効果を推定でなく実測で確定**: PR #199 マージ (08-21T01:57Z) 以降の main 31 commit に対し Render が実際に走らせたデプロイは **4 件 = 1.7/日** (baseline 18.8/日 から **−91%**)。§4.2 の推定「7.9/日」は保守的に外していた (実測はその 1/4.6) — **以後この種の効果は Render deploy 一覧との突き合わせで報告する** ([[deploy-churn-trading-gap-2026-08-21]] §8)
+- **残存源の全量分解** (ローカル再生が Render の deploy 一覧と 4/4 完全一致 = 網羅性の担保): (a) `analyst-memory.md` **3/平日** (daily_report の post_tokyo/london/ny)、(b) `bt-results/phase1b` + `data/sentiment` 1/日 (phase1b 日次 re-run)、(c) `raw/cell_deepdive/` 不定
+- **(a) の再分類 — 「ランタイム read」は粒度が粗すぎた**: 全数 grep で参照経路は `_read_analyst_memory` (app.py:11651) → `get_analyst_opinion` (:11749) → `/api/analyst-opinion` (:12229) の**人手起動エンドポイントのみ**。`modules/` / demo_trader / signal / OANDA 転送からの参照は**ゼロ**、起動時ロードも無し。**助言メモの鮮度のために平日 3 回 × (無 tick ~60s + ramp ~2.5-3 分) ≈ 平日 10 分の劣化取引**を払っていた = 原則 1 違反 → 分類を **取引パス read / 助言専用 read / write-only** の 3 階層に改め、助言専用は ignore 可とした
+- **代償の可視化 (サイレントにしないことが交換条件)**: ignore により本番 memo は最後のコード系デプロイ時点で固定される → `/api/analyst-opinion` 応答に **`memory_stale_days`** を同梱し陳腐化を観測可能に (`app.py::_analyst_memory_stale_days`)
+- **🔴 副産物 — guard の抽出器がコメント行で黙って打ち切られていた**: `_ignored_paths()` の regex `(?:\s*-\s*.+\n)+` はリスト途中の `# ...` で停止し、以降の entry が検査の視界から消える。`data/**` を誤 ignore する counterfactual を注入しても **6 テスト全て pass** した (= 検査の無力化)。修正 + `test_ignored_paths_parser_sees_entries_after_inline_comments` で pin、修正後は同 counterfactual で 4 テストが落ちることを確認
+- **drift guard を非 KB ルートへ拡張**: phase-1 の guard は `"knowledge-base"` 起点リテラルしか走査せず、`data/**` / `bt-results/**` を ignore した瞬間に穴が空く → `test_no_new_runtime_data_path_silently_ignored` を新設 (実測検出 = `data/cache/massive` / `data/cache/yield` / `data/_holdout_locked/MANIFEST.json`、`cached["data"]` 等の dict 添字は偽陽性ゼロ)
+- **効果**: 同一 31 commit 窓の再生で would-deploy **4 → 0**。過剰抑制でないことの対照 = 直近 276 commit では **32 commit が依然デプロイを起こす** (`modules/demo_trader.py` / `tools/` / `tests/` / `.github/workflows/` / `prereg-trigger-registry.json` / `data/cache/yield/*.parquet` 等のランタイム read)
+- **範囲外 (主張しない)**: 逸失 pip の定量化。主張は「不要な断続窓が構造的に存在し、その全量を実測で特定して消した」機構レベルの事実のみ
+- 教訓: **設定リストにコメントを足す変更は、その設定を読むパーサ全部を疑え。guard 自身が無力化されても全テストは green になる — guard を触ったら counterfactual を注入して「落ちること」を必ず確認する**
+
+## 2026-08-21 — fix(deploy): KB ドキュメント commit が取引エンジンを再起動する構造欠陥を是正 (rule:R3)
+
+- **発見**: autopilot ヘルスチェックで本番 502 → 障害ではなく**自分の push が誘発した再デプロイ swap 窓**と判明。「1 commit で取引エンジンが止まる」構造に気づいたのが起点 ([[deploy-churn-trading-gap-2026-08-21]])
+- **実測 (origin/main 14 日)**: web service デプロイ **18.8/日**、うち **78% が `knowledge-base/` のみの commit**。`autoDeploy: commit` に path filter が無く、ドキュメント更新がそのまま `demo_trader.py` の per-mode background threads 再起動になっていた
+- **1 回のコスト (Render app ログ instance 追跡)**: 旧 instance 最終 tick 01:07:47.8 → 新 instance MainLoop 開始 01:08:47.2 = **完全無 tick ≈59.5 秒**、全 24 モード到達まで **+2m39s**、cold cache で tick#1 が 10s 級 (定常 0.6s)
+- **最悪ケース実測**: KB commit が 2m22s 間隔で連続した結果、新 instance が **寿命 85 秒・全モード tick#1〜#3 の warm-up 未完了のまま kill**。連続 KB commit 中はエンジンが定常状態に到達できない
+- **対策 (R3)**: `render.yaml` web service に `buildFilter.ignoredPaths` を追加。**ランタイム read パスは意図的に除外** — `wiki/tier-master.json` / `wiki/snapshots/` / `raw/trade-logs/analyst-memory*.md` / `wiki/decisions/prereg-trigger-registry.json` はデプロイを起こさせる。ignore 対象は write-only (`raw/hunt_events/`, `raw/bt-results/`) と純ドキュメントのみ
+- **効果 (同一 14 日窓で再生)**: デプロイ **18.8/日 → 7.9/日 (−58%)** (263→110。merge commit は first-parent 差分で評価)。残存最大要因は `analyst-memory.md` (41件、シグナル経路外だがランタイム read のため保守的に残置)
+- **再発防止** `tests/test_render_build_filter.py` 3 件: ignoredPaths 縮小検知 / **ランタイム read 巻き込み検知** / **drift guard** (`app.py`+`modules/` の KB 参照を regex 抽出し、ignore に match するものは write-only allowlist 必須)。故意の違反注入で赤くなることを確認済み (非 vacuous)。pyyaml 非依存 (`scripts/check.py` と同じ regex 方式)
+- **範囲外 (主張しない)**: 逸失 pip の定量化。断続窓と発火の同時性は未測定 — 主張は「不要な断続窓が構造的に存在した」機構レベルの事実のみ
+- 教訓: **CI の paths filter (T15 で撤廃) と CD の build filter は別問題。前者は「テストを回すか」、後者は「取引エンジンを殺すか」**
+
+## 2026-08-19 — research(family-C): rate_anchor_deviation explore — 臨時裁定 #26 + pre-reg 凍結 + two-pass (rule:R1 手続き)
+
+- **family C (user 水平線理論の機械核 v2 = 金利観測フェアバリュー帯乖離リバージョン) を臨時裁定で台帳 #26 に採用** (改訂 WIP 原則: 能動 explore 枠 0/3 + user 直接承認 2026-08-19「進めて」)。claim = PR #197 + edge-dev レーン cross-session 承認、explore 枠 1/3 消費
+- **pre-reg 凍結** ([[family-c-rate-anchor-explore-prereg-2026-08-19]]): 片側 LONG onset イベント (2y 金利差 rolling OLS 帯、z 下抜けクロス、Z_th 機械選定) × +21bd 固定 horizon、explore 2014-2021 (介入ゼロ実測窓)、swap 込み・gross/net 分解報告、MoF #4 cross-LOCK 遵守 (OOS は介入隣接 partition)
+- **敵対的検証 GO-WITH-CONDITIONS (blocking 10 条、[[family-c-adversarial-verification-2026-08-19]])** — 最重要 3 件を凍結前修復: ① 旧 gate C null が合成 probe で反保守 (type-I 20-29% @ 名目 5%) → **年内 demean + episode-block sign-flip + p≤0.02 較正**へ差し替え、② JGB Golden Week gap (実測 11 暦日) × staleness 5d 規則が 2019-2021 を連鎖 blackout → 12d へ、③ rates-content 識別不能リスク → b≡0 ablation 対照 + 解釈規則凍結
+- ハーネス `tools/family_c_anchor_explore.py` (freeze/pass1/pass2/oos、4 点 OOS 機械ロック実装済み) + test pin 19 件。registry `family-c-explore-verdict-deadline` (08-29 backstop) 登録 → 同日 resolve
+- **verdict = ❌ FAIL (同日 two-pass、期日 10 日前倒し、OOS 2022+ 非接触封印)**: N=41 (Z_th=1.5)、**gross −20.5p / swap −1.6p / net −24.2p (adverse −32.1p)** — 帯下 onset 後の +21bd は平均続落。gate C (timing 超過 vs 同年無条件ロング) p=0.527、LOYO 符号不安定 (JPY 増価年 2015/16/18 が負殺)。median +1.4p・WR 51% = 左テール支配 (falling-knife 型)。**h5 診断 (非 claim): 初週 +10.9p バウンス → 21bd で逆転** = 「dip は跳ねるが多週ホールドで死ぬ」
+- **クローズ範囲発効**: 日次金利差アンカー帯 × USD_JPY × 帯下 onset LONG × 5-63bd 全変種。**user 水平線理論の機械核 v2 死亡 — 裁量スタック残余 = 執行層 (15m/1m) + exit 層のみ**。power caveat: MDE 131p、FAIL≠falsified だが点推定負 = 符号情報を持つ FAIL
+- **副次所見**: ablation 対照 (価格のみ z) は Jaccard 0.167 で識別作動 + さらに悪い −65.8p = **USD_JPY 多週 dip-buy は 2015-2021 で機構を問わず負け**。E-C の介入 dip +188p (2026) は非介入 dip で再現されず = 介入型の固有性示唆 (09-18 A/B/C 統合裁定の一次材料)。ppp「USD_JPY だけ IC 負」prior が的中
+
+## 2026-08-19 — fix(watch): 条件付きトリガの評価器レベル欠陥 — 「常時 WATCHING」を機械評価へ (rule:R3)
+## 2026-08-19 — research(family-A): statement_ladder explore pre-reg 起草 (DRAFT、測定ゼロ) — 09-18 統合裁定の前提材料 (rule:R3)
+
+- **family A (発言ラダー→介入確率) の explore pre-reg を DRAFT 起草** ([[family-a-statement-ladder-prereg-2026-08-19]])。起点 = `statement-ladder-foundation-readiness` resolve (PR #195、基盤 PR #194) + user「進めて」。claim = queue ticket + 本 PR (E23 方式)
+- **estimand = ladder 検出器の較正 (hit / false alarm 率、価格全面不使用)** — dossier の指定どおり「発言ラダー先行 (N=4 記述)」の FP 率測定が本 family の仕事。primary = L≥4 遷移検出器 1 本 (m=1)、(T,R,H)=(5,20,20) 設計仮説、凍結は敵対的検証後に論拠のみで確定
+- **正直な拘束を事前固定**: 有効 N=4 episode blocks → **全 verdict 記述級** (edge 主張不可) / **P-A1 = lexicon v1 語彙は 2022/2024 目視検証を経た in-sample 汚染チャネル** → クリーン判定は forward OOS のみ (Q3 開示 ~11-06 が最初の機会、エピソードゼロ四半期も FP 側検証として記録) / lexicon は PR #194 commit `569dbe3f` に pin
+- **測定は未実施** (発言×介入ジョイント量ゼロ)。採否・explore 枠は 09-18 edge-supply-scan-monthly の A/B/C 統合裁定。台帳登録案 = #26 `statement_ladder_intervention_prob`。family B (介入イベント→回避/執行) は別 family として E-C 符号逆 prior を継承させる設計指示のみ記載
+
+- **`info`/`conditional_info` 型が dispatch で無条件に `WATCHING` を返すハードコードだった** ([[lesson-trigger-reachability-evaluator-2026-08-19]])。`condition` フィールドの発火条件は **一度も評価されず**、条件が成立しても TRIGGERED にならない設計。ZN 教訓 (「条件を書く」と「条件が起こりうる」は別物) の **4 例目、初の評価器レベル**
+- **実害**: `statement-ladder-foundation-readiness` は条件 (当局発言ラダー基盤の main 着地) が **PR #194 (`569dbe3f`) で既に成立済み**だったのに watching 表示のまま滞留。同トリガは family A (発言ラダー→介入確率) の pre-reg 起草ゲート = **能動測定ライン 0 本の状況で唯一動かせる供給ライン作業が黙って停止していた**。`deadline` も無視されており、期日付き手動エントリ (`volstate-split-*` / `carry-dip-v3-revival-watch`) は自分から期限切れを名乗れなかった
+- **機械評価型 2 種を追加**: `artifact_presence` (glob + `min_files` の実ファイル判定 =「main に着地したら発火」型) / `data_coverage` (cache 被覆 max 日付 vs 閾値 =「cache が延伸したら発火」型)。取得不能は従来どおり `DATA_UNAVAILABLE` で cron を落とさない
+- **`evaluate_manual_info`**: 手動判定エントリでも `deadline` 超過で TRIGGERED (`no-deadline` は無期限 watching のまま)
+- **到達経路 lint** (`lint_reachability` / `--lint`、pytest 強制): 機械評価型でないエントリは `reachability` (誰/どのジョブが状態を進めるか) の明記を**必須化** — 5 例目の再発防止本体。現行 registry 違反 0 件
+- **`statement-ladder-foundation-readiness` = TRIGGERED → resolve 済み** (会見 corpus 56 月次 jsonl / lexicon ladder スコア / forward 日次 cron を実ファイルで確認)。**family A の pre-reg 起草ゲート解除** — 09-18 スキャン (`edge-supply-scan-monthly`) の A/B/C 統合裁定の前提材料が揃った。⚠️ 基盤は**収集のみ**、発言×介入×価格のジョイント測定は別 pre-reg の観測前 LOCK まで禁止 (MoF #4 cross-LOCK 継続)
+- `ws3-round4-eur-divergence-conditional` を `data_coverage` へ移行 → 実測表示 (被覆 2026-08-18 / 閾値 2026-11-15) に変化、延伸経路の実在も同時確認
+- live/tier/lot 変更ゼロ。test 7 件新設 + 旧 pin 1 件を現行設計へ更新 (2645 passed)
+
+## 2026-08-18 — feat(data): MoF 通信モダリティ収集基盤 — 介入 ground-truth / 会見 transcript / lexicon ladder / GDELT (rule:R3)
+
+- **新データモダリティ (当局コミュニケーション) の収集基盤を新設** ([[mof-communication-data-infrastructure]]、`data/external/mof_statements/`)。起点 = user 介入主張のスコーピング wf_32d378df (MEMORY `user_manual_edge_usdjpy_carry_2026_08_12` 追記4) — 主軸は「発言ラダー lexicon × 公式介入ラベル」、**X は ToS 上不使用**
+- **⚠️ 収集のみ**: 発言×介入×価格のジョイント測定は別 pre-reg まで全面禁止 (MoF #4 cross-LOCK)。価格データ不使用・2026 介入日の価格推定なし (P-10 遵守)
+- **介入 ground-truth**: 公式日次明細 CSV (1991-04〜) を正規化、凍結 legacy `mof_interventions.csv` と**行単位 383/383 完全一致**。新規 = 2026 Q2 開示 3 行 (04-30/05-04/05-06、Σ¥11,734.8bn ≒ 月次総額と符合)。**2026-06-29〜07-29 月次窓 = 介入額 0 (公式)**
+- **会見 corpus 502 会見 (2022-01〜2026-08)**: online 387 + NDL WARP 115 (pywb `id_` 原本、旧 `.htm` 対応)。**MoF index の欠落 8 ヶ月 (202310-12/202601-04) から未リンク孤児 62 会見を日付総当たりで回収** (神田財務官単独会見 2 本を含む)
+- **lexicon ladder v1** (`tools/mof_statements_lexicon.py`、Gnabo 系 talk/act 離散化 L1-L5 + no_comment、大臣側発言のみスコア、テスト 19 本): 目視検証 **PASS** — 2022 窓 (L0-2→09-02 L3→09-29 L4→10-03 L5) / 2024 窓 (L0→03-26 L3→04-02 L5) の両方でエスカレーション可視 (詳細テーブル: `reports/mof_statements_backfill-2026-08-18.md`)
+- **forward 日次 cron 新設**: `tools/mof_statements_daily.py` + `.github/workflows/mof-statements-daily.yml` (JST 06:30 — 介入 CSV/会見/news.rss/GDELT、月ページ欠落時は日付プローブへ自動フォールバック)
+- **観察事実**: 公式 CSV に 2026 Q2 日次明細が着地済み (08-07 公表) = **#4 pre-reg の verdict 期日 (着地+10 日) 超過中** → verdict 執行を別タスクとして起票 (本基盤では E-A/E-C 量を計算していない)
+
+## 2026-08-18 — feat(automation): family C アンカー自動化パケット — 日次データ基盤 + E-A defensive alert + registry トリガ 3 点 (rule:R3)
+
+- **user 承認 (2026-08-18「自動化させて」) の 3 点パケット** ([[family-c-anchor-automation-2026-08-18]])。live/tier/lot 変更ゼロ、シグナル計算ゼロの純データ基盤 + defensive monitoring
+- **① rate-anchor-daily**: `tools/rate_anchor_ingest.py` + 平日 21:15 UTC workflow — MoF JGB 15 テナー (歴史+当月英語版) / FRED DGS1-10 / ZN=F 日足を `data/external/rate_anchor/` に union-merge 蓄積 (単調性 assert、決定的 manifest)。凍結 e20 パネルには非接触。シード済み: JGB 3,328 行 (→08-17) / US 3,554 行 / ZN 756 行。**材料のみ — フェアバリュー帯/乖離の計算は family C pre-reg まで構造的に不実施**
+- **② intervention-watch**: `tools/mof_intervention_watch.py` + 00:20 UTC workflow — #4 §2.2 凍結 rule (X,Y)=(2.0, 0.25%) **as-is** で前 UTC 営業日を評価、candidate=1 で Discord 通知 + `knowledge-base/raw/intervention_watch/` JSONL 記録 (dedup 兼用)。**監視のみ — live gating 自動執行は不実装 (§5.5 Variant B = 別 pre-reg + user 承認)、candidate ≠ 介入ラベル、alert-grade (yfinance 1h) と verdict-grade (Massive 15m) を grade フィールドで分離**。test pin で order 系 import を構造遮断
+- **③ registry トリガ**: `mof-monthly-total-2026-08-29-check` (user 7月「介入をくらった」説の答え合わせ、着地当日 user 報告) / `statement-ladder-foundation-readiness` (family A 基盤、並行 task_a3b5b005) / `edge-supply-scan-monthly` 増補 (09-18 = A/B/C 統合裁定)。**全トリガに到達経路を明記** (ZN 教訓)
+- test 22 件新設 (`tests/test_rate_anchor_ingest.py` / `tests/test_mof_intervention_watch.py`) + registry pin
+
+## 2026-08-17 — research(E22): VRP explore ❌ FAIL (IC −0.025 p=0.760、OOS 非接触) — vol モダリティ恒久クローズ (rule:R1 手続き、台帳 #24)
+
+- **E22 (通貨 VRP = EVZ−RV21 × EUR_USD × 21bd 時系列 IC) の凍結 explore を単独 wave で執行** ([[e22-vrp-explore-prereg-2026-08-17]]、scan 第 3 次 §2/§2.1 の explore 枠 1/3)。敵対的検証 GO-WITH-CONDITIONS (17 条 / blocking 10 条) 全消化 → 🔒 凍結 `f50b680a` → two-pass 測定
+- **verdict = explore FAIL (gate C+D+F 同時不通過)**: 両側 circular-shift p = **0.760**、IC = **−0.0249 ≈ 0** の完全 null (N=2,066 / 非重複窓 98)。stressed-net は adverse **−11.2p**・point 端でも **−3.1p** — **swap −16.2p が gross +8.9p を支配** (21bd hold の事前記録どおり)。年次符号 5/8・LOYO 7/8
+- **クローズ範囲 (凍結どおり発効)**: 通貨 VRP 全変種 × G10 × 日次〜月次 + 無料 proxy (EVZ/VXFXICLS) — **E24/E25 棄却と合わせ vol モダリティ恒久クローズ、生存モダリティ 6→5 系統**。power caveat 凍結済み (FAIL ≠ falsified、検出力 8–17%、引用は estimand 監査必須)。復活 = 有償 OTC 面 + 新 family + 新敵対的検証のみ
+- **§2.1 事前コミット節の帰結執行**: OOS 2022-01..2025-03-11 非接触封印 / **Databento 有償調達の user 決裁は不要化** (PASS 時のみの決裁点だった) / 無料で vol モダリティに白黒 = 主目的達成。外部/新規 family 系統の explore→OOS 生存 **0/16** に更新
+- **副産物**: EUR_USD 15m の **2020-10-23..11-16 MASSIVE ベンダー穴を OANDA mid backfill で修復 (+1,440 行、米大統領選挙週回収、`tools/e22_gap_backfill.py`)** — 敵対的検証が実測発見した未開示穴。EVZCLS.csv (FRED、確定終了系列) を git 追跡化 + sha256 manifest 凍結
+- **能動的に動かせる供給ラインは E21 (帰属分解、user 決裁 registry 08-31) のみに** — 残りは全て calendar-lock (E12 2027-02 / E1 10-15 / #22 ECG 11-06)。E23 はゲート解除済み (起動判断は次スキャン)。live/tier/lot 変更ゼロ
+
+## 2026-08-17 — research(E7): phase-1 verdict ❌ FAIL (discovery 0/24、OOS 非接触) — イベントモダリティ枯渇、E12 格上げ (rule:R1 手続き)
+
+- **E7 phase-1 (指標サプライズ directional) を期日前倒しで執行** (凍結期日 08-21 の 4 日 / verdict 08-28 の 11 日前倒し、[[e15-e7-event-modality-prereg-2026-07-18]] §13、PR #182)。排他 claim = queue ticket + draft PR (race 対策の初適用)
+- **verdict = FAIL (discovery 段)**: §5b 選抜通過 **0/24 → m₁=0**。実効空間 (θ=0.5、12 combo) は time-exit EV 全て負 (−0.31〜−8.15p/trade、N 287–416、blocks 41–62) — power 不足でなく**サプライズ方向 drift の符号が系統的に逆** (発表後 overshoot 回帰と整合)。SIGN-FLIP は §6 事前宣言どおり記述記録のみ (fade 追試 = 新 family + 敵対的検証、phase-0 CPI fade C5 が負の prior)
+- **OOS 窓 (2024-01〜2026-06) は結合統計未接触のまま保存**。θ=1.0 は §3.3c 予告どおりゲート機械脱落
+- **機械ガード全 green**: parquet 台帳再現 13/13 / census-e7 が §3.3c pre-flight と完全一致 (41/62/22/31、19/16/8/5) / 符号・estimand の手計算 spot check (2020-06-05 NFP z=+30.79 × USD_JPY、+10.46p 一致) / self-test 24-combo 結線
+- **§8 固定分岐発動: 両 phase PASS=0 → イベントモダリティ (カレンダー/サプライズ × M15 spot) を枯渇と判定、E12 (CME volume flow、first look 2027-02-05) を供給ライン主候補へ格上げ**。E23 (中銀声明テキスト、E7 verdict までゲート) は本日からゲート解除 = 台帳の次回評価対象
+- ハーネス: `event_modality_explore.py` に discovery-e7 / census-e7 / self-test-e7 モード追加 (lib 変更ゼロ — E7_HORIZONS/uncond rule は設計時から準備済み)。test pin 4 件新設 (`tests/test_e7_phase1_explore.py`)。registry `e15-e7-event-prereg-phase1-verdict` resolved
+
+## 2026-08-14 — research(scan): 月次外部仮説スキャン第3次 + 四半期モダリティ棚卸し + ZN=F キャッシュ構造欠陥修復 (rule:R3)
+
+- **月次スキャン第3次を期日 (08-18) の 4 日前倒しで実行** ([[external-hypothesis-scan-round3-2026-08-14]])。起動理由 = WIP 原則は名目 3 系統で充足していたが、**実態は 5 系統すべて calendar-lock 待ちで探索アクティブ枠 0/3** が 9 日間継続していた。「在庫はあるが着手可能な仕事がゼロ」は WIP 原則が防ごうとしている状態そのものと判定
+- **裁定**: 採用 2 / 保留 1 / 棄却 2 — **E21 human_signal_stream (user 手動実績の帰属分解、S2 診断枠)** + **E22 通貨 VRP (IV−RV、explore 枠 1/3・条件付き)** / 保留 E23 中銀声明テキスト (E7 verdict 08-28 までゲート、multiplicity 二重取り回避) / 棄却 E24 global vol risk (2026 年新研究が horizon >3ヶ月を再確認 = round-2 の E17 棄却を補強)・E25 synthetic vol surface (Yahoo 価格由来 = 価格モダリティ再着せ替え、E13 同型)
+- **E22 の事前コミット節を on-record 化**: explore/OOS は**無料で完結**する (EVZCLS 実測 4,529 行、OOS 終端 2025-03-11) が、**forward の無料経路はゼロ** (EVZCLS 廃止確定 / `^EVZ` delisted / CME scrape は ToS 禁止 / Databento 有償)。よって **PASS = 「live 実装承認」ではなく「有償データ調達の user 決裁点に到達」の意味のみ**。user が調達しない判断をした場合に設計を緩める再訴訟を禁止。枠を使う正当化 = 無料で vol モダリティに白黒がつく非対称
+- **E21 のスコープ制限**: estimand は 4 分解 (swap / spot ドリフト β / タイミング残差 α / サイズ寄与) の**会計**であって WR 統計ではない (MEMORY 明示指示)。**M2/M3 直接寄与は小さいと前置** (無レバ carry +0.3-0.4%/月、20%/月には ~25x = unwind 即死)。α≈0 でも human-signal-stream 系統を恒久クローズできる情報価値がある
+- **四半期モダリティ棚卸し (初回)**: 閉鎖判定の巻き戻し **ゼロ** (12 モダリティ全て前提有効、うち E17 は新研究で強化)。**生存モダリティは 6 系統のみ、うち能動的に動かせるのは E21/E22 の 2 系統だけ**と確定
+- **入手性 re-check で 2 件悪化・1 件構造欠陥を検出** — 悪化: EVZCLS 右端 2025-03-11 で確定終了 / VXFXICLS 2022-02-11 終了。**構造欠陥 = ZN=F 1h キャッシュ (下記)**
+- **ZN=F キャッシュ構造欠陥 (R3、本 PR で修復)**: `modules/yield_data.py` が rolling 窓 API の結果でキャッシュを**無条件 overwrite**。`interval="1h"` は period=60d を選ぶため、**一度呼べば 12,760 行が 1,162 行に潰れる**。しかも **2024-02-18→2024-03-21 の約 1 ヶ月は既に yfinance 窓外 = ファイルにしか存在しない**。修正 = `merge_bar_cache()` で union-merge (行数単調非減少 / 重複は fresh 採用) + 1h period を 730d へ + **test pin 7 件**。実行結果 **12,760 → 14,175 行 / 右端 2026-05-15 → 2026-08-14、左端 2024-02-18 保持**
+- **到達経路のない registry 条件を是正**: `ws3-round4-eur-divergence-conditional` の発火条件 (cache が 2026-11-15+ へ延伸) は、**キャッシュを伸ばすジョブが存在しなかったため構造的に到達不能**だった (毎日 "watching" 表示は健全性の証拠にならない)。`.github/workflows/zn-cache-refresh.yml` (週次 UTC 月 06:40) を新設して伸長経路を実在させた
+- **教訓ページ**: [[lesson-rolling-window-cache-overwrite-2026-08-14]] — rolling 窓 API のキャッシュは union-merge が既定 / 条件付きトリガ登録時は到達経路を message に明記する
+- **パイプライン運用規則の追補**: WIP 充足判定は「S1-S4 の本数」ではなく **「今日着手できる本数 ≥1」** で行う ([[edge-development-pipeline-2026-07-18]] §5)
+- **registry**: `edge-supply-scan-monthly` 期日 08-18 → **09-18**、`ws3-round4-eur-divergence-conditional` に修復注記
+- **評価への影響: なし** — live / tier / lot / Kelly は一切不変更 (純研究 + データ基盤)
+
+## 2026-08-12 — docs(KB): ps_aud_jpy demote 可否 user 決裁 — 見送り採択、LOCK watchdog に委任 (rule:R2 手続きクローズ)
+
+- **user「進めて」(2026-08-12) で推奨案採択**: 549250 (−123.2p) 事故起点の demote 提案 ([[mc-ruin-dashboard-artifact-2026-08-05]] #3) は **demote 見送り** — LOCK 済み基準 (watchdog Live N≥10 EV<0 / N=15 Wilson<0.40 / 2週連続 EV<0 / catastrophic SL率>30%) が唯一の判定器。horizon 損失 cap の R1 amendment は起案しない
+- 決裁時状態: 08-04 以降 ps 発火ゼロ (live N=2 のまま、前提不変) / watchdog cron 稼働中 (監視主体併設要件充足)。以後の ps 判定は完全自動 — これで 549250 事故の全 disposition がクローズ
+- **評価への影響: なし** (live/tier/lot 全て不変更 — 現状維持の正式化)
+
+## 2026-08-12 — docs(KB): ps carve-out 復帰初週 再ゲート disposition — 席枯渇で初週窓は無効、#172 後へ再アンカー (rule:R3)
+
+- **registry `ps-carveout-firstweek-regate` (期日 08-11 超過で stale 点灯) を決着**。**demote せず** — pre-reg 条件 live N≥10 に対し実測 **N=2**。N ゲートを事後に下げることはしない。詳細: [[ps-carveout-firstweek-regate-disposition-2026-08-12]]
+- **実測 (本番 `/api/demo/trades`、date_from=07-28 の 1,427 行)**: ps 行 **8** (全て `price_shock_rev_aud_jpy_h1_long` / AUD_JPY / BUY)、うち **clean live 2** (`oanda_trade_id != '' ∧ dedup_violation != 1`) / shadow 6。他 4 セルは発火ゼロ。live 実績 = 07-29 **+0.6 (WIN)** / 07-31 **−123.2 (LOSS)** = 計 −122.6p
+- **(a) AGG_KELLY BYPASS 監査 → carve-out は機能、初週の律速は「席」**: Render app ログ (07-29〜08-01) に AGG_KELLY block はゼロ。支配的なのは `[SHADOW] Slot bypass: price_shock_rev_aud_jpy_h1_long ... (live=1/1 shadow=1/2 → shadow)` で **13 分間に 16 行** = live 席が埋まり ps が shadow へ迂回。**初週の N 不足は carve-out の失敗ではなく席供給の枯渇** → **PR #172 (merged 08-11) で是正済み**。よって初週窓 (07-28〜08-11) は carve-out の EV を測る窓として**無効**と判定し、評価窓を #172 後へ再アンカー
+- **(b) exit 分布 → ✅ BE_LOCK OFF 実効**: clean live 2 件は**両方 `close_reason=horizon`** (早期 BE/trail exit なし)。N=2 のため「2/2 一致」水準の証拠と明記。`SL_HIT` ラベル衝突 (2026-08-07) の影響圏外
+- **(c) estimand 整合 → ⚠️ 潜在的不整合・現時点の影響ゼロ**: `price_shock_rev_live_watchdog.py` (N≥10 で auto DEMOTE) と `price_shock_rev_promote_evaluator.py` (N≥30 で lot ramp 提案) は非 canonical な **`is_shadow=0`** で live 判定し `dedup_violation` 除外を持たない (KB 規約は `oanda_trade_id != ''`)。**ただし実測乖離ゼロ** — 06-01 以降 7,761 行で `is_shadow=0 ∧ oanda_trade_id 空` = **0 件**、`dedup_violation=1` は shadow 側のみ。**バグとして起票せず**、canonical 判定へのハードニングは別タスク (auto-demote を握るため単独 PR + test pin)
+- **registry**: 初週エントリを resolved 化 + 後継 **`ps-carveout-regate-post-172`** 新設 (`live_count_decision`、prefix 一致、since 2026-08-11、N≥10 で EV/Wilson 再判定、backstop 2026-09-30。期日で N<10 なら供給側の別問題として stale レビュー)
+- **live パラメータ / tier / lot は一切不変更**。M1 見通しも不変 (wg + ps の live N 蓄積待ち)
+
+## 2026-08-12 — research(E7): phase-1 pre-flight — サプライズパネル凍結と power 開示 (θ=1.0 の 12 combo が結果観測前に脱落) (rule:R1)
+
+- **pre-reg §11 の 2026-08-14 マイルストン (FF gap scrape + データ付録凍結) を 2 日前倒しで完了確認**。§3.3c として追記 ([[e15-e7-event-modality-prereg-2026-07-18]])。**価格データ非接触・イベント×リターン結合統計は未計算** (§10-1 遵守) = 結果観測前の記録
+- **価格側 pre-flight**: `e15_e7_data_refreeze.py --verify-only --root <repo>` = **13/13 OK** (台帳 3 点再現)。discovery (08-21) / OOS verdict (08-28) の BLOCKED 要因なし
+- **サプライズパネル新設** `tools/e7_surprise_panel.py` — §6 の z = (actual − consensus)/σ_trailing (直近 24 releases、strictly trailing) を機械化。canonical NFP 149 / CPI 149 × R4F forecast × actual (R4F 231 + BLS first print 66、**欠落ゼロ**)。成果物 = `raw/bt-results/e7/e7_surprise_panel.csv` + `e7_surprise_coverage.json`
+- **block 実測 (block = イベント、primary 7 ペアが同時発火 → N ≈ blocks×7)**: NFP discovery θ0.5 **41** / θ1.0 22、CPI discovery **62** / 31、NFP OOS **19** / 8、CPI OOS **16** / 5
+- **帰結 1 — θ=1.0 の 12 combo は結果を見る前に構造的脱落**: 4 セル全てで §5b(iii) ≥40 も §5c B(d) ≥15 も不達。選抜の必須条件なので**凍結候補にすらならない** → 実効候補空間 **24→12 combo (θ=0.5 のみ)**。**grid/θ/ゲート/α 会計の定義は一切変更していない** (§10-2 遵守、これは可用性の開示であって設計変更ではない)
+- **帰結 2 — NFP θ=0.5 discovery は knife-edge (41 vs ゲート 40)**: イベント 1 件の増減で NFP 系 6 combo が消える。ゲート値は凍結済みなので動かさず、凍結表に脆さを併記する規約を宣言
+- **帰結 3 — modal 予想を事前記録**: OOS blocks 19/16 → 検出可能平均効果 ≈ 0.33σ_h (NFP) / 0.36σ_h (CPI) = 大効果のみ。**phase-1 の modal outcome も C3 (UNDERPOWERED) または C5** と今宣言 (結果後の言い訳封鎖、phase-0 §9 と同規律)
+- **σ_trailing warm-up の帰結 (規則から機械的、裁量ゼロ)**: 各系列の最初の 24 イベント (2014-01〜2015-12) は z 不定で discovery から自動脱落 (120→96)。R4F データ開始が 2014-01 のため pre-2014 充当は不可能
+- **除外は宣言済み 1 件のみ**: CPI/OOS の 2025-12-18 (forecast 欠落、§3.3b-6(i) で観測前宣言)。事後裁量による除外ゼロ。§8 DEFERRED 条件は不発 (13/13 ペア OK)
+- **test pin** `tests/test_e7_surprise_panel.py` (7 tests): 単位規約 / strictly-trailing σ / **look-ahead canary (未来 release 差し替えで過去 z 不変)** / block ゲート / 実測 block 数の回帰 pin。live/shadow/Kelly/tier は**一切不変更** (純研究)
+
+## 2026-08-09 — fix(live): DT `ctx.hour_utc` が live で 12 に凍結 — 全DT戦略の時間帯ゲートが BT と別物だった (rule:R3)
+
+- **`t9-kalman-d7-fire-info` の 0-fire (実測 0.00/週 vs 期待 3.9/週) の分母調査から発見**。`compute_daytrade_signal` の DT 用 `SignalContext` 構築が `bar_time` 不在時に `hour_utc=12` / `is_friday=False` へ固定フォールバックしていた。**`bar_time` を渡すのは BT 経路のみ** (`app.py:6679/7121`)、**live 経路 (`demo_trader._tick` → `compute_fn(df, tf, sr, symbol)`) は渡さない** → live の DT 全戦略が「常に UTC 12:00・常に金曜でない」前提で時間帯ゲートを評価していた。潜伏 **123 日** (`9c849cef` 2026-04-08 の DT構造改革で再混入。2026-04-04 に同型バグを一度修正済み = **回帰**)
+- **証拠 3 系統**: ① code derivation (live 呼び出しが位置引数 4 つ)、② **本番 QUALBAR 実測** — `[kalman_d7] QUALBAR` 12 行が実バー 03:00〜21:15 UTC に散らばるのに**全行 `hour=12`**、③ **自然実験** — `ctx.hour_utc` 直読み群は BT 窓外発火 **83/237 = 35.0%**、`df.index` から自前導出する回避策を持つ群 (turtle_soup / london_session_breakout の redesign_v2) は **0/28 = 0.0%**、**Fisher exact one-sided p = 1.32e-05**
+- **実害**: (a) h=12 が窓の穴に落ちる戦略 = **live 発火が構造的に不可能** — kalman_d7×3 variant (LIVE 化から **73 日 0 fire**)、pd_eurjpy_h20 (h==20)、tokyo_range_breakout (7-9)、london_ny_swing (13-17)、tokyo_nakane (00:45-01:15) は shadow N すらゼロ = **探索母集団から消えていた**。(b) h=12 を通す戦略 = 時間帯ゲート常時開放 — squeeze_release_momentum は発火の **86.7%** が BT 窓外、liquidity_sweep 50.0% / inducement_ob 26.7% / trendline_sweep 8.4%。(c) `is_friday` が常に False → **金曜ブロック (`FRIDAY_BLOCK_HOUR` 13〜18) が live で一度も作動していなかった**
+- **Rule 3 根拠 = 同一関数内の内部矛盾**: 4 行上の `is_trade_prohibited` は当初から `bar_time if bar_time else datetime.now(timezone.utc)` と正しく降りており、scalp が使う `SignalContext.from_df` も `bar_time → row.name → now()` と正しい。**壊れていたのは DT 経路の直接コンストラクタ呼び出しだけ**。統計的新規主張ではないため 365日BT 不要
+- **修正**: DT ctx の時刻導出を `bar_time → df.index[-1] → now(UTC)` に統一 (naive は UTC 扱い / aware は UTC 正規化)。`modules/data.py` が fetch 経路 index を UTC 正規化済みのため live の `df.index[-1].hour` は UTC 時刻。**BT 経路の契約は不変** (明示 `bar_time` が最優先)
+- **監視配線バグも同時修正**: 退避条件を載せようとした `prereg_trigger_watch` の `live_count_decision` が `match: prefix` を `fetch_live_count` へ渡しておらず、kalman (1セル=3 entry_type) の live 件数が**恒久的に 0 = 監視が沈黙**する状態だった (T5 の 18 日執行ギャップと同型)。`count_live_matching(prefix=)` を shadow 側と同契約に
+- **回帰 pin**: `tests/test_dt_ctx_hour_utc_live.py` (9 tests、**修正前ソースで 7 件が落ちることを検証済**) + `test_prereg_trigger_watch.py` に prefix/配線テスト 2 件。全 suite 2561 passed / `check.py` 全9チェック通過
+- **修正の作用方向**: 制限側 (trendline_sweep / squeeze_release_momentum / inducement_ob / liquidity_sweep / post_news_vol / ema200_reversal) = **BT 検証済み設計への復帰で安全**。開放側の大半は shadow のみ = **N 蓄積の回復** (原則4)。唯一 **kalman_d7 は `KALMAN_D7_LIVE_ENABLE=1` (本番 effective) のため live 発火が始まる** — ただし 2026-05-28 に user が option B で明示決裁した設計 (lot 0.5×) を初めて実際に動かすものであり新規昇格ではない (Rule 1 対象外)。決裁時の退避条件を機械監視に載せるため registry に `t9-kalman-d7-live-n10-ev-check` (live N≥10 で EV 判定、期日 2026-11-30) を新設
+- **既存判定の訂正**: [[pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28]] §6.5 の「INCONCLUSIVE = 設計対象外局面」は**誤診**と確定 (DIST fail は事実だが、通過していても session gate で必ず落ちていた)。**live/shadow 発火数に依拠した過去判断は本バグの影響を受ける**が、BT/探索側の verdict (WS3 の lfr / htf_fb / T10 / T11 等) は `bar_time` を持つため**影響なし**
+- **評価への影響**: tier/lot/live 送信可否は**不変更**。clean live 負エッジ (−242.6p / payoff 0.274) の説明変数が 1 つ増えた (エッジ消滅ではなく執行窓の逸脱による寄与) — 分離定量は修正デプロイ後の N 蓄積待ち。詳細: [[dt-ctx-hour-utc-live-freeze-2026-08-09]]
+
+## 2026-08-07 — fix(live): `SL_HIT` ラベル衝突 — 勝ち決済が SL 狩り防御を発火させていた (rule:R3)
+
+- **08-05 daily 提起の「`SL_HIT` の 46.2% が正 PnL」を解決。汚染ではなく「ラベル衝突」**: `close_reason="SL_HIT"` は「**現在の** SL に価格が触れた」の意味しかなく、BE-lock / トレーリング / Profit Extender が SL を entry より利益側へ動かした後の**利確 exit** も同じラベルになる。データは正しく、名前と下流の解釈が誤っていた
+- **本番実測 (N=3308, `/api/demo/trades`)**: SL が**利益側** 1894 本 → 97.6% が正 PnL (中央値 +2.00p / MFE 中央値 5.70p) / **リスク側** 1414 本 → 99.6% が負 PnL (中央値 −6.95p / MFE 0.00p)。**誤分類 1.5%** = SL 位置は事実上完全な判別子。`outcome` 内訳 = **WIN 1792 (54.2%)** / LOSS 1441 / BE 75。08-05 の 46.2% は小標本 (106本) ゆえの**過小評価**だった
+- **実害 (live 挙動)**: `_sl_hit_history` を消費する防御 2 本が「ストップ狩りに遭った」前提で動く — ① **cascade cooldown** = 同一ペアの**全戦略**を 45–600s ブロック、② **Fast-SL 適応防御** = 次エントリーの SL を ATR×0.3 拡大。**発火イベントの 54.2% が勝ち由来の誤発火** (Fast-SL 側は 315 件中 180 = 57.1%)。誤発火は USD_JPY 494 / GBP_USD 444 / EUR_USD 306 と**主力ペアに集中**し、4原則 #1「攻める」/ #4 に反していた
+- **Rule 3 根拠 = 設計の内部矛盾**: 同じ close 経路の**直前**のブロック (`if outcome != "WIN":` → `_last_exit` / `_total_losses_window`) が「SL 後の再エントリー防止」という**同一目的で既に WIN を除外**しており、隣接する 2 ブロックが非対称に書かれていた。統計的新規主張ではないため 365日BT 不要
+- **修正**: ① `demo_trader.py` の履歴記録を `close_reason=="SL_HIT" and outcome != "WIN"` に (BE 75 本は逆行スイープの証拠として**防御に残す**ため `=="LOSS"` ではなく `!="WIN"`)、② `learning_engine.sl_losses` / ③ `daily_review.sl_hits` を `outcome=="LOSS"` で絞る — 両者は「SLヒット率 >60/70% → **SL幅拡大検討**」を焚く advisory で、生カウントでは **82.7%** (真の損切り率 **36.0%**) となり勝ちの多い book に SL 拡大を勧めていた。④ 回帰 pin `tests/test_sl_hit_history_win_guard.py` (4 tests、修正前ソースで落ちる負のコントロール検証済)
+- **意図的に見送り**: `close_reason` の改名 (`TRAIL_EXIT` 等) は既存 3308 行と全 BT/分析ハーネスの estimand を非可換に壊すため**しない** — ラベル据え置き・消費者側を正す方針。shadow 行の混入是非 (誤発火 1792 件中 1786 が `is_shadow=1`) は scope 外で継続課題
+- **波及**: `shadow_demote_registry.py:40` の demote 根拠「SL_HIT 56.2%」は本汚染値そのもの → 再検討要 (保守側ゆえ緊急性なし、R2 で別途)。**今後 `close_reason` 起点の分析は `outcome` 分割を前提とすること**。MEMORY `project_be_trail_inflates_python_bt_wr` と同一機構が live 側にも出ていた
+- **評価への影響**: tier/lot/live 送信可否は**不変更**。変わるのは防御の誤発火が消える点のみ (エントリー機会の回復方向)。詳細: [[sl-hit-label-collision-2026-08-07]]
+
+## 2026-08-05 — fix(bt): daytrade/scalp BT phantom-loss 記帳修正 — LOSS を実効ストップ基準に (rule:R3)
+
+- **R3 調査完結**: sr_anti_hunt×EUR_JPY BT の 05-05 WR84.9% → 08-05 WR0.0% 反転は **regime ではなく `d87d5b6c` (2026-05-15) の `_BT_ABLATE_BE_TRAIL` default 反転**が直接原因。加えて **phantom-loss 記帳バグ**を発見: time-decay tightening (MAX_HOLD×50%) で entry まで引き上げた stop の退出 (実損≈0) を、`actual_sl_m` が「fut_close >元 SL 時のみ設定」のため planned `sl_m` のフル損失で計上。anti-hunt 系は BT の SL 再計算 (QH 前 TP距離/1.2) で sl_m=6.5〜11 ATR となり **1 件 −8.3R 級の架空損失** (trade dump で bars_held 12-17 集中 + actual_sl_m: null 全件を実証)
+- **修正**: daytrade/scalp 両エンジンの LOSS 記帳を実効ストップ (`_dt_current_sl`/`_current_sl`) 基準化 + gap なし分岐でも actual_sl_m 必須設定。tools/sr_anti_hunt_bounce_shadow_bt.py `_pnl_r` の `or 1.0` falsy ガードが正当な 0.0 を coerce するバグも修正。run_backtest(1H)=非発現 / run_1h_backtest=既に close-based で対象外。回帰 pin `tests/test_effective_stop_loss_booking.py` (4 tests)、全 suite 2521 passed
+- **判定への影響**: 08-05 cell BT の **EV_R=−8.30 は引用禁止** (gate FAIL 結論と forward 枠は不変)。05-05 の WR84.9% は optimistic 虚構 (BE 退出→+0.6×TP credit) で同じく引用禁止。**ablated BT の WR は wide-TP (≳3ATR) 戦略で構造的 ≈0 → wilson_lo 型 R1 ゲートは TP≲2ATR geometry 限定、wide-TP は TV Pine / shadow live で判定**。d87d5b6c 以降の daytrade/scalp BT 絶対 EV は decay-LOSS 比率×sl_m に比例して過大悲観 (相対比較は方向性有効)。詳細: [[bt-harness-effective-stop-booking-2026-08-05]]
+- **評価への影響**: live/shadow/tier/lot/Kelly 全て不変更 (BT 評価ロジックのみ)
+
+## 2026-08-05 — docs(KB): ロット階段 R1 パケット標準テンプレ事前凍結 + 計算ツール (rule:R3、live 変更ゼロ)
+
+- **セル・ポートフォリオ論 (user 合意 2026-08-05) 執行項目②**: G3 到達セルの lot 昇格手続きを事前凍結 — [[lot-ladder-template-2026-08]]。標準階段 L0 1000u → L1 5000u → L2 10000u → L3 30000u、昇格 = 段ごと R1 + user 承認 (SLA 48h) / 降格 = R2 自動 (D1 slippage / D2 at-rung 出血 / D3 disaster / D4 合成 DD 4/6/8% NAV / D5 Wilson gate 割れ) の非対称を凍結
+- **推奨 lot = min(6 上限)**: half-Kelly 2 基底 (本番 `kelly_fraction` 式同期) / worst-case イベント損失 ≤2.5% NAV / 証拠金 worst-case 同時 ≤40% NAV (25x) / exposure 20k cap / MC P(セル DD>2% NAV, 12mo)≤5% (`monte_carlo_ruin` JPY 建て)。台帳は broker 実約定 JPY のみ (D-a/D-e 整合)
+- **計算ツール**: `tools/lot_ladder_calc.py` (§8 パケット機械生成、手計算禁止) + `tests/test_lot_ladder_calc.py` (25 tests、テンプレ worked example を数値 pin)
+- **wg 事前充填の主発見**: ① Wilson gate (D-d 拘束) は wg 級統計で **N_required=41 > G3 の 30** = G3 到達≠即増額、② wg の binding constraint は Kelly でなく **disaster SL 150p** (U_cellDD ≈ 5.4k → L1 が実質上限 @NAV 326k)、③ 3 ペア同時セルの L2+ は exposure 20k cap 改定 R1 同梱必須。単一セル垂直増額では thesis に届かない = セル 2〜5 本の合成が必要という算数を再確認
+- **評価への影響: なし** — 全セル lot/tier/live 経路不変更。第 1 適用は wg G3 到達時 (fill 修復前提、ETA 2027-05 @現ペース)
+
+## 2026-08-05 — fix(risk): dashboard MC ruin の資本整合 (D-b 完結) + 549250 事故 disposition (rule:R3)
+
+- **「MC ruin 0%→100% 反転」(08-04 daily) の解剖**: gate 側 (`_get_ruin_probability`、実際に live 送信を止める方) の実測 = **ruin 0.0** (post-cutoff 全 N=566 + JPY 整合資本 5,801p、audit に mc_ruin block ゼロ) — **運用凍結は起きていない**。100% は dashboard 専用の三重 artifact (30d n=10 窓 × 資本 1000p ハードコード取り残し × 単位不均一 pip 系列)
+- **修復**: `/api/risk/dashboard` の `compute_risk_dashboard` に gate 側と同一式の `initial_capital` (OANDA_EQ_BASE_JPY/OANDA_JPY_PER_PIP_AVG) を接続 + n<20 低信頼フラグ。同一 n=10 系列で ruin **1.0→0.0**。D-b (Track C) が gate 側だけ直して dashboard 側が取り残された「同じ事実の片方欠落」の完結。pin `tests/test_mc_ruin_dashboard_capital_align.py`
+- **549250 (−123.2p) disposition**: 実損 ¥1,232 = NAV 0.34%、設計 horizon exit の範囲内。#4 tp=151.25 は placeholder 設計 (バグ非該当、R3 チェック完了)。#2 live_tier_exempt は pre-reg 承認済み estimand (regime veto 追加は Post-hoc tune 禁止に抵触、変更は R1)。#7 wg 非約定 = MARKET_HALTED 確定済み (2cf940f7)。**#3 ps demote 可否は user 決裁材料として整理 (推奨: LOCK の watchdog に委ねる / 代替: horizon 損失 cap の R1 amendment)**。詳細: [[mc-ruin-dashboard-artifact-2026-08-05]]
+- **評価への影響**: 表示計量の修正のみ — live/tier/lot/gate 閾値は全て不変更 (Gate2-4 は他条件で引き続き閉)
+
+## 2026-08-05 — docs(KB): sr_anti_hunt_bounce×EUR_JPY R1 昇格判定 NO-GO → forward 確認 pre-reg (rule:R1 手続き、live 変更なし)
+
+- **user「進めて」(2026-08-05) による R1 パケット起案を精査の結果 NO-GO 裁定**: ①起案動機 p=2.2e-11 は dedup_violation 除去 (23/67 重複 emit) 後 **EV t p≈0.094 = n.s.** に減衰、②累計 +272.4p は 2026-05 単月依存 (5月除外で −53.3p)、③live N=4 符号逆、④事前宣言ゲート付き 365d cell BT は **ハーネス整合破綻を検出** (同一ハーネスが 05-05: WR84.9% → 08-05: WR0.0%、9ヶ月重複窓で反転 = app BT パスとの機械的不整合、R3 調査タスク発行) で評価不能。vix pilot 失敗構図より弱い証拠での昇格を回避
+- **forward 確認枠 LOCK**: セル凍結 = EUR_JPY×BUY / dedup=0 / 2026-08-05 以降 fresh N≥40 で 1 回限り判定 (EV>0 ∧ Wilson_lo>38.7% ∧ 月次符号≥3/4)。registry `sr-anti-hunt-eurjpy-buy-forward-confirm` (期限 2027-02-28)。中間再計算禁止 (P-10 型)。詳細: [[sr-anti-hunt-eurjpy-r1-verdict-2026-08-05]]
+- **評価への影響: なし** — live/tier/lot/shadow 全て不変更。成果物 = 決裁 doc + registry + BT runner (`tools/sr_anti_hunt_eurjpy_cell_bt_2026_08_05.py`) + BT 乖離証拠 (raw/bt-results/)
+
+## 2026-08-03 — fix(live): vix_carry_unwind×USD_JPY Overlap pilot 早期 demote (rule:R2, user 決裁)
+
+- **決裁**: 2026-07-31 quant-eval の早期 demote 推奨を user「進めて」承認 (2026-08-03)。07-07 継続裁定の「demote は user 決裁」要件を充足、checkpoint (live SELL N≥20 or 08-31、registry `vix-sell-pilot-recheck`) を待たず執行
+- **根拠 (production 実測)**: live N=26 PnL=−46.9p PF=0.66 EV=−1.80 (月次 3/4 負、07-30 −30.1p) + **shadow エッジ崩壊** 04:+537p → 05〜07 累計 −216p/n=139 → 08-01〜03 −17p/n=7。365d BT 正値 (EV=+0.506 / Overlap cell N=22 EV=+1.297) は forward で反証 — 止血判定は EV 軸・Live>BT の規律に従い demotion に新規 BT 不要 (再昇格 R1 側で要求)
+- **執行**: `_PAIR_PROMOTED` 除外 (22→21) + `_PAIR_DEMOTED` 復帰 + `_PAIR_SESSION_FILTER`/`_PAIR_LOT_BOOST` 撤去 (inert だが code consistency)。MIN-lot 1000u 契約 code / agg-Kelly min-lot bypass は再昇格時のため残置。**shadow emit 不変更 (原則3)**。registry resolved 化。pin `tests/test_vix_pilot_demote_pin.py` (5 tests)、session-filter/agg-Kelly 機構テストは合成メンバーシップ化で絶縁
+- **評価への影響**: 現役 live 送信経路から最大の出血源 (7月 −34.3p) を除去。残る live 経路 = wg×3 + ps×5 + Grail #1/#4 (監視中)。詳細: [[vix-pilot-early-demote-2026-08-03]]
+
+## 2026-07-31 — fix(live): Grail #19 ny_close_reversal live 経路撤去 + shadow 含む全数 quant-eval (rule:R2)
+
+- **quant-eval 全数監査** ([[quant-eval-2026-07-31]] = `raw/trade-logs/`): post-cutoff closed **14,329 行**を 3 バケット分解 (live 565 / shadow 13,758 / other 6)。live 月次 = 04:−230.7 / 05:**+14.8** / 06:−281.9 / 07:−84.4p。**7 月 live 反実仮想: 修正済みバグ経路 + ny_close + vix を除くと −7.6p** = M1 (月次符号転換) の残存出血源を特定
+- **Grail #19 撤去 (rule:R2)**: ny_close_reversal live 経路 (N=4 登録根拠、2026-04-25) が live 0W/4L −9.7p + shadow 両ペア負 → `_GRAIL_CANDIDATES`/`_check_grail_filter` から撤去。shadow emit 継続 (原則3)。pin `tests/test_grail19_ny_close_removal_pin.py`。詳細: [[grail19-ny-close-removal-2026-07-31]]
+- **勝ちセル抽出** (Bonferroni m=102): WR vs BEV 二項検定 PASS = sr_anti_hunt_bounce×EUR_JPY (p=2.2e-11) / donchian×NZD_USD (4.2e-6) / ema200_trend_rev×USD_JPY (2.6e-6) / orb_trap×GBP_USD (3.0e-4、EV t 検定も PASS)。**横断勝ち条件 = 方向片側性 + Overlap (12-16 UTC)**。母集団レベルでは confidence≥70 が WR+5.0pp (Bonf PASS、04-22 分析の負相関から反転 — KB 矛盾として記録)
+- **vix pilot 証拠更新 (live 変更なし)**: shadow エッジ減衰 (05〜07 累計 −216p) + live 月次 3/4 負 → 早期 demote 推奨を戦略カードに追記、**user 決裁待ち** (07-07 裁定準拠)
+- **評価への影響**: live 送信経路 −1 (ny_close Grail)。lot/tier/Kelly 不変更。shadow 蓄積は全戦略不変
 
 - **🎉 3.5 ヶ月ぶりの初 live fill (07-29 04:44 UTC)**: price_shock_rev_aud_jpy×AUD_JPY → OANDA #549235 BUY 1000u @113.466 slip+0.8p。経路検証全クリーン — agg-Kelly BYPASS ログ実射 (D-c-1 carve-out 作動) / broker SL #549237 @112.467 (=2×ATR) + TP 付帯の二層防御 / dedup・slot 正常 / BE_LOCK・ATR-BE 不作動。**§7 免除 deploy (04:22) 後の fill = 完全な LOCK 設計 estimand 下の第 1 号** (戦略カード 現況に記録)。副次観測: broker TP に Quick-Harvest ×0.85 が適用される (988p→840p、horizon 12h では非拘束 — §7 スコープ外として記録)
 - **[[mfe-be-lock-design-2026-06-03]] §8 追補**: per-strategy 詳細表 (57d 再計測、適格 9 戦略 **0/9 pass**、Bonferroni p 全 1.0、aggregate ΔEV −0.006 p=0.975) — §8 verdict FAIL の per-strategy 粒度での確定。**評価への影響: なし (記録のみ)**
+## 2026-07-29 — fix(data): E15/E7 phase-1 データ前提修理 — plain 15m 台帳再現を 13/13 byte-exact 復元 + never-shorten ガード (rule:R3)
+
+- **発見**: coverage 台帳 (`e15_e7_pair_coverage.json`, 07-21 凍結) が参照する plain `{pair}_15m.parquet` が **11/13 ペアで台帳再現不能** (各種 explore の短い `--days` フル取得による無条件上書きが原因、EUR_AUD は消失)。このままでは phase-1 discovery (08-21) / OOS verdict (08-28) が `load_and_verify_bars` で BLOCKED
+- **復元**: phase-0 実行 worktree `e15-oos-20260722` に原本が現存、**phase-0 verdict data_ledger の sha256 と 13/13 完全一致** → `tools/e15_e7_data_refreeze.py --restore-from` で byte-exact 復元 + 判定器実コードで 13/13 GREEN 実証。凍結コピー `data/cache/massive/e15_e7_frozen/` + manifest `raw/bt-results/e15_e7_frozen_manifest_2026-07-29.json` (verdict と同一 sha256 = provenance 連鎖が閉じる)
+- **副産物 (重要)**: MASSIVE fresh 再取得で **AUD_USD が台帳比 −25 行 drift** = ベンダー歴史バー集合は不変ではない。pre-reg データ凍結は「cache 参照 + 行数 pin」でなく**ファイル実体コピー + sha256** で行うこと
+- **再発防止**: `tools/fetch_massive_data.py` に never-shorten merge ガード (既存行優先・head 保持・tail 延長のみ) + tests 8 本。phase-1 pre-flight = `--verify-only` (runbook `e15_phase0_execution_status.md` 2026-07-29 節)
+- **評価への影響: なし** — 価格ファイルの復元のみ、イベント×リターン統計未計算 (§10-1 遵守)、live/shadow/Kelly/tier 不変更
 
 ## 2026-07-29 — fix(data): MASSIVE ベンダー欠損 2 区間 (2019-09/2020-10) を OANDA v20 で backfill — 45 ファイル +61,709 行 (rule:R3)
 

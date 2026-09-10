@@ -146,5 +146,8 @@ def test_shadow_emit_writes_oanda_audit_shadow_tracking(tmp_path, monkeypatch):
     assert row["instrument"] == "AUD_JPY"
     assert row["is_live"] == 0
     assert row["bridge_status"] == "skipped"
-    assert row["block_reason"] == "shadow_tracking"
-    assert row["units"] == 0
+    # 2026-09-02 (rule:R3): units=0 self-described via "(shadow_emit_no_lot)"
+    # suffix; "shadow_tracking" prefix preserved for guard/tool compatibility.
+    assert row["block_reason"] == "shadow_tracking(shadow_emit_no_lot)"
+    assert row["block_reason"].startswith("shadow_tracking")
+    assert row["units"] == 0  # marker only — not an order size

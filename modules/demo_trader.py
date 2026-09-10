@@ -91,6 +91,7 @@ PRICE_SHOCK_REV_MIN_UNITS = 1000
 # ══════════════════════════════════════════════════════════════════════════════
 WEEKEND_GAP_FADE_ENTRY_TYPE = "weekend_gap_fade"
 WEEKEND_GAP_FADE_UNITS = 1000            # 固定 sentinel (pre-reg §3.1) — lot chain 非適用
+KALMAN_D7_MIN_UNITS = 1000               # carve-out 2026-09-01 LOCK — lot chain / FLAT 非適用
 WEEKEND_GAP_MAX_HOLD_SEC = 4 * 3600      # +4h time-exit (pre-reg §2.3, close_reason="horizon")
 WEEKEND_GAP_LIVE_STOP_KV_KEY = "WEEKEND_GAP_LIVE_STOPPED"  # 恒久 R2 stop flag (自動解除なし)
 WEEKEND_GAP_G1_MIN_N = 6                 # G1: live N>=6 rolling
@@ -350,6 +351,14 @@ def _shadow_audit_log_fragment(is_shadow: bool, block_reason: str, tier_state: s
     )
 
 # モード別設定
+# プロセス起動時刻 (rule:R3, 2026-08-28)。``never_ticked`` の経過秒の基準。
+# ``_main_loop_start_ts`` は _main_loop の先頭で設定されるため、**main loop
+# スレッドが一度も起動しなかった場合には存在しない** — その状態こそが検知
+# したい最悪ケース (モードは running のまま tick ゼロ) なので、常に存在する
+# フォールバックが要る。これが無いと age=None → watcher が「version skew」と
+# 誤分類して **沈黙**する (実測で確認済み)。
+_PROCESS_START_TS = time.time()
+
 MODE_CONFIG = {
     "daytrade": {
         "interval_sec": 30,       # 30秒ごとにシグナルチェック
@@ -722,20 +731,34 @@ MODE_CONFIG = {
     },
     # ── LCR: FROZEN (Phase2 BT全ペア負EV) ──
     # ── EUR/JPY, GBP/JPY RNB: REMOVED (spread負け) ──
-    # ── Round Number Barrier (RNB) — USD/JPY 15m BUY-only ──
+    # ── Round Number Barrier (RNB) — USD/JPY 15m BUY-only — SHADOW-ONLY ──
+    # 2026-09-10 stage-1 構造的 shadow-only 登録 (rule:R1, user 承認 2026-09-10
+    # 「進めて」, packet: wiki/decisions/rnb-support-bounce-r1-packet-2026-09-10.md
+    # §4/§7 D1 GO)。2026-04-05 db5e3e4c 以来 QUALIFIED_TYPES 未登録で shadow
+    # 1 行も出せない dead mode (158 日) だった — 登録は「勝てる戦略」ではなく
+    # 「観測レーンの開通」(365d ablated BT: N=126 net EV +0.04p NS / 730d −2.20p
+    # = live 昇格根拠なし)。shadow_only=True は daytrade_audjpy 前例の mode
+    # レベル構造ガード: _mode_is_shadow_only() が送信ガード最終段 + resend
+    # gate + write-path の 3 点で OANDA 発注ゼロを保証。_UNIVERSAL_SENTINEL には
+    # 意図的に入れない (sentinel = minlot live 経路 — stage-1 では開けない)。
+    # stage-2 (live 1000u) は pre-reg LOCK rnb-support-bounce-shadow-forward の
+    # first look (shadow N>=41 or 2027-01-15) 通過後の別 R1。
     "rnb_usdjpy": {
         "interval_sec": 30,
         "tf": "15m",
         "period": "60d",
         "signal_fn": "compute_rnb_signal",
-        "label": "RNB USD/JPY",
+        "label": "RNB USD/JPY (shadow)",
         "icon": "🎯",
         "symbol": "USDJPY=X",
         "instrument": "USD_JPY",
         "auto_start": True,
         "base_sl_pips": 15,
         "active_hours_utc": (7, 20),
-        "direction_filter": "BUY",  # BUY-only (SELL EV=-0.7, BUY EV=+7.7)
+        # BUY-only。⚠️ 「SELL EV=-0.7, BUY EV=+7.7」は BE/Trail ablation 前
+        # (2026-04-05 BT) の数字で引用禁止 — ablated 実測は packet §3。
+        "direction_filter": "BUY",
+        "shadow_only": True,  # 構造的 shadow-only 保証 — OANDA 送信全経路 block
     },
 }
 
@@ -1582,15 +1605,23 @@ class DemoTrader:
             except Exception as _snap_err:
                 print(f"[alpha_snapshot] shadow_emit skip tid={trade_id}: {_snap_err}", flush=True)
         if self._should_audit_shadow_emit(entry_type):
+            # 2026-09-02 (rule:R3): self-describe the hardcoded units=0.
+            # This emit-path row records a select_best loser routed to a parallel
+            # shadow trade — it is a tracking marker, not a sized order. The
+            # units=0 here means "no lot was ever assigned to this shadow-emit
+            # row", NOT "a zero-size order was placed". Readers MUST NOT use this
+            # row's units as a size. The "shadow_tracking" prefix is preserved so
+            # existing startswith()-based guards/tools stay compatible
+            # (drift_guard / breakdown / counterfactual all match by prefix).
             self._add_oanda_audit(
                 trade_id=trade_id,
                 entry_type=entry_type,
                 is_live=False,
                 bridge_status="skipped",
-                block_reason=SHADOW_TRACKING_BLOCK_REASON,
+                block_reason=f"{SHADOW_TRACKING_BLOCK_REASON}(shadow_emit_no_lot)",
                 direction=direction,
                 instrument=instrument,
-                units=0,
+                units=0,  # marker only — see note above; not an order size
                 sr_meta=sr_meta,
             )
         return trade_id
@@ -2139,6 +2170,16 @@ class DemoTrader:
                 self._log_count_cache = getattr(self, '_log_count_cache', 0)
             self._log_count_cache_ts = _now
 
+        # 鮮度は 3 箇所 (生値 2 系統 + 画面判定) で同じ観測を使う。dict 内で
+        # 別々に呼ぶと判定と生値がずれた瞬間の値になりうるので、先に確定させる。
+        _freshness_raw = self._row_freshness_payload()
+        _engine_raw = self._engine_tick_payload()
+        try:
+            from modules.freshness_policy import classify_freshness
+            _freshness_ui = classify_freshness({**_freshness_raw, **_engine_raw})
+        except Exception as e:  # noqa: BLE001 - status 応答自体は落とさない
+            _freshness_ui = {"families": [], "worst_level": "unknown", "error": str(e)}
+
         return {
             "running": self.is_running(),
             "modes": modes_status,
@@ -2160,7 +2201,177 @@ class DemoTrader:
             )[:30]),  # 上位30件のみ (キー爆発防止)
             # ── Emergency Kill Switch status ──
             "emergency_killed": self._emergency_killed,
+            # ── 行鮮度 (rule:R3, 2026-08-27): 「凍結」と「静かな相場」の分離 ──
+            **_freshness_raw,
+            # ── engine 生存 (rule:R3, 2026-08-28): tick 前進の実時刻 ──
+            **_engine_raw,
+            # ── 画面用の鮮度判定 (rule:R3, 2026-08-29) ──
+            # 生値だけを出しても人は読まない。3.5 日の書込み停止が「静かな
+            # 相場」に見えたのは、画面に閾値超過の判定が出ていなかったから。
+            # 閾値は modules/freshness_policy.py が SSOT で、ブラウザには
+            # 判定済みの level だけを渡す (JS に閾値を書き写さない)。
+            "freshness_ui": _freshness_ui,
         }
+
+    def _record_tick(self, mode: str) -> dict:
+        """1 モードの tick 完遂を記録する (カウンタ + 実時刻).
+
+        rule:R3 (2026-08-28). ``_tick_counts`` の increment を **この 1 箇所に
+        集約する**のが本メソッドの主目的。同じ 2 行を各 tick 経路にコピーする
+        設計だと、新しい経路が足されたときに片方だけ更新され黙って壊れる —
+        本プロジェクトはこの call-site 欠落を PR #168 (``ctx.hour_utc`` が
+        live で 123 日定数固着) / PR #204 (``bar_time`` 全行 NULL) など
+        **4 回**踏んでいる。increment とタイムスタンプを別々に書けば 5 回目に
+        なるだけなので、最初から不可分にする。
+
+        ``_tick_last_advance[mode]`` は **tick が例外なく完遂した時刻** (epoch
+        秒)。呼び出し側は必ず「``_tick`` が戻った後」で呼ぶこと — 開始時刻を
+        入れると、毎回 30 秒でタイムアウトして中身が何も実行されていない
+        エンジンが「生存」に見えてしまう。
+
+        Returns:
+            更新後の ``_tick_counts`` (呼び出し側のログ出力用)。
+        """
+        _tc = getattr(self, '_tick_counts', {})
+        _tc[mode] = _tc.get(mode, 0) + 1
+        self._tick_counts = _tc
+        _adv = getattr(self, '_tick_last_advance', {})
+        _adv[mode] = time.time()
+        self._tick_last_advance = _adv
+        return _tc
+
+    def _engine_tick_payload(self) -> dict:
+        """エンジンが「今も評価を回しているか」を status payload に出す.
+
+        rule:R3 (2026-08-28). 既存の観測系はいずれもエンジン本体の生存を
+        測っていなかった:
+
+        - ``main_loop_alive`` / ``watchdog_alive`` は ``Thread.is_alive()``。
+          **スレッドが生きたまま中で無限に詰まっている状態を alive と報告する**。
+        - ``tick_counts`` は単調増加カウンタだが**絶対値しか出ていない**ため、
+          単発の観測では「前進しているか」が判定できない。cron は前回値を
+          保存できないので、watcher 側で差分を取ることもできなかった
+          (2026-08-27 の積み残し)。
+        - ``candidate_stagnation`` (PR #207) は HTF Hard Block **後**の行を
+          数えるので、「全候補がブロックされた」と「エンジンが死んだ」を
+          区別できない (08-27 の 73 分ゼロ行が実際にこれで、benign だった)。
+
+        そこで **差分をサーバ側で取り、watcher には経過秒だけを渡す**。
+        ``write_probe.last_ok_at`` と同じ形で、cron を状態レスに保てる。
+        tick の前進は HTF ゲートにもシグナル有無にも市場の開閉にも依存
+        しない (カウンタは ``_tick`` が戻った後に加算され、``_tick`` は
+        週末でも early-return するだけ) ので、**エンジン停止の estimand と
+        して candidate 行より素直**である。
+
+        出力 (``engine_tick_*`` 名前空間 — 汎用キーとの衝突回避は PR #207 と
+        同じ理由):
+
+        - ``engine_tick_status``: ``ok`` / ``never_ticked`` / ``not_running``
+        - ``engine_tick_age_sec``: **走っている全モードのうち最も新しい**
+          tick 前進からの経過秒。エンジンは単一の main loop が全モードを
+          順に回すため、これが engine レベルの生存指標になる
+        - ``engine_tick_stalest_mode`` / ``engine_tick_stalest_age_sec``:
+          最も古いモードとその経過秒 (**診断用の生データ**。個別モードの
+          wedge 検知は閾値がモード別 interval 10-60s に依存し較正が別問題
+          なので、本 PR では検知器を作らず数値の露出に留める)
+        - ``engine_tick_running_modes``: 走っているモード数 (分母)
+
+        ``never_ticked`` は「プロセスは上がっているが 1 度も tick 完遂して
+        いない」= デプロイ直後の正常状態でもあり、起動に失敗した異常でも
+        ある。``engine_tick_age_sec`` にはプロセス起動からの経過秒を入れて
+        呼び出し側が閾値で区別できるようにする (``None`` を返して黙って
+        skip させない — 沈黙が 126 日 no-op を生んだ)。
+        """
+        now = time.time()
+        adv = dict(getattr(self, '_tick_last_advance', {}) or {})
+        try:
+            running = [m for m, r in (self._runners or {}).items()
+                       if isinstance(r, dict) and r.get("running", False)]
+        except Exception:
+            running = []
+
+        payload: dict = {"engine_tick_running_modes": len(running)}
+
+        if not running:
+            # user が全モードを止めている等。生存を問う対象が無い状態を
+            # 「停止」と混同しない (資格 vs 実状態、lesson 2026-06)。
+            payload["engine_tick_status"] = "not_running"
+            payload["engine_tick_age_sec"] = None
+            return payload
+
+        ages = [(m, now - adv[m]) for m in running if m in adv]
+        if not ages:
+            # main loop が一度も起動していなければ _main_loop_start_ts 自体が
+            # 無い。そこで None を返すと watcher 側で「web が旧版」と区別が
+            # つかず沈黙する = 最悪ケースが無検知になる。プロセス起動時刻を
+            # フォールバックにして、**必ず数値を返す**。
+            started = getattr(self, '_main_loop_start_ts', None) or _PROCESS_START_TS
+            payload["engine_tick_status"] = "never_ticked"
+            payload["engine_tick_age_sec"] = round(now - started, 1)
+            return payload
+
+        newest = min(a for _, a in ages)
+        stalest_mode, stalest_age = max(ages, key=lambda x: x[1])
+        payload["engine_tick_status"] = "ok"
+        payload["engine_tick_age_sec"] = round(newest, 1)
+        payload["engine_tick_stalest_mode"] = stalest_mode
+        payload["engine_tick_stalest_age_sec"] = round(stalest_age, 1)
+        return payload
+
+    def _row_freshness_payload(self) -> dict:
+        """最終書込みからの経過秒を status payload 用に平坦化する.
+
+        rule:R3 (2026-08-27). 2026-08-21〜08-25 の Disk 満杯事故では全書込みが
+        3.5 日停止したにもかかわらず、ダッシュボードは最終書込み時刻を持た
+        ないため「静かな相場」と区別できず正常に見えた。alert 経路は
+        PR #205/#206 で塞いだが、status payload 自身は blind のままだった。
+
+        `demo_trades` (書込み) と `evaluated_candidates` (シグナル評価) は
+        **独立した系列**である点が肝: candidate が進んでいて trade が
+        止まっているなら「相場は静か/ゲートが弾いている」、両方止まって
+        いるなら「書込みが死んでいる」と切り分けられる。
+
+        2026-09-03 追加 (rule:R3): 第3系列 `live_fill` = `oanda_trade_id`
+        を持つ行だけの鮮度。`demo_trades` は shadow が 99.8% を占めるため、
+        `last_trade_row_*` は**実弾が約定したかには答えられない** — 実際
+        2026-08-26〜09-03 に LIVE 約定が 133 市場オープン時間ゼロだった間、
+        `last_trade_row_status` は数分以内の `ok` を返し続けた。
+        「候補は出ている / 行は書けている / だが実弾は出ていない」を
+        分離できるのは 3 系列を畳まずに並べたときだけである。
+
+        本メソッドは status 取得を絶対に落とさない (取引パスの隣) が、
+        失敗は握り潰さず `row_freshness_error` として表面化させる。
+
+        注意: `get_row_freshness()` の `error` / `now` はそのまま展開すると
+        `/api/demo/status` の汎用 `error` キー (endpoint の例外ハンドラが
+        使う) と衝突し、鮮度クエリの失敗が status 全体の失敗に見える。
+        そのため名前空間付きに詰め替えてから返す。
+        """
+        keys = (
+            "last_trade_row_at",
+            "last_trade_row_age_sec",
+            "last_trade_row_status",
+            "last_candidate_row_at",
+            "last_candidate_row_age_sec",
+            "last_candidate_row_status",
+            "last_live_fill_row_at",
+            "last_live_fill_row_age_sec",
+            "last_live_fill_row_status",
+        )
+        try:
+            raw = self._db.get_row_freshness()
+        except Exception as e:  # noqa: BLE001 - status 応答自体は落とさない
+            out = {k: None for k in keys}
+            out["last_trade_row_status"] = "error"
+            out["last_candidate_row_status"] = "error"
+            out["last_live_fill_row_status"] = "error"
+            out["row_freshness_error"] = f"row_freshness: {e}"
+            return out
+
+        out = {k: raw.get(k) for k in keys}
+        out["row_freshness_error"] = raw.get("error")
+        out["row_freshness_now"] = raw.get("now")
+        return out
 
     def request_tick(self):
         """リクエスト駆動tick: バックグラウンドスレッドが死んでいる場合のフォールバック。
@@ -2191,9 +2402,7 @@ class DemoTrader:
             try:
                 self._tick(mode)
                 self._last_request_tick[mode] = time.time()
-                _tc = getattr(self, '_tick_counts', {})
-                _tc[mode] = _tc.get(mode, 0) + 1
-                self._tick_counts = _tc
+                self._record_tick(mode)
                 ticked.append(mode)
             except Exception as e:
                 print(f"[RequestTick/{mode}] Error: {e}", flush=True)
@@ -3549,7 +3758,19 @@ class DemoTrader:
                             t for t in self._total_losses_window if t[0] > _cutoff]
 
                 # ── SL狩り対策: SL_HIT履歴記録（カスケード防御 + Fast-SL検出用）──
-                if close_reason == "SL_HIT":
+                # 2026-08-07 (rule:R3): `outcome != "WIN"` を追加。close_reason
+                # "SL_HIT" は「現在の SL に価格が触れた」の意味しかなく、BE-lock /
+                # トレーリング / Profit Extender が SL を entry より利益側へ動かした
+                # 後の**利確 exit** も同じラベルになる。本番実測 (N=3308, 2026-08-07):
+                # SL_HIT の 54.2% が outcome=WIN (SL が利益側 1894 本のうち 97.6% が
+                # 正 PnL、中央値 +2.00p / MFE 中央値 5.70p)。ガード無しでは
+                #   - cascade_cd (L5427): 勝ちトレール決済が同ペア全戦略を 45-600s ブロック
+                #   - Fast-SL 適応防御 (L6178): 勝ち決済が次エントリーの SL を ATR×0.3 拡大
+                # となり、原則1「攻める」/原則4 に反する。直前の cooldown 記録ブロック
+                # (L3421 `if outcome != "WIN"`) は同じ「SL 後の再エントリー防止」目的で
+                # 既に WIN を除外済み — 同一意図の 2 ブロックで扱いが非対称だったのが本バグ。
+                # 根拠: wiki/analyses/sl-hit-label-collision-2026-08-07.md
+                if close_reason == "SL_HIT" and outcome != "WIN":
                     _hold_s = 9999
                     try:
                         _et = datetime.fromisoformat(trade.get("entry_time", ""))
@@ -3660,9 +3881,7 @@ class DemoTrader:
                             _tick_dur = time.time() - _tick_start
                             _consecutive_errors[mode] = 0
                             _last_tick[mode] = time.time()
-                            _tick_count = getattr(self, '_tick_counts', {})
-                            _tick_count[mode] = _tick_count.get(mode, 0) + 1
-                            self._tick_counts = _tick_count
+                            _tick_count = self._record_tick(mode)
                             if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 15:
                                 print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)", flush=True)
                         except Exception as e:
@@ -3812,7 +4031,10 @@ class DemoTrader:
                                spread_pips: float = 0.0) -> None:
         """Persist the latch BEFORE any OANDA send (pre-reg §2.5).
 
-        state: 'EXECUTED' | 'SKIPPED_SPREAD'. Deploy-restart safe (system_kv)."""
+        state: 'EXECUTED' | 'SKIPPED_SPREAD' | 'ABANDONED_HALT' |
+        'ABANDONED_DRIFT' (後者 2 つは執行契約(B) AMENDMENT 2026-09-10
+        §4.2/§4.3 の live 執行放棄 — shadow row は記録済み = 分母保存)。
+        Deploy-restart safe (system_kv)."""
         try:
             self._db.set_system_kv(
                 self._weekend_gap_latch_kv_key(instrument, weekend_key),
@@ -3934,9 +4156,13 @@ class DemoTrader:
         feeds the NORMAL _tick_entry guard chain (shared is_shadow/is_promoted
         checks, daily-loss gate, watchdog etc.) — no separate send path."""
         from strategies.daytrade.weekend_gap_fade import (
+            WEEKEND_GAP_DRIFT_ABANDON_PIPS,
             WEEKEND_GAP_FADE_PAIRS,
+            WEEKEND_GAP_LATCH_ABANDONED_DRIFT,
+            WEEKEND_GAP_LATCH_ABANDONED_HALT,
             build_weekend_gap_sig,
             detect_weekend_gap_signal,
+            weekend_gap_entry_send_decision,
             weekend_key_for,
         )
         now = datetime.now(timezone.utc)
@@ -3987,7 +4213,70 @@ class DemoTrader:
                 raise ValueError("atr nan")
         except Exception:
             _atr = 0.07 if "JPY" in instrument else 0.00070
+
+        # ══ 執行契約 (B) 前置条件 — pre-reg §2.2 AMENDMENT (user 承認 2026-09-10, rule:R1) ══
+        # 決裁: wiki/decisions/weekend-gap-execution-contract-r1-packet-2026-09-10 §4。
+        # エンジン発火 (21:01 UTC) は OANDA 実開場 (21:04-21:05、48/48 実測)
+        # より常に早く、旧契約 (即時 FOK 1 回) は MARKET_HALTED cancel が
+        # 決定論的 = live fill 0% (イベント ②③ tx 実測)。live 送信は
+        # 「instrument tradeable (quote age <10s) 確認後の最初の評価 tick」
+        # まで保留する。HOLD 中は latch を立てない — 検出は entry 窓 (4 bars)
+        # ガードの下で次 tick も継続、poll はエンジン tick 周期 (≤60s, §4.1)。
+        # 打ち切り: 初バー ts +15 分超で halt 継続 → ABANDONED_HALT (§4.2)。
+        # 放棄境界: fade 方向 adverse drift > +8.0p → ABANDONED_DRIFT (§4.3)。
+        # cap 10.0p 判定 (§4.6) は本前置条件の下流 = 実開場後の実 quote で
+        # 行われる (halt 中 indicative quote による cap 判定は構造的に消滅)。
+        # G1/G2/G3・qualify 閾値・cap・1000u・4h exit は一切不変更。
+        _ps = {}
+        try:
+            from modules.data import fetch_oanda_pricing_state
+            _ps = fetch_oanda_pricing_state(instrument) or {}
+        except Exception as _ps_err:
+            print(f"[WEEKEND_GAP] pricing state fetch failed ({instrument}): "
+                  f"{_ps_err}", flush=True)
+        _send_mid = float(_ps.get("mid") or 0.0) or _mid
+        _wg_decision, _wg_drift_p = weekend_gap_entry_send_decision(
+            direction=det["direction"], instrument=instrument, now_utc=now,
+            first_bar_ts=det["first_bar_ts"],
+            tradeable=(_ps.get("tradeable") if _ps else None),
+            quote_age_sec=(_ps.get("quote_age_sec") if _ps else None),
+            sunday_open=det["sunday_open"], current_mid=_send_mid,
+        )
+        # §4.6 観測強化: 評価ごとに halt/tradeable 状態・quote age・drift を
+        # ログ (weekend 窓内のみ = 低コスト)。
+        _wg_exec_obs = (
+            f"decision={_wg_decision} "
+            f"tradeable={_ps.get('tradeable') if _ps else None} "
+            f"quote_age={_ps.get('quote_age_sec') if _ps else None}s "
+            f"drift={_wg_drift_p:+.2f}p (abandon>+{WEEKEND_GAP_DRIFT_ABANDON_PIPS:.1f}p) "
+            f"send_mid={_send_mid} sunday_open={det['sunday_open']}")
+        print(f"[WEEKEND_GAP][EXEC_B] {instrument} {_wg_exec_obs} "
+              f"first_bar={det['first_bar_ts']} weekend={weekend_key}",
+              flush=True)
+        if _wg_decision == "HOLD":
+            return  # latch なし — 次の評価 tick で再判定 (§4.1)
+
         sig = build_weekend_gap_sig(det, instrument, _mid, _atr)
+        sig["_wg_exec_contract"] = {
+            "decision": _wg_decision,
+            "tradeable": (_ps.get("tradeable") if _ps else None),
+            "quote_age_sec": (_ps.get("quote_age_sec") if _ps else None),
+            "drift_pips": round(_wg_drift_p, 2),
+            "send_mid": _send_mid,
+            "sunday_open": det["sunday_open"],
+        }
+        # §4.6: demo row への永続化は reasons 経由 (スキーマ変更なし)
+        sig["reasons"].append(
+            f"[WG_EXEC_B] {_wg_exec_obs} (AMENDMENT 2026-09-10)")
+        if _wg_decision in (WEEKEND_GAP_LATCH_ABANDONED_HALT,
+                            WEEKEND_GAP_LATCH_ABANDONED_DRIFT):
+            # §4.2/§4.3: live 執行の放棄 — shadow row は従来どおり記録
+            # (分母保存)。_tick_entry 側で shadow 固定 + latch=放棄状態を永続化。
+            sig["_wg_exec_abandon"] = _wg_decision
+        else:
+            # 実開場確認済み (SEND) — この marker が無い sig の live 送信は
+            # _tick_entry 側 backstop が拒否する (冗長エンジン経路を含む)。
+            sig["_wg_exec_send_ok"] = True
         print(f"[WEEKEND_GAP] {instrument} qualifying event: "
               f"gap={det['gap_pips']:+.1f}p (>= {det['qualify_pips']:.1f}p) "
               f"→ {det['direction']} fade, first_bar={det['first_bar_ts']}, "
@@ -4419,6 +4708,29 @@ class DemoTrader:
                         f"{_se_entry_type} x {instrument}"
                     )
                     continue
+                # 2026-08-11 (rule:R1, price-shock-seat-supply-audit §9): primary 側
+                # SCORE_GATE (direction-aware misalign) のミラー。shadow_emit 経路は
+                # このゲートを共有していなかったため、席優先 select で displaced した
+                # guest の SELL (正 score = primary なら SCORE_GATE block、row なし) が
+                # shadow row 化し、hedge_block 経由で席の BUY を最大 18h 再抑制し得た。
+                # 「bypass 経路は primary の guard chain のどれを共有するか明示する」
+                # 教訓に従い、primary と同一条件 (sentinel bypass 込み) を適用する。
+                _se_score_pre = float(_se.get("score") or 0)
+                _se_misaligned = (
+                    (_se_signal == "BUY" and _se_score_pre < 0)
+                    or (_se_signal == "SELL" and _se_score_pre > 0)
+                )
+                _se_sentinel_bypass = (
+                    _se_entry_type in self._SCALP_SENTINEL
+                    or _se_entry_type in self._UNIVERSAL_SENTINEL
+                )
+                if _se_misaligned and not _se_sentinel_bypass:
+                    self._add_log(
+                        f"[SCORE_GATE] shadow_emit mirror blocked: {_se_entry_type} "
+                        f"score={_se_score_pre:.2f} misaligned with "
+                        f"signal={_se_signal} | {instrument} {mode}"
+                    )
+                    continue
                 _se_entry = float(_se.get("entry") or sig.get("entry") or 0)
                 if _se_entry <= 0:
                     continue
@@ -4731,9 +5043,20 @@ class DemoTrader:
             return
 
         # ── 方向フィルター (RNB BUY-only等) ── (2026-04-05 audit fix)
+        # ⚠️ estimand 分離 (2026-09-05, rule:R3 — 挙動不変、理由ラベルのみ):
+        # この分岐は「方向が逆」と「そもそもシグナルが無い (WAIT)」を同じ
+        # カウンタ名で数えていた。direction_filter を持つ唯一のモード
+        # rnb_usdjpy の signal_fn (app.compute_rnb_signal) は構造上
+        # WAIT / BUY しか返さず SELL への return path が存在しないため、
+        # 旧ラベルの中身は **常に 100% が WAIT** = 「方向棄却」を一度も
+        # 測っていなかった (12.8y / 315,623 bar 実測 SELL=0、BUY 0.705%)。
+        # カウンタが測っていない量を名乗ると監視が偽陽性を出し続ける
+        # (2026-08-26〜09-04 に 8 回連続で 🔴 escalation を発生させた)。
+        # 分析: knowledge-base/wiki/analyses/rnb-dead-mode-and-block-estimand-2026-09-05.md
         _dir_filter = cfg.get("direction_filter")
         if _dir_filter and signal != _dir_filter:
-            _block(f"direction_filter"); return
+            _block("no_signal" if signal not in ("BUY", "SELL") else "direction_filter")
+            return
 
         # ══════════════════════════════════════════════════════════════
         # ── v9.x: Score Gate — 負スコア戦略のエントリー遮断 ──
@@ -4839,6 +5162,7 @@ class DemoTrader:
         _wg_shadow_cause = ""
         _wg_spread_skipped = False
         _wg_weekend_key = ""
+        _wg_abandon = ""
         if _wg_entry and signal in ("BUY", "SELL"):
             from strategies.daytrade.weekend_gap_fade import (
                 WEEKEND_GAP_FADE_PAIRS as _wg_pairs,
@@ -4865,6 +5189,33 @@ class DemoTrader:
                     f"[WEEKEND_GAP] live stopped (kv {WEEKEND_GAP_LIVE_STOP_KV_KEY}) "
                     f"→ {instrument} shadow record only"
                 )
+            # ── 執行契約 (B) AMENDMENT 2026-09-10 (rule:R1 user 承認) ──
+            # 決裁: weekend-gap-execution-contract-r1-packet-2026-09-10 §4。
+            # (a) scoped runner が放棄判定 (ABANDONED_HALT / ABANDONED_DRIFT)
+            #     した sig は live 送信せず shadow row として記録 (分母保存)。
+            #     latch は放棄状態で永続化 (下の latch_set 参照)。
+            # (b) backstop: runner の tradeable 確認 (§4.1) を通過した sig
+            #     (_wg_exec_send_ok) 以外の live 送信は禁止。row/latch を作らず
+            #     block = HOLD 相当 — scoped runner が次 tick に決定する。
+            #     冗長エンジン経路 (WeekendGapFade.evaluate、market-closed gate
+            #     が開く冬 22:00+ に通常 tick から到達) はここで足止めされ、
+            #     開場前の即時 FOK (MARKET_HALTED 決定論 cancel) を再導入しない。
+            _wg_abandon = str(sig.get("_wg_exec_abandon") or "")
+            if _wg_abandon:
+                _exec_meta = sig.get("_wg_exec_contract") or {}
+                if not _is_shadow:
+                    _is_shadow = True
+                if not _wg_shadow_cause:
+                    _wg_shadow_cause = (
+                        f"weekend_gap_exec_abandon({_wg_abandon},"
+                        f"drift={float(_exec_meta.get('drift_pips') or 0.0):+.2f}p)")
+                self._add_log(
+                    f"[WEEKEND_GAP] {instrument} live execution abandoned "
+                    f"({_wg_abandon}) → shadow record (分母保存, AMENDMENT §4)"
+                )
+            elif not _is_shadow and not sig.get("_wg_exec_send_ok"):
+                _block("weekend_gap_tradeable_unconfirmed")
+                return
 
         if is_shadow_demoted(entry_type, instrument) and not _is_live_tier_exempt:
             _ec_eligible, _ec_id = self._edge_cell_eligible_at_pre_block(
@@ -5159,8 +5510,22 @@ class DemoTrader:
         # アジア時間帯(UTC 21-06)はGBPの流動性が極端に低い
         # Spread/SL Gateでは防げないテールリスク → 静的ブロック（原則#3の例外）
         _now_h = datetime.now(timezone.utc).hour
+        # ── merge 2026-09-11 (P-S1(a) draft × PR #180 両立形, rule:R3) ──
+        # 判定は _gbp_asia_flash_crash_blocked() に集約:
+        #   _GBP_ASIA_FLASH_CRASH_EXEMPT_CELLS (P-S1(a) AMENDMENT, user 承認
+        #   2026-08-03) の cell は gate 自体を通過 = live 経路維持。
+        # gate に落ちた場合の分岐は PR #180 の shadow rescue を維持:
+        #   _GBP_ASIA_SHADOW_RESCUE_CELLS の cell は rowless hard block ではなく
+        #   shadow 退避 (is_shadow=1、OANDA 送信なし)。免除が将来 pin 等で
+        #   無効化されても rescue が backstop になり、P-S1(a) トリガ分母の
+        #   silent 枯渇 (2026-08-12 forensic 実測: 07-26/07-29/08-06/08-09 の
+        #   4 イベント消失) を再発させない (4原則#3)。
+        # 詳細: knowledge-base/wiki/analyses/sweep-zero-fire-forensic-2026-08-12.md
         if self._gbp_asia_flash_crash_blocked(entry_type, instrument, _now_h):
-            if not _is_shadow_eligible:
+            _gbp_asia_shadow_rescue = (
+                (entry_type, instrument) in self._GBP_ASIA_SHADOW_RESCUE_CELLS
+            )
+            if not _is_shadow_eligible and not _gbp_asia_shadow_rescue:
                 _block(f"gbp_asia_flash_crash(UTC{_now_h})")
                 return
             else:
@@ -5445,6 +5810,16 @@ class DemoTrader:
             # OOS arm B PASS N=177 gross+15.60p weekend-block p<1e-4 (凍結統計)。
             # card: strategies/weekend_gap_fade / decision: weekend-gap-stage2-execution-prereg-2026-07-24
             "weekend_gap_fade",
+            # 2026-09-10 stage-1 構造的 shadow-only 登録 (rule:R1, user 承認
+            # 2026-09-10, packet: rnb-support-bounce-r1-packet-2026-09-10)。
+            # 2026-04-05 db5e3e4c の登録漏れ解消 — mode rnb_usdjpy は
+            # shadow_only=True のため本登録で開くのは shadow 観測レーンのみ
+            # (OANDA 送信は _mode_is_shadow_only 3 点 block で構造的にゼロ)。
+            # 365d ablated BT N=126 net+0.04p NS = live 昇格根拠なし。
+            # forward LOCK: rnb-support-bounce-shadow-forward (first look
+            # shadow N>=41 or 2027-01-15) / R2 demote gate:
+            # tools/rnb_shadow_demote_gate.py (N>=30 ∧ Wilson_hi<42.9%)。
+            "rnb_support_bounce",   # RNB USD/JPY 15m BUY-only (shadow-only)
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
@@ -5570,6 +5945,31 @@ class DemoTrader:
         # コントラリアン検証済み: spread二重控除後 -1.1p → 逆張りもエッジなし
         # ══════════════════════════════════════════════════════════════
         _utc_hour = datetime.now(timezone.utc).hour
+        # ── 2026-09-02 (rule:R1): 静的 hour block class exemption ──
+        # min-lot carve-out 契約群 (= _STATIC_HOURBLOCK_CLASS_EXEMPT、1000u 固定 +
+        # 各 binding R2 registry) は静的 hour/session block を免除する。demoted
+        # tier は fail-closed で対象外。免除発火時は [HOURBLOCK_CLASS_EXEMPT]
+        # marker を reasons に永続し、registry `hourblock-class-exempt-r2-rollback`
+        # (marker 付き live N>=10 ∧ pooled EV<0 → 撤去) が読む。marker は本免除で
+        # 通過した行だけに付く — block 帯外の同戦略トレードは母集団に入らない。
+        _hourblock_class_exempt = (
+            entry_type in self._STATIC_HOURBLOCK_CLASS_EXEMPT
+            and not _is_demoted_tier
+        )
+
+        def _hourblock_exempt_pass(label: str) -> None:
+            """Record a class-exemption pass-through (reader: R2 rollback trigger)."""
+            _marker = (
+                f"[HOURBLOCK_CLASS_EXEMPT] {label} 通過 "
+                f"(min-lot carve-out class, R1 2026-09-02)"
+            )
+            if isinstance(reasons, list):
+                reasons.append(_marker)
+            self._add_log(
+                f"[HOURBLOCK_CLASS_EXEMPT] {entry_type} {label} {instrument} "
+                f"→ 静的 hour block 免除 (min-lot class)"
+            )
+
         # v6.7: eurgbp_daily_mr は日足MR戦略 → EUR_GBP全停止をバイパス (Sentinel)
         # 2026-06-12 Codex review Critical#1: sweep_reversion_eurgbp_late を追加。
         # 未追加だと EUR_GBP 全停止 gate が env LIVE override より先に return し、
@@ -5588,7 +5988,9 @@ class DemoTrader:
                 return
         if instrument == "EUR_USD":
             if _utc_hour < 7:  # Tokyo
-                if _is_shadow_eligible_full:
+                if _hourblock_class_exempt:
+                    _hourblock_exempt_pass(f"EUR_USD_Tokyo_H{_utc_hour}")
+                elif _is_shadow_eligible_full:
                     _is_shadow = True
                     self._add_log(
                         f"[SHADOW] session_pair bypass: {entry_type} "
@@ -5602,8 +6004,13 @@ class DemoTrader:
             # 未執行」と凍結しており、この静的セッションフィルタで live を
             # 落とすと estimand 違反 (T8 silent-drop 教訓と同型)。本 gate の
             # 母集団 (legacy DT 戦略の平日 Late-NY bleed) とも無関係。
+            # 較正時 WR9.5% (N=21) は 2026-09-02 再較正で複製されず (parity) —
+            # ただし block は一般母集団向けに維持 (EV は block 側良、詳細:
+            # analyses/hourblock-recal-and-ema200-verdict-2026-09-02 Study 1)。
             if _utc_hour >= 17 and entry_type != WEEKEND_GAP_FADE_ENTRY_TYPE:  # Late NY
-                if _is_shadow_eligible_full:
+                if _hourblock_class_exempt:
+                    _hourblock_exempt_pass(f"EUR_USD_Late_NY_H{_utc_hour}")
+                elif _is_shadow_eligible_full:
                     _is_shadow = True
                     self._add_log(
                         f"[SHADOW] session_pair bypass: {entry_type} "
@@ -5669,7 +6076,9 @@ class DemoTrader:
         # London mid-session: EUR_USDが叩かれるデスゾーン
         # ══════════════════════════════════════════════════════════════
         if _utc_hour == 11 and instrument == "EUR_USD" and not _is_live_tier_exempt:
-            if _is_slot_shadow_eligible:
+            if _hourblock_class_exempt:
+                _hourblock_exempt_pass("H11_EUR_USD")
+            elif _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H11 EUR_USD block: {entry_type} → shadow (EV=-4.489)")
             else:
@@ -5681,7 +6090,9 @@ class DemoTrader:
         # Pre-NY dead zone: JPYの流動性枯渇帯
         # ══════════════════════════════════════════════════════════════
         if _utc_hour == 13 and instrument == "USD_JPY" and not _is_live_tier_exempt:
-            if _is_slot_shadow_eligible:
+            if _hourblock_class_exempt:
+                _hourblock_exempt_pass("H13_USD_JPY")
+            elif _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H13 USD_JPY block: {entry_type} → shadow (EV=-2.486)")
             else:
@@ -5691,7 +6102,9 @@ class DemoTrader:
         # ── v8.9: 昨日分析ベース追加ブロック (4/14) ──
         # H16-H20 × USD_JPY: 合計-68.2pip (N=27, WR=18.5%)。NY後半のJPY壊滅
         if instrument == "USD_JPY" and 16 <= _utc_hour <= 20 and not _is_live_tier_exempt:
-            if _is_slot_shadow_eligible:
+            if _hourblock_class_exempt:
+                _hourblock_exempt_pass(f"H{_utc_hour}_USD_JPY")
+            elif _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H{_utc_hour} USD_JPY block: {entry_type} → shadow")
             else:
@@ -5708,7 +6121,9 @@ class DemoTrader:
                 return
         # H7-H8 × EUR_USD: N=14 EV=-2.38 PnL=-33.8pip。ロンドンオープン初動のEUR壊滅
         if instrument == "EUR_USD" and _utc_hour in (7, 8) and not _is_live_tier_exempt:
-            if _is_slot_shadow_eligible:
+            if _hourblock_class_exempt:
+                _hourblock_exempt_pass(f"H{_utc_hour}_EUR_USD")
+            elif _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H{_utc_hour} EUR_USD block: {entry_type} → shadow")
             else:
@@ -5867,9 +6282,11 @@ class DemoTrader:
                 if _wg_cap_skip(_spread_pips):
                     _is_shadow = True
                     _wg_spread_skipped = True
-                    _wg_shadow_cause = (
-                        f"weekend_gap_spread_cap(spread={_spread_pips:.2f}p"
-                        f">{_wg_cap:.1f}p)")
+                    # 執行契約(B): 放棄済み row では放棄 cause を優先 (cap は併記のみ)
+                    if not _wg_abandon:
+                        _wg_shadow_cause = (
+                            f"weekend_gap_spread_cap(spread={_spread_pips:.2f}p"
+                            f">{_wg_cap:.1f}p)")
                     reasons.append(
                         f"[WEEKEND_GAP_SPREAD_SKIP] quoted spread "
                         f"{_spread_pips:.2f}p > cap {_wg_cap:.1f}p → live skip, "
@@ -5980,7 +6397,8 @@ class DemoTrader:
             # 約定価格基準が崩れ G1 slippage を汚染するため、こちらも fail-closed
             _is_shadow = True
             _wg_spread_skipped = True
-            _wg_shadow_cause = "weekend_gap_spread_cap(spread=unavailable)"
+            if not _wg_abandon:  # 執行契約(B): 放棄 cause を優先
+                _wg_shadow_cause = "weekend_gap_spread_cap(spread=unavailable)"
             reasons.append(
                 "[WEEKEND_GAP_SPREAD_SKIP] quoted spread unavailable — "
                 "cap 検証不能 → fail-closed live skip, shadow row (分母保存)")
@@ -6684,10 +7102,14 @@ class DemoTrader:
 
         # ── weekend_gap_fade: per-weekend latch を送信前に永続化 (pre-reg §2.5) ──
         # row 作成直後 / OANDA 送信前に set — restart しても同一週末の再発火なし。
+        # 執行契約(B) AMENDMENT 2026-09-10: 放棄 row は ABANDONED_HALT /
+        # ABANDONED_DRIFT を latch 状態として永続化 (§4.2/§4.3)。
         if _wg_entry and _wg_weekend_key:
             self._weekend_gap_latch_set(
                 instrument, _wg_weekend_key,
-                state=("SKIPPED_SPREAD" if _wg_spread_skipped else "EXECUTED"),
+                state=(_wg_abandon if _wg_abandon
+                       else ("SKIPPED_SPREAD" if _wg_spread_skipped
+                             else "EXECUTED")),
                 trade_id=trade_id or "",
                 spread_pips=_spread_entry,
             )
@@ -6916,6 +7338,16 @@ class DemoTrader:
             _lot_ratio = WEEKEND_GAP_FADE_UNITS / max(_base_units, 1)
             _adjusted_units = WEEKEND_GAP_FADE_UNITS
             _sentinel_reason = "WEEKEND_GAP_FADE_MIN_LOT"
+        if entry_type in self._KALMAN_D7_LIVE_OVERRIDE:
+            # Rule-1 LOCK (2026-09-01 pre-reg、user 承認同日): 05-28 決裁の
+            # live 化 (SUCCESS = OANDA fill >=1) が bypass set 非所属 + FLAT 5000u の
+            # 二重不適格で 96 日 fill ゼロだった carve-out。cascade
+            # (_PAIR_LOT_BOOST 0.5 → floor 0.3 → FLAT 5000u) に関係なく MIN lot
+            # (1000u) に固定 (carry dip と同型)。lot 増額は Live N>=30 の別 R1 のみ。
+            # knowledge-base/wiki/decisions/kalman-d7-minlot-carveout-prereg-2026-09-01.md
+            _lot_ratio = KALMAN_D7_MIN_UNITS / max(_base_units, 1)
+            _adjusted_units = KALMAN_D7_MIN_UNITS
+            _sentinel_reason = "KALMAN_D7_MIN_LOT"
         if _is_sentinel:
             # v7.6: XAU専用Sentinel単位数 — 1unit=1troy oz≈$4800
             # FX 0.01lot=1000u相当をXAUに適用すると 1000oz×$4800=$4.8M → margin拒絶
@@ -6954,6 +7386,9 @@ class DemoTrader:
             and entry_type != WEEKEND_GAP_FADE_ENTRY_TYPE
             # 2026-06-12 Codex review I-4: hull_donchian_fade は MIN lot 1000u 契約 — flat 上書き不可
             and entry_type != "hull_donchian_fade"
+            # 2026-09-01 LOCK: kalman_d7 ×3 は MIN lot 1000u 契約 — flat 上書き不可
+            # (FLAT 5000u が bypass 上限 1000u を超え carve-out を無効化していた)
+            and entry_type not in self._KALMAN_D7_LIVE_OVERRIDE
             and _prime_tier not in ("A", "B")
         ):
             try:
@@ -7054,6 +7489,33 @@ class DemoTrader:
                 self._add_log(
                     "[EMERGENCY_TRIP] bb_rsi_reversion OANDA 送信停止 "
                     "(USD_JPY×RANGE N=217 EV=-0.58 PF=0.75 RR=1.17). Shadow 継続."
+                )
+
+        # ── 2026-09-10 (rule:R3) bb_squeeze v2 live hold — 配線修復に伴う shadow 限定 ──
+        # e2-silent-cells-triage-2026-09-10 §2: SQUEEZE_REDESIGN_V2 の v2 評価器は
+        # live 呼び出し規約 (bar_time=None) で 127 日間 構造的 None だった。同日の
+        # 修復 (strategies/scalp/squeeze.py) で候補が再び流れるが、
+        # bb_squeeze_breakout×EUR_USD は _PAIR_PROMOTED 在籍 (2026-05-07 登録、
+        # 根拠 shadow N=14 EV=+0.01) かつ spread_gate / spread_sl_gate 免除のため、
+        # 修復だけだと「一度も行使されたことのない live 送信経路」が突然開く。
+        # v2 wave の設計意図は shadow 実測 (INSUFFICIENT_BT_EVIDENCE →
+        # RECOMMEND_SHADOW、.ai/tasks 20260505-1947) であり、live 化は fresh
+        # shadow N での R1 手続き未了 — よって v2 有効時は winner 経路も shadow に
+        # 落とし、live 送信挙動を修復前 (= ゼロ) と同一に保つ。
+        # Kill-switch: SQUEEZE_V2_LIVE_HOLD (default=1); R1 決裁後に "0" で解除。
+        # SQUEEZE_REDESIGN_V2 が無効 (v1 評価器) の場合は適用しない (挙動不変 scope)。
+        _SQUEEZE_V2_LIVE_HOLD = _os.environ.get("SQUEEZE_V2_LIVE_HOLD", "1") == "1"
+        if (_SQUEEZE_V2_LIVE_HOLD
+                and entry_type == "bb_squeeze_breakout"
+                and _os.environ.get("SQUEEZE_REDESIGN_V2") == "1"
+                and not _prime_live_lock):
+            if not _is_shadow:
+                _is_shadow = True
+                _is_promoted = False
+                _shadow_at_open = True
+                self._add_log(
+                    "[SQUEEZE_V2_LIVE_HOLD] bb_squeeze_breakout v2 winner → shadow 強制 "
+                    "(配線修復 2026-09-10 rule:R3 — live 化は fresh shadow N の R1 決裁後)"
                 )
 
         # ══════════════════════════════════════════════════════
@@ -7511,6 +7973,12 @@ class DemoTrader:
                     max_attempts=(1 if entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE
                                   else 3),
                     record_fill_slippage=(
+                        entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE),
+                    # 執行契約(B) §4.4 (AMENDMENT 2026-09-10): tradeable 確認後
+                    # の FOK が MARKET_HALTED cancel で返った場合 (解除直後 race)
+                    # のみ 30s 後に 1 回だけ再送 (最大計 2 送信、FOK 維持)。
+                    # 他の cancel/エラー reason は従来どおり再送禁止。
+                    halt_race_resend=(
                         entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE),
                 )
                 if _send_accepted:
@@ -8614,7 +9082,7 @@ class DemoTrader:
             # の P1 補足調査参照。
             ("streak_reversal", "scalp_inline"),
             ("dual_sr_bounce", "daytrade_inline"),
-            ("ny_close_reversal", "daytrade_inline"),  # _GRAIL_CANDIDATES 登録、本番で散発発火
+            ("ny_close_reversal", "daytrade_inline"),  # 2026-07-31 GRAIL 撤去済 (rule:R2)、shadow のみ継続
         ]
         try:
             for inline_name, inline_cat in _INLINE_STRATEGIES:
@@ -8900,7 +9368,14 @@ class DemoTrader:
         # N=22 EV=+1.30 と direction-of-evidence 収束.
         # → _PAIR_PROMOTED + _PAIR_SESSION_FILTER + _PAIR_LOT_BOOST=0.05 へ移動.
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
-        # ("vix_carry_unwind", "USD_JPY"),
+        # 2026-08-03 (rule:R2, user 決裁「進めて」): Overlap pilot 早期 demote で復帰。
+        # 07-07 継続裁定の根拠 (shadow 正 EV) が崩壊 — shadow 月次 04:+537p →
+        # 05〜07 累計 -216p/n=139 (April regime の遺産)。live 累計 N=26 PnL=-46.9p
+        # PF=0.66 (月次 3/4 負、07-30 に -30.1p SL_HIT)。checkpoint (live SELL
+        # N>=20 or 08-31) を待たず quant-eval-2026-07-31 の証拠悪化で執行。
+        # 再昇格は R1 (365d cell BT + Bonferroni + pre-reg LOCK + user 承認)。
+        # 詳細: knowledge-base/wiki/decisions/vix-pilot-early-demote-2026-08-03.md
+        ("vix_carry_unwind", "USD_JPY"),
         ("streak_reversal", "USD_JPY"),
         # 2026-05-27 (rule:R2 + R1-EXCEPTION pair): donchian × NZD revival に伴い
         # 漏れ出る他 pair を個別遮断 (Shadow 蓄積継続)。Shadow EV<-3p or N<5:
@@ -9003,7 +9478,11 @@ class DemoTrader:
         # Gate: _PAIR_SESSION_FILTER={"Overlap"}, lot=0.05x (defensive min).
         # Demote: Cell-Live N>=10 AND (EV<0 OR Wilson_LB<34.4%) → auto re-demote.
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
-        ("vix_carry_unwind", "USD_JPY"),       # Overlap-only pilot, 0.05x lot
+        # REMOVED 2026-08-03 (rule:R2, user 決裁): Overlap pilot 早期 demote →
+        # _PAIR_DEMOTED へ復帰。live N=26 -46.9p PF=0.66 + shadow エッジ減衰
+        # (05-07 累計 -216p)。詳細:
+        # knowledge-base/wiki/decisions/vix-pilot-early-demote-2026-08-03.md
+        # ("vix_carry_unwind", "USD_JPY"),     # was: Overlap-only pilot
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
         # REMOVED 2026-06-12 (rule:R2) Edge Factor Audit #5: promotion basis
         # (shadow N=39 EV=+1.35) overturned at N=132 → EV=-1.66. LIVE GBP_USD
@@ -9181,7 +9660,11 @@ class DemoTrader:
     # 2026-05-13 (rule:R2 pilot): vix_carry_unwind×USD_JPY Overlap-only pilot.
     # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
     _PAIR_SESSION_FILTER = {
-        ("vix_carry_unwind", "USD_JPY"): {"Overlap"},  # 12 <= UTC hour < 16
+        # REMOVED 2026-08-03 (rule:R2): paired with _PAIR_PROMOTED removal above.
+        # Overlap pilot 早期 demote (vix-pilot-early-demote-2026-08-03.md)。
+        # filter は PAIR_PROMOTED なしでは inert だが code consistency のため撤去
+        # (session_time_bias 2026-06-07/07-02 と同型)。
+        # ("vix_carry_unwind", "USD_JPY"): {"Overlap"},  # 12 <= UTC hour < 16
         # 2026-05-29 (rule:R2 cell forensic):
         # session_time_bias × EUR_USD now cell-conditional. Shadow cells:
         #   London   N=58 WR=44.8% Wlo=0.327 EV=+1.44 PF=1.41 ✅ edge
@@ -9230,7 +9713,10 @@ class DemoTrader:
         #       (tools/volume_live_promotion_watchdog.py, Live N≥10 EV<0 で自動 demote).
         # 旧 0.05x pre-reg: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
         # 新 1.0x pre-reg:  knowledge-base/wiki/decisions/vix-1x-intentional-exception-2026-05-21.md
-        ("vix_carry_unwind", "USD_JPY"): 1.0,
+        # REMOVED 2026-08-03 (rule:R2): paired with _PAIR_PROMOTED removal —
+        # Overlap pilot 早期 demote (vix-pilot-early-demote-2026-08-03.md)。
+        # boost は PAIR_PROMOTED なしでは inert だが code consistency のため撤去。
+        # ("vix_carry_unwind", "USD_JPY"): 1.0,
         # 2026-05-28 (rule:R1-EXCEPTION): user judgment, Kalman D7 trio mid-tier sizing.
         # 0.1x (UNIVERSAL_SENTINEL default) → 0.5x. Live N=0 (8 日 silent drop 修正後).
         # 3 variant 同時発火: 1 PO-UP transition で v17/v18f/v18e 全部発注 → 合計 1.5× exposure.
@@ -9573,7 +10059,15 @@ class DemoTrader:
         # bypass)。Live London 実証は損 (2026-06-15: +1.3/+1.6/-9.0p)。vix は
         # _PAIR_PROMOTED の Overlap pilot のみで発火させる (1000u 固定、上記 fixed-lot)。
         # "vix_carry_unwind",     # was: USD_JPY × London × TREND_BEAR N=4 Wlo=15%
-        "ny_close_reversal",      # USD_JPY × NY × RANGE: N=4 Wlo=51% EV=+2.15 PF=4.58
+        # REMOVED 2026-07-31 (rule:R2): ny_close_reversal × NY後半。登録根拠は
+        # N=4 (Wlo=51%) の TP-hit deep-mining クラスタだったが、post-cutoff live
+        # 実績は 0W/4L −9.7p (07-06/07-08/07-15 含む)、shadow も GBP_USD −41p /
+        # USD_JPY −4p と両ペア負。quant-eval-2026-07-31 の 3 バケット全数調査で
+        # 7 月 live 出血経路の一角と特定 (詳細:
+        # knowledge-base/wiki/decisions/grail19-ny-close-removal-2026-07-31.md)。
+        # shadow emit は継続 (原則3) — 再 live 化は R1 (forward shadow N≥30 +
+        # Bonferroni + pre-reg LOCK)。
+        # "ny_close_reversal",    # was: USD_JPY × NY × RANGE N=4 Wlo=51% EV=+2.15
     }
 
     # ── 2026-04-27: C1-PROMOTE candidates (Q1' Cell Edge Audit, rule:R1) ──
@@ -9871,6 +10365,17 @@ class DemoTrader:
     # ══════════════════════════════════════════════════════════════
     # ── v6.4 SHIELD + 非対称攻撃 ──────────────────────────────
     # ══════════════════════════════════════════════════════════════
+    # 2026-08-12 (rule:R3 zero-fire forensic): gbp_asia_flash_crash gate の
+    # rowless hard block から shadow 退避 (is_shadow=1、OANDA 送信なし) に切り替える
+    # cell 集合。HTF_BLOCK_SHADOW_RESCUE (strategies/daytrade/__init__.py) と同一の
+    # 原則3設計 — 12.4y Bonferroni 生存 cell (N=543 WR=59.7% +6.22p t=4.46) の
+    # P-S1(a) トリガ分母 (unique N>=10) が silent 枯渇するのを防ぐ。live 送信の
+    # 例外化は P-S1(a) Option B (user 決裁) のみ — 本集合は記録専用で live に影響しない。
+    # 詳細: knowledge-base/wiki/analyses/sweep-zero-fire-forensic-2026-08-12.md
+    _GBP_ASIA_SHADOW_RESCUE_CELLS = frozenset({
+        ("sweep_reversion_eurgbp_late", "EUR_GBP"),
+    })
+
     _OANDA_LOT_CAP = 10000          # 絶対上限 (19000u災害防止)
     _OANDA_MODE_BLOCKED = frozenset({
         "daytrade_eur",              # EUR_USD DT 15m: OANDA WR=29.2%
@@ -10197,8 +10702,35 @@ class DemoTrader:
         "price_shock_rev_usd_cad_h1_long",
         "price_shock_rev_nzd_jpy_h1_long",
         "price_shock_rev_aud_jpy_h1_long",
+        # 2026-09-01 LOCK (user 承認同日): kalman_d7 ×3 — 05-28 決裁の live 化
+        # (SUCCESS = OANDA fill >=1) が本 set 非所属 + FLAT 5000u の二重不適格で
+        # 96 日 fill ゼロだった carve-out。MIN lot 1000u 契約 (KALMAN_D7_MIN_LOT)
+        # とセット。instrument 制限 (USD_JPY) は _kalman_d7_live_eligible が担保。
+        # knowledge-base/wiki/decisions/kalman-d7-minlot-carveout-prereg-2026-09-01.md
+        "kalman_d7_po_dn_flip",
+        "kalman_d7_ema75_break",
+        "kalman_d7_trail_atr",
     })
     _AGG_KELLY_GATE_MINLOT_MAX_UNITS = 1000
+
+    # ── 2026-09-02 (rule:R1、user 承認 2026-09-02「どちらも進めて」): 静的 hour
+    # block class exemption。hourblock-recal-and-ema200-verdict-2026-09-02 Study 1
+    # の推奨経路 —「個別撤去ではなく live 資格セル (min-lot carve-out 契約群) の
+    # class exemption 1 本」。根拠は edge claim ではない: 6/6 block で相対毒性が
+    # 再現せず (parity)、class の per-cell リスクは 1000u 固定契約 + 各 binding R2
+    # registry で有界のため、hour-of-day は追加の防御情報を持たない。ブロック帯
+    # +EV 主張 (B7/B8 live 層) は別件 pre-reg
+    # (alpha-scan-b7-b8-livecell-recheck、期日 2026-11-30) に凍結済みで、本免除は
+    # それを先取りしない。
+    # class の定義は _AGG_KELLY_GATE_MINLOT_BYPASS_TYPES と同一実体 (alias) —
+    # 「免除クラス = min-lot 契約群」という性質そのものを SSOT にする (第 2 の
+    # リストを作ると片方だけ更新されて drift する)。identity は
+    # tests/test_hourblock_class_exemption.py が pin。demoted tier (静的 +
+    # runtime) は _tick_entry 側で免除から除外 (fail-closed)。
+    # R2 rollback: registry `hourblock-class-exempt-r2-rollback`
+    # ([HOURBLOCK_CLASS_EXEMPT] marker 付き live N>=10 ∧ pooled EV<0 → 免除撤去)。
+    # pre-reg: knowledge-base/wiki/decisions/hourblock-class-exemption-prereg-2026-09-02.md
+    _STATIC_HOURBLOCK_CLASS_EXEMPT = _AGG_KELLY_GATE_MINLOT_BYPASS_TYPES
 
     def _agg_kelly_gate_minlot_bypass(self, entry_type: str, units: int,
                                       is_xau: bool) -> bool:
@@ -10510,11 +11042,11 @@ class DemoTrader:
         # 到達不能だが、5/13 Overlap pilot の demote した負けセルを延命する経路を
         # 残さないため filter からも撤去。vix は Overlap pilot (1000u) のみ。
         #   was: hour 7-11 ∧ range_tight ∧ squeeze → True (観測 N=4 Wlo=15%)
-        # Grail #19: ny_close_reversal × NY後半 × RANGE
-        # 観測 N=4 TP=4 Wlo=51% EV=+2.15 PF=4.58 (TP-rate 100%, 小利)
-        if (entry_type == "ny_close_reversal"
-                and 17 <= hour_utc < 22):
-            return True
+        # Grail #19 (REMOVED 2026-07-31 rule:R2): ny_close_reversal × NY後半。
+        # _GRAIL_CANDIDATES から除外済 — entry_type not in 判定で既に到達不能
+        # だが、Grail #2 撤去 (2026-06-15) と同様に負けセルを延命する経路を
+        # 残さないため filter からも撤去。live 0W/4L −9.7p + shadow 両ペア負。
+        #   was: 17 <= hour_utc < 22 → True (観測 N=4 Wlo=51%)
         return False
 
     def _check_c1_promote_filter(self, entry_type, instrument, mode,

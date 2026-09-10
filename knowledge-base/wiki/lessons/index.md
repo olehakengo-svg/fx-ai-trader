@@ -14,6 +14,14 @@
 
 ### ページテンプレート
 ```markdown
+### `[[lesson-kpi-without-a-reader-2026-09-04]]`
+**発見日**: 2026-09-04 | **rule**: R3
+- 問題: roadmap 最重要 KPI **M1 (clean live 30d PnL)** を再計算する主体が存在せず、07-06 の手動実測値のまま **60 日凍結**していた
+- 症状: その間に **符号がプラスへ反転していたのに誰も気づかなかった** (09-04 実測 N=15 / +19.8p)
+- 原因: 「収集経路の write-only」の一段手前 = **指標そのものに読み手が無い**。roadmap の表に数字を書くのは計測ではなくスナップショット
+- 修正: `tools/m1_clean_live_monitor.py` (verdict 3 状態 + 符号反転の帰属 + 1 件脆弱性) を新設し日次 Tier A cron へ配線。counterfactual 10/10 落ちることを確認
+- 教訓: **KPI を定義したら同じコミットで「毎日再計算する主体」を定義せよ。「定義済み ≠ 計測済み」。rolling 窓の符号変化は必ず「新規流入」と「窓外脱落」へ分解せよ — 新規約定ゼロのまま古い −123.2p が窓外へ抜けただけで M1 は符号反転していた。閾値のみの KPI は分母が縮むと縮退する**
+
 ### `[[lesson-名前]]`
 **発見日**: YYYY-MM-DD | **修正**: vX.Y
 - 問題: （何が起きたか）
@@ -28,6 +36,40 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 `fix`, `bug`, `バグ`, `間違`, `修正`, `想定外`, `乖離`, `覆`, `REJECT`, `DEMOTE`
 
 ## バグ・設計ミスの教訓
+
+### [[lesson-shadow-emit-dedup-writetime-2026-09-02]]
+**発見日**: 2026-09-02 | **修正**: rule:R3 (同 PR、`open_trade` write-time DB flag + audit 自己記述)
+- 問題: `_maybe_reserve_signal_emit` の dedup ゲートはプロセスローカル in-memory 状態で、プロセス境界 (デプロイ重複 / コンテナ置換 / 一時 2nd インスタンスの並走書込み) を越えられず同一キーを重複 INSERT していた (dedup 系 5 例目)。かつ `_backfill_dedup_violation` は起動時のみ = boot 後の重複を次回起動まで未 flag に残す
+- 症状: 単一インスタンスで `shadow_called=1` なのに shadow_emit 2 行 (counter 矛盾で別プロセス由来と確定)。90d intra-window dup 1,434 行中 99.8% は backfill 回収済みだが、未 flag 窓で走った point-in-time 分析 (07-31 ema200 N=79) が水増しを見た
+- 修正: `open_trade` に共有 DB 参照の write-time dedup flag (同一キー・TF 窓内 dv=0 先行行があれば dv=1、行は保持・挙動不変・live 対象外)。audit units:0 を `shadow_tracking(shadow_emit_no_lot)` に自己記述化
+- 教訓: **In-memory な dedup/cooldown/cache はプロセス境界 (restart だけでなく並走) を越えられない — またいで守る不変条件は共有 DB を write-time で参照せよ。retroactive cleanup (boot backfill) は「いつ走るか」がそのまま盲点で、皮肉にも churn 抑制で盲点が広がる**
+
+### [[lesson-constructed-url-404-is-not-absence-2026-08-31]]
+**発見日**: 2026-08-31 | **修正**: rule:R3 (同 PR、`csv_row_match` 新設)
+- 問題: ① 外部一次情報 (MoF 月次介入額) の公表 URL を命名規則の**推測**から組み立て、404 を「未公表」と誤読した (実際は別名で公表済、15兆3,993億円) ② 日次 cron は同じ値を **2 日前に収集済み**だったが、その CSV を読む検知器が存在しなかった (write-only 6 例目)
+- 症状: registry は `deadline_info` 型で期日まで無反応、宣言された到達経路も人手 URL 直叩き。値はリポジトリに座ったまま誰も読まず、期日到来まで気付けなかった
+- 教訓: **自分で組み立てた URL の 404 は「不在」の証拠ではなく「自分が予測した名前ではない」しか意味しない — 索引があるなら列挙せよ。そして収集経路を足したら読み手を同じコミットで足せ (「収集済み」≠「監視済み」)。pin は失敗 mode を凍結しうる (旧 pin は誤設計そのものを固定していた) ので構文でなく性質で書く**
+
+### [[lesson-yfinance-jpy-daily-utc-shift-2026-08-18]]
+**発見日**: 2026-08-18 | **修正**: 検出・補正済み (介入全史解剖 wf 内)、既存 verdict への波及なし確認
+- 問題: yfinance `JPY=X` 日足の日付ラベルが当プロジェクトの UTC-day 規約に対し系統的に +1 日ずれる (実測)
+- 教訓: **ベンダー日足の日付境界は「前提」でなく「検証対象」。外部日足を混ぜるハーネスは MASSIVE/OANDA との突き合わせ実測 + 境界変換の明示コード + test pin が必須**
+
+### [[lesson-rolling-window-cache-overwrite-2026-08-14]]
+**発見日**: 2026-08-14 | **修正**: rule:R3 (同 PR)
+- 問題: ① `modules/yield_data.py` が rolling 窓 API (yfinance) の結果でキャッシュを無条件 overwrite していた ② registry `ws3-round4-eur-divergence-conditional` の発火条件に到達する経路 (キャッシュを伸ばすジョブ) が存在しなかった
+- 症状: ZN=F 1h キャッシュが 2026-05-15 で停止 (12,760 行)。`interval="1h"` の呼び出しは period=60d を選ぶため、一度実行すれば 1,162 行に潰れる。**2024-02-18→2024-03-21 の約 1 ヶ月は既に yfinance 窓外 = ファイルにしか存在しない**。トリガは毎日 "watching" と表示され続けていたが実体はゼロ
+- 原因: overwrite 実装が「取得できる期間 = 保有できる期間」を暗黙に仮定。rolling API ではこの仮定は常に偽。加えて条件付きトリガ登録時に到達経路の実在検査をしていなかった
+- 修正: `merge_bar_cache()` で union-merge 化 (行数単調非減少) + 1h period を 730d へ + test pin 7 件 + `.github/workflows/zn-cache-refresh.yml` (週次) で伸長経路を新設。キャッシュは 14,175 行 / 右端 2026-08-14 へ回復
+- 教訓: **rolling 窓 API のキャッシュは union-merge が既定。overwrite は偽の仮定を含む。そして条件付き registry トリガは「条件を書く」と「条件が起こりうる」が別物 — 登録時に到達経路 (どのジョブが状態を進めるか) を message に明記し、`watching` 表示を健全性の証拠と誤読しない**
+
+### [[lesson-frozen-telemetry-value-2026-08-09]]
+**発見日**: 2026-08-09 | **修正**: rule:R3 (同コミット)
+- 問題: live の DT `ctx.hour_utc` が定数 12 に凍結し、全 DT 戦略の時間帯ゲートが BT と別物になっていた (潜伏 123 日)。うち 34 日は原因を映す QUALBAR ログが本番に出続けていたのに読み飛ばされた
+- 症状: kalman_d7 が LIVE 化から 73 日 0 fire (h=12 は session 窓の唯一の穴)。逆に窓が h=12 を含む戦略は BT 窓外で発火 (実測 35.0%)、金曜ブロックは live で一度も作動せず
+- 原因: ① `bar_time` を渡すのは BT 経路のみで live は渡さない → 固定フォールバック 12 が常用、② 0-fire 判定表に「計装値が定数に張り付いていないか」の欄が無く、breakdown を見ても入力値の妥当性まで届かなかった、③ 2026-04-04 に同型バグを修正済みだったが回帰テストが無く 4 日後に再混入
+- 修正: DT ctx の時刻導出を `bar_time → df.index[-1] → now(UTC)` に統一 + 回帰 pin 9 件 (旧ソースで 7 件落ちることを検証)。併せて `prereg_trigger_watch` の live 側 prefix 未配線 (監視が沈黙する) も修正
+- 教訓: **テレメトリを足すときは「この値が定数だったら異常」という不変条件を判定表に同梱する。本来変動する量が N バー連続同値なら市場ではなくコードを疑う。既存値を無視して別経路で取り直しているコードは基盤バグの症状であり、回避策はバグ報告である**
 
 ### [[lesson-freeze-rule-topEV-selects-overfit-2026-07-14]]
 **発見日**: 2026-07-14 | **出典**: WS3 round-3 divergence-reversion verdict
@@ -394,3 +436,10 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 - 原因: KB 必読プロトコル (CLAUDE.md) を 5 連続違反。fib_reversal の FORCE_DEMOTED (Recovery Path Active) 状態 + 180d BT 符号反転履歴 を確認せず、cell-conditional BT も走らせなかった
 - 修正: lot 0.05 → 0.01 (Recovery Path SENTINEL 整合) / lesson 作成 / cell promote の 3 段階防御プロトコル明文化
 - 教訓: **Cell-level 統計分析だけで Live promote するな。KB 必読 + cell-conditional 180d BT + Recovery Path lot サイズ の 3 段階防御を全段クリアして初めて promote 可**
+
+### `[[lesson-validity-check-pins-proxy-2026-09-02]]`
+**発見日**: 2026-09-02 | **修正**: 妥当性チェックの設計是正 (コード変更なし)
+- 問題: pre-reg の妥当性チェックが「再構成が engine と一致するか」という**性質**でなく、「今日の exempt 集合に入っているか」という**時変の代理**を pin していた
+- 症状: 違反 104 行を検出し、字義どおりなら研究中止だった (実際は再構成が正しく、チェックが誤り)
+- 修正: 読み出し経路のコード同一性で直接検証 + 違反行の時系列分解 (2026-08 で 0/12)
+- 再発: PR #209 の「構造 pin は性質を書け」と同型 = **通算 2 領域目** (今度は統計の妥当性チェック側)

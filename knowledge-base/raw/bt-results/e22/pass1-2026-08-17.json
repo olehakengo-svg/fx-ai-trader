@@ -1,0 +1,75 @@
+{
+  "mode": "pass1",
+  "frozen_manifest": {
+    "data/external/vrp/EVZCLS.csv": {
+      "sha256": "63989d41d502661e9f7bc9276af6a33124d0d71ca0057214affb99725b75c420",
+      "rows": 4529
+    },
+    "data/cache/massive/EUR_USD_15m.parquet": {
+      "sha256": "832965b36377e4463ca00697dec1c509641128f0760c1aaeb00ff2420872a433",
+      "rows": 318442
+    },
+    "knowledge-base/raw/bt-results/e20/e20_carry_level.csv": {
+      "sha256": "0b03ea58606ee4f43d3a0cef5a85f8556071f8caefccd0a2475a75431c6378a4",
+      "rows": 2609
+    }
+  },
+  "d1_census": {
+    "weekend_label_bars_dropped": 1587,
+    "void_days": 16,
+    "d1_days": 3314
+  },
+  "returns_void": 0,
+  "signal_census": {
+    "rv_void": 0,
+    "evz_stale_void": 0,
+    "evz_missing_void": 0
+  },
+  "fwd_void": 0,
+  "n_signal_days": 2066,
+  "n_by_year": {
+    "2014": 258,
+    "2015": 257,
+    "2016": 260,
+    "2017": 259,
+    "2018": 260,
+    "2019": 259,
+    "2020": 253,
+    "2021": 260
+  },
+  "evz_same_day_share": 0.9714424007744433,
+  "stale_run3_day_share": 0.01452081316553727,
+  "unconditional_fwd21": {
+    "median_abs_move_pips": 137.74999999999983,
+    "sd_move_pips": 231.69000386983603,
+    "p25_abs": 63.024999999999885,
+    "p75_abs": 253.3750000000001
+  },
+  "gate_A": {
+    "floor_pips": 40.0,
+    "observed_median_abs": 137.74999999999983,
+    "pass": true
+  },
+  "gate_B": {
+    "n": 2066,
+    "n_min": 1500,
+    "nonoverlap_windows": 98,
+    "nonoverlap_min": 70,
+    "pass": true
+  },
+  "honest_mde": {
+    "ic_mde_at_nonoverlap": 0.282842712474619,
+    "tercile_mean_mde_pips_cluster_worst": 58.206306818063254
+  },
+  "vrp_acf": {
+    "lag5": 0.6318994540097284,
+    "lag10": 0.3277734330714296,
+    "lag21": -0.09056636517644152,
+    "lag42": 0.029544419508075234
+  },
+  "vrp_summary": {
+    "p5": -1.8547590512404226,
+    "p50": 0.952094086411599,
+    "p95": 3.0542329872192058
+  }
+}

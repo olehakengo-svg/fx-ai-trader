@@ -1,0 +1,53 @@
+# 台帳 #21 commodity_cross_range_mr — G0 RT 実測 日次 snapshot
+# /api/g0/cc_rt (read-only 計測エンドポイント) を取得し KB へ永続化する。
+# 計測のみで verdict なし (G0 判定基準は explore pre-reg 起案時に凍結)。
+name: cc-g0-rt
+
+on:
+  schedule:
+    - cron: '15 6 * * *'   # UTC 06:15 daily (rollover 21:00 UTC 後の安定時間帯)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          token: ${{ secrets.PAT_TOKEN }}  # main は protected — daily-report と同一の bypass 経路
+
+      - name: Fetch G0 RT snapshot
+        run: |
+          set -euo pipefail
+          mkdir -p knowledge-base/raw/bt-results/cc-g0-rt
+          DATE=$(date -u +%F)
+          OUT="knowledge-base/raw/bt-results/cc-g0-rt/${DATE}.json"
+          curl -sf -m 90 "https://fx-ai-trader.onrender.com/api/g0/cc_rt" -o "$OUT"
+          python3 - "$OUT" <<'PYEOF'
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          assert d.get("pairs"), "empty payload (no pairs)"
+          for p, v in d["pairs"].items():
+              assert "error" not in v, f"{p}: {v.get('error')}"
+          print("snapshot ok:", {p: v.get("n_candles") for p, v in d["pairs"].items()})
+          PYEOF
+
+      - name: Commit snapshot
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add knowledge-base/raw/bt-results/cc-g0-rt/
+          if git diff --cached --quiet; then
+            echo "no changes"
+            exit 0
+          fi
+          git commit -m "auto: cc-g0-rt G0 snapshot ($(date -u +%F))"
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase
+          done
+          exit 1

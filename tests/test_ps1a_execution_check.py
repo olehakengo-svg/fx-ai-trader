@@ -136,15 +136,15 @@ def test_verdict_user_redecision_on_sign_split():
 
 def test_verdict_retire_r2_after_deadline_with_n_below_floor():
     rows = packet_fixture()[:2] + [t for t in packet_fixture() if t["dedup_violation"] == 1]
-    # unique = 2 (<5) のまま期日超過
-    res = evaluate(rows, today="2026-10-01")
+    # unique = 2 (<5) のまま期日超過 (期日 = 2026-10-28、2026-08-17 繰り延べ決裁)
+    res = evaluate(rows, today="2026-10-29")
     assert res["stats"]["unique"]["n"] == 2
     assert res["verdict"] == VERDICT_RETIRE_DEADLINE
 
 
 def test_verdict_stays_waiting_at_deadline_if_n_at_floor():
     """N>=5 なら期日超過でも retire しない (T8 DEFER: N<5 が retire 条件)。"""
-    res = evaluate(packet_fixture(), today="2026-10-01")
+    res = evaluate(packet_fixture(), today="2026-10-29")
     assert res["stats"]["unique"]["n"] == 8
     assert res["verdict"] == VERDICT_WAITING
 

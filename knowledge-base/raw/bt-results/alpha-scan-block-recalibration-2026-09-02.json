@@ -1,0 +1,319 @@
+{
+  "p0": [
+    {
+      "block": "B1",
+      "name": "session_pair(EUR_USD_Tokyo)",
+      "live_hits": 0,
+      "live_hits_non_exempt": 0,
+      "non_exempt_cells": []
+    },
+    {
+      "block": "B2",
+      "name": "session_pair(EUR_USD_Late_NY)",
+      "live_hits": 2,
+      "live_hits_non_exempt": 2,
+      "non_exempt_cells": [
+        "bb_rsi_reversionxEUR_USD"
+      ]
+    },
+    {
+      "block": "B3",
+      "name": "alpha_scan(EUR_USD_SELL)",
+      "live_hits": 43,
+      "live_hits_non_exempt": 42,
+      "non_exempt_cells": [
+        "bb_rsi_reversionxEUR_USD",
+        "dt_bb_rsi_mrxEUR_USD",
+        "ema_trend_scalpxEUR_USD",
+        "fib_reversalxEUR_USD",
+        "session_time_biasxEUR_USD",
+        "sr_channel_reversalxEUR_USD",
+        "stoch_trend_pullbackxEUR_USD",
+        "zz_pivot_v60_srxEUR_USD"
+      ]
+    },
+    {
+      "block": "B4",
+      "name": "alpha_scan(RANGE_SELL)",
+      "live_hits": 33,
+      "live_hits_non_exempt": 32,
+      "non_exempt_cells": [
+        "bb_rsi_reversionxEUR_USD",
+        "bb_rsi_reversionxGBP_USD",
+        "bb_rsi_reversionxUSD_CHF",
+        "bb_rsi_reversionxUSD_JPY",
+        "dt_sr_channel_reversalxEUR_JPY",
+        "dt_sr_channel_reversalxGBP_USD",
+        "ema200_trend_reversalxUSD_JPY",
+        "ema_trend_scalpxGBP_USD"
+      ]
+    },
+    {
+      "block": "B5",
+      "name": "alpha_scan(TREND_BULL_BUY)",
+      "live_hits": 10,
+      "live_hits_non_exempt": 9,
+      "non_exempt_cells": [
+        "bb_squeeze_breakoutxUSD_JPY",
+        "ema_trend_scalpxEUR_USD",
+        "sr_anti_hunt_bouncexEUR_JPY",
+        "sr_fib_confluencexGBP_USD",
+        "stoch_trend_pullbackxUSD_JPY",
+        "streak_reversalxUSD_JPY",
+        "vol_surge_detectorxUSD_JPY",
+        "wick_imbalance_reversionxGBP_USD"
+      ]
+    },
+    {
+      "block": "B6",
+      "name": "alpha_scan(H11_EUR_USD)",
+      "live_hits": 3,
+      "live_hits_non_exempt": 3,
+      "non_exempt_cells": [
+        "session_time_biasxEUR_USD"
+      ]
+    },
+    {
+      "block": "B7",
+      "name": "alpha_scan(H13_USD_JPY)",
+      "live_hits": 8,
+      "live_hits_non_exempt": 7,
+      "non_exempt_cells": [
+        "bb_rsi_reversionxUSD_JPY",
+        "ema200_trend_reversalxUSD_JPY",
+        "engulfing_bbxUSD_JPY",
+        "vix_carry_unwindxUSD_JPY"
+      ]
+    },
+    {
+      "block": "B8",
+      "name": "alpha_scan(H16-20_USD_JPY)",
+      "live_hits": 7,
+      "live_hits_non_exempt": 7,
+      "non_exempt_cells": [
+        "bb_rsi_reversionxUSD_JPY",
+        "ny_close_reversalxUSD_JPY"
+      ]
+    },
+    {
+      "block": "B9",
+      "name": "alpha_scan(BUY_TREND_BEAR)",
+      "live_hits": 10,
+      "live_hits_non_exempt": 10,
+      "non_exempt_cells": [
+        "dt_sr_channel_reversalxEUR_JPY",
+        "fib_reversalxUSD_JPY",
+        "macdh_reversalxEUR_USD",
+        "sr_break_retestxGBP_USD",
+        "wick_imbalance_reversionxGBP_USD"
+      ]
+    },
+    {
+      "block": "B10",
+      "name": "alpha_scan(H7-8_EUR_USD)",
+      "live_hits": 15,
+      "live_hits_non_exempt": 15,
+      "non_exempt_cells": [
+        "ema_trend_scalpxEUR_USD",
+        "macdh_reversalxEUR_USD",
+        "session_time_biasxEUR_USD",
+        "sr_channel_reversalxEUR_USD",
+        "stoch_trend_pullbackxEUR_USD",
+        "zz_pivot_v60_srxEUR_USD"
+      ]
+    }
+  ],
+  "blocks": [
+    {
+      "block": "B1",
+      "name": "session_pair(EUR_USD_Tokyo)",
+      "calib_n": null,
+      "calib_ev": null,
+      "overlap": 0.8672199170124482,
+      "verdict": "PREMISE-INTACT",
+      "n": 241,
+      "wr": 0.45228215767634855,
+      "ev_gross": -1.1315352697095442,
+      "ev_net": -3.1315352697095404,
+      "ci_net_lo": -3.893775933609958,
+      "ci_net_hi": -2.3887966804979244,
+      "p_neg_net": 1.4372571436943493e-16
+    },
+    {
+      "block": "B2",
+      "name": "session_pair(EUR_USD_Late_NY)",
+      "calib_n": null,
+      "calib_ev": null,
+      "overlap": 0.8743169398907104,
+      "verdict": "PREMISE-INTACT",
+      "n": 183,
+      "wr": 0.37158469945355194,
+      "ev_gross": -0.9147540983606551,
+      "ev_net": -2.914754098360655,
+      "ci_net_lo": -3.5765027322404377,
+      "ci_net_hi": -2.229508196721311,
+      "p_neg_net": 9.204869367868077e-18
+    },
+    {
+      "block": "B3",
+      "name": "alpha_scan(EUR_USD_SELL)",
+      "calib_n": 43,
+      "calib_ev": -2.714,
+      "overlap": 0.8725071225071225,
+      "verdict": "PREMISE-INTACT",
+      "n": 1404,
+      "wr": 0.4287749287749288,
+      "ev_gross": -0.9660968660968673,
+      "ev_net": -2.9660968660968656,
+      "ci_net_lo": -3.3252136752136683,
+      "ci_net_hi": -2.610256410256403,
+      "p_neg_net": 2.743534584397936e-60
+    },
+    {
+      "block": "B4",
+      "name": "alpha_scan(RANGE_SELL)",
+      "calib_n": 89,
+      "calib_ev": -1.636,
+      "overlap": 0.8581856100104275,
+      "verdict": "PREMISE-INTACT",
+      "n": 959,
+      "wr": 0.3461939520333681,
+      "ev_gross": -1.4842544316996868,
+      "ev_net": -4.128321167883198,
+      "ci_net_lo": -4.633013555787273,
+      "ci_net_hi": -3.5951303441084415,
+      "p_neg_net": 8.44821200581776e-56
+    },
+    {
+      "block": "B5",
+      "name": "alpha_scan(TREND_BULL_BUY)",
+      "calib_n": 70,
+      "calib_ev": -0.776,
+      "overlap": 0.6996699669966997,
+      "verdict": "PREMISE-INTACT",
+      "n": 606,
+      "wr": 0.39603960396039606,
+      "ev_gross": -1.6127062706270618,
+      "ev_net": -4.213663366336634,
+      "ci_net_lo": -4.850280528052803,
+      "ci_net_hi": -3.58285478547855,
+      "p_neg_net": 2.9073650966637527e-39
+    },
+    {
+      "block": "B6",
+      "name": "alpha_scan(H11_EUR_USD)",
+      "calib_n": 9,
+      "calib_ev": -4.489,
+      "overlap": 0.9383561643835616,
+      "verdict": "PREMISE-INTACT",
+      "n": 146,
+      "wr": 0.3767123287671233,
+      "ev_gross": -0.9493150684931506,
+      "ev_net": -2.9493150684931506,
+      "ci_net_lo": -4.053424657534247,
+      "ci_net_hi": -1.806164383561642,
+      "p_neg_net": 1.3873301413810862e-07
+    },
+    {
+      "block": "B7",
+      "name": "alpha_scan(H13_USD_JPY)",
+      "calib_n": 14,
+      "calib_ev": -2.486,
+      "overlap": 0.7400611620795107,
+      "verdict": "PREMISE-INTACT",
+      "n": 327,
+      "wr": 0.44036697247706424,
+      "ev_gross": -0.2107033639143732,
+      "ev_net": -2.350703363914376,
+      "ci_net_lo": -3.436636085626914,
+      "ci_net_hi": -1.284954128440366,
+      "p_neg_net": 8.583220910694372e-06
+    },
+    {
+      "block": "B8",
+      "name": "alpha_scan(H16-20_USD_JPY)",
+      "calib_n": 27,
+      "calib_ev": -2.4,
+      "overlap": 0.7748148148148148,
+      "verdict": "PREMISE-INTACT",
+      "n": 675,
+      "wr": 0.37037037037037035,
+      "ev_gross": -1.116592592592593,
+      "ev_net": -3.256592592592599,
+      "ci_net_lo": -3.8487407407407357,
+      "ci_net_hi": -2.6715555555555626,
+      "p_neg_net": 8.5106632949443e-28
+    },
+    {
+      "block": "B9",
+      "name": "alpha_scan(BUY_TREND_BEAR)",
+      "calib_n": 19,
+      "calib_ev": -1.67,
+      "overlap": 0.8045714285714286,
+      "verdict": "PREMISE-INTACT",
+      "n": 875,
+      "wr": 0.3965714285714286,
+      "ev_gross": -1.3403428571428566,
+      "ev_net": -4.0684685714285695,
+      "ci_net_lo": -4.547611428571432,
+      "ci_net_hi": -3.5843542857142903,
+      "p_neg_net": 1.4317369431246886e-61
+    },
+    {
+      "block": "B10",
+      "name": "alpha_scan(H7-8_EUR_USD)",
+      "calib_n": 14,
+      "calib_ev": -2.38,
+      "overlap": 0.75177304964539,
+      "verdict": "PREMISE-INTACT",
+      "n": 423,
+      "wr": 0.3877068557919622,
+      "ev_gross": -0.792671394799054,
+      "ev_net": -2.792671394799056,
+      "ci_net_lo": -3.4115839243498836,
+      "ci_net_hi": -2.1685579196217524,
+      "p_neg_net": 2.111237495188635e-19
+    }
+  ],
+  "n_window": 11840,
+  "n_shadow": 11548,
+  "n_live": 292,
+  "n_calib_types": 35,
+  "calib_types": [
+    "bb_rsi_reversion",
+    "bb_squeeze_breakout",
+    "doji_breakout",
+    "donchian_momentum_breakout",
+    "dt_bb_rsi_mr",
+    "dt_sr_channel_reversal",
+    "dual_sr_bounce",
+    "ema200_trend_reversal",
+    "ema_cross",
+    "ema_pullback",
+    "ema_trend_scalp",
+    "engulfing_bb",
+    "fib_reversal",
+    "htf_false_breakout",
+    "inducement_ob",
+    "lin_reg_channel",
+    "macdh_reversal",
+    "mtf_reversal_confluence",
+    "ny_close_reversal",
+    "orb_trap",
+    "post_news_vol",
+    "session_time_bias",
+    "squeeze_release_momentum",
+    "sr_break_retest",
+    "sr_channel_reversal",
+    "sr_fib_confluence",
+    "stoch_trend_pullback",
+    "three_bar_reversal",
+    "trend_rebound",
+    "trendline_sweep",
+    "v_reversal",
+    "vix_carry_unwind",
+    "vol_momentum_scalp",
+    "vol_surge_detector",
+    "xs_momentum"
+  ]
+}

@@ -36,9 +36,9 @@ v2.2 は全12項目をクローズした (止血セル停止・T5 JPYキャッ�
 
 | KPI | v2.2 定義 | 2026-07-06 実測 | v2.3 での扱い |
 |---|---|---|---|
-| M1 | clean live 30d PnL > 0 | **−242.6p (未達)** | 存置。ただし payoff 是正なしでは構造的に到達不能 |
+| M1 | clean live 30d PnL > 0 | 2026-07-06: **−242.6p (未達)** → **2026-09-04: +19.8p / N=15 = 文言上は達成、ただし 🟡 MET_UNDERPOWERED** ([[m1-kpi-readout-and-mechanical-flip-2026-09-04]]) | 存置。⚠️ **符号反転は MECHANICAL_FLIP** — 新規約定ゼロのまま 07-31 の −123.2p が 30 日窓外へ抜けただけ。bootstrap P(sum≤0)=0.426 / 1 件抜くと符号が消える約定 4 件 = 符号は未解決。**2026-09-04 に読み手を新設** (`tools/m1_clean_live_monitor.py` → 日次 Tier A cron)。定義への統計資格条件付与は user 決裁 (analyses §8) |
 | M2 | 負けクラスタ (counter-USD MR + 薄商い) 寄与 > −10p | **union N=25 / −42.8p** (全損の 18%) | 存置。残 82% は別クラスタ = 決済非対称が主 |
-| M3 | clean live N≥30 セルを 3 個 | **0 個** (最大 trendline_sweep GBP_USD BUY N=13) | 存置。live N は依然薄い (shadow とは別問題) |
+| M3 | clean live N≥30 セルを 3 個 | **0 個** (2026-09-04 再計測: LIVE 資格ロースタは 3 セルのみ、最速 carry_dip でも N=9/30d) | 存置。⚠️ **2026-09-04 起票 — スループットが独立ボトルネックに昇格** ([[m1-kpi-readout-and-mechanical-flip-2026-09-04]] §6): LIVE 発火セル数は **124 セル/30d (2026-05) → 3 セル/30d (現在)**。現行レートでの M3 到達は **最短 ~14 ヶ月** (carry_dip 2.3ヶ月 / ps_eur_gbp 6.4ヶ月 / ps_aud_jpy 13.8ヶ月、weekend_gap・kalman_d7 は LIVE 約定通算ゼロ)。これは「エッジ不在」ではなく「**発火機会不足**」で、下記ボトルネック定義とは別の律速。🆕 **2026-09-05 追補**: 発火機会側の構造欠損を 1 件特定 — `rnb_usdjpy` が `auto_start: True` のまま **153 日間 (2026-04-05 導入コミット db5e3e4c 以降) 1 行も出せない状態**だった (`rnb_support_bounce` の `QUALIFIED_TYPES` 登録漏れ)。確定足ベースのセットアップ頻度推定 **3.0/週 (365d)** は 現行最速 live セル carry_dip (2.10/週) を上回るが、**登録は Rule 1 = user 決裁** (registry `rnb-support-bounce-registration-decision`、期日 2026-10-06 に live 実測頻度で再判定)。詳細: [[rnb-dead-mode-and-block-estimand-2026-09-05]]。🆕 **2026-09-06 追補 — 「独立ボトルネック」の格付けに反証**: 124→3 の崩壊を停止機構と機械的に突合したところ **88.7% が帰属済み** (live 停止 83 セル / shadow 降格 12 / **昇格集合に一度も入っていない 15**) で、停止済み 83 セルは anchor 窓で **N=609 / −469.8 pips** = 止血は損失の圧倒的部分を除去していた。さらに 15 セルは過去の昇格バグの残響 (**本来出てはいけなかった発火**) で M3 の分子に数えられない。残 14 セル (11.3%) は昇格済み・停止なし・LIVE ゼロだが、**原則 3 の winning-location フィルタが正当な理由になりうるため 「バグ」ではなく「現行テレメトリで帰属不能」**。E1 10 セルを転換率 100% と仮定した上限でも摩擦調整 EV が未評価で [[friction-adjusted-ev-map-2026-07-07]] の結論を覆さない ⇒ **発火機会不足は摩擦調整 EV 不在の帰結であって独立原因ではない** (M3 行の「別の律速」記述の格下げを提案 — user 決裁)。読み手 `tools/live_roster_attrition.py` 新設。詳細: [[live-roster-attrition-2026-09-06]]。🆕 **2026-09-10 追補 — 帰属の内訳を訂正 (rule:R3)**: 「D 15 セル = 本来出てはいけなかった発火」は [[roster-d-class-estimand-audit-2026-09-10]] で**棄却**。約定 28 件すべてが Phase-0 三層化 (2026-04-14T08:16Z) の導入前 = `_is_promoted()` 既定 `return True` の allow-by-default 期で、正当 26 / 違反 2 (1 セルのみ)。**「帰属済み 88.7%」は数値不変で引用可** (帰属先が 『列挙外だった第 5 の停止機構 = tier 設計変更』へ変わるだけ)。「M3 の分子外」の根拠は バグ判定 → **政策判断** (この 15 セルを再昇格させる意思があるか) へ格下げ。ただし N=28 / −26.2p で経済的には無視可能なため **~14 ヶ月 ETA と本行の格下げ提案そのものは不変** |
 | M4 | 月利トレンド | 持続的プラス転換なし (W20-21 一時+ → W23以降 −) | 存置 |
 | **M5 (新)** | — | payoff ratio **0.27** | **v2.3 中核 KPI**: payoff → 摩擦分岐点 (avg_loss 前提で ≳0.5) 超へ |
 | **M6 (新)** | — | 摩擦調整 EV = gross−friction、生存セル 0 | **昇格ゲート**: セル単位で摩擦調整後 EV>0 を live 転送の必要条件に |
@@ -54,7 +54,7 @@ v2.2 は全12項目をクローズした (止血セル停止・T5 JPYキャッ�
 |---|---|---|---|---|
 | T1 | **GBP_USD live 出血セルの forensic + R2 demote** | R2 | ✅ **執行済 2026-07-07 (PR #56)**: wick_imbalance_reversion×GBP_USD を `_PAIR_DEMOTED` へ (N=12 EV−3.91 −46.9p、Wilson_lo 19.3%<BEV 37.9%、pin 3 tests)。**vix_carry_unwind×USD_JPY×SELL (N=10 EV−1.90) は R2 基準該当だが user 承認済み Overlap pilot 契約と衝突 → pilot 継続裁定 (2026-07-07 user「進めていいよ」)** — 再評価 checkpoint = live N≥20 or 2026-08-31 (registry `vix-sell-pilot-recheck`)。trendline_sweep は WR 68.4% BT 整合 / payoff 0.15 → demote 保留・MTF ゲート異常の別調査へ ([[payoff-asymmetry-diagnosis-2026-07-07]] §7) | 完了 (forensic 継続分は T-MTF) |
 | T2 | **live 決済非対称の是正 — TP/SL 実走距離整合の R1 パイプライン** — pre-reg LOCK: [[exit-repair-tp-sl-prereg-2026-07-07]] (grid 9 combos、BE/Trail ablation、診断窓除外、BH-FDR q=0.10) | R1 | ❌ **FAIL クローズ 2026-07-08 (H0 採択、期日 07-21 の 13 日前倒し)** — 全 9 構成 p=1.0 / WF 0/3 / EV 負 (最良 tp0.4×sl0.6 で −2.96 p/t、baseline −6.64 から +3.67 改善もレバー不足)。ナイフエッジ3点検査済 (メカニズムは診断通り作動 = 構造的 FAIL)。感度 run (pre-#58 code) も同結論。詳細 = pre-reg §8 verdict | **FAIL 確定 → §4 規定分岐により WS3 シグナル張り替えへ全振り (下記 WS3 改訂)** |
-| T-MTF | **(新規) MTF 抑制タグ付き live 発注の構造調査** — trendline_sweep 大負け4発が「4H+1D 不一致→抑制中」タグ付きで OANDA 発注。MTF ゲートの LIVE 転送 block 可否を engine 側で特定 | R3 | 🔄 調査中 (別セッション、spawn_task 2026-07-07) | バイパス確定なら R3 構造 fix |
+| T-MTF | **(新規) MTF 抑制タグ付き live 発注の構造調査** — trendline_sweep 大負け4発が「4H+1D 不一致→抑制中」タグ付きで OANDA 発注。MTF ゲートの LIVE 転送 block 可否を engine 側で特定 | R3 | ✅ **CLOSE 2026-07-07 (PR #58)** — **バイパス確定**: 「シグナル抑制中」タグは**診断表示のみ**で、Hard Block は `htf_agreement` が bull/bear のときだけ効き **mixed は素通り**していた (mixed の実効果は legacy score×0.70 減衰のみ、DTE 候補は非抑制)。fix = `DaytradeEngine.HTF_MIXED_LIVE_STOP_CELLS` を新設し trendline_sweep×GBP_USD を cell stop (`modules/demo_trader.py:8833`)、診断タグ文言を実装と一致させる (`app.py:2181-2185`)。Render live 反映済。再 live 化は R1。詳細: MEMORY `project_mtf_mixed_gate_noop_fixed` | **完了** (ロードマップ行の 🔄 表記が 2026-08-23 まで残存していたのを是正) |
 
 ## WS-Diag: 決済非対称の構造診断 (Rule 3 診断 → Rule 1 実装、v2.3 中核)
 
@@ -72,7 +72,7 @@ payoff 0.27 は v2.3 の最重要問題。**診断は R3 (analyses/ に数値根
 | T5 | **orb_trap GBP_USD SELL (E9) N蓄積** (v2.2 T6 繰越) | clean N≥30 → H1 ∧ WF 3-fold ∧ Bonferroni(m=116) 再評価。N 以外通過済 (WR.783/PF13.6/Wilson.581/Kelly.725) | E9 継続稼働。触らない |
 | T6 | **sweep_reversion_eurgbp_late (EUR_GBP) DEFER 決定点** (v2.2 T8 繰越) | HTF-rescued shadow N≥10 → EV 判定 (R1) / 2026-09-30 に N<5 → retire (R2)。**復帰の追加前提 = order 層 12-bar min-spacing 実装** (検証 estimand との一致、[[t8-week1-gate-breach-2026-07-06]] forensic #3) | pre-reg 監視済 (registry `t8-sweep-defer-decision`)。触らない |
 | T7 | **hull_donchian_fade (EUR_USD) ゲート① 再評価** (v2.2 T8 繰越) | shadow 実測 1.5/週 vs 期待 13.3/週 = 下側割れ見込み。頻度 band 割れ確定なら sweep と同じ retire 経路。ゲート④(改) は 2026-07-06 発効済み ([[t8-week1-gate-breach-2026-07-06]]) | pre-reg 監視済 (registry `t8-hull-shadow-freq`) |
-| T8 | **carry dip v3 dormant 監視** (v2.2 T7 繰越) | ceiling 159.50 レジーム前提崩壊の dormant-by-design。復帰 = D1 close<159.50 (registry `t5-jpy-cap-restore-price` に相乗り) | 監視のみ。QUALBAR telemetry 本番稼働済 |
+| T8 | **carry dip v3 — ✅ dormancy 解除、live 稼働中** (v2.2 T7 繰越) | ~~ceiling 159.50 レジーム前提崩壊の dormant-by-design~~ → **2026-07-31 に復帰** ([[t5-restore-eval-and-carrydip-revival-2026-08-10]])。天井フィルタは **H1** closed close 基準のため、D1 cross (08-03) より早く 07-31 の急落中に intraday 解除。deduped 実測 = LIVE closed **N=1 / +29.0p** + 建玉 1、shadow closed **N=2 / −4.1p** | **監視 (事前規定 R2 トリガ設置済、registry `carry-dip-v3-revival-watch`)**。復帰先レジームは VOLATILE + SMA20 slope 負 = 本 thesis (ドリフト上) に逆風だが N=1 では判断不能 — pre-emptive 停止はしない (原則1 / [[lesson-reactive-changes]])。判定規律: dedup_violation!=1 / `outcome` で勝敗 (`close_reason` 禁止) / LIVE⇄shadow 非混合。QUALBAR telemetry 本番稼働済 |
 | T9 | **kalman_d7 発火監視** (v2.2 T9 繰越) | 3 variant 合算 vs BT 期待 3.9/週。分子ゼロ継続なら Render ログ QUALBAR (分母) と突合 | pre-reg 監視済 (registry `t9-kalman-d7-fire-info`) |
 
 ## WS3: シグナル張り替え — v2.3 の主戦線 (2026-07-08 T2 FAIL により全振り確定、司令塔直轄)
@@ -124,6 +124,8 @@ Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shad
 - **P2/P3 群** (Fable5) — 衛生項目。WS4 の後、寄与度順に
 
 ## ボトルネック (v2.2 から更新提案)
+
+> **⚠️ 2026-09-04 追補 — 律速が 2 本になった。** 下記の「正の摩擦調整 EV セルの不在」は依然有効だが、7-8 月の R2 降格バッチで LIVE 資格ロースタが 124 → 3 セル/30d へ縮んだ結果、**検証に必要な N が集まらない**という第二の律速が顕在化した (M3 到達 最短 ~14 ヶ月、[[m1-kpi-readout-and-mechanical-flip-2026-09-04]] §6)。縮小そのものは正しい止血だが、副作用として M1 は「止めるほど達成しやすい」縮退 KPI になっている。
 
 **v2.2 の「クリーン N の蓄積速度」は superseded (2026-07-07 正式化で確定)。** shadow N は飽和 (20 entry_type 全 N≥30) し、律速ではなくなった。**v2.3 の真のボトルネック = 「正の摩擦調整 EV を持つセルの不在」** — 蓄積したデータが一様に負を示し (payoff 0.27、主因 = 勝ち側 exit 執行の崩壊 + 対称摩擦 [120.6, 294.6]p の水準効果)、昇格母集団が存在しない。
 

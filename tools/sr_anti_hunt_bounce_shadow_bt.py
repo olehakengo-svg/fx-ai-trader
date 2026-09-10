@@ -123,7 +123,14 @@ def _pnl_r(trade: dict) -> float:
     friction = float(trade.get("exit_friction_m", 0) or 0)
     if trade.get("outcome") == "WIN":
         return float(trade.get("tp_m", 1.5) or 1.5) - friction
-    return -(float(trade.get("actual_sl_m", trade.get("sl_m", 1.0)) or 1.0) + friction)
+    # actual_sl_m=0.0 は実効ストップ=entry の正当な記帳 (R3 2026-08-05) —
+    # None ガードに `or` を使うと 0.0 を 1.0 に coerce するため is None で判定
+    loss_m = trade.get("actual_sl_m")
+    if loss_m is None:
+        loss_m = trade.get("sl_m")
+    if loss_m is None:
+        loss_m = 1.0
+    return -(float(loss_m) + friction)
 
 
 def _wilson_lower(wins: int, n: int, z: float = 1.959963984540054) -> float:

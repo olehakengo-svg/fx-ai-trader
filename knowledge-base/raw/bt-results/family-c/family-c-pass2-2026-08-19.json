@@ -1,0 +1,85 @@
+{
+  "mode": "pass2",
+  "versions": {
+    "numpy": "2.0.2",
+    "pandas": "2.3.3"
+  },
+  "z_th": 1.5,
+  "n_onsets": 41,
+  "n_measured": 41,
+  "n_dropped_fwd_invalid": 0,
+  "mean_move_gross_pips": -20.48,
+  "swap_mean_pips": -1.6,
+  "mean_net_point_pips": -24.21,
+  "median_net_point_pips": 1.43,
+  "wr": 0.512,
+  "gate_C": {
+    "stat_demeaned_mean": -4.52,
+    "n_episode_blocks": 18,
+    "p_one": 0.5271472852714728,
+    "pass": false
+  },
+  "uncond_year_means": {
+    "2014": 107.0,
+    "2015": -10.6,
+    "2016": -34.5,
+    "2017": -33.9,
+    "2018": -11.4,
+    "2019": 12.6,
+    "2020": -50.9,
+    "2021": 80.3
+  },
+  "mean_net_adverse_pips": -32.13,
+  "mean_net_rt3x_nonbinding_pips": -34.23,
+  "gate_E_max_share": 0.282,
+  "gate_F_year_share": 0.667,
+  "gate_F_loyo_ok": false,
+  "gate_F_dense_years": 6,
+  "gate_G_t3_minus_t1": 59.17,
+  "ablation_control": {
+    "jaccard": 0.167,
+    "control_mean_net": -65.77223082900313,
+    "n_control_events": 29,
+    "rates_content_unidentified": false
+  },
+  "gates": {
+    "A": true,
+    "C": false,
+    "D": false,
+    "E": true,
+    "F": false,
+    "G": true
+  },
+  "yearly": {
+    "2015": {
+      "n": 2,
+      "mean": -406.5
+    },
+    "2016": {
+      "n": 9,
+      "mean": -177.0
+    },
+    "2017": {
+      "n": 7,
+      "mean": 141.2
+    },
+    "2018": {
+      "n": 4,
+      "mean": -229.3
+    },
+    "2019": {
+      "n": 6,
+      "mean": 161.6
+    },
+    "2020": {
+      "n": 10,
+      "mean": 23.7
+    },
+    "2021": {
+      "n": 3,
+      "mean": 44.9
+    }
+  },
+  "verdict": "FAIL",
+  "knife_edge": null
+}

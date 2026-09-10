@@ -1,0 +1,200 @@
+# ============================================================================
+# estimand 宣言表 — 本番監視/検知器の「名乗る量」と「測る量」の台帳 (SSOT)
+# ============================================================================
+# rule:R3 (2026-09-10)。根拠: knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md §4.2 R3
+# 説明文書: knowledge-base/wiki/analyses/estimand-declaration-system-2026-09-10.md
+#
+# なぜこの表があるか — 監視/検知器のバグ潜伏中央値 124 日、QA 起点発見 0/8。
+# 同型の根因は estimand 混同 (検知器が名乗る量と測る量の乖離):
+#   - live_n_stagnation が shadow を数えていた (PR #221)
+#   - rnb block カウンタの名乗り違い (PR #224)
+#   - candidate_stagnation の時計取り違え wall vs market_open (PR #207/#209)
+#   - ps capture の分子/分母不一致 (PR #228)
+# 「何を数えているか」「どの時計で」「誰が読むか」「配線を殺すと何が落ちるか」を
+# 1 箇所に宣言し、tools/estimand_declaration_check.py が配線を grep レベルで検証する。
+#
+# ── 書式 (restricted YAML — チェッカーの自前パーサが読む厳格サブセット) ──
+#   * インデントは空白のみ (タブ禁止)。トップ 0 / series 項目 2 / キー 4 / reader 要素 6
+#   * 値は 1 行 (複数行スカラー禁止)。日本語可。行内コメント禁止
+#   * reader 要素は "ファイルパス :: 検索文字列" (separator は前後空白付き "::")
+#   * threshold_source / detector は "パス" または "パス:シンボル名"
+#
+# ── フィールド定義 ──
+#   name               系列の識別子 (alert type / family key と一致させる)
+#   claims             名乗る量 (日本語 1 文)。検知器 docstring の estimand と一致させること
+#   population         母集団。「何の行/値を数えるのか」を SQL/フィルタ条件レベルで書く
+#   clock              wall (実時間) | market_open (FX 週末閉場 金21:00→日21:00 UTC を除外)
+#   threshold_source   閾値の SSOT (パス[:シンボル])。閾値を動かすときはここだけを動かす
+#   detector           (任意) 判定実装の場所 (パス[:シンボル])
+#   reader             読み手。cron 定義 / workflow / UI テンプレ等、検知結果が実際に
+#                      人間へ届く経路のファイル。"ON_DEMAND" = 自動読み手なし (WARN)
+#   counterfactual_test その系列の配線 (main() 呼出し / 読み手到達経路) を殺すと落ちる
+#                      テストのパス。無ければ "MISSING" (WARN — 返済計画は説明文書 §5)
+#   notes              (任意) estimand の限界・既知の罠
+#
+# ── 運用ルール ──
+#   * 検知器を足す PR は「本表への宣言 + reader 配線 + counterfactual test」を同一コミットで
+#   * claims を変える修理は、実装と docstring と本表を同じコミットで揃える
+#   * 検証: python3 tools/estimand_declaration_check.py (--strict で MISSING も fail)
+
+version: 1
+updated: "2026-09-10"
+
+series:
+  - name: engine_tick_stall
+    claims: "取引エンジン本体が tick を完遂し続けているか — 発火をエンジン異常と読んでよい唯一の系列"
+    population: "稼働中全モードの tick カウンタ前進 (demo_trader._engine_tick_payload がサーバ側で経過秒を算出。市場開閉・シグナル有無・HTF ゲートに非依存。週末除外は意図的にしない — すると本物の週末停止を毎週見逃す)"
+    clock: wall
+    threshold_source: "modules/freshness_policy.py:ENGINE_TICK_STALL_MINUTES"
+    detector: "scripts/anomaly_watcher.py:check_engine_tick_stall"
+    reader:
+      - "render.yaml :: anomaly_watcher.py"
+      - "templates/index.html :: freshness_ui"
+    counterfactual_test: "tests/test_anomaly_watcher_detectors.py"
+    notes: "main() 配線 pin は TestEngineTick 系 (all_events.extend(check_engine_tick_stall)。個別モードの wedge は意図的な非目標 (stalest_mode は診断用露出のみ)"
+
+  - name: candidate_stagnation
+    claims: "候補が select_best 段階まで到達しているか — エンジン生存の証明ではない (v9.1 HTF Hard Block の後に書かれる)"
+    population: "evaluated_candidates テーブルの行 (HTF Hard Block 通過後の候補のみ。DemoDB.get_row_freshness が DB 側で最終行時刻を算出)。バースト構造 — 閾値はバースト間ギャップで較正 (max 120.3 分 の 3 倍)"
+    clock: market_open
+    threshold_source: "modules/freshness_policy.py:CANDIDATE_STAGNATION_HOURS"
+    detector: "scripts/anomaly_watcher.py:check_candidate_stagnation"
+    reader:
+      - "render.yaml :: anomaly_watcher.py"
+      - "templates/index.html :: freshness_ui"
+    counterfactual_test: "MISSING"
+    notes: "挙動テストは tests/test_anomaly_watcher_detectors.py::TestCandidateStagnation にあるが、main() から配線を外しても落ちるテストが無い (engine_tick/live_fill と非対称)。発火しても engine 停止と断定するな — 2026-08-27 の 73 分ゼロは全候補 HTF ブロックが実体だった"
+
+  - name: trade_row_freshness
+    claims: "demo_trades に何か書けているか = 書込み経路の生死 (shadow 込み — 実弾の約定ではない)"
+    population: "demo_trades 全行 (shadow 同居、実測 501 行中 LIVE 1 行 = 99.8% shadow。DemoDB.get_row_freshness が最終行時刻を算出)。UI ラベルも「トレード行 (shadow込)」— 「約定」と書くと 2026-08-26〜09-03 の誤読を再演する"
+    clock: market_open
+    threshold_source: "modules/freshness_policy.py:N_STAGNATION_HOURS"
+    detector: "modules/freshness_policy.py:_row_family"
+    reader:
+      - "templates/index.html :: renderFreshness"
+    counterfactual_test: "tests/test_freshness_policy.py"
+    notes: "配線 pin = test_status_payload_wires_classify_freshness (demo_trader が freshness_ui を載せる) + test_dashboard_reads_freshness_ui (画面が描画する)。JS は閾値を知らない — 判定済み level だけを受け取る"
+
+  - name: live_n_stagnation
+    claims: "demo_trades への書込みが 24 市場オープン時間止まっていないか — 名前に反して約定検知ではない (2026-09-03 訂正、PR #221)"
+    population: "/api/demo/trades?limit=500 の全行 (shadow 込み。窓は実測 7.67 日が天井)。約定の estimand は live_fill_stagnation が引き受ける — type 文字列は過去 alert 履歴が参照する識別子なので改名しない"
+    clock: market_open
+    threshold_source: "modules/freshness_policy.py:N_STAGNATION_HOURS"
+    detector: "scripts/anomaly_watcher.py:check_live_n_stagnation"
+    reader:
+      - "render.yaml :: anomaly_watcher.py"
+    counterfactual_test: "tests/test_anomaly_watcher_detectors.py"
+    notes: "配線 pin は TestMainWiring::test_stagnation_is_told_whether_the_fetch_succeeded — trades_ok= は本検知器の呼出しにしか現れないため、main() から外すと落ちる。126 日 no-op の前歴 (存在しない status キーを読んでいた) がこの表の起源"
+
+  - name: live_fill_stagnation
+    claims: "実弾 (LIVE 転送) が約定し続けているか"
+    population: "demo_trades のうち oanda_trade_id != '' の行 (DB 側集計 DemoDB.get_row_freshness の live_fill 系列 — trades API の 7.67 日窓天井を回避)。閾値 120h = carve-out 後到着間隔 n=15 の max 75.3h × 1.59 (replay 誤発火 0)"
+    clock: market_open
+    threshold_source: "modules/freshness_policy.py:LIVE_FILL_STAGNATION_HOURS"
+    detector: "scripts/anomaly_watcher.py:check_live_fill_stagnation"
+    reader:
+      - "render.yaml :: anomaly_watcher.py"
+      - "templates/index.html :: freshness_ui"
+    counterfactual_test: "tests/test_live_fill_stagnation.py"
+    notes: "発火 = 必ずしもバグではない (LIVE 資格セルが条件を満たさないだけでも同じ見え方)。切り分けは block_counts と LIVE 資格セルの現況で行う"
+
+  - name: db_write_probe
+    claims: "SQLite 書込み経路が生きているか — 実 INSERT (1 行 upsert) の commit 成否そのもの"
+    population: "/api/admin/disk_status 応答時に実行される disk_guard.write_probe の結果 (proxy でなく commit 事実 — 再起動にも ENOSPC 下の WAL 再書込みにも騙されない)。検知遅延 = ポーリング間隔 15 分"
+    clock: wall
+    threshold_source: "modules/disk_guard.py:write_probe"
+    detector: "scripts/anomaly_watcher.py:check_db_write_health"
+    reader:
+      - "render.yaml :: anomaly_watcher.py"
+    counterfactual_test: "MISSING"
+    notes: "挙動テスト (test_write_failure_fires_immediately 等) は tests/test_anomaly_watcher_detectors.py にあるが main() 配線 pin なし。write_probe_missing はデプロイ直後の版ずれで必ず一度出るため NOTIFY_NEVER (記録のみ)"
+
+  - name: disk_capacity
+    claims: "Render Disk 使用率が warn/critical を超えていないか + backup preflight が低容量で塞がれていないか"
+    population: "/api/admin/disk_status の disk.used_pct と backup_preflight.ok (判定閾値は API payload に同梱 = 本番コード modules/disk_guard.py と単一ソース)"
+    clock: wall
+    threshold_source: "modules/disk_guard.py:DISK_WARN_PCT"
+    detector: "scripts/anomaly_watcher.py:check_disk_capacity"
+    reader:
+      - "render.yaml :: anomaly_watcher.py"
+    counterfactual_test: "MISSING"
+    notes: "挙動テスト (severity ladder / payload 閾値優先 pin) は tests/test_anomaly_watcher_detectors.py にあるが main() 配線 pin なし。2026-08-21 満杯事故 (3.5 日無検知) が導入根拠"
+
+  - name: api_reachability
+    claims: "本番 web service の 4 監視エンドポイントに到達できるか — 全滅 = api_unreachable / 部分失敗 = api_endpoint_failed"
+    population: "WATCHED_PATHS の 4 エンドポイント (他の全検知器はこれが答えることを前提にしている)。全滅時のみ backoff 30+60+120s でデプロイ ramp (実測 3.6 分) を跨いでから判定"
+    clock: wall
+    threshold_source: "scripts/anomaly_watcher.py:API_RETRY_BACKOFF_SEC"
+    detector: "scripts/anomaly_watcher.py:check_api_reachability"
+    reader:
+      - "render.yaml :: anomaly_watcher.py"
+    counterfactual_test: "tests/test_anomaly_watcher_detectors.py"
+    notes: "配線 pin = TestMainWiring::test_reachability_check_is_called_from_main。cron exit code は 0 のまま (Render notifyOnFail と経路を混ぜない)"
+
+  - name: m1_clean_live_kpi
+    claims: "決済済み LIVE 約定の直近 30 日 pnl_pips 合計の符号と検出力 (roadmap v2.3 M1 KPI) + 符号反転の機械的/実質的帰属"
+    population: "oanda_trade_id 非空 AND dedup_violation != 1 AND instrument != 'XAU_USD' AND status = 'CLOSED' AND pnl_pips IS NOT NULL (is_shadow=0 単独判定は禁止 — FLAG_DRIFT 混入)。pip 合計であって口座損益ではない"
+    clock: wall
+    threshold_source: "tools/m1_clean_live_monitor.py:WINDOW_DAYS"
+    detector: "tools/m1_clean_live_monitor.py:build_report"
+    reader:
+      - "tools/quant_gate_status.py :: m1_clean_live_monitor"
+      - "render.yaml :: quant_gate_status.py"
+    counterfactual_test: "tests/test_m1_clean_live_monitor.py"
+    notes: "M1 は暦月の符号を問う KPI なので市場オープン換算しない (wall が正しい時計)。配線 pin = test_quant_gate_status_calls_the_m1_readout + M1 セクション先頭固定 (Discord 1900 字切り詰め対策)。引用前に flip_attribution と N を見よ (PR #222)"
+
+  - name: prereg_trigger_watch
+    claims: "registry 登録済みの pre-reg トリガー/決定点が成立したか (TRIGGERED / WATCHING / DATA_UNAVAILABLE)"
+    population: "knowledge-base/wiki/decisions/prereg-trigger-registry.json の全エントリ (価格閾値 / shadow・live N 蓄積 / 期日)。T5 の 18 日執行ギャップ (decision-without-provisioning) の再発防止"
+    clock: wall
+    threshold_source: "knowledge-base/wiki/decisions/prereg-trigger-registry.json"
+    detector: "tools/prereg_trigger_watch.py"
+    reader:
+      - "tools/quant_gate_status.py :: prereg_trigger_watch"
+      - "render.yaml :: quant_gate_status.py"
+    counterfactual_test: "MISSING"
+    notes: "evaluator 純関数と registry 妥当性のテストは tests/test_prereg_trigger_watch.py にあるが、quant_gate_status からの subprocess 呼出し配線を殺しても落ちるテストが無い"
+
+  - name: shadow_promote_r2_alert
+    claims: "redesign-v2 SHADOW_PROMOTE 戦略の (strategy, instrument) セルが直近 30 日 shadow 成績で R2 降格閾値を割っているか (WARN N>=10 / CRITICAL N>=30)"
+    population: "直近 30 日の決済済み shadow 行 — LIVE 行 (oanda_trade_id 有り)・XAU・dedup_violation=1 は除外。read-only (Render env / tier-master / DB は変更しない)"
+    clock: wall
+    threshold_source: "tools/shadow_promote_r2_alert.py:CRITICAL_MIN_N"
+    detector: "tools/shadow_promote_r2_alert.py"
+    reader:
+      - ".github/workflows/r2-alert-scheduled.yml :: shadow_promote_r2_alert.py"
+    counterfactual_test: "MISSING"
+    notes: "セル判定の挙動テストは tests/test_shadow_promote_r2_alert.py。workflow 配線 (6h cron) は本チェッカーが grep レベルで pin する。レポートは knowledge-base/raw/audits/ にコミットされる"
+
+  - name: live_roster_attrition
+    claims: "anchor 窓で clean LIVE 約定を出していたセル集合が現在窓で消えた理由の帰属 (A-E クラス)"
+    population: "clean LIVE = oanda_trade_id 非空 AND dedup_violation != 1 AND instrument != 'XAU_USD' のセル (entry_type × instrument × direction)。停止機構・昇格集合とのコード突き合わせ — 「なぜ LIVE 転送されなかったか」は測っていない"
+    clock: wall
+    threshold_source: "tools/live_roster_attrition.py"
+    detector: "tools/live_roster_attrition.py"
+    reader: ON_DEMAND
+    counterfactual_test: "MISSING"
+    notes: "自動読み手なし — 人手起動の分析ツール (PR #226/#230)。E クラスは未帰属であってバグではない。D クラスの旧解釈 (本来出てはいけなかった発火) は 09-10 監査で棄却済み — クラス名が estimand を運ぶ"
+
+  - name: trade_monitor_activity
+    claims: "本番プロセスの自己申告生存 (main_loop_alive / watchdog_alive / emergency_killed) と、直近 4h に demo_trades 行 (shadow 込み) が出ているか"
+    population: "/api/demo/status のスレッド生存フラグ + /api/demo/trades?limit=100 の全行 (shadow 込み — LIVE 約定の有無ではない) + block_counts 異常"
+    clock: wall
+    threshold_source: "scripts/trade_monitor.py:NO_TRADE_WARN_HOURS"
+    detector: "scripts/trade_monitor.py:check_trade_activity"
+    reader:
+      - ".github/workflows/trade-monitor.yml :: trade_monitor.py"
+    counterfactual_test: "MISSING"
+    notes: "テスト自体が無い。閾値 4h はインライン定数 (freshness_policy SSOT 外) で、週末 gate (is_market_open) の閉場定義も金 22:00 UTC 以降+日曜のみ — freshness_policy の 金21:00→日21:00 と不一致 (土曜 00-22 時を開場扱い)。既知の負債として説明文書 §5 に記載"
+
+  - name: demo_trader_watchdog
+    claims: "main loop / SLTP / モードスレッドの死活を 30 秒毎に監視し自動再起動する"
+    population: "Thread.is_alive() と runner の running フラグ — スレッドが生きたまま内部で詰まっている状態は alive と報告する (詰まり検知は engine_tick_stall が受け持つ)"
+    clock: wall
+    threshold_source: "modules/demo_trader.py:_watchdog_loop"
+    detector: "modules/demo_trader.py:_watchdog_loop"
+    reader:
+      - "scripts/trade_monitor.py :: watchdog_alive"
+    counterfactual_test: "MISSING"
+    notes: "watchdog_alive を pin するテストが無い。emergency_killed 中は自動再起動を skip (kill switch が優先)。user_stopped_modes は再起動対象外 (資格 eligible と実状態 effective の区別)"

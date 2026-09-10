@@ -1,0 +1,181 @@
+{
+ "pass": 1,
+ "date": "2026-08-05",
+ "ledger": 21,
+ "gate_A": {
+  "AUD_NZD": {
+   "n": 87,
+   "mfe5_p50": 51.0,
+   "min_required": 38.0,
+   "pass": true
+  },
+  "AUD_CAD": {
+   "n": 87,
+   "mfe5_p50": 62.4,
+   "min_required": 37.0,
+   "pass": true
+  },
+  "NZD_CAD": {
+   "n": 81,
+   "mfe5_p50": 78.2,
+   "min_required": 39.0,
+   "pass": true
+  }
+ },
+ "survivors": [
+  "AUD_NZD",
+  "AUD_CAD",
+  "NZD_CAD"
+ ],
+ "family_kill_lt2_survivors": false,
+ "gate_B": {
+  "events": 255,
+  "blocks": 140,
+  "min_events": 120,
+  "min_blocks": 50,
+  "pass": true
+ },
+ "unconditional_dispersion": {
+  "AUD_NZD": {
+   "robust_sd_5d_pips": 89.3995552260931,
+   "n": 2071
+  },
+  "AUD_CAD": {
+   "robust_sd_5d_pips": 88.459599703488,
+   "n": 2069
+  },
+  "NZD_CAD": {
+   "robust_sd_5d_pips": 101.40845070422637,
+   "n": 2071
+  }
+ },
+ "mde_recomputed_pips": 14.5,
+ "per_pair_side_year": {
+  "AUD_NZD": {
+   "by_side": {
+    "L": 47,
+    "S": 40
+   },
+   "by_year": {
+    "2014": 11,
+    "2015": 4,
+    "2016": 10,
+    "2017": 14,
+    "2018": 14,
+    "2019": 11,
+    "2020": 7,
+    "2021": 16
+   }
+  },
+  "AUD_CAD": {
+   "by_side": {
+    "L": 60,
+    "S": 27
+   },
+   "by_year": {
+    "2014": 12,
+    "2015": 19,
+    "2016": 5,
+    "2017": 12,
+    "2018": 8,
+    "2019": 14,
+    "2020": 8,
+    "2021": 9
+   }
+  },
+  "NZD_CAD": {
+   "by_side": {
+    "L": 42,
+    "S": 39
+   },
+   "by_year": {
+    "2014": 7,
+    "2015": 15,
+    "2016": 8,
+    "2017": 8,
+    "2018": 6,
+    "2019": 10,
+    "2020": 17,
+    "2021": 10
+   }
+  }
+ },
+ "counters": {
+  "AUD_NZD": {
+   "head_z_prev_undefined": 1,
+   "sign_reversal_no_reset": 0,
+   "gap_void": 0,
+   "reentry_suppressed": 0,
+   "void_entry": 0,
+   "void_horizon": 0,
+   "entry_bar_replaced_n": 0
+  },
+  "AUD_CAD": {
+   "head_z_prev_undefined": 1,
+   "sign_reversal_no_reset": 0,
+   "gap_void": 0,
+   "reentry_suppressed": 0,
+   "void_entry": 0,
+   "void_horizon": 0,
+   "entry_bar_replaced_n": 2
+  },
+  "NZD_CAD": {
+   "head_z_prev_undefined": 1,
+   "sign_reversal_no_reset": 0,
+   "gap_void": 0,
+   "reentry_suppressed": 0,
+   "void_entry": 0,
+   "void_horizon": 0,
+   "entry_bar_replaced_n": 0
+  }
+ },
+ "qa": {
+  "triangle_residual_d1": {
+   "n": 2074,
+   "p50": 0.0005088966113197639,
+   "p99": 0.005036076065325464,
+   "max": 0.01242577869828812
+  },
+  "AUD_NZD": {
+   "weekend_mapped_bars_excluded": 6842,
+   "degraded_close_n": 100,
+   "void_days_n": 3,
+   "despike_replaced_d1close_n": 0,
+   "bars_per_week_median": 5.0,
+   "weekday_share_minmax": [
+    0.1996,
+    0.2007
+   ]
+  },
+  "AUD_CAD": {
+   "weekend_mapped_bars_excluded": 583,
+   "degraded_close_n": 19,
+   "void_days_n": 4,
+   "despike_replaced_d1close_n": 0,
+   "bars_per_week_median": 5.0,
+   "weekday_share_minmax": [
+    0.1997,
+    0.2006
+   ]
+  },
+  "NZD_CAD": {
+   "weekend_mapped_bars_excluded": 625,
+   "degraded_close_n": 18,
+   "void_days_n": 3,
+   "despike_replaced_d1close_n": 0,
+   "bars_per_week_median": 5.0,
+   "weekday_share_minmax": [
+    0.1996,
+    0.2007
+   ]
+  }
+ },
+ "entry_hour_dist": {
+  "19": 255
+ },
+ "entry_delay_dist": {
+  "0": 216,
+  "2": 37,
+  "3": 2
+ }
+}

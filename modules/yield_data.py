@@ -51,15 +51,20 @@ def fetch_zn_intraday(
 
     import yfinance as yf
 
-    # yfinance の period mapping (intraday は最大 60d; 15m は ~60d)
+    # yfinance の period mapping。
+    # 1h は rolling 730d、それ未満の intraday (1m-30m) は rolling 60d が上限。
+    # どちらも「今取れる窓」は毎日左端が消えるため、キャッシュは union-merge で
+    # 保存する (下記)。overwrite にすると窓外に出た歴史が不可逆に失われる。
     if days <= 7:
         period = "5d" if days >= 5 else "1d"
     elif days <= 30:
         period = "1mo"
     elif days <= 60:
         period = "2mo"
+    elif interval in ("1h", "60m"):
+        period = "730d"  # 1h の rolling 上限
     else:
-        period = "60d"  # intraday max for 15m
+        period = "60d"  # sub-hour intraday の上限
 
     df = yf.download("ZN=F", period=period, interval=interval, progress=False)
     if df is None or df.empty:
@@ -76,13 +81,43 @@ def fetch_zn_intraday(
     else:
         df.index = df.index.tz_convert("UTC")
 
-    # Cache
+    # Cache — union-merge (never overwrite).
+    # yfinance の intraday 窓は rolling なので、fetch 結果の左端より古いバーは
+    # 「キャッシュファイルにしか存在しない」= overwrite すると再取得不能。
     if use_cache:
         _CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        df = merge_bar_cache(cache_path, df)
         df.to_parquet(cache_path)
 
     cutoff = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=days)
     return df[df.index >= cutoff]
+
+
+def merge_bar_cache(cache_path: Path, fresh: pd.DataFrame) -> pd.DataFrame:
+    """既存キャッシュと新規 fetch を union-merge して返す。
+
+    重複タイムスタンプは fresh 側を採用 (ベンダー訂正を反映)。
+    既存キャッシュが読めない場合は fresh をそのまま返す (破壊はしない)。
+    行数は単調非減少であることが不変条件。
+    """
+    if not cache_path.exists():
+        return fresh
+    try:
+        old = pd.read_parquet(cache_path)
+    except Exception:
+        return fresh
+    if old is None or old.empty:
+        return fresh
+
+    if old.index.tz is None:
+        old.index = old.index.tz_localize("UTC")
+    else:
+        old.index = old.index.tz_convert("UTC")
+
+    old = old.reindex(columns=fresh.columns)
+    merged = pd.concat([old, fresh])
+    merged = merged[~merged.index.duplicated(keep="last")].sort_index()
+    return merged
 
 
 def yield_change_pct(df_zn: pd.DataFrame, lookback_bars: int = 1) -> pd.Series:

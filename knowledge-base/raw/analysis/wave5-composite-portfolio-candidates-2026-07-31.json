@@ -1,0 +1,140 @@
+{
+ "meta": {
+  "date": "2026-07-31",
+  "wave": "wave-5 (composite weak-signal portfolio — ledger #20 candidate, single family m=1)",
+  "charter": "user approval 2026-07-31 ('進めて'): test portfolio-level edge of COMBINED frozen weak signals — families that died in explore as 'direction correct but individually below qualification threshold' while their OOS 2022+ remains untouched. Live changes prohibited. If explore PASS -> OOS pre-reg DRAFT -> STOP for user final approval. If no sound design can be constructed, record 不成立 honestly and close.",
+  "estimand": "NET EV and information ratio of a daily-marked portfolio book built from K ex-ante-frozen member signals, each inherited VERBATIM from its family's frozen definition and persisted per-event/per-obs artifacts, combined under an ex-ante fixed weighting rule (no in-sample weight optimization), with position-level netting, per-trade friction, and historical swap accounting. The claim, if any, is portfolio-level only: 'the composite book has positive net EV / qualifying IR'. NO single-family claim is made or implied.",
+  "novel_estimand_argument": "Every member family's ban prohibits SINGLE-FAMILY retries (perturbing that family's definition/thresholds/horizons to re-litigate that family's edge claim). The composite makes no family-level inference, changes no family definition, and its verdict updates no family verdict. It is the standard practitioner observation that individually sub-threshold orthogonal signals can clear qualification jointly (portfolio IR ~ sqrt(K) x single IR under low correlation). Per-family explicit differential clauses are in members[].ban_adjacency. The verifier must arbitrate each clause independently.",
+  "ledger_state": "Ledger #1-#19 used -> next = #20. Active non-locked lines: 0 (wave-4 closed 2/2 explore FAIL + 3 triage KILL). Locked/passive: E1 (first look 10-15), E7 phase-1 (08-28), E12 forward (2027-02-05), MoF forward (Q2+10d), htf_fb recheck, sr_anti_hunt, weekend_gap stage-2 (R1 execution track), P-S1(a) N=8/10. Parallel active cap 3 -> wave-5 as single family fits. E15/E7 refreeze --verify-only due before 08-21.",
+  "frozen_measurement_protocol_refs": "explore = 2014-01-01..2021-12-31 / OOS = 2022-01-01..2026-06-30 single touch after freeze + user approval. RT table (KB frozen): USD_JPY 2.14 / EUR_USD 2.00 / GBP_USD 4.53 / EUR_JPY 2.50 / AUD_JPY 3.00 / AUD_USD 2.50 / NZD_USD 3.00 / USD_CAD 2.80 / USD_CHF ~2.5 (verifier: confirm USD_CHF/NZD_USD from wave-1 freeze doc), floor 1.30p sensitivity. Swap = e20_carry_level.csv historical proxy (BIS CBPOL differentials, in-repo, covers 2013-01..2022-12 all 13 pairs incl. EUR_JPY/AUD_JPY — explore window fully covered; OOS execution would REQUIRE e20_rates_ingest mechanical refresh, declared now). Stats harness reuse: tools/round_number_explore_stats.py (ISO-week block sign-flip permutation, e20 swap accrual, LOYO/concentration gates).",
+  "verifier_deliverable": "Write verdict report to knowledge-base/raw/analysis/wave5-composite-adversarial-verification-2026-07-31.md. Per member: ADMIT / ADMIT-WITH-CONDITIONS / EXCLUDE. For the family as a whole: GO / GO-WITH-CONDITIONS (enumerated LOCK-前 conditions) / 不成立 (no sound design constructible — this is an acceptable and honest outcome). Then: hardened gate definitions, statistics arbitration (esp. the selection-conditioned null), execution order, and score honesty audit. Precedents: level-family-adversarial-verification-2026-07-31.md, wave3-adversarial-verification-2026-07-29.md.",
+  "orchestrator_bias_disclosure": "The orchestrator designed this wave AND benefits from it proceeding (session deliverable). The verifier must treat the design as adversarial input. In particular the orchestrator's leans in members[].orchestrator_lean are NOT evidence."
+ },
+ "central_trap_meta_selection_bias": {
+  "statement": "Member families are candidates BECAUSE their explore results showed the hypothesized direction. Any explore-window composite statistic inherits this selection: under H0 (all effects zero), E[family explore mean | family was selected] > 0. Equal weights remove WEIGHT optimization but not MEMBERSHIP selection. Therefore an unconditional explore-window p-value for the composite is INADMISSIBLE as fresh evidence.",
+  "proposed_partial_correction": "Selection-conditioned null: joint ISO-week block sign-flip permutation (same-week blocks flipped jointly across all member streams, preserving cross-family same-week correlation); a draw is ACCEPTED only if every prior-consistent member's permuted stream mean > 0 (matching the selection event that formed this book); p = P(composite statistic >= observed | all selection events). This asks 'does the composite exceed what selection alone manufactures?'",
+  "residual_dishonesty_attestation": "Sign-conditioning is WEAKER than the true selection event (families were selected at specific observed magnitudes, e.g. rn p=0.117 not p=0.49, and the candidate list itself was human-curated from recorded verdicts). The conditional p is therefore a PARTIAL correction and remains anti-conservative to an unquantified degree. Consequence (frozen): explore PASS is a FEASIBILITY SCREEN only, never a claimable edge verdict. The ONLY claimable verdict for this family is the OOS single touch. This must survive into the freeze doc verbatim.",
+  "explore_reuse_attestation": "The explore-window composite measurement re-analyzes data already touched by member families' explore runs (2014-2021). It adds NO new look at OOS 2022+. Member per-event/per-obs artifacts are in-repo frozen outputs of the original frozen harnesses; signals are NOT recomputed with any altered parameter."
+ },
+ "power_preanalysis_from_recorded_aggregates_only": {
+  "method": "No new measurement. Implied annualized IR per family from recorded explore p-values: z = Phi^-1(1-p_one_sided), IR ~ z / sqrt(8y explore). Composite IR ~ sum(IR_i) / sqrt(K + K(K-1)*rho_bar) for average pairwise correlation rho_bar. OOS window = 4.5y -> t_oos ~ IR_c * sqrt(4.5).",
+  "family_implied_IR": {
+   "rn_#19": "p_one_sided=0.117 -> z=1.19 -> IR~0.42 (upward biased by selection)",
+   "ppp_#14": "p_two_sided=0.129 -> z~1.52 -> IR~0.54 (idem)",
+   "vix_#7": "p_one_sided_exact=0.050091 -> z~1.645 -> IR~0.58 (idem; N=23 events, crisis-clustered)",
+   "qs_#17": "p_two_sided=0.323 -> z~0.99 over ~6 effective years -> IR~0.40 (direction post-hoc — see M3)",
+   "gotobi_#13": "gross IR~1.04 but NET per-trade EV NEGATIVE (+1.92p gross < RT 2.14p) — portfolio combination CANNOT dilute per-trade friction of separately executed trades (see M4)"
+  },
+  "oos_detectability": "MDE at alpha=0.05 one-sided: power 80% needs IR_c >= 1.17; power 50% needs IR_c >= 0.78. Scenarios (rho_bar=0.1): K=2 (rn+ppp) taking observed IRs AS TRUE (optimistic): IR_c~0.65 -> t_oos~1.37 -> p~0.085 (sub-50% power). K=3 (+vix): IR_c~0.81 -> t_oos~1.72 -> p~0.04 (marginal, ~55% power). With a selection haircut of 0.25 IR per family: K=3 IR_c~0.42 -> t_oos~0.89 (hopeless).",
+  "honest_conclusion": "OOS PASS requires (a) K>=3 admitted members AND (b) observed explore effects being close to unbiased. The single-touch OOS is at best a coin flip and plausibly underpowered by design. This math MUST be shown to the user before any OOS burn decision, and an UNDERPOWERED verdict branch must exist so a null OOS result does not overclaim falsification."
+ },
+ "oos_burn_cost_disclosure": {
+  "statement": "The composite OOS touch necessarily computes member family streams on 2022+ (needed for netting/attribution). This CONSUMES each admitted member's preserved OOS single-touch: after it, the analyst knows per-family OOS behavior, so any future family-level re-entry that contemplates 2022+ data is compromised.",
+  "known_conflicts": [
+   "ppp #14 recorded re-entry path (b) is '2022+ を explore に含められる将来の split 再設計' — composite OOS touch kills that path's cleanliness. Must be disclosed to user at the OOS approval gate.",
+   "vix #7 recorded re-entry path is '新データ (E7 サプライズ軸、または 2022+ を含む将来の独立 family)' — same conflict (2022 JPY collapse + 2024-08-05 VIX 65 are inside OOS).",
+   "rn #19 / qs #17: re-entry paths are 'new family + differential clause' — weaker conflict but per-family OOS knowledge still leaks."
+  ]
+ },
+ "members": [
+  {
+   "id": "M1",
+   "family": "round_number_major_level (#19, wave-4 L-b)",
+   "recorded_explore": "pooled reversal 3d +6.34p one-sided p=0.117, N=1088 (326 effective ISO weeks), 6 pairs, net EV +2.88p (markup/floor sens all positive), headroom 6/6 (62-89p p50 MFE3), LOYO 8/8 positive, yearly 5/8, Brexit week 31.3% < 50%.",
+   "direction_provenance": "Pre-registered prior (Osler reversal) — direction was frozen BEFORE measurement. Selection event = 'observed mean > 0'. Cleanest member.",
+   "signal_inheritance": "Per-event rows VERBATIM from knowledge-base/raw/bt-results/round-number-pass2-2026-07-31.json (date|side|level|entry|net1|net3|net5|mfe3|mae3, 6 pairs). Book position: event-bar close entry, frozen side, exactly 3 trading-day hold. Zero recomputation of signals.",
+   "ban_adjacency_diff_clause": "#19 ban = '00-grid fresh-approach × D1 reversal × fixed-horizon ALL VARIANTS (perturbing fresh window/grid/horizon), post-hoc slices (S-side/GBPUSD/USDJPY/5d) prohibited as winner's-curse re-run'. The composite (i) perturbs NOTHING (events verbatim), (ii) makes no #19-level claim, (iii) uses the FULL event set — no slice. Explicitly NOT taken: the recorded diagnostic that S-side/+GBPUSD+USDJPY carried the effect (that would be a banned slice).",
+   "orchestrator_lean": "ADMIT (core member)."
+  },
+  {
+   "id": "M2",
+   "family": "ppp_real_fx_gap_reversion (#14)",
+   "recorded_explore": "IC 42bd +0.113 two-sided p=0.129, N=672 monthly obs (96 month-ends × 7 USD pairs), annual IC positive 7/8 years, carry-orthogonal 102%, headroom 79-115x, quintile monotonicity FAILED (3 adjacent violations — explore window was one-sided USD-rich regime: z>2 96 obs vs z<-2 5 obs).",
+   "direction_provenance": "Pre-registered prior (real-FX reversion) — direction frozen before measurement. Selection event = 'observed IC > 0'.",
+   "signal_inheritance": "Monthly z VERBATIM from per_obs (672 rows: date/pair/z/quintile) in knowledge-base/raw/bt-results/ppp-real-fx-explore-2026-07-29.json. Book: at each month-end signal date, cross-sectional rank portfolio w_i = rank(z_i) - (n+1)/2 normalized to sum|w|=1, long-FC direction for high z_usd (frozen orientation '高 z=USD 実質割高 → FC return 正'), hold 42 trading days, overlapping cohorts averaged (max 2 cohorts). Zero signal recomputation. NOTE: original fwd returns used FRED H.10; the book marks P&L on main-checkout massive D1 — G0 fidelity gate must confirm IC reproduction within tolerance on massive prices before proceeding.",
+   "ban_adjacency_diff_clause": "#14 ban = '5y-z monthly × 21-63bd CPI-PPP regression retry; re-entry only via real-rate-augmented model or 2022+-inclusive split redesign'. The composite recomputes nothing, re-tunes nothing, claims nothing at family level. CONFLICT DISCLOSED: composite OOS touch damages re-entry path (b) — see oos_burn_cost_disclosure.",
+   "orchestrator_lean": "ADMIT (core member). The quintile non-monotonicity is a recorded weakness the verifier may weigh — but membership criterion is 'direction correct + not incoherent', and 7/8 positive years + carry orthogonality support coherence."
+  },
+  {
+   "id": "M3",
+   "family": "fx_quote_spread_state (#17, W3-2)",
+   "recorded_explore": "-0.237σ (-9.5p in flight-to-quality direction, i.e. +9.5p risk-ON) two-sided p=0.323, N=65 events over 2016-2021 (2014-15 structurally zero events), 3 pairs, direction consistent across all pairs/years, realized headroom 15.1x.",
+   "direction_provenance": "PROBLEM: the pre-registered prior was flight-to-quality CONTINUATION; the observed direction is risk-ON (OPPOSITE). The 'signal direction' for any book would be learned from explore data = post-hoc. Encoding this honestly in the conditional null requires two-sided selection (|mean| conditioning + direction realignment per draw), which strictly inflates the correction and complicates the estimand.",
+   "signal_inheritance_if_admitted": "Events NOT fully persisted in raw JSON (events_sample only, 5 rows). Regeneration required via tools/fx_quote_spread_explore.py from in-repo panel data/external/quote_spread/ (42 parquet) with frozen params (all in raw JSON 'frozen' dict, seed 20260729); G0 must reproduce n=65 / mean -0.237σ exactly. 24h hold, risk-ON direction.",
+   "ban_adjacency_diff_clause": "#17 ban = 'measured BBO spread state × time-fixed-horizon fwd direction ALL VARIANTS'. Composite inherits the exact frozen event set — no variant. But the DIRECTION it would trade is the post-hoc one.",
+   "orchestrator_lean": "EXCLUDE. Post-hoc direction = the composite would embed a data-mined sign. Tiny activity (8 events/yr) adds ~nothing to composite power (IR contribution ~0.1 after honest haircut) while adding a two-sided-selection encoding burden and a panel-regime caveat (2014-15 dead). Cost > benefit. Record as candidate, recommend exclusion.",
+   "note_for_verifier": "If the verifier disagrees and admits M3, the conditional null MUST use two-sided selection for this member, and G2 orthogonality must check overlap with M5 (both are risk-off-episode streams)."
+  },
+  {
+   "id": "M4",
+   "family": "gotobi_tokyo_fix_usdjpy (#13, convention B)",
+   "recorded_explore": "Fix-window convention B +1.92p two-sided p=0.0032 (N=557 gotobi days vs 1352 control) — statistically the strongest member candidate, but sub-friction: +1.92p gross < USD_JPY RT 2.14p -> recorded per-trade NET EV NEGATIVE (~ -0.22p; floor-RT sensitivity +0.62p).",
+   "direction_provenance": "Prior-consistent (importer USD demand into Tokyo fix). BUT convention B was the CALIBRATION DIAGNOSTIC leg; frozen primary (convention A) showed +0.33p p=0.60. Using B = selecting the winning convention from explore output.",
+   "fatal_problems": [
+    "(1) Friction arithmetic: portfolio combination reduces VARIANCE, not per-trade friction. Gotobi trades are separate intraday executions on USD_JPY that virtually never net against D1 member positions within the fix window (intraday round trip inside one session). Adding a net-negative-EV stream to a book strictly lowers portfolio net EV at baseline RT. Under floor RT (1.30p) it is net-positive (+0.62p) — but baseline-negative/floor-positive means the member's sign depends on the friction model, which is disqualifying for a FROZEN book.",
+    "(2) Explicit prereg pledge (gotobi explore report, frozen): '規約 B の有意性 (+1.92p) を根拠に fix-window cell を「有望」と再解釈しない (昇格に使えば宣言違反)'. Admitting M4 to a book that could reach live via R1 is precisely that reinterpretation.",
+    "(3) Winning-leg selection: primary A failed; B was diagnostic. Selection event is 'max over 2 conventions' — encodable but the pledge in (2) is independent and dispositive."
+   ],
+   "orchestrator_lean": "EXCLUDE (pledge violation + net-negative at frozen baseline friction). Record honestly: this is the member the user explicitly listed, and exclusion must be justified in the verdict report, not silently dropped."
+  },
+  {
+   "id": "M5",
+   "family": "vix_carry_unwind_continuation (#7, wave-1) — ORCHESTRATOR-PROPOSED ADDITION, NOT in user's candidate list",
+   "user_scope_flag": "The user's session brief lists 4 candidates + COT delegation + 2 mandatory exclusions and delegates admissibility to adversarial verification ('全部使う前提にしない'). M5 EXPANDS that list — the verifier must first arbitrate whether adding a member the user did not enumerate is within delegated scope. If arbitrated out of scope, EXCLUDE regardless of merit and note it for a future user decision.",
+   "recorded_explore": "pooled short JPY-crosses 3d +46.2p/event, exact one-sided p=0.050091 (2^23 full enumeration, seed-independent), N=23 event dates × 6 pairs, headroom 31.9-54.9x (best in catalog), top event share 34.7%, WR 60.9%. Killed ONLY by the m=2 BH threshold (would have passed as single family). Power-deficit-type FAIL, mechanism not falsified.",
+   "direction_provenance": "Pre-registered prior (carry unwind continuation -> short JPY crosses) — direction frozen before measurement. Selection event = 'observed mean > 0'. Fits the wave-5 estimand ('direction correct, below threshold') more precisely than any listed candidate.",
+   "signal_inheritance": "Per-event rows VERBATIM from knowledge-base/raw/bt-results/wave1-tv-explore-vix-unwind-2026-07-28.json (date|vix|fwd1|fwd3|fwd5|upMax|dnMax per pair, 23 events × 6 JPY crosses). Book: short all 6 crosses at event-day close, 3 trading-day hold, per-event total gross = 1 risk unit split equally across the 6 pairs (they are near-perfectly correlated in crisis — treating 6 legs as 1 event exposure). RT for GBP_JPY/NZD_JPY/CAD_JPY must be taken from the wave-1 freeze doc (verifier: confirm).",
+   "ban_adjacency_diff_clause": "#7 ban = 'VIX level threshold × JPY-cross short × fixed {1,3,5}d retry; re-challenge = new data + adjacency clause, pre-reg required'. The composite perturbs nothing and makes no #7-level claim. It is however the closest thing in this payload to 're-litigating' a killed family because #7 died on multiplicity, not on effect — the verifier must arbitrate whether portfolio membership constitutes a de-facto second bite at the SAME claim. Honest argument FOR admission: the composite never asserts '#7 has edge'; it asserts 'the book has edge', and #7's contribution is diversifying crisis-alpha. Honest argument AGAINST: with only 23 events and 34.7% top-event share, M5's stream is a tail-event bet whose composite contribution is dominated by 2-3 weeks — G5 concentration may be structurally unpassable with M5 in.",
+   "orchestrator_lean": "ADMIT-WITH-CONDITIONS pending the user-scope arbitration above. Without M5, K=2 and the power_preanalysis says OOS is near-hopeless; with M5, K=3 is marginal. The wave may honestly be 不成立 if M5 is excluded — the verifier should say so explicitly rather than let a K=2 design limp into an unpowered OOS burn."
+  }
+ ],
+ "mandatory_exclusions": [
+  {"family": "holiday_liquidity (#15)", "reason": "OOS 2022+ ALREADY TOUCHED (leg a explore PASS -> OOS collapse). Inclusion would contaminate the composite OOS single-touch with a member whose OOS is known. HARD exclusion per user brief."},
+  {"family": "level_failed_break_d1 (#18)", "reason": "Sign INVERTED in explore (-4.91p against prior; continuation also n.s.). No 'correct direction' exists to inherit — any direction assignment would be post-hoc. HARD exclusion per user brief."},
+  {"family": "cot_spec_extreme (#5) / cot_commercial_flow (#16)", "reason": "Incoherent death type: side-split asymmetry, sign oscillation across horizons/sides, mirror-identity corr 0.93 (one modality). 'Direction correct' does not hold in any stable sense — no freezable direction. Default exclusion, delegated to verifier per user brief; orchestrator sees no admissible encoding."},
+  {"family": "equity_monthend_conditional (#6)", "reason": "Primary IC -0.052 p=0.608 (null, not weak-positive) + the reverse-sign 3d/5d story is a recorded post-hoc slice explicitly not registered as a family ('healthy kill 原則: 無理に候補を作らない')."},
+  {"family": "sweep_reversion_eurgbp (#1)", "reason": "NOT a dead weak signal — exit-free 12h effect p<1e-4, alive on the P-S1(a) live-repair R1 track. Inclusion would double-count an active asset and entangle wave-5 with a pending user decision."},
+  {"family": "price_shock (#2)", "reason": "Live strategies (5 seats), not frozen-FAIL weak signals. Out of estimand."}
+ ],
+ "book_construction_frozen_draft": {
+  "unit": "Risk units: every position sized 1/ATR20_pair(t) (causal, main-checkout D1, Wilder ATR, computed at entry, held constant through the position). Position P&L(t) = size × Δclose_pips(t). Friction charged on |Δ net size| per pair per day × RT_pair/2 (net position changes after cross-family netting). Swap accrued daily on open net positions from e20_carry_level.csv (sign-aware, markup 0.50%/yr, sens ±50%).",
+  "family_weights": "PRIMARY: λ_f = 1/K constant (fully ex-ante, zero realized-vol feedback; per-position 1/ATR sizing already equalizes active-day risk). SENSITIVITY: trailing-250d realized-vol parity (causal, 60d expanding burn-in) — reported, not selected on.",
+  "netting": "Same-pair same-day positions from different members net at position level BEFORE friction. This is the only friction synergy claimed, and it is expected to be small (report netting incidence as diagnostic).",
+  "price_source": "main checkout /Users/jg-n-012/test/fx-ai-trader/data/cache/massive/ D1 parquet (gap-backfilled 2026-07-29). AUD_JPY has NO 1d parquet -> resample AUD_JPY_1h_12y_audit.parquet to D1 at NY 17:00 boundary (documented convention). JPY-cross pairs for M5 (GBP_JPY/NZD_JPY/CAD_JPY) exist only as 1h -> same resample convention. Worktree parquet is PARTIAL — prohibited.",
+  "alignment_risk_declared": "Member events were measured on TV OANDA D1 (NY 17:00 close). massive D1 bar boundary must be verified against TV dates. G0 fidelity gate (below) catches misalignment; declared fallback = derive all D1 series from 1h parquets resampled at NY 17:00 (single convention for the whole book). Fallback choice must be made ONCE, before any composite statistic is computed, based only on G0 reproduction errors."
+ },
+ "gates_frozen_draft": {
+  "G0_reconstruction_fidelity": "Each member stream reconstructed from frozen artifacts must reproduce the recorded aggregates: rn mean net3 = +6.34p (exact, from JSON events); ppp IC42 on massive prices within ±0.03 of +0.113 (price-source tolerance, declared); vix pooled 3d short = +46.2p (exact); qs n=65 / -0.237σ (exact regeneration) if admitted. Any miss -> MEASUREMENT STOP, investigate, do not proceed (lesson: verify tools against real data before use).",
+  "G1_book_integrity": "No NaN days; composite active (non-zero position) on >= 30% of trading days; netting incidence reported; per-pair gross exposure bounded (<= 3 risk units any day).",
+  "G2_orthogonality": "Pairwise member-stream correlation on overlapping active ISO weeks: max |rho| <= 0.5. Violation -> FAIL (composite premise 'orthogonal weak signals' is false). Report effective breadth diagnostic.",
+  "G3_net_EV": "Composite mean net P&L > 0 under base AND all sensitivity variants (markup ±50%, RT floor 1.30p). Point estimate; no inference claimed here.",
+  "G4_conditional_inference": "Selection-conditioned joint ISO-week sign-flip permutation (>=100k raw draws, seed 20260731, acceptance-filtered per central_trap encoding): conditional one-sided p < 0.05 on composite weekly mean. WITH the residual-anti-conservatism attestation attached to any PASS.",
+  "G5_concentration_consistency": "Max single ISO-week |contribution| <= 50% of total |composite P&L|; yearly composite mean positive >= 6/8; LOYO 8/8 positive. (If M5 admitted, expect stress here — that is the honest test of whether crisis-alpha dominance breaks the book.)",
+  "G6_diversification_benefit": "Composite annualized net IR (point) > max single-member annualized net IR (point). If the best single member beats the book, the composite adds nothing -> FAIL.",
+  "knife_edge_book_variants": "Only if all gates pass, and never for selection: ATR window {14,28}; weight sensitivity (trailing-vol parity); hold-day boundary convention. Primary sign flip in any -> FAIL.",
+  "verdicts": "ALL pass -> explore PASS (feasibility) -> OOS pre-reg DRAFT (incl. power math + burn cost) -> STOP for user approval. Any fail -> FAIL close, OOS untouched, ledger #20 verdict + KB persist. Verifier may also rule 不成立 pre-measurement."
+ },
+ "design_traps_enumerated_for_verifier": [
+  "T1 meta-selection bias — see central_trap block; arbitrate the conditional null's validity and whether explore inference should be dropped entirely (gates G0-G3/G5/G6 mechanical + OOS-only inference).",
+  "T2 ban adjacency per member — arbitrate each members[].ban_adjacency_diff_clause independently; the composite must not be a re-skin of any single-family retry.",
+  "T3 definition inheritance — zero signal recomputation except qs regeneration (M3) and ppp price-source change for P&L marking (M2); G0 pins both.",
+  "T4 correlation structure — rn/ppp/vix share USD and JPY factor exposure; joint week blocks handle same-week dependence, G2 handles stream-level dependence; verifier: is week-block granularity sufficient for ppp's 42bd overlapping cohorts (serial correlation across weeks)? Consider month-block or stationary-bootstrap alternative for the composite null.",
+  "T5 swap/friction accounting — multi-day (3d) + monthly (42bd) holds; e20 panel ends 2022-12 (explore OK; OOS needs declared refresh); ppp swap is material for 2014-21 JPY/CHF legs — must be netted into G3.",
+  "T6 horizon heterogeneity — book must be exact daily mark-to-market; per-event net3 sums are NOT additive to a daily book (overlaps). The G0 check uses per-event reproduction; the composite uses daily P&L. Both must come from one price convention.",
+  "T7 gotobi pledge — respected via M4 exclusion; if verifier admits M4 it must explicitly override the recorded pledge with reasoning (orchestrator believes this is impossible honestly).",
+  "T8 qs panel regime — 2014-15 structurally dead (fixed-spread feed); if M3 admitted its stream is silent 2 of 8 years.",
+  "T9 crisis double-counting — M5 (VIX onset) and M3 (spread blowout) and even M1 events cluster in risk-off weeks (Brexit week is rn's top week AND plausibly a vix event). Joint week-blocking handles the null; G5 handles dominance; verifier should demand a cross-member event-week overlap diagnostic (share of composite |P&L| in weeks where >=2 members are active).",
+  "T10 no live entanglement — no rnb_usdjpy shadow data, no htf_fb shadow data, no tier action; PASS ≠ live; R1 + user approval separate.",
+  "T11 OOS burn is irreversible and multi-family — see oos_burn_cost_disclosure; the user approval gate must present it.",
+  "T12 UNDERPOWERED honesty — power_preanalysis says OOS is marginal at best; the OOS pre-reg must include an UNDERPOWERED branch (fail to reject ≠ falsified) and the explore verdict must not promise more."
+ ],
+ "verifier_questions": [
+  "Q1 Is the selection-conditioned permutation a defensible explore gate, or should explore inference be abandoned (mechanical gates only) with OOS as the sole inference? If kept, is sign-conditioning the right selection encoding given the residual anti-conservatism attestation?",
+  "Q2 Membership arbitration: M3 (post-hoc direction), M4 (pledge + sub-friction), M5 (user-scope + multiplicity re-litigation risk). Specifically: if only M1+M2 survive, is K=2 with IR_c~0.65 (optimistic) worth ANY OOS burn, or is the honest verdict 不成立/PARK until more weak-positive families accumulate?",
+  "Q3 Weighting: is λ=1/K + 1/ATR position sizing sufficiently ex-ante, or does even trailing-vol parity as sensitivity open a DoF the freeze should not contain?",
+  "Q4 Does burning 2-4 family OOS windows for a marginal-power composite test serve M1 (monthly sign flip) better than parking the design until E1/E7/E12 verdicts potentially add orthogonal members (E7 08-28, E1 10-15)? PARK-UNTIL-<date> is an acceptable verdict.",
+  "Q5 Gate G4 mechanics: joint week-block sign-flip requires all members' weekly P&L on a common calendar; ppp's overlapping 42bd cohorts induce cross-week serial correlation the block flip ignores — arbitrate block length (week vs month) or stationary bootstrap.",
+  "Q6 Ledger/BH structure: single family #20 m=1 with primary = G4 conditional p (if kept). Confirm no BH interaction with locked lines.",
+  "Q7 What explore evidence threshold justifies presenting the OOS burn decision to the user at all? (e.g., require G4 conditional p < 0.05 AND K >= 3 AND G6 pass — otherwise auto-close without user escalation.)"
+ ]
+}

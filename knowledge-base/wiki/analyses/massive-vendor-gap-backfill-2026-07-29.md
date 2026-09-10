@@ -52,12 +52,13 @@ MASSIVE API 直接照会 (`/v2/aggs/ticker/C:USDJPY/range/1/day/2019-09-10/2019-
 
 | 対象 | 影響 | 措置 |
 |---|---|---|
-| **E15/E7 pre-reg data ledger** (plain `{pair}_15m.parquet` 13 本を rows_at_ledger_last で凍結、phase-1 verdict 08-28) | backfill すると `load_and_verify_bars` の台帳再現が壊れる | **plain 15m は backfill 恒久除外** (ツールに `_EXCLUDE_RE` で code pin)。初回 run で誤って 6 本触れたが `.bak` から**バイト同一復元済み** (net 変更ゼロ)。なお plain 15m は refresh cron の短縮版上書きで**それ以前から台帳再現不能** (E20 doc §1b 既知) — phase-1 は E20 方式 (ledger 一致 parquet) を使うこと |
+| **E15/E7 pre-reg data ledger** (plain `{pair}_15m.parquet` 13 本を rows_at_ledger_last で凍結、phase-1 verdict 08-28) | backfill すると `load_and_verify_bars` の台帳再現が壊れる | **plain 15m は backfill 恒久除外** (ツールに `_EXCLUDE_RE` で code pin)。初回 run で誤って 6 本触れたが `.bak` から**バイト同一復元済み** (net 変更ゼロ)。なお plain 15m は各種 explore の短い `--days` フル取得上書き (WS3 round-2 prep 等) で**それ以前から 11/13 ペア台帳再現不能**だった → **同日修理済み**: phase-0 実行 worktree (`e15-oos-20260722`) に verdict data_ledger sha256 と一致する原本 13 本が現存 → `tools/e15_e7_data_refreeze.py --restore-from` で **byte-exact 復元** + 凍結コピー (`data/cache/massive/e15_e7_frozen/` + sha256 manifest `raw/bt-results/e15_e7_frozen_manifest_2026-07-29.json`)。判定器 `load_and_verify_bars` で 13/13 GREEN 実証。**MASSIVE 歴史バー集合は不安定** (fresh 再取得で AUD_USD が台帳比 −25 行の drift) — 凍結コピーが必須の理由。phase-1 実行前は `--verify-only` pre-flight、clobber 再発時は `--restore-from-frozen`。詳細: runbook `e15_phase0_execution_status.md` 2026-07-29 節 |
 | **gotobi 較正 explore** (`USD_JPY_5m_2014_2026` 使用、family クローズ 2026-07-28) | 探索窓内の 2 窓に五十日イベントが存在するが当時データ 0 行 | robustness 評価済み・**verdict 不変** (発見側 branch で注記済)。データは backfill 済みになったため将来の再走は当該日を含む — ただし family クローズと再試行禁止スコープは不変。[報告書](../../../reports/gotobi-calibration-explore-2026-07-28.md) に data note 追記 |
 | **holiday family** (凍結前、縮約版が背景キュー) | 凍結**前**に是正完了 = 幸運なタイミング | pre-reg 凍結時は backfill 済みデータで LOCK し、data ledger に `.audit.json` の backfill レコードを含めること |
 | **W3 wick 12y** (`tools/bt/data_prep_manifest.json` が USD_JPY/GBP_JPY 5m_2014_2026 を sha256 pin、完了済) | sha256 変化 | `.bak-pre-gapfill-2026-07-29` の sha256 == manifest 値を**検証済み** — 完了済み監査の provenance は .bak が保持 |
 | **JPY 台帳 12y audit** (`*_12y_audit`、PR #124 完了) | 2020 窓に +1〜573 行 | 決裁済み記録は不変。再走時は backfill 済みデータになる (改善方向) |
 | **HIP-1 holdout lock** (2025-11-04..2026-05-04) | なし — backfill 窓は 2019/2020 でロック窓外 | — |
+| **MoF intervention forward pre-reg** ([[mof-intervention-forward-prereg-2026-07-24]]、`USD_JPY_15m_2014_2026.parquet` 使用) | 探索窓側の 2019/2020 に行が増えた (verdict は将来の MoF 開示ラベル待ち) | **verdict 完全性は不変** — 同 pre-reg の「バックフィルは実施しない」宣言は **2026 窓 (2026-05-07 の穴) スコープ** (二度目の接触・ソース選択自由度の封鎖が目的) であり、本 backfill は 2019/2020 窓のみで 2026-05-07 は**未接触のまま** (母集団 M=21 / k_eff 規約は凍結どおり)。探索は 07-24 に旧データで完了済み・凍結済みで再走しない (2026-07-29 事後評価) |
 | **BTDataCache 消費者** (365d 以下の BT) | なし — get() は ≤365d スライスで 2019/2020 行は不可視 | — |
 
 ## 5. 恒久運用

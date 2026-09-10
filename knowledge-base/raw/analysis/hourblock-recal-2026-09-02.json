@@ -1,0 +1,3223 @@
+{
+ "meta": {
+  "study": "static hour-block recalibration (EXPLORATORY — not pre-registered; any change execution requires separate R1)",
+  "generated": "2026-09-02",
+  "source": "https://fx-ai-trader.onrender.com/api/demo/trades?status=closed&date_from=2026-06-03 (full paging)",
+  "rows_fetched": 8595,
+  "exclusions": {
+   "vix_carry_unwind": 165,
+   "sr_anti_hunt_x_eurjpy": 97
+  },
+  "rows_kept": 8333,
+  "shadow_rows": 8215,
+  "live_rows_oanda": 118,
+  "n_tests": 6,
+  "bonferroni_alpha": 0.00833,
+  "period_split": {
+   "P1": [
+    "2026-06-03",
+    "2026-07-15"
+   ],
+   "P2": [
+    "2026-07-16",
+    "2026-09-01"
+   ],
+   "rows_after_P2_end": 7
+  },
+  "hour_basis": "entry_time UTC hour (matches gate's datetime.now(timezone.utc).hour)",
+  "wr_definition": "WIN / N (BREAKEVEN counted in denominator, not as win)"
+ },
+ "blocks": {
+  "H13_USDJPY": {
+   "pair": "USD_JPY",
+   "hours_utc": [
+    13
+   ],
+   "calibration_2026_04": {
+    "N": 14,
+    "EV": -2.486,
+    "WR": 28.6,
+    "src": "alpha-scan-2026-04-13 (code comment N=14; scan table H13 N=15 EV=-2.27)"
+   },
+   "layer_a_all_shadow": {
+    "block": {
+     "N": 223,
+     "wins": 114,
+     "losses": 99,
+     "breakeven": 10,
+     "WR_pct": 51.1,
+     "wilson95_WR": [
+      0.446,
+      0.5761
+     ],
+     "mean_pnl_pips": -0.6,
+     "median_pnl_pips": 0.7,
+     "sd_pnl_pips": 11.605,
+     "total_pnl_pips": -133.7,
+     "PF": 0.852
+    },
+    "nonblock_same_pair": {
+     "N": 1781,
+     "wins": 847,
+     "losses": 813,
+     "breakeven": 121,
+     "WR_pct": 47.6,
+     "wilson95_WR": [
+      0.4525,
+      0.4988
+     ],
+     "mean_pnl_pips": -1.262,
+     "median_pnl_pips": 0.3,
+     "sd_pnl_pips": 9.481,
+     "total_pnl_pips": -2248.3,
+     "PF": 0.644
+    },
+    "clean_comparator_outside_all_blocks": {
+     "N": 1429,
+     "wins": 683,
+     "losses": 656,
+     "breakeven": 90,
+     "WR_pct": 47.8,
+     "wilson95_WR": [
+      0.4522,
+      0.5039
+     ],
+     "mean_pnl_pips": -1.33,
+     "median_pnl_pips": 0.3,
+     "sd_pnl_pips": 9.755,
+     "total_pnl_pips": -1900.8,
+     "PF": 0.632
+    },
+    "welch_block_vs_nonblock": {
+     "t": 0.819,
+     "p": 0.4133
+    },
+    "welch_block_vs_clean": {
+     "t": 0.892,
+     "p": 0.3731
+    },
+    "bonferroni_significant_vs_nonblock": false
+   },
+   "layer_b_per_strategy": {
+    "table": [
+     {
+      "strategy": "atr_regime_break",
+      "N_block": 2,
+      "mean_block": 1.9,
+      "N_nonblock": 1,
+      "mean_nonblock": 1.8,
+      "diff_block_minus_nonblock": 0.1,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "bb_rsi_reversion",
+      "N_block": 3,
+      "mean_block": -3.633,
+      "N_nonblock": 0,
+      "mean_nonblock": null,
+      "diff_block_minus_nonblock": null,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "donchian_momentum_breakout",
+      "N_block": 3,
+      "mean_block": 2.833,
+      "N_nonblock": 23,
+      "mean_nonblock": -4.213,
+      "diff_block_minus_nonblock": 7.046,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dt_sr_channel_reversal",
+      "N_block": 6,
+      "mean_block": -2.55,
+      "N_nonblock": 81,
+      "mean_nonblock": 0.2,
+      "diff_block_minus_nonblock": -2.75,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dual_sr_bounce",
+      "N_block": 3,
+      "mean_block": 1.0,
+      "N_nonblock": 85,
+      "mean_nonblock": -1.189,
+      "diff_block_minus_nonblock": 2.189,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "ema200_trend_reversal",
+      "N_block": 5,
+      "mean_block": -0.86,
+      "N_nonblock": 65,
+      "mean_nonblock": 0.138,
+      "diff_block_minus_nonblock": -0.998,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "fib_reversal",
+      "N_block": 8,
+      "mean_block": -1.9,
+      "N_nonblock": 27,
+      "mean_nonblock": -1.381,
+      "diff_block_minus_nonblock": -0.519,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "liquidity_sweep",
+      "N_block": 1,
+      "mean_block": 11.0,
+      "N_nonblock": 3,
+      "mean_nonblock": -2.667,
+      "diff_block_minus_nonblock": 13.667,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "ma_regime_switch",
+      "N_block": 25,
+      "mean_block": -0.06,
+      "N_nonblock": 202,
+      "mean_nonblock": -1.404,
+      "diff_block_minus_nonblock": 1.344,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "macd_rsi_pullback",
+      "N_block": 3,
+      "mean_block": -0.8,
+      "N_nonblock": 23,
+      "mean_nonblock": 2.187,
+      "diff_block_minus_nonblock": -2.987,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "macdh_reversal",
+      "N_block": 1,
+      "mean_block": 0.4,
+      "N_nonblock": 3,
+      "mean_nonblock": -1.267,
+      "diff_block_minus_nonblock": 1.667,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "mtf_counter_trend_scalp",
+      "N_block": 1,
+      "mean_block": 5.6,
+      "N_nonblock": 6,
+      "mean_nonblock": -1.283,
+      "diff_block_minus_nonblock": 6.883,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "mtf_reversal_confluence",
+      "N_block": 1,
+      "mean_block": 12.8,
+      "N_nonblock": 8,
+      "mean_nonblock": 0.05,
+      "diff_block_minus_nonblock": 12.75,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "mtf_trend_follow_scalp",
+      "N_block": 7,
+      "mean_block": -2.029,
+      "N_nonblock": 20,
+      "mean_nonblock": 0.59,
+      "diff_block_minus_nonblock": -2.619,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "ob_retest",
+      "N_block": 5,
+      "mean_block": 3.5,
+      "N_nonblock": 66,
+      "mean_nonblock": -2.468,
+      "diff_block_minus_nonblock": 5.968,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_anti_hunt_bounce",
+      "N_block": 2,
+      "mean_block": 1.8,
+      "N_nonblock": 30,
+      "mean_nonblock": 1.89,
+      "diff_block_minus_nonblock": -0.09,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "sr_break_retest",
+      "N_block": 15,
+      "mean_block": 2.06,
+      "N_nonblock": 180,
+      "mean_nonblock": -1.653,
+      "diff_block_minus_nonblock": 3.713,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_weighted_bounce",
+      "N_block": 1,
+      "mean_block": 0.8,
+      "N_nonblock": 2,
+      "mean_nonblock": 1.3,
+      "diff_block_minus_nonblock": -0.5,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "streak_reversal",
+      "N_block": 6,
+      "mean_block": 5.25,
+      "N_nonblock": 143,
+      "mean_nonblock": -1.962,
+      "diff_block_minus_nonblock": 7.212,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "three_bar_reversal",
+      "N_block": 5,
+      "mean_block": 3.8,
+      "N_nonblock": 34,
+      "mean_nonblock": 0.424,
+      "diff_block_minus_nonblock": 3.376,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "trend_rebound",
+      "N_block": 5,
+      "mean_block": -0.26,
+      "N_nonblock": 40,
+      "mean_nonblock": -1.345,
+      "diff_block_minus_nonblock": 1.085,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "usdjpy_carry_dip_accumulator",
+      "N_block": 3,
+      "mean_block": -9.4,
+      "N_nonblock": 4,
+      "mean_nonblock": 14.125,
+      "diff_block_minus_nonblock": -23.525,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "v_reversal",
+      "N_block": 1,
+      "mean_block": -3.4,
+      "N_nonblock": 16,
+      "mean_nonblock": -1.312,
+      "diff_block_minus_nonblock": -2.087,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "vdr_jpy",
+      "N_block": 4,
+      "mean_block": -16.275,
+      "N_nonblock": 17,
+      "mean_nonblock": 1.424,
+      "diff_block_minus_nonblock": -17.699,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "vol_momentum_scalp",
+      "N_block": 20,
+      "mean_block": 1.265,
+      "N_nonblock": 116,
+      "mean_nonblock": -1.525,
+      "diff_block_minus_nonblock": 2.79,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "vol_spike_mr",
+      "N_block": 5,
+      "mean_block": -7.38,
+      "N_nonblock": 81,
+      "mean_nonblock": -0.478,
+      "diff_block_minus_nonblock": -6.902,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "vol_surge_detector",
+      "N_block": 5,
+      "mean_block": 0.68,
+      "N_nonblock": 45,
+      "mean_nonblock": -0.767,
+      "diff_block_minus_nonblock": 1.447,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "wick_imbalance_reversion",
+      "N_block": 17,
+      "mean_block": 1.0,
+      "N_nonblock": 83,
+      "mean_nonblock": -0.5,
+      "diff_block_minus_nonblock": 1.5,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "xs_momentum",
+      "N_block": 37,
+      "mean_block": -2.816,
+      "N_nonblock": 142,
+      "mean_nonblock": -1.106,
+      "diff_block_minus_nonblock": -1.71,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "xs_momentum_rsi",
+      "N_block": 23,
+      "mean_block": -1.083,
+      "N_nonblock": 76,
+      "mean_nonblock": -1.141,
+      "diff_block_minus_nonblock": 0.058,
+      "counted_in_sign_test": true
+     }
+    ],
+    "sign_test": {
+     "strategies_worse_in_block": 8,
+     "strategies_compared": 20,
+     "binom_two_sided_p": 0.5034,
+     "criteria": "N_block>=3 and N_nonblock>=5"
+    }
+   },
+   "layer_c_live_qualified_cells": {
+    "N": 3,
+    "rows": [
+     {
+      "id": 15512,
+      "entry_time": "2026-08-07T13:03:39.843574+00:00",
+      "entry_type": "usdjpy_carry_dip_accumulator",
+      "direction": "BUY",
+      "pnl_pips": -19.1,
+      "outcome": "LOSS",
+      "is_shadow": 1,
+      "oanda_trade_id": "",
+      "mode": "daytrade_1h"
+     },
+     {
+      "id": 15513,
+      "entry_time": "2026-08-07T13:04:21.522927+00:00",
+      "entry_type": "usdjpy_carry_dip_accumulator",
+      "direction": "BUY",
+      "pnl_pips": -19.8,
+      "outcome": "LOSS",
+      "is_shadow": 1,
+      "oanda_trade_id": "",
+      "mode": "daytrade_1h"
+     },
+     {
+      "id": 15938,
+      "entry_time": "2026-08-13T13:01:53.615870+00:00",
+      "entry_type": "usdjpy_carry_dip_accumulator",
+      "direction": "BUY",
+      "pnl_pips": 10.7,
+      "outcome": "WIN",
+      "is_shadow": 1,
+      "oanda_trade_id": "",
+      "mode": "daytrade_1h"
+     }
+    ]
+   },
+   "period_split": {
+    "P1": {
+     "block": {
+      "N": 97,
+      "wins": 38,
+      "losses": 55,
+      "breakeven": 4,
+      "WR_pct": 39.2,
+      "wilson95_WR": [
+       0.3005,
+       0.4912
+      ],
+      "mean_pnl_pips": -3.266,
+      "median_pnl_pips": -3.0,
+      "sd_pnl_pips": 8.398,
+      "total_pnl_pips": -316.8,
+      "PF": 0.264
+     },
+     "nonblock": {
+      "N": 865,
+      "wins": 432,
+      "losses": 386,
+      "breakeven": 47,
+      "WR_pct": 49.9,
+      "wilson95_WR": [
+       0.4662,
+       0.5327
+      ],
+      "mean_pnl_pips": -0.883,
+      "median_pnl_pips": 0.5,
+      "sd_pnl_pips": 6.67,
+      "total_pnl_pips": -763.6,
+      "PF": 0.679
+     },
+     "diff_block_minus_nonblock": -2.383,
+     "block_mean_negative": true
+    },
+    "P2": {
+     "block": {
+      "N": 126,
+      "wins": 76,
+      "losses": 44,
+      "breakeven": 6,
+      "WR_pct": 60.3,
+      "wilson95_WR": [
+       0.5159,
+       0.6843
+      ],
+      "mean_pnl_pips": 1.453,
+      "median_pnl_pips": 1.7,
+      "sd_pnl_pips": 13.239,
+      "total_pnl_pips": 183.1,
+      "PF": 1.386
+     },
+     "nonblock": {
+      "N": 913,
+      "wins": 414,
+      "losses": 425,
+      "breakeven": 74,
+      "WR_pct": 45.3,
+      "wilson95_WR": [
+       0.4214,
+       0.4859
+      ],
+      "mean_pnl_pips": -1.613,
+      "median_pnl_pips": 0.1,
+      "sd_pnl_pips": 11.53,
+      "total_pnl_pips": -1472.6,
+      "PF": 0.625
+     },
+     "diff_block_minus_nonblock": 3.066,
+     "block_mean_negative": false
+    },
+    "sign_stable_block_worse_both_periods": false
+   }
+  },
+  "H16_20_USDJPY": {
+   "pair": "USD_JPY",
+   "hours_utc": [
+    16,
+    17,
+    18,
+    19,
+    20
+   ],
+   "calibration_2026_04": {
+    "N": 27,
+    "EV": null,
+    "WR": 18.5,
+    "pnl": -68.2,
+    "src": "2026-04-14 analysis (code comment); scan-04-14 H16..H20 rows"
+   },
+   "layer_a_all_shadow": {
+    "block": {
+     "N": 352,
+     "wins": 164,
+     "losses": 157,
+     "breakeven": 31,
+     "WR_pct": 46.6,
+     "wilson95_WR": [
+      0.4144,
+      0.5181
+     ],
+     "mean_pnl_pips": -0.987,
+     "median_pnl_pips": 0.0,
+     "sd_pnl_pips": 8.279,
+     "total_pnl_pips": -347.5,
+     "PF": 0.699
+    },
+    "nonblock_same_pair": {
+     "N": 1652,
+     "wins": 797,
+     "losses": 755,
+     "breakeven": 100,
+     "WR_pct": 48.2,
+     "wilson95_WR": [
+      0.4584,
+      0.5066
+     ],
+     "mean_pnl_pips": -1.232,
+     "median_pnl_pips": 0.4,
+     "sd_pnl_pips": 10.024,
+     "total_pnl_pips": -2034.5,
+     "PF": 0.665
+    },
+    "clean_comparator_outside_all_blocks": {
+     "N": 1429,
+     "wins": 683,
+     "losses": 656,
+     "breakeven": 90,
+     "WR_pct": 47.8,
+     "wilson95_WR": [
+      0.4522,
+      0.5039
+     ],
+     "mean_pnl_pips": -1.33,
+     "median_pnl_pips": 0.3,
+     "sd_pnl_pips": 9.755,
+     "total_pnl_pips": -1900.8,
+     "PF": 0.632
+    },
+    "welch_block_vs_nonblock": {
+     "t": 0.483,
+     "p": 0.6291
+    },
+    "welch_block_vs_clean": {
+     "t": 0.671,
+     "p": 0.5026
+    },
+    "bonferroni_significant_vs_nonblock": false
+   },
+   "layer_b_per_strategy": {
+    "table": [
+     {
+      "strategy": "doji_breakout",
+      "N_block": 2,
+      "mean_block": -1.6,
+      "N_nonblock": 6,
+      "mean_nonblock": -5.167,
+      "diff_block_minus_nonblock": 3.567,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "donchian_momentum_breakout",
+      "N_block": 4,
+      "mean_block": -4.625,
+      "N_nonblock": 22,
+      "mean_nonblock": -3.177,
+      "diff_block_minus_nonblock": -1.448,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dt_bb_rsi_mr",
+      "N_block": 11,
+      "mean_block": 2.3,
+      "N_nonblock": 29,
+      "mean_nonblock": -2.228,
+      "diff_block_minus_nonblock": 4.528,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dt_sr_channel_reversal",
+      "N_block": 11,
+      "mean_block": 0.109,
+      "N_nonblock": 76,
+      "mean_nonblock": -0.004,
+      "diff_block_minus_nonblock": 0.113,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dual_sr_bounce",
+      "N_block": 14,
+      "mean_block": -1.871,
+      "N_nonblock": 74,
+      "mean_nonblock": -0.972,
+      "diff_block_minus_nonblock": -0.9,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "ema200_trend_reversal",
+      "N_block": 11,
+      "mean_block": 4.136,
+      "N_nonblock": 59,
+      "mean_nonblock": -0.692,
+      "diff_block_minus_nonblock": 4.828,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "fib_reversal",
+      "N_block": 7,
+      "mean_block": -0.029,
+      "N_nonblock": 28,
+      "mean_nonblock": -1.868,
+      "diff_block_minus_nonblock": 1.839,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "kalman_d7_po_dn_flip",
+      "N_block": 2,
+      "mean_block": 0.8,
+      "N_nonblock": 10,
+      "mean_nonblock": 2.12,
+      "diff_block_minus_nonblock": -1.32,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "london_fix_reversal",
+      "N_block": 9,
+      "mean_block": -4.733,
+      "N_nonblock": 5,
+      "mean_nonblock": -4.98,
+      "diff_block_minus_nonblock": 0.247,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "ma_regime_switch",
+      "N_block": 31,
+      "mean_block": -1.765,
+      "N_nonblock": 196,
+      "mean_nonblock": -1.176,
+      "diff_block_minus_nonblock": -0.588,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "macd_rsi_pullback",
+      "N_block": 14,
+      "mean_block": 4.171,
+      "N_nonblock": 12,
+      "mean_nonblock": -0.875,
+      "diff_block_minus_nonblock": 5.046,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "macdh_reversal",
+      "N_block": 3,
+      "mean_block": -1.267,
+      "N_nonblock": 1,
+      "mean_nonblock": 0.4,
+      "diff_block_minus_nonblock": -1.667,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "mtf_counter_trend_scalp",
+      "N_block": 1,
+      "mean_block": -1.0,
+      "N_nonblock": 6,
+      "mean_nonblock": -0.183,
+      "diff_block_minus_nonblock": -0.817,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "mtf_reversal_confluence",
+      "N_block": 1,
+      "mean_block": 0.8,
+      "N_nonblock": 8,
+      "mean_nonblock": 1.55,
+      "diff_block_minus_nonblock": -0.75,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "mtf_trend_follow_scalp",
+      "N_block": 3,
+      "mean_block": -3.233,
+      "N_nonblock": 24,
+      "mean_nonblock": 0.304,
+      "diff_block_minus_nonblock": -3.537,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "ny_close_reversal",
+      "N_block": 6,
+      "mean_block": -1.517,
+      "N_nonblock": 0,
+      "mean_nonblock": null,
+      "diff_block_minus_nonblock": null,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "ob_retest",
+      "N_block": 28,
+      "mean_block": -0.064,
+      "N_nonblock": 43,
+      "mean_nonblock": -3.34,
+      "diff_block_minus_nonblock": 3.275,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_anti_hunt_bounce",
+      "N_block": 9,
+      "mean_block": 1.289,
+      "N_nonblock": 23,
+      "mean_nonblock": 2.117,
+      "diff_block_minus_nonblock": -0.829,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_break_retest",
+      "N_block": 44,
+      "mean_block": -3.252,
+      "N_nonblock": 151,
+      "mean_nonblock": -0.819,
+      "diff_block_minus_nonblock": -2.434,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "streak_reversal",
+      "N_block": 22,
+      "mean_block": -1.109,
+      "N_nonblock": 127,
+      "mean_nonblock": -1.769,
+      "diff_block_minus_nonblock": 0.66,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "three_bar_reversal",
+      "N_block": 5,
+      "mean_block": -0.54,
+      "N_nonblock": 34,
+      "mean_nonblock": 1.062,
+      "diff_block_minus_nonblock": -1.602,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "trend_rebound",
+      "N_block": 6,
+      "mean_block": 0.433,
+      "N_nonblock": 39,
+      "mean_nonblock": -1.479,
+      "diff_block_minus_nonblock": 1.913,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "usdjpy_carry_dip_accumulator",
+      "N_block": 1,
+      "mean_block": 15.5,
+      "N_nonblock": 6,
+      "mean_nonblock": 2.133,
+      "diff_block_minus_nonblock": 13.367,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "v_reversal",
+      "N_block": 5,
+      "mean_block": -3.02,
+      "N_nonblock": 12,
+      "mean_nonblock": -0.775,
+      "diff_block_minus_nonblock": -2.245,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "vdr_jpy",
+      "N_block": 1,
+      "mean_block": 11.2,
+      "N_nonblock": 20,
+      "mean_nonblock": -2.605,
+      "diff_block_minus_nonblock": 13.805,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "vol_momentum_scalp",
+      "N_block": 17,
+      "mean_block": -3.024,
+      "N_nonblock": 119,
+      "mean_nonblock": -0.842,
+      "diff_block_minus_nonblock": -2.182,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "vol_spike_mr",
+      "N_block": 4,
+      "mean_block": -1.75,
+      "N_nonblock": 82,
+      "mean_nonblock": -0.837,
+      "diff_block_minus_nonblock": -0.913,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "vwap_mean_reversion",
+      "N_block": 1,
+      "mean_block": -20.3,
+      "N_nonblock": 10,
+      "mean_nonblock": 0.46,
+      "diff_block_minus_nonblock": -20.76,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "wick_imbalance_reversion",
+      "N_block": 9,
+      "mean_block": 2.211,
+      "N_nonblock": 91,
+      "mean_nonblock": -0.488,
+      "diff_block_minus_nonblock": 2.699,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "xs_momentum",
+      "N_block": 50,
+      "mean_block": -1.716,
+      "N_nonblock": 129,
+      "mean_nonblock": -1.36,
+      "diff_block_minus_nonblock": -0.356,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "xs_momentum_rsi",
+      "N_block": 20,
+      "mean_block": -1.025,
+      "N_nonblock": 79,
+      "mean_nonblock": -1.153,
+      "diff_block_minus_nonblock": 0.128,
+      "counted_in_sign_test": true
+     }
+    ],
+    "sign_test": {
+     "strategies_worse_in_block": 11,
+     "strategies_compared": 22,
+     "binom_two_sided_p": 1.0,
+     "criteria": "N_block>=3 and N_nonblock>=5"
+    }
+   },
+   "layer_c_live_qualified_cells": {
+    "N": 3,
+    "rows": [
+     {
+      "id": 15964,
+      "entry_time": "2026-08-13T16:55:00.285204+00:00",
+      "entry_type": "kalman_d7_po_dn_flip",
+      "direction": "BUY",
+      "pnl_pips": 0.8,
+      "outcome": "WIN",
+      "is_shadow": 1,
+      "oanda_trade_id": "",
+      "mode": "daytrade"
+     },
+     {
+      "id": 16201,
+      "entry_time": "2026-08-18T17:17:10.191862+00:00",
+      "entry_type": "kalman_d7_po_dn_flip",
+      "direction": "BUY",
+      "pnl_pips": 0.8,
+      "outcome": "WIN",
+      "is_shadow": 1,
+      "oanda_trade_id": "",
+      "mode": "daytrade"
+     },
+     {
+      "id": 16624,
+      "entry_time": "2026-08-27T16:02:10.959846+00:00",
+      "entry_type": "usdjpy_carry_dip_accumulator",
+      "direction": "BUY",
+      "pnl_pips": 15.5,
+      "outcome": "WIN",
+      "is_shadow": 1,
+      "oanda_trade_id": "",
+      "mode": "daytrade_1h"
+     }
+    ]
+   },
+   "period_split": {
+    "P1": {
+     "block": {
+      "N": 164,
+      "wins": 90,
+      "losses": 68,
+      "breakeven": 6,
+      "WR_pct": 54.9,
+      "wilson95_WR": [
+       0.4724,
+       0.623
+      ],
+      "mean_pnl_pips": -0.048,
+      "median_pnl_pips": 0.8,
+      "sd_pnl_pips": 6.487,
+      "total_pnl_pips": -7.9,
+      "PF": 0.979
+     },
+     "nonblock": {
+      "N": 798,
+      "wins": 380,
+      "losses": 373,
+      "breakeven": 45,
+      "WR_pct": 47.6,
+      "wilson95_WR": [
+       0.4417,
+       0.5109
+      ],
+      "mean_pnl_pips": -1.344,
+      "median_pnl_pips": 0.0,
+      "sd_pnl_pips": 6.961,
+      "total_pnl_pips": -1072.5,
+      "PF": 0.558
+     },
+     "diff_block_minus_nonblock": 1.296,
+     "block_mean_negative": true
+    },
+    "P2": {
+     "block": {
+      "N": 188,
+      "wins": 74,
+      "losses": 89,
+      "breakeven": 25,
+      "WR_pct": 39.4,
+      "wilson95_WR": [
+       0.3266,
+       0.4649
+      ],
+      "mean_pnl_pips": -1.806,
+      "median_pnl_pips": -0.5,
+      "sd_pnl_pips": 9.514,
+      "total_pnl_pips": -339.6,
+      "PF": 0.562
+     },
+     "nonblock": {
+      "N": 851,
+      "wins": 416,
+      "losses": 380,
+      "breakeven": 55,
+      "WR_pct": 48.9,
+      "wilson95_WR": [
+       0.4554,
+       0.5224
+      ],
+      "mean_pnl_pips": -1.116,
+      "median_pnl_pips": 0.5,
+      "sd_pnl_pips": 12.233,
+      "total_pnl_pips": -949.9,
+      "PF": 0.738
+     },
+     "diff_block_minus_nonblock": -0.69,
+     "block_mean_negative": true
+    },
+    "sign_stable_block_worse_both_periods": false
+   }
+  },
+  "H11_EURUSD": {
+   "pair": "EUR_USD",
+   "hours_utc": [
+    11
+   ],
+   "calibration_2026_04": {
+    "N": 9,
+    "EV": -4.489,
+    "WR": 22.2,
+    "src": "alpha-scan-2026-04-13"
+   },
+   "layer_a_all_shadow": {
+    "block": {
+     "N": 73,
+     "wins": 37,
+     "losses": 33,
+     "breakeven": 3,
+     "WR_pct": 50.7,
+     "wilson95_WR": [
+      0.3947,
+      0.6183
+     ],
+     "mean_pnl_pips": -1.119,
+     "median_pnl_pips": 0.7,
+     "sd_pnl_pips": 5.854,
+     "total_pnl_pips": -81.7,
+     "PF": 0.593
+    },
+    "nonblock_same_pair": {
+     "N": 1724,
+     "wins": 806,
+     "losses": 812,
+     "breakeven": 106,
+     "WR_pct": 46.8,
+     "wilson95_WR": [
+      0.4441,
+      0.4911
+     ],
+     "mean_pnl_pips": -0.89,
+     "median_pnl_pips": -0.1,
+     "sd_pnl_pips": 6.191,
+     "total_pnl_pips": -1534.7,
+     "PF": 0.667
+    },
+    "clean_comparator_outside_all_blocks": {
+     "N": 997,
+     "wins": 472,
+     "losses": 481,
+     "breakeven": 44,
+     "WR_pct": 47.3,
+     "wilson95_WR": [
+      0.4426,
+      0.5045
+     ],
+     "mean_pnl_pips": -1.244,
+     "median_pnl_pips": -0.1,
+     "sd_pnl_pips": 6.597,
+     "total_pnl_pips": -1240.4,
+     "PF": 0.582
+    },
+    "welch_block_vs_nonblock": {
+     "t": -0.327,
+     "p": 0.7449
+    },
+    "welch_block_vs_clean": {
+     "t": 0.174,
+     "p": 0.8619
+    },
+    "bonferroni_significant_vs_nonblock": false
+   },
+   "layer_b_per_strategy": {
+    "table": [
+     {
+      "strategy": "doji_breakout",
+      "N_block": 2,
+      "mean_block": -1.0,
+      "N_nonblock": 16,
+      "mean_nonblock": -0.013,
+      "diff_block_minus_nonblock": -0.987,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "donchian_momentum_breakout",
+      "N_block": 2,
+      "mean_block": 0.65,
+      "N_nonblock": 11,
+      "mean_nonblock": -2.673,
+      "diff_block_minus_nonblock": 3.323,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "dt_bb_rsi_mr",
+      "N_block": 3,
+      "mean_block": 3.0,
+      "N_nonblock": 50,
+      "mean_nonblock": 0.238,
+      "diff_block_minus_nonblock": 2.762,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dt_sr_channel_reversal",
+      "N_block": 5,
+      "mean_block": 1.06,
+      "N_nonblock": 110,
+      "mean_nonblock": -0.27,
+      "diff_block_minus_nonblock": 1.33,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dual_sr_bounce",
+      "N_block": 4,
+      "mean_block": 0.4,
+      "N_nonblock": 46,
+      "mean_nonblock": -0.641,
+      "diff_block_minus_nonblock": 1.041,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "engulfing_bb",
+      "N_block": 5,
+      "mean_block": -2.94,
+      "N_nonblock": 279,
+      "mean_nonblock": -1.038,
+      "diff_block_minus_nonblock": -1.902,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "fib_reversal",
+      "N_block": 3,
+      "mean_block": -2.7,
+      "N_nonblock": 69,
+      "mean_nonblock": -0.594,
+      "diff_block_minus_nonblock": -2.106,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "htf_false_breakout",
+      "N_block": 1,
+      "mean_block": -5.0,
+      "N_nonblock": 0,
+      "mean_nonblock": null,
+      "diff_block_minus_nonblock": null,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "lin_reg_channel",
+      "N_block": 3,
+      "mean_block": -6.733,
+      "N_nonblock": 68,
+      "mean_nonblock": -2.128,
+      "diff_block_minus_nonblock": -4.605,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "london_breakout",
+      "N_block": 2,
+      "mean_block": -0.45,
+      "N_nonblock": 133,
+      "mean_nonblock": -0.438,
+      "diff_block_minus_nonblock": -0.012,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "session_time_bias",
+      "N_block": 34,
+      "mean_block": -0.732,
+      "N_nonblock": 215,
+      "mean_nonblock": -1.22,
+      "diff_block_minus_nonblock": 0.487,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_anti_hunt_bounce",
+      "N_block": 3,
+      "mean_block": -0.6,
+      "N_nonblock": 50,
+      "mean_nonblock": -2.718,
+      "diff_block_minus_nonblock": 2.118,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "three_bar_reversal",
+      "N_block": 2,
+      "mean_block": -2.3,
+      "N_nonblock": 35,
+      "mean_nonblock": -1.589,
+      "diff_block_minus_nonblock": -0.711,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "trendline_sweep",
+      "N_block": 4,
+      "mean_block": -4.175,
+      "N_nonblock": 51,
+      "mean_nonblock": 2.076,
+      "diff_block_minus_nonblock": -6.251,
+      "counted_in_sign_test": true
+     }
+    ],
+    "sign_test": {
+     "strategies_worse_in_block": 4,
+     "strategies_compared": 9,
+     "binom_two_sided_p": 1.0,
+     "criteria": "N_block>=3 and N_nonblock>=5"
+    }
+   },
+   "layer_c_live_qualified_cells": {
+    "N": 0,
+    "rows": []
+   },
+   "period_split": {
+    "P1": {
+     "block": {
+      "N": 51,
+      "wins": 27,
+      "losses": 22,
+      "breakeven": 2,
+      "WR_pct": 52.9,
+      "wilson95_WR": [
+       0.3952,
+       0.6595
+      ],
+      "mean_pnl_pips": -0.994,
+      "median_pnl_pips": 0.7,
+      "sd_pnl_pips": 6.128,
+      "total_pnl_pips": -50.7,
+      "PF": 0.634
+     },
+     "nonblock": {
+      "N": 1130,
+      "wins": 570,
+      "losses": 502,
+      "breakeven": 58,
+      "WR_pct": 50.4,
+      "wilson95_WR": [
+       0.4753,
+       0.5335
+      ],
+      "mean_pnl_pips": -0.792,
+      "median_pnl_pips": 0.6,
+      "sd_pnl_pips": 6.303,
+      "total_pnl_pips": -894.9,
+      "PF": 0.699
+     },
+     "diff_block_minus_nonblock": -0.202,
+     "block_mean_negative": true
+    },
+    "P2": {
+     "block": {
+      "N": 22,
+      "wins": 10,
+      "losses": 11,
+      "breakeven": 1,
+      "WR_pct": 45.5,
+      "wilson95_WR": [
+       0.2692,
+       0.6534
+      ],
+      "mean_pnl_pips": -1.409,
+      "median_pnl_pips": 0.5,
+      "sd_pnl_pips": 5.287,
+      "total_pnl_pips": -31.0,
+      "PF": 0.499
+     },
+     "nonblock": {
+      "N": 594,
+      "wins": 236,
+      "losses": 310,
+      "breakeven": 48,
+      "WR_pct": 39.7,
+      "wilson95_WR": [
+       0.3587,
+       0.4372
+      ],
+      "mean_pnl_pips": -1.077,
+      "median_pnl_pips": -1.0,
+      "sd_pnl_pips": 5.972,
+      "total_pnl_pips": -639.8,
+      "PF": 0.608
+     },
+     "diff_block_minus_nonblock": -0.332,
+     "block_mean_negative": true
+    },
+    "sign_stable_block_worse_both_periods": true
+   }
+  },
+  "H7_8_EURUSD": {
+   "pair": "EUR_USD",
+   "hours_utc": [
+    7,
+    8
+   ],
+   "calibration_2026_04": {
+    "N": 14,
+    "EV": -2.38,
+    "WR": null,
+    "src": "code comment 04-14 (scan H7 N=14 EV=-1.47, H8 N=15 EV=-1.01)"
+   },
+   "layer_a_all_shadow": {
+    "block": {
+     "N": 275,
+     "wins": 140,
+     "losses": 116,
+     "breakeven": 19,
+     "WR_pct": 50.9,
+     "wilson95_WR": [
+      0.4503,
+      0.5676
+     ],
+     "mean_pnl_pips": -0.088,
+     "median_pnl_pips": 0.7,
+     "sd_pnl_pips": 6.231,
+     "total_pnl_pips": -24.2,
+     "PF": 0.963
+    },
+    "nonblock_same_pair": {
+     "N": 1522,
+     "wins": 703,
+     "losses": 729,
+     "breakeven": 90,
+     "WR_pct": 46.2,
+     "wilson95_WR": [
+      0.437,
+      0.487
+     ],
+     "mean_pnl_pips": -1.046,
+     "median_pnl_pips": -0.2,
+     "sd_pnl_pips": 6.157,
+     "total_pnl_pips": -1592.2,
+     "PF": 0.617
+    },
+    "clean_comparator_outside_all_blocks": {
+     "N": 997,
+     "wins": 472,
+     "losses": 481,
+     "breakeven": 44,
+     "WR_pct": 47.3,
+     "wilson95_WR": [
+      0.4426,
+      0.5045
+     ],
+     "mean_pnl_pips": -1.244,
+     "median_pnl_pips": -0.1,
+     "sd_pnl_pips": 6.597,
+     "total_pnl_pips": -1240.4,
+     "PF": 0.582
+    },
+    "welch_block_vs_nonblock": {
+     "t": 2.351,
+     "p": 0.01924
+    },
+    "welch_block_vs_clean": {
+     "t": 2.689,
+     "p": 0.007428
+    },
+    "bonferroni_significant_vs_nonblock": false
+   },
+   "layer_b_per_strategy": {
+    "table": [
+     {
+      "strategy": "doji_breakout",
+      "N_block": 4,
+      "mean_block": -1.0,
+      "N_nonblock": 14,
+      "mean_nonblock": 0.129,
+      "diff_block_minus_nonblock": -1.129,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dt_bb_rsi_mr",
+      "N_block": 5,
+      "mean_block": 2.2,
+      "N_nonblock": 48,
+      "mean_nonblock": 0.206,
+      "diff_block_minus_nonblock": 1.994,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dt_sr_channel_reversal",
+      "N_block": 6,
+      "mean_block": 0.067,
+      "N_nonblock": 109,
+      "mean_nonblock": -0.228,
+      "diff_block_minus_nonblock": 0.294,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dual_sr_bounce",
+      "N_block": 8,
+      "mean_block": 1.75,
+      "N_nonblock": 42,
+      "mean_nonblock": -0.998,
+      "diff_block_minus_nonblock": 2.748,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "engulfing_bb",
+      "N_block": 13,
+      "mean_block": -0.262,
+      "N_nonblock": 271,
+      "mean_nonblock": -1.11,
+      "diff_block_minus_nonblock": 0.849,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "fib_reversal",
+      "N_block": 9,
+      "mean_block": 0.256,
+      "N_nonblock": 63,
+      "mean_nonblock": -0.816,
+      "diff_block_minus_nonblock": 1.071,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "hull_donchian_fade",
+      "N_block": 5,
+      "mean_block": 1.84,
+      "N_nonblock": 13,
+      "mean_nonblock": -4.754,
+      "diff_block_minus_nonblock": 6.594,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "inducement_ob",
+      "N_block": 2,
+      "mean_block": 6.85,
+      "N_nonblock": 2,
+      "mean_nonblock": 1.1,
+      "diff_block_minus_nonblock": 5.75,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "lin_reg_channel",
+      "N_block": 3,
+      "mean_block": -6.0,
+      "N_nonblock": 68,
+      "mean_nonblock": -2.16,
+      "diff_block_minus_nonblock": -3.84,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "london_breakout",
+      "N_block": 62,
+      "mean_block": -0.568,
+      "N_nonblock": 73,
+      "mean_nonblock": -0.327,
+      "diff_block_minus_nonblock": -0.24,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "london_session_breakout",
+      "N_block": 13,
+      "mean_block": 2.138,
+      "N_nonblock": 0,
+      "mean_nonblock": null,
+      "diff_block_minus_nonblock": null,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "orb_trap",
+      "N_block": 11,
+      "mean_block": -1.3,
+      "N_nonblock": 10,
+      "mean_nonblock": -0.41,
+      "diff_block_minus_nonblock": -0.89,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "pullback_to_liquidity_v1",
+      "N_block": 6,
+      "mean_block": -1.833,
+      "N_nonblock": 9,
+      "mean_nonblock": -2.167,
+      "diff_block_minus_nonblock": 0.333,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "session_time_bias",
+      "N_block": 89,
+      "mean_block": -0.442,
+      "N_nonblock": 160,
+      "mean_nonblock": -1.549,
+      "diff_block_minus_nonblock": 1.107,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "squeeze_release_momentum",
+      "N_block": 5,
+      "mean_block": -3.34,
+      "N_nonblock": 52,
+      "mean_nonblock": -1.681,
+      "diff_block_minus_nonblock": -1.659,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_anti_hunt_bounce",
+      "N_block": 2,
+      "mean_block": 1.3,
+      "N_nonblock": 51,
+      "mean_nonblock": -2.751,
+      "diff_block_minus_nonblock": 4.051,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "sr_fib_confluence",
+      "N_block": 5,
+      "mean_block": 2.34,
+      "N_nonblock": 29,
+      "mean_nonblock": 1.917,
+      "diff_block_minus_nonblock": 0.423,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "three_bar_reversal",
+      "N_block": 4,
+      "mean_block": -1.9,
+      "N_nonblock": 33,
+      "mean_nonblock": -1.594,
+      "diff_block_minus_nonblock": -0.306,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "trend_rebound",
+      "N_block": 1,
+      "mean_block": -4.3,
+      "N_nonblock": 27,
+      "mean_nonblock": -0.067,
+      "diff_block_minus_nonblock": -4.233,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "trendline_sweep",
+      "N_block": 10,
+      "mean_block": 0.43,
+      "N_nonblock": 45,
+      "mean_nonblock": 1.887,
+      "diff_block_minus_nonblock": -1.457,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "vwap_mean_reversion",
+      "N_block": 4,
+      "mean_block": -0.225,
+      "N_nonblock": 5,
+      "mean_nonblock": -3.18,
+      "diff_block_minus_nonblock": 2.955,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "wick_imbalance_reversion",
+      "N_block": 7,
+      "mean_block": 5.671,
+      "N_nonblock": 40,
+      "mean_nonblock": 1.068,
+      "diff_block_minus_nonblock": 4.604,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "zz_pivot_v60_sr",
+      "N_block": 1,
+      "mean_block": -6.2,
+      "N_nonblock": 14,
+      "mean_nonblock": -0.714,
+      "diff_block_minus_nonblock": -5.486,
+      "counted_in_sign_test": false
+     }
+    ],
+    "sign_test": {
+     "strategies_worse_in_block": 7,
+     "strategies_compared": 18,
+     "binom_two_sided_p": 0.4807,
+     "criteria": "N_block>=3 and N_nonblock>=5"
+    }
+   },
+   "layer_c_live_qualified_cells": {
+    "N": 0,
+    "rows": []
+   },
+   "period_split": {
+    "P1": {
+     "block": {
+      "N": 161,
+      "wins": 89,
+      "losses": 62,
+      "breakeven": 10,
+      "WR_pct": 55.3,
+      "wilson95_WR": [
+       0.4757,
+       0.6275
+      ],
+      "mean_pnl_pips": 0.086,
+      "median_pnl_pips": 1.1,
+      "sd_pnl_pips": 6.367,
+      "total_pnl_pips": 13.8,
+      "PF": 1.038
+     },
+     "nonblock": {
+      "N": 1020,
+      "wins": 508,
+      "losses": 462,
+      "breakeven": 50,
+      "WR_pct": 49.8,
+      "wilson95_WR": [
+       0.4674,
+       0.5287
+      ],
+      "mean_pnl_pips": -0.941,
+      "median_pnl_pips": 0.5,
+      "sd_pnl_pips": 6.274,
+      "total_pnl_pips": -959.4,
+      "PF": 0.651
+     },
+     "diff_block_minus_nonblock": 1.027,
+     "block_mean_negative": false
+    },
+    "P2": {
+     "block": {
+      "N": 114,
+      "wins": 51,
+      "losses": 54,
+      "breakeven": 9,
+      "WR_pct": 44.7,
+      "wilson95_WR": [
+       0.3593,
+       0.5389
+      ],
+      "mean_pnl_pips": -0.333,
+      "median_pnl_pips": -0.1,
+      "sd_pnl_pips": 6.055,
+      "total_pnl_pips": -38.0,
+      "PF": 0.867
+     },
+     "nonblock": {
+      "N": 502,
+      "wins": 195,
+      "losses": 267,
+      "breakeven": 40,
+      "WR_pct": 38.8,
+      "wilson95_WR": [
+       0.3468,
+       0.4318
+      ],
+      "mean_pnl_pips": -1.261,
+      "median_pnl_pips": -1.3,
+      "sd_pnl_pips": 5.912,
+      "total_pnl_pips": -632.8,
+      "PF": 0.55
+     },
+     "diff_block_minus_nonblock": 0.928,
+     "block_mean_negative": true
+    },
+    "sign_stable_block_worse_both_periods": false
+   }
+  },
+  "EURUSD_TOKYO": {
+   "pair": "EUR_USD",
+   "hours_utc": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "calibration_2026_04": {
+    "N": 54,
+    "EV": null,
+    "WR": 20.4,
+    "pnl": -62.9,
+    "src": "461t audit (session_pair gate comment)"
+   },
+   "layer_a_all_shadow": {
+    "block": {
+     "N": 242,
+     "wins": 121,
+     "losses": 107,
+     "breakeven": 14,
+     "WR_pct": 50.0,
+     "wilson95_WR": [
+      0.4375,
+      0.5625
+     ],
+     "mean_pnl_pips": -0.638,
+     "median_pnl_pips": 0.6,
+     "sd_pnl_pips": 5.81,
+     "total_pnl_pips": -154.4,
+     "PF": 0.748
+    },
+    "nonblock_same_pair": {
+     "N": 1555,
+     "wins": 722,
+     "losses": 738,
+     "breakeven": 95,
+     "WR_pct": 46.4,
+     "wilson95_WR": [
+      0.4396,
+      0.4892
+     ],
+     "mean_pnl_pips": -0.94,
+     "median_pnl_pips": -0.2,
+     "sd_pnl_pips": 6.232,
+     "total_pnl_pips": -1462.0,
+     "PF": 0.651
+    },
+    "clean_comparator_outside_all_blocks": {
+     "N": 997,
+     "wins": 472,
+     "losses": 481,
+     "breakeven": 44,
+     "WR_pct": 47.3,
+     "wilson95_WR": [
+      0.4426,
+      0.5045
+     ],
+     "mean_pnl_pips": -1.244,
+     "median_pnl_pips": -0.1,
+     "sd_pnl_pips": 6.597,
+     "total_pnl_pips": -1240.4,
+     "PF": 0.582
+    },
+    "welch_block_vs_nonblock": {
+     "t": 0.745,
+     "p": 0.4567
+    },
+    "welch_block_vs_clean": {
+     "t": 1.416,
+     "p": 0.1574
+    },
+    "bonferroni_significant_vs_nonblock": false
+   },
+   "layer_b_per_strategy": {
+    "table": [
+     {
+      "strategy": "doji_breakout",
+      "N_block": 8,
+      "mean_block": 0.6,
+      "N_nonblock": 10,
+      "mean_nonblock": -0.7,
+      "diff_block_minus_nonblock": 1.3,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dt_bb_rsi_mr",
+      "N_block": 10,
+      "mean_block": -1.71,
+      "N_nonblock": 43,
+      "mean_nonblock": 0.884,
+      "diff_block_minus_nonblock": -2.594,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dt_sr_channel_reversal",
+      "N_block": 28,
+      "mean_block": -0.082,
+      "N_nonblock": 87,
+      "mean_nonblock": -0.254,
+      "diff_block_minus_nonblock": 0.172,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "engulfing_bb",
+      "N_block": 42,
+      "mean_block": 0.186,
+      "N_nonblock": 242,
+      "mean_nonblock": -1.29,
+      "diff_block_minus_nonblock": 1.475,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "fib_reversal",
+      "N_block": 3,
+      "mean_block": -2.8,
+      "N_nonblock": 69,
+      "mean_nonblock": -0.59,
+      "diff_block_minus_nonblock": -2.21,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "inducement_ob",
+      "N_block": 1,
+      "mean_block": 0.4,
+      "N_nonblock": 3,
+      "mean_nonblock": 5.167,
+      "diff_block_minus_nonblock": -4.767,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "lin_reg_channel",
+      "N_block": 20,
+      "mean_block": -1.98,
+      "N_nonblock": 51,
+      "mean_nonblock": -2.457,
+      "diff_block_minus_nonblock": 0.477,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "macdh_reversal",
+      "N_block": 1,
+      "mean_block": 5.8,
+      "N_nonblock": 3,
+      "mean_nonblock": -5.7,
+      "diff_block_minus_nonblock": 11.5,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "mtf_counter_trend_scalp",
+      "N_block": 1,
+      "mean_block": -3.4,
+      "N_nonblock": 6,
+      "mean_nonblock": -1.4,
+      "diff_block_minus_nonblock": -2.0,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "mtf_trend_follow_scalp",
+      "N_block": 3,
+      "mean_block": 1.4,
+      "N_nonblock": 16,
+      "mean_nonblock": -2.119,
+      "diff_block_minus_nonblock": 3.519,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "ob_retest",
+      "N_block": 8,
+      "mean_block": 2.675,
+      "N_nonblock": 27,
+      "mean_nonblock": -2.019,
+      "diff_block_minus_nonblock": 4.694,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "pullback_to_liquidity_v1",
+      "N_block": 8,
+      "mean_block": -2.538,
+      "N_nonblock": 7,
+      "mean_nonblock": -1.457,
+      "diff_block_minus_nonblock": -1.08,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "session_time_bias",
+      "N_block": 22,
+      "mean_block": -0.691,
+      "N_nonblock": 227,
+      "mean_nonblock": -1.198,
+      "diff_block_minus_nonblock": 0.507,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "squeeze_release_momentum",
+      "N_block": 40,
+      "mean_block": -1.9,
+      "N_nonblock": 17,
+      "mean_nonblock": -1.653,
+      "diff_block_minus_nonblock": -0.247,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_anti_hunt_bounce",
+      "N_block": 11,
+      "mean_block": -5.036,
+      "N_nonblock": 42,
+      "mean_nonblock": -1.96,
+      "diff_block_minus_nonblock": -3.077,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "trend_rebound",
+      "N_block": 9,
+      "mean_block": 0.489,
+      "N_nonblock": 19,
+      "mean_nonblock": -0.553,
+      "diff_block_minus_nonblock": 1.042,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "trendline_sweep",
+      "N_block": 4,
+      "mean_block": 12.45,
+      "N_nonblock": 51,
+      "mean_nonblock": 0.773,
+      "diff_block_minus_nonblock": 11.677,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "vol_surge_detector",
+      "N_block": 23,
+      "mean_block": -0.665,
+      "N_nonblock": 66,
+      "mean_nonblock": -1.818,
+      "diff_block_minus_nonblock": 1.153,
+      "counted_in_sign_test": true
+     }
+    ],
+    "sign_test": {
+     "strategies_worse_in_block": 5,
+     "strategies_compared": 15,
+     "binom_two_sided_p": 0.3018,
+     "criteria": "N_block>=3 and N_nonblock>=5"
+    }
+   },
+   "layer_c_live_qualified_cells": {
+    "N": 0,
+    "rows": []
+   },
+   "period_split": {
+    "P1": {
+     "block": {
+      "N": 162,
+      "wins": 93,
+      "losses": 61,
+      "breakeven": 8,
+      "WR_pct": 57.4,
+      "wilson95_WR": [
+       0.4971,
+       0.6476
+      ],
+      "mean_pnl_pips": 0.175,
+      "median_pnl_pips": 0.8,
+      "sd_pnl_pips": 5.398,
+      "total_pnl_pips": 28.4,
+      "PF": 1.087
+     },
+     "nonblock": {
+      "N": 1019,
+      "wins": 504,
+      "losses": 463,
+      "breakeven": 52,
+      "WR_pct": 49.5,
+      "wilson95_WR": [
+       0.464,
+       0.5253
+      ],
+      "mean_pnl_pips": -0.956,
+      "median_pnl_pips": 0.5,
+      "sd_pnl_pips": 6.413,
+      "total_pnl_pips": -974.0,
+      "PF": 0.651
+     },
+     "diff_block_minus_nonblock": 1.131,
+     "block_mean_negative": false
+    },
+    "P2": {
+     "block": {
+      "N": 80,
+      "wins": 28,
+      "losses": 46,
+      "breakeven": 6,
+      "WR_pct": 35.0,
+      "wilson95_WR": [
+       0.2545,
+       0.4592
+      ],
+      "mean_pnl_pips": -2.285,
+      "median_pnl_pips": -2.5,
+      "sd_pnl_pips": 6.285,
+      "total_pnl_pips": -182.8,
+      "PF": 0.364
+     },
+     "nonblock": {
+      "N": 536,
+      "wins": 218,
+      "losses": 275,
+      "breakeven": 43,
+      "WR_pct": 40.7,
+      "wilson95_WR": [
+       0.3659,
+       0.4488
+      ],
+      "mean_pnl_pips": -0.91,
+      "median_pnl_pips": -0.9,
+      "sd_pnl_pips": 5.878,
+      "total_pnl_pips": -488.0,
+      "PF": 0.653
+     },
+     "diff_block_minus_nonblock": -1.375,
+     "block_mean_negative": true
+    },
+    "sign_stable_block_worse_both_periods": false
+   }
+  },
+  "EURUSD_LATE_NY": {
+   "pair": "EUR_USD",
+   "hours_utc": [
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23
+   ],
+   "calibration_2026_04": {
+    "N": 21,
+    "EV": null,
+    "WR": 9.5,
+    "pnl": -25.8,
+    "src": "461t audit (session_pair gate comment); weekend_gap_fade exempt since 2026-07-24"
+   },
+   "layer_a_all_shadow": {
+    "block": {
+     "N": 210,
+     "wins": 73,
+     "losses": 108,
+     "breakeven": 29,
+     "WR_pct": 34.8,
+     "wilson95_WR": [
+      0.2865,
+      0.4142
+     ],
+     "mean_pnl_pips": -0.551,
+     "median_pnl_pips": -0.7,
+     "sd_pnl_pips": 4.136,
+     "total_pnl_pips": -115.7,
+     "PF": 0.692
+    },
+    "nonblock_same_pair": {
+     "N": 1587,
+     "wins": 770,
+     "losses": 737,
+     "breakeven": 80,
+     "WR_pct": 48.5,
+     "wilson95_WR": [
+      0.4607,
+      0.5098
+     ],
+     "mean_pnl_pips": -0.946,
+     "median_pnl_pips": 0.3,
+     "sd_pnl_pips": 6.397,
+     "total_pnl_pips": -1500.7,
+     "PF": 0.661
+    },
+    "clean_comparator_outside_all_blocks": {
+     "N": 997,
+     "wins": 472,
+     "losses": 481,
+     "breakeven": 44,
+     "WR_pct": 47.3,
+     "wilson95_WR": [
+      0.4426,
+      0.5045
+     ],
+     "mean_pnl_pips": -1.244,
+     "median_pnl_pips": -0.1,
+     "sd_pnl_pips": 6.597,
+     "total_pnl_pips": -1240.4,
+     "PF": 0.582
+    },
+    "welch_block_vs_nonblock": {
+     "t": 1.205,
+     "p": 0.2289
+    },
+    "welch_block_vs_clean": {
+     "t": 1.96,
+     "p": 0.05062
+    },
+    "bonferroni_significant_vs_nonblock": false
+   },
+   "layer_b_per_strategy": {
+    "table": [
+     {
+      "strategy": "doji_breakout",
+      "N_block": 3,
+      "mean_block": 1.533,
+      "N_nonblock": 15,
+      "mean_nonblock": -0.453,
+      "diff_block_minus_nonblock": 1.987,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "dt_bb_rsi_mr",
+      "N_block": 1,
+      "mean_block": 1.8,
+      "N_nonblock": 52,
+      "mean_nonblock": 0.367,
+      "diff_block_minus_nonblock": 1.433,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "dt_sr_channel_reversal",
+      "N_block": 21,
+      "mean_block": -0.876,
+      "N_nonblock": 94,
+      "mean_nonblock": -0.064,
+      "diff_block_minus_nonblock": -0.812,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "engulfing_bb",
+      "N_block": 32,
+      "mean_block": -1.194,
+      "N_nonblock": 252,
+      "mean_nonblock": -1.056,
+      "diff_block_minus_nonblock": -0.138,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "fib_reversal",
+      "N_block": 10,
+      "mean_block": 0.28,
+      "N_nonblock": 62,
+      "mean_nonblock": -0.837,
+      "diff_block_minus_nonblock": 1.117,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "lin_reg_channel",
+      "N_block": 22,
+      "mean_block": -2.0,
+      "N_nonblock": 49,
+      "mean_nonblock": -2.467,
+      "diff_block_minus_nonblock": 0.467,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "london_close_reversal_v2",
+      "N_block": 2,
+      "mean_block": 1.15,
+      "N_nonblock": 0,
+      "mean_nonblock": null,
+      "diff_block_minus_nonblock": null,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "mtf_trend_follow_scalp",
+      "N_block": 3,
+      "mean_block": -1.1,
+      "N_nonblock": 16,
+      "mean_nonblock": -1.65,
+      "diff_block_minus_nonblock": 0.55,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "ob_retest",
+      "N_block": 9,
+      "mean_block": -1.367,
+      "N_nonblock": 26,
+      "mean_nonblock": -0.8,
+      "diff_block_minus_nonblock": -0.567,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "session_time_bias",
+      "N_block": 7,
+      "mean_block": -3.243,
+      "N_nonblock": 242,
+      "mean_nonblock": -1.093,
+      "diff_block_minus_nonblock": -2.15,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "squeeze_release_momentum",
+      "N_block": 6,
+      "mean_block": -0.4,
+      "N_nonblock": 51,
+      "mean_nonblock": -1.994,
+      "diff_block_minus_nonblock": 1.594,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_anti_hunt_bounce",
+      "N_block": 17,
+      "mean_block": 0.394,
+      "N_nonblock": 36,
+      "mean_nonblock": -4.011,
+      "diff_block_minus_nonblock": 4.405,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_fib_confluence",
+      "N_block": 16,
+      "mean_block": 2.744,
+      "N_nonblock": 18,
+      "mean_nonblock": 1.3,
+      "diff_block_minus_nonblock": 1.444,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "sr_weighted_bounce",
+      "N_block": 1,
+      "mean_block": -2.0,
+      "N_nonblock": 0,
+      "mean_nonblock": null,
+      "diff_block_minus_nonblock": null,
+      "counted_in_sign_test": false
+     },
+     {
+      "strategy": "trend_rebound",
+      "N_block": 7,
+      "mean_block": -1.129,
+      "N_nonblock": 21,
+      "mean_nonblock": 0.086,
+      "diff_block_minus_nonblock": -1.214,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "vol_surge_detector",
+      "N_block": 41,
+      "mean_block": -1.924,
+      "N_nonblock": 48,
+      "mean_nonblock": -1.175,
+      "diff_block_minus_nonblock": -0.749,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "wick_imbalance_reversion",
+      "N_block": 7,
+      "mean_block": 5.2,
+      "N_nonblock": 40,
+      "mean_nonblock": 1.15,
+      "diff_block_minus_nonblock": 4.05,
+      "counted_in_sign_test": true
+     },
+     {
+      "strategy": "xs_momentum",
+      "N_block": 5,
+      "mean_block": 3.18,
+      "N_nonblock": 136,
+      "mean_nonblock": -2.057,
+      "diff_block_minus_nonblock": 5.237,
+      "counted_in_sign_test": true
+     }
+    ],
+    "sign_test": {
+     "strategies_worse_in_block": 6,
+     "strategies_compared": 15,
+     "binom_two_sided_p": 0.6072,
+     "criteria": "N_block>=3 and N_nonblock>=5"
+    }
+   },
+   "layer_c_live_qualified_cells": {
+    "N": 0,
+    "rows": []
+   },
+   "period_split": {
+    "P1": {
+     "block": {
+      "N": 137,
+      "wins": 52,
+      "losses": 70,
+      "breakeven": 15,
+      "WR_pct": 38.0,
+      "wilson95_WR": [
+       0.3026,
+       0.4631
+      ],
+      "mean_pnl_pips": -0.374,
+      "median_pnl_pips": -0.6,
+      "sd_pnl_pips": 4.382,
+      "total_pnl_pips": -51.2,
+      "PF": 0.791
+     },
+     "nonblock": {
+      "N": 1044,
+      "wins": 545,
+      "losses": 454,
+      "breakeven": 45,
+      "WR_pct": 52.2,
+      "wilson95_WR": [
+       0.4917,
+       0.5522
+      ],
+      "mean_pnl_pips": -0.857,
+      "median_pnl_pips": 0.7,
+      "sd_pnl_pips": 6.502,
+      "total_pnl_pips": -894.4,
+      "PF": 0.688
+     },
+     "diff_block_minus_nonblock": 0.483,
+     "block_mean_negative": true
+    },
+    "P2": {
+     "block": {
+      "N": 73,
+      "wins": 21,
+      "losses": 38,
+      "breakeven": 14,
+      "WR_pct": 28.8,
+      "wilson95_WR": [
+       0.1965,
+       0.4001
+      ],
+      "mean_pnl_pips": -0.884,
+      "median_pnl_pips": -0.9,
+      "sd_pnl_pips": 3.635,
+      "total_pnl_pips": -64.5,
+      "PF": 0.506
+     },
+     "nonblock": {
+      "N": 543,
+      "wins": 225,
+      "losses": 283,
+      "breakeven": 35,
+      "WR_pct": 41.4,
+      "wilson95_WR": [
+       0.3737,
+       0.4563
+      ],
+      "mean_pnl_pips": -1.117,
+      "median_pnl_pips": -1.3,
+      "sd_pnl_pips": 6.192,
+      "total_pnl_pips": -606.3,
+      "PF": 0.612
+     },
+     "diff_block_minus_nonblock": 0.233,
+     "block_mean_negative": true
+    },
+    "sign_stable_block_worse_both_periods": false
+   }
+  }
+ },
+ "live_oanda_rows_inside_block_windows": [
+  {
+   "block": "H13_USDJPY",
+   "id": 12043,
+   "entry_time": "2026-07-02T13:08:30.668560+00:00",
+   "entry_type": "bb_rsi_reversion",
+   "pnl_pips": 7.4,
+   "outcome": "WIN"
+  },
+  {
+   "block": "H16_20_USDJPY",
+   "id": 13267,
+   "entry_time": "2026-07-15T20:00:30.070210+00:00",
+   "entry_type": "ny_close_reversal",
+   "pnl_pips": 0.1,
+   "outcome": "BREAKEVEN"
+  },
+  {
+   "block": "H16_20_USDJPY",
+   "id": 12620,
+   "entry_time": "2026-07-08T20:00:21.397782+00:00",
+   "entry_type": "ny_close_reversal",
+   "pnl_pips": -7.9,
+   "outcome": "LOSS"
+  },
+  {
+   "block": "H16_20_USDJPY",
+   "id": 12358,
+   "entry_time": "2026-07-06T20:58:35.922309+00:00",
+   "entry_type": "ny_close_reversal",
+   "pnl_pips": -2.4,
+   "outcome": "LOSS"
+  },
+  {
+   "block": "H16_20_USDJPY",
+   "id": 12115,
+   "entry_time": "2026-07-02T19:55:08.339022+00:00",
+   "entry_type": "bb_rsi_reversion",
+   "pnl_pips": 3.6,
+   "outcome": "WIN"
+  },
+  {
+   "block": "H16_20_USDJPY",
+   "id": 12114,
+   "entry_time": "2026-07-02T19:43:53.586564+00:00",
+   "entry_type": "bb_rsi_reversion",
+   "pnl_pips": 4.6,
+   "outcome": "WIN"
+  },
+  {
+   "block": "H16_20_USDJPY",
+   "id": 12099,
+   "entry_time": "2026-07-02T16:41:16.142523+00:00",
+   "entry_type": "bb_rsi_reversion",
+   "pnl_pips": 1.8,
+   "outcome": "WIN"
+  },
+  {
+   "block": "H16_20_USDJPY",
+   "id": 12098,
+   "entry_time": "2026-07-02T16:37:21.329741+00:00",
+   "entry_type": "bb_rsi_reversion",
+   "pnl_pips": 1.8,
+   "outcome": "WIN"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 10134,
+   "entry_time": "2026-06-16T08:14:48.100529+00:00",
+   "entry_type": "zz_pivot_v60_sr",
+   "pnl_pips": -3.8,
+   "outcome": "LOSS"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 9826,
+   "entry_time": "2026-06-12T08:22:25.948835+00:00",
+   "entry_type": "zz_pivot_v60_sr",
+   "pnl_pips": 1.8,
+   "outcome": "WIN"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 8857,
+   "entry_time": "2026-06-05T08:29:16.347068+00:00",
+   "entry_type": "zz_pivot_v60_sr",
+   "pnl_pips": -5.2,
+   "outcome": "LOSS"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 8623,
+   "entry_time": "2026-06-04T07:36:19.682058+00:00",
+   "entry_type": "session_time_bias",
+   "pnl_pips": 0.7,
+   "outcome": "WIN"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 8383,
+   "entry_time": "2026-06-03T08:39:54.210353+00:00",
+   "entry_type": "session_time_bias",
+   "pnl_pips": -6.5,
+   "outcome": "LOSS"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 8385,
+   "entry_time": "2026-06-03T08:40:27.450428+00:00",
+   "entry_type": "session_time_bias",
+   "pnl_pips": -6.6,
+   "outcome": "LOSS"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 8373,
+   "entry_time": "2026-06-03T08:15:05.939904+00:00",
+   "entry_type": "session_time_bias",
+   "pnl_pips": 1.8,
+   "outcome": "WIN"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 8375,
+   "entry_time": "2026-06-03T08:17:03.270398+00:00",
+   "entry_type": "session_time_bias",
+   "pnl_pips": -6.4,
+   "outcome": "LOSS"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 8352,
+   "entry_time": "2026-06-03T07:21:11.127090+00:00",
+   "entry_type": "session_time_bias",
+   "pnl_pips": 0.8,
+   "outcome": "WIN"
+  },
+  {
+   "block": "H7_8_EURUSD",
+   "id": 8349,
+   "entry_time": "2026-06-03T07:01:32.251713+00:00",
+   "entry_type": "session_time_bias",
+   "pnl_pips": -5.3,
+   "outcome": "LOSS"
+  }
+ ],
+ "hour_x_pair_shadow_table": {
+  "EUR_USD_H00": {
+   "N": 67,
+   "wins": 34,
+   "losses": 31,
+   "breakeven": 2,
+   "WR_pct": 50.7,
+   "wilson95_WR": [
+    0.3906,
+    0.6235
+   ],
+   "mean_pnl_pips": -1.737,
+   "median_pnl_pips": 0.6,
+   "sd_pnl_pips": 7.332,
+   "total_pnl_pips": -116.4,
+   "PF": 0.522
+  },
+  "EUR_USD_H01": {
+   "N": 36,
+   "wins": 21,
+   "losses": 12,
+   "breakeven": 3,
+   "WR_pct": 58.3,
+   "wilson95_WR": [
+    0.422,
+    0.7286
+   ],
+   "mean_pnl_pips": 0.222,
+   "median_pnl_pips": 0.8,
+   "sd_pnl_pips": 5.43,
+   "total_pnl_pips": 8.0,
+   "PF": 1.122
+  },
+  "EUR_USD_H02": {
+   "N": 23,
+   "wins": 11,
+   "losses": 7,
+   "breakeven": 5,
+   "WR_pct": 47.8,
+   "wilson95_WR": [
+    0.2924,
+    0.6704
+   ],
+   "mean_pnl_pips": -0.304,
+   "median_pnl_pips": -0.1,
+   "sd_pnl_pips": 3.529,
+   "total_pnl_pips": -7.0,
+   "PF": 0.779
+  },
+  "EUR_USD_H03": {
+   "N": 19,
+   "wins": 9,
+   "losses": 10,
+   "breakeven": 0,
+   "WR_pct": 47.4,
+   "wilson95_WR": [
+    0.2733,
+    0.6829
+   ],
+   "mean_pnl_pips": -0.795,
+   "median_pnl_pips": -1.2,
+   "sd_pnl_pips": 4.69,
+   "total_pnl_pips": -15.1,
+   "PF": 0.671
+  },
+  "EUR_USD_H04": {
+   "N": 26,
+   "wins": 13,
+   "losses": 12,
+   "breakeven": 1,
+   "WR_pct": 50.0,
+   "wilson95_WR": [
+    0.3206,
+    0.6794
+   ],
+   "mean_pnl_pips": 1.119,
+   "median_pnl_pips": 0.8,
+   "sd_pnl_pips": 6.554,
+   "total_pnl_pips": 29.1,
+   "PF": 1.526
+  },
+  "EUR_USD_H05": {
+   "N": 29,
+   "wins": 12,
+   "losses": 16,
+   "breakeven": 1,
+   "WR_pct": 41.4,
+   "wilson95_WR": [
+    0.2551,
+    0.5926
+   ],
+   "mean_pnl_pips": -1.583,
+   "median_pnl_pips": -3.0,
+   "sd_pnl_pips": 4.524,
+   "total_pnl_pips": -45.9,
+   "PF": 0.431
+  },
+  "EUR_USD_H06": {
+   "N": 42,
+   "wins": 21,
+   "losses": 19,
+   "breakeven": 2,
+   "WR_pct": 50.0,
+   "wilson95_WR": [
+    0.3553,
+    0.6447
+   ],
+   "mean_pnl_pips": -0.169,
+   "median_pnl_pips": 0.7,
+   "sd_pnl_pips": 4.969,
+   "total_pnl_pips": -7.1,
+   "PF": 0.921
+  },
+  "EUR_USD_H07": {
+   "N": 153,
+   "wins": 77,
+   "losses": 68,
+   "breakeven": 8,
+   "WR_pct": 50.3,
+   "wilson95_WR": [
+    0.4249,
+    0.5814
+   ],
+   "mean_pnl_pips": -0.196,
+   "median_pnl_pips": 0.6,
+   "sd_pnl_pips": 6.351,
+   "total_pnl_pips": -30.0,
+   "PF": 0.922
+  },
+  "EUR_USD_H08": {
+   "N": 122,
+   "wins": 63,
+   "losses": 48,
+   "breakeven": 11,
+   "WR_pct": 51.6,
+   "wilson95_WR": [
+    0.4286,
+    0.6032
+   ],
+   "mean_pnl_pips": 0.048,
+   "median_pnl_pips": 0.8,
+   "sd_pnl_pips": 6.102,
+   "total_pnl_pips": 5.8,
+   "PF": 1.021
+  },
+  "EUR_USD_H09": {
+   "N": 97,
+   "wins": 43,
+   "losses": 43,
+   "breakeven": 11,
+   "WR_pct": 44.3,
+   "wilson95_WR": [
+    0.3485,
+    0.5424
+   ],
+   "mean_pnl_pips": -1.205,
+   "median_pnl_pips": 0.0,
+   "sd_pnl_pips": 5.886,
+   "total_pnl_pips": -116.9,
+   "PF": 0.551
+  },
+  "EUR_USD_H10": {
+   "N": 122,
+   "wins": 60,
+   "losses": 56,
+   "breakeven": 6,
+   "WR_pct": 49.2,
+   "wilson95_WR": [
+    0.4047,
+    0.5794
+   ],
+   "mean_pnl_pips": -1.029,
+   "median_pnl_pips": -0.1,
+   "sd_pnl_pips": 6.84,
+   "total_pnl_pips": -125.5,
+   "PF": 0.646
+  },
+  "EUR_USD_H11": {
+   "N": 73,
+   "wins": 37,
+   "losses": 33,
+   "breakeven": 3,
+   "WR_pct": 50.7,
+   "wilson95_WR": [
+    0.3947,
+    0.6183
+   ],
+   "mean_pnl_pips": -1.119,
+   "median_pnl_pips": 0.7,
+   "sd_pnl_pips": 5.854,
+   "total_pnl_pips": -81.7,
+   "PF": 0.593
+  },
+  "EUR_USD_H12": {
+   "N": 198,
+   "wins": 89,
+   "losses": 102,
+   "breakeven": 7,
+   "WR_pct": 44.9,
+   "wilson95_WR": [
+    0.3818,
+    0.5191
+   ],
+   "mean_pnl_pips": -2.127,
+   "median_pnl_pips": -1.2,
+   "sd_pnl_pips": 8.562,
+   "total_pnl_pips": -421.2,
+   "PF": 0.484
+  },
+  "EUR_USD_H13": {
+   "N": 149,
+   "wins": 64,
+   "losses": 80,
+   "breakeven": 5,
+   "WR_pct": 43.0,
+   "wilson95_WR": [
+    0.3528,
+    0.5098
+   ],
+   "mean_pnl_pips": -1.343,
+   "median_pnl_pips": -3.0,
+   "sd_pnl_pips": 4.691,
+   "total_pnl_pips": -200.1,
+   "PF": 0.481
+  },
+  "EUR_USD_H14": {
+   "N": 176,
+   "wins": 86,
+   "losses": 88,
+   "breakeven": 2,
+   "WR_pct": 48.9,
+   "wilson95_WR": [
+    0.4158,
+    0.5619
+   ],
+   "mean_pnl_pips": -1.143,
+   "median_pnl_pips": 0.3,
+   "sd_pnl_pips": 5.623,
+   "total_pnl_pips": -201.2,
+   "PF": 0.573
+  },
+  "EUR_USD_H15": {
+   "N": 158,
+   "wins": 78,
+   "losses": 75,
+   "breakeven": 5,
+   "WR_pct": 49.4,
+   "wilson95_WR": [
+    0.4168,
+    0.5708
+   ],
+   "mean_pnl_pips": -1.177,
+   "median_pnl_pips": 0.5,
+   "sd_pnl_pips": 6.801,
+   "total_pnl_pips": -186.0,
+   "PF": 0.607
+  },
+  "EUR_USD_H16": {
+   "N": 97,
+   "wins": 52,
+   "losses": 37,
+   "breakeven": 8,
+   "WR_pct": 53.6,
+   "wilson95_WR": [
+    0.4374,
+    0.6321
+   ],
+   "mean_pnl_pips": 0.108,
+   "median_pnl_pips": 0.8,
+   "sd_pnl_pips": 6.057,
+   "total_pnl_pips": 10.5,
+   "PF": 1.052
+  },
+  "EUR_USD_H17": {
+   "N": 56,
+   "wins": 27,
+   "losses": 24,
+   "breakeven": 5,
+   "WR_pct": 48.2,
+   "wilson95_WR": [
+    0.3567,
+    0.6099
+   ],
+   "mean_pnl_pips": 1.098,
+   "median_pnl_pips": 0.3,
+   "sd_pnl_pips": 5.077,
+   "total_pnl_pips": 61.5,
+   "PF": 1.808
+  },
+  "EUR_USD_H18": {
+   "N": 25,
+   "wins": 8,
+   "losses": 12,
+   "breakeven": 5,
+   "WR_pct": 32.0,
+   "wilson95_WR": [
+    0.1721,
+    0.5159
+   ],
+   "mean_pnl_pips": -0.78,
+   "median_pnl_pips": -0.3,
+   "sd_pnl_pips": 5.187,
+   "total_pnl_pips": -19.5,
+   "PF": 0.637
+  },
+  "EUR_USD_H19": {
+   "N": 17,
+   "wins": 9,
+   "losses": 6,
+   "breakeven": 2,
+   "WR_pct": 52.9,
+   "wilson95_WR": [
+    0.3096,
+    0.7383
+   ],
+   "mean_pnl_pips": 0.206,
+   "median_pnl_pips": 0.7,
+   "sd_pnl_pips": 1.794,
+   "total_pnl_pips": 3.5,
+   "PF": 1.304
+  },
+  "EUR_USD_H20": {
+   "N": 52,
+   "wins": 10,
+   "losses": 31,
+   "breakeven": 11,
+   "WR_pct": 19.2,
+   "wilson95_WR": [
+    0.108,
+    0.319
+   ],
+   "mean_pnl_pips": -1.444,
+   "median_pnl_pips": -1.6,
+   "sd_pnl_pips": 2.441,
+   "total_pnl_pips": -75.1,
+   "PF": 0.201
+  },
+  "EUR_USD_H21": {
+   "N": 60,
+   "wins": 19,
+   "losses": 35,
+   "breakeven": 6,
+   "WR_pct": 31.7,
+   "wilson95_WR": [
+    0.2131,
+    0.4423
+   ],
+   "mean_pnl_pips": -1.435,
+   "median_pnl_pips": -1.3,
+   "sd_pnl_pips": 3.917,
+   "total_pnl_pips": -86.1,
+   "PF": 0.386
+  },
+  "USD_JPY_H00": {
+   "N": 125,
+   "wins": 63,
+   "losses": 57,
+   "breakeven": 5,
+   "WR_pct": 50.4,
+   "wilson95_WR": [
+    0.4175,
+    0.5902
+   ],
+   "mean_pnl_pips": -1.215,
+   "median_pnl_pips": 0.7,
+   "sd_pnl_pips": 6.902,
+   "total_pnl_pips": -151.9,
+   "PF": 0.631
+  },
+  "USD_JPY_H01": {
+   "N": 66,
+   "wins": 27,
+   "losses": 39,
+   "breakeven": 0,
+   "WR_pct": 40.9,
+   "wilson95_WR": [
+    0.2987,
+    0.5295
+   ],
+   "mean_pnl_pips": -2.636,
+   "median_pnl_pips": -1.9,
+   "sd_pnl_pips": 7.192,
+   "total_pnl_pips": -174.0,
+   "PF": 0.378
+  },
+  "USD_JPY_H02": {
+   "N": 62,
+   "wins": 32,
+   "losses": 28,
+   "breakeven": 2,
+   "WR_pct": 51.6,
+   "wilson95_WR": [
+    0.3945,
+    0.6359
+   ],
+   "mean_pnl_pips": -0.545,
+   "median_pnl_pips": 0.8,
+   "sd_pnl_pips": 6.67,
+   "total_pnl_pips": -33.8,
+   "PF": 0.813
+  },
+  "USD_JPY_H03": {
+   "N": 49,
+   "wins": 30,
+   "losses": 15,
+   "breakeven": 4,
+   "WR_pct": 61.2,
+   "wilson95_WR": [
+    0.4725,
+    0.7357
+   ],
+   "mean_pnl_pips": 1.453,
+   "median_pnl_pips": 0.8,
+   "sd_pnl_pips": 6.94,
+   "total_pnl_pips": 71.2,
+   "PF": 1.928
+  },
+  "USD_JPY_H04": {
+   "N": 41,
+   "wins": 19,
+   "losses": 16,
+   "breakeven": 6,
+   "WR_pct": 46.3,
+   "wilson95_WR": [
+    0.3206,
+    0.6125
+   ],
+   "mean_pnl_pips": -0.893,
+   "median_pnl_pips": 0.4,
+   "sd_pnl_pips": 6.836,
+   "total_pnl_pips": -36.6,
+   "PF": 0.678
+  },
+  "USD_JPY_H05": {
+   "N": 45,
+   "wins": 13,
+   "losses": 27,
+   "breakeven": 5,
+   "WR_pct": 28.9,
+   "wilson95_WR": [
+    0.1773,
+    0.4337
+   ],
+   "mean_pnl_pips": -1.66,
+   "median_pnl_pips": -3.0,
+   "sd_pnl_pips": 6.311,
+   "total_pnl_pips": -74.7,
+   "PF": 0.482
+  },
+  "USD_JPY_H06": {
+   "N": 70,
+   "wins": 32,
+   "losses": 31,
+   "breakeven": 7,
+   "WR_pct": 45.7,
+   "wilson95_WR": [
+    0.3457,
+    0.573
+   ],
+   "mean_pnl_pips": -0.737,
+   "median_pnl_pips": 0.4,
+   "sd_pnl_pips": 6.559,
+   "total_pnl_pips": -51.6,
+   "PF": 0.71
+  },
+  "USD_JPY_H07": {
+   "N": 84,
+   "wins": 36,
+   "losses": 45,
+   "breakeven": 3,
+   "WR_pct": 42.9,
+   "wilson95_WR": [
+    0.3282,
+    0.5352
+   ],
+   "mean_pnl_pips": -1.942,
+   "median_pnl_pips": -3.0,
+   "sd_pnl_pips": 7.193,
+   "total_pnl_pips": -163.1,
+   "PF": 0.489
+  },
+  "USD_JPY_H08": {
+   "N": 69,
+   "wins": 33,
+   "losses": 31,
+   "breakeven": 5,
+   "WR_pct": 47.8,
+   "wilson95_WR": [
+    0.3647,
+    0.5941
+   ],
+   "mean_pnl_pips": -2.11,
+   "median_pnl_pips": 0.3,
+   "sd_pnl_pips": 6.903,
+   "total_pnl_pips": -145.6,
+   "PF": 0.416
+  },
+  "USD_JPY_H09": {
+   "N": 77,
+   "wins": 40,
+   "losses": 34,
+   "breakeven": 3,
+   "WR_pct": 51.9,
+   "wilson95_WR": [
+    0.4096,
+    0.6275
+   ],
+   "mean_pnl_pips": -2.574,
+   "median_pnl_pips": 0.7,
+   "sd_pnl_pips": 15.353,
+   "total_pnl_pips": -198.2,
+   "PF": 0.537
+  },
+  "USD_JPY_H10": {
+   "N": 54,
+   "wins": 22,
+   "losses": 27,
+   "breakeven": 5,
+   "WR_pct": 40.7,
+   "wilson95_WR": [
+    0.2868,
+    0.5403
+   ],
+   "mean_pnl_pips": -1.441,
+   "median_pnl_pips": -0.5,
+   "sd_pnl_pips": 8.112,
+   "total_pnl_pips": -77.8,
+   "PF": 0.634
+  },
+  "USD_JPY_H11": {
+   "N": 53,
+   "wins": 22,
+   "losses": 31,
+   "breakeven": 0,
+   "WR_pct": 41.5,
+   "wilson95_WR": [
+    0.2926,
+    0.5491
+   ],
+   "mean_pnl_pips": -2.019,
+   "median_pnl_pips": -3.0,
+   "sd_pnl_pips": 6.468,
+   "total_pnl_pips": -107.0,
+   "PF": 0.442
+  },
+  "USD_JPY_H12": {
+   "N": 185,
+   "wins": 89,
+   "losses": 80,
+   "breakeven": 16,
+   "WR_pct": 48.1,
+   "wilson95_WR": [
+    0.4102,
+    0.5527
+   ],
+   "mean_pnl_pips": -0.81,
+   "median_pnl_pips": 0.4,
+   "sd_pnl_pips": 8.73,
+   "total_pnl_pips": -149.8,
+   "PF": 0.752
+  },
+  "USD_JPY_H13": {
+   "N": 223,
+   "wins": 114,
+   "losses": 99,
+   "breakeven": 10,
+   "WR_pct": 51.1,
+   "wilson95_WR": [
+    0.446,
+    0.5761
+   ],
+   "mean_pnl_pips": -0.6,
+   "median_pnl_pips": 0.7,
+   "sd_pnl_pips": 11.605,
+   "total_pnl_pips": -133.7,
+   "PF": 0.852
+  },
+  "USD_JPY_H14": {
+   "N": 216,
+   "wins": 113,
+   "losses": 90,
+   "breakeven": 13,
+   "WR_pct": 52.3,
+   "wilson95_WR": [
+    0.4567,
+    0.5888
+   ],
+   "mean_pnl_pips": -0.736,
+   "median_pnl_pips": 0.6,
+   "sd_pnl_pips": 8.678,
+   "total_pnl_pips": -158.9,
+   "PF": 0.779
+  },
+  "USD_JPY_H15": {
+   "N": 209,
+   "wins": 104,
+   "losses": 90,
+   "breakeven": 15,
+   "WR_pct": 49.8,
+   "wilson95_WR": [
+    0.4305,
+    0.5648
+   ],
+   "mean_pnl_pips": -0.811,
+   "median_pnl_pips": 0.5,
+   "sd_pnl_pips": 9.33,
+   "total_pnl_pips": -169.6,
+   "PF": 0.773
+  },
+  "USD_JPY_H16": {
+   "N": 117,
+   "wins": 54,
+   "losses": 60,
+   "breakeven": 3,
+   "WR_pct": 46.2,
+   "wilson95_WR": [
+    0.3739,
+    0.5517
+   ],
+   "mean_pnl_pips": -1.499,
+   "median_pnl_pips": -0.7,
+   "sd_pnl_pips": 10.223,
+   "total_pnl_pips": -175.4,
+   "PF": 0.663
+  },
+  "USD_JPY_H17": {
+   "N": 104,
+   "wins": 61,
+   "losses": 29,
+   "breakeven": 14,
+   "WR_pct": 58.7,
+   "wilson95_WR": [
+    0.4905,
+    0.6765
+   ],
+   "mean_pnl_pips": -0.26,
+   "median_pnl_pips": 0.8,
+   "sd_pnl_pips": 8.417,
+   "total_pnl_pips": -27.0,
+   "PF": 0.91
+  },
+  "USD_JPY_H18": {
+   "N": 37,
+   "wins": 17,
+   "losses": 18,
+   "breakeven": 2,
+   "WR_pct": 45.9,
+   "wilson95_WR": [
+    0.3104,
+    0.6162
+   ],
+   "mean_pnl_pips": -0.751,
+   "median_pnl_pips": -0.1,
+   "sd_pnl_pips": 7.408,
+   "total_pnl_pips": -27.8,
+   "PF": 0.745
+  },
+  "USD_JPY_H19": {
+   "N": 37,
+   "wins": 15,
+   "losses": 14,
+   "breakeven": 8,
+   "WR_pct": 40.5,
+   "wilson95_WR": [
+    0.2635,
+    0.5651
+   ],
+   "mean_pnl_pips": -0.641,
+   "median_pnl_pips": 0.0,
+   "sd_pnl_pips": 4.974,
+   "total_pnl_pips": -23.7,
+   "PF": 0.656
+  },
+  "USD_JPY_H20": {
+   "N": 57,
+   "wins": 17,
+   "losses": 36,
+   "breakeven": 4,
+   "WR_pct": 29.8,
+   "wilson95_WR": [
+    0.1953,
+    0.4266
+   ],
+   "mean_pnl_pips": -1.642,
+   "median_pnl_pips": -1.5,
+   "sd_pnl_pips": 5.435,
+   "total_pnl_pips": -93.6,
+   "PF": 0.398
+  },
+  "USD_JPY_H21": {
+   "N": 24,
+   "wins": 8,
+   "losses": 15,
+   "breakeven": 1,
+   "WR_pct": 33.3,
+   "wilson95_WR": [
+    0.1797,
+    0.5329
+   ],
+   "mean_pnl_pips": -11.642,
+   "median_pnl_pips": -2.4,
+   "sd_pnl_pips": 37.336,
+   "total_pnl_pips": -279.4,
+   "PF": 0.103
+  }
+ },
+ "followup_analyses": {
+  "eurusd_late_ny_wr_vs_payoff": {
+   "fisher_exact_WR_block_vs_nonblock_p": 0.000169,
+   "note": "WR deficit is real and survives Bonferroni (6 tests), but it is a payoff-structure difference, not an EV difference",
+   "block": {
+    "avg_win": 3.42,
+    "n_win": 76,
+    "avg_loss": -2.8,
+    "n_loss": 134
+   },
+   "nonblock": {
+    "avg_win": 3.66,
+    "n_win": 801,
+    "avg_loss": -5.67,
+    "n_loss": 782
+   },
+   "by_hour_mean_pnl": {
+    "H17": {
+     "N": 56,
+     "mean": 1.1
+    },
+    "H18": {
+     "N": 25,
+     "mean": -0.78
+    },
+    "H19": {
+     "N": 17,
+     "mean": 0.21
+    },
+    "H20": {
+     "N": 52,
+     "mean": -1.44
+    },
+    "H21": {
+     "N": 60,
+     "mean": -1.43
+    }
+   }
+  },
+  "layer_c_attribution_caveats": {
+   "kalman_d7": "12/12 rows in window 06-03..09-02 are shadow at EVERY hour (incl. non-blocked H00-H06) -> the 2 in-window shadow rows CANNOT be attributed to the hour block",
+   "usdjpy_carry_dip": "has LIVE rows at H01/H04/H06/H07/H10/H22/H23 but shadow rows also exist at non-blocked H14 (07-31) and a same-hour LIVE+shadow pair at H10 (08-20) -> accumulator/dedup shadow-routing confounds attribution. In-window events: 08-07 H13 (-19.1/-19.8 dup 1min apart = 1 event), 08-13 H13 (+10.7), 08-27 H16 (+15.5). If block was the router, suppressed net = +7.1p over ~3 events (dup collapsed) - N far too small for any claim",
+   "price_shock_rev": "pairs AUD_JPY/EUR_GBP only -> never inside USD_JPY/EUR_USD block windows",
+   "weekend_gap_fade": "2 rows, both USD_JPY H21 -> outside all six windows; LATE_NY exemption not exercised in this sample"
+  },
+  "population_context": "the entire shadow book is negative-EV in this window (clean comparators: USD_JPY -1.33 p/trade, EUR_USD -1.24 p/trade). No hour window of either pair is a positive-EV 'winning location' in aggregate."
+ },
+ "verdicts_exploratory": {
+  "_disclaimer": "EXPLORATORY recalibration study, NOT pre-registered numbers. Any gate change requires a separate R1 packet (365d BT or Live N>=30 + Bonferroni + pre-reg LOCK). Buckets: 維持 / 撤去候補 / セル限定免除候補.",
+  "H7_8_EURUSD": {
+   "verdict": "撤去候補 (最有力)",
+   "basis": "calib EV=-2.38 -> now N=275 mean=-0.088 WR=50.9%; block BETTER than clean comparator (Welch p=0.0074 < Bonferroni 0.00833, opposite direction to block premise); diff positive in both period halves (+1.03/+0.93); sign test 7/18 worse = null",
+   "live_cost_today": "zero (no live-qualified EUR_USD cell fires at H7-8)",
+   "r1_needed": "pre-reg forward window on shadow H7-8 EUR_USD (e.g. fresh N>=100, EV>=clean comparator) OR simple gate retirement under Rule-1 doc since removal only re-opens live transfer for future qualified cells"
+  },
+  "H13_USDJPY": {
+   "verdict": "撤去候補 / セル限定免除候補 (carry_dip)",
+   "basis": "calib N=14 EV=-2.486 WR=28.6% -> now N=223 WR=51.1% mean=-0.60 vs complement -1.26 (block better, n.s. p=0.41); sign test 8/20 = null; period split sign-flips (P1 -2.38 / P2 +3.07) -> hour-specific toxicity evidence gone but unstable",
+   "live_cost_today": "usdjpy_carry_dip signals at H13 exist (2 events) but shadow-attribution confounded (see caveats); suppressed net if block-caused: ~-8.4p over 2 events",
+   "r1_needed": "lower-risk path = class exemption of live-qualified cells from static hour blocks (code change, Rule-1 with cell-level pre-reg); whole-block removal needs stability over one more split period"
+  },
+  "H16_20_USDJPY": {
+   "verdict": "維持 (今も負け)",
+   "basis": "calib N=27 WR=18.5% -> now N=352 WR=46.6% mean=-0.99 vs complement -1.23 (indistinguishable, p=0.63); sign test exactly 11/22; P2 block mean -1.81. No evidence hours are WORSE than baseline anymore, but window remains absolutely negative and never shows as winning location",
+   "live_cost_today": "carry_dip 08-27 H16 +15.5p (1 event, attribution confounded); kalman rows not attributable",
+   "r1_needed": "none for keep; if cell exemption class is adopted (H13 path) it covers this window too"
+  },
+  "H11_EURUSD": {
+   "verdict": "維持 (弱い維持 — 唯一 block 側が両期間で複合的に悪化)",
+   "basis": "calib N=9 EV=-4.489 -> now N=73 WR=50.7% mean=-1.12 ~= clean -1.24 (p=0.86); catastrophic calib EV not reproduced, but diff vs complement negative in BOTH periods (-0.20/-0.33, only stable-sign block) and N still smallest of the six",
+   "live_cost_today": "zero",
+   "r1_needed": "more N; revisit when H11 shadow N>=150"
+  },
+  "EURUSD_TOKYO": {
+   "verdict": "維持 (較正数値は死亡、しかし撤去の便益ゼロ + 直近期間で悪化)",
+   "basis": "calib WR=20.4% (N=54) -> now WR=50.0% (N=242) mean=-0.64 vs complement -0.94 (n.s. p=0.46); BUT P2 diff -1.375 with block mean -2.29 (recent deterioration); live cost today zero",
+   "r1_needed": "if ever removed: fresh forward split showing P-diff >= 0 in 2 consecutive periods"
+  },
+  "EURUSD_LATE_NY": {
+   "verdict": "維持 (WR 構造劣位は現存、ただし EV 論拠は消滅 — gate コメントの数値は要更新)",
+   "basis": "calib WR=9.5% -> now WR=34.8% [Wilson 28.7-41.4] vs nonblock 48.5% [46.1-51.0], Fisher p=1.7e-4 (survives Bonferroni) -> WR deficit real; BUT mean pnl -0.55 BETTER than nonblock -0.95 (avg loss -2.80 vs -5.67) -> no EV toxicity. H20-21 are the negative sub-hours (-1.4), H17 positive (+1.1)",
+   "live_cost_today": "zero (weekend_gap_fade already exempt; exemption unexercised in sample - both wg rows USD_JPY H21)",
+   "r1_needed": "if sub-window trim ever proposed (17-19 release, 20-21 keep): needs its own pre-reg; current data N per sub-hour 17-60"
+  }
+ }
+}

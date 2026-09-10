@@ -7,11 +7,30 @@ set -e
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 
-echo "[pre-commit] Running tests..."
-python3 -m pytest "$REPO_ROOT/tests/" -x -q || {
-    echo "[pre-commit] Tests failed. Commit blocked."
-    exit 1
-}
+# docs-only commit は pytest をスキップ (process-meta-audit-2026-09-07 R6/4.1):
+# 全 2,997 テスト無条件実行 (~10 分/コミット税) が background-commit 回避策 →
+# cwd 罠事故 (2026-09-01) の根因だった。KB/md/タスク台帳のみの diff はコード
+# 到達性ゼロ — CI は引き続き全 suite を走らせる (これは pre-commit のみの緩和)。
+DOCS_ONLY=1
+while IFS= read -r f; do
+    case "$f" in
+        knowledge-base/*|*.md|.ai/tasks/*|data/monitoring/*.csv) ;;
+        *) DOCS_ONLY=0; break ;;
+    esac
+done < <(git diff --cached --name-only)
+if [[ -z "$(git diff --cached --name-only)" ]]; then
+    DOCS_ONLY=0  # 空 diff (pathspec commit 等) は従来経路へ
+fi
+
+if [[ "$DOCS_ONLY" == "1" ]]; then
+    echo "[pre-commit] docs-only diff — pytest スキップ (check.py 等は実行)"
+else
+    echo "[pre-commit] Running tests..."
+    python3 -m pytest "$REPO_ROOT/tests/" -x -q || {
+        echo "[pre-commit] Tests failed. Commit blocked."
+        exit 1
+    }
+fi
 
 echo "[pre-commit] Running consistency check..."
 python3 "$REPO_ROOT/scripts/check.py" --quiet || {

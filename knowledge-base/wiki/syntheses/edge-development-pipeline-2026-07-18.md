@@ -60,11 +60,17 @@ Shadow は UTC 固定で削らない (原則 3) は全ステージ共通。
 | **E15+E7 イベントモダリティ** | **phase-0 (E15): S4 完了 → ❌ FAIL 0/6 (2026-07-22、C5×6)。phase-1 (E7): S3 継続** | phase-1: FF gap+データ付録凍結 08-14 / discovery 08-21 / **verdict 08-28** | [[e15-e7-event-modality-prereg-2026-07-18]] §12 — E15 無条件イベント窓は棄却 (BH q=0.05 m=6 通過ゼロ、min p 0.214)。§8 固定分岐で phase-1 は予定続行。registry phase0 = resolved、`e15-e7-event-prereg-phase1-verdict` 監視継続 |
 | **E12 CME 先物 volume flow** | S1 通過 → インフラ稼働中 | 730d backfill 完了 (2026-07-21、7 契約 95,069 行) + 1h capture ライブ (2026-07-24 freshness watch: `cme_bars:*` 全 7 契約 fresh ~18h) | 第 2 モダリティ。歴史ロス懸念は capture 稼働で解消 (registry `r3-market-data-ingest-freshness` が CME 72h stale で TRIGGERED) |
 | E9 通貨 VRP | S1 条件付き | EVZCLS×EURUSD 無料 probe 先行 → 正なら Databento (クレジット 6 ヶ月失効、probe 後にサインアップ) | 第 3 線 |
-| round-4 EUR divergence | S0 (条件付き) | cache 2026-11-15+ 延伸で発火 | registry `ws3-round4-eur-divergence-conditional` |
+| round-4 EUR divergence | S0 (条件付き) | cache 2026-11-15+ 延伸で発火 | registry `ws3-round4-eur-divergence-conditional`。**2026-08-14: 到達経路が不在だったことが判明 → R3 修復済** (ZN=F cache overwrite バグ + 伸長ジョブ新設、[[external-hypothesis-scan-round3-2026-08-14]] §1.1) |
+| **E22 通貨 VRP (IV−RV)** | **S1 通過 → S2 待ち (explore 枠 1/3)** | pre-reg に §2.1 事前コミット節が必須 | 2026-08-14 第3次スキャンで条件付き採用。explore/OOS は無料完結 (EVZCLS 4,529 行、OOS 終端 2025-03-11) だが **forward 無料経路ゼロ** — PASS = 有償データ調達の user 決裁点に到達する意味のみ |
+| **E21 human_signal_stream 帰属分解** | **S1 通過 → S2 診断枠** | OANDA transaction API で標本量実測から | 供給ラインではなく診断。α≈0 でも系統を恒久クローズできる情報価値。M2/M3 直接寄与は小さいと前置済み |
+| E23 中銀声明テキスト差分 | S0 (ゲート付き) | **2026-08-28 (E7 verdict) まで着手禁止** | E7 と multiplicity 二重取りの疑い。wave-6 THA 裁定の継続 |
 | htf_fb×AUD_JPY recheck | S4 待ち (non-load-bearing) | shadow N≥100 or 2027-01-31 stale | projected N 14-41 — 計画に算入しない |
 | shadow 蓄積詰まり診断 | S2 実行中 | 2026-07-18 起動 | 内部母集団の将来 discovery power に影響 — [[shadow-accumulation-blockage-diagnosis-2026-07-18]] |
 
-**WIP 原則の充足状態**: S1-S4 に E1 + イベントモダリティ + E12 の 3 系統 (モダリティ分散: 非価格 sentiment / イベント / 実約定フロー) — 原則充足 ✅
+**WIP 原則の充足状態 (2026-08-14 refresh)**: S1-S4 に E1 + イベントモダリティ (E7) + E12 + #22 ECG + **E22 VRP** + **E21 帰属分解** の 6 系統 — 名目充足 ✅
+
+⚠️ **ただし「名目充足」と「作業可能」は別**: 2026-08-05 (#21 クローズ) 〜 08-14 の 9 日間、S1-S4 の在庫はあったが**全て calendar-lock 待ちで探索アクティブ枠 = 0/3** だった。WIP 原則が防ごうとしているのは在庫ゼロではなく**着手可能な仕事のゼロ**なので、第3次スキャンを期日前倒しで起動した ([[external-hypothesis-scan-round3-2026-08-14]])。
+**運用規則の追補 (2026-08-14)**: 充足判定は「S1-S4 の本数」ではなく **「今日着手できる本数 ≥1」** で行う。lock 待ちのみになったら期日を待たず臨時スキャン (R3)。
 
 ## 6. 責務
 

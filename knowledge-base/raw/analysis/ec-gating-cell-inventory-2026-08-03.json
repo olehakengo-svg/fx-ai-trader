@@ -1,0 +1,1837 @@
+{
+ "_meta": {
+  "purpose": "ledger #22 equity_curve_shadow_gating explore pre-reg - cell inventory (Bonferroni denominator survey)",
+  "date": "2026-08-03",
+  "source": "https://fx-ai-trader.onrender.com/api/demo/trades?status=closed (full pagination, 15008 rows)",
+  "filters": "is_shadow=1, pnl_pips NOT NULL, dedup_violation!=1, XAU excluded, hold>=5s (seed exclusion)",
+  "kept_rows": 11197,
+  "content_note": "METADATA ONLY (N / first_exit / last_exit / span). No P&L or sequence-conditional quantity - P-10 attestation safe",
+  "key_finding": "shadow book epoch = 2026-04-02 (max cell span 4.04mo). Cells meeting frozen eligibility N>=300 AND span>=12mo: ZERO"
+ },
+ "cells": [
+  {
+   "strategy": "ema_trend_scalp",
+   "instrument": "USD_JPY",
+   "n": 518,
+   "first_exit": "2026-04-09T09:49:18.209041+00:00",
+   "last_exit": "2026-05-08T05:51:08.667407+00:00",
+   "span_months": 0.95
+  },
+  {
+   "strategy": "engulfing_bb",
+   "instrument": "EUR_USD",
+   "n": 349,
+   "first_exit": "2026-04-13T08:49:33.154123+00:00",
+   "last_exit": "2026-08-03T00:28:08.181724+00:00",
+   "span_months": 3.67
+  },
+  {
+   "strategy": "session_time_bias",
+   "instrument": "GBP_USD",
+   "n": 328,
+   "first_exit": "2026-04-14T21:04:55.226079+00:00",
+   "last_exit": "2026-07-30T10:30:11.896767+00:00",
+   "span_months": 3.5
+  },
+  {
+   "strategy": "ema_trend_scalp",
+   "instrument": "EUR_USD",
+   "n": 314,
+   "first_exit": "2026-04-10T09:32:23.271062+00:00",
+   "last_exit": "2026-05-07T15:24:28.432996+00:00",
+   "span_months": 0.9
+  },
+  {
+   "strategy": "bb_rsi_reversion",
+   "instrument": "USD_JPY",
+   "n": 313,
+   "first_exit": "2026-04-08T05:50:22.323461+00:00",
+   "last_exit": "2026-06-03T13:50:51.449529+00:00",
+   "span_months": 1.85
+  },
+  {
+   "strategy": "session_time_bias",
+   "instrument": "EUR_USD",
+   "n": 276,
+   "first_exit": "2026-04-15T12:55:07.563811+00:00",
+   "last_exit": "2026-07-30T10:40:22.578560+00:00",
+   "span_months": 3.48
+  },
+  {
+   "strategy": "sr_channel_reversal",
+   "instrument": "USD_JPY",
+   "n": 260,
+   "first_exit": "2026-04-13T01:14:09.106776+00:00",
+   "last_exit": "2026-05-07T19:08:12.416250+00:00",
+   "span_months": 0.81
+  },
+  {
+   "strategy": "fib_reversal",
+   "instrument": "USD_JPY",
+   "n": 245,
+   "first_exit": "2026-04-02T08:57:07.300316+00:00",
+   "last_exit": "2026-06-12T06:46:42.063616+00:00",
+   "span_months": 2.33
+  },
+  {
+   "strategy": "vol_momentum_scalp",
+   "instrument": "GBP_USD",
+   "n": 242,
+   "first_exit": "2026-04-13T14:23:26.648699+00:00",
+   "last_exit": "2026-07-31T18:08:38.013368+00:00",
+   "span_months": 3.59
+  },
+  {
+   "strategy": "ma_regime_switch",
+   "instrument": "USD_JPY",
+   "n": 240,
+   "first_exit": "2026-05-07T21:55:44.789078+00:00",
+   "last_exit": "2026-08-03T03:35:15.408633+00:00",
+   "span_months": 2.87
+  },
+  {
+   "strategy": "fib_reversal",
+   "instrument": "EUR_USD",
+   "n": 219,
+   "first_exit": "2026-04-06T10:05:48.284330+00:00",
+   "last_exit": "2026-06-12T07:20:05.016057+00:00",
+   "span_months": 2.2
+  },
+  {
+   "strategy": "ema_trend_scalp",
+   "instrument": "GBP_USD",
+   "n": 212,
+   "first_exit": "2026-04-14T07:53:19.720092+00:00",
+   "last_exit": "2026-05-08T00:53:13.848837+00:00",
+   "span_months": 0.78
+  },
+  {
+   "strategy": "xs_momentum",
+   "instrument": "GBP_USD",
+   "n": 200,
+   "first_exit": "2026-04-13T00:59:30.447994+00:00",
+   "last_exit": "2026-07-31T18:06:19.644655+00:00",
+   "span_months": 3.6
+  },
+  {
+   "strategy": "sr_channel_reversal",
+   "instrument": "GBP_USD",
+   "n": 200,
+   "first_exit": "2026-04-13T16:43:51.355339+00:00",
+   "last_exit": "2026-06-16T05:49:42.064979+00:00",
+   "span_months": 2.09
+  },
+  {
+   "strategy": "sr_break_retest",
+   "instrument": "GBP_USD",
+   "n": 177,
+   "first_exit": "2026-04-20T04:18:09.865565+00:00",
+   "last_exit": "2026-07-31T17:38:52.308127+00:00",
+   "span_months": 3.37
+  },
+  {
+   "strategy": "xs_momentum",
+   "instrument": "EUR_USD",
+   "n": 174,
+   "first_exit": "2026-04-23T15:05:11.806195+00:00",
+   "last_exit": "2026-07-30T17:16:05.517416+00:00",
+   "span_months": 3.22
+  },
+  {
+   "strategy": "sr_break_retest",
+   "instrument": "EUR_JPY",
+   "n": 163,
+   "first_exit": "2026-04-15T16:21:42.326521+00:00",
+   "last_exit": "2026-07-31T10:25:18.484226+00:00",
+   "span_months": 3.51
+  },
+  {
+   "strategy": "engulfing_bb",
+   "instrument": "USD_JPY",
+   "n": 161,
+   "first_exit": "2026-04-13T01:23:57.018262+00:00",
+   "last_exit": "2026-05-07T19:19:50.658621+00:00",
+   "span_months": 0.81
+  },
+  {
+   "strategy": "sr_break_retest",
+   "instrument": "USD_JPY",
+   "n": 159,
+   "first_exit": "2026-04-07T12:46:12.822459+00:00",
+   "last_exit": "2026-08-03T05:03:14.049134+00:00",
+   "span_months": 3.87
+  },
+  {
+   "strategy": "engulfing_bb",
+   "instrument": "GBP_USD",
+   "n": 158,
+   "first_exit": "2026-04-14T08:51:40.855598+00:00",
+   "last_exit": "2026-07-30T18:44:04.271860+00:00",
+   "span_months": 3.53
+  },
+  {
+   "strategy": "vol_momentum_scalp",
+   "instrument": "USD_JPY",
+   "n": 150,
+   "first_exit": "2026-04-13T07:52:31.425675+00:00",
+   "last_exit": "2026-07-31T17:57:59.973013+00:00",
+   "span_months": 3.59
+  },
+  {
+   "strategy": "london_breakout",
+   "instrument": "GBP_USD",
+   "n": 149,
+   "first_exit": "2026-05-07T07:18:59.640443+00:00",
+   "last_exit": "2026-07-31T09:04:31.059886+00:00",
+   "span_months": 2.79
+  },
+  {
+   "strategy": "sr_break_retest",
+   "instrument": "GBP_JPY",
+   "n": 147,
+   "first_exit": "2026-04-14T17:29:20.957249+00:00",
+   "last_exit": "2026-07-31T15:21:17.731990+00:00",
+   "span_months": 3.55
+  },
+  {
+   "strategy": "xs_momentum",
+   "instrument": "USD_JPY",
+   "n": 141,
+   "first_exit": "2026-04-13T04:00:28.999711+00:00",
+   "last_exit": "2026-07-31T17:33:02.039187+00:00",
+   "span_months": 3.6
+  },
+  {
+   "strategy": "stoch_trend_pullback",
+   "instrument": "USD_JPY",
+   "n": 139,
+   "first_exit": "2026-04-02T09:25:02.739083+00:00",
+   "last_exit": "2026-05-05T02:55:25.097038+00:00",
+   "span_months": 1.08
+  },
+  {
+   "strategy": "sr_fib_confluence",
+   "instrument": "GBP_USD",
+   "n": 131,
+   "first_exit": "2026-04-10T21:45:00.092183+00:00",
+   "last_exit": "2026-06-17T18:00:01.321780+00:00",
+   "span_months": 2.23
+  },
+  {
+   "strategy": "bb_rsi_reversion",
+   "instrument": "EUR_USD",
+   "n": 129,
+   "first_exit": "2026-04-08T10:13:10.308152+00:00",
+   "last_exit": "2026-06-03T14:57:35.448393+00:00",
+   "span_months": 1.85
+  },
+  {
+   "strategy": "dual_sr_bounce",
+   "instrument": "EUR_JPY",
+   "n": 128,
+   "first_exit": "2026-04-14T18:01:49.090215+00:00",
+   "last_exit": "2026-08-03T00:27:53.565201+00:00",
+   "span_months": 3.62
+  },
+  {
+   "strategy": "sr_fib_confluence",
+   "instrument": "EUR_USD",
+   "n": 115,
+   "first_exit": "2026-04-03T10:29:42.201930+00:00",
+   "last_exit": "2026-06-17T15:41:01.500295+00:00",
+   "span_months": 2.47
+  },
+  {
+   "strategy": "london_breakout",
+   "instrument": "EUR_USD",
+   "n": 111,
+   "first_exit": "2026-05-07T09:10:54.125728+00:00",
+   "last_exit": "2026-07-24T10:40:15.674019+00:00",
+   "span_months": 2.56
+  },
+  {
+   "strategy": "vol_surge_detector",
+   "instrument": "USD_JPY",
+   "n": 110,
+   "first_exit": "2026-04-09T11:53:34.566863+00:00",
+   "last_exit": "2026-07-27T00:20:45.525257+00:00",
+   "span_months": 3.57
+  },
+  {
+   "strategy": "gbp_deep_pullback",
+   "instrument": "GBP_USD",
+   "n": 109,
+   "first_exit": "2026-04-30T11:54:21.844500+00:00",
+   "last_exit": "2026-07-30T14:04:57.083317+00:00",
+   "span_months": 2.99
+  },
+  {
+   "strategy": "streak_reversal",
+   "instrument": "USD_JPY",
+   "n": 103,
+   "first_exit": "2026-04-27T01:51:27.910903+00:00",
+   "last_exit": "2026-08-03T03:20:20.942759+00:00",
+   "span_months": 3.22
+  },
+  {
+   "strategy": "dt_sr_channel_reversal",
+   "instrument": "GBP_JPY",
+   "n": 94,
+   "first_exit": "2026-04-15T11:47:56.023029+00:00",
+   "last_exit": "2026-07-30T12:06:11.927022+00:00",
+   "span_months": 3.48
+  },
+  {
+   "strategy": "dt_sr_channel_reversal",
+   "instrument": "GBP_USD",
+   "n": 93,
+   "first_exit": "2026-04-13T01:15:41.477987+00:00",
+   "last_exit": "2026-07-31T14:36:34.572185+00:00",
+   "span_months": 3.6
+  },
+  {
+   "strategy": "dt_sr_channel_reversal",
+   "instrument": "EUR_JPY",
+   "n": 93,
+   "first_exit": "2026-04-15T11:46:54.758661+00:00",
+   "last_exit": "2026-07-27T18:01:40.749594+00:00",
+   "span_months": 3.39
+  },
+  {
+   "strategy": "vol_surge_detector",
+   "instrument": "EUR_USD",
+   "n": 92,
+   "first_exit": "2026-04-10T09:07:12.189307+00:00",
+   "last_exit": "2026-08-03T00:54:49.913373+00:00",
+   "span_months": 3.77
+  },
+  {
+   "strategy": "dt_sr_channel_reversal",
+   "instrument": "EUR_USD",
+   "n": 92,
+   "first_exit": "2026-04-15T16:32:25.657232+00:00",
+   "last_exit": "2026-07-31T14:46:43.042003+00:00",
+   "span_months": 3.51
+  },
+  {
+   "strategy": "eurgbp_daily_mr",
+   "instrument": "EUR_GBP",
+   "n": 87,
+   "first_exit": "2026-04-21T17:31:34.321990+00:00",
+   "last_exit": "2026-07-30T19:31:40.771695+00:00",
+   "span_months": 3.29
+  },
+  {
+   "strategy": "dt_bb_rsi_mr",
+   "instrument": "GBP_USD",
+   "n": 84,
+   "first_exit": "2026-04-15T05:00:08.901047+00:00",
+   "last_exit": "2026-07-31T12:58:47.709913+00:00",
+   "span_months": 3.53
+  },
+  {
+   "strategy": "vix_carry_unwind",
+   "instrument": "USD_JPY",
+   "n": 83,
+   "first_exit": "2026-04-14T11:14:41.521008+00:00",
+   "last_exit": "2026-08-03T02:08:11.641869+00:00",
+   "span_months": 3.63
+  },
+  {
+   "strategy": "trend_rebound",
+   "instrument": "USD_JPY",
+   "n": 82,
+   "first_exit": "2026-04-15T10:23:10.291132+00:00",
+   "last_exit": "2026-07-29T15:18:33.055883+00:00",
+   "span_months": 3.46
+  },
+  {
+   "strategy": "dual_sr_bounce",
+   "instrument": "GBP_JPY",
+   "n": 82,
+   "first_exit": "2026-04-16T02:43:22.470848+00:00",
+   "last_exit": "2026-07-29T13:58:33.135178+00:00",
+   "span_months": 3.43
+  },
+  {
+   "strategy": "dt_sr_channel_reversal",
+   "instrument": "USD_JPY",
+   "n": 73,
+   "first_exit": "2026-04-14T00:48:36.248453+00:00",
+   "last_exit": "2026-07-30T18:27:34.021648+00:00",
+   "span_months": 3.54
+  },
+  {
+   "strategy": "dual_sr_bounce",
+   "instrument": "USD_JPY",
+   "n": 73,
+   "first_exit": "2026-04-13T11:00:04.433325+00:00",
+   "last_exit": "2026-07-30T04:15:50.677342+00:00",
+   "span_months": 3.54
+  },
+  {
+   "strategy": "bb_rsi_reversion",
+   "instrument": "GBP_USD",
+   "n": 73,
+   "first_exit": "2026-04-13T12:41:22.631666+00:00",
+   "last_exit": "2026-05-08T05:30:09.261359+00:00",
+   "span_months": 0.81
+  },
+  {
+   "strategy": "wick_imbalance_reversion",
+   "instrument": "GBP_JPY",
+   "n": 68,
+   "first_exit": "2026-04-27T21:11:10.260608+00:00",
+   "last_exit": "2026-07-31T07:17:59.822672+00:00",
+   "span_months": 3.1
+  },
+  {
+   "strategy": "trendline_sweep",
+   "instrument": "EUR_GBP",
+   "n": 67,
+   "first_exit": "2026-05-20T10:27:17.697500+00:00",
+   "last_exit": "2026-07-31T07:24:00.498681+00:00",
+   "span_months": 2.36
+  },
+  {
+   "strategy": "lin_reg_channel",
+   "instrument": "EUR_USD",
+   "n": 67,
+   "first_exit": "2026-04-06T11:14:37.815788+00:00",
+   "last_exit": "2026-07-31T00:33:40.571595+00:00",
+   "span_months": 3.8
+  },
+  {
+   "strategy": "wick_imbalance_reversion",
+   "instrument": "EUR_JPY",
+   "n": 67,
+   "first_exit": "2026-04-27T07:51:43.225854+00:00",
+   "last_exit": "2026-07-30T12:44:44.263882+00:00",
+   "span_months": 3.09
+  },
+  {
+   "strategy": "sr_channel_reversal",
+   "instrument": "EUR_USD",
+   "n": 67,
+   "first_exit": "2026-04-13T09:35:15.934926+00:00",
+   "last_exit": "2026-05-07T15:52:07.870440+00:00",
+   "span_months": 0.8
+  },
+  {
+   "strategy": "vol_surge_detector",
+   "instrument": "GBP_USD",
+   "n": 66,
+   "first_exit": "2026-04-13T00:04:04.505620+00:00",
+   "last_exit": "2026-07-28T00:25:34.625541+00:00",
+   "span_months": 3.48
+  },
+  {
+   "strategy": "dual_sr_bounce",
+   "instrument": "GBP_USD",
+   "n": 65,
+   "first_exit": "2026-04-14T17:24:09.774163+00:00",
+   "last_exit": "2026-07-31T07:50:15.868414+00:00",
+   "span_months": 3.53
+  },
+  {
+   "strategy": "trendline_sweep",
+   "instrument": "GBP_USD",
+   "n": 64,
+   "first_exit": "2026-04-09T11:40:49.947235+00:00",
+   "last_exit": "2026-07-31T15:15:36.859097+00:00",
+   "span_months": 3.72
+  },
+  {
+   "strategy": "macdh_reversal",
+   "instrument": "USD_JPY",
+   "n": 62,
+   "first_exit": "2026-04-02T09:44:02.849303+00:00",
+   "last_exit": "2026-07-31T20:47:35.919235+00:00",
+   "span_months": 3.96
+  },
+  {
+   "strategy": "vol_spike_mr",
+   "instrument": "USD_JPY",
+   "n": 61,
+   "first_exit": "2026-04-15T01:02:11.885325+00:00",
+   "last_exit": "2026-07-31T03:41:59.954741+00:00",
+   "span_months": 3.52
+  },
+  {
+   "strategy": "wick_imbalance_reversion",
+   "instrument": "GBP_USD",
+   "n": 61,
+   "first_exit": "2026-04-17T06:31:22.593678+00:00",
+   "last_exit": "2026-07-29T11:27:22.410005+00:00",
+   "span_months": 3.39
+  },
+  {
+   "strategy": "fib_reversal",
+   "instrument": "GBP_USD",
+   "n": 61,
+   "first_exit": "2026-04-16T16:33:37.370328+00:00",
+   "last_exit": "2026-06-12T06:51:10.549918+00:00",
+   "span_months": 1.86
+  },
+  {
+   "strategy": "dt_bb_rsi_mr",
+   "instrument": "EUR_USD",
+   "n": 58,
+   "first_exit": "2026-04-09T09:08:14.791636+00:00",
+   "last_exit": "2026-07-31T13:22:16.536123+00:00",
+   "span_months": 3.72
+  },
+  {
+   "strategy": "squeeze_release_momentum",
+   "instrument": "GBP_USD",
+   "n": 58,
+   "first_exit": "2026-04-10T03:32:32.212408+00:00",
+   "last_exit": "2026-07-30T05:55:29.945401+00:00",
+   "span_months": 3.65
+  },
+  {
+   "strategy": "ema_trend_scalp",
+   "instrument": "USD_CHF",
+   "n": 56,
+   "first_exit": "2026-05-20T13:08:17.750550+00:00",
+   "last_exit": "2026-06-12T06:30:39.368806+00:00",
+   "span_months": 0.75
+  },
+  {
+   "strategy": "ema200_trend_reversal",
+   "instrument": "USD_JPY",
+   "n": 55,
+   "first_exit": "2026-04-13T18:11:24.904411+00:00",
+   "last_exit": "2026-07-30T07:30:08.234616+00:00",
+   "span_months": 3.53
+  },
+  {
+   "strategy": "dt_sr_channel_reversal",
+   "instrument": "EUR_GBP",
+   "n": 54,
+   "first_exit": "2026-05-28T06:46:31.664849+00:00",
+   "last_exit": "2026-08-03T05:31:22.209795+00:00",
+   "span_months": 2.2
+  },
+  {
+   "strategy": "bb_squeeze_breakout",
+   "instrument": "USD_JPY",
+   "n": 53,
+   "first_exit": "2026-04-13T19:03:00.305818+00:00",
+   "last_exit": "2026-05-05T19:00:07.499577+00:00",
+   "span_months": 0.72
+  },
+  {
+   "strategy": "wick_imbalance_reversion",
+   "instrument": "USD_JPY",
+   "n": 52,
+   "first_exit": "2026-04-22T13:37:15.492761+00:00",
+   "last_exit": "2026-07-31T21:45:00.075105+00:00",
+   "span_months": 3.3
+  },
+  {
+   "strategy": "trendline_sweep",
+   "instrument": "EUR_USD",
+   "n": 51,
+   "first_exit": "2026-04-15T12:02:56.447814+00:00",
+   "last_exit": "2026-07-22T13:21:17.770093+00:00",
+   "span_months": 3.22
+  },
+  {
+   "strategy": "bb_squeeze_breakout",
+   "instrument": "EUR_USD",
+   "n": 51,
+   "first_exit": "2026-04-14T07:49:46.953682+00:00",
+   "last_exit": "2026-05-06T13:02:09.349355+00:00",
+   "span_months": 0.73
+  },
+  {
+   "strategy": "wick_imbalance_reversion",
+   "instrument": "EUR_USD",
+   "n": 50,
+   "first_exit": "2026-04-20T20:03:28.461585+00:00",
+   "last_exit": "2026-07-31T17:25:55.918352+00:00",
+   "span_months": 3.35
+  },
+  {
+   "strategy": "sr_fib_confluence",
+   "instrument": "GBP_JPY",
+   "n": 50,
+   "first_exit": "2026-04-14T17:29:20.846858+00:00",
+   "last_exit": "2026-05-08T00:53:57.019891+00:00",
+   "span_months": 0.77
+  },
+  {
+   "strategy": "ob_retest",
+   "instrument": "USD_JPY",
+   "n": 49,
+   "first_exit": "2026-05-07T08:00:39.736810+00:00",
+   "last_exit": "2026-07-31T18:21:47.140534+00:00",
+   "span_months": 2.81
+  },
+  {
+   "strategy": "xs_momentum_rsi",
+   "instrument": "USD_JPY",
+   "n": 49,
+   "first_exit": "2026-05-20T15:46:22.124184+00:00",
+   "last_exit": "2026-07-31T17:33:02.045414+00:00",
+   "span_months": 2.37
+  },
+  {
+   "strategy": "sr_fib_confluence",
+   "instrument": "EUR_JPY",
+   "n": 49,
+   "first_exit": "2026-04-15T11:49:58.892428+00:00",
+   "last_exit": "2026-05-06T15:08:50.352881+00:00",
+   "span_months": 0.69
+  },
+  {
+   "strategy": "squeeze_release_momentum",
+   "instrument": "EUR_USD",
+   "n": 48,
+   "first_exit": "2026-05-29T14:55:30.200518+00:00",
+   "last_exit": "2026-08-03T01:00:10.156853+00:00",
+   "span_months": 2.15
+  },
+  {
+   "strategy": "london_breakout",
+   "instrument": "USD_CHF",
+   "n": 47,
+   "first_exit": "2026-05-19T09:58:28.544342+00:00",
+   "last_exit": "2026-07-02T11:01:43.807696+00:00",
+   "span_months": 1.45
+  },
+  {
+   "strategy": "sr_channel_reversal",
+   "instrument": "USD_CHF",
+   "n": 47,
+   "first_exit": "2026-05-18T10:13:39.145922+00:00",
+   "last_exit": "2026-06-16T03:52:33.623226+00:00",
+   "span_months": 0.94
+  },
+  {
+   "strategy": "sr_fib_confluence",
+   "instrument": "USD_JPY",
+   "n": 47,
+   "first_exit": "2026-04-03T08:01:29.200638+00:00",
+   "last_exit": "2026-05-07T09:00:42.160774+00:00",
+   "span_months": 1.12
+  },
+  {
+   "strategy": "sr_anti_hunt_bounce",
+   "instrument": "EUR_USD",
+   "n": 43,
+   "first_exit": "2026-05-07T13:03:13.551494+00:00",
+   "last_exit": "2026-07-31T17:45:48.736399+00:00",
+   "span_months": 2.8
+  },
+  {
+   "strategy": "sr_anti_hunt_bounce",
+   "instrument": "EUR_JPY",
+   "n": 42,
+   "first_exit": "2026-04-28T13:41:20.518280+00:00",
+   "last_exit": "2026-07-31T08:55:34.209739+00:00",
+   "span_months": 3.08
+  },
+  {
+   "strategy": "sr_anti_hunt_bounce",
+   "instrument": "USD_JPY",
+   "n": 39,
+   "first_exit": "2026-04-28T09:23:26.492885+00:00",
+   "last_exit": "2026-07-31T06:07:57.649322+00:00",
+   "span_months": 3.08
+  },
+  {
+   "strategy": "dual_sr_bounce",
+   "instrument": "EUR_USD",
+   "n": 39,
+   "first_exit": "2026-05-01T07:21:49.639305+00:00",
+   "last_exit": "2026-07-24T16:59:33.007365+00:00",
+   "span_months": 2.77
+  },
+  {
+   "strategy": "sr_anti_hunt_bounce",
+   "instrument": "GBP_JPY",
+   "n": 38,
+   "first_exit": "2026-04-29T21:20:03.030242+00:00",
+   "last_exit": "2026-07-31T08:55:34.219403+00:00",
+   "span_months": 3.04
+  },
+  {
+   "strategy": "dt_sr_channel_reversal",
+   "instrument": "AUD_JPY",
+   "n": 38,
+   "first_exit": "2026-07-10T11:09:21.920288+00:00",
+   "last_exit": "2026-07-31T03:11:06.365732+00:00",
+   "span_months": 0.68
+  },
+  {
+   "strategy": "three_bar_reversal",
+   "instrument": "EUR_USD",
+   "n": 38,
+   "first_exit": "2026-05-04T16:39:32.804591+00:00",
+   "last_exit": "2026-07-30T15:12:15.577202+00:00",
+   "span_months": 2.86
+  },
+  {
+   "strategy": "stoch_trend_pullback",
+   "instrument": "EUR_USD",
+   "n": 36,
+   "first_exit": "2026-04-10T08:46:28.743574+00:00",
+   "last_exit": "2026-05-05T12:37:21.073344+00:00",
+   "span_months": 0.83
+  },
+  {
+   "strategy": "ob_retest",
+   "instrument": "EUR_USD",
+   "n": 35,
+   "first_exit": "2026-05-19T05:51:07.847556+00:00",
+   "last_exit": "2026-07-13T14:53:01.355583+00:00",
+   "span_months": 1.82
+  },
+  {
+   "strategy": "dual_sr_bounce",
+   "instrument": "AUD_JPY",
+   "n": 34,
+   "first_exit": "2026-07-10T08:06:46.859815+00:00",
+   "last_exit": "2026-07-31T17:28:16.748096+00:00",
+   "span_months": 0.7
+  },
+  {
+   "strategy": "donchian_momentum_breakout",
+   "instrument": "AUD_JPY",
+   "n": 32,
+   "first_exit": "2026-05-21T21:10:47.413673+00:00",
+   "last_exit": "2026-07-24T12:39:45.482279+00:00",
+   "span_months": 2.09
+  },
+  {
+   "strategy": "donchian_momentum_breakout",
+   "instrument": "NZD_USD",
+   "n": 31,
+   "first_exit": "2026-05-20T16:33:05.025776+00:00",
+   "last_exit": "2026-08-03T02:13:04.054736+00:00",
+   "span_months": 2.44
+  },
+  {
+   "strategy": "trend_rebound",
+   "instrument": "EUR_USD",
+   "n": 31,
+   "first_exit": "2026-04-10T09:53:55.401947+00:00",
+   "last_exit": "2026-07-31T17:24:47.270488+00:00",
+   "span_months": 3.69
+  },
+  {
+   "strategy": "v_reversal",
+   "instrument": "USD_JPY",
+   "n": 31,
+   "first_exit": "2026-04-16T03:04:48.270602+00:00",
+   "last_exit": "2026-07-23T12:42:06.712949+00:00",
+   "span_months": 3.23
+  },
+  {
+   "strategy": "macdh_reversal",
+   "instrument": "EUR_USD",
+   "n": 30,
+   "first_exit": "2026-04-06T09:26:11.819250+00:00",
+   "last_exit": "2026-08-03T04:43:11.212252+00:00",
+   "span_months": 3.9
+  },
+  {
+   "strategy": "rsk_gbpjpy_reversion",
+   "instrument": "GBP_JPY",
+   "n": 30,
+   "first_exit": "2026-04-30T08:21:18.968454+00:00",
+   "last_exit": "2026-07-30T16:03:24.237295+00:00",
+   "span_months": 3.0
+  },
+  {
+   "strategy": "dt_bb_rsi_mr",
+   "instrument": "USD_JPY",
+   "n": 30,
+   "first_exit": "2026-04-13T12:45:55.335388+00:00",
+   "last_exit": "2026-07-29T12:16:09.086584+00:00",
+   "span_months": 3.51
+  },
+  {
+   "strategy": "stoch_trend_pullback",
+   "instrument": "GBP_USD",
+   "n": 30,
+   "first_exit": "2026-04-13T00:20:26.000183+00:00",
+   "last_exit": "2026-05-04T09:41:27.136183+00:00",
+   "span_months": 0.7
+  },
+  {
+   "strategy": "london_fix_reversal",
+   "instrument": "GBP_USD",
+   "n": 29,
+   "first_exit": "2026-04-21T16:30:00.288471+00:00",
+   "last_exit": "2026-07-24T16:51:57.136677+00:00",
+   "span_months": 3.09
+  },
+  {
+   "strategy": "sr_break_retest",
+   "instrument": "AUD_JPY",
+   "n": 28,
+   "first_exit": "2026-07-10T08:30:15.753736+00:00",
+   "last_exit": "2026-07-31T09:58:14.854018+00:00",
+   "span_months": 0.69
+  },
+  {
+   "strategy": "ob_retest",
+   "instrument": "GBP_USD",
+   "n": 26,
+   "first_exit": "2026-05-12T11:45:35.375670+00:00",
+   "last_exit": "2026-07-14T14:07:41.218703+00:00",
+   "span_months": 2.07
+  },
+  {
+   "strategy": "london_breakout",
+   "instrument": "USD_JPY",
+   "n": 24,
+   "first_exit": "2026-06-03T08:16:10.280670+00:00",
+   "last_exit": "2026-07-31T09:58:11.570021+00:00",
+   "span_months": 1.91
+  },
+  {
+   "strategy": "three_bar_reversal",
+   "instrument": "GBP_USD",
+   "n": 24,
+   "first_exit": "2026-05-07T16:39:12.561747+00:00",
+   "last_exit": "2026-07-30T11:42:57.331572+00:00",
+   "span_months": 2.75
+  },
+  {
+   "strategy": "orb_trap",
+   "instrument": "EUR_USD",
+   "n": 24,
+   "first_exit": "2026-04-08T16:43:16.397815+00:00",
+   "last_exit": "2026-07-30T09:09:55.665776+00:00",
+   "span_months": 3.7
+  },
+  {
+   "strategy": "turtle_soup",
+   "instrument": "GBP_USD",
+   "n": 23,
+   "first_exit": "2026-05-07T18:12:15.994688+00:00",
+   "last_exit": "2026-07-31T14:50:18.579186+00:00",
+   "span_months": 2.79
+  },
+  {
+   "strategy": "vsg_jpy_reversal",
+   "instrument": "EUR_JPY",
+   "n": 23,
+   "first_exit": "2026-04-29T09:29:01.515393+00:00",
+   "last_exit": "2026-07-31T08:13:26.782337+00:00",
+   "span_months": 3.05
+  },
+  {
+   "strategy": "bb_rsi_reversion",
+   "instrument": "USD_CHF",
+   "n": 22,
+   "first_exit": "2026-05-18T13:16:27.251481+00:00",
+   "last_exit": "2026-06-04T13:30:48.026929+00:00",
+   "span_months": 0.56
+  },
+  {
+   "strategy": "mtf_trend_follow_scalp",
+   "instrument": "EUR_USD",
+   "n": 21,
+   "first_exit": "2026-05-04T13:20:28.245314+00:00",
+   "last_exit": "2026-07-31T13:18:58.190305+00:00",
+   "span_months": 2.89
+  },
+  {
+   "strategy": "mtf_trend_follow_scalp",
+   "instrument": "USD_JPY",
+   "n": 21,
+   "first_exit": "2026-04-30T07:53:52.966484+00:00",
+   "last_exit": "2026-07-30T20:44:48.625245+00:00",
+   "span_months": 3.01
+  },
+  {
+   "strategy": "donchian_momentum_breakout",
+   "instrument": "USD_JPY",
+   "n": 20,
+   "first_exit": "2026-05-26T22:53:08.389998+00:00",
+   "last_exit": "2026-07-28T15:12:31.586563+00:00",
+   "span_months": 2.06
+  },
+  {
+   "strategy": "vwap_mean_reversion",
+   "instrument": "GBP_JPY",
+   "n": 20,
+   "first_exit": "2026-04-21T09:10:18.221424+00:00",
+   "last_exit": "2026-07-16T07:42:08.082946+00:00",
+   "span_months": 2.82
+  },
+  {
+   "strategy": "fib_reversal",
+   "instrument": "USD_CHF",
+   "n": 19,
+   "first_exit": "2026-05-18T13:35:12.987590+00:00",
+   "last_exit": "2026-06-09T14:10:54.623523+00:00",
+   "span_months": 0.72
+  },
+  {
+   "strategy": "ema_pullback",
+   "instrument": "USD_JPY",
+   "n": 19,
+   "first_exit": "2026-04-09T08:43:52.217969+00:00",
+   "last_exit": "2026-05-06T13:04:00.960683+00:00",
+   "span_months": 0.89
+  },
+  {
+   "strategy": "bb_squeeze_breakout",
+   "instrument": "GBP_USD",
+   "n": 19,
+   "first_exit": "2026-04-14T14:24:25.350740+00:00",
+   "last_exit": "2026-05-05T20:02:33.164537+00:00",
+   "span_months": 0.7
+  },
+  {
+   "strategy": "orb_trap",
+   "instrument": "GBP_USD",
+   "n": 18,
+   "first_exit": "2026-04-20T09:28:28.883934+00:00",
+   "last_exit": "2026-07-31T08:25:15.951006+00:00",
+   "span_months": 3.35
+  },
+  {
+   "strategy": "donchian_momentum_breakout",
+   "instrument": "AUD_USD",
+   "n": 18,
+   "first_exit": "2026-05-25T07:18:46.207858+00:00",
+   "last_exit": "2026-07-31T01:15:24.414601+00:00",
+   "span_months": 2.19
+  },
+  {
+   "strategy": "intraday_seasonality",
+   "instrument": "GBP_USD",
+   "n": 18,
+   "first_exit": "2026-04-20T21:04:55.210727+00:00",
+   "last_exit": "2026-07-31T00:11:08.341166+00:00",
+   "span_months": 3.32
+  },
+  {
+   "strategy": "london_fix_reversal",
+   "instrument": "EUR_USD",
+   "n": 18,
+   "first_exit": "2026-04-22T15:59:47.932649+00:00",
+   "last_exit": "2026-07-27T16:56:05.416971+00:00",
+   "span_months": 3.16
+  },
+  {
+   "strategy": "vwap_mean_reversion",
+   "instrument": "GBP_USD",
+   "n": 16,
+   "first_exit": "2026-04-21T08:08:50.676704+00:00",
+   "last_exit": "2026-07-31T11:02:32.381608+00:00",
+   "span_months": 3.32
+  },
+  {
+   "strategy": "ema_cross",
+   "instrument": "USD_JPY",
+   "n": 16,
+   "first_exit": "2026-04-02T10:02:05.170360+00:00",
+   "last_exit": "2026-05-05T07:59:57.265061+00:00",
+   "span_months": 1.08
+  },
+  {
+   "strategy": "vwap_mean_reversion",
+   "instrument": "EUR_JPY",
+   "n": 15,
+   "first_exit": "2026-04-20T07:45:45.452838+00:00",
+   "last_exit": "2026-07-30T08:32:50.765670+00:00",
+   "span_months": 3.32
+  },
+  {
+   "strategy": "three_bar_reversal",
+   "instrument": "USD_JPY",
+   "n": 15,
+   "first_exit": "2026-04-14T07:42:35.681655+00:00",
+   "last_exit": "2026-07-28T13:28:22.684998+00:00",
+   "span_months": 3.46
+  },
+  {
+   "strategy": "inducement_ob",
+   "instrument": "GBP_USD",
+   "n": 15,
+   "first_exit": "2026-04-14T06:43:23.557264+00:00",
+   "last_exit": "2026-07-22T06:27:58.699431+00:00",
+   "span_months": 3.25
+  },
+  {
+   "strategy": "sr_fib_confluence",
+   "instrument": "EUR_GBP",
+   "n": 15,
+   "first_exit": "2026-04-06T14:04:53.947256+00:00",
+   "last_exit": "2026-06-17T07:59:55.916131+00:00",
+   "span_months": 2.36
+  },
+  {
+   "strategy": "vwap_mean_reversion",
+   "instrument": "EUR_USD",
+   "n": 14,
+   "first_exit": "2026-04-16T08:25:07.526207+00:00",
+   "last_exit": "2026-07-31T11:42:44.220814+00:00",
+   "span_months": 3.49
+  },
+  {
+   "strategy": "macd_rsi_pullback",
+   "instrument": "USD_JPY",
+   "n": 14,
+   "first_exit": "2026-05-21T17:10:41.656566+00:00",
+   "last_exit": "2026-07-16T13:59:04.610399+00:00",
+   "span_months": 1.84
+  },
+  {
+   "strategy": "dt_fib_reversal",
+   "instrument": "USD_JPY",
+   "n": 14,
+   "first_exit": "2026-04-15T02:33:41.024430+00:00",
+   "last_exit": "2026-05-07T00:14:18.440361+00:00",
+   "span_months": 0.72
+  },
+  {
+   "strategy": "ob_retest",
+   "instrument": "GBP_JPY",
+   "n": 13,
+   "first_exit": "2026-05-12T07:55:18.110550+00:00",
+   "last_exit": "2026-07-31T15:35:48.332676+00:00",
+   "span_months": 2.64
+  },
+  {
+   "strategy": "hull_donchian_fade",
+   "instrument": "EUR_USD",
+   "n": 13,
+   "first_exit": "2026-06-12T08:55:05.930973+00:00",
+   "last_exit": "2026-07-31T13:39:00.112477+00:00",
+   "span_months": 1.62
+  },
+  {
+   "strategy": "donchian_momentum_breakout",
+   "instrument": "NZD_JPY",
+   "n": 13,
+   "first_exit": "2026-05-27T03:36:25.757600+00:00",
+   "last_exit": "2026-07-30T09:30:01.632509+00:00",
+   "span_months": 2.11
+  },
+  {
+   "strategy": "trend_rebound",
+   "instrument": "GBP_USD",
+   "n": 13,
+   "first_exit": "2026-04-17T13:08:28.285294+00:00",
+   "last_exit": "2026-07-20T05:05:23.786013+00:00",
+   "span_months": 3.08
+  },
+  {
+   "strategy": "sr_anti_hunt_bounce",
+   "instrument": "GBP_USD",
+   "n": 13,
+   "first_exit": "2026-05-08T21:45:00.420401+00:00",
+   "last_exit": "2026-07-16T13:55:17.295773+00:00",
+   "span_months": 2.26
+  },
+  {
+   "strategy": "htf_false_breakout",
+   "instrument": "EUR_JPY",
+   "n": 13,
+   "first_exit": "2026-04-30T10:14:43.582378+00:00",
+   "last_exit": "2026-07-07T05:48:34.834433+00:00",
+   "span_months": 2.23
+  },
+  {
+   "strategy": "vol_surge_detector",
+   "instrument": "USD_CHF",
+   "n": 13,
+   "first_exit": "2026-05-19T15:18:11.763728+00:00",
+   "last_exit": "2026-07-02T13:13:12.775833+00:00",
+   "span_months": 1.44
+  },
+  {
+   "strategy": "vwap_mean_reversion",
+   "instrument": "EUR_GBP",
+   "n": 12,
+   "first_exit": "2026-06-03T14:38:21.226357+00:00",
+   "last_exit": "2026-07-31T15:56:31.690542+00:00",
+   "span_months": 1.91
+  },
+  {
+   "strategy": "donchian_momentum_breakout",
+   "instrument": "EUR_USD",
+   "n": 12,
+   "first_exit": "2026-04-08T16:17:13.892447+00:00",
+   "last_exit": "2026-07-30T14:05:24.727170+00:00",
+   "span_months": 3.71
+  },
+  {
+   "strategy": "sr_weighted_break",
+   "instrument": "EUR_JPY",
+   "n": 12,
+   "first_exit": "2026-05-14T01:44:04.206028+00:00",
+   "last_exit": "2026-07-27T23:00:18.792670+00:00",
+   "span_months": 2.46
+  },
+  {
+   "strategy": "vwap_mean_reversion",
+   "instrument": "USD_JPY",
+   "n": 12,
+   "first_exit": "2026-05-11T19:36:04.799081+00:00",
+   "last_exit": "2026-07-24T10:52:30.465936+00:00",
+   "span_months": 2.42
+  },
+  {
+   "strategy": "sr_weighted_break",
+   "instrument": "GBP_JPY",
+   "n": 12,
+   "first_exit": "2026-05-28T19:55:00.414296+00:00",
+   "last_exit": "2026-07-23T06:04:40.990605+00:00",
+   "span_months": 1.82
+  },
+  {
+   "strategy": "post_news_vol",
+   "instrument": "USD_JPY",
+   "n": 12,
+   "first_exit": "2026-04-14T06:10:26.903322+00:00",
+   "last_exit": "2026-05-06T02:15:45.811970+00:00",
+   "span_months": 0.72
+  },
+  {
+   "strategy": "ema200_trend_reversal",
+   "instrument": "EUR_JPY",
+   "n": 12,
+   "first_exit": "2026-04-16T12:08:15.780162+00:00",
+   "last_exit": "2026-04-29T14:58:29.822960+00:00",
+   "span_months": 0.43
+  },
+  {
+   "strategy": "htf_false_breakout",
+   "instrument": "GBP_USD",
+   "n": 11,
+   "first_exit": "2026-04-28T13:18:12.366304+00:00",
+   "last_exit": "2026-07-30T11:23:31.404017+00:00",
+   "span_months": 3.05
+  },
+  {
+   "strategy": "mtf_counter_trend_scalp",
+   "instrument": "USD_JPY",
+   "n": 11,
+   "first_exit": "2026-05-26T14:17:15.405831+00:00",
+   "last_exit": "2026-07-21T12:51:37.879561+00:00",
+   "span_months": 1.84
+  },
+  {
+   "strategy": "sr_weighted_bounce",
+   "instrument": "USD_JPY",
+   "n": 11,
+   "first_exit": "2026-05-20T06:16:45.401306+00:00",
+   "last_exit": "2026-06-26T16:00:01.568996+00:00",
+   "span_months": 1.23
+  },
+  {
+   "strategy": "dt_fib_reversal",
+   "instrument": "EUR_JPY",
+   "n": 11,
+   "first_exit": "2026-04-17T12:51:21.070222+00:00",
+   "last_exit": "2026-05-07T01:12:54.057876+00:00",
+   "span_months": 0.64
+  },
+  {
+   "strategy": "ob_retest",
+   "instrument": "AUD_JPY",
+   "n": 10,
+   "first_exit": "2026-07-13T19:36:25.069423+00:00",
+   "last_exit": "2026-07-31T17:27:07.848136+00:00",
+   "span_months": 0.59
+  },
+  {
+   "strategy": "pullback_to_liquidity_v1",
+   "instrument": "EUR_JPY",
+   "n": 10,
+   "first_exit": "2026-05-08T06:09:43.501106+00:00",
+   "last_exit": "2026-07-30T07:02:18.823345+00:00",
+   "span_months": 2.73
+  },
+  {
+   "strategy": "doji_breakout",
+   "instrument": "EUR_USD",
+   "n": 10,
+   "first_exit": "2026-04-28T19:50:59.832368+00:00",
+   "last_exit": "2026-07-20T07:33:55.445467+00:00",
+   "span_months": 2.71
+  },
+  {
+   "strategy": "sr_weighted_break",
+   "instrument": "USD_JPY",
+   "n": 10,
+   "first_exit": "2026-05-20T06:16:45.289269+00:00",
+   "last_exit": "2026-06-26T04:26:29.162700+00:00",
+   "span_months": 1.21
+  },
+  {
+   "strategy": "post_news_vol",
+   "instrument": "EUR_USD",
+   "n": 10,
+   "first_exit": "2026-04-10T17:51:58.238622+00:00",
+   "last_exit": "2026-05-06T13:18:31.050889+00:00",
+   "span_months": 0.85
+  },
+  {
+   "strategy": "price_shock_rev_aud_jpy_h1_long",
+   "instrument": "AUD_JPY",
+   "n": 9,
+   "first_exit": "2026-05-20T02:46:34.546110+00:00",
+   "last_exit": "2026-07-31T21:45:00.190940+00:00",
+   "span_months": 2.39
+  },
+  {
+   "strategy": "zz_pivot_v60_sr",
+   "instrument": "EUR_USD",
+   "n": 9,
+   "first_exit": "2026-05-28T12:30:14.356201+00:00",
+   "last_exit": "2026-07-30T10:43:35.981817+00:00",
+   "span_months": 2.07
+  },
+  {
+   "strategy": "vdr_jpy",
+   "instrument": "USD_JPY",
+   "n": 9,
+   "first_exit": "2026-05-12T12:41:03.334808+00:00",
+   "last_exit": "2026-07-30T10:15:51.012224+00:00",
+   "span_months": 2.59
+  },
+  {
+   "strategy": "london_session_breakout",
+   "instrument": "GBP_USD",
+   "n": 9,
+   "first_exit": "2026-05-07T11:16:11.091547+00:00",
+   "last_exit": "2026-07-27T08:42:32.999567+00:00",
+   "span_months": 2.66
+  },
+  {
+   "strategy": "macdh_reversal",
+   "instrument": "GBP_USD",
+   "n": 9,
+   "first_exit": "2026-04-14T10:07:01.641445+00:00",
+   "last_exit": "2026-07-27T00:12:05.176204+00:00",
+   "span_months": 3.4
+  },
+  {
+   "strategy": "doji_breakout",
+   "instrument": "GBP_USD",
+   "n": 9,
+   "first_exit": "2026-04-15T10:44:11.710167+00:00",
+   "last_exit": "2026-07-24T04:41:01.868887+00:00",
+   "span_months": 3.28
+  },
+  {
+   "strategy": "doji_breakout",
+   "instrument": "USD_JPY",
+   "n": 9,
+   "first_exit": "2026-04-21T06:56:41.571615+00:00",
+   "last_exit": "2026-07-24T01:34:48.255076+00:00",
+   "span_months": 3.08
+  },
+  {
+   "strategy": "pullback_to_liquidity_v1",
+   "instrument": "EUR_USD",
+   "n": 9,
+   "first_exit": "2026-05-07T16:00:17.459911+00:00",
+   "last_exit": "2026-06-24T00:26:48.982862+00:00",
+   "span_months": 1.56
+  },
+  {
+   "strategy": "ob_retest",
+   "instrument": "EUR_JPY",
+   "n": 8,
+   "first_exit": "2026-05-15T10:40:12.570705+00:00",
+   "last_exit": "2026-07-31T13:22:17.522348+00:00",
+   "span_months": 2.53
+  },
+  {
+   "strategy": "london_fix_reversal",
+   "instrument": "USD_JPY",
+   "n": 8,
+   "first_exit": "2026-05-01T17:34:22.493124+00:00",
+   "last_exit": "2026-07-24T16:31:21.886156+00:00",
+   "span_months": 2.76
+  },
+  {
+   "strategy": "intraday_seasonality",
+   "instrument": "EUR_GBP",
+   "n": 8,
+   "first_exit": "2026-06-03T21:04:55.273142+00:00",
+   "last_exit": "2026-07-24T02:01:39.480602+00:00",
+   "span_months": 1.65
+  },
+  {
+   "strategy": "sweep_reversion_eurgbp_late",
+   "instrument": "EUR_GBP",
+   "n": 8,
+   "first_exit": "2026-07-06T21:31:08.252890+00:00",
+   "last_exit": "2026-07-16T01:38:01.181254+00:00",
+   "span_months": 0.3
+  },
+  {
+   "strategy": "price_shock_rev_eur_gbp_h1_long",
+   "instrument": "EUR_GBP",
+   "n": 8,
+   "first_exit": "2026-05-18T19:00:25.309245+00:00",
+   "last_exit": "2026-07-15T19:42:45.725466+00:00",
+   "span_months": 1.91
+  },
+  {
+   "strategy": "engulfing_bb",
+   "instrument": "USD_CHF",
+   "n": 8,
+   "first_exit": "2026-05-18T10:29:41.658246+00:00",
+   "last_exit": "2026-07-02T18:10:03.048245+00:00",
+   "span_months": 1.49
+  },
+  {
+   "strategy": "donchian_momentum_breakout",
+   "instrument": "USD_CAD",
+   "n": 8,
+   "first_exit": "2026-05-19T11:22:03.175504+00:00",
+   "last_exit": "2026-05-28T12:19:45.851454+00:00",
+   "span_months": 0.3
+  },
+  {
+   "strategy": "dt_fib_reversal",
+   "instrument": "GBP_USD",
+   "n": 8,
+   "first_exit": "2026-04-22T13:19:43.786813+00:00",
+   "last_exit": "2026-05-06T22:29:21.674093+00:00",
+   "span_months": 0.47
+  },
+  {
+   "strategy": "wick_imbalance_reversion",
+   "instrument": "AUD_JPY",
+   "n": 7,
+   "first_exit": "2026-07-23T02:02:41.002326+00:00",
+   "last_exit": "2026-07-30T11:15:05.371863+00:00",
+   "span_months": 0.24
+  },
+  {
+   "strategy": "london_session_breakout",
+   "instrument": "EUR_USD",
+   "n": 7,
+   "first_exit": "2026-06-05T07:31:39.196755+00:00",
+   "last_exit": "2026-07-30T07:41:34.030973+00:00",
+   "span_months": 1.81
+  },
+  {
+   "strategy": "mtf_reversal_confluence",
+   "instrument": "USD_JPY",
+   "n": 7,
+   "first_exit": "2026-04-23T04:40:38.092181+00:00",
+   "last_exit": "2026-07-21T20:57:25.939345+00:00",
+   "span_months": 2.95
+  },
+  {
+   "strategy": "orb_trap",
+   "instrument": "USD_JPY",
+   "n": 7,
+   "first_exit": "2026-04-24T15:50:18.405317+00:00",
+   "last_exit": "2026-07-14T14:34:13.318726+00:00",
+   "span_months": 2.66
+  },
+  {
+   "strategy": "vsg_jpy_reversal",
+   "instrument": "GBP_JPY",
+   "n": 7,
+   "first_exit": "2026-04-29T14:50:37.292215+00:00",
+   "last_exit": "2026-07-01T13:37:04.227120+00:00",
+   "span_months": 2.07
+  },
+  {
+   "strategy": "ny_close_reversal",
+   "instrument": "GBP_USD",
+   "n": 7,
+   "first_exit": "2026-04-21T20:09:48.720054+00:00",
+   "last_exit": "2026-06-18T21:04:55.635296+00:00",
+   "span_months": 1.91
+  },
+  {
+   "strategy": "post_news_vol",
+   "instrument": "GBP_USD",
+   "n": 7,
+   "first_exit": "2026-04-10T06:34:49.664134+00:00",
+   "last_exit": "2026-05-06T10:11:42.972727+00:00",
+   "span_months": 0.86
+  },
+  {
+   "strategy": "mtf_reversal_confluence",
+   "instrument": "GBP_USD",
+   "n": 6,
+   "first_exit": "2026-04-14T12:26:37.447972+00:00",
+   "last_exit": "2026-07-30T19:22:28.471106+00:00",
+   "span_months": 3.52
+  },
+  {
+   "strategy": "vdr_jpy",
+   "instrument": "GBP_JPY",
+   "n": 6,
+   "first_exit": "2026-06-08T19:45:28.187131+00:00",
+   "last_exit": "2026-07-29T21:13:30.442143+00:00",
+   "span_months": 1.68
+  },
+  {
+   "strategy": "three_bar_reversal",
+   "instrument": "USD_CHF",
+   "n": 6,
+   "first_exit": "2026-05-26T03:48:16.472114+00:00",
+   "last_exit": "2026-06-30T06:40:35.904642+00:00",
+   "span_months": 1.15
+  },
+  {
+   "strategy": "inducement_ob",
+   "instrument": "USD_JPY",
+   "n": 6,
+   "first_exit": "2026-04-22T13:20:26.775496+00:00",
+   "last_exit": "2026-06-19T16:24:57.565639+00:00",
+   "span_months": 1.91
+  },
+  {
+   "strategy": "donchian_momentum_breakout",
+   "instrument": "EUR_AUD",
+   "n": 6,
+   "first_exit": "2026-05-19T14:45:27.517725+00:00",
+   "last_exit": "2026-05-27T15:26:38.605483+00:00",
+   "span_months": 0.26
+  },
+  {
+   "strategy": "ema_cross",
+   "instrument": "GBP_JPY",
+   "n": 6,
+   "first_exit": "2026-04-16T14:19:52.220710+00:00",
+   "last_exit": "2026-05-07T01:59:46.650157+00:00",
+   "span_months": 0.67
+  },
+  {
+   "strategy": "jpy_basket_trend",
+   "instrument": "EUR_JPY",
+   "n": 6,
+   "first_exit": "2026-05-04T01:17:40.484104+00:00",
+   "last_exit": "2026-05-05T04:49:34.634583+00:00",
+   "span_months": 0.04
+  },
+  {
+   "strategy": "pullback_to_liquidity_v1",
+   "instrument": "GBP_USD",
+   "n": 5,
+   "first_exit": "2026-05-20T14:16:20.589894+00:00",
+   "last_exit": "2026-07-31T00:40:01.638447+00:00",
+   "span_months": 2.35
+  },
+  {
+   "strategy": "wick_imbalance_reversion",
+   "instrument": "EUR_GBP",
+   "n": 5,
+   "first_exit": "2026-05-14T16:14:31.992873+00:00",
+   "last_exit": "2026-07-30T21:43:10.390870+00:00",
+   "span_months": 2.54
+  },
+  {
+   "strategy": "sr_weighted_bounce",
+   "instrument": "EUR_JPY",
+   "n": 5,
+   "first_exit": "2026-05-26T02:21:03.544380+00:00",
+   "last_exit": "2026-07-17T16:00:14.299720+00:00",
+   "span_months": 1.73
+  },
+  {
+   "strategy": "sr_weighted_break",
+   "instrument": "GBP_USD",
+   "n": 5,
+   "first_exit": "2026-05-14T13:42:18.054242+00:00",
+   "last_exit": "2026-07-17T12:07:41.756674+00:00",
+   "span_months": 2.1
+  },
+  {
+   "strategy": "ema_cross",
+   "instrument": "EUR_JPY",
+   "n": 5,
+   "first_exit": "2026-04-15T13:39:15.263204+00:00",
+   "last_exit": "2026-05-05T07:25:05.493360+00:00",
+   "span_months": 0.65
+  },
+  {
+   "strategy": "mqe_gbpusd_fix",
+   "instrument": "GBP_USD",
+   "n": 5,
+   "first_exit": "2026-04-29T15:45:15.562117+00:00",
+   "last_exit": "2026-04-30T18:43:08.769803+00:00",
+   "span_months": 0.04
+  },
+  {
+   "strategy": "ema_pullback",
+   "instrument": "EUR_USD",
+   "n": 5,
+   "first_exit": "2026-04-09T09:46:07.573933+00:00",
+   "last_exit": "2026-04-09T16:03:43.966493+00:00",
+   "span_months": 0.01
+  },
+  {
+   "strategy": "liquidity_sweep",
+   "instrument": "GBP_USD",
+   "n": 4,
+   "first_exit": "2026-06-12T08:18:17.019387+00:00",
+   "last_exit": "2026-07-31T14:50:18.301784+00:00",
+   "span_months": 1.62
+  },
+  {
+   "strategy": "inducement_ob",
+   "instrument": "EUR_GBP",
+   "n": 4,
+   "first_exit": "2026-04-06T11:00:33.119317+00:00",
+   "last_exit": "2026-07-31T09:14:14.488342+00:00",
+   "span_months": 3.81
+  },
+  {
+   "strategy": "ny_close_reversal",
+   "instrument": "USD_JPY",
+   "n": 4,
+   "first_exit": "2026-04-16T22:03:39.293751+00:00",
+   "last_exit": "2026-07-30T22:38:43.696362+00:00",
+   "span_months": 3.45
+  },
+  {
+   "strategy": "inducement_ob",
+   "instrument": "EUR_USD",
+   "n": 4,
+   "first_exit": "2026-06-11T10:16:16.378758+00:00",
+   "last_exit": "2026-07-27T07:13:53.637606+00:00",
+   "span_months": 1.51
+  },
+  {
+   "strategy": "htf_false_breakout",
+   "instrument": "GBP_JPY",
+   "n": 4,
+   "first_exit": "2026-04-30T10:07:07.145934+00:00",
+   "last_exit": "2026-07-10T06:11:41.373846+00:00",
+   "span_months": 2.33
+  },
+  {
+   "strategy": "liquidity_sweep",
+   "instrument": "USD_JPY",
+   "n": 4,
+   "first_exit": "2026-04-22T13:09:32.528325+00:00",
+   "last_exit": "2026-06-25T21:39:57.483527+00:00",
+   "span_months": 2.11
+  },
+  {
+   "strategy": "sr_weighted_bounce",
+   "instrument": "GBP_JPY",
+   "n": 4,
+   "first_exit": "2026-05-20T21:16:58.437737+00:00",
+   "last_exit": "2026-06-12T09:03:49.886058+00:00",
+   "span_months": 0.74
+  },
+  {
+   "strategy": "ema_ribbon_ride",
+   "instrument": "EUR_USD",
+   "n": 4,
+   "first_exit": "2026-04-07T00:20:22.289670+00:00",
+   "last_exit": "2026-04-07T09:15:43.894191+00:00",
+   "span_months": 0.01
+  },
+  {
+   "strategy": "atr_regime_break",
+   "instrument": "USD_JPY",
+   "n": 3,
+   "first_exit": "2026-05-14T13:46:57.978151+00:00",
+   "last_exit": "2026-07-30T13:46:57.260604+00:00",
+   "span_months": 2.53
+  },
+  {
+   "strategy": "atr_regime_break",
+   "instrument": "GBP_JPY",
+   "n": 3,
+   "first_exit": "2026-05-12T06:42:25.421175+00:00",
+   "last_exit": "2026-07-30T13:46:51.546904+00:00",
+   "span_months": 2.6
+  },
+  {
+   "strategy": "htf_false_breakout",
+   "instrument": "AUD_JPY",
+   "n": 3,
+   "first_exit": "2026-07-22T08:17:46.785361+00:00",
+   "last_exit": "2026-07-29T06:03:54.287788+00:00",
+   "span_months": 0.23
+  },
+  {
+   "strategy": "mtf_counter_trend_scalp",
+   "instrument": "EUR_USD",
+   "n": 3,
+   "first_exit": "2026-06-09T12:16:34.115469+00:00",
+   "last_exit": "2026-07-27T06:35:52.609093+00:00",
+   "span_months": 1.57
+  },
+  {
+   "strategy": "htf_false_breakout",
+   "instrument": "USD_JPY",
+   "n": 3,
+   "first_exit": "2026-04-14T00:13:59.043284+00:00",
+   "last_exit": "2026-07-09T07:36:42.726321+00:00",
+   "span_months": 2.84
+  },
+  {
+   "strategy": "mtf_reversal_confluence",
+   "instrument": "EUR_USD",
+   "n": 3,
+   "first_exit": "2026-04-14T11:18:04.008969+00:00",
+   "last_exit": "2026-05-11T13:41:10.296773+00:00",
+   "span_months": 0.89
+  },
+  {
+   "strategy": "dt_fib_reversal",
+   "instrument": "EUR_USD",
+   "n": 3,
+   "first_exit": "2026-04-17T08:40:43.305591+00:00",
+   "last_exit": "2026-04-27T17:18:22.425181+00:00",
+   "span_months": 0.34
+  },
+  {
+   "strategy": "ema200_trend_reversal",
+   "instrument": "GBP_USD",
+   "n": 3,
+   "first_exit": "2026-04-21T02:43:55.306474+00:00",
+   "last_exit": "2026-04-22T07:41:40.129414+00:00",
+   "span_months": 0.04
+  },
+  {
+   "strategy": "ema200_trend_reversal",
+   "instrument": "GBP_JPY",
+   "n": 3,
+   "first_exit": "2026-04-16T19:08:14.770281+00:00",
+   "last_exit": "2026-04-21T11:32:27.761958+00:00",
+   "span_months": 0.15
+  },
+  {
+   "strategy": "pivot_breakout",
+   "instrument": "USD_JPY",
+   "n": 3,
+   "first_exit": "2026-04-02T14:37:21.723476+00:00",
+   "last_exit": "2026-04-02T23:42:14.305387+00:00",
+   "span_months": 0.01
+  },
+  {
+   "strategy": "h1_fib_reversal",
+   "instrument": "USD_JPY",
+   "n": 3,
+   "first_exit": "2026-04-02T08:49:03.678848+00:00",
+   "last_exit": "2026-04-02T13:03:25.514536+00:00",
+   "span_months": 0.01
+  },
+  {
+   "strategy": "weekend_gap_fade",
+   "instrument": "USD_JPY",
+   "n": 2,
+   "first_exit": "2026-07-27T01:01:19.315623+00:00",
+   "last_exit": "2026-08-03T00:41:24.744349+00:00",
+   "span_months": 0.23
+  },
+  {
+   "strategy": "htf_false_breakout",
+   "instrument": "EUR_USD",
+   "n": 2,
+   "first_exit": "2026-05-13T12:16:38.327973+00:00",
+   "last_exit": "2026-07-30T11:54:33.948605+00:00",
+   "span_months": 2.56
+  },
+  {
+   "strategy": "ob_retest",
+   "instrument": "EUR_GBP",
+   "n": 2,
+   "first_exit": "2026-07-27T07:12:34.204600+00:00",
+   "last_exit": "2026-07-27T09:24:26.922787+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "pullback_to_liquidity_v1",
+   "instrument": "GBP_JPY",
+   "n": 2,
+   "first_exit": "2026-05-22T07:14:27.602248+00:00",
+   "last_exit": "2026-07-10T01:24:14.699281+00:00",
+   "span_months": 1.6
+  },
+  {
+   "strategy": "confluence_scalp",
+   "instrument": "EUR_USD",
+   "n": 2,
+   "first_exit": "2026-04-24T13:22:16.146532+00:00",
+   "last_exit": "2026-05-08T14:04:31.170865+00:00",
+   "span_months": 0.46
+  },
+  {
+   "strategy": "ema_cross",
+   "instrument": "GBP_USD",
+   "n": 2,
+   "first_exit": "2026-04-27T12:09:14.074070+00:00",
+   "last_exit": "2026-05-04T06:46:26.742557+00:00",
+   "span_months": 0.22
+  },
+  {
+   "strategy": "ema_cross",
+   "instrument": "EUR_USD",
+   "n": 2,
+   "first_exit": "2026-05-01T07:56:08.630124+00:00",
+   "last_exit": "2026-05-01T11:25:33.672780+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "ema200_trend_reversal",
+   "instrument": "EUR_USD",
+   "n": 2,
+   "first_exit": "2026-04-16T09:31:07.512148+00:00",
+   "last_exit": "2026-04-24T13:41:31.968983+00:00",
+   "span_months": 0.27
+  },
+  {
+   "strategy": "ema_ribbon_ride",
+   "instrument": "USD_JPY",
+   "n": 2,
+   "first_exit": "2026-04-07T12:49:28.304473+00:00",
+   "last_exit": "2026-04-07T12:55:51.827874+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "usdjpy_carry_dip_accumulator",
+   "instrument": "USD_JPY",
+   "n": 1,
+   "first_exit": "2026-07-31T14:16:28.249310+00:00",
+   "last_exit": "2026-07-31T14:16:28.249310+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "atr_regime_break",
+   "instrument": "AUD_JPY",
+   "n": 1,
+   "first_exit": "2026-07-30T13:47:22.742576+00:00",
+   "last_exit": "2026-07-30T13:47:22.742576+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "london_close_reversal_v2",
+   "instrument": "EUR_USD",
+   "n": 1,
+   "first_exit": "2026-07-30T00:03:09.149590+00:00",
+   "last_exit": "2026-07-30T00:03:09.149590+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "pullback_to_liquidity_v1",
+   "instrument": "USD_JPY",
+   "n": 1,
+   "first_exit": "2026-07-20T07:30:20.696826+00:00",
+   "last_exit": "2026-07-20T07:30:20.696826+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "intraday_seasonality",
+   "instrument": "AUD_JPY",
+   "n": 1,
+   "first_exit": "2026-07-17T00:45:04.711139+00:00",
+   "last_exit": "2026-07-17T00:45:04.711139+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "pullback_to_liquidity_v1",
+   "instrument": "AUD_JPY",
+   "n": 1,
+   "first_exit": "2026-07-14T01:06:50.231798+00:00",
+   "last_exit": "2026-07-14T01:06:50.231798+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "london_close_reversal_v2",
+   "instrument": "GBP_USD",
+   "n": 1,
+   "first_exit": "2026-07-13T21:12:59.504294+00:00",
+   "last_exit": "2026-07-13T21:12:59.504294+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "turtle_soup",
+   "instrument": "EUR_GBP",
+   "n": 1,
+   "first_exit": "2026-07-03T15:00:56.012657+00:00",
+   "last_exit": "2026-07-03T15:00:56.012657+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "sr_liquidity_grab",
+   "instrument": "EUR_JPY",
+   "n": 1,
+   "first_exit": "2026-06-30T13:17:13.635374+00:00",
+   "last_exit": "2026-06-30T13:17:13.635374+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "price_shock_rev_nzd_jpy_h1_long",
+   "instrument": "NZD_JPY",
+   "n": 1,
+   "first_exit": "2026-05-28T15:32:58.821463+00:00",
+   "last_exit": "2026-05-28T15:32:58.821463+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "atr_regime_break",
+   "instrument": "EUR_JPY",
+   "n": 1,
+   "first_exit": "2026-05-12T06:31:29.276684+00:00",
+   "last_exit": "2026-05-12T06:31:29.276684+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "vdr_jpy",
+   "instrument": "EUR_JPY",
+   "n": 1,
+   "first_exit": "2026-05-08T18:42:00.549271+00:00",
+   "last_exit": "2026-05-08T18:42:00.549271+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "dt_fib_reversal",
+   "instrument": "GBP_JPY",
+   "n": 1,
+   "first_exit": "2026-05-01T08:06:16.546987+00:00",
+   "last_exit": "2026-05-01T08:06:16.546987+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "ema_pullback",
+   "instrument": "GBP_USD",
+   "n": 1,
+   "first_exit": "2026-04-22T02:10:06.034595+00:00",
+   "last_exit": "2026-04-22T02:10:06.034595+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "liquidity_sweep",
+   "instrument": "EUR_USD",
+   "n": 1,
+   "first_exit": "2026-04-15T21:10:47.232748+00:00",
+   "last_exit": "2026-04-15T21:10:47.232748+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "fib_reversal",
+   "instrument": "EUR_JPY",
+   "n": 1,
+   "first_exit": "2026-04-09T16:01:44.291892+00:00",
+   "last_exit": "2026-04-09T16:01:44.291892+00:00",
+   "span_months": 0.0
+  },
+  {
+   "strategy": "adx_trend_continuation",
+   "instrument": "EUR_USD",
+   "n": 1,
+   "first_exit": "2026-04-08T12:21:23.785265+00:00",
+   "last_exit": "2026-04-08T12:21:23.785265+00:00",
+   "span_months": 0.0
+  }
+ ]
+}

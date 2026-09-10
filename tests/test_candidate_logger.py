@@ -12,6 +12,8 @@ import pytest
 from modules.candidate_logger import (
     init_candidates_table,
     log_candidates,
+    query_candidate_meta,
+    query_candidate_rows,
     query_candidate_summary,
 )
 
@@ -160,3 +162,68 @@ class TestQueryCandidateSummary:
         assert summary["strat_b"]["n_selected"] == 1
         assert summary["strat_c"]["total_candidates"] == 1
         assert summary["strat_c"]["n_selected"] == 0  # never won — bottleneck case
+
+
+class TestQueryCandidateMeta:
+    """2026-08-24 (rule:R3): read path for the previously write-only table."""
+
+    def test_meta_reports_rows_and_window(self, tmp_db):
+        init_candidates_table(tmp_db)
+        cands = [
+            _FakeCandidate("hull_donchian_fade", "SELL", 50, 3.0),
+            _FakeCandidate("session_time_bias", "BUY", 60, 6.2),
+        ]
+        log_candidates(tmp_db, cands, cands[1], instrument="EUR_USD")
+        meta = query_candidate_meta(tmp_db)
+        assert meta["rows"] == 2
+        assert meta["n_strategies"] == 2
+        assert meta["first_created"] is not None
+        assert meta["last_created"] is not None
+
+    def test_meta_on_empty_table(self, tmp_db):
+        init_candidates_table(tmp_db)
+        meta = query_candidate_meta(tmp_db)
+        assert meta["rows"] == 0
+        assert meta["n_strategies"] == 0
+
+
+class TestQueryCandidateRows:
+    def test_rows_filter_by_strategy(self, tmp_db):
+        init_candidates_table(tmp_db)
+        cands = [
+            _FakeCandidate("hull_donchian_fade", "SELL", 50, 3.0),
+            _FakeCandidate("session_time_bias", "BUY", 60, 6.2),
+        ]
+        log_candidates(tmp_db, cands, cands[1], instrument="EUR_USD")
+        rows = query_candidate_rows(tmp_db, strategy="hull_donchian_fade", days=0)
+        assert len(rows) == 1
+        assert rows[0]["strategy_name"] == "hull_donchian_fade"
+        # the competition loser is exactly the case C1 exists to expose
+        assert rows[0]["selected"] == 0
+        assert rows[0]["selected_strategy"] == "session_time_bias"
+
+    def test_rows_filter_by_instrument(self, tmp_db):
+        init_candidates_table(tmp_db)
+        a = [_FakeCandidate("hull_donchian_fade", "SELL", 50, 3.0)]
+        b = [_FakeCandidate("hull_donchian_fade", "BUY", 50, 3.0)]
+        log_candidates(tmp_db, a, a[0], instrument="EUR_USD")
+        log_candidates(tmp_db, b, b[0], instrument="USD_JPY")
+        assert len(query_candidate_rows(tmp_db, instrument="EUR_USD", days=0)) == 1
+        assert len(query_candidate_rows(tmp_db, days=0)) == 2
+
+    def test_rows_limit_is_clamped(self, tmp_db):
+        init_candidates_table(tmp_db)
+        cands = [_FakeCandidate(f"s{i}", "BUY", 50, 1.0) for i in range(5)]
+        log_candidates(tmp_db, cands, cands[0], instrument="EUR_USD")
+        assert len(query_candidate_rows(tmp_db, days=0, limit=2)) == 2
+        # limit <= 0 must not produce an invalid LIMIT clause
+        assert len(query_candidate_rows(tmp_db, days=0, limit=0)) == 1
+
+    def test_rows_newest_first(self, tmp_db):
+        init_candidates_table(tmp_db)
+        first = [_FakeCandidate("strat_a", "BUY", 50, 1.0)]
+        second = [_FakeCandidate("strat_b", "SELL", 50, 2.0)]
+        log_candidates(tmp_db, first, first[0], instrument="EUR_USD")
+        log_candidates(tmp_db, second, second[0], instrument="EUR_USD")
+        rows = query_candidate_rows(tmp_db, days=0)
+        assert rows[0]["strategy_name"] == "strat_b"

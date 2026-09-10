@@ -25,9 +25,12 @@ Test design:
     the DB row insert; there is no early `return` between the insert and
     the formerly-crashing lot-sizing reference, so
     "row inserted AND no exception" == the reference executed.
-  - rnb_support_bounce is in the preserve set but NOT in QUALIFIED_TYPES:
-    it is blocked at unknown_type upstream of the bug site. The test pins
-    that current behavior instead of asserting a row.
+  - rnb_support_bounce: registered into QUALIFIED_TYPES on 2026-09-10
+    (stage-1 shadow-only, rule:R1, packet
+    rnb-support-bounce-r1-packet-2026-09-10) — previously pinned as
+    "blocked at unknown_type"; now expects a row like the other preserve
+    types. OANDA-zero is guaranteed at mode level (shadow_only=True,
+    tests/test_rnb_shadow_only_registration.py).
 """
 from __future__ import annotations
 
@@ -98,10 +101,13 @@ TYPE_CONFIG = {
                                      expect="row", **_FX),
     "donchian_momentum_breakout": dict(instrument="USD_JPY", now=_LONDON_THU,
                                        expect="row", **_JPY),
-    # NOT in QUALIFIED_TYPES — blocked at unknown_type before the bug site.
+    # 2026-09-10: QUALIFIED_TYPES 登録済み (stage-1 shadow-only, rule:R1,
+    # packet rnb-support-bounce-r1-packet-2026-09-10) — unknown_type block は
+    # 解消され、preserve 経路 (SL/TP 保持) を row insert まで通ることを pin。
+    # 実運用の OANDA 発注ゼロは mode rnb_usdjpy の shadow_only=True が保証
+    # (tests/test_rnb_shadow_only_registration.py で pin)。
     "rnb_support_bounce": dict(instrument="USD_JPY", now=_LONDON_THU,
-                               expect="blocked", block_key="unknown_type",
-                               **_JPY),
+                               expect="row", **_JPY),
     "price_shock_rev_eur_gbp_h1_long": dict(instrument="EUR_GBP",
                                             now=_LONDON_THU, expect="row",
                                             **_FX),
@@ -129,9 +135,16 @@ TYPE_CONFIG = {
                                expect="row", entry=1.20000, sl=1.18800,
                                tp=1.20100, atr=0.0005),
     # Sunday-open entry window + pair allowlist (EUR_USD/USD_JPY/AUD_USD).
+    # 執行契約(B) AMENDMENT 2026-09-10: live 送信は scoped runner の tradeable
+    # 確認 marker (_wg_exec_send_ok) を必須とする — marker なしの sig は
+    # backstop が row/latch なしで block する (weekend_gap_tradeable_unconfirmed,
+    # tests/test_weekend_gap_execution_contract_b.py で pin)。本テストの
+    # estimand は「送信判定経路が bug site を通過する」ことなので、runner 通過
+    # 済み相当の marker を sig に付与して駆動する。
     "weekend_gap_fade": dict(instrument="USD_JPY", now=_SUNDAY_OPEN,
                              expect="row", entry=147.500, sl=146.000,
-                             tp=152.500, atr=0.10),
+                             tp=152.500, atr=0.10,
+                             sig_extra={"_wg_exec_send_ok": True}),
 }
 
 
@@ -173,7 +186,7 @@ def _make_trader(tmp_path, monkeypatch):
 
 
 def _sig(entry_type: str, cfg: dict) -> dict:
-    return {
+    out = {
         "signal": "BUY",
         "entry": cfg["entry"],
         "sl": cfg["sl"],
@@ -186,6 +199,8 @@ def _sig(entry_type: str, cfg: dict) -> dict:
         "regime": {"regime": "TRANSITION"},
         "layer_status": {"trade_ok": True, "layer1": {"direction": "neutral"}},
     }
+    out.update(cfg.get("sig_extra") or {})
+    return out
 
 
 @pytest.mark.parametrize("entry_type", sorted(PRESERVE_TYPES))

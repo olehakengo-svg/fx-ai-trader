@@ -1,6 +1,6 @@
 # Pre-registration: イベントモダリティ・プログラム — E15 (FOMC/NFP/CPI イベント窓プレミア/リバーサル) + E7 (指標サプライズ directional) 単一 family (2026-07-18)
 
-**Status**: 🔒 **phase-0 FULL LOCK (凍結 2026-07-22、PR #106) → phase-0 OOS verdict ❌ FAIL 0/6 (2026-07-22、§12)** — phase-1 (E7) は §8 固定分岐どおり予定続行。(旧: 🔓 DESIGN self-LOCK 2026-07-18 — 方法論・窓・grid・凍結規則・判定規則・α 会計を結果観測前に固定。純研究 self-LOCK の根拠 = round-2/3/E1 前例。本文書の変更はレビュー必須 PR のみ。)
+**Status**: 🔒 **phase-0 FULL LOCK (凍結 2026-07-22、PR #106) → phase-0 OOS verdict ❌ FAIL 0/6 (2026-07-22、§12)** — phase-1 (E7) は §8 固定分岐どおり予定続行。**phase-1 pre-flight 完了 (2026-08-12、§3.3c)**: 価格側 13/13 OK + サプライズパネル凍結。**θ=1.0 の 12 combo は結果観測前に block ゲート不達で脱落 → 実効候補空間 12 combo (θ=0.5 のみ)、OOS blocks 19/16 = modal 予想 C3/C5**。次 = discovery 08-21 → OOS verdict 08-28。(旧: 🔓 DESIGN self-LOCK 2026-07-18 — 方法論・窓・grid・凍結規則・判定規則・α 会計を結果観測前に固定。純研究 self-LOCK の根拠 = round-2/3/E1 前例。本文書の変更はレビュー必須 PR のみ。)
 **rule**: R1 手続き (新シグナル系統 — pre-reg LOCK が昇格の必要条件)。**純研究 — live/shadow/Kelly/tier 一切不変更**。PASS でも実装は別途 D4 準拠の実装 pre-reg + user 最終承認 (S5、D3 SLA 48h)。
 **owner**: claude (autopilot 自走可 — データ in-house + 無料カレンダーで net 到達可)
 **pipeline 位置**: [[edge-development-pipeline-2026-07-18]] S1 通過 → **本文書 = S2/S3 統合起案** (S2 診断 = §5a discovery を探索窓のみで実行、S3 = 本 LOCK)。型 B (歴史データあり → discovery→凍結→OOS)。
@@ -135,6 +135,54 @@
 8. **本付録で確定しないこと**: z-surprise の正規化窓・discovery grid は §5 の凍結手続き
    (2026-08-21) のまま — 本付録はデータの来歴と意味論のみを凍結する。
 
+#### §3.3c phase-1 pre-flight (2026-08-12 執行 — サプライズ標本の可用性と power 開示)
+
+**種別**: 設計変更ではない。§9「power の正直な開示」の phase-1 版 + §11 の 2026-08-14
+マイルストン (FF gap scrape + データ付録凍結) の完了確認。**価格データ非接触** (カレンダー値
+のみ、`tools/e7_surprise_panel.py --write`) — イベント×リターン結合統計は未計算 (§10-1 遵守)。
+本節は結果 (リターン) 観測前に記録する。
+
+1. **価格側 pre-flight**: `tools/e15_e7_data_refreeze.py --verify-only --root <repo>` =
+   **13/13 OK** (台帳 3 点再現、2026-08-12 実測)。phase-1 discovery/verdict の BLOCKED 要因なし。
+2. **サプライズパネル (§6 の z 定義の忠実な機械化)**: canonical カレンダー (NFP 149 / CPI 149、
+   2014-01〜2026-06) × R4F forecast × actual (R4F 231 + BLS first print 66、**欠落ゼロ**)。
+   成果物 = `raw/bt-results/e7/e7_surprise_panel.csv` + `e7_surprise_coverage.json`、
+   test pin = `tests/test_e7_surprise_panel.py` (単位規約 / strictly-trailing σ /
+   **look-ahead canary** = 未来 release 差し替えで過去 z 不変 / block ゲート / 実測値回帰 pin)。
+3. **σ_trailing warm-up の帰結 (規則から機械的に導かれる、裁量なし)**: 直近 24 releases を
+   strictly trailing で要求するため、各系列の**最初の 24 イベント (2014-01〜2015-12) は z 不定 =
+   discovery 標本から自動脱落** (NFP 120→96 / CPI 120→96)。データ開始が 2014-01 (R4F 窓) の
+   ため pre-2014 での warm-up 充当は不可能。
+4. **block 数の実測 (block = イベント。primary 7 ペアが同時発火するので N ≈ blocks × 7)**:
+
+| 系列 / 窓 | z 有効 | θ=0.5 blocks | θ=1.0 blocks | ゲート |
+|---|---|---|---|---|
+| NFP / discovery | 96 | **41** | 22 | §5b(iii) ≥40 |
+| CPI / discovery | 96 | **62** | 31 | §5b(iii) ≥40 |
+| NFP / OOS | 29 | **19** | 8 | §5c B(d) ≥15 |
+| CPI / OOS | 28 (1 除外) | **16** | 5 | §5c B(d) ≥15 |
+
+   CPI/OOS の 1 件除外 = §3.3b-6(i) で観測前宣言済みの 2025-12-18 CPI m/m (forecast 欠落)。
+   宣言どおり 1 件のみで、事後裁量による除外はゼロ。
+
+5. **帰結 1 — θ=1.0 の 12 combo は結果を見る前に構造的に脱落**: θ=1.0 は 4 セル全てで
+   discovery ≥40 も OOS ≥15 も満たさない (22/31/8/5)。§5b(iii) は選抜の必須条件なので
+   **θ=1.0 combo は凍結候補にすらならない** (仮に凍結できたとしても OOS で B(d) 不達 = C3 が
+   上限)。よって phase-1 の実効候補空間は **24 → 12 combo (θ=0.5 のみ)**。凍結上限 m₁ ≤ 8 と
+   BH q=0.05 (m=m₁) の規則は不変 — **α 会計・grid・θ の定義は一切変更しない** (§10-2)。
+6. **帰結 2 — NFP θ=0.5 discovery は knife-edge (41 vs ゲート 40)**: イベント 1 件の増減で
+   NFP 系 6 combo が phase-1 から丸ごと消える。ゲート値は凍結済みなので**動かさない**。
+   凍結時に NFP 系が残った場合、この余裕 1 件の脆さを §6 凍結表に併記する。
+7. **帰結 3 — power の事前予想 (結果を見た後の言い訳の封鎖)**: OOS blocks は θ=0.5 でも
+   NFP 19 / CPI 16。§9 の効果量式 (0.58σ/√blocks × 2.5) では検出可能平均効果 ≈
+   **0.33σ_h (NFP) / 0.36σ_h (CPI)** — phase-0 の FOMC 系と同じ「大効果のみ検出」帯。
+   **phase-1 の modal outcome も C3 (UNDERPOWERED) または C5 と今予想し記録する**
+   (phase-0 §9 の予想と同じ規律。C3 なら §8 の UNDERPOWERED 分岐 = cache 2027-07-01 以降への
+   延伸待ち)。
+8. **DEFERRED 判定は不発**: §8 の DEFERRED 条件 (primary block <5 ペア / カレンダー sanity >5%)
+   はいずれも該当しない (13/13 ペア OK、除外 1 件 = 宣言済み)。予定どおり discovery (08-21) →
+   OOS verdict (08-28) を実行する。
+
 ### 3.4 窓 (calendar 固定、phase 共通)
 
 - **discovery 窓**: per-pair floor (≥2014-01) 〜 **2023-12-31**
@@ -250,7 +298,7 @@
 |---|---|---|
 | phase-0: データ準備 + discovery + 候補凍結 (🔒) | **2026-07-24** | `e15-e7-event-prereg-phase0-verdict` が包含監視 |
 | **phase-0 OOS verdict** | **2026-07-31** | 同上 (deadline_info) |
-| phase-1: FF gap scrape + データ付録凍結 | **2026-08-14** | `e15-e7-event-prereg-phase1-verdict` が包含監視 |
+| phase-1: FF gap scrape + データ付録凍結 | **2026-08-14** → ✅ **完了 (付録 §3.3b 凍結 2026-07-24 / pre-flight §3.3c 2026-08-12、期日 2 日前倒し)** | `e15-e7-event-prereg-phase1-verdict` が包含監視 |
 | phase-1: discovery + 候補凍結 (🔒) | **2026-08-21** | 同上 |
 | **phase-1 OOS verdict** | **2026-08-28** | 同上 (deadline_info) |
 
@@ -296,3 +344,36 @@ test pin 先行 (§10-6): `tests/test_event_modality_oos_verdict.py` 26 pins (�
 - E15 (無条件イベント窓プレミア/リバーサル、FOMC/NFP/CPI × M15) は**棄却**。イベントカレンダーの無条件モダリティは供給ラインから外れる。
 - **次**: phase-1 (E7 指標サプライズ directional) を §6/§11 の予定どおり実行 (FF gap scrape + データ付録凍結 2026-08-14 → discovery 08-21 → OOS verdict 08-28、registry `e15-e7-event-prereg-phase1-verdict` 監視継続)。両 phase PASS=0 となった場合のみ §8 の E12 格上げ分岐。
 - §10 遵守の宣言: OOS 結合統計の観測は本 verdict 実行が初回。観測後の再分析・grid 再アンカー・候補変更は行っていない (本 §12 の記述は §5c/§8 に事前列挙された切り口のみ)。
+
+---
+
+## §13 phase-1 (E7) verdict — ❌ **FAIL (discovery 段、選抜通過 0/24 → m₁=0、OOS 非接触)** (2026-08-17 執行、凍結期日 08-21 の 4 日前倒し / verdict 期日 08-28 の 11 日前倒し)
+
+**執行**: `tools/event_modality_explore.py discovery-e7` (rule:R1 手続き、設計自由度ゼロ)。claim = `.ai/tasks/queue/20260817-e7-phase1-discovery-oos.md` + PR #182。
+
+### 判定前の機械ガード (全て green)
+
+- **parquet 台帳再現 13/13** (`e15_e7_data_refreeze.py --verify-only`、実行 worktree で copy 後に再検証)。
+- **panel 再現**: `census-e7` (counts のみ、価格非接触) が §3.3c pre-flight 実測と完全一致 — discovery blocks θ0.5: NFP 41 / CPI 62、θ1.0: 22/31、OOS blocks: 19/16/8/5。`tests/test_e7_phase1_explore.py` に pin。
+- **符号・estimand spot check**: `usd_leg_dir` 規約 (USD_JPY +1 / EUR_USD −1 @USD long) + 2020-06-05 NFP (z=+30.79) × USD_JPY の time-exit をハーネス外の手計算で再現 (+10.46p 一致、方向 +1)。
+- **合成 dry-run**: `self-test-e7` (24-combo 結線 + θ 単調性の機械不変条件) green。
+
+### discovery 結果 (探索窓 ≤2023-12-31、§5b 選抜 4 条件)
+
+- **選抜通過 0/24 → 凍結 m₁ = 0** (`raw/bt-results/e7_frozen_candidates.json`、全 24 combo の統計は `e7_discovery.json`)。
+- **実効空間 (θ=0.5、12 combo) は time-exit EV 全て負** (−0.31〜−8.15 p/trade、N 287–416、blocks 41–62)。§5b(i) の段階で全滅 — power の問題ではなく符号が系統的に逆。
+- θ=1.0 で唯一 EV_te>0 の NFP/e+1/h1 (+1.76) も §5b(ii) first-touch −1.10 < 0 ∧ §5b(iii) blocks 22 < 40 で不通過 (§3.3c の観測前予告どおり θ=1.0 はゲート不達)。
+- **SIGN-FLIP 記録 (§6 の事前宣言に基づく記述のみ、claim ではない)**: 実効空間の一様な負 EV は「サプライズ方向への drift」の逆 = 発表後の overshoot 回帰と整合。fade 側は §6 で grid 外に凍結済み (文献根拠が drift 側のみのため) — 追うなら新規 pre-reg + 敵対的検証が必要で、phase-0 で CPI fade が OOS C5 だった事実を負の prior として持つこと。
+- **§9/§3.3c の modal 予想 (C3/C5) との関係**: 予想は OOS 段の分類を想定したが、実際は discovery 段で全滅 — C 分類に到達する候補がゼロ (phase-0 と同型の「予想より手前で死ぬ」パターン)。
+
+### 発動分岐 (§8 固定)
+
+- phase-1 PASS = 0。**両 phase PASS = 0 → イベントモダリティ (カレンダー/サプライズ × M15 spot) を枯渇と判定し、E12 (CME 先物実約定 volume flow、first look 2027-02-05) を供給ライン主候補へ格上げ**。
+- UNDERPOWERED 再判定エントリは**不発** (C3 は OOS 段の分類 — OOS に到達した候補がゼロ)。
+- **OOS 窓 (2024-01-01〜2026-06-30) はイベント×リターン結合統計に関して未接触のまま保存** (本 verdict は探索窓のみで確定。§3.3c の OOS block counts は counts のみで結合統計ではない)。
+- 再試行禁止の範囲: **NFP/CPI headline サプライズ z × sign-follow × M15 (θ/entry/horizon の全変種)**。core/改定値・FOMC rate surprise・中銀声明テキスト (§5 残余モダリティ) は本 ban の射程外 — 新 family として台帳経由でのみ。
+
+### §10 遵守の宣言
+
+- 本 verdict は探索窓の結合統計のみで確定し、OOS 結合統計はいかなる主体も未計算。
+- grid・θ・選抜規則・凍結規則は §6/§5b の凍結値から一切変更していない (§3.3c の θ=1.0 脱落予告も grid からは外さず、ゲートに機械的に落とさせた)。

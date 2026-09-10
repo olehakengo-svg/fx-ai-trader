@@ -4,8 +4,24 @@
 - **Entry Type**: `bb_squeeze_breakout`
 - **Category**: Breakout / VOL
 - **Timeframe**: Scalp 1m/5m, DT 15m
-- **Status**: PAIR_DEMOTED (USD_JPY/EUR_USD/GBP_USD/EUR_JPY/GBP_JPY/EUR_GBP)
-- **Active Pairs**: none (2026-05-03 R2 TRUE_LIVE stop LOCK)
+- **Status**: PAIR_PROMOTED (EUR_USD — 2026-05-07 volume emergency 登録、ただし SQUEEZE_V2_LIVE_HOLD で shadow 固定 2026-09-10) + PAIR_DEMOTED (USD_JPY, GBP_USD, EUR_JPY, GBP_JPY, EUR_GBP)
+- **Active Pairs**: EUR_USD (shadow のみ、v2 評価器 — live 化は fresh shadow N の R1 決裁後)
+
+## 2026-09-10 v2 配線落ち 3 層修復 (rule:R3 構造バグ、user「進めて」)
+
+**127 日沈黙の解消** — 一次資料: [[e2-silent-cells-triage-2026-09-10]] §2 / registry `roster-e2-silent-promoted-cells`。
+
+commit 942e3800 (2026-05-06 w4 v2 化) 以降、EUR_USD セル (BUY/SELL) は _PAIR_PROMOTED 現役掲載のまま LIVE/shadow 行ゼロだった。意図的無効の決裁は存在せず (SHADOW_RETIRED / SHADOW_DEMOTED / FORCE_DEMOTED いずれも不在)、修復 = 設計意図 (v2 タスク 20260505-1947 の shadow 実測) の回復。
+
+| 層 | 欠陥 | 修復 |
+|---|---|---|
+| ① live 恒久 None | `_evaluate_v2` の hard-guard `not backtest_mode and bar_time is None → None`。live 呼び出し規約 (`compute_fn(df, tf, sr, symbol)`) は bar_time を渡さないため構造的 None | xs_momentum idiom の fallback (`bar_time or df.index[-1]`)。評価本体は closed bar (`iloc[-2]`) のみ参照のため BT parity 不変 |
+| ② ✅ 欠落 | v2 reasons に ✅ ゼロ → QUALIFIED gate `no_confirm:bb_squeeze_breakout` で live/shadow/BT 全滅 | BUY/SELL の第 1 reason に ✅ 付与 (BT 側 `SCALP_BT_QUALIFIED` gate も同一述語のため両側同時整合) |
+| ③ loser-shadow 不達 | `split_shadow_always` 配線 (env 2 lever) は既存だが評価器 None で候補が永遠に不達 | 層①修復で到達回復 (コード変更なし、テストで pin) |
+
+**live 送信への影響と防衛**: 修復単体だと winner 経路が _PAIR_PROMOTED×EUR_USD (spread_gate / spread_sl_gate / Phase0 SHADOW gate すべて免除) 経由で「一度も行使されたことのない live 送信」を開いてしまう。promotion 根拠は shadow N=14 EV=+0.01 のみで R1 未了 → **`SQUEEZE_V2_LIVE_HOLD` (default=1, v2 有効時のみ適用) を新設し winner 経路も shadow 固定**。修復後の live 送信挙動 = 修復前と同一 (ゼロ)。解除 (env "0") は fresh shadow N≥30 での R1 決裁後のみ。counterfactual テストで hold なし → live 送信発生を実測確認済み (`tests/test_bb_squeeze_v2_live_hold.py`)。
+
+**テスト**: 評価器 4 本 (live 規約で非 None / BT⇄live 同一 df parity / ✅ no_confirm / loser-shadow 到達) + hold 4 本 (前提 pin / shadow 固定 / counterfactual live 開通 / v1 scope 不変)。counterfactual 5/5 実地確認 (修復 revert で該当テストのみ fail)。
 
 ## BT Performance (365d, 5m Scalp)
 

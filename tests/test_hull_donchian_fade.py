@@ -229,10 +229,13 @@ class TestCodexReviewPins:
             "I-3: select_best 敗北で prod fires=0 (Kalman/pivot/ZZ/sweep の再発)"
 
     def test_i4_flat_units_override_bypassed(self):
+        # 2026-09-01: kalman carve-out の行挿入に伴いリテラル一致 (hull 行の
+        # 直後が _prime_tier 行) を性質 pin へ緩和 — 固定すべき性質は
+        # 「hull が FLAT 条件列の除外対象に入っている」こと自体。
         import inspect
         import modules.demo_trader as dt
         src = inspect.getsource(dt)
-        assert 'and entry_type != "hull_donchian_fade"\n            and _prime_tier not in ("A", "B")' in src, \
+        assert 'and entry_type != "hull_donchian_fade"' in src, \
             "I-4: OANDA_FORCE_FLAT_UNITS が MIN lot 1000u 契約を上書きする"
 
     def test_fixed_lot_5000(self):

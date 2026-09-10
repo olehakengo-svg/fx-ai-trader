@@ -62,7 +62,12 @@ def test_shadow_emit_non_sr_strategy_writes_oanda_audit(tmp_path, entry_type, in
     assert audit["entry_type"] == entry_type
     assert audit["instrument"] == instrument
     assert audit["bridge_status"] == "skipped"
-    assert audit["block_reason"] == "shadow_tracking"
+    # 2026-09-02 (rule:R3): shadow-emit rows self-describe their hardcoded units=0
+    # via a "(shadow_emit_no_lot)" suffix; the "shadow_tracking" prefix stays so
+    # existing startswith()-based guards/tools remain compatible.
+    assert audit["block_reason"] == "shadow_tracking(shadow_emit_no_lot)"
+    assert audit["block_reason"].startswith("shadow_tracking")
+    assert audit["units"] == 0  # marker only — not an order size
     assert audit["is_live"] == 0
     assert audit["sr_strength"] is None
 
@@ -85,7 +90,9 @@ def test_shadow_emit_sr_strategy_preserves_sr_meta_in_oanda_audit(tmp_path):
     assert audit["entry_type"] == "sr_break_retest"
     assert audit["instrument"] == "USD_JPY"
     assert audit["bridge_status"] == "skipped"
-    assert audit["block_reason"] == "shadow_tracking"
+    assert audit["block_reason"] == "shadow_tracking(shadow_emit_no_lot)"
+    assert audit["block_reason"].startswith("shadow_tracking")
+    assert audit["units"] == 0  # marker only — not an order size
     assert audit["is_live"] == 0
     assert audit["sr_strength"] == SR_META["strength"]
     assert audit["sr_touches"] == SR_META["touches"]

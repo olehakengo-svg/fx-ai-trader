@@ -110,9 +110,28 @@ class DailyReviewEngine:
                 except Exception as e:
                     print(f"[DailyReview] Error: {e}")
 
-                # ── Daily SQLite Backup (after review) ──
+                # ── Daily C1 retention prune (rule:R3, 2026-08-26) ──
+                # Runs before the backup so the freed pages are already
+                # reflected in the snapshot, and so a disk-pressure day
+                # reclaims table growth even if the copy is then skipped.
+                # Incident: /var/data filled 2026-08-21 → all writes failed
+                # for 3.5 days (MEMORY project_render_disk_full_write_outage).
                 try:
-                    backup_result = self._db.backup_database(keep_last=3)
+                    from modules.candidate_logger import prune_candidates
+                    prune_result = prune_candidates(self._db._path)
+                    print(f"[DailyReview] C1 prune: {prune_result.get('status')} "
+                          f"deleted={prune_result.get('deleted')} "
+                          f"remaining={prune_result.get('remaining')}")
+                except Exception as e:
+                    print(f"[DailyReview] C1 prune error: {e}")
+
+                # ── Daily SQLite Backup (after review) ──
+                # keep_last=2: 3 copies of a ~204MB DB put the steady state at
+                # 852MB = 85.3% of the 1GB disk, permanently above the 75%
+                # warn threshold (rule:R3, 2026-08-26). Render's daily disk
+                # snapshot covers the DR case a third copy would have served.
+                try:
+                    backup_result = self._db.backup_database(keep_last=2)
                     print(f"[DailyReview] DB backup: {backup_result.get('status')} "
                           f"({backup_result.get('size_bytes', 0)} bytes)")
                 except Exception as e:
@@ -246,7 +265,13 @@ class DailyReviewEngine:
                 cr = t.get("close_reason", "unknown")
                 close_reasons[cr] = close_reasons.get(cr, 0) + 1
 
-            sl_hits = close_reasons.get("SL_HIT", 0)
+            # 2026-08-07 (rule:R3): "SL_HIT" は BE-lock/トレーリングで SL が利益側へ
+            # 動いた後の利確 exit も含む (本番実測 54.2% が WIN) ため、そのまま数えると
+            # 「SL幅拡大検討」を勝ちトレードで焚きつける。損切りのみを数える。
+            # 根拠: wiki/analyses/sl-hit-label-collision-2026-08-07.md
+            sl_hits = sum(1 for t in trades
+                          if t.get("close_reason") == "SL_HIT"
+                          and t.get("outcome") == "LOSS")
             tp_hits = close_reasons.get("TP_HIT", 0)
             if trades_today > 0:
                 sl_rate = sl_hits / trades_today * 100

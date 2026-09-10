@@ -1,0 +1,35 @@
+{
+  "tool": "rate_anchor_ingest",
+  "purpose": "family C 金利アンカー材料の日次蓄積 (材料のみ — シグナル/乖離計算は行わない。family C は pre-reg 前)",
+  "start": "2013-01-01",
+  "sources": {
+    "mof_jgb_all": "https://www.mof.go.jp/jgbs/reference/interest_rate/data/jgbcm_all.csv",
+    "mof_jgb_current": "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/jgbcme.csv",
+    "fred_dgs": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS1,DGS2,DGS5,DGS10",
+    "treasury_par": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{year}/all?type=daily_treasury_yield_curve&field_tdr_date_value={year}&page&_format=csv"
+  },
+  "zn_source": "data/cache/yield/ZN_F_1h.parquet (union-merge cache) の UTC-day 集計",
+  "files": {
+    "jgb_yields": {
+      "path": "data/external/rate_anchor/jgb_yields.csv",
+      "rows": 3345,
+      "date_min": "2013-01-04",
+      "date_max": "2026-09-09",
+      "sha256": "0fee9e841e295c4cefa09902ee69636dc0f9db4580a39effbb5b8af3ba45cee8"
+    },
+    "us_treasury_yields": {
+      "path": "data/external/rate_anchor/us_treasury_yields.csv",
+      "rows": 3571,
+      "date_min": "2013-01-01",
+      "date_max": "2026-09-09",
+      "sha256": "e98f596c057caa55c65a12e23645b3320f3fe2038f9e95f9fac5317603b7b5fd"
+    },
+    "zn_f_daily": {
+      "path": "data/external/rate_anchor/zn_f_daily.csv",
+      "rows": 775,
+      "date_min": "2024-02-18",
+      "date_max": "2026-09-10",
+      "sha256": "5739528f8bd81bc0e0dea1ccf0591127feb7c5123927bcdd989671bab3de4add"
+    }
+  }
+}

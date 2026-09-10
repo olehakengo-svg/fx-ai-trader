@@ -38,6 +38,26 @@ HOUR_IN = 13    # Overlap
 HOUR_OUT = 8    # London
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_vix_overlap_membership(monkeypatch):
+    """2026-08-03 (rule:R2): vix Overlap pilot は本番 demote 済み
+    (decisions/vix-pilot-early-demote-2026-08-03.md)。本 module が検証する
+    session-filter *機構* はメンバーシップ非依存なので、合成の
+    promoted+filtered vix セルを class attr に pin して機構カバレッジを
+    本番 tier 変更から絶縁する (demote 自体の pin は
+    tests/test_vix_pilot_demote_pin.py)。"""
+    cell = (VIX, INST)
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_PROMOTED",
+        frozenset(set(DemoTrader._PAIR_PROMOTED) | {cell}))
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_DEMOTED",
+        frozenset(t for t in DemoTrader._PAIR_DEMOTED if t != cell))
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_SESSION_FILTER",
+        {**DemoTrader._PAIR_SESSION_FILTER, cell: {"Overlap"}})
+
+
 class _OandaModeStub:
     def __init__(self, mode=""):
         self._mode = mode

@@ -1,5 +1,42 @@
 # FX AI Trader - Changelog
 
+## 2026-08-11 — feat(supply): price_shock_rev 席供給の是正 — (a) 席優先 select + (c) live feed MASSIVE 統一 (rule:R1)
+
+- **決裁執行**: [[price-shock-seat-supply-audit-2026-07-29]] §7 パケット (user「進めて」2026-08-03/08-11)。
+  winner-take-all × score 非対称 (guest DMB/KSB base 5.0+ vs seat ps 1.0) で family 供給が
+  design の ~31% (eur_aud/usd_cad は 0%) に絞られていた構造バグの修正
+- **(a)** `HourlyEngine.select_best` に席優先: ps 候補が存在する tick では ps が primary emit。
+  displaced guest は shadow_always 経由で shadow 継続 (系列不断)。DMB live は D-c-2 carve-out
+  除外中のため live 挙動の変化ゼロ。席集合は instance 導出で family 追随
+- **(c)** `_MASSIVE_SYMBOLS` (live) に AUDJPY/NZDJPY/EURAUD/USDCAD 追加 (AUDUSD R3 前例と同型、
+  凍結統計 12.3y MASSIVE とのソース統一) + `_OANDA_SYMBOLS` に USDCAD=X (yfinance 落ち穴修復)。
+  daytrade_audjpy 15m も MASSIVE 化 (影響列挙 = audit §9)。USD_CHF の同穴はスコープ外記録
+- **§10 追補**: WEEKEND_CLOSE 初実射 (id=14900 −126.5p) の counterfactual = design 保有なら
+  −191.0p → **免除非推奨で確定** (+64.5p 保護的、週末ギャップはポートフォリオ政策事項)
+- 根拠 (BT): 昇格 grid 12.3y MASSIVE BH-FDR m=3744 (AUD_JPY N=426 WR63.8% / NZD_JPY N=303 /
+  USD_CAD N=247 / EUR_AUD N=262 / EUR_GBP N=239) + 07-24 exit-free 監査全席 p=0.0001。
+  全席 Sentinel 1000u + ps watchdog R2 併設。検証計画 = §9 (30d 供給率再計測、capture ≥80% 目標)
+- tests: `tests/test_price_shock_seat_priority.py` (席優先 6 + feed pin 2)
+
+## 2026-07-31 — feat(tools): P-S1(a) 執行パケット完全準備 — 判定器 + Option B draft branch + 第3/第4 ブロッカー発見 (rule:R1 準備、live 変更なし)
+
+- **目的**: sweep_reversion_eurgbp_late (12.4y Bonferroni 唯一生存 cell) の P-S1(a) 執行を
+  トリガ成立日 (unique N≥10 ∧ spaced EV>0、user 条件付き承認 2026-07-24) に機械的に完遂
+  できる状態にする。現況 N=8/10 (最終発火 07-15)、spaced EV +2.47p>0
+- `tools/ps1a_execution_check.py` — 凍結文言 (三基準/spacing 境界 ≥3h/判定分岐/retire 期日)
+  の dry-run リプレイ判定器 + pin tests 12 件。本番実測でパケット §1.1 と完全一致を確認
+- **Option B 実装を draft branch に準備** (`draft/ps1a-option-b-20260731`、マージ禁止):
+  commit 1 (承認済みスコープ) = order 層 12-bar min-spacing + HTF exemption + pin 解除 +
+  registry 置換 / commit 2 (⚠️ AMENDMENT、user 決裁待ち) = gbp_asia cell 免除 + 専用
+  spread cap 10.0p (wg §2.2 前例と同型)
+- **第3/第4 estimand ブロッカー発見** ([[sweep-reversion-ps1a-decision-packet-DRAFT]] §8.1):
+  gbp_asia_flash_crash (UTC21-06) が LATE 窓を 100% 内包 + 静的 spread limit 1.5p が実測
+  5.4-16.6p を全 block — **承認済み Option B 単独 merge は live 0 のまま shadow 蓄積まで
+  殺す** (HTF exemption が rescue を外すため)。T8 期は上流 HTF gate の shadowing で未観測
+- 執行手順書: [[sweep-reversion-ps1a-execution-runbook-2026-07-31]] (トリガ成立日に読んで
+  実行するだけ)。registry message も判定器 + runbook 参照へ更新
+- **評価への影響: なし** — live/shadow/Kelly/tier 一切不変更 (draft branch は未マージ)
+
 ## 2026-07-28 — feat(exit): price_shock_rev ×5 exit estimand 復元 + BE_LOCK A/B 実験クローズ (rule:R1)
 
 - **決裁執行**: [[preserve-exit-overlay-2026-07-28]] §5 パケット (user 委任 + 「進めて」決裁、

@@ -1,0 +1,9 @@
+{
+  "status": "FROZEN",
+  "prereg": "e15-e7-event-modality-prereg-2026-07-18 \u00a76",
+  "explore_end": "2023-12-31",
+  "m1": 0,
+  "m_cap": 8,
+  "selection_rule": "(i) EV_te>0 (ii) EV_ft>0 (iii) N>=60 & blocks>=40 (iv) fold sign agreement >=2/3; freeze lexicographic: fold agreement desc -> EV-per-vol desc -> event<=3",
+  "candidates": []
+}

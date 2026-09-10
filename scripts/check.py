@@ -19,6 +19,7 @@ FX AI Trader 開発ハーネス — 整合性チェッカー v1.0
   4. app.py DT_QUALIFIED
 """
 from __future__ import annotations
+import json
 import re
 import subprocess
 import sys
@@ -356,6 +357,25 @@ AI_RUNS = ROOT / ".ai" / "runs"
 REVIEW_GATE_CUTOFF = "20260702"
 # queue 内 R3/止血タスクの SLA (日)。超過で WARN → Claude 直接実行フォールバック。
 QUEUE_SLA_DAYS = 3
+# hard SLA (process-meta-audit-2026-09-07 R5、user 承認 2026-09-10): これを超えて
+# waiver も無い滞留は ERROR。waiver は .ai/tasks/sla_waivers.json に
+# {"waivers": [{"id": <task stem>, "until": "YYYY-MM-DD", "reason": ...}]} で明示
+# (無言の常時 WARN が「牙なし」だった — e23 は SLA 3 日に対し 20 日滞留した)。
+QUEUE_SLA_HARD_DAYS = 14
+SLA_WAIVERS_PATH = AI_TASKS / "sla_waivers.json"
+
+
+def _load_sla_waivers(today_iso: str) -> dict[str, str]:
+    """有効な waiver {task_stem: reason} を返す。期限切れ waiver は無効。"""
+    try:
+        data = json.loads(SLA_WAIVERS_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    out: dict[str, str] = {}
+    for w in data.get("waivers", []):
+        if str(w.get("until", "")) >= today_iso:
+            out[str(w.get("id", ""))] = str(w.get("reason", ""))
+    return out
 
 
 def check_env_gate_declarations() -> tuple[list[str], list[str]]:
@@ -379,6 +399,33 @@ def check_env_gate_declarations() -> tuple[list[str], list[str]]:
         warns.append(
             f"  ⚠️  env gate '{key}' は demo_trader.py が読むが render.yaml 未宣言 "
             f"(decision-without-provisioning リスク — envVars に sync:false で宣言せよ)")
+    return errors, warns
+
+
+def check_prereg_registry_schema() -> tuple[list[str], list[str]]:
+    """pre-reg trigger registry の型別スキーマ整合 (rule:R3, 2026-09-08)。
+
+    2026-09-06 に artifact_presence を名乗りながら requirements を欠く
+    エントリが main に着地し、daily の trigger watch が KeyError で落ちて
+    **51 エントリ全ての監視が 2 日間停止**した。監視器の入力は authoring 時に
+    落とす — 実行時に落ちると「監視していない」ことに誰も気づかない。
+    """
+    errors: list[str] = []
+    warns: list[str] = []
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    try:
+        from tools.prereg_trigger_watch import lint_registry
+    except Exception as e:  # noqa: BLE001
+        # skip に落とさない: 検査できないことを「合格」と読ませない
+        # (write-only guard の再発防止)。
+        return [f"  ❌ prereg registry lint が実行不能: {e}"], []
+    try:
+        violations = lint_registry()
+    except Exception as e:  # noqa: BLE001
+        return [f"  ❌ prereg registry の読込に失敗: {e}"], []
+    for v in violations:
+        errors.append(f"  ❌ prereg registry: {v}")
     return errors, warns
 
 
@@ -437,11 +484,62 @@ def check_ai_task_governance() -> tuple[list[str], list[str]]:
                     f"{date_m.group(1)[:4]}-{date_m.group(1)[4:6]}-{date_m.group(1)[6:]}"
                 )
             ).days
-            if age_days > QUEUE_SLA_DAYS:
+            # status: done のまま queue/ に残っているものは「停滞」ではない。
+            # SLA 滞留として数えると偽陽性が常時点灯し、本物の停滞
+            # (in_progress のまま放置) が埋もれる (2026-08-27, rule:R3 —
+            # family-a タスクが完了済みのまま 8 日間 SLA 警告を出し続けた)。
+            try:
+                head = task_file.read_text(encoding="utf-8")[:600]
+            except OSError:
+                head = ""
+            if re.search(r"^status:\s*done\b", head, re.M):
+                warns.append(
+                    f"  ⚠️  queue/{task_file.name}: status=done のまま queue 残置 "
+                    f"— .ai/tasks/done/ へ移送すること"
+                )
+                continue
+            if age_days > QUEUE_SLA_HARD_DAYS:
+                today_iso = f"{today[:4]}-{today[4:6]}-{today[6:]}"
+                waivers = _load_sla_waivers(today_iso)
+                if task_file.stem in waivers:
+                    warns.append(
+                        f"  ⚠️  queue/{task_file.name}: {age_days}日滞留 "
+                        f"(hard SLA {QUEUE_SLA_HARD_DAYS}日超だが waiver 有効: "
+                        f"{waivers[task_file.stem][:80]})"
+                    )
+                else:
+                    errors.append(
+                        f"  ❌ queue/{task_file.name}: {age_days}日滞留 "
+                        f"(hard SLA {QUEUE_SLA_HARD_DAYS}日超・waiver なし — "
+                        f"実行するか、理由付き waiver を "
+                        f".ai/tasks/sla_waivers.json に明示するか、タスクを "
+                        f"failed/ へ dispose せよ。process-meta-audit R5)"
+                    )
+            elif age_days > QUEUE_SLA_DAYS:
                 warns.append(
                     f"  ⚠️  queue/{task_file.name}: {age_days}日滞留 "
                     f"(SLA {QUEUE_SLA_DAYS}日超 — Claude 直接実行フォールバック検討)"
                 )
+
+    # ── 2b. 能動タスク枠ゼロ検出 (process-meta-audit R5 / rigor-4 訂正版) ──
+    # 「能動枠 = 0」を検知するトリガが registry 51 件のどこにも無く、E23 の
+    # 幻ブロッカー 17 日滞留・08-19 以降 19 日の測定空白を誰も名乗らなかった。
+    # WIP 原則 (2026-08-14 改訂: 今日着手できる本数 >= 1) の機械 enforcement。
+    if queue_dir.exists():
+        active_tasks = []
+        for task_file in queue_dir.glob("*.md"):
+            try:
+                head = task_file.read_text(encoding="utf-8")[:600]
+            except OSError:
+                head = ""
+            if not re.search(r"^status:\s*done\b", head, re.M):
+                active_tasks.append(task_file.name)
+        if not active_tasks:
+            warns.append(
+                "  ⚠️  queue に能動タスクが 0 件 — WIP 原則 (今日着手可能 >= 1、"
+                "2026-08-14 改訂) 違反。臨時スキャン起動 or 次タスク起票を検討 "
+                "(process-meta-audit R5)"
+            )
 
     # ── 3. 幽霊 pending 検出 ──
     index = KB_WIKI / "index.md"
@@ -660,6 +758,15 @@ def main() -> int:
     warnings.extend(env_warns)
     if not env_errors:
         ok("env gate 宣言OK")
+        ok_count += 1
+
+    # ── 9. pre-reg trigger registry スキーマ (監視器を authoring 時に守る) ──
+    section("pre-reg trigger registry スキーマ + 到達経路 lint")
+    reg_errors, reg_warns = check_prereg_registry_schema()
+    errors.extend(reg_errors)
+    warnings.extend(reg_warns)
+    if not reg_errors:
+        ok("prereg registry lint OK")
         ok_count += 1
 
     # ── Summary ──

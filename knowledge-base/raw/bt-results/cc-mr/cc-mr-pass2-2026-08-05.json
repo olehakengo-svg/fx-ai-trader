@@ -1,0 +1,109 @@
+{
+ "pass": 2,
+ "date": "2026-08-05",
+ "ledger": 21,
+ "survivors": [
+  "AUD_NZD",
+  "AUD_CAD",
+  "NZD_CAD"
+ ],
+ "gate_C": {
+  "pooled_mean_net5": 3.958,
+  "p_one_sided": 0.26647335266473354,
+  "n_blocks": 140,
+  "pass": false
+ },
+ "gate_D": {
+  "net_after_friction_swap": {
+   "adverse": -3.706,
+   "point": -3.108,
+   "favorable": -2.593
+  },
+  "pass": false
+ },
+ "gate_E": {
+  "max_block_share": 0.0348,
+  "pass": true
+ },
+ "gate_F": {
+  "yearly_mean": {
+   "2014": -22.607,
+   "2015": 7.821,
+   "2016": 19.739,
+   "2017": 6.356,
+   "2018": 11.104,
+   "2019": 7.391,
+   "2020": -3.363,
+   "2021": 7.379
+  },
+  "positive_years": 6,
+  "loyo_all_positive": true,
+  "loyo": {
+   "2014": 7.5,
+   "2015": 3.282,
+   "2016": 2.394,
+   "2017": 3.589,
+   "2018": 3.077,
+   "2019": 3.412,
+   "2020": 5.009,
+   "2021": 3.414
+  },
+  "desync_2014_15_mean": -5.603,
+  "pass": true
+ },
+ "gate_G": {
+  "per_pair_mean": {
+   "AUD_CAD": -4.632,
+   "AUD_NZD": 7.876,
+   "NZD_CAD": 8.977
+  },
+  "positive_pair_share": "2/3",
+  "sides": {
+   "L": {
+    "n": 149,
+    "mean": 1.78,
+    "p_against": 0.5867413258674132,
+    "blocks": 86,
+    "kill": false
+   },
+   "S": {
+    "n": 106,
+    "mean": 7.02,
+    "p_against": 0.7557244275572442,
+    "blocks": 75,
+    "kill": false
+   }
+  },
+  "pass": true
+ },
+ "binding": {
+  "A": true,
+  "B": true,
+  "C": false,
+  "D": false,
+  "E": true,
+  "F": true,
+  "G": true
+ },
+ "knife_edge": null,
+ "diagnostics": {
+  "spearman_ic_z_fwd5d": {
+   "AUD_NZD": -0.128,
+   "AUD_CAD": -0.0616,
+   "NZD_CAD": -0.0881
+  },
+  "skip_version": {
+   "n": 198,
+   "mean_net5": 6.435
+  },
+  "overlap_share": 0.2549,
+  "cofire_week_share": 0.2568,
+  "d1_close_to_close_mean": {
+   "AUD_NZD": 5.244,
+   "AUD_CAD": -2.553,
+   "NZD_CAD": 7.277
+  },
+  "mae5_p50": 68.9
+ },
+ "verdict": "FAIL"
+}

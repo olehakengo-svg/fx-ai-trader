@@ -555,6 +555,11 @@ _OANDA_SYMBOLS = {
     "AUDJPY=X": "AUD_JPY", "NZDJPY=X": "NZD_JPY",
     "AUDUSD=X": "AUD_USD", "NZDUSD=X": "NZD_USD",
     "EURAUD=X": "EUR_AUD",
+    # 2026-08-11 rule:R1: USDCAD=X 追加 — 席供給監査で USD_CAD だけ OANDA
+    # fallback からも漏れて yfinance に落ちていた (品質最下位)。MASSIVE 統一後の
+    # 二段目 fallback として整合させる。USD_CHF にも同じ穴があるが price_shock
+    # 席ではないためスコープ外 (audit §9 に記録)。
+    "USDCAD=X": "USD_CAD",
     "XAUUSD=X": "XAU_USD",  # Gold
 }
 
@@ -801,6 +806,78 @@ def fetch_oanda_bid_ask(instrument: str = "USD_JPY") -> dict:
     return {}
 
 
+def _parse_oanda_time(ts: str):
+    """OANDA RFC3339 (ナノ秒精度あり得る) → tz-aware datetime。失敗時 None。"""
+    try:
+        s = str(ts or "").strip().replace("Z", "+00:00")
+        # ナノ秒 (9 桁) は fromisoformat が読めない → 小数部を 6 桁へ切り詰め
+        if "." in s:
+            head, tail = s.split(".", 1)
+            frac = ""
+            tz_part = ""
+            for i, ch in enumerate(tail):
+                if ch.isdigit():
+                    frac += ch
+                else:
+                    tz_part = tail[i:]
+                    break
+            s = f"{head}.{frac[:6]}{tz_part}"
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def fetch_oanda_pricing_state(instrument: str = "USD_JPY") -> dict:
+    """OANDA pricing の tradeable 状態 + quote 鮮度を取得 (read-only GET)。
+
+    weekend_gap 執行契約 (B) §4.1 の実開場確認に使う
+    (weekend-gap-execution-contract-r1-packet-2026-09-10 AMENDMENT,
+    user 承認 2026-09-10)。fetch_oanda_bid_ask と同じ pricing endpoint を
+    読むが、bid/ask に加えて v20 の `tradeable` と quote timestamp を返す。
+
+    Returns: {"tradeable": bool, "quote_age_sec": float, "bid": float,
+              "ask": float, "mid": float, "time": str}
+             取得失敗時は空 dict (呼び出し側は「未確認」として fail-closed)。
+    """
+    client = _get_oanda_client()
+    if not client or not client.configured:
+        return {}
+    try:
+        ok, data = client.get_price(instrument)
+        if not ok:
+            return {}
+        prices = data.get("prices", [])
+        if not prices:
+            return {}
+        p0 = prices[0]
+        tradeable = bool(p0.get("tradeable", False))
+        quote_ts = _parse_oanda_time(p0.get("time", ""))
+        if quote_ts is None:
+            return {}
+        age = (datetime.now(timezone.utc) - quote_ts).total_seconds()
+        # OANDA サーバ時刻とのわずかな skew で quote_ts が「未来」になり得る
+        # (実測 ~0.1s 級)。負の age = 最大限に新鮮 — 0 にクランプする
+        # (鮮度判定 `0 <= age < 10s` が skew で恒久 fail-closed しないため)。
+        age = max(0.0, age)
+        bid = float((p0.get("bids") or [{}])[0].get("price", 0) or 0)
+        ask = float((p0.get("asks") or [{}])[0].get("price", 0) or 0)
+        decimals = 3 if ("JPY" in instrument or "XAU" in instrument) else 5
+        return {
+            "tradeable": tradeable,
+            "quote_age_sec": round(age, 3),
+            "bid": round(bid, decimals),
+            "ask": round(ask, decimals),
+            "mid": (round((bid + ask) / 2, decimals) if bid > 0 and ask > 0 else 0.0),
+            "time": str(p0.get("time", "")),
+        }
+    except Exception:
+        pass
+    return {}
+
+
 # ═══════════════════════════════════════════════════════
 #  Realtime price patch
 # ═══════════════════════════════════════════════════════
@@ -922,6 +999,15 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
         # ソース不一致だった。凍結統計は Massive ベース = estimand 整合
         # (BT/live データソース統一原則)。
         "AUDUSD=X",
+        # 2026-08-11 rule:R1: price_shock_rev 4 ペア追加 (AUDUSD 前例と同型) —
+        # 席供給監査で live feed が三分裂していた (EUR_GBP のみ MASSIVE、
+        # AUD_JPY/NZD_JPY/EUR_AUD は OANDA、USD_CAD は yfinance)。凍結統計
+        # (12.3y MASSIVE grid) とのソース統一。同 symbol の他 TF mode も
+        # MASSIVE に切替わる (影響列挙は price-shock-seat-supply-audit §9)。
+        "AUDJPY=X",
+        "NZDJPY=X",
+        "EURAUD=X",
+        "USDCAD=X",
     }
     _MASSIVE_INTERVALS = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
     if (df is None and

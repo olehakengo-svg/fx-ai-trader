@@ -11,6 +11,8 @@ import glob as _glob_mod
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 
+from modules import disk_guard
+
 
 def pip_multiplier(instrument: str = "USD_JPY") -> float:
     """Pip multiplier for PnL calculation.
@@ -1084,22 +1086,62 @@ class DemoDB:
                    mtf_regime: str = "", mtf_d1_label: int = 3,
                    mtf_h4_label: int = 3, mtf_vol_state: str = "",
                    gate_group: str = "", mtf_alignment: str = "",
-                   mtf_gate_action: str = "") -> str:
+                   mtf_gate_action: str = "",
+                   entry_time: str = None) -> str:
         """Record a new trade open. Returns trade_id.
         is_shadow=True: フィルターバイパスで生成された観測専用トレード (v7.0 Shadow Tracking)
         mtf_*: v9.3 MTF regime monitor (D1×H4×H1 engine)
         gate_group: v9.3 Phase D A/B — 'mtf_gated' or 'label_only'
         mtf_alignment: strategy_aware_alignment 結果 ('aligned'/'conflict'/'neutral')
         mtf_gate_action: 'kept' (そのまま) / 'downgraded' (conflict→shadow) / 'none'
+        entry_time: ISO-8601 override for the row timestamp (default: now). Production
+            always uses now(); tests pass spaced timestamps to seed distinct bars so
+            the write-time dedup flag (below) does not treat them as duplicates.
         """
         trade_id = str(uuid.uuid4())[:12]
         oanda_trade_id = oanda_trade_id or ""
         persisted_is_shadow = bool(is_shadow) or (
             bool(enforce_oanda_live_invariant) and not bool(oanda_trade_id)
         )
-        now_str = datetime.now(timezone.utc).isoformat()
+        if entry_time:
+            entry_dt = datetime.fromisoformat(entry_time)
+            if entry_dt.tzinfo is None:
+                entry_dt = entry_dt.replace(tzinfo=timezone.utc)
+        else:
+            entry_dt = datetime.now(timezone.utc)
+        now_str = entry_dt.isoformat()
         with self._lock:
             with self._safe_conn() as conn:
+                # ── 2026-09-02 (rule:R3): write-time cross-process dedup flag ──
+                # The emit dedup gate (_maybe_reserve_signal_emit) is process-local
+                # in-memory state — it cannot coordinate across a process boundary
+                # (deploy overlap, container replacement, a transient second
+                # instance writing to the shared Render Disk SQLite). The boot-time
+                # _backfill_dedup_violation catches those cross-process dups, but
+                # only *at boot*, so any analysis run before the next restart sees
+                # an inflated shadow N (e.g. the 2026-07-31 ema200 quant-eval N=79
+                # that shrank once a later boot flagged 22 near-dup pairs).
+                # Consulting the shared DB here flags the dup immediately and holds
+                # across processes. Same "advance last kept row only on non-dup"
+                # semantics as _backfill_dedup_violation_impl (dedup_violation=0
+                # anchor). Shadow rows only — live sends (oanda_trade_id != '')
+                # are never flagged. The row is still inserted (no trading change).
+                dedup_violation = 0
+                if (persisted_is_shadow and not oanda_trade_id
+                        and entry_type and instrument
+                        and direction in ("BUY", "SELL")):
+                    window = self._tf_window_sec(tf)
+                    lo = (entry_dt - timedelta(seconds=window)).isoformat()
+                    prior = conn.execute(
+                        """SELECT 1 FROM demo_trades
+                           WHERE entry_type = ? AND instrument = ? AND direction = ?
+                             AND is_shadow = 1 AND dedup_violation = 0
+                             AND entry_time >= ? AND entry_time < ?
+                           LIMIT 1""",
+                        (entry_type, instrument, direction, lo, now_str),
+                    ).fetchone()
+                    if prior is not None:
+                        dedup_violation = 1
                 conn.execute("""
                     INSERT INTO demo_trades
                         (trade_id, status, direction, entry_price, entry_time,
@@ -1109,8 +1151,8 @@ class DemoDB:
                          is_shadow, oanda_trade_id, dow_regime, v2_regime,
                          edge_cell_id, confluence_score, confluence_details,
                          mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
-                         gate_group, mtf_alignment, mtf_gate_action)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         gate_group, mtf_alignment, mtf_gate_action, dedup_violation)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
@@ -1121,7 +1163,7 @@ class DemoDB:
                       oanda_trade_id, dow_regime, v2_regime,
                       edge_cell_id or "", confluence_score, confluence_details,
                       mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
-                      gate_group, mtf_alignment, mtf_gate_action))
+                      gate_group, mtf_alignment, mtf_gate_action, dedup_violation))
                 conn.commit()
         return trade_id
 
@@ -1263,6 +1305,115 @@ class DemoDB:
                     (sl, tp, trade_id),
                 )
                 conn.commit()
+
+    # ── 行鮮度 (row freshness) — 「凍結」と「静かな相場」の分離 ────────
+    # rule:R3 (2026-08-27). 2026-08-21〜08-25 の Disk 満杯事故では全書込みが
+    # 3.5 日停止したが、ダッシュボードは最終書込み時刻を持たないため
+    # 「静かな相場」と見分けがつかず、正常に見えた。PR #205/#206 で alert
+    # 経路 (anomaly_watcher + write_probe) は塞いだが、status payload 自身は
+    # 依然 blind だったのでその読み出し経路をここに新設する。
+    #
+    # 設計上の要点 (MEMORY 教訓の直系):
+    #   - 「行が無い」/「時刻が壊れている」/「クエリが落ちた」を **別 status**
+    #     で返す。silent except で潰すと「不発」と「ゼロ件」が区別不能になる。
+    #   - 契約 key は常に存在させる。key 欠落は下流の silent skip を生む
+    #     (live_n_stagnation が 126 日 no-op だった直接原因がこれ)。
+    #   - 判定に使うのは `created_at` (DB 側 DEFAULT で必ず埋まる)。
+    #     `bar_time` は call-site 欠落で live 行が全 NULL だった前例があり
+    #     (PR #204)、鮮度の基準に使ってはならない。
+    # (kind, table, MAX query) — クエリは動的生成せず literal で持つ
+    # (テーブル名を f-string で埋めると SQL 連結として検出されるため)
+    _FRESHNESS_TABLES = (
+        ("trade", "demo_trades", "SELECT MAX(created_at) FROM demo_trades"),
+        ("candidate", "evaluated_candidates",
+         "SELECT MAX(created_at) FROM evaluated_candidates"),
+        # LIVE 約定だけの鮮度 (rule:R3, 2026-09-03)。上の "trade" は shadow を
+        # 含む demo_trades 全体なので、**実弾が出ているかには答えられない**
+        # (実測 501 行中 LIVE 1 行 = 99.8% shadow)。
+        #
+        # MAX() ではなく ORDER BY ... LIMIT 1 で書くのは意図的:
+        # MAX() + 非索引列の WHERE は全表走査になるが、この形なら
+        # idx_trades_created を降順に歩いて最初の一致で止まれる。
+        ("live_fill", "demo_trades",
+         "SELECT created_at FROM demo_trades "
+         "WHERE oanda_trade_id IS NOT NULL AND oanda_trade_id != '' "
+         "ORDER BY created_at DESC LIMIT 1"),
+    )
+
+    @staticmethod
+    def _parse_db_timestamp(raw) -> "datetime | None":
+        """`created_at` を UTC aware datetime に。失敗は None (呼側で status 化)."""
+        if raw is None:
+            return None
+        text = str(raw).strip()
+        if not text:
+            return None
+        try:
+            dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            return None
+        if dt.tzinfo is None:
+            # sqlite の datetime('now') / CURRENT_TIMESTAMP は UTC naive
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+
+    def get_row_freshness(self, now: "datetime | None" = None) -> dict:
+        """最終書込みからの経過秒を系列別に返す (rule:R3, 2026-08-27).
+
+        Returns a dict with, for each of ``trade`` / ``candidate``:
+        ``last_<kind>_row_at`` (raw DB text), ``last_<kind>_row_age_sec``
+        (float) and ``last_<kind>_row_status`` — one of:
+
+        ``ok``          : 時刻が読めた。age_sec が有効
+        ``no_rows``     : テーブルは在るが 0 件 (正常な初期状態)
+        ``no_table``    : テーブル未作成 (旧 DB 互換。障害ではない)
+        ``unparseable`` : 行は在るが時刻が壊れている (要調査)
+        ``error``       : クエリ自体が失敗 (``error`` キーに理由)
+
+        ``no_rows`` と ``error`` を混同させないことが本メソッドの主目的。
+        """
+        now = now or datetime.now(timezone.utc)
+        out: dict = {"now": now.isoformat(), "error": None}
+
+        for kind, table, max_sql in self._FRESHNESS_TABLES:
+            at_key = f"last_{kind}_row_at"
+            age_key = f"last_{kind}_row_age_sec"
+            status_key = f"last_{kind}_row_status"
+            out[at_key] = None
+            out[age_key] = None
+
+            try:
+                with self._safe_conn() as conn:
+                    exists = conn.execute(
+                        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                        (table,),
+                    ).fetchone()
+                    if not exists:
+                        out[status_key] = "no_table"
+                        continue
+                    row = conn.execute(max_sql).fetchone()
+            except Exception as e:  # noqa: BLE001 - 明示的に error として報告する
+                out[status_key] = "error"
+                # 最初の失敗理由を保持 (後続 kind で上書きしない)
+                if out["error"] is None:
+                    out["error"] = f"{table}: {e}"
+                continue
+
+            raw = row[0] if row else None
+            if raw is None:
+                out[status_key] = "no_rows"
+                continue
+
+            out[at_key] = str(raw)
+            parsed = self._parse_db_timestamp(raw)
+            if parsed is None:
+                out[status_key] = "unparseable"
+                continue
+
+            out[status_key] = "ok"
+            out[age_key] = round((now - parsed).total_seconds(), 1)
+
+        return out
 
     def get_open_trades(self) -> list:
         with self._safe_conn() as conn:
@@ -2561,11 +2712,30 @@ class DemoDB:
 
     # ── SQLite Daily Backup (WAL-safe) ────────────────
 
-    def backup_database(self, keep_last: int = 3) -> dict:
+    def backup_database(self, keep_last: int = 2) -> dict:
         """Create a timestamped backup of the SQLite DB using sqlite3.backup() API.
 
         This is safe for WAL mode — it acquires a consistent snapshot without
         blocking concurrent readers/writers.
+
+        ``keep_last`` defaults to 2 (rule:R3, 2026-08-26): with the production
+        DB at ~204 MB (+37 MB WAL), 3 retained copies put the steady state at
+        852 MB = 85.3% of the 1 GB disk — permanently above the 75% warn
+        threshold in ``modules/disk_guard.py``. Two copies land at ~65%.
+        Render also snapshots the whole disk daily (7-day retention), so the
+        marginal DR value of a third same-disk copy is nil.
+
+        **Rotation runs BEFORE the copy (rule:R3, 2026-08-26).** The original
+        order — copy, then rotate — made a full disk unrecoverable: the copy
+        raised ``disk I/O error`` and the rotation that would have freed space
+        never executed. Four consecutive days returned FAILED during the
+        2026-08-21→08-25 outage, so the disk stayed full *and* no backup
+        existed. Freeing first means each run reclaims the stale copies even
+        when it cannot write a new one.
+
+        A pre-flight free-space check then skips the copy outright when there
+        is not room for it, returning ``status="skipped_low_disk"`` instead of
+        a half-written file and an exception.
 
         Args:
             keep_last: Number of recent backups to keep (older ones are rotated out).
@@ -2580,7 +2750,43 @@ class DemoDB:
             backup_name = f"{db_basename}_backup_{today_str}.db"
             backup_path = os.path.join(db_dir, backup_name)
 
-            # Perform backup using sqlite3.backup() (WAL-safe, consistent snapshot)
+            # ── Step 1: rotate FIRST so a full disk can still be reclaimed ──
+            # Today's target is excluded from the census: it is about to be
+            # overwritten, so it must not consume one of the `keep_last` slots
+            # (otherwise the effective retention silently drops by one).
+            pattern = os.path.join(db_dir, f"{db_basename}_backup_*.db")
+            existing_backups = sorted(
+                b for b in _glob_mod.glob(pattern) if os.path.abspath(b) != os.path.abspath(backup_path)
+            )
+            rotated = 0
+            keep_before_copy = max(keep_last - 1, 0)
+            if len(existing_backups) > keep_before_copy:
+                for old_backup in existing_backups[: len(existing_backups) - keep_before_copy]:
+                    try:
+                        os.remove(old_backup)
+                        rotated += 1
+                    except OSError:
+                        pass
+
+            # ── Step 2: pre-flight — refuse to start a copy that cannot fit ──
+            room = disk_guard.has_room_for_backup(self._path)
+            if not room.get("ok"):
+                print(
+                    f"[Backup] SKIPPED (low disk): need={room.get('need_bytes')} "
+                    f"free={room.get('free_bytes')} used_pct="
+                    f"{room.get('disk', {}).get('used_pct')} — rotated {rotated}",
+                    flush=True,
+                )
+                return {
+                    "status": "skipped_low_disk",
+                    "rotated": rotated,
+                    "need_bytes": room.get("need_bytes"),
+                    "free_bytes": room.get("free_bytes"),
+                    "disk": room.get("disk"),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+
+            # ── Step 3: copy (WAL-safe, consistent snapshot) ──
             source_conn = sqlite3.connect(self._path, timeout=10)
             try:
                 dest_conn = sqlite3.connect(backup_path)
@@ -2593,18 +2799,6 @@ class DemoDB:
 
             backup_size = os.path.getsize(backup_path)
 
-            # Rotate old backups: keep only the most recent `keep_last`
-            pattern = os.path.join(db_dir, f"{db_basename}_backup_*.db")
-            existing_backups = sorted(_glob_mod.glob(pattern))
-            rotated = 0
-            if len(existing_backups) > keep_last:
-                for old_backup in existing_backups[:-keep_last]:
-                    try:
-                        os.remove(old_backup)
-                        rotated += 1
-                    except OSError:
-                        pass
-
             print(f"[Backup] Created: {backup_path} ({backup_size} bytes), "
                   f"rotated {rotated} old backups", flush=True)
 
@@ -2613,6 +2807,7 @@ class DemoDB:
                 "backup_path": backup_path,
                 "size_bytes": backup_size,
                 "rotated": rotated,
+                "disk": disk_guard.disk_status(self._path),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         except Exception as e:

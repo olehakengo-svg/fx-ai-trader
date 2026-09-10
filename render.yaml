@@ -5,6 +5,71 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1 --threads 8 --worker-class gthread
     plan: pro
+    # ── デプロイ churn 抑制 (2026-08-21, rule:R3) ────────────────────────────
+    # 問題: main への全 commit が web service を再デプロイし、取引エンジン
+    #   (per-mode background threads) を再起動する。実測 18.8 deploy/日、うち
+    #   78% は KB ドキュメント専用 commit。1 回あたり実測 ~60s の完全無 tick +
+    #   ~2.5-3 分の 24 モード ramp-up (cold cache で tick#1 が 10s 級)。
+    #   2026-08-21T01:06/01:09 の連続 KB commit では、新インスタンスが ramp
+    #   完了前 (85s) に次デプロイで kill された。原則 1 (マーケット開いてる間
+    #   は攻める) とクリーン N 蓄積に直接反する構造欠陥。
+    # 対策: ランタイムが読まない KB パスのみ ignore する。
+    # ⚠️ ここに足してよいのは「取引パスが読まない」パスだけ。
+    #   取引パス read (tier-master.json / wiki/snapshots/ / registry json) は
+    #   意図的に除外 = デプロイを起こさせる。
+    #   逸脱は tests/test_render_build_filter.py が CI で落とす。
+    # 導出: knowledge-base/wiki/analyses/deploy-churn-trading-gap-2026-08-21.md
+    #
+    # ── phase-2 (2026-08-23, rule:R3) ──────────────────────────────────
+    # phase-1 後の実測 = 30 commit / 4 deploy (1.7/日、baseline 18.8 から −91%)。
+    # 残存 churn の全量は 2 源のみ (Render deploy 一覧と完全一致):
+    #   (a) analyst-memory.md ×3/平日 — daily_report の post_tokyo/london/ny
+    #   (b) bt-results/phase1b + data/sentiment ×1/日 — phase1b 日次 re-run
+    # (a) は「ランタイム read」だが read 元は `/api/analyst-opinion` のみ
+    #   (app.py:11749 ← :12229、人手起動の助言エンドポイント)。取引パス
+    #   (demo_trader / signal / OANDA 転送) からの参照はゼロ (全数 grep)。
+    #   助言メモの鮮度のために平日 3 回 × (無 tick ~60s + ramp ~2.5-3 分) を
+    #   払うのは原則 1 に反する → ignore へ移す。サイレント化を防ぐため、
+    #   /api/analyst-opinion 応答に memory_stale_days を同梱した (app.py)。
+    # (b) は app.py / modules/ からの参照ゼロ (scripts/ の研究出力専用)。
+    #   ※ app.py:12309 の bt-results は knowledge-base/raw/ 配下の別物。
+    #   ※ data/ でも cache/massive・cache/yield・_holdout_locked は
+    #      ランタイム read のため ignore しない (test が固定)。
+    buildFilter:
+      ignoredPaths:
+        - "knowledge-base/wiki/sessions/**"
+        - "knowledge-base/wiki/lessons/**"
+        - "knowledge-base/wiki/analyses/**"
+        - "knowledge-base/wiki/syntheses/**"
+        - "knowledge-base/wiki/strategies/**"
+        - "knowledge-base/wiki/learning/**"
+        - "knowledge-base/wiki/log.md"
+        - "knowledge-base/wiki/changelog.md"
+        - "knowledge-base/wiki/index.md"
+        - "knowledge-base/wiki/audit-index.md"
+        - "knowledge-base/wiki/tier-master.md"
+        - "knowledge-base/raw/trade-logs/20??-??-??*.md"
+        - "knowledge-base/raw/audits/**"
+        - "knowledge-base/raw/bt-results/**"
+        - "knowledge-base/raw/hunt_events/**"
+        - "knowledge-base/raw/market-analysis/**"
+        - "knowledge-base/raw/intervention_watch/**"
+        - "knowledge-base/raw/analysis/**"
+        - "knowledge-base/raw/cell_deepdive/**"
+        # 2026-09-01: decisions/ の **markdown だけ** を ignore する。
+        # 同ディレクトリの prereg-trigger-registry.json は cron が読む
+        # load-bearing な状態なので**意図的に除外しない** (デプロイを起こさせる)。
+        # 実測: 直近 60 日で 23 commit が decisions/*.md だけのために
+        # web service を再デプロイしていた (~0.38 deploy/日)。
+        - "knowledge-base/wiki/decisions/*.md"
+        - "knowledge-base/wiki/decisions/**/*.md"
+        # phase-2: 助言エンドポイント専用 read (取引パス非参照)
+        - "knowledge-base/raw/trade-logs/analyst-memory.md"
+        - "knowledge-base/raw/trade-logs/analyst-memory-archive.md"
+        # phase-2: 研究出力 (scripts/ のみが読み書き、ランタイム非参照)
+        - "bt-results/**"
+        - "data/sentiment/**"
+        - ".remember/**"
     disk:
       name: fx-data
       mountPath: /var/data
@@ -88,12 +153,15 @@ services:
 
   # Tier A: quant gate status + α予算 要約 (1日1回 UTC 00:20)
   # daily_report.py の直前に実行 → gate状態を analyst に認識させる
+  # --strong: M1 強定義 (セル/book 両定義) + M3a/M3b 分離 readout
+  #   (2026-09-10 meta-audit R4(a)/(b) 修復 — 読み手なしの計装禁止のため
+  #    計算主体 tools/m1_clean_live_monitor.py と同一コミットで配線)
   - type: cron
     name: fx-ai-tier-a-gate-status
     runtime: python
     buildCommand: pip install -r requirements.txt
     schedule: "20 0 * * *"
-    startCommand: python3 tools/quant_gate_status.py --to-discord
+    startCommand: python3 tools/quant_gate_status.py --to-discord --strong
     plan: starter
     envVars:
       - key: DISCORD_WEBHOOK_URL

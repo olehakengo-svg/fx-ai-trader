@@ -122,9 +122,13 @@ class OandaClient:
     def market_order(self, side: str, units: int,
                      instrument: str = "USD_JPY",
                      stop_loss: float = None,
-                     take_profit: float = None) -> tuple:
+                     take_profit: float = None,
+                     client_tag: str = None,
+                     client_comment: str = None) -> tuple:
         """Place a market order via v20 API.
         side: "buy" or "sell" — v20 uses positive/negative units
+        client_tag/client_comment: v20 clientExtensions。order と trade の両方に
+        付与し、OANDA transaction 監査で発注主体 (例: SVK) を機械識別可能にする。
         Returns (success, data) where data contains orderFillTransaction.tradeOpened.tradeID
         """
         path = f"/v3/accounts/{self._account_id}/orders"
@@ -141,6 +145,14 @@ class OandaClient:
             "timeInForce": "FOK",
             "positionFill": "DEFAULT",
         }
+        if client_tag or client_comment:
+            _ext = {}
+            if client_tag:
+                _ext["tag"] = client_tag
+            if client_comment:
+                _ext["comment"] = client_comment
+            order["clientExtensions"] = dict(_ext)
+            order["tradeClientExtensions"] = dict(_ext)
         if stop_loss is not None:
             order["stopLossOnFill"] = {
                 "price": f"{stop_loss:.{_decimals}f}",

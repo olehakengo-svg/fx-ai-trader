@@ -67,6 +67,44 @@ SHADOW_RETIRED_STRATEGIES = frozenset({
 
 
 SHADOW_DEMOTED_CELLS = frozenset({
+    # 2026-08-05 (rule:R2): R2 shadow-promote alert batch. 10 cells CRITICAL
+    # (N>=30, EV<0, 30d) persistently across the 2026-08-03..08-05 alert
+    # series (sr_break_retest x GBP_JPY entered CRITICAL 08-04 on N-crossing
+    # with EV -6.3..-7.4 throughout). Cell-level stop chosen over strategy
+    # env-var removal: the same strategies keep emitting on their
+    # non-CRITICAL pairs, and env KV toggles are not durable pins.
+    # xs_momentum x GBP_USD / x USD_JPY were CRITICAL only in the last two
+    # alerts (~7h apart, sign flipped from positive within 5h, PF 0.89/0.98)
+    # — deferred under the 24h-persistence rule; demote next cycle if still
+    # CRITICAL. Ref: wiki/decisions/r2-shadow-demote-2026-08-05.md
+    ("dt_sr_channel_reversal", "AUD_JPY"),
+    ("engulfing_bb", "EUR_USD"),
+    ("london_breakout", "GBP_USD"),
+    ("ma_regime_switch", "USD_JPY"),
+    ("sr_break_retest", "EUR_JPY"),
+    ("sr_break_retest", "GBP_JPY"),
+    ("sr_break_retest", "GBP_USD"),
+    ("vol_momentum_scalp", "GBP_USD"),
+    ("vol_momentum_scalp", "USD_JPY"),
+    ("xs_momentum", "EUR_USD"),
+    # 2026-08-10 (rule:R2): batch 2 of the same alert series. The two cells
+    # deferred above are now CRITICAL in every alert from 08-06 02:23 UTC
+    # through 08-10 01:38 UTC (17 consecutive, ~96h >> the 24h rule; the
+    # value freeze from 08-08 01:22 is the weekend, 08-08 Sat / 08-09 Sun).
+    # Neither recovered to EV>0 at any point, so the frozen "next cycle"
+    # rule of the 08-05 doc resolves to demote, not to release.
+    #   xs_momentum x GBP_USD  N=57 EV -0.847 WR 64.9% Wilson_lo 51.9% PF 0.74
+    #   xs_momentum x USD_JPY  N=70 EV -1.060 WR 60.0% Wilson_lo 48.3% PF 0.82
+    # engulfing_bb x GBP_USD is the N-crossing type (WARN with EV -0.79..-1.37
+    # across 08-03..08-05, CRITICAL from 08-05 14:03 onward = 5 days):
+    #   engulfing_bb x GBP_USD N=32 EV -0.891 WR 31.2% Wilson_lo 18.0% PF 0.69
+    #   (Wilson_lo 18.0% << GBP_USD BEV_WR 37.9% — no plausible recovery.)
+    # Both xs_momentum cells are high-WR/negative-EV = the payoff-asymmetry
+    # signature, not a win-rate problem. Ref:
+    # wiki/decisions/r2-shadow-demote-2026-08-10.md
+    ("engulfing_bb", "GBP_USD"),
+    ("xs_momentum", "GBP_USD"),
+    ("xs_momentum", "USD_JPY"),
     ("bb_rsi_reversion", "EUR_USD"),
     ("bb_rsi_reversion", "GBP_USD"),
     ("bb_rsi_reversion", "USD_JPY"),

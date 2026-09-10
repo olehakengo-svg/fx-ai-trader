@@ -1,318 +1,763 @@
 {
- "_comment": "機械判定可能な pre-reg トリガー/決定点の registry。tools/prereg_trigger_watch.py が毎日評価 (Tier A cron 経由)。新規 pre-reg LOCK 時は必ずここに監視エントリを追加すること (lesson: T5 の 18 日執行ギャップ、2026-07-06)。",
- "triggers": [
-  {
-   "id": "vix-sell-pilot-recheck",
-   "active": true,
-   "type": "live_count_decision",
-   "entry_type": "vix_carry_unwind",
-   "instrument": "USD_JPY",
-   "direction": "SELL",
-   "since": "2026-06-07",
-   "n_decide": 20,
-   "deadline": "2026-08-31",
-   "doc": "knowledge-base/wiki/syntheses/roadmap-v2.3-payoff-friction-repair.md",
-   "message": "vix Overlap pilot SELL 再評価 checkpoint (2026-07-07 pilot 継続裁定) — live N>=20 or 期日で EV/Wilson_lo/BEV を再判定。R2 demote 実行は user 決裁事項 (pilot 契約は user R1 例外)"
-  },
-  {
-   "id": "exit-repair-bt-deadline",
-   "active": false,
-   "type": "deadline_info",
-   "deadline": "2026-07-21",
-   "doc": "knowledge-base/wiki/decisions/exit-repair-tp-sl-prereg-2026-07-07.md",
-   "message": "exit-repair TP/SL grid BT (pre-reg LOCK 済) の verdict 期日 — queue 20260707-1640-exit-repair-tp-sl-grid が未完なら stale (T5 型の実行ギャップ防止)",
-   "resolved": "2026-07-08",
-   "resolution": "verdict FAIL (H0 採択) — claude 直接実行で期日13日前倒し完了。全9構成 BH-FDR 不通過 (p=1.0)、WF 0/3、EV_theory 最良 -2.96 p/t。WS3 全振りへ (pre-reg §4 規定分岐)"
-  },
-  {
-   "id": "t5-jpy-cap-restore-price",
-   "active": true,
-   "type": "price_below",
-   "symbol": "USDJPY=X",
-   "threshold": 159.5,
-   "doc": "knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md",
-   "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — 介入再確認と合わせ user 判断 (lot 1.0x 復帰は KB 記録 + テスト変更 PR 必須)"
-  },
-  {
-   "id": "ws3-stage2-lock-decision-stale",
-   "active": false,
-   "type": "deadline_info",
-   "deadline": "2026-07-16",
-   "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
-   "message": "WS3 stage-2 barrier/EV pre-reg DRAFT の user 決裁 (LOCK or 差し戻し) 期日 — 未決裁なら stale (T5 教訓の DRAFT 段階適用)。LOCK 時は本エントリを resolved 化し ws3-stage2-verdict-deadline (LOCK+10d) に置換",
-   "resolved": "2026-07-09",
-   "resolution": "user 承認「進めて」で LOCKED 化 (期日 7 日前倒し)。後継 = ws3-stage2-verdict-deadline"
-  },
-  {
-   "id": "ws3-stage2-verdict-deadline",
-   "active": false,
-   "type": "deadline_info",
-   "deadline": "2026-07-19",
-   "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
-   "message": "WS3 stage-2 barrier/EV grid の verdict 期日 (LOCK 2026-07-09 + 10d) — queue 20260709-1610-ws3-stage2-barrier-ev-prereg が未完なら stale (T5 型の実行ギャップ防止)",
-   "resolved": "2026-07-10",
-   "resolution": "verdict PASS ゼロ / 全体 UNDERPOWERED (期日 9 日前倒し)。lfr×EUR_USD 全 9 構成負 (クローズ) / htf_fb×AUD_JPY 1 構成のみ正・検定不達 → 後継 ws3-stage2-underpowered-recheck"
-  },
-  {
-   "id": "ws3-stage2-underpowered-recheck",
-   "active": true,
-   "type": "shadow_count_decision",
-   "entry_type": "htf_false_breakout",
-   "instrument": "AUD_JPY",
-   "since": "2026-07-10",
-   "n_decide": 100,
-   "deadline": "2027-01-31",
-   "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
-   "message": "stage-2 UNDERPOWERED 分岐 (§8.2) — htf_fb×AUD_JPY shadow 累積 N>=100 で同一 grid・同一検定の 1 回限り再判定 (新探索自由度なし)。期日到達で N<100 なら stale レビュー",
-   "n_floor": 100
-  },
-  {
-   "id": "ws3-t11-anti-hunt-usdjpy-recheck",
-   "active": true,
-   "type": "shadow_count_decision",
-   "entry_type": "sr_anti_hunt_bounce",
-   "instrument": "USD_JPY",
-   "since": "2026-07-11",
-   "n_decide": 30,
-   "n_floor": 30,
-   "deadline": "2027-01-31",
-   "doc": "knowledge-base/wiki/analyses/ws3-t10-t11-entry-quality-diagnosis-2026-07-11.md",
-   "message": "WS3 T11 診断 (2026-07-11): sr_anti_hunt_bounce×USD_JPY は探索窓で順行 MFE/MAE 非対称 1.71 (h24-48, 持続型・母集団上位2-3%) だが N=19<30 で underpowered。shadow 累積 N>=30 到達で round-1/round-2 と同一の OOS スクリーン (非診断窓 ratio 再計測 + block bootstrap + BH-FDR + first-touch EV レグ + ナイフエッジ3点) を1回限り実施。他4ペア + gbp_deep_pullback×GBP_USD は entry 劣化で close 済み。期日到達で N<30 なら stale レビュー"
-  },
-  {
-   "id": "t8-sweep-defer-decision",
-   "active": false,
-   "type": "shadow_count_decision",
-   "entry_type": "sweep_reversion_eurgbp_late",
-   "since": "2026-07-03",
-   "n_decide": 10,
-   "n_floor": 5,
-   "deadline": "2026-09-30",
-   "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
-   "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-09-30 に N<5 なら retire (R2)。計数 = dedup_violation!=1 (packet §1.4)",
-   "mode": "daytrade_eurgbp",
-   "count_basis": "unique",
-   "resolved": "EXECUTION-DATE-TBD",
-   "resolution": "unique N>=10 ∧ spaced EV>0 成立 → Option B 執行 (P-S1(a) 単一 PR、runbook 手順)。後継 = ps1a-sweep-live-withdrawal-watch。⚠️ merge 時に resolved を執行日へ更新すること"
-  },
-  {
-   "id": "ps1a-sweep-live-withdrawal-watch",
-   "active": true,
-   "type": "live_count_decision",
-   "entry_type": "sweep_reversion_eurgbp_late",
-   "instrument": "EUR_GBP",
-   "direction": "BUY",
-   "since": "2026-07-03",
-   "n_decide": 10,
-   "deadline": "2026-12-31",
-   "doc": "knowledge-base/wiki/decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md",
-   "message": "P-S1(a) live 復帰後の LOCK Withdrawal trigger 監視 — live N>=10 で EV (実 spread/swap 込み) を判定、EV<0 なら撤退 (trigger 1 = R2)。N>=20 WR<42% / 累積 live DD>100p / 30日 fire 0 → forensic は週次監査で併読 (手順書: sweep-reversion-ps1a-execution-runbook-2026-07-31 §5)。since=2026-07-03 は rescue 窓起点 — 執行前の live fill は存在しないため merge 日更新は任意"
-  },
-  {
-   "id": "t8-hull-shadow-freq",
-   "active": true,
-   "type": "shadow_count_info",
-   "entry_type": "hull_donchian_fade",
-   "since": "2026-07-03",
-   "expected_per_week": 13.3,
-   "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
-   "message": "hull 発火頻度 band 監視 (ゲート① 再評価用、復帰判断の材料)"
-  },
-  {
-   "id": "t9-kalman-d7-fire-info",
-   "active": true,
-   "type": "shadow_count_info",
-   "entry_type": "kalman_d7",
-   "match": "prefix",
-   "since": "2026-07-06",
-   "expected_per_week": 3.9,
-   "doc": "knowledge-base/wiki/decisions/pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28.md",
-   "message": "kalman D7 発火数 (3 variant 前方一致合算) vs BT 期待 3.9/週。分子ゼロが続く場合は Render ログの [kalman_d7] QUALBAR 行 (分母) と突合して 0-fire の原因を判定"
-  },
-  {
-   "id": "ws3-round2-oos-verdict-deadline",
-   "active": false,
-   "type": "deadline_info",
-   "deadline": "2026-07-17",
-   "doc": "knowledge-base/wiki/decisions/ws3-round2-explore-prereg-2026-07-10.md",
-   "message": "WS3 探索2周目 OOS verdict 期日 (LOCK 2026-07-10、候補 m=5 凍結済み)。期日までに verdict §追記が無ければ stale アラート (T5 型ギャップ防止)",
-   "resolved": "2026-07-10",
-   "resolution": "verdict ❌ FAIL 0/5 — 期日 7 日前倒しで完了 (pre-reg §8)。全セル BH-FDR 不通過、3 セル ratio 崩壊 (0.56-0.90)、EV レグも 孤立格子点/fold 集中で全滅。§3 固定分岐 = shadow 母集団内の軸は枯渇 → 外部仮説 (新シグナル系統、falsified 6 系統除外) の探索へ転進"
-  },
-  {
-   "id": "ws3-round3-crossasset-divergence-deadline",
-   "active": false,
-   "type": "deadline_info",
-   "deadline": "2026-07-24",
-   "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
-   "message": "WS3 round-3 (cross-asset divergence-reversion) discovery+LOCK 目標 07-20 / OOS verdict 07-24。queue 20260713-ws3-round3-crossasset-divergence が未着手なら stale (T5 型実行ギャップ防止)。外部仮説転進の第1候補、lead-lag は既に実証閉鎖済",
-   "resolved": "2026-07-14",
-   "resolution": "VERDICT PASS=0 / H0 採択 (期日 07-24 の 10 日前倒し)。data-availability で窓 data-driven 再指定 (intraday rates フロア 2024-02、§2b AMENDMENT、結果観測前) → discovery 216 cells → top-8 凍結 → OOS 8/8 反転 (leg A 0/8 BH-FDR, leg B 0/8)。§4 固定分岐 = cross-asset 価格モダリティ枯渇 → E1 positioning 格上げ。WS3 price-based 探索は内部2周+外部1周=計3周 FAIL で一巡"
-  },
-  {
-   "id": "ws3-round4-eur-divergence-conditional",
-   "active": true,
-   "type": "conditional_info",
-   "deadline": "no-deadline",
-   "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
-   "condition": "FX + rates (ZN=F 1h) cache が 2026-05-15 を 6ヶ月以上超えて延伸したら発火",
-   "message": "round-3 OOS で凍結外の EUR_USD/EUR_JPY divergence-reversion が post-hoc 生存 (claimable 不可、fresh OOS 無し)。cache が 2026-11-15+ まで延伸したら、pair 分散 freeze (EUR_USD/EUR_JPY を事前登録、top-by-EV 回避 — lesson-freeze-rule-topEV-selects-overfit-2026-07-14) で新 OOS 窓による round-4 を安価に再試行可。それまでは E1 positioning が主戦線"
-  },
-  {
-   "id": "e1-positioning-ingest-freshness",
-   "active": true,
-   "type": "conditional_info",
-   "deadline": "no-deadline",
-   "doc": "knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md",
-   "condition": "MYFXBOOK_EMAIL/MYFXBOOK_PASSWORD が Render env に投入され source=myfxbook で蓄積開始したら鮮度監視を本格再開",
-   "message": "E1 positioning ingest 鮮度監視 — 2026-07-15 更新: オプション A 採択 (user 全面委任決裁) で Myfxbook Community Outlook へソース転換済み (§9)。credentials 投入までは status.myfxbook.waiting_for_credentials=true が既知状態 (調査不要)。投入後: /api/positioning/status の最終 snapshot_time が 2h 超 stale なら要調査 (poll ≥900s、rate limit 100req/24h)。401 帰属は §8a で確定済み (OANDA retail book 提供終了 2024-09-14)。thread 死は self-heal 済み (restarts で観測、§8b)"
-  },
-  {
-   "id": "e1-prereg-lock-decision-stale",
-   "active": false,
-   "type": "deadline_info",
-   "deadline": "2026-07-17",
-   "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
-   "resolved": "2026-07-17",
-   "resolution": "LOCK 執行済み (self-LOCK 2026-07-17)。PR #92 で user 通知・異議なし → round-2 前例に基づき self-LOCK。stale cap 主モード確定 (positioning_health verified 本番稼働) + source=myfxbook 稼働確認。e1-prereg-verdict-deadline へ置換",
-   "message": "[RESOLVED 2026-07-17] E1 positioning contrarian pre-reg の LOCK 決裁 — self-LOCK 執行済み。監視は e1-prereg-verdict-deadline へ移管"
-  },
-  {
-   "id": "e15-e7-event-prereg-phase0-verdict",
-   "active": false,
-   "type": "deadline_info",
-   "deadline": "2026-07-31",
-   "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
-   "message": "[RESOLVED 2026-07-22] E15+E7 イベントモダリティ family phase-0 (E15 FOMC/NFP/CPI イベント窓) — データ準備+discovery+候補凍結 2026-07-24 / OOS verdict 2026-07-31。queue 20260718-e15-e7-event-phase0 が未着手なら stale (T5 型実行ギャップ防止)。E1 first look (2026-10-15) より先の verdict が戦略的役割 (WIP 原則)",
-   "resolved": "2026-07-22",
-   "resolution": "verdict ❌ FAIL 0/6 (全候補 C5) — 期日 07-31 の 9 日前倒しで完了 (pre-reg §12、artifact e15_phase0_oos_verdict.json)。レグ A 全滅: BH-FDR q=0.05 (m=6) 通過ゼロ、min p_combo=0.214 ≫ rank-1 閾値 0.0083。4/6 は点 EV 正 (te/ft 両正) だが event-block 推論で有意性なし。modal 予想 C3 (UNDERPOWERED) は B(d) 充足 (blocks 20-28 ≥ 15) で不成立 → C5。§8 固定分岐 = phase-1 (E7 サプライズ条件付き) は予定どおり実行 (phase1-verdict トリガー継続)。E15 無条件イベント窓は棄却"
-  },
-  {
-   "id": "e15-e7-event-prereg-phase1-verdict",
-   "active": true,
-   "type": "deadline_info",
-   "deadline": "2026-08-28",
-   "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
-   "message": "E15+E7 family phase-1 (E7 指標サプライズ directional) — FF gap scrape + データ付録凍結 2026-08-14 / discovery+凍結 2026-08-21 / OOS verdict 2026-08-28。phase-0 の帰結に依存せず実行 (pre-reg §8 固定分岐)。EPSOFT 歴史パネル + 2023-04〜の gap 一括 scrape が前提"
-  },
-  {
-   "id": "e1-prereg-verdict-deadline",
-   "active": true,
-   "type": "deadline_info",
-   "deadline": "2026-10-15",
-   "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
-   "message": "E1 positioning contrarian pre-reg (🔒 LOCKED 2026-07-17) の first look verdict 期日。データ cutoff #1 = 2026-10-08 (t0+12週)、burn-in 20営業日 (〜2026-08-12)、評価窓 08-13〜10-08。verdict 期日 2026-10-15 に §8 へ判定結果 (Gate1 pooled IC / Gate2 摩擦調整EV / combo 排他分類 C1-C5 / ナイフエッジ4点 / 全体 verdict PASS/UNDERPOWERED/REJECT-F/REJECT) を追記。UNDERPOWERED なら e1-prereg-second-look 登録 (cutoff #2 2026-12-30 / verdict 2027-01-06)。判定器 tools/e1_positioning_prereg_eval.py は LOCK 後実装 (unit test pin 先行)。中間 peeking 禁止 (§6)"
-  },
-  {
-   "id": "edge-supply-scan-monthly",
-   "active": true,
-   "type": "deadline_info",
-   "deadline": "2026-08-18",
-   "doc": "knowledge-base/wiki/syntheses/edge-development-pipeline-2026-07-18.md",
-   "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3)"
-  },
-  {
-   "id": "r3-market-data-ingest-freshness",
-   "active": true,
-   "type": "ingest_freshness",
-   "endpoint": "/api/marketdata/status",
-   "checks": [
+  "_comment": "機械判定可能な pre-reg トリガー/決定点の registry。tools/prereg_trigger_watch.py が毎日評価 (Tier A cron 経由)。新規 pre-reg LOCK 時は必ずここに監視エントリを追加すること (lesson: T5 の 18 日執行ギャップ、2026-07-06)。",
+  "triggers": [
     {
-     "key": "verified:ff_calendar",
-     "max_age_hours": 24
+      "id": "vix-sell-pilot-recheck",
+      "active": false,
+      "type": "live_count_decision",
+      "entry_type": "vix_carry_unwind",
+      "instrument": "USD_JPY",
+      "direction": "SELL",
+      "since": "2026-06-07",
+      "n_decide": 20,
+      "deadline": "2026-08-31",
+      "doc": "knowledge-base/wiki/syntheses/roadmap-v2.3-payoff-friction-repair.md",
+      "message": "vix Overlap pilot SELL 再評価 checkpoint (2026-07-07 pilot 継続裁定) — live N>=20 or 期日で EV/Wilson_lo/BEV を再判定。R2 demote 実行は user 決裁事項 (pilot 契約は user R1 例外)",
+      "resolved": "2026-08-03",
+      "resolution": "早期 demote 執行 (checkpoint live SELL N>=20/期日 08-31 を待たず、quant-eval-2026-07-31 の証拠悪化 + user 決裁「進めて」2026-08-03)。live N=26 -46.9p PF=0.66、shadow 05-07 累計 -216p。詳細: knowledge-base/wiki/decisions/vix-pilot-early-demote-2026-08-03.md"
     },
     {
-     "prefix": "verified:cme_bars:",
-     "max_age_hours": 72,
-     "min_keys": 7
+      "id": "exit-repair-bt-deadline",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-07-21",
+      "doc": "knowledge-base/wiki/decisions/exit-repair-tp-sl-prereg-2026-07-07.md",
+      "message": "exit-repair TP/SL grid BT (pre-reg LOCK 済) の verdict 期日 — queue 20260707-1640-exit-repair-tp-sl-grid が未完なら stale (T5 型の実行ギャップ防止)",
+      "resolved": "2026-07-08",
+      "resolution": "verdict FAIL (H0 採択) — claude 直接実行で期日13日前倒し完了。全9構成 BH-FDR 不通過 (p=1.0)、WF 0/3、EV_theory 最良 -2.96 p/t。WS3 全振りへ (pre-reg §4 規定分岐)"
+    },
+    {
+      "id": "t5-jpy-cap-restore-price",
+      "active": true,
+      "type": "price_below",
+      "symbol": "USDJPY=X",
+      "threshold": 159.5,
+      "doc": "knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md",
+      "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — ただし復帰は AND 条件。第2要件 (介入観測 or 当局の 160 防衛言及の再確認) は **MoF 公式開示/当局公式言及 (外部一次情報) のみ**で認定すること。価格シグネチャからの介入日推定は mof-intervention-forward-prereg-2026-07-24 (#4) の凍結識別 rule と同一で 2026 窓 OOS を burn するため禁止。lot 1.0x 復帰は R1 = user 決裁 (KB 記録 + テスト変更 PR 必須)。評価記録: t5-restore-eval-and-carrydip-revival-2026-08-10.md (2026-08-10 時点 執行せず) ⚠️ 2026-08-31 更新 (第2要件の材料、**認定・lot 変更はしていない**): MoF 月次開示 (外部一次情報) で 2026-07-30〜08-26 窓に 15兆3,993億円の平衡操作が確認された。これは 08-28 時点の『直前窓 0円 = 否定側』を覆し、**第2要件『介入観測』の肯定側材料が初めて外部一次情報で得られた**ことを意味する。ただし (a) 月次開示は方向 (円買い/円売り) を開示しない (b) 介入日が特定できないため『160 防衛』の文脈適合を一次情報で確認できない — よって認定は保留。lot 1.0x 復帰は R1 = user 決裁事項であり、autopilot は執行しない。判断材料は knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md §4 に整理済。",
+      "eval_record": "knowledge-base/wiki/decisions/t5-restore-eval-and-carrydip-revival-2026-08-10.md"
+    },
+    {
+      "id": "ws3-stage2-lock-decision-stale",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-07-16",
+      "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
+      "message": "WS3 stage-2 barrier/EV pre-reg DRAFT の user 決裁 (LOCK or 差し戻し) 期日 — 未決裁なら stale (T5 教訓の DRAFT 段階適用)。LOCK 時は本エントリを resolved 化し ws3-stage2-verdict-deadline (LOCK+10d) に置換",
+      "resolved": "2026-07-09",
+      "resolution": "user 承認「進めて」で LOCKED 化 (期日 7 日前倒し)。後継 = ws3-stage2-verdict-deadline"
+    },
+    {
+      "id": "ws3-stage2-verdict-deadline",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-07-19",
+      "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
+      "message": "WS3 stage-2 barrier/EV grid の verdict 期日 (LOCK 2026-07-09 + 10d) — queue 20260709-1610-ws3-stage2-barrier-ev-prereg が未完なら stale (T5 型の実行ギャップ防止)",
+      "resolved": "2026-07-10",
+      "resolution": "verdict PASS ゼロ / 全体 UNDERPOWERED (期日 9 日前倒し)。lfr×EUR_USD 全 9 構成負 (クローズ) / htf_fb×AUD_JPY 1 構成のみ正・検定不達 → 後継 ws3-stage2-underpowered-recheck"
+    },
+    {
+      "id": "ws3-stage2-underpowered-recheck",
+      "active": true,
+      "type": "shadow_count_decision",
+      "entry_type": "htf_false_breakout",
+      "instrument": "AUD_JPY",
+      "since": "2026-07-10",
+      "n_decide": 100,
+      "deadline": "2027-01-31",
+      "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
+      "message": "stage-2 UNDERPOWERED 分岐 (§8.2) — htf_fb×AUD_JPY shadow 累積 N>=100 で同一 grid・同一検定の 1 回限り再判定 (新探索自由度なし)。期日到達で N<100 なら stale レビュー",
+      "n_floor": 100
+    },
+    {
+      "id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "active": true,
+      "type": "shadow_count_decision",
+      "entry_type": "sr_anti_hunt_bounce",
+      "instrument": "USD_JPY",
+      "since": "2026-07-11",
+      "n_decide": 30,
+      "n_floor": 30,
+      "deadline": "2027-01-31",
+      "doc": "knowledge-base/wiki/analyses/ws3-t10-t11-entry-quality-diagnosis-2026-07-11.md",
+      "message": "WS3 T11 診断 (2026-07-11): sr_anti_hunt_bounce×USD_JPY は探索窓で順行 MFE/MAE 非対称 1.71 (h24-48, 持続型・母集団上位2-3%) だが N=19<30 で underpowered。shadow 累積 N>=30 到達で round-1/round-2 と同一の OOS スクリーン (非診断窓 ratio 再計測 + block bootstrap + BH-FDR + first-touch EV レグ + ナイフエッジ3点) を1回限り実施。他4ペア + gbp_deep_pullback×GBP_USD は entry 劣化で close 済み。期日到達で N<30 なら stale レビュー"
+    },
+    {
+      "id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+      "active": true,
+      "type": "shadow_count_decision",
+      "entry_type": "sr_anti_hunt_bounce",
+      "instrument": "EUR_JPY",
+      "direction": "BUY",
+      "since": "2026-08-05",
+      "n_decide": 40,
+      "n_floor": 40,
+      "dedup_violation": 0,
+      "deadline": "2027-02-28",
+      "doc": "knowledge-base/wiki/decisions/sr-anti-hunt-eurjpy-r1-verdict-2026-08-05.md",
+      "message": "R1 昇格 NO-GO (2026-08-05) → forward 確認枠。セル凍結 = EUR_JPY×BUY、母集団 = dedup_violation=0 の shadow 新規 closed (2026-08-05 以降)。fresh N>=40 到達で 1 回限り判定: EV>0 (片側 t p<0.05) AND Wilson_lo>38.7% (BEV+5pp) AND 凍結後月次符号>=3/4。全通過で R1 パケット再起案 (BT ハーネス修復済みが前提)、不通過でセル クローズ。それまで本セル×outcome の中間再計算禁止 (P-10 型)。⚠️ 2026-08-18 偽発火の記録: 旧計数器が direction/dedup_violation フィールド無視 + open 込みで N=40 と誤報 (凍結母集団の実測 N=22、counts のみで確認・look 未消費)。計数器修正済み (closed_only/direction/dedup_violation 解釈、tools/prereg_trigger_watch.py 2026-08-18)。起案動機の p=2.2e-11 は dedup 後 EV n.s. + 5月一山型に減衰した経緯に注意。⚠️ 判定時の注意 2 点: (a) 08-05 以降の発火レートが凍結時想定の数倍 (hour_utc 修復 08-09 の影響疑い) — 判定文書で rate 変化を開示、(b) ③月次符号>=3/4 は数ヶ月の蓄積を想定した集中ガード — N=40 が 1 ヶ月未満で到達した場合は『完結月が 4 未満』の扱いを判定書で明示すること。③ の分母解釈 (4 ヶ月想定 vs 経過月) が verdict を左右する場合は代替基準を発明せず user 決裁に上げる (凍結判定への事後裁量の混入禁止)",
+      "closed_only": true
+    },
+    {
+      "id": "t8-sweep-defer-decision",
+      "active": false,
+      "type": "shadow_count_decision",
+      "entry_type": "sweep_reversion_eurgbp_late",
+      "since": "2026-07-03",
+      "n_decide": 10,
+      "n_floor": 5,
+      "deadline": "2026-10-28",
+      "doc": "knowledge-base/wiki/decisions/sweep-reversion-ps1a-execution-runbook-2026-07-31.md",
+      "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-10-28 に N<5 なら retire (R2、旧 09-30 — 2026-08-17 user 決裁で計数器故障 07-16〜08-12 の 28 日分繰り延べ、forensic doc §4-2)。計数 = dedup_violation!=1 (packet §1.4)。TRIGGERED 時: tools/ps1a_execution_check.py で凍結判定を dry-run → runbook (doc) を上から実行。AMENDMENT (runbook §2.5、第3/第4 ブロッカー修正) は user 承認済み (2026-08-03「進めて」、packet §8 決裁記録) — commit 1+2 で直接執行可。Option B 実装は draft/ps1a-option-b-20260731 に準備済み",
+      "mode": "daytrade_eurgbp",
+      "count_basis": "unique",
+      "resolved": "EXECUTION-DATE-TBD",
+      "resolution": "unique N>=10 ∧ spaced EV>0 成立 → Option B 執行 (P-S1(a) 単一 PR、runbook 手順)。後継 = ps1a-sweep-live-withdrawal-watch。⚠️ merge 時に resolved を執行日へ更新すること"
+    },
+    {
+      "id": "ps1a-sweep-live-withdrawal-watch",
+      "active": true,
+      "type": "live_count_decision",
+      "entry_type": "sweep_reversion_eurgbp_late",
+      "instrument": "EUR_GBP",
+      "direction": "BUY",
+      "since": "2026-07-03",
+      "n_decide": 10,
+      "deadline": "2026-12-31",
+      "doc": "knowledge-base/wiki/decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md",
+      "message": "P-S1(a) live 復帰後の LOCK Withdrawal trigger 監視 — live N>=10 で EV (実 spread/swap 込み) を判定、EV<0 なら撤退 (trigger 1 = R2)。N>=20 WR<42% / 累積 live DD>100p / 30日 fire 0 → forensic は週次監査で併読 (手順書: sweep-reversion-ps1a-execution-runbook-2026-07-31 §5)。since=2026-07-03 は rescue 窓起点 — 執行前の live fill は存在しないため merge 日更新は任意"
+    },
+    {
+      "id": "t8-hull-shadow-freq",
+      "active": true,
+      "type": "shadow_count_info",
+      "entry_type": "hull_donchian_fade",
+      "since": "2026-07-03",
+      "expected_per_week": 13.3,
+      "doc": "knowledge-base/wiki/analyses/hull-fire-rate-funnel-2026-08-24.md",
+      "message": "hull 発火頻度 band 監視 (ゲート① 再評価用、復帰判断の材料)。⚠️ 2026-08-24 funnel 分解 (rule:R3): expected_per_week=13.3 は **signal-rate** であり、本トリガが数える trade-rate と直接比較できない (estimand 不一致)。offline replay 12.59/週 → HTF Hard Block −25.4% → 実測 hold 直列化 → 7.61/週 に対し実測 1.62/週 = **残余 ~4.7x は未説明で実在**。残余の localize には /api/demo/evaluated-candidates (?strategy=hull_donchian_fade&view=summary) を 1 週間以上蓄積後に読み、total_candidates と trade 数を突合して (a) select_best 段未到達 / (b) 到達後の下流 block に二分すること。2026-09-30 の retire 判定 (shadow N<5) も本 band 誤指定の上に乗っている。詳細: hull-fire-rate-funnel-2026-08-24.md"
+    },
+    {
+      "id": "t9-kalman-d7-fire-info",
+      "active": true,
+      "type": "shadow_count_info",
+      "entry_type": "kalman_d7",
+      "match": "prefix",
+      "since": "2026-07-06",
+      "expected_per_week": 3.9,
+      "doc": "knowledge-base/wiki/decisions/pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28.md",
+      "message": "kalman D7 発火数 (3 variant 前方一致合算) vs BT 期待 3.9/週。分子ゼロが続く場合は Render ログの [kalman_d7] QUALBAR 行 (分母) と突合して 0-fire の原因を判定"
+    },
+    {
+      "id": "ecg-stb-postfix-fire-info",
+      "active": true,
+      "type": "shadow_count_info",
+      "entry_type": "session_time_bias",
+      "since": "2026-08-09",
+      "expected_per_week": 4.0,
+      "doc": "knowledge-base/wiki/analyses/ecg-forward-primary-emission-census-2026-08-11.md",
+      "message": "session_time_bias の hour_utc 凍結修復後 (PR #168 deploy 2026-08-09T01:47Z) の shadow 発火数監視。歴史 ~21/週/セルは常時開放ゲートの artifact — 真窓 (LONDON 07:30-14:00 UTC = 27%) での実レートを観測する。~0/週が続く場合: (a) ECG #22 first look (2026-11-06) の all-UNDERPOWERED 早期確定材料 (b) session_time_bias 自体の歴史実績が artifact だった確定 → 戦略 R2 レビュー材料。counts のみ = ECG P-10 ban と整合"
+    },
+    {
+      "id": "t9-kalman-d7-live-n10-ev-check",
+      "active": true,
+      "type": "live_count_decision",
+      "entry_type": "kalman_d7",
+      "match": "prefix",
+      "instrument": "USD_JPY",
+      "since": "2026-08-09",
+      "n_decide": 10,
+      "deadline": "2026-11-30",
+      "doc": "knowledge-base/wiki/analyses/dt-ctx-hour-utc-live-freeze-2026-08-09.md",
+      "message": "kalman D7 退避条件の機械監視 (2026-05-28 pre-reg §3 追補で LOCK 済、当時 user option B 決裁)。DT ctx hour_utc 凍結バグ修正 (2026-08-09, R3) により 73 日ぶりに live 発火経路が開通 → 決裁時に約束された 'Live N>=10 時点で EV<0 なら 0.1x へ降格 (R2)' を N=10 到達で執行。連続 3 SL (3 variant 同時) は即時 user review。期日到達で N<10 なら stale レビュー (T5 教訓: pre-reg には監視主体を必ず併設)。到達経路: 2026-09-01 min-lot carve-out (PR #218, kalman-d7-minlot-carveout-prereg-2026-09-01) で agg-Kelly bypass + 1000u 契約が着地し fill 発生が可能になった — 初 fill 確認時に deadline を初 fill + 90 日へ更新、2026-10-15 まで fill ゼロなら到達性を再監査"
+    },
+    {
+      "id": "hourblock-class-exempt-r2-rollback",
+      "active": true,
+      "type": "live_count_decision",
+      "entry_type": "",
+      "instrument": "",
+      "direction": "",
+      "reasons_marker": "[HOURBLOCK_CLASS_EXEMPT]",
+      "since": "2026-09-02",
+      "n_decide": 10,
+      "deadline": "2026-12-01",
+      "doc": "knowledge-base/wiki/decisions/hourblock-class-exemption-prereg-2026-09-02.md",
+      "message": "静的 hour block class exemption (R1、user 承認 2026-09-02「どちらも進めて」) の R2 rollback ゲート — [HOURBLOCK_CLASS_EXEMPT] marker 付き clean live (oanda_trade_id 非空 ∧ dedup_violation!=1) が N>=10 到達で pooled EV 判定: EV<0 なら class exemption を撤去 (R2、_STATIC_HOURBLOCK_CLASS_EXEMPT の gate 分岐 revert)。母集団は『免除で通過した行のみ』— marker は免除発火時にのみ reasons へ付与されるため、block 帯外の同戦略トレードは混入しない (estimand 忠実)。期日 2026-12-01 に N<10 なら stale review (+3 イベント/月想定 → 90 日 ~9、大幅未達は免除の実効性=class の live 到達性を再監査)。連続 3 SL は期日前でも即 user review。第 2 層 = per-cell binding registry (t9-kalman-d7-live-n10-ev-check / carry-dip-v3-revival-watch)。到達経路: prereg_trigger_watch の live_count_decision + reasons_marker 拡張 (同 PR) で機械評価"
+    },
+    {
+      "id": "ws3-round2-oos-verdict-deadline",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-07-17",
+      "doc": "knowledge-base/wiki/decisions/ws3-round2-explore-prereg-2026-07-10.md",
+      "message": "WS3 探索2周目 OOS verdict 期日 (LOCK 2026-07-10、候補 m=5 凍結済み)。期日までに verdict §追記が無ければ stale アラート (T5 型ギャップ防止)",
+      "resolved": "2026-07-10",
+      "resolution": "verdict ❌ FAIL 0/5 — 期日 7 日前倒しで完了 (pre-reg §8)。全セル BH-FDR 不通過、3 セル ratio 崩壊 (0.56-0.90)、EV レグも 孤立格子点/fold 集中で全滅。§3 固定分岐 = shadow 母集団内の軸は枯渇 → 外部仮説 (新シグナル系統、falsified 6 系統除外) の探索へ転進"
+    },
+    {
+      "id": "ws3-round3-crossasset-divergence-deadline",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-07-24",
+      "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
+      "message": "WS3 round-3 (cross-asset divergence-reversion) discovery+LOCK 目標 07-20 / OOS verdict 07-24。queue 20260713-ws3-round3-crossasset-divergence が未着手なら stale (T5 型実行ギャップ防止)。外部仮説転進の第1候補、lead-lag は既に実証閉鎖済",
+      "resolved": "2026-07-14",
+      "resolution": "VERDICT PASS=0 / H0 採択 (期日 07-24 の 10 日前倒し)。data-availability で窓 data-driven 再指定 (intraday rates フロア 2024-02、§2b AMENDMENT、結果観測前) → discovery 216 cells → top-8 凍結 → OOS 8/8 反転 (leg A 0/8 BH-FDR, leg B 0/8)。§4 固定分岐 = cross-asset 価格モダリティ枯渇 → E1 positioning 格上げ。WS3 price-based 探索は内部2周+外部1周=計3周 FAIL で一巡"
+    },
+    {
+      "id": "ws3-round4-eur-divergence-conditional",
+      "active": true,
+      "type": "data_coverage",
+      "deadline": "no-deadline",
+      "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
+      "message": "round-3 OOS で凍結外の EUR_USD/EUR_JPY divergence-reversion が post-hoc 生存 (claimable 不可、fresh OOS 無し)。cache が 2026-11-15+ まで延伸したら、pair 分散 freeze (EUR_USD/EUR_JPY を事前登録、top-by-EV 回避 — lesson-freeze-rule-topEV-selects-overfit-2026-07-14) で新 OOS 窓による round-4 を安価に再試行可。それまでは E1 positioning が主戦線 ⚠️ 2026-08-14 検査: 本条件の到達経路が実在しなかった (modules/yield_data.py が rolling 窓 fetch を無条件 overwrite、ZN=F 1h cache は 2026-05-15 で停止、伸長ジョブも不在)。R3 修復済み = union-merge 化 + .github/workflows/zn-cache-refresh.yml (週次) 新設、cache は 14,175 行 / 右端 2026-08-14 へ回復。以後は本条件が実際に到達しうる。詳細: [[external-hypothesis-scan-round3-2026-08-14]] §1.1 / 2026-08-19: conditional_info (機械評価なし) から data_coverage へ移行 — 閾値 = 2026-05-15 + 6ヶ月 = 2026-11-15、判定 = ZN=F 1h cache の被覆 max 日付。cache overwrite 構造欠陥は 2026-08-14 修復済みのため延伸経路は実在する。",
+      "source": {
+        "path": "data/cache/yield/ZN_F_1h.parquet"
+      },
+      "threshold_date": "2026-11-15"
+    },
+    {
+      "id": "e1-positioning-ingest-freshness",
+      "active": true,
+      "type": "ingest_freshness",
+      "endpoint": "/api/positioning/status",
+      "checks": [
+        {
+          "prefix": "verified:",
+          "max_age_hours": 2,
+          "min_keys": 13
+        }
+      ],
+      "doc": "knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md",
+      "message": "E1 positioning ingest 鮮度監視 (機械評価) — 2026-09-02 移行: 旧 conditional_info の条件『MYFXBOOK creds 投入待ち』は 2026-07-16 に成立済みだった (e1-positioning-contrarian-prereg-2026-07-16 冒頭 (2) が first login 2026-07-16T23:04Z を記録) のに、conditional_info は機械評価対象外のため 7 週間陳腐化して看板だけ残っていた → 約束どおり ingest_freshness 型へ移行 (r3-market-data-ingest-freshness と同型)。判定 = /api/positioning/status の health verified:{PAIR}:outlook 13 キー (poll 1200s、実測 stale p99 < 2h — 48 日で 2h 超 gap は 1 回のみ、それは 2026-08-23→08-26 の Render Disk 満杯 71.3h 停止 = 真検知で修復済み PR #205/#206)。⚠️ その 71.3h 停止は first look (2026-10-15) 評価窓の market-time ~54.6h ≈ 5.7% を消費済み (coverage 予測 94.3% > gate 90%、ただし残 budget ~41h) — verdict 時に §2.5 既知 debit として扱う。ペア追加/削除時は min_keys=13 を同時更新",
+      "reachability": "prereg_trigger_watch evaluate_ingest_freshness が daily cron 経由で機械評価 (検知遅延 ~24h)。2026-09-10 以降は scripts/anomaly_watcher.py (15 分 cron) が positioning_auth_failed (毎時 Discord) / positioning_stale (6h バケット) で先行検知する。stale 時は Render ログ [positioning] と status の last_error / consecutive_cycle_failures / myfxbook.logged_in / myfxbook.auth_failure_streak を確認",
+      "note": {
+        "incident_2026_09_10_auth_outage": "Myfxbook 認証失敗停止 (P1, rule:R3)。最終 verified 2026-09-10T06:58:44Z → 認証失敗開始 ~07:18Z (『Wrong email/password.』) → §2.2 stale cap NA 燃焼開始 08:58:44Z。14:44:46Z 実測: 13 キー全 stale 7.76h / logins_total=0 / consecutive_cycle_failures=10。§2.5 残 budget = 33.2h (h=24h)〜35.2h (h=4h) — 既往 debit 54.6h (disk 満杯) + 本件 5.78h 控除後。停止継続時の breach 予測 = 2026-09-13T23:57Z〜09-14T01:57Z → 6 primary 全ペア機械除外 → §2.5-3 family gate = first look 2026-10-15 → ~11-12 の 4 週 postpone。§2.5-2 連続欠測 24h (market-time) 到達 = 2026-09-11T08:59Z。修理 = ingest auth backoff (上限 6h、lockout 防止) + anomaly_watcher 配線。復旧は user の credentials 再投入のみ: knowledge-base/wiki/analyses/e1-ingest-outage-2026-09-10.md §5"
+      }
+    },
+    {
+      "id": "e1-prereg-lock-decision-stale",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-07-17",
+      "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
+      "resolved": "2026-07-17",
+      "resolution": "LOCK 執行済み (self-LOCK 2026-07-17)。PR #92 で user 通知・異議なし → round-2 前例に基づき self-LOCK。stale cap 主モード確定 (positioning_health verified 本番稼働) + source=myfxbook 稼働確認。e1-prereg-verdict-deadline へ置換",
+      "message": "[RESOLVED 2026-07-17] E1 positioning contrarian pre-reg の LOCK 決裁 — self-LOCK 執行済み。監視は e1-prereg-verdict-deadline へ移管"
+    },
+    {
+      "id": "e15-e7-event-prereg-phase0-verdict",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-07-31",
+      "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
+      "message": "[RESOLVED 2026-07-22] E15+E7 イベントモダリティ family phase-0 (E15 FOMC/NFP/CPI イベント窓) — データ準備+discovery+候補凍結 2026-07-24 / OOS verdict 2026-07-31。queue 20260718-e15-e7-event-phase0 が未着手なら stale (T5 型実行ギャップ防止)。E1 first look (2026-10-15) より先の verdict が戦略的役割 (WIP 原則)",
+      "resolved": "2026-07-22",
+      "resolution": "verdict ❌ FAIL 0/6 (全候補 C5) — 期日 07-31 の 9 日前倒しで完了 (pre-reg §12、artifact e15_phase0_oos_verdict.json)。レグ A 全滅: BH-FDR q=0.05 (m=6) 通過ゼロ、min p_combo=0.214 ≫ rank-1 閾値 0.0083。4/6 は点 EV 正 (te/ft 両正) だが event-block 推論で有意性なし。modal 予想 C3 (UNDERPOWERED) は B(d) 充足 (blocks 20-28 ≥ 15) で不成立 → C5。§8 固定分岐 = phase-1 (E7 サプライズ条件付き) は予定どおり実行 (phase1-verdict トリガー継続)。E15 無条件イベント窓は棄却"
+    },
+    {
+      "id": "e15-e7-event-prereg-phase1-verdict",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-08-28",
+      "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
+      "message": "E15+E7 family phase-1 (E7 指標サプライズ directional) — FF gap scrape + データ付録凍結 2026-08-14 ✅ 完了 (付録 §3.3b 2026-07-24 + pre-flight §3.3c 2026-08-12: 価格側 13/13 OK / サプライズパネル凍結 / θ=1.0 の 12 combo は block ゲート不達で結果観測前に脱落 → 実効 12 combo / OOS blocks 19(NFP) 16(CPI) = modal 予想 C3 or C5) / 次 = discovery+凍結 2026-08-21 / OOS verdict 2026-08-28。phase-0 の帰結に依存せず実行 (pre-reg §8 固定分岐)",
+      "resolved": "2026-08-17",
+      "resolution": "phase-1 verdict ❌ FAIL (discovery 段、選抜通過 0/24 → m₁=0) — 凍結期日 08-21 の 4 日 / verdict 期日 08-28 の 11 日前倒しで完了 (pre-reg §13、PR #182)。実効空間 θ=0.5 の 12 combo は time-exit EV 全て負 (−0.31〜−8.15p、blocks 41–62) = 符号が系統的に逆 (SIGN-FLIP 記述記録のみ)。OOS 窓 (2024-01+) は結合統計未接触のまま保存。§8 固定分岐発動: 両 phase PASS=0 → イベントモダリティ枯渇 → E12 を供給ライン主候補へ格上げ。再試行禁止 = NFP/CPI headline z × sign-follow × M15 全変種。機械ガード: 台帳再現 13/13 + census §3.3c 完全一致 + 符号/estimand 手計算 spot check"
+    },
+    {
+      "id": "e1-prereg-verdict-deadline",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-15",
+      "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
+      "message": "E1 positioning contrarian pre-reg (🔒 LOCKED 2026-07-17) の first look verdict 期日。データ cutoff #1 = 2026-10-08 (t0+12週)、burn-in 20営業日 (〜2026-08-12)、評価窓 08-13〜10-08。verdict 期日 2026-10-15 に §8 へ判定結果 (Gate1 pooled IC / Gate2 摩擦調整EV / combo 排他分類 C1-C5 / ナイフエッジ4点 / 全体 verdict PASS/UNDERPOWERED/REJECT-F/REJECT) を追記。UNDERPOWERED なら e1-prereg-second-look 登録 (cutoff #2 2026-12-30 / verdict 2027-01-06)。判定器 tools/e1_positioning_prereg_eval.py は LOCK 後実装 (unit test pin 先行)。中間 peeking 禁止 (§6)"
+    },
+    {
+      "id": "edge-supply-scan-monthly",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-18",
+      "doc": "knowledge-base/wiki/syntheses/edge-development-pipeline-2026-07-18.md",
+      "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3)。第3次 2026-08-14 実行済 (採用 E21/E22・棄却 E24/E25・保留 E23)。**第4次 2026-09-10 実行済 (期日 09-18 の 8 日前倒し、WIP 原則 — [[external-hypothesis-scan-round4-2026-09-10]])**: family A 採用 (台帳 #27、敵対的検証+凍結は family-a-adversarial-freeze-deadline) / family B 不採用 (park、再裁定 = #27 verdict + mof-next-episode-reverdict 完了後) / family C 台帳整合 (FAIL 不変) / E23 testable form DRAFT→LOCK (残 item 3 完遂) / 新規 E26-E28 全棄却 / U4 材料 §4 凍結 / rate-anchor-daily+zn-cache-refresh 修復 (FRED WAF + git add ignored-path の二重根因)。次回第5次 = 2026-10-18。四半期モダリティ棚卸しは第6次に同乗。到達経路 (第5次の材料、性質 pin 継続): A forward 材料 = mof-statements-daily cron (lexicon_scores.csv 日次) — 基盤着地は statement-ladder-foundation-readiness で resolve 済み / B 再裁定入力 = intervention-watch workflow (E-A 凍結検知器、00:20 UTC) + mof-next-episode-reverdict / C 残置材料 = rate-anchor-daily workflow (平日 21:15 UTC、本 PR 修復 — 初回 green は dispatch 検証で確認)。"
+    },
+    {
+      "id": "e23-explore-verdict-deadline",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-09-20",
+      "doc": "knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-10.md",
+      "message": "E23 中銀声明テキスト explore pre-reg (🔒 LOCKED 2026-09-10、台帳 #25、explore 枠 1/3) の verdict 期日 (LOCK+10日、T5 型ギャップ防止)。執行 = LOCK 後の別タスク: pass-0 コーパス取得ハーネス + census (outcome 非接触、per-CB 被覆 gate / 生存 <2 CB = DATA-BLOCKED) → コミット → pass-1 (イベント列挙、fwd 非接触) → コミット → pass-2 (測定、seed 20260910)。凍結辞書 sha256=f49586ca... を測定ハーネスが assert。期日到達で未執行なら stale レビュー。TDW/WCB (CC BY-NC) は事前コミット節どおり secondary 保留 = user 決裁点。",
+      "reachability": "Claude セッション手動 (Tier-A cron が TRIGGERED 表示)。前進経路 = コーパスは各中銀公式サイト (無料・keyless) — 取得ハーネスが pass-0 の成果物。"
+    },
+    {
+      "id": "family-a-adversarial-freeze-deadline",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-09-24",
+      "doc": "knowledge-base/wiki/decisions/family-a-statement-ladder-prereg-2026-08-19.md",
+      "message": "family A statement_ladder (台帳 #27、scan#4 2026-09-10 採用) の敵対的検証 + 凍結コミットの執行期日 (T5 型ギャップ防止)。手続き = DRAFT §8: 敵対的検証 1 本 (パラメータ (T,R,H) の凍結は論拠のみで確定 — データ較正禁止) → 凍結コミット (lexicon pin 569dbe3f + 本 doc sha 明記) → two-pass 測定 (explore は N=4 blocks につき記述級のみ、edge 主張禁止)。凍結までは発言×介入ラベルのジョイント量 (hit/FA 率、リード時間、条件付き確率) の計算は全面禁止。凍結時に本エントリを resolve し family-a-explore-verdict-deadline (凍結+10日) へ置換。期日到達で未凍結なら stale レビュー (待つなら waiver に理由を書く)。",
+      "reachability": "Claude セッション手動 (Tier-A cron が TRIGGERED 表示)。前進経路 = 本 PR で family A 採用済み + 材料は全て in-repo (data/external/mof_statements/ 日次 cron 稼働中)。"
+    },
+    {
+      "id": "r3-market-data-ingest-freshness",
+      "active": true,
+      "type": "ingest_freshness",
+      "endpoint": "/api/marketdata/status",
+      "checks": [
+        {
+          "key": "verified:ff_calendar",
+          "max_age_hours": 24
+        },
+        {
+          "prefix": "verified:cme_bars:",
+          "max_age_hours": 72,
+          "min_keys": 7
+        }
+      ],
+      "doc": "knowledge-base/wiki/analyses/market-data-ingest-2026-07-18.md",
+      "message": "R3 market-data ingest 鮮度監視 (PR #102、本番稼働 2026-07-21) — verified:ff_calendar が 24h 超 stale / verified:cme_bars:* (7 契約) のいずれかが 72h 超 stale・キー欠落で要調査 (§7 宣言基準。CME 72h は週末市場閉鎖 ~2.5d を跨いでも誤警報しない)。E1 e1-positioning-ingest-freshness と同型の ingest 鮮度 watch だがこちらは機械評価。閾値/契約数は modules/market_data_ingest.py の STALE_ALERT_*_SEC / DEFAULT_CME_SYMBOLS とテストで整合固定 (CME_BARS_SYMBOLS env 変更時は本エントリの min_keys も更新)。stale 時は Render ログ [market-ingest] と status API の last_error / consecutive_failures を確認"
+    },
+    {
+      "id": "weekend-gap-oos-verdict-deadline",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-07-31",
+      "doc": "knowledge-base/wiki/decisions/weekend-gap-oos-prereg-2026-07-24.md",
+      "message": "weekend_gap OOS confirm (pre-reg LOCK 2026-07-24、台帳 family #3) の verdict 期日 — dry-run (explore 窓再現必須) 通過後に OOS 単一実行。未実行なら stale (T5 型実行ギャップ防止)",
+      "resolved": "2026-07-24",
+      "resolution": "verdict 完了 (期日 7 日前倒し、単一 OOS 実行)。family #3 = PASS 候補 — arm B pooled exGBP 4h: N=177、gross +15.60p (p<1e-4)、stressed-net +9.04p、knife-edge 4/4 flip なし。arm A は BH 落ち (12h p=0.1189) でクローズ。次段 = §9 R1 手続き (日曜 spread ≥8 週末実測 → stage-2 執行 pre-reg → user 承認)。詳細: prereg §11 / reports/weekend_gap_oos_confirm-2026-07-24.md"
+    },
+    {
+      "id": "mof-forward-prereg-lock-deadline",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-08-05",
+      "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
+      "message": "MoF 介入 forward pre-reg (台帳 family #4) の LOCK 期限 — Q2-2026 四半期開示 (~2026-08、¥11.73兆エピソード日次内訳) の前に LOCK しないと genuine OOS 機会を喪失。LOCK 後は本エントリを resolved 化し mof-q2-2026-disclosure-verdict に置換",
+      "resolved": "2026-07-24",
+      "resolution": "LOCK 執行 (期限 08-05 の 12 日前倒し、敵対的レビュー必須3+任意5 全反映、file-drawer 窓閉鎖のため即日)。後継 = mof-q2-2026-disclosure-verdict"
+    },
+    {
+      "id": "mof-q2-2026-disclosure-verdict",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-09-30",
+      "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
+      "message": "MoF forward pre-reg (🔒 LOCKED 2026-07-24、台帳 family #4) の verdict 監視 — Q2-2026 四半期日次開示 (~2026-08 推定) 着地から 10 日以内に verdict 実行。backstop 2026-09-30 で未着地なら stale レビュー (設計変更禁止)。P-10: 2026 candidate 日の forward net は開示前計算禁止",
+      "resolved": "2026-08-18",
+      "resolution": "verdict 執行 (PARTIAL: E-A PASS p=0.0143 / E-C FAIL +188.1p 符号逆)。開示は 08-07 着地、+11d = 期日 1 日超過 — 原因 = deadline_info が実着地を検知できない構造 (backstop のみ)。後継 = mof-next-episode-reverdict"
+    },
+    {
+      "id": "weekend-gap-live-g1-slippage",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-09-30",
+      "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
+      "message": "weekend_gap live G1 ゲート監視 — live fill の slippage rolling mean > +2.0p で R2 live 停止 (code gate が一次、本エントリは週次監査の見落とし防止)。user 承認 (b) 2026-07-24 ⚠️ 2026-08-31 評価 (deadline 08-31 到来 → 09-30 へ roll): live 化 (2026-07-25) 以降の weekend_gap は **clean live N=0**。本番 /api/demo/trades を全ページ取得 (2026-07-24 以降 2,710 行) して抽出した結果、weekend_gap 行は 2 件のみ (2026-07-26 / 08-02、いずれも USD_JPY BUY・**shadow**、oanda_trade_id 空)。→ **G1 (live fill slippage rolling mean > +2.0p) は評価対象ゼロ = 未抵触、live 停止の根拠なし。措置なし**。⚠️ 併せて観測: 08-09 / 08-16 / 08-23 / 08-30 の **4 週連続で発火ゼロ**。G2 エントリが置く『頻度 ~3.3/月 → N=12 は ~2026-11 見込み』との乖離は、**その 3.3/月 が signal-rate か live-fill-rate かで意味が変わる** (hull 残余 4.7x と同型の estimand 不一致) ため、本時点では『設計レートが誤り』と断定しない。G2 チェックポイント (weekend-gap-live-g2-cumloss) で 分母を明示した上で再評価すること。単発 limit クエリは希少戦略を 0 に向けて過小計上するので **必ず全ページ取得で数えること** (2026-07-24 実測バグ)。 ⚠️ 執行契約 AMENDMENT (B) 発効 2026-09-10 (rule:R1、user 承認「進めて」同日、packet: weekend-gap-execution-contract-r1-packet-2026-09-10 §4): entry 送信 = OANDA 実開場 (instrument tradeable、quote age <10s) 確認後の最初の評価 tick へ繰り下げ。live N カウントは発効後 fill から開始。G1 の slippage 基準 = 実際に fill した送信 attempt の直前 quote (halt-race 限定再送時は再送直前 quote に差し替え — 初回 quote 固定だと繰下げドリフト mean +3.15p が混入し N=6 で恒久誤停止)。閾値・deadline は不変。"
+    },
+    {
+      "id": "weekend-gap-live-g2-cumloss",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-12-31",
+      "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
+      "message": "weekend_gap live G2 ゲート監視 — live N=12 到達時に cumulative < −60p なら R2 demote。N=30 で G3 判定 (mean net>0 + WR≥35%) → lot 増額は別 R1。頻度 ~3.3/月 → N=12 は ~2026-11 見込み ⚠️ 執行契約 AMENDMENT (B) 発効 2026-09-10 (同上 packet §4): live N カウントは発効後 fill から開始。改定後 fill 成立率見積り 点 ~94% / 保守 ~75% → G2 (N=12) 到達 ~2027-01 見込み。閾値 (−60p) / G3 条件は不変。"
+    },
+    {
+      "id": "weekend-gap-execution-amendment-g0prime",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-09-28",
+      "doc": "knowledge-base/wiki/decisions/weekend-gap-execution-contract-r1-packet-2026-09-10.md",
+      "message": "weekend_gap 執行契約 (B) G0' 配管検証 — 改定後最初の 2 qualifying イベント (初回 2026-09-13 (日) 21:00 UTC 見込み) を週次監査で確認する。検証手順 (packet §6/§7): (1) Render ログ [WEEKEND_GAP][EXEC_B] 行で decision 遷移 (HOLD→SEND / ABANDONED_*) と tradeable/quote_age/drift の記録を確認、(2) 送信時刻 = OANDA 実開場 (21:04-21:05) +0〜2 分 (poll ≤60s) であること、(3) oanda_audit sent→filled + demo row の oanda_trade_id 非空 (= clean live N=1、F2 resolve)、または正当放棄 (cap skip / ABANDONED_HALT / ABANDONED_DRIFT latch) の分類、(4) fill 時は [WEEKEND_GAP] fill slippage persisted 行と demo row slippage_pips (G1 入力、基準 = fill attempt 直前 quote) を突合、(5) halt-race 再送が発生した場合 [HALT_RACE] ログと送信回数 ≤2 を確認。🛑 2 イベント連続で fill 不成立 (halt >15m / drift 放棄 / 新種 cancel) → 執行モダリティ自体を再審 (R1 再起案) — 3 度目の『観測して待つ』はしない (packet §6)。冬時間初週末 2026-11-01 は実開場 22:04-22:05 からの乖離 >±10 分で R3 打ち切り時刻再導出。"
+    },
+    {
+      "id": "volstate-split-htf-fb-recheck",
+      "active": true,
+      "type": "conditional_info",
+      "deadline": "2027-01-31",
+      "doc": "knowledge-base/raw/analysis/new-angle-adversarial-verification-2026-07-28.md",
+      "message": "vol_state_gates 観測前 forward split 宣言 (2026-07-29 登録、look 消費なし): htf_fb×AUD_JPY registry recheck (shadow N≥100) が発火した場合、評価に RV5/RV21>1 vs <1 の regime split を事前登録済み分割として併記する (dose-response IC の in-house 確認済み再パラメタ化、ban CLEAR)。split は診断であり選択に使わない",
+      "reachability": "shadow N 蓄積後の手動再判定。deadline 2027-01-31 到達で TRIGGERED (2026-08-19 の deadline 有効化以降)。前進経路 = shadow 蓄積 (自動) + Claude セッションの手動判定。"
+    },
+    {
+      "id": "volstate-split-weekend-gap-recheck",
+      "active": true,
+      "type": "conditional_info",
+      "deadline": "2026-12-31",
+      "doc": "knowledge-base/raw/analysis/new-angle-adversarial-verification-2026-07-28.md",
+      "message": "vol_state_gates 観測前 forward split 宣言 (2026-07-29 登録): weekend_gap live N=12/N=30 recheck (G2/G3 判定) 時に、gap 発生週末の RV5/RV21 状態別のサブ集計を事前登録済み分割として併記 (live 挙動・R2 stop には一切触れない観測のみ)。初の PASS 家系への vol-state optionality 確保が目的、選択には使わない",
+      "reachability": "同上。deadline 2026-12-31 到達で TRIGGERED。前進経路 = weekend_gap live イベント蓄積 (自動) + 手動判定。"
+    },
+    {
+      "id": "ps-carveout-firstweek-regate",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-08-11",
+      "doc": "knowledge-base/wiki/decisions/ps-carveout-firstweek-regate-disposition-2026-08-12.md",
+      "resolved": "2026-08-12",
+      "resolution": "3 項目監査完了・demote せず (pre-reg 条件 live N>=10 に対し実測 N=2)。(a) AGG_KELLY block はログにゼロ、初週の律速は席 (Slot bypass ... live=1/1 -> shadow が 13 分で 16 行) = carve-out の失敗ではなく席供給の枯渇 → PR #172 (merged 08-11) で是正済み、評価窓を #172 後へ再アンカー。(b) clean live 2 件は両方 close_reason=horizon = BE_LOCK OFF 実効 (N=2 の水準)。(c) watchdog/promote evaluator は非 canonical な is_shadow=0 判定 + dedup 除外なしだが実測乖離ゼロ (7,761 行中 is_shadow=0 かつ oanda_trade_id 空 = 0 件) = 現時点の判定は汚染なし、ハードニングは別タスク。live 実績 = +0.6 / -123.2 (計 -122.6p)。後継 = ps-carveout-regate-post-172",
+      "message": "[RESOLVED 2026-08-12] price_shock_rev ×5 carve-out (D-c-1) 復帰初週再ゲート — 席枯渇で初週窓が無効と判定、#172 後窓へ再アンカー。監視は ps-carveout-regate-post-172 へ移管"
+    },
+    {
+      "id": "ps-carveout-regate-post-172",
+      "active": true,
+      "type": "live_count_decision",
+      "entry_type": "price_shock_rev",
+      "match": "prefix",
+      "instrument": "",
+      "direction": "",
+      "since": "2026-08-11",
+      "n_decide": 10,
+      "deadline": "2026-09-30",
+      "doc": "knowledge-base/wiki/decisions/ps-carveout-firstweek-regate-disposition-2026-08-12.md",
+      "message": "ps carve-out 再ゲート (#172 席供給是正後の窓、since 2026-08-11)。clean live N>=10 到達で EV / Wilson_lo を再判定 — EV<-0.5p なら R2 demote (親決裁 D-c-1 の条件をそのまま継承、N ゲートは下げない)。期日 2026-09-30 に N<10 なら「席が是正されても発火しない」= 供給側の別問題として stale レビュー (carve-out の EV 判定は保留のまま)。初週窓 (07-28〜08-11) は席枯渇で無効と判定済み (ps-carveout-firstweek-regate の resolution)"
+    },
+    {
+      "id": "e12-volume-prereg-staleness-review",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-30",
+      "doc": "knowledge-base/wiki/decisions/e12-volume-forward-prereg-2026-07-29.md",
+      "message": "E12 volume forward pre-reg (🔒 LOCKED 2026-07-29、台帳 #10、W3-3 登録アクション) の陳腐化 review 期日 — (a) ingest 健全性 (yfinance 60m 経路生存、7 契約 capture 継続 = r3-market-data-ingest-freshness green) (b) 設計前提の戦略的地位 (supersede する上位データ/決裁の有無) を review。許容 outcome = 継続 or クローズ (data-blocked/superseded) のみ。設計変更・volume×価格ジョイント look・トリガー前倒しは禁止 (prereg §8)"
+    },
+    {
+      "id": "e12-volume-first-look-deadline",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2027-02-05",
+      "doc": "knowledge-base/wiki/decisions/e12-volume-forward-prereg-2026-07-29.md",
+      "message": "E12 volume forward pre-reg (🔒 LOCKED 2026-07-29、台帳 #10) の first look 執行期日 — データ cutoff 2027-01-31 (OOS = bar_time_utc ≥2026-07-30、~26 週)。validity gate: OOS 非ゼロ volume bar ≥2500/契約 を ≥6/7 契約 (不成立は DATA-BLOCKED、事後緩和禁止)。執行 = explore (2024-02-27〜2026-07-29 凍結窓) → gates 通過時のみ candidate 凍結追記 → OOS 単一接触、同一手続き内 (prereg §4-6)。期日前の前倒し執行は peeking として禁止。UNDERPOWERED (OOS pooled event <100) なら second look 1 回限り (cutoff 2027-04-30 / verdict 2027-05-07)"
+    },
+    {
+      "id": "ecg-forward-first-look",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-06",
+      "doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-explore-prereg-2026-08-03.md",
+      "message": "ECG forward pre-reg (🔒 LOCKED 2026-08-03 v2、台帳 #22) の first look 執行期日 — forward 窓 = shadow closed entry_time [2026-08-04, 2026-11-01)、13週。primary = active 4 cells × K{5,10,20} (m=12)、epoch層化permutation、primary p は unique-spaced 系列。参加条件 = forward N≥150/セル (全セル未達なら UNDERPOWERED → second look cutoff 2027-01-31 1回のみ)。**期日前の gate×outcome ジョイント計算は P-10 型で全面禁止** (蓄積センサス件数のみ可)。執行 = 新規スナップショット取得 → tools/equity_curve_gating_explore.py --snapshot <path> (n_perm 10000 固定、ハーネスが期日前実行を拒否)。PASS でも live gate R1 は forward 再現後のみ"
+    },
+    {
+      "id": "carry-dip-v3-revival-watch",
+      "active": true,
+      "type": "info",
+      "doc": "knowledge-base/wiki/decisions/t5-restore-eval-and-carrydip-revival-2026-08-10.md",
+      "deadline": "2026-11-30",
+      "message": "usdjpy_carry_dip_accumulator は 2026-07-31 に dormancy 解除 (H1 closed close < 159.50)、live 稼働中。事前規定 R2: deduped LIVE N>=10 かつ EV<0 -> lot 下げ or LIVE 停止 (shadow 継続)。単一トレード損失 <= -150p が 2 件 -> テールキャップ R3 監査。判定規律 (凍結): dedup_violation!=1 で dedup / close_reason ではなく outcome・pnl_pips で勝敗 / LIVE (oanda_trade_id!='') と shadow を混ぜない。backstop 2026-11-30 に N<10 なら低頻度=構造的の再確認のみ",
+      "reachability": "carry_dip v3 の R2 トリガ凍結解除は手動判定。deadline 2026-11-30 到達で TRIGGERED。前進経路 = live 発火蓄積 (自動) + Claude 判定。"
+    },
+    {
+      "id": "ps-seat-supply-remeasure-30d",
+      "active": true,
+      "type": "shadow_count_decision",
+      "entry_type": "price_shock_rev",
+      "match": "prefix",
+      "count_basis": "unique",
+      "since": "2026-08-11",
+      "n_decide": 15,
+      "n_floor": 15,
+      "deadline": "2026-09-10",
+      "doc": "knowledge-base/wiki/analyses/price-shock-seat-supply-audit-2026-07-29.md",
+      "message": "席供給是正 (PR #172, 08-11 deploy) の 30d 供給率再計測 — §9 検証計画 4。再計測手法 = audit §2 と同一 (MASSIVE design 期待 vs 観測 rows)。ハーネス実装済み: `python3 tools/ps_seat_supply_remeasure.py --json` (境界は decide_verdict にコード実装 + pin、中途窓は自動的に MID_WINDOW_DIAGNOSTIC)。実行主体 = fx-roadmap-autopilot 日次実行 (MASSIVE_API_KEY はローカル .env のみ、CI/Render cron 不可)。**2026-09-09 中途 diagnostic: design 34 / 観測 unique 7 / capture 21% [Wilson 10-37%]** = 是正前 baseline 31% 未満、design 34 は既に判定床 N>=15 超のため窓完成時 REJECT 濃厚 (→ §8 補足検証 hedge_block/blackout 精査が発動)。さらに観測 7 行中 closed-bar design 対応は 1 行のみ = capture の分子/分母がほぼ交わらない (live は forming bar 評価) — 別 R3 パケット起案済み。**窓完成後 (2026-09-11 以降) に再実行して正式 verdict を確定すること。**",
+      "harness": "tools/ps_seat_supply_remeasure.py",
+      "execution_command": "python3 tools/ps_seat_supply_remeasure.py --json",
+      "execution_subject": "fx-roadmap-autopilot daily run (MASSIVE_API_KEY is local-.env only; not available to GitHub Actions or Render cron)",
+      "note": {
+        "mid_window_diagnostic_2026_09_09": {
+          "as_of": "2026-09-09T03:00Z",
+          "effective_window_days": 29.1,
+          "design_expected": 34,
+          "observed_unique_total": 7,
+          "observed_live": 6,
+          "observed_shadow": 1,
+          "observed_on_closed_bar_design": 1,
+          "capture": 0.206,
+          "capture_wilson95": [
+            0.103,
+            0.368
+          ],
+          "verdict": "MID_WINDOW_DIAGNOSTIC (no verdict — window incomplete and early-execution N>=15 unmet)",
+          "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md"
+        }
+      }
+    },
+    {
+      "id": "e21-personal-account-decision",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-08-31",
+      "doc": "knowledge-base/wiki/analyses/e21-attribution-s2-2026-08-17.md",
+      "message": "消化済み (2026-08-18): user が (b) 外部業者 CSV を提供 → 帰属分解実行済み。verdict = 観測可能な全手動実績に識別可能な α なし (7週 N=247 +54,052円は p=0.32・単一トレード寄与 68%・月次符号不安定で n.s.、swap 寄与 28%・保有中央値 1.2h = 長期キャリーの自己申告と不一致)。E21 (台帳 #23) クローズ。forward 明細の継続提供があれば新 family + 観測前凍結で再入場 (月次スキャンで再評価)。"
+    },
+    {
+      "id": "mof-next-episode-reverdict",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-14",
+      "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
+      "message": "MoF family #4 PARTIAL の再判定監視: Q3-2026 四半期日次開示 (予想 ~2026-11-06、mof.go.jp feio/data/quarter/) を確認し、新規の円買いエピソードが開示された場合のみ §10 の 1 回限り同一仕様再判定 (新自由度ゼロ) を実行。エピソードなしなら deadline を翌四半期 (+3ヶ月) に roll して継続。教訓: 予想着地日+8d を deadline に刻む (backstop 頼み禁止)。 ⚠️ 2026-08-31 更新: 月次開示で **2026-07-30〜08-26 窓に 15兆3,993億円** の平衡操作が確認された (単一窓として本プロジェクト保有データ中の最大、2026-05 窓 11兆7,349億円の約1.3倍)。したがって Q3 四半期日次開示 (~2026-11-06) に**新規エピソードが載る公算は高く、本エントリは実質的に load-bearing 化した**。ただし月次総額は日次帰属を与えないため §10 の再判定は依然として四半期開示待ちであり、現時点で look を消費してはならない。方向 (円買い/円売り) も月次開示は非開示。"
+    },
+    {
+      "id": "mof-monthly-total-2026-08-29-check",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-08-31",
+      "doc": "knowledge-base/wiki/analyses/family-c-anchor-automation-2026-08-18.md",
+      "message": "MoF 月次介入実施額の公表チェック (対象窓 2026-07-30〜08-27)。⚠️ 2026-08-28 に一次確認済み — **公表日は月末営業日**であり registry 初稿の『~08-29』は誤り (過去12窓のページ名 = 07-31/06-30/05-29/04-30… で全て月末営業日)。当該窓ページ 20260831.html は 08-28 時点で HTTP 404 = 未公表 (正常)。→ deadline を 08-31 (月) へ再武装。 **既に判明した事実**: 直前窓 2026-06-29〜07-29 の平衡操作額 = **0円** = user の「7月の負けは介入」説は 07-29 までについて反証済み。残る未決着はワースト2日 07-30 (−69,628円) / 07-31 (−21,370円) のみで、これが本窓に入る。総額 >0 なら『窓内に介入あり』まで (日次帰属は Q3 開示 ~11月)。総額 0 なら介入説は完全否定。T5 復帰第2要件の材料にもなる (cross-LOCK: project_t5_restore_mof_crosslock_2026_08_10 — 認定は外部一次情報のみ、価格からの当日推定は OOS burn で禁止)。確認先 = mof.go.jp/policy/international_policy/reference/feio/data/monthly/。到達経路: daily Tier-A gate-status cron (00:20 UTC) が TRIGGERED 表示 → Claude が公表ページを確認 → KB 記録 + user へ報告 → resolve。経過記録: knowledge-base/wiki/decisions/mof-monthly-total-check-2026-08-28.md",
+      "eval_record": "knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md",
+      "resolved": "2026-08-31",
+      "resolution": "公表確認済 — 対象窓 令和8年7月30日〜8月26日 (2026-07-30〜08-26) の外国為替平衡操作額 = **15兆3,993億円** (= 15,399.3 十億円)。ページ https://www.mof.go.jp/policy/international_policy/reference/feio/data/monthly/20260828.html (公表 2026-08-28)。⚠️ **二重の到達経路欠陥が同時に露見した (rule:R3 で修復済)**: (a) 08-28 の人手チェックは公表 URL を『月末営業日』という推測命名規則から組み立てて 20260831.html を叩き、404 を『未公表』と誤読した — 実際の公表は 08-28 付 20260828.html で、index.html を列挙していれば当日中に見えていた。命名規則は window_end + 2〜4 日であって月末営業日ではない (月末営業日はたまたまの一致)。(b) さらに日次 cron (mof-statements-daily) は **08-29 に既にこの値を data/external/mof_statements/interventions_monthly_pending.csv へ収集済みだった** が、この CSV を読む検知器が存在せず、値がリポジトリに 2 日間座ったまま誰も読まなかった (write-only 6 例目)。→ 新設 csv_row_match 型 + 後継エントリ mof-monthly-disclosure-new-window で機械読み取り経路を敷設。**判定内容**: 総額 >0 = 当該窓内に介入あり (日次帰属は Q3 四半期開示 ~2026-11-06 まで不明)。user の『7月の負けは介入』説は、ワースト2日 07-30/07-31 が本窓に入るため **反証されず継続 (未決着)** — ただし当該日への帰属は未確定であり、価格シグネチャからの推定は mof-next-episode-reverdict の 2026 窓 OOS を burn するため禁止。詳細: knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md"
+    },
+    {
+      "id": "statement-ladder-foundation-readiness",
+      "active": false,
+      "type": "artifact_presence",
+      "deadline": "no-deadline",
+      "doc": "knowledge-base/wiki/analyses/family-c-anchor-automation-2026-08-18.md",
+      "message": "family A (発言ラダー→介入確率) の pre-reg 起草は本基盤の main 着地が前提。2026-08-19: 条件は PR #194 (commit 569dbe3f) の main 着地で**成立済み** — 旧 conditional_info は機械評価経路が無く、成立後も watching に滞留していた (ZN 教訓の 4 例目、評価器レベルの構造欠陥)。artifact_presence に移行し実ファイルで判定。TRIGGERED 時: 本エントリを resolve + edge-dev レーンへ family A 起草可を KB 経由で通知。09-18 スキャン (edge-supply-scan-monthly) の A/B/C 統合裁定の前提材料。",
+      "requirements": [
+        {
+          "path": "data/external/mof_statements/conferences/*.jsonl",
+          "min_files": 24,
+          "label": "MoF 会見 corpus (月次 jsonl)"
+        },
+        {
+          "path": "data/external/mof_statements/lexicon_scores.csv",
+          "min_files": 1,
+          "label": "lexicon ladder スコア"
+        },
+        {
+          "path": ".github/workflows/mof-statements-daily.yml",
+          "min_files": 1,
+          "label": "forward 日次収集 cron"
+        }
+      ],
+      "resolved_at": "2026-08-19",
+      "resolution": "TRIGGERED → resolve。基盤 (会見 corpus 56 月次 jsonl / lexicon ladder スコア / forward 日次 cron) は PR #194 commit 569dbe3f で main 着地済みを実ファイルで確認。family A (発言ラダー→介入確率) の pre-reg 起草ゲートを解除し、09-18 スキャン (edge-supply-scan-monthly) の A/B/C 統合裁定の前提材料が揃った。通知 = KB 経由 (edge-dev への SendMessage は不達、MEMORY project_family_c_automation_packet)。注意: 基盤は**収集のみ** — ジョイント測定 (発言スコア × 価格/介入) は別 pre-reg の 観測前 LOCK まで禁止 (MoF #4 cross-LOCK 継続)。"
+    },
+    {
+      "id": "family-c-explore-verdict-deadline",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-08-29",
+      "doc": "knowledge-base/wiki/decisions/family-c-rate-anchor-explore-prereg-2026-08-19.md",
+      "message": "family C (台帳 #26) explore の verdict 期日 (凍結 2026-08-19 + 10d)。到達経路: 凍結セッション (dazzling-bhaskara) が two-pass を凍結当日に実行予定 — 本トリガは実行ギャップ時の backstop (T5 型防止)。TRIGGERED 時: knowledge-base/raw/bt-results/family-c/ の pass2 JSON 有無を確認し、無ければ pre-reg §4 の手順で two-pass を実行して verdict を台帳 #26 に記入。09-18 スキャン (edge-supply-scan-monthly) の A/B/C 統合裁定が本 verdict を確定材料として使う。",
+      "resolved": "2026-08-19",
+      "resolution": "verdict FAIL を凍結当日に執行 (期日 10 日前倒し)。N=41、gross −20.5p / net −24.2p、gate C p=0.527、LOYO 不安定。クローズ範囲発効 (日次金利差アンカー帯 × USD_JPY × 帯下 LONG × 5-63bd)。OOS 非接触封印。詳細: family-c-rate-anchor-explore-prereg-2026-08-19.md §11"
+    },
+    {
+      "id": "mof-monthly-disclosure-new-window",
+      "active": true,
+      "type": "csv_row_match",
+      "source": {
+        "path": "data/external/mof_statements/interventions_monthly_pending.csv",
+        "match": [
+          {
+            "column": "window_end",
+            "op": ">",
+            "value": "2026-08-26"
+          },
+          {
+            "column": "amount_yen_billions",
+            "op": ">",
+            "value": 0
+          }
+        ],
+        "label_columns": [
+          "window_start",
+          "window_end",
+          "amount_yen_billions",
+          "source_url"
+        ]
+      },
+      "doc": "knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md",
+      "message": "MoF 月次介入額の**新規非ゼロ窓**の機械検知 (2026-08-26 窓より後)。前身 mof-monthly-total-2026-08-29-check の失敗modeの構造修復: 期日待ち + 人手 URL 推測ではなく、日次 cron (.github/workflows/mof-statements-daily.yml → tools/mof_statements_daily.py) が index.html を列挙して書き込む interventions_monthly_pending.csv を毎日読む。到達経路: 日次 cron が書く → Tier-A gate-status cron (00:20 UTC) が本エントリを評価 → TRIGGERED 表示。TRIGGERED 時の手順: (1) 窓と総額を KB decisions に記録 (2) user へ報告 (3) 総額 0 なら『窓内の全日に介入なし』= 強い反証、>0 なら『窓内のどこかに介入あり』まで — **日次帰属は四半期開示を待つこと。価格シグネチャからの介入日推定は禁止** (mof-next-episode-reverdict #4 の 2026 窓 OOS を burn する) (4) T5 復帰第2要件の材料として t5-jpy-cap-restore-price に反映 (lot 変更は R1 = user 決裁) (5) match の window_end 閾値を今回の窓末へ前進させて再武装。"
+    },
+    {
+      "id": "alpha-scan-b7-b8-livecell-recheck",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-30",
+      "doc": "knowledge-base/wiki/decisions/alpha-scan-static-block-recalibration-prereg-2026-09-02.md",
+      "message": "alpha_scan B7 (H13×USD_JPY) / B8 (H16-20×USD_JPY) の **live 可能セル層に限った** 再判定枠。2026-09-02 の再較正で全 shadow 母集団では 10/10 が PREMISE-INTACT (B7 N=327 EV_net -2.35 / B8 N=675 EV_net -3.26、いずれも p<1e-4) だが、min-lot bypass + kalman + PAIR_PROMOTED に限った層では B7 N=17 WR64.7% EV_gross +1.27 / B8 N=26 WR57.7% EV_gross +1.09 と符号が反転する。**これは post-hoc かつ N<30 で claimable ではない** (§7 Post-hoc 節に理由 4 点を明記)。到達経路: shadow 蓄積が進むと当該層の N が増える → 期日に `python3 tools/alpha_scan_block_recalibration.py --fetch --cache <path>` を再実行し、live 可能セル層の B7/B8 が **両方とも N>=30** に到達しているかを確認する。到達していれば **新規 pre-reg を観測前に起草** (層別を primary estimand として凍結、Bonferroni m=2、shadow の BE/Trail 楽観バイアスを friction 調整で明示) してから測る。N<30 なら期日を再武装するだけで、**現データでの再測定は禁止** (同じ層を繰り返し見るのは 選択バイアスの累積)。**いかなる場合も本エントリ単体でブロックを解除しない** — 解除は R1 (365d BT or Live N>=30 + Bonferroni + pre-reg LOCK + user 最終承認)。"
+    },
+    {
+      "id": "live-fill-threshold-recalibration",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-12-03",
+      "doc": "knowledge-base/wiki/lessons/lesson-live-fill-estimand-shadow-conflation-2026-09-03.md",
+      "message": "live_fill_stagnation 閾値 120 市場オープン時間の再較正期日 (設置 2026-09-03 + 3ヶ月)。初回較正は carve-out 後 n=15 の到着間隔 (max 75.3h) のみ = 薄い。到達経路: /api/demo/trades の oanda_trade_id!='' 行から到着間隔を取り直す (手順は lesson ページ)。⚠️ 規律 (a) 誤発火が出たら閾値は **上げる** — 下げるのは実測を取り直してから (b) 消滅した構成のギャップを母集団に混ぜない — 全期間 max 224.7h は _is_xau_inst バグ期 (PR #119→#124 で修復) の尾であり現行構成には存在しない (c) LIVE 資格セル構成が変わったら n をリセットして数え直す。SSOT = modules/freshness_policy.LIVE_FILL_STAGNATION_HOURS"
+    },
+    {
+      "id": "live-fill-drought-2026-08-26-disposition",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-09-30",
+      "doc": "knowledge-base/wiki/lessons/lesson-live-fill-estimand-shadow-conflation-2026-09-03.md",
+      "message": "[RESOLVED 2026-09-04 — 条件 (a) 成立] 2026-09-03 に LIVE 約定が 2 件発生し転送経路の健全性を再確認: 05:58 UTC price_shock_rev_aud_jpy_h1_long×AUD_JPY (-77.5p) / 15:08 UTC price_shock_rev_eur_gbp_h1_long×EUR_GBP (+3.0p)。本番 last_live_fill_row = 市場オープン換算 10.3h / status=ok (09-04 01:25 UTC 実測)。ドリフトの実体はシグナル枯渇であって転送障害ではない、という 09-03 の判定を追認して close。 / 条件 (b) の M3 スループット起票は 2026-09-04 に執行済み — knowledge-base/wiki/analyses/m1-kpi-readout-and-mechanical-flip-2026-09-04.md §6 で定量化 (LIVE 発火セル 124/30d (5月) → 3/30d (現在)、M3 到達 最短 ~14 ヶ月) し roadmap v2.3 KPI 表 M3 行へ反映。 / ⚠️ 副次観察 (carry_dip の shadow 落ち理由) は未解決のまま新エントリ carry-dip-live-to-shadow-drop-cause へ引き継いだ。"
+    },
+    {
+      "id": "m1-sign-flip-durability",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/analyses/m1-kpi-readout-and-mechanical-flip-2026-09-04.md",
+      "message": "M1 (clean live 30d PnL) は 2026-09-01 前後に符号がプラスへ転じたが、これは **新規約定ゼロのまま 2026-07-31 の -123.2p が 30 日窓の外へ抜けた**ことによる MECHANICAL_FLIP であり成果ではない (Δ=+123.2p、新規寄与 0)。09-04 実測 N=15 / +19.8p / bootstrap P(sum<=0)=0.426 / 1 件抜くだけで符号が消える約定が 4 件 = 符号は未解決。2026-10-06 (= 09-06 以降に窓が完全に入れ替わった後) に `python3 tools/m1_clean_live_monitor.py` を再読みし、(a) verdict が MET_UNDERPOWERED 以上を 維持しているか (b) flip_attribution が MECHANICAL_FLIP を外れたか を記録する。**本エントリは観測枠であり lot 変更・セル昇格 (R1) を含まない。** M1 の定義に統計資格条件を付す提案 (analyses §8) は user 決裁事項で autopilot は執行しない。",
+      "reachability": "毎日 UTC 00:20 の cron fx-ai-tier-a-gate-status が tools/quant_gate_status.py 経由で tools/m1_clean_live_monitor.py を呼び、M1 verdict と flip_attribution を Discord へ出す (先頭固定)。deadline 到達で TRIGGERED、判定は Claude。"
+    },
+    {
+      "id": "carry-dip-live-to-shadow-drop-cause",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-11-30",
+      "doc": "knowledge-base/wiki/lessons/lesson-live-fill-estimand-shadow-conflation-2026-09-03.md",
+      "message": "2026-08-27T16:02Z の usdjpy_carry_dip_accumulator (roadmap T8 で live 稼働中のはず) が is_shadow=1 で記録され +15.5p の WIN。live 資格セルが shadow へ落ちた理由が未特定 (spread / HTF / DD defensive / cooldown / lot floor / carve-out ゲートのいずれか)。同セルは 08-05〜08-20 に LIVE 9 件を出しているので恒久的な資格喪失ではない。次に同セルが shadow で記録されたら block/gate ログと突き合わせて原因を特定する。2026-11-30 までに再現ゼロなら単発として close。**観測枠。lot 変更・降格 (R1/R2) は含まない。**",
+      "reachability": "usdjpy_carry_dip_accumulator は稼働中で shadow/LIVE いずれかの行を出し続ける (自動)。deadline 到達で TRIGGERED、判定は Claude。前進経路 = 新規発火の蓄積。",
+      "resolved": "2026-09-10",
+      "resolution": "原因確定 (Render ログ実査、log ID 付き原文保全済み): alpha_scan H16-20_USD_JPY 静的 hour block (modules/demo_trader.py の _tick_entry USD_JPY H16-20 gate、現行 commit 1edd2ce2 で L5975-5983)。16:02 UTC = H16 で QUALBAR emit=True → [SHADOW] H16 USD_JPY block → SENTINEL_BLOCK_DIAG shadow-downgraded → OANDA SKIP (shadow_tracking) → trade id 16624 (is_shadow=1, +15.5p WIN)。仮説列挙されていた spread/HTF/DD/cooldown/lot floor/carve-out はいずれも非発火 (窓ログ全件で確認)。再現性ゼロ確定: 2026-09-04 commit 0268ad09 の _STATIC_HOURBLOCK_CLASS_EXEMPT (rule:R1 user 承認 09-02) に usdjpy_carry_dip_accumulator が所属し、同 gate は本セルを [HOURBLOCK_CLASS_EXEMPT] marker 付きで免除通過させるため同一原因の shadow 落ち経路は存在しない (免除の巻き戻しは hourblock-class-exempt-r2-rollback が管理)。一次証拠 (原本は Render retention 30 日で ~09-26 消滅): knowledge-base/raw/audits/carry-dip-shadow-drop-evidence-2026-08-27.md"
+    },
+    {
+      "id": "rnb-support-bounce-registration-decision",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/analyses/rnb-dead-mode-and-block-estimand-2026-09-05.md",
+      "message": "rnb_usdjpy の登録漏れ (rnb_support_bounce ∉ QUALIFIED_TYPES、2026-04-05 db5e3e4c 以来 153 日) の disposition。到達経路 = 2026-09-05 の estimand 分離デプロイ後、block 集計に `rnb_usdjpy:unknown_type:rnb_support_bounce` が初めて可視化される (予測 tick の ~0.5-0.7%) ので、期日にその live 実測セットアップ頻度を読む。確定足ベースの推定は 3.0/週 (365d) 〜 3.3/週 (12.8y) で、現行最速 live セル usdjpy_carry_dip_accumulator (2.10/週) を上回る = M3 スループット (発火機会不足) への寄与候補。⚠️ 採用は Rule 1 (BE/Trail ablated 365d BT + Bonferroni + pre-reg LOCK + user 決裁)。QUALIFIED_TYPES 追加は _UNIVERSAL_SENTINEL 経由の minlot live 経路にも触れるため無条件 shadow ではない — R2 自動 demote gate 併設が前提。config コメントの 'BUY EV=+7.7' は BE/Trail ablation 前の 2026-04-05 BT 由来で引用不可。期日に頻度が推定を大きく下回る (<1.0/週) 場合は R1 手続きに乗せず本項をクローズしてよい。登録ドリフト自体は tests/test_rnb_block_reason_estimand.py::test_auto_start_modes_have_no_unknown_registration_drift が既知集合との完全一致で pin 済み (解消側でもテストが落ちる)。",
+      "reachability": "rnb_usdjpy は auto_start=True で 30 秒 tick を継続中 (自動)。2026-09-05 の estimand 分離が Render へデプロイされた時点で block 集計に `rnb_usdjpy:no_signal` と `rnb_usdjpy:unknown_type:rnb_support_bounce` が現れる = 状態を進めるジョブは 本番エンジン自身 + 日次 monitor の block family 読み取り。deadline 到達で TRIGGERED、判定は Claude、登録の採否は user 決裁。",
+      "resolved": "2026-09-10",
+      "resolution": "user 承認 2026-09-10「進めて」(packet rnb-support-bounce-r1-packet-2026-09-10 §7: D1 GO / D2 承認 / D3 GO) で stage-1 構造的 shadow-only 登録を執行 — 期日 10-06 を 26 日前倒しで解決。BT evidence は昇格 gate 不成立 (365d ablated N=126 net EV +0.04p NS / Wilson_lo 46.8% < BEV 49.0% / 730d −2.20p) のため登録は『観測レーンの開通』に限定: shadow_only=True (3 点 block、daytrade_audjpy 前例)、_UNIVERSAL_SENTINEL 非追加 (minlot live 経路は開けない)。live 実測頻度は登録後の forward shadow 行で直接測定へ移行 (期待 2.99/週 — packet §2.3 の block-counts 手動読み手は補助手順として残る)。後継 = rnb-support-bounce-shadow-forward (first look shadow N>=41 or 2027-01-15) + R2 demote gate tools/rnb_shadow_demote_gate.py (r2-alert-scheduled 6h 毎)。"
+    },
+    {
+      "id": "rnb-support-bounce-shadow-forward",
+      "active": true,
+      "type": "shadow_count_decision",
+      "entry_type": "rnb_support_bounce",
+      "instrument": "USD_JPY",
+      "direction": "BUY",
+      "mode": "rnb_usdjpy",
+      "since": "2026-09-10",
+      "n_decide": 41,
+      "n_floor": 41,
+      "dedup_violation": 0,
+      "closed_only": true,
+      "deadline": "2027-01-15",
+      "doc": "knowledge-base/wiki/decisions/rnb-support-bounce-r1-packet-2026-09-10.md",
+      "message": "🔒 pre-reg LOCK (packet §6、user 承認 2026-09-10): rnb_support_bounce stage-1 shadow forward 枠。estimand = 登録デプロイ (2026-09-10) 以降の forward shadow rows (USD_JPY×BUY, closed, dedup_violation=0, 厳格 shadow = is_shadow=1 ∧ oanda_trade_id 空) の WR / net EV (friction 2.14p)。first look = shadow N>=41 到達時 or 2027-01-15 の早い方 — それまで gate×outcome joint 計算禁止 (P-10 型)、中間再計算禁止 (sr_anti_hunt forward 枠と同型)。採用境界 (stage-2 R1 起案条件) = N>=41 で Wilson_lo(WR) > 49.0% ∧ net EV > 0。棄却境界 = Wilson_hi(WR) < 42.9% (gross BEV) → クローズ + auto_start=False 提案 — 棄却側は事前登録済みの継続監視として tools/rnb_shadow_demote_gate.py (N>=30 で評価、r2-alert-scheduled.yml 6h 毎) が担う。どちらでもない場合は N>=82 まで継続し 1 回限り再判定。stage-2 (live 1000u = lot ladder 第 1 段) は別途 R1 + user 決裁。",
+      "reachability": "状態を進めるジョブ = 本番エンジン自身 (rnb_usdjpy auto_start=True、30s tick、UTC 7-20 active hours、期待 2.99 setups/週 — QUALIFIED 化 + shadow_only=True で shadow 行が今回初めて出る)。評価主体 = tools/prereg_trigger_watch.py の shadow_count_decision 型 (日次 Tier A cron): N>=41 で TRIGGERED = first look 実施 (R1)、期日 2027-01-15 超過 ∧ N<41 で TRIGGERED = stale レビュー。棄却境界の継続監視は tools/rnb_shadow_demote_gate.py (r2-alert-scheduled.yml、読み手配線は tests/test_rnb_shadow_demote_gate.py が pin)。first look の判定は Claude、採否 (stage-2 起案 / クローズ) は user 決裁。",
+      "harness": "tools/rnb_shadow_demote_gate.py",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A) + rnb_shadow_demote_gate via r2-alert-scheduled.yml (6h)"
+    },
+    {
+      "id": "roster-e2-silent-promoted-cells",
+      "active": true,
+      "type": "conditional_info",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/analyses/live-roster-attrition-2026-09-06.md",
+      "message": "E2_SILENT 4 セル (bb_squeeze_breakout×EUR_USD BUY/SELL, ema200_trend_reversal×USD_JPY×SELL, squeeze_release_momentum×GBP_USD×BUY) は昇格集合 (_PAIR_PROMOTED / _UNIVERSAL_SENTINEL) に 登録され wiki/index.md の Current Portfolio にも現役掲載されているが、LIVE/shadow を問わず 行の出力が 2026-05-06 以降ゼロ (rnb と同型の『現役掲載だが無出力』シグネチャ)。到達経路: (1) /api/demo/live-enable-flags で SQUEEZE_REDESIGN_V2 等 env 実値を確認し 『意図的に無効』と『配線落ち』を分離 → (2) 配線落ちなら R3 修復、無効化の解除は R1 = user 決裁。読み手: tools/live_roster_attrition.py (E2_SILENT が 0 になれば解消)。⚠️ 未帰属 = バグではない — CLAUDE.md 原則 3 により LIVE 側 winning-location フィルタは意図的に維持される",
+      "condition": "E2_SILENT 4 セルの『意図的無効 vs 配線落ち』判別 (期日 2026-10-06)",
+      "reachability": "セッション作業: /api/demo/live-enable-flags の env 実値を確認し 意図的無効/配線落ちを分離 → 配線落ちなら R3 修復 PR、無効解除は R1 = user 決裁。進捗の読み手は tools/live_roster_attrition.py (E2_SILENT が 0 になれば resolve)。deadline 超過で TRIGGERED。⚠️ 判別自体は 2026-09-10 の triage (eval_record) で実質完了 — 配線落ち 2 (bb_squeeze×EUR_USD 両方向、commit 942e3800) + 窓アーティファクト 2 (E2 分類の premise が偽)、意図的無効 0。disposition (2026-09-10 更新): bb_squeeze 2 セル = R3 修復実施 (user「進めて」— 層① bar_time fallback / 層② ✅ 付与 / 層③ loser-shadow 到達回復、SQUEEZE_V2_LIVE_HOLD 併設で live 送信は修復前と同一のゼロ維持、changelog 2026-09-10 fix(w4) 参照)。ema200×USD_JPY×SELL / SRM×GBP_USD×BUY = E1 (シグナル未発生、supply present) へ再分類済み (PR #235)。resolve 判定 = 修復デプロイ後に bb_squeeze×EUR_USD の shadow 行が発生し attrition tool の E2_SILENT が 0 になること。",
+      "eval_record": "knowledge-base/wiki/analyses/e2-silent-cells-triage-2026-09-10.md"
+    },
+    {
+      "id": "project-falsification-f1-supply-space",
+      "active": true,
+      "type": "info",
+      "condition": "E1 (first look 2026-10-15 / second 2027-01-06)・ECG #22 (2026-11-06)・E12 (2027-02-05) の 3 時限系統から OOS PASS が 1 つも出ないこと",
+      "deadline": "2027-02-05",
+      "reachability": "各 first-look verdict は各 pre-reg の §8 に記録される (registry の e1-prereg-verdict-deadline / ecg-forward-first-look / e12-volume-first-look-deadline が個別に機械監視)。本エントリは E12 first look 期日に総合判定として escalation する。",
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト falsification 条件 F1 (user 承認 2026-09-10「全て進めて」= U7)。TRIGGERED 時: 3 系統の §8 verdict を集計し、全て PASS ゼロなら『第3次スキャンで枚挙した C1 実現可能空間は消滅』と正式認定 → 現行パイプライン棄却、有償データ / venue 変更 / 終了 の三択を user 決裁へ強制起票 (結合 FAIL 確率の事前見積り ~61-89%)。1 つでも PASS があれば F1 は不成立 = 『継続は正当』の on-record 根拠として resolve。"
+    },
+    {
+      "id": "project-falsification-f2-wg-live-conversion",
+      "active": true,
+      "type": "live_count_decision",
+      "entry_type": "weekend_gap",
+      "match": "prefix",
+      "instrument": "",
+      "direction": "",
+      "since": "2026-07-25",
+      "n_decide": 1,
+      "deadline": "2026-12-31",
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト falsification 条件 F2 (U7、user 承認 2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap の clean live (oanda_trade_id 非空) 約定が live 化 (2026-07-25) 以降ゼロのまま。N>=1 到達 = PASS→live 変換の初実証として resolve。期日 2026-12-31 に N=0 なら『PASS→live PnL 変換は未実証』と正式認定 — 以後の全 PASS の価値を執行実証まで割引き、pre-reg テンプレに fill 成立率の事前見積りを必須化する。関連: weekend-gap-execution-contract R1 パケット (2026-09-10 起案)。 ⚠️ 執行契約 AMENDMENT (B) 適用 (2026-09-10 user 承認、同日実装 PR): halt 決定論 cancel (fill 0/3 の機構) の修理。初回イベント 2026-09-13 (日) 21:00 UTC の検証手順 = weekend-gap-execution-amendment-g0prime エントリ参照。本改定は F2 の回避手段であって免除ではない (期日 2026-12-31 に N=0 なら従来どおり発動)。"
+    },
+    {
+      "id": "project-falsification-f3-m1-durable-cell",
+      "active": true,
+      "type": "info",
+      "condition": "clean live (oanda_trade_id 非空 ∧ dedup_violation!=1) N>=30 で PnL>0 のセルが 1 本も立たないこと",
+      "deadline": "2027-03-31",
+      "reachability": "tools/m1_clean_live_monitor.py の強定義 readout (2026-09-10 実装 PR) を Tier A cron が日次実行 — セル単位 N/EV/Wilson が毎日記録される。本エントリは期日で escalation。",
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト falsification 条件 F3 (U7、user 承認 2026-09-10)。TRIGGERED 時 (2027-03-31 に M1_STRONG 該当セル 0): M1→M2→M3 の段階設計自体を再導出する (KPI の存置ではなく設計の再検証)。達成セルが立てば resolve。"
+    },
+    {
+      "id": "project-falsification-f4-nav-floor-clock",
+      "active": true,
+      "type": "csv_row_match",
+      "source": {
+        "path": "data/monitoring/nav_floor_projection.csv",
+        "match": [
+          {
+            "column": "days_to_floor",
+            "op": "<=",
+            "value": 90
+          },
+          {
+            "column": "date",
+            "op": ">",
+            "value": "2026-09-09"
+          }
+        ],
+        "label_columns": [
+          "date",
+          "nav_jpy",
+          "burn_per_day_jpy",
+          "days_to_floor",
+          "floor_date_est",
+          "method"
+        ]
+      },
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト falsification 条件 F4 = NAV floor 資金時計 (U3/U7、user 承認 2026-09-10)。書き手 = daily-report.yml が tools/nav_floor_projection.py --append を日次実行 (floor ¥262,000 = OANDA JP API 存続の残高 25 万 + バッファ)。TRIGGERED (floor 到達まで 90 日以内、現行推定では 2026-11〜12 に発火見込み) 時: 入金 / 縮退 / 停止 の user 決裁を強制起票する — floor 到達で OANDA API 停止 = 目標系は物理停止するため、到達前に決めるのが本エントリの目的。⚠️ CSV が 7 日以上未更新なら『安全』でなく『書き手死亡』(monitoring-blind 教訓) — daily-report.yml を疑う。"
+    },
+    {
+      "id": "project-global-stop-quarterly",
+      "active": true,
+      "type": "info",
+      "condition": "連続 2 四半期にわたり『新規 OOS PASS ゼロ ∧ clean live 正セル (N>=30) ゼロ』",
+      "deadline": "2027-03-31",
+      "reachability": "分子は hypothesis-catalog 台帳 (verdict 記録) と m1_clean_live_monitor 強定義 readout。初回判定 2027-03-31 (2026-Q4 + 2027-Q1)、以後四半期ごとに deadline を +3 ヶ月 roll。",
+      "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
+      "message": "プロジェクト global stop 条件 (U7、user 承認 2026-09-10)。TRIGGERED 時: 全面棚卸し (パイプライン・目標・資本の三点を process-meta-audit の §5 三択で user 決裁)。sunk cost による延命判断の構造排除が目的 — 条件不成立なら『継続は正当』の on-record 根拠として deadline を roll。"
+    },
+    {
+      "id": "roster-attrition-88pct-estimand-audit",
+      "active": false,
+      "resolved": true,
+      "resolved_at": "2026-09-10",
+      "resolution": "執行済み (12 日前倒し) — PR #230 tools/roster_d_class_estimand_audit.py が実測。旧 D_NEVER_PROMOTED 解釈は棄却 (15 セル中 14 は当時の設計どおり LIVE 可、違反は dual_sr_bounce×USD_JPY×BUY の 2 約定のみ)。88.7% の数値自体は引用可 (帰属先の機構が変わるだけ)。詳細: knowledge-base/wiki/analyses/roster-d-class-estimand-audit-2026-09-10.md / MEMORY project_roster_d_class_estimand_audit_2026_09_10",
+      "type": "conditional_info",
+      "deadline": "2026-09-22",
+      "condition": "live_roster_attrition の D_NEVER_PROMOTED 判定 estimand 監査 — 88.7% 帰属の主張が成立するか",
+      "doc": "knowledge-base/wiki/decisions/pr-review-gate-2026-09-08.md",
+      "reachability": "セッション作業: tools/live_roster_attrition.py の D 分類は「現在の _PAIR_PROMOTED / _UNIVERSAL_SENTINEL に不在」を「anchor 日 (2026-05-06) 時点でも未昇格」と読み替えている。当時の _ELITE_LIVE / 手動 bridge / 個別 LIVE override を git history から再構成して分類を検証せよ。反証されれば MEMORY project_roster_attrition_attribution_2026_09_06 と wiki/analyses/live-roster-attrition-2026-09-06.md の 88.7% は引用禁止に格下げ。",
+      "message": "PR #226 の Codex P1 finding #2 (レビュー到着 1 秒後にマージされ未読だった)。『現在の昇格集合に不在』は『当時も未昇格』を含意しない — 成立しなければ D 15 セルの誤分類となり 88.7% 帰属と『M3 の分子外』の結論が崩れる。引用前に必ず本監査の結果を確認すること (MEMORY feedback_audit_past_verdicts = 過去 verdict 自体を疑え、の適用事例)。"
+    },
+    {
+      "id": "registry-lint-declaration-generation",
+      "active": true,
+      "type": "conditional_info",
+      "deadline": "2026-12-31",
+      "condition": "registry lint の検査宣言を評価器側から生成する (手写しの廃止)",
+      "doc": "knowledge-base/wiki/decisions/pr-review-gate-2026-09-08.md",
+      "reachability": "セッション作業 (R3): 現行 lint は NUMERIC/STRING/DATE/BOOL/ENUM/INT_MIN 等を 評価器の型強制から**手で写して**おり、PR #227 で同一家系の写し漏れが 11 巡に わたり計 25 件出た。恒久解は評価器側 (_evaluate_trigger_impl の各分岐) から 検査宣言を生成すること。メタ監査 process-meta-audit-2026-09-07 §4.2 R3 の 『estimand 宣言表 + CI 突合チェッカー』(monitoring/estimand_declarations.yml、2026-09-10 着地) の適用先として設計する。期日超過時は TRIGGERED で再起票。",
+      "message": "PR #227 で確立した打ち切り判断の相方。lint の手写しは原理的に評価器と乖離し 続けるため、1 件ずつの修正では終わらない。R3 手続き (365d BT 不要、数学/code derivation を analyses/ に文書化) で実施可。"
     }
-   ],
-   "doc": "knowledge-base/wiki/analyses/market-data-ingest-2026-07-18.md",
-   "message": "R3 market-data ingest 鮮度監視 (PR #102、本番稼働 2026-07-21) — verified:ff_calendar が 24h 超 stale / verified:cme_bars:* (7 契約) のいずれかが 72h 超 stale・キー欠落で要調査 (§7 宣言基準。CME 72h は週末市場閉鎖 ~2.5d を跨いでも誤警報しない)。E1 e1-positioning-ingest-freshness と同型の ingest 鮮度 watch だがこちらは機械評価。閾値/契約数は modules/market_data_ingest.py の STALE_ALERT_*_SEC / DEFAULT_CME_SYMBOLS とテストで整合固定 (CME_BARS_SYMBOLS env 変更時は本エントリの min_keys も更新)。stale 時は Render ログ [market-ingest] と status API の last_error / consecutive_failures を確認"
-  },
-  {
-   "id": "weekend-gap-oos-verdict-deadline",
-   "active": false,
-   "type": "deadline_info",
-   "deadline": "2026-07-31",
-   "doc": "knowledge-base/wiki/decisions/weekend-gap-oos-prereg-2026-07-24.md",
-   "message": "weekend_gap OOS confirm (pre-reg LOCK 2026-07-24、台帳 family #3) の verdict 期日 — dry-run (explore 窓再現必須) 通過後に OOS 単一実行。未実行なら stale (T5 型実行ギャップ防止)",
-   "resolved": "2026-07-24",
-   "resolution": "verdict 完了 (期日 7 日前倒し、単一 OOS 実行)。family #3 = PASS 候補 — arm B pooled exGBP 4h: N=177、gross +15.60p (p<1e-4)、stressed-net +9.04p、knife-edge 4/4 flip なし。arm A は BH 落ち (12h p=0.1189) でクローズ。次段 = §9 R1 手続き (日曜 spread ≥8 週末実測 → stage-2 執行 pre-reg → user 承認)。詳細: prereg §11 / reports/weekend_gap_oos_confirm-2026-07-24.md"
-  },
-  {
-   "id": "mof-forward-prereg-lock-deadline",
-   "active": false,
-   "type": "deadline_info",
-   "deadline": "2026-08-05",
-   "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
-   "message": "MoF 介入 forward pre-reg (台帳 family #4) の LOCK 期限 — Q2-2026 四半期開示 (~2026-08、¥11.73兆エピソード日次内訳) の前に LOCK しないと genuine OOS 機会を喪失。LOCK 後は本エントリを resolved 化し mof-q2-2026-disclosure-verdict に置換",
-   "resolved": "2026-07-24",
-   "resolution": "LOCK 執行 (期限 08-05 の 12 日前倒し、敵対的レビュー必須3+任意5 全反映、file-drawer 窓閉鎖のため即日)。後継 = mof-q2-2026-disclosure-verdict"
-  },
-  {
-   "id": "mof-q2-2026-disclosure-verdict",
-   "active": true,
-   "type": "deadline_info",
-   "deadline": "2026-09-30",
-   "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
-   "message": "MoF forward pre-reg (🔒 LOCKED 2026-07-24、台帳 family #4) の verdict 監視 — Q2-2026 四半期日次開示 (~2026-08 推定) 着地から 10 日以内に verdict 実行。backstop 2026-09-30 で未着地なら stale レビュー (設計変更禁止)。P-10: 2026 candidate 日の forward net は開示前計算禁止"
-  },
-  {
-   "id": "weekend-gap-live-g1-slippage",
-   "active": true,
-   "type": "deadline_info",
-   "deadline": "2026-08-31",
-   "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
-   "message": "weekend_gap live G1 ゲート監視 — live fill の slippage rolling mean > +2.0p で R2 live 停止 (code gate が一次、本エントリは週次監査の見落とし防止)。user 承認 (b) 2026-07-24"
-  },
-  {
-   "id": "weekend-gap-live-g2-cumloss",
-   "active": true,
-   "type": "deadline_info",
-   "deadline": "2026-12-31",
-   "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
-   "message": "weekend_gap live G2 ゲート監視 — live N=12 到達時に cumulative < −60p なら R2 demote。N=30 で G3 判定 (mean net>0 + WR≥35%) → lot 増額は別 R1。頻度 ~3.3/月 → N=12 は ~2026-11 見込み"
-  },
-  {
-   "id": "volstate-split-htf-fb-recheck",
-   "active": true,
-   "type": "conditional_info",
-   "deadline": "2027-01-31",
-   "doc": "knowledge-base/raw/analysis/new-angle-adversarial-verification-2026-07-28.md",
-   "message": "vol_state_gates 観測前 forward split 宣言 (2026-07-29 登録、look 消費なし): htf_fb×AUD_JPY registry recheck (shadow N≥100) が発火した場合、評価に RV5/RV21>1 vs <1 の regime split を事前登録済み分割として併記する (dose-response IC の in-house 確認済み再パラメタ化、ban CLEAR)。split は診断であり選択に使わない"
-  },
-  {
-   "id": "volstate-split-weekend-gap-recheck",
-   "active": true,
-   "type": "conditional_info",
-   "deadline": "2026-12-31",
-   "doc": "knowledge-base/raw/analysis/new-angle-adversarial-verification-2026-07-28.md",
-   "message": "vol_state_gates 観測前 forward split 宣言 (2026-07-29 登録): weekend_gap live N=12/N=30 recheck (G2/G3 判定) 時に、gap 発生週末の RV5/RV21 状態別のサブ集計を事前登録済み分割として併記 (live 挙動・R2 stop には一切触れない観測のみ)。初の PASS 家系への vol-state optionality 確保が目的、選択には使わない"
-  },
-  {
-   "id": "ps-carveout-firstweek-regate",
-   "active": true,
-   "type": "deadline_info",
-   "deadline": "2026-08-11",
-   "doc": "knowledge-base/wiki/decisions/track-c-capital-plumbing-decision-packet-2026-07-28.md",
-   "message": "price_shock_rev ×5 carve-out (D-c-1, user 承認 2026-07-28) 復帰初週再ゲート — live fill 発生後に (a) AGG_KELLY BYPASS ログ実確認 (b) exit 分布が horizon 系か (BE_LOCK OFF 実効) (c) watchdog/promote evaluator の estimand 整合を監査。live N≥10 で EV<−0.5p なら R2 demote"
-  },
-  {
-   "id": "e12-volume-prereg-staleness-review",
-   "active": true,
-   "type": "deadline_info",
-   "deadline": "2026-11-30",
-   "doc": "knowledge-base/wiki/decisions/e12-volume-forward-prereg-2026-07-29.md",
-   "message": "E12 volume forward pre-reg (🔒 LOCKED 2026-07-29、台帳 #10、W3-3 登録アクション) の陳腐化 review 期日 — (a) ingest 健全性 (yfinance 60m 経路生存、7 契約 capture 継続 = r3-market-data-ingest-freshness green) (b) 設計前提の戦略的地位 (supersede する上位データ/決裁の有無) を review。許容 outcome = 継続 or クローズ (data-blocked/superseded) のみ。設計変更・volume×価格ジョイント look・トリガー前倒しは禁止 (prereg §8)"
-  },
-  {
-   "id": "e12-volume-first-look-deadline",
-   "active": true,
-   "type": "deadline_info",
-   "deadline": "2027-02-05",
-   "doc": "knowledge-base/wiki/decisions/e12-volume-forward-prereg-2026-07-29.md",
-   "message": "E12 volume forward pre-reg (🔒 LOCKED 2026-07-29、台帳 #10) の first look 執行期日 — データ cutoff 2027-01-31 (OOS = bar_time_utc ≥2026-07-30、~26 週)。validity gate: OOS 非ゼロ volume bar ≥2500/契約 を ≥6/7 契約 (不成立は DATA-BLOCKED、事後緩和禁止)。執行 = explore (2024-02-27〜2026-07-29 凍結窓) → gates 通過時のみ candidate 凍結追記 → OOS 単一接触、同一手続き内 (prereg §4-6)。期日前の前倒し執行は peeking として禁止。UNDERPOWERED (OOS pooled event <100) なら second look 1 回限り (cutoff 2027-04-30 / verdict 2027-05-07)"
-  }
- ]
+  ]
 }

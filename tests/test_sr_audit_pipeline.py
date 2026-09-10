@@ -68,7 +68,9 @@ def test_sr_anti_hunt_shadow_emit_writes_oanda_audit(tmp_path):
     assert audit["entry_type"] == "sr_anti_hunt_bounce"
     assert audit["instrument"] == "USD_JPY"
     assert audit["bridge_status"] == "skipped"
-    assert audit["block_reason"] == "shadow_tracking"
+    # 2026-09-02 (rule:R3): units=0 self-described; prefix preserved for tools.
+    assert audit["block_reason"] == "shadow_tracking(shadow_emit_no_lot)"
+    assert audit["block_reason"].startswith("shadow_tracking")
     assert audit["is_live"] == 0
     assert audit["sr_is_strong"] == 1
 
@@ -96,6 +98,7 @@ def test_sr_fib_confluence_shadow_emit_writes_oanda_audit(tmp_path):
     assert audit["entry_type"] == "sr_fib_confluence"
     assert audit["instrument"] == "GBP_USD"
     assert audit["bridge_status"] == "skipped"
-    assert audit["block_reason"] == "shadow_tracking"
+    assert audit["block_reason"] == "shadow_tracking(shadow_emit_no_lot)"
+    assert audit["block_reason"].startswith("shadow_tracking")
     assert audit["is_live"] == 0
     assert audit["sr_strength"] == 0.8

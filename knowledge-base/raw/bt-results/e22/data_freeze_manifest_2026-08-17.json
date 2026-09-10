@@ -1,0 +1,19 @@
+{
+  "family": "e22_fx_variance_risk_premium",
+  "frozen": "2026-08-17",
+  "seed": 20260817,
+  "files": {
+    "data/external/vrp/EVZCLS.csv": {
+      "sha256": "63989d41d502661e9f7bc9276af6a33124d0d71ca0057214affb99725b75c420",
+      "rows": 4529
+    },
+    "data/cache/massive/EUR_USD_15m.parquet": {
+      "sha256": "832965b36377e4463ca00697dec1c509641128f0760c1aaeb00ff2420872a433",
+      "rows": 318442
+    },
+    "knowledge-base/raw/bt-results/e20/e20_carry_level.csv": {
+      "sha256": "0b03ea58606ee4f43d3a0cef5a85f8556071f8caefccd0a2475a75431c6378a4",
+      "rows": 2609
+    }
+  }
+}
