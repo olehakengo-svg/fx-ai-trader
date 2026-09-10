@@ -38,7 +38,7 @@
 #   * 検証: python3 tools/estimand_declaration_check.py (--strict で MISSING も fail)
 
 version: 1
-updated: "2026-09-10"
+updated: "2026-09-11"
 
 series:
   - name: engine_tick_stall
@@ -187,6 +187,17 @@ series:
       - ".github/workflows/trade-monitor.yml :: trade_monitor.py"
     counterfactual_test: "MISSING"
     notes: "テスト自体が無い。閾値 4h はインライン定数 (freshness_policy SSOT 外) で、週末 gate (is_market_open) の閉場定義も金 22:00 UTC 以降+日曜のみ — freshness_policy の 金21:00→日21:00 と不一致 (土曜 00-22 時を開場扱い)。既知の負債として説明文書 §5 に記載"
+
+  - name: gate_block_attribution
+    claims: "_tick_entry ガードチェーンの block 理由の永続集計 (day×mode×entry_type×instrument×reason) — 再起動/デプロイで消えない唯一の block 帰属面 (発火レートの計測ではない)"
+    population: "_record_entry_block (旧 _block closure、reason は '(' 前で正規化) と order_bar_dedup の全 block イベント。per-tick 計数 = 同一 signal が ~30s 毎に再評価されるため unique bar 数ではない (最大 ~52x inflation)。bar 正規化が要る時は evaluated_candidates と突合する"
+    clock: wall
+    threshold_source: "modules/block_event_logger.py:RETENTION_DAYS"
+    detector: "modules/block_event_logger.py:record_block"
+    reader:
+      - "app.py :: query_block_counts"
+    counterfactual_test: "tests/test_block_event_logger.py"
+    notes: "導入根拠 = hull 残余 4.7x が 49 日 localize 不能だった 2 段目の真因 (in-memory counter は restart 毎にゼロ — 2026-09-11 本番実測 total=9 / per_strategy={} の一方で Render ログには hull block が毎日出ていた。ログ自体も ~2 週で失効し 08-26/27 の勝者バーは帰属不能)。記録のみ — ゲート挙動・発注判断には無影響 ([[hull-fire-rate-funnel-2026-08-24]] §8)"
 
   - name: demo_trader_watchdog
     claims: "main loop / SLTP / モードスレッドの死活を 30 秒毎に監視し自動再起動する"

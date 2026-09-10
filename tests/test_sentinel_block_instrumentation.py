@@ -15,6 +15,9 @@ def test_api_demo_block_counts_returns_mode_and_strategy_counts(flask_client, mo
     payload = response.get_json()
 
     assert response.status_code == 200
+    # 2026-09-11 P8: 永続面 (gate_block_daily) を "persisted" として併載。
+    # legacy キーの形は不変 (in-memory、再起動で消える方)。
+    persisted = payload.pop("persisted")
     assert payload == {
         "counts": {
             "daytrade_eurgbp:session_pair": 3,
@@ -28,6 +31,13 @@ def test_api_demo_block_counts_returns_mode_and_strategy_counts(flask_client, mo
         "total": 5,
         "per_strategy_total": 5,
     }
+    # persisted は query 成功 (キー形が in-memory と diff 可能) か、
+    # fail-loud の error 文字列のどちらか — 黙って欠落しない
+    assert ("error" in persisted) or (
+        {"counts", "per_strategy_counts", "per_cell_counts",
+         "total", "days"} <= set(persisted)
+    )
+    assert persisted.get("days") == 7
 
 
 def test_api_demo_block_counts_strategy_filter(flask_client, monkeypatch):

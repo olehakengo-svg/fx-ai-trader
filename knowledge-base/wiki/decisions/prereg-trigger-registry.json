@@ -120,7 +120,7 @@
       "since": "2026-07-03",
       "expected_per_week": 13.3,
       "doc": "knowledge-base/wiki/analyses/hull-fire-rate-funnel-2026-08-24.md",
-      "message": "hull 発火頻度 band 監視 (ゲート① 再評価用、復帰判断の材料)。⚠️ 2026-08-24 funnel 分解 (rule:R3): expected_per_week=13.3 は **signal-rate** であり、本トリガが数える trade-rate と直接比較できない (estimand 不一致)。offline replay 12.59/週 → HTF Hard Block −25.4% → 実測 hold 直列化 → 7.61/週 に対し実測 1.62/週 = **残余 ~4.7x は未説明で実在**。残余の localize には /api/demo/evaluated-candidates (?strategy=hull_donchian_fade&view=summary) を 1 週間以上蓄積後に読み、total_candidates と trade 数を突合して (a) select_best 段未到達 / (b) 到達後の下流 block に二分すること。2026-09-30 の retire 判定 (shadow N<5) も本 band 誤指定の上に乗っている。詳細: hull-fire-rate-funnel-2026-08-24.md"
+      "message": "hull 発火頻度 band 監視 (ゲート① 再評価用、復帰判断の材料)。⚠️ 2026-08-24 funnel 分解 (rule:R3): expected_per_week=13.3 は **signal-rate** であり、本トリガが数える trade-rate と直接比較できない (estimand 不一致)。✅ 2026-09-11 残余 ~4.7x の帰属確定 (rule:R3, P8): C1 bar デデュープ実測で勝者バー 7.9/週 (offline 期待 7.61/週 と一致 = 上流無傷) に対し trade 化 1/18 本 (5.6%)。**残余は 100% select_best 通過後の _tick_entry ガードチェーンに局在** — 第一死因分布 spread_guard 3 / same_price 3 / session_pair(Tokyo) 3 / score_gate 2 / hedge_block 2 (order 層は無実: 到達 1 件は正常に shadow row 化)。hull 固有の構造衝突 = spread_guard×TP=basis 契約 (常時 29-36%>20%) と score_gate×SELL 正 score。**🚫 2026-09-30 の retire 判定 (shadow N<5) への注記: band 割れの実体は『シグナル枯渇/エッジ消滅』ではなく『下流 gate による shadow 蓄積遮断』であり、この band を根拠に hull を retire するのは誤帰属。retire/復帰/gate 免除の判断は /api/demo/block-counts?days=N の persisted (gate_block_daily) の帰属を必ず経由すること (per-tick 計数 — unique bar ではない)**。gate 挙動の変更は R1/R2 別決裁。詳細: hull-fire-rate-funnel-2026-08-24.md §8"
     },
     {
       "id": "t9-kalman-d7-fire-info",

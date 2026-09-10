@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-11 — diag(hull): 発火残余 4.7x の下流 gate 帰属確定 + block 計装 (rule:R3、P8)
+
+- **帰属確定** ([[hull-fire-rate-funnel-2026-08-24]] §8 追記): C1 bar デデュープ (生行は ~52x poll inflation) で 08-26〜09-10 の unique 候補バー 20 / select_best 勝者バー 18 (**7.9/週 = offline 期待 7.61/週 と一致、上流無傷**) に対し trade 化 1 本 (09-01 08:15 shadow) = 生存率 5.6%。直近 7d 勝者バー 4 本 (09-04 08:15/10:00、09-10 09:45/10:45) は全滅。**残余 ~4.7x は 100% select_best 通過後の `_tick_entry` ガードチェーンに局在、order 層は無実** (到達 1 件は正常 shadow 化)
+- **勝者バー 1 本ずつの死因** (Render ログ SENTINEL_BLOCK_DIAG 全数突合、帰属可能 14 本): 第一死因 spread_guard 3 / same_price 3 / session_pair(EUR_USD_Tokyo) 3 / score_gate 2 / hedge_block 2 (+二次 score_gate 3、mtf_strong_bias 1)。hull 固有の構造衝突 = **spread_guard×TP=basis 契約 (spread 平常でも 29-36%>20% 常時超過)** と **score_gate×SELL 正 score (SELL 側ほぼ全滅)**。08-26/27 の 4 本は Render ログ実効 retention ~2 週で帰属不能 (証拠の時限消滅、carry-dip 同型)
+- **「残余=未計装」の正体 = 計装の揮発性**: killer gate は全て in-memory `_block_counts` + SENTINEL ログで計装済みだったが、counter は再起動毎ゼロ (本番実測 total=9 / hull per_strategy={})・ログは ~2 週失効。→ **`gate_block_daily` 永続日次集計を新設** (`modules/block_event_logger.py`、retention 90d、`_block()`→`_record_entry_block` 抽出 + order_bar_dedup 経路、lock 外 best-effort 書込み)。読み手 = `/api/demo/block-counts?days=N` の `persisted` (writer と同一コミット)。estimand 宣言 `gate_block_attribution` + counterfactual テスト (`tests/test_block_event_logger.py` 10 本 — 永続配線 kill で fail する restart-survival pin / 旧 closure との挙動同一 pin)。**live 挙動 (発注判断・gate 判定) は不変**
+- registry `t8-hull-shadow-freq` message 更新: **09-30 retire 判定 (shadow N<5) は誤帰属 — band 割れの実体は「シグナル枯渇」でなく「下流 gate による shadow 蓄積遮断」**。retire/復帰/gate 免除は persisted block 帰属を経由すること。gate 挙動変更 (spread_guard 免除等) は R1/R2 別決裁
+- 付随観測 (別 issue 候補): same_price ログ表記バグ (`same_price_0pip`、非 JPY で `{dist*100:.0f}`→"0")、score_gate×hull SELL の sign-flip 整合監査、gate の shadow 分岐が動的 `_is_shadow` でなく静的 `_is_shadow_eligible_full` を見る件 (4原則#3 テンション)
+
 ## 2026-09-10 — research(scan#4): 第4次外部仮説スキャン前倒し + E23 S2 完遂 + rate-anchor 修復 (rule:R3、WIP 原則)
 
 - **第4次スキャン (期日 09-18 を 8 日前倒し、WIP 原則 — 能動測定ライン 08-19 以降ゼロ)**: [[research/external-hypothesis-scan-round4-2026-09-10]]。**family A/B/C 統合裁定**: family A (MoF 発言ラダー→介入確率) **採用 = 台帳 #27** (explore 枠は敵対的検証→凍結時に消費、registry `family-a-adversarial-freeze-deadline` 09-24。凍結まで発言×介入ラベル joint 計算禁止) / family B (介入イベント→回避/執行) **不採用 park** (公式ラベル四半期ラグ×価格シグネチャ認定禁止で執行 estimand が構造的に組めない + blocks ≤4 + 2026-05 outcome 既公表。再裁定 = #27 verdict + mof-next-episode-reverdict 完了後) / family C 台帳整合のみ (FAIL 不変)。新規候補 E26 (介入情報リリース) C1 棄却 / E27 (CFTC TFF) #16 ban 正面衝突で棄却 / E28 (ML-FX 文献群) C2/C3 棄却 — **新規採用 0、無料×非隣接空間の枯渇を再確認**。**U4 決裁材料** (有償データ feasibility) を §4 に凍結: 購買推奨ゼロ (ロック済み 4 本は金で前倒し不能)、再上程 = U1「継続」+ verdict 到達後に OTC IV 面 → Databento → OIS の優先順

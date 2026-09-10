@@ -13511,6 +13511,17 @@ try:
 except Exception as _cand_init_err:
     print(f"[init] candidate_logger init failed: {_cand_init_err}")
 
+# 2026-09-11 P8 (rule:R3): gate_block_daily — _tick_entry の block 理由の
+# 永続集計面。in-memory _block_counts は再起動で消え、Render ログは ~2 週で
+# 失効するため、hull 残余 4.7x の帰属が 49 日間 localize 不能だった
+# ([[hull-fire-rate-funnel-2026-08-24]] §8)。retention trim 込みで冪等。
+try:
+    from modules.block_event_logger import init_block_table
+    init_block_table(_db_path)
+    print("[init] gate_block_daily ready (retention trim applied)")
+except Exception as _blk_init_err:
+    print(f"[init] block_event_logger init failed: {_blk_init_err}")
+
 # ── Render Disk migration: seed existing trades on first deploy ──
 try:
     from migrate_seed import run_seed
@@ -13587,7 +13598,20 @@ def api_demo_status():
 
 @app.route("/api/demo/block-counts")
 def api_demo_block_counts():
-    """Read-only _tick_entry block counters for gate diagnostics."""
+    """Read-only _tick_entry block counters for gate diagnostics.
+
+    Two surfaces (2026-09-11 P8, rule:R3):
+
+      * top-level ``counts`` / ``per_strategy_counts`` — in-memory since the
+        last restart (legacy shape, unchanged). Resets on every deploy, so a
+        near-empty payload does NOT mean "no blocks happened".
+      * ``persisted`` — gate_block_daily durable aggregate over ``?days=``
+        (default 7). Restart-proof; this is the surface to use for residual
+        attribution ([[hull-fire-rate-funnel-2026-08-24]] §8).
+
+    ESTIMAND WARNING: both surfaces count per-tick block events (~30s poll,
+    up to ~52x per-bar inflation) — not unique bars, not unique setups.
+    """
     counts = dict(getattr(_demo_trader, "_block_counts", {}) or {})
     per_strategy = dict(getattr(_demo_trader, "_block_counts_per_strategy", {}) or {})
     strategy = request.args.get("strategy", "").strip()
@@ -13597,12 +13621,25 @@ def api_demo_block_counts():
             key: value for key, value in per_strategy.items()
             if key.startswith(prefix)
         }
+    try:
+        days = int(request.args.get("days", 7))
+    except ValueError:
+        days = 7
+    try:
+        from modules.block_event_logger import query_block_counts
+        persisted = query_block_counts(_db_path, days=days,
+                                       strategy=strategy or None)
+    except Exception as exc:
+        # fail loud inside the payload: an empty table and a broken query
+        # must not look alike (write-only 計装の再発防止)
+        persisted = {"error": str(exc), "days": days}
     return jsonify({
         "counts": counts,
         "per_strategy_counts": per_strategy,
         "strategy": strategy or None,
         "total": sum(counts.values()),
         "per_strategy_total": sum(per_strategy.values()),
+        "persisted": persisted,
     })
 
 

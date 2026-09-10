@@ -200,6 +200,121 @@ fix (別 PR): PR #168 が確立した fallback `_dt_bar_dt`
 §5 の next action は `bar_time` 非 NULL の行が 1 週間以上蓄積してから実行する
 (それ以前の行は bar 粒度に正規化できないため funnel 分母に使えない)。
 
+## 8. 残余 4.7x の帰属確定 (2026-09-11, rule:R3 — P8 localize 完結)
+
+> **verdict**: 残余は **order 層 (OANDA 送信) ではなく、select_best 通過後の
+> `_tick_entry` ガードチェーン内の 6 gate の合算**で全数説明された。
+> さらに「未計装」の正体は「gate が計装されていない」ではなく
+> **「計装が永続面を持たない」** (in-memory counter は再起動毎ゼロ +
+> Render ログ実効 retention ~2 週) だった。本 PR で gate_block_daily
+> 永続集計を併設 (記録のみ、挙動不変)。
+
+### 8.1 readout (bar デデュープ + trades 全ページ突合)
+
+`bar_time` 修復後の C1 行 (取得 1,230 行、うち非 NULL 973 行) を
+unique (bar_time, instrument) にデデュープ (生行は 30s poll で **~52x inflation**
+— 1 バーあたり polls 中央値 52):
+
+| 量 | 値 |
+|---|---|
+| unique 候補バー (08-26〜09-10、16 日) | 20 |
+| select_best 勝者バー | **18** (敗北 2: 09-01 07:30 → session_time_bias / 09-03 03:15 → zz_pivot_v60_sr) |
+| 勝者バー rate | **7.9/週** — §3 funnel の offline 期待 7.61/週 と一致。**上流 (signal→HTF→直列化→select_best) は無傷** |
+| 同期間の hull trade 行 (本番 /api/demo/trades 全ページ 2,517 行突合) | **1** (09-01 08:19 shadow、oanda_trade_id='') |
+| **勝者バー生存率** | **1/18 = 5.6%** |
+
+直近 7d の勝者バーは 4 本 (09-04 08:15 / 09-04 10:00 / 09-10 09:45 / 09-10 10:45)
+で **全て trade 化ゼロ** — blocker-refutation t8-hull 行の前提を再確認。
+
+### 8.2 勝者バー 1 本ずつの死因 (Render ログ SENTINEL_BLOCK_DIAG 突合)
+
+hull は `_SILENT_DROP_DIAG_TYPES` 登録済みのため、`_block()` 発火は全て
+`[SENTINEL_BLOCK_DIAG] hull_donchian_fade blocked at: <reason>` として stdout に
+出る。当該バーの entry 窓 (bar close 後 ~15 分) を全て実査した:
+
+| bar (UTC) | signal | 死因チェーン (時系列) |
+|---|---|---|
+| 08-26 04:45 | BUY | ⚠️ Render ログ失効 (実効 retention ~2 週) — 帰属不能 |
+| 08-26 13:00 | BUY | ⚠️ 同上 |
+| 08-27 00:30 | SELL | ⚠️ 同上 |
+| 08-27 09:45 | BUY | ⚠️ 同上 |
+| 08-31 08:00 | SELL | hedge_block(daytrade/EUR_USD:SELL) ×~13分 → score_gate(misalign:SELL,3.50) ×窓終端まで |
+| 08-31 14:45 | SELL | same_price_5pip |
+| 09-01 01:30 | BUY | session_pair(EUR_USD_Tokyo,WR=20%) |
+| 09-01 07:45 | BUY | hedge_block ×~11分 → mtf_strong_bias(SELL_vs_BUY) |
+| **09-01 08:15** | BUY | hedge_block ×7 tick → **08:19:43 に対向ポジ解消 → 通過 → shadow row 成立 (期間内唯一の trade)** |
+| 09-01 14:15 | SELL | score_gate(misalign:SELL,3.47/0.05) |
+| 09-02 01:00 | BUY | session_pair(EUR_USD_Tokyo) |
+| 09-02 07:00 | BUY | score_gate(misalign:BUY,-0.28) |
+| 09-03 01:30 | SELL | session_pair(EUR_USD_Tokyo) → score_gate(misalign:SELL,0.07..0.09) |
+| 09-03 04:45 | SELL | same_price_5pip → score_gate(misalign:SELL,0.21) |
+| 09-04 08:15 | BUY | [SHADOW] H8 alpha_scan で shadow 降格**後**に spread_guard(cost=1.6p/profit=4.5p=36%>20%) hard block |
+| 09-04 10:00 | BUY | spread_guard(31%>20%) |
+| 09-10 09:45 | BUY | spread_guard(36%/29%>20%) |
+| 09-10 10:45 | BUY | same_price_5pip |
+
+第一死因の分布 (帰属可能な kill 13 本): **spread_guard 3 / same_price 3 /
+session_pair(Tokyo) 3 / score_gate 2 / hedge_block 2** (+二次死因として
+score_gate 3、mtf_strong_bias 1)。
+
+### 8.3 構造的読み (挙動変更はしない — 記録と帰属のみ)
+
+1. **order 層は無実**。ガードチェーンを通過した唯一の 1 件 (09-01 08:15) は
+   正常に shadow row 化した (`OANDA [SKIP] shadow_tracking`)。残余の落下点は
+   `_tick_entry` ガードチェーン内で完結。
+2. **単一 gate ではなく合算**。「どれか 1 個の犯人」を探す問いは不成立 —
+   時間帯 (Tokyo)・方向 (SELL×score 符号)・経済性 (spread/TP 比)・同時
+   ポジション (hedge/same_price) の 4 系統が独立に削っている。
+3. hull 固有の構造衝突が 2 つ:
+   - **spread_guard × TP=basis 契約**: hull は高WR/低RR 設計 (TP 近接、RR~0.25
+     契約 — RR 床 2 箇所は既に免除済み) だが、spread_guard (往復 spread/TP >20%)
+     には免除が無い。EUR_USD spread 0.8p で TP dist 4.4-5.6p → 29-36% で常時
+     閾値超え。**spread が平常でも TP が近いだけで死ぬ**。
+   - **score_gate × SELL**: hull SELL が正 score のまま score_gate に届く tick
+     は全滅 (misalign:SELL,+3.5 等)。SELL 側勝者バー 5 本中 4 本で発火。
+4. **shadow 蓄積も削られている**: 09-04 08:15 は alpha_scan H8 で既に
+   `_is_shadow=True` になった後、spread_guard の hard block (行ゼロ) で消えた。
+   これらの gate の shadow 分岐は `_is_shadow_eligible_full` (静的 tier) を見て
+   おり、動的 `_is_shadow` を見ない。hull は LIVE 意図的例外 (FORCE_DEMOTED/
+   Sentinel ではない) のためどちらの資格も持たず、**shadow 行として残る道が
+   ない**。4原則#3 (Shadow 蓄積は削らない) とのテンションは実在するが、
+   gate 挙動の変更は R1/R2 の別決裁 — 本 PR は帰属確定と計装のみ。
+
+### 8.4 「残余=未計装」の正体 — 計装はあった、永続面が無かった
+
+killer gate は全て `_block()` 経由で (i) in-memory `_block_counts(_per_strategy)`
+に計上済み、(ii) hull は SENTINEL_BLOCK_DIAG ログにも出ていた。それでも 49 日+
+診断不能だった理由:
+
+- **in-memory counter は再起動/デプロイ毎にゼロ**。本番実測 (2026-09-11):
+  `/api/demo/block-counts` は total=9 / hull の per_strategy_counts={} —
+  同時刻の Render ログには hull block が毎日出ているのに、永続面からは
+  「blockゼロ」に見えた (§3.3 の観測と同一の罠)。
+- **Render ログ実効 retention ~2 週**: 08-26/27 の勝者バー 4 本は本診断時点で
+  既に帰属不能 (carry-dip 08-27 証拠の時限消滅と同型)。
+
+**fix (本 PR)**: `gate_block_daily` (day×mode×entry_type×instrument×reason の
+日次集計、retention 90d) を新設。`_block()` → `_record_entry_block` と
+order_bar_dedup の両経路から best-effort 永続化。読み手は
+`/api/demo/block-counts?days=N` の `persisted` セクション (writer と同一
+コミット、write-only 禁止則)。estimand 宣言 `gate_block_attribution` +
+counterfactual テスト (`tests/test_block_event_logger.py`) 同梱。
+**per-tick 計数のままなので unique bar 数として読まないこと** (較正は
+本表 §8.1 のとおり C1 側でデデュープして行う)。
+
+### 8.5 registry `t8-hull-shadow-freq` / 09-30 retire 判定への含意
+
+- 頻度 band 割れの実体 = **「シグナル枯渇/エッジ消滅」ではなく「下流 gate に
+  よる shadow 蓄積遮断」**。シグナル生成器と select_best 競争は期待レート
+  どおり動いている (§8.1: 7.9/週 vs 期待 7.61/週)。
+- したがって **shadow N<5 を根拠とする 2026-09-30 の retire は誤帰属**になる。
+  registry message に注記済み。retire/復帰/gate 免除の判断は
+  gate_block_daily の帰属データを経由すること。
+- 付随観測 (別 issue 候補、本 PR 非対象): (a) same_price ブロックのログ表記が
+  `same_price_0pip` (`{dist*100:.0f}` が非 JPY で 0.05→"0" と印字するラベル
+  バグ、カウンタキーへの影響なし)。(b) score_gate が hull SELL を構造的に
+  殺している件は sign-flip 経路 (app.py) との整合監査が必要。
+
 ## 関連
 - [[t8-week1-gate-breach-2026-07-06]] (§89 で本件を「独立の問題」として残置)
 - [[lesson-select-best-bottleneck-2026-04-28]] (C1 テーブルの設置根拠)
