@@ -8,7 +8,14 @@ registry: roster-attrition-88pct-estimand-audit
 
 # D クラス estimand 監査 — 「本来出てはいけなかった発火」は 15 セル中 1 セルだった
 
-**verdict: 旧解釈を棄却 (14/15 セル・26/28 約定は当時の設計どおり LIVE 可)**
+**verdict: 旧解釈を棄却。静的方針に反する発火は 1 セル 2 約定のみ**
+
+> ⚠️ **2026-09-10 改訂 (PR #230 Codex P1 ×2)**: 初版は「26/28 約定は正当」と書いたが、
+> (a) 降格集合の不在から昇格方針を**推論**していた (04-02 の発火は `_is_promoted` が
+> そもそも存在しない時期で、根拠が別物だった) (b) `_is_promoted` は既定 return より
+> **手前**で `get_strategy_mode()` と `_promoted_types` を見るため**ブロック方向**の
+> ランタイム自由度があり、「LEGIT 側は override に不感」は成り立たなかった。
+> 方針を AST で再構成し直し、verdict 名に条件性を持たせて §4 を改訂した。
 
 ## 0. 監査の起点
 
@@ -90,28 +97,56 @@ gate 直前 commit (`293165ef^` = `b33d579f`) の `_is_promoted()`:
 `return True  # 一時的に全戦略をOANDA送信` だった (降格集合はコード上に
 まだ存在しない)。
 
-## 4. verdict — 約定 1 件ごとの判定
+## 4. verdict — 約定 1 件ごとの判定 (2026-09-10 改訂版)
 
-| 判定 | セル | 約定 |
-|---|---:|---:|
-| `LEGIT_ALLOW_BY_DEFAULT` (gate 前・降格集合に不在) | 11 | 21 |
-| `LEGIT_NO_DEMOTE_MECHANISM` (降格機構がコードに未実装の時期) | 3 | 5 |
-| **`ILLEGIT_DEMOTED_AT_FIRE`** | **1** | **2** |
-| `POST_GATE_UNEXPLAINED` | 0 | 0 |
-| `UNRESOLVED_NO_CODE_STATE` | 0 | 0 |
+判定は**降格集合の不在から推論せず**、約定時刻の `_is_promoted()` を AST で
+読んで方針そのものを分類する (`promotion_policy_at`)。実測 28 約定の方針内訳 =
+`ALLOW_BY_DEFAULT` 23 / `ALL_SEND` 3 / `NO_GATE` 2 (`DENY_BY_DEFAULT` と
+`UNKNOWN` は 0)。
 
-唯一の違反は **`dual_sr_bounce × USD_JPY × BUY`** の 2 約定
-(2026-04-13T13:01Z / 16:01Z)。当時デプロイされていた `4011b94d` /
-`57536285` で `dual_sr_bounce` は `_FORCE_DEMOTED` に在籍していた。
-同セルの 3 件目 (04-07T05:45Z) は在籍前なので LEGIT。
+| 判定 | セル | 約定 | ランタイム状態 |
+|---|---:|---:|---|
+| `PERMITTED_NO_GATE` (昇格ゲート未実装、OANDA ミラー無条件) | 1 | **2** | **不感** |
+| `PERMITTED_ALL_SEND` (`_is_promoted` が `return True` 単文) | 2 | **3** | **不感** |
+| `PERMITTED_STATIC_RUNTIME_UNKNOWN` (allow-by-default + 静的降格集合に不在) | 11 | 21 | ⚠️ 条件付き |
+| **`CONTRADICTS_STATIC_DEMOTE`** | **1** | **2** | — |
+| `DENY_BY_DEFAULT_UNEXPLAINED` / `POST_GATE_UNEXPLAINED` / `UNRESOLVED_NO_CODE_STATE` | 0 | 0 | — |
 
-⚠️ **limitation**: `_is_promoted()` は静的集合より**先に**
-`self._oanda.get_strategy_mode()` を見て "live"/"sentinel" なら全降格を
-上書きする。これはランタイム DB 状態で git から再構成できないため、
-ILLEGIT 判定は「手動 mode override が無かったならば違反」という条件付き。
-逆に LEGIT 側はこの自由度に影響されない (override は LIVE 方向にしか
-効かない) ので、**結論の向きは非対称に安全** — 「14/15 は正当」は
-override の有無に関わらず成立する。
+**無条件に「許可されていた」と確定した約定 = 5 / 28。**
+残り 21 約定は「**静的コードは許可していた**が、ランタイム降格状態が
+再構成不能」という条件付き。静的方針に反するのは 2 約定
+(`dual_sr_bounce × USD_JPY × BUY`、2026-04-13T13:01Z / 16:01Z、当時
+`_FORCE_DEMOTED` 在籍) のみ。
+
+### 4.1 なぜ「条件付き」なのか (初版の誤りの訂正)
+
+`_is_promoted()` の allow-by-default 形 (v6.2) は既定 `return True` に至る前に
+**2 つのランタイム照会**を持つ:
+
+1. `self._oanda.get_strategy_mode()` — `"off"` ならブロック、
+   `"live"`/`"sentinel"` なら全降格を上書き (**両方向**)
+2. `self._promoted_types[et]["status"] == "demoted"` — **ブロック方向のみ**
+
+初版は 1 の上書き方向だけを見て「LEGIT 側は override に不感 = 結論の向きは
+非対称に安全」と書いたが、**2 と 1 の "off" はブロック方向**なので成り立たない。
+いずれも DB / メモリ状態で git から再構成できないため、
+`PERMITTED_STATIC_RUNTIME_UNKNOWN` は条件付き判定である。
+無条件に確定するのは `PERMITTED_NO_GATE` と `PERMITTED_ALL_SEND` の 2 verdict
+だけ (この 2 つは既定 return より手前に照会が無い / 照会するコード自体が無い)。
+
+### 4.2 それでも旧解釈は棄却される
+
+条件性を認めても、旧主張「昇格集合に**一度も**入らずに LIVE 約定を出していた =
+既知の昇格バグの残響」は成立しない。理由:
+
+- 旧主張の**根拠**は「現在の昇格集合に不在」だけで、当時の状態を測っていない
+  (これは条件性とは無関係な、evidence そのものの誤り)
+- 5 約定は**無条件に**設計状態と確定した (ゲート未実装 / 全送信期)
+- 21 約定は静的方針が許可しており、ブロックされたと考える積極的な理由が無い
+  (ランタイム降格が起きていたなら約定が成立しないので、**約定が存在すること
+  自体**が「そのとき通った」ことは示す。ただしそれは「通ったのが設計か
+  バグか」を分けないので、条件付きに留める)
+- 静的方針に反する = バグ候補は **1 セル 2 約定**
 
 ## 5. 引用可否の改定
 
@@ -119,7 +154,7 @@ override の有無に関わらず成立する。
 |---|---|
 | 「帰属済み 88.7%」(124 セル中 110) | ✅ **引用可・数値不変**。D も帰属済みのままで、帰属**先の機構**が変わるだけ (列挙されていなかった第 5 の停止機構 = 2026-04-14 の Phase-0 tier gate) |
 | 「停止済み 83 セルは anchor 窓で N=609 / −469.8p」 | ✅ 引用可 (B の gate 後発火 48 セルで裏づけ) |
-| **「D 15 セルは過去の昇格バグの残響 = 本来出てはいけなかった発火」** | ❌ **棄却**。実際は 14/15 セル (26/28 約定) が当時の設計どおり LIVE 可。バグ由来と言えるのは 1 セル 2 約定のみ (かつ override 前提付き) |
+| **「D 15 セルは過去の昇格バグの残響 = 本来出てはいけなかった発火」** | ❌ **棄却**。静的方針に反するのは **1 セル 2 約定**のみ。5 約定は無条件に設計状態と確定、21 約定は静的コードが許可 (ランタイム降格は再構成不能なので条件付き)。⚠️ 初版の「26/28 は正当」は言い過ぎで、正しくは「無条件確定 5 / 条件付き 21 / 反する 2」 |
 | **「D 15 セルは M3 の分子に数えてはならない」** | ⚠️ **根拠が変わる**。「バグだから除外」は不成立。正しくは「**2026-04-14 の tier 設計変更で意図的に live 資格を外されたセル**」であり、分子に含めるか否かは**バグ判定ではなく政策判断** (この 15 セルを再昇格させる意思があるか)。ただし経済的インパクトは **N=28 / −26.2p** で無視可能なので、M3 の ~14 ヶ月 ETA および [[friction-adjusted-ev-map-2026-07-07]] の結論はいずれの扱いでも変わらない |
 
 ## 6. コード側の是正 (同一コミット)
@@ -130,6 +165,11 @@ override の有無に関わらず成立する。
   「gate 後を含む」は**別の問い**で、後者だけが当時の昇格集合の再構成を要する
 - docstring に旧解釈の棄却と監査ツールへの導線を明記
 - `tools/roster_d_class_estimand_audit.py` 新設 (再実行可能な読み手)。
+  約定 1 件ごとに `promotion_policy_at()` で `_is_promoted()` の**既定**を
+  AST 分類し (`NO_GATE` / `ALL_SEND` / `ALLOW_BY_DEFAULT` / `DENY_BY_DEFAULT` /
+  `UNKNOWN`)、`UNKNOWN` は許可側でなく `UNRESOLVED` に流す。
+  現 HEAD の `_is_promoted` は `_is_promoted_ex(...)["allowed"]` への委譲形で
+  `UNKNOWN` になるが、これは保守側の挙動なので意図どおり。
   ⚠️ 実装中に**自分で同型の欠陥を作りかけた** — `demote_sets_at` が
   「読めたが集合が無い」を `None` (= 読めなかった) に折り畳んでおり、
   5 約定が UNRESOLVED に化けていた。これは 2026-08-30 の
@@ -146,6 +186,13 @@ registry entry `roster-attrition-88pct-estimand-audit` は **PR #227
 `resolved: 2026-09-10` + resolution を書き込むこと** (同一セッション内で
 実施 — 「commit した ≠ 永続化」の教訓により main 到達まで追う)。
 
+## 6.2 `attributed_share` から D2 を除外 (PR #230 Codex P2)
+
+`--anchor` を tier gate 後に動かすと D2 (要説明) が現れるが、
+`explained` は D クラス全体を数えていたため share を黙って膨らませていた。
+**D1 のみ**を帰属済みに数えるよう修正 (pin 併設)。既定 anchor (2026-05-01) では
+D は 15/15 が D1 なので **88.7% の数値は不変**。
+
 ## 7. 教訓
 
 **現在形の集合で過去形の主張をするな。** クラス名は estimand を運ぶ —
@@ -154,6 +201,15 @@ registry entry `roster-attrition-88pct-estimand-audit` は **PR #227
 分類器を書くときは、各クラスが**現在形の問いか過去形の問いか**を
 docstring で宣言し、過去形なら当時のコード状態を再構成する主体を
 同じコミットで併設せよ。
+
+**そして「不在」から方針を推論するな。** 初版は「降格集合が無い ⇒ allow-by-default」と
+推論したが、それが示すのは「その 2 定数が無かった」だけだった (2026-08-31 の
+「組み立てた URL の 404 は不在の証拠ではない」と同型の推論誤り)。
+**方針を主張するなら方針そのもの (`_is_promoted` の実体) を読め。**
+
+**限界は verdict 名に書け。** 「LEGIT」という名前は無条件の含意を運んでしまう。
+`PERMITTED_STATIC_RUNTIME_UNKNOWN` のように条件を名前に埋めると、
+readout を引用する側が限界を落とせない。
 
 関連: [[live-roster-attrition-2026-09-06]] / [[pr-review-gate-2026-09-08]] /
 [[process-meta-audit-2026-09-07]] / [[lesson-validity-check-pins-proxy-2026-09-02]]

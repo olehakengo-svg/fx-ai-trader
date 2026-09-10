@@ -12,6 +12,10 @@
 - 🛑 **監査ツールの実装中に自分で同型の欠陥を作りかけた** — `demote_sets_at` が「読めたが集合が無い」を `None` (= 読めなかった) に折り畳み、5 約定が UNRESOLVED に化けていた (2026-08-30 の `fetch_json` blind と同型)。**合成 cache を注入するテストは関数を迂回して検出できない → 契約は関数で pin する**
 - テスト: `tests/test_roster_d_class_estimand_audit.py` **11 本** 新設 (定数一致 / gate commit の実在と親 commit に gate が無いこと / 逆方向 (gate 前でも降格中なら違反) / 折り畳み禁止の契約 pin / D subclass 分岐 / 旧称復活防止)。**counterfactual 3/3** が所望のテストのみを落とすことを確認 (折り畳み復活 / 定数不一致 / 降格集合を読まない)
 - 教訓: **現在形の集合で過去形の主張をするな。クラス名は estimand を運ぶ** — `D_NEVER_PROMOTED` という名前自体が、根拠より強い主張を毎回の readout で再生産していた
+- 🛑 **同日 PR #230 レビューで自分の監査に P1 2 件 + P2 1 件**。(a) **降格集合の不在から昇格方針を推論していた** — 04-02 の発火は `_is_promoted` が**そもそも存在しない**時期 (OANDA ミラーが無条件) で、根拠が別物だった。`promotion_policy_at()` を新設し `_is_promoted()` の既定を AST 分類 (`NO_GATE`/`ALL_SEND`/`ALLOW_BY_DEFAULT`/`DENY_BY_DEFAULT`/`UNKNOWN`、`UNKNOWN` は許可側でなく UNRESOLVED へ)。実測方針内訳 = ALLOW_BY_DEFAULT 23 / ALL_SEND 3 / NO_GATE 2。(b) **「LEGIT 側は override に不感」は誤り** — `_is_promoted()` は既定 return より**手前**で `get_strategy_mode()=="off"` と `_promoted_types` の `status=="demoted"` を見るので**ブロック方向**の再構成不能な自由度がある。verdict 名に条件性を埋め (`PERMITTED_STATIC_RUNTIME_UNKNOWN`)、無条件に確定するのは `PERMITTED_NO_GATE` / `PERMITTED_ALL_SEND` の 2 つだけと明示。(c) **D2 を `attributed_share` の分子に数えていた** — `--anchor` を gate 後に動かすと「定義上要説明」の D2 が share を黙って膨らませる → D1 のみ計上 (既定 anchor では D=15/15 が D1 なので **88.7% は不変**)
+- **改訂後の verdict**: 無条件に許可と確定 **5 約定** / 条件付き **21** / 静的方針に反する **2** (セル単位 4 / 11 / 1)。旧解釈の棄却は変わらない (根拠そのものが誤りだったため) が、初版の「26/28 は正当」は言い過ぎだった
+- 教訓 (追加): **「不在」から方針を推論するな** — 降格集合が無いことは「その 2 定数が無かった」しか示さない (2026-08-31 の「組み立てた URL の 404 は不在の証拠ではない」と同型)。**限界は verdict 名に書け** — 「LEGIT」は無条件の含意を運ぶので、引用する側が限界を落とせる
+- テスト: 11 → **16 本** (方針 3 形の判別 / 条件性の pin / deny-by-default を許可と呼ばない / UNKNOWN が UNRESOLVED へ流れる / D2 除外)。counterfactual **3/3** (方針を不在から推論 / 条件付きを無条件扱い / D2 を帰属済みに数える)
 - 分析: [[roster-d-class-estimand-audit-2026-09-10]] / 改定対象: [[live-roster-attrition-2026-09-06]] §2.1
 
 

@@ -41,6 +41,8 @@ M3 (clean live N>=30 のセルを 3 個) の到達を最短 ~14 ヶ月と見積�
                                               = `_is_promoted()` 既定 True の
                                               **allow-by-default 期**の発火
                           D2_POST_TIER_GATE : gate 後の約定を含む = 要説明
+                                              (**attributed_share の分子に
+                                              数えない** — D1 のみ帰属済み)
 
                           ⚠️ **旧称 `D_NEVER_PROMOTED` と旧解釈「本来出てはいけなかった
                           発火」は 2026-09-10 の estimand 監査で棄却された。**
@@ -282,9 +284,14 @@ def build_report(
     counts = Counter(c["class"] for c in cells)
     sub = Counter(c["subclass"] for c in cells if c["subclass"])
     total = len(cells)
+    # D は subclass で意味が割れる: D1 (tier gate 前のみ) は「設計変更で
+    # live 資格を失った」= 帰属済み、D2 (gate 後の発火を含む) は定義上
+    # **要説明**なので帰属済みに数えてはならない。--anchor を gate 後に
+    # 動かすと D2 が現れて attributed_share を黙って膨らませていた
+    # (2026-09-10 PR #230 Codex P2)。
+    d1 = sum(1 for c in cells if c["subclass"] == "D1_PRE_TIER_GATE")
     explained = sum(counts[k] for k in ("A_STILL_LIVE", "B_LIVE_STOPPED",
-                                       "C_SHADOW_DEMOTED",
-                                       "D_NOT_LIVE_ELIGIBLE_NOW"))
+                                       "C_SHADOW_DEMOTED")) + d1
     return {
         "generated_at": cur_end.isoformat(),
         "anchor_window_end": anchor_end.isoformat(),
