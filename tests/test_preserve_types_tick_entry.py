@@ -25,9 +25,12 @@ Test design:
     the DB row insert; there is no early `return` between the insert and
     the formerly-crashing lot-sizing reference, so
     "row inserted AND no exception" == the reference executed.
-  - rnb_support_bounce is in the preserve set but NOT in QUALIFIED_TYPES:
-    it is blocked at unknown_type upstream of the bug site. The test pins
-    that current behavior instead of asserting a row.
+  - rnb_support_bounce: registered into QUALIFIED_TYPES on 2026-09-10
+    (stage-1 shadow-only, rule:R1, packet
+    rnb-support-bounce-r1-packet-2026-09-10) — previously pinned as
+    "blocked at unknown_type"; now expects a row like the other preserve
+    types. OANDA-zero is guaranteed at mode level (shadow_only=True,
+    tests/test_rnb_shadow_only_registration.py).
 """
 from __future__ import annotations
 
@@ -98,10 +101,13 @@ TYPE_CONFIG = {
                                      expect="row", **_FX),
     "donchian_momentum_breakout": dict(instrument="USD_JPY", now=_LONDON_THU,
                                        expect="row", **_JPY),
-    # NOT in QUALIFIED_TYPES — blocked at unknown_type before the bug site.
+    # 2026-09-10: QUALIFIED_TYPES 登録済み (stage-1 shadow-only, rule:R1,
+    # packet rnb-support-bounce-r1-packet-2026-09-10) — unknown_type block は
+    # 解消され、preserve 経路 (SL/TP 保持) を row insert まで通ることを pin。
+    # 実運用の OANDA 発注ゼロは mode rnb_usdjpy の shadow_only=True が保証
+    # (tests/test_rnb_shadow_only_registration.py で pin)。
     "rnb_support_bounce": dict(instrument="USD_JPY", now=_LONDON_THU,
-                               expect="blocked", block_key="unknown_type",
-                               **_JPY),
+                               expect="row", **_JPY),
     "price_shock_rev_eur_gbp_h1_long": dict(instrument="EUR_GBP",
                                             now=_LONDON_THU, expect="row",
                                             **_FX),

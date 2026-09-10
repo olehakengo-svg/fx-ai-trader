@@ -156,10 +156,15 @@ def test_base_mode_maps_daytrade_audjpy_to_daytrade():
 
 
 def test_no_other_mode_gained_shadow_only_flag():
+    """shadow_only モードの完全一致 pin — 無断追加/削除の drift 検知。
+
+    2026-09-10: rnb_usdjpy を追加 (stage-1 構造的 shadow-only 登録、rule:R1
+    user 承認 2026-09-10、packet rnb-support-bounce-r1-packet-2026-09-10)。
+    """
     shadow_only_modes = {
         m for m, c in MODE_CONFIG.items() if c.get("shadow_only")
     }
-    assert shadow_only_modes == {"daytrade_audjpy"}
+    assert shadow_only_modes == {"daytrade_audjpy", "rnb_usdjpy"}
 
 
 # ── (b) shadow-only structural guarantee (worst case) ─────────────

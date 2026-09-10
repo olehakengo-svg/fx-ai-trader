@@ -575,12 +575,35 @@
     },
     {
       "id": "rnb-support-bounce-registration-decision",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-06",
       "doc": "knowledge-base/wiki/analyses/rnb-dead-mode-and-block-estimand-2026-09-05.md",
       "message": "rnb_usdjpy の登録漏れ (rnb_support_bounce ∉ QUALIFIED_TYPES、2026-04-05 db5e3e4c 以来 153 日) の disposition。到達経路 = 2026-09-05 の estimand 分離デプロイ後、block 集計に `rnb_usdjpy:unknown_type:rnb_support_bounce` が初めて可視化される (予測 tick の ~0.5-0.7%) ので、期日にその live 実測セットアップ頻度を読む。確定足ベースの推定は 3.0/週 (365d) 〜 3.3/週 (12.8y) で、現行最速 live セル usdjpy_carry_dip_accumulator (2.10/週) を上回る = M3 スループット (発火機会不足) への寄与候補。⚠️ 採用は Rule 1 (BE/Trail ablated 365d BT + Bonferroni + pre-reg LOCK + user 決裁)。QUALIFIED_TYPES 追加は _UNIVERSAL_SENTINEL 経由の minlot live 経路にも触れるため無条件 shadow ではない — R2 自動 demote gate 併設が前提。config コメントの 'BUY EV=+7.7' は BE/Trail ablation 前の 2026-04-05 BT 由来で引用不可。期日に頻度が推定を大きく下回る (<1.0/週) 場合は R1 手続きに乗せず本項をクローズしてよい。登録ドリフト自体は tests/test_rnb_block_reason_estimand.py::test_auto_start_modes_have_no_unknown_registration_drift が既知集合との完全一致で pin 済み (解消側でもテストが落ちる)。",
-      "reachability": "rnb_usdjpy は auto_start=True で 30 秒 tick を継続中 (自動)。2026-09-05 の estimand 分離が Render へデプロイされた時点で block 集計に `rnb_usdjpy:no_signal` と `rnb_usdjpy:unknown_type:rnb_support_bounce` が現れる = 状態を進めるジョブは 本番エンジン自身 + 日次 monitor の block family 読み取り。deadline 到達で TRIGGERED、判定は Claude、登録の採否は user 決裁。"
+      "reachability": "rnb_usdjpy は auto_start=True で 30 秒 tick を継続中 (自動)。2026-09-05 の estimand 分離が Render へデプロイされた時点で block 集計に `rnb_usdjpy:no_signal` と `rnb_usdjpy:unknown_type:rnb_support_bounce` が現れる = 状態を進めるジョブは 本番エンジン自身 + 日次 monitor の block family 読み取り。deadline 到達で TRIGGERED、判定は Claude、登録の採否は user 決裁。",
+      "resolved": "2026-09-10",
+      "resolution": "user 承認 2026-09-10「進めて」(packet rnb-support-bounce-r1-packet-2026-09-10 §7: D1 GO / D2 承認 / D3 GO) で stage-1 構造的 shadow-only 登録を執行 — 期日 10-06 を 26 日前倒しで解決。BT evidence は昇格 gate 不成立 (365d ablated N=126 net EV +0.04p NS / Wilson_lo 46.8% < BEV 49.0% / 730d −2.20p) のため登録は『観測レーンの開通』に限定: shadow_only=True (3 点 block、daytrade_audjpy 前例)、_UNIVERSAL_SENTINEL 非追加 (minlot live 経路は開けない)。live 実測頻度は登録後の forward shadow 行で直接測定へ移行 (期待 2.99/週 — packet §2.3 の block-counts 手動読み手は補助手順として残る)。後継 = rnb-support-bounce-shadow-forward (first look shadow N>=41 or 2027-01-15) + R2 demote gate tools/rnb_shadow_demote_gate.py (r2-alert-scheduled 6h 毎)。"
+    },
+    {
+      "id": "rnb-support-bounce-shadow-forward",
+      "active": true,
+      "type": "shadow_count_decision",
+      "entry_type": "rnb_support_bounce",
+      "instrument": "USD_JPY",
+      "direction": "BUY",
+      "mode": "rnb_usdjpy",
+      "since": "2026-09-10",
+      "n_decide": 41,
+      "n_floor": 41,
+      "dedup_violation": 0,
+      "closed_only": true,
+      "deadline": "2027-01-15",
+      "doc": "knowledge-base/wiki/decisions/rnb-support-bounce-r1-packet-2026-09-10.md",
+      "message": "🔒 pre-reg LOCK (packet §6、user 承認 2026-09-10): rnb_support_bounce stage-1 shadow forward 枠。estimand = 登録デプロイ (2026-09-10) 以降の forward shadow rows (USD_JPY×BUY, closed, dedup_violation=0, 厳格 shadow = is_shadow=1 ∧ oanda_trade_id 空) の WR / net EV (friction 2.14p)。first look = shadow N>=41 到達時 or 2027-01-15 の早い方 — それまで gate×outcome joint 計算禁止 (P-10 型)、中間再計算禁止 (sr_anti_hunt forward 枠と同型)。採用境界 (stage-2 R1 起案条件) = N>=41 で Wilson_lo(WR) > 49.0% ∧ net EV > 0。棄却境界 = Wilson_hi(WR) < 42.9% (gross BEV) → クローズ + auto_start=False 提案 — 棄却側は事前登録済みの継続監視として tools/rnb_shadow_demote_gate.py (N>=30 で評価、r2-alert-scheduled.yml 6h 毎) が担う。どちらでもない場合は N>=82 まで継続し 1 回限り再判定。stage-2 (live 1000u = lot ladder 第 1 段) は別途 R1 + user 決裁。",
+      "reachability": "状態を進めるジョブ = 本番エンジン自身 (rnb_usdjpy auto_start=True、30s tick、UTC 7-20 active hours、期待 2.99 setups/週 — QUALIFIED 化 + shadow_only=True で shadow 行が今回初めて出る)。評価主体 = tools/prereg_trigger_watch.py の shadow_count_decision 型 (日次 Tier A cron): N>=41 で TRIGGERED = first look 実施 (R1)、期日 2027-01-15 超過 ∧ N<41 で TRIGGERED = stale レビュー。棄却境界の継続監視は tools/rnb_shadow_demote_gate.py (r2-alert-scheduled.yml、読み手配線は tests/test_rnb_shadow_demote_gate.py が pin)。first look の判定は Claude、採否 (stage-2 起案 / クローズ) は user 決裁。",
+      "harness": "tools/rnb_shadow_demote_gate.py",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A) + rnb_shadow_demote_gate via r2-alert-scheduled.yml (6h)"
     },
     {
       "id": "roster-e2-silent-promoted-cells",

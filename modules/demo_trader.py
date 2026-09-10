@@ -731,20 +731,34 @@ MODE_CONFIG = {
     },
     # ── LCR: FROZEN (Phase2 BT全ペア負EV) ──
     # ── EUR/JPY, GBP/JPY RNB: REMOVED (spread負け) ──
-    # ── Round Number Barrier (RNB) — USD/JPY 15m BUY-only ──
+    # ── Round Number Barrier (RNB) — USD/JPY 15m BUY-only — SHADOW-ONLY ──
+    # 2026-09-10 stage-1 構造的 shadow-only 登録 (rule:R1, user 承認 2026-09-10
+    # 「進めて」, packet: wiki/decisions/rnb-support-bounce-r1-packet-2026-09-10.md
+    # §4/§7 D1 GO)。2026-04-05 db5e3e4c 以来 QUALIFIED_TYPES 未登録で shadow
+    # 1 行も出せない dead mode (158 日) だった — 登録は「勝てる戦略」ではなく
+    # 「観測レーンの開通」(365d ablated BT: N=126 net EV +0.04p NS / 730d −2.20p
+    # = live 昇格根拠なし)。shadow_only=True は daytrade_audjpy 前例の mode
+    # レベル構造ガード: _mode_is_shadow_only() が送信ガード最終段 + resend
+    # gate + write-path の 3 点で OANDA 発注ゼロを保証。_UNIVERSAL_SENTINEL には
+    # 意図的に入れない (sentinel = minlot live 経路 — stage-1 では開けない)。
+    # stage-2 (live 1000u) は pre-reg LOCK rnb-support-bounce-shadow-forward の
+    # first look (shadow N>=41 or 2027-01-15) 通過後の別 R1。
     "rnb_usdjpy": {
         "interval_sec": 30,
         "tf": "15m",
         "period": "60d",
         "signal_fn": "compute_rnb_signal",
-        "label": "RNB USD/JPY",
+        "label": "RNB USD/JPY (shadow)",
         "icon": "🎯",
         "symbol": "USDJPY=X",
         "instrument": "USD_JPY",
         "auto_start": True,
         "base_sl_pips": 15,
         "active_hours_utc": (7, 20),
-        "direction_filter": "BUY",  # BUY-only (SELL EV=-0.7, BUY EV=+7.7)
+        # BUY-only。⚠️ 「SELL EV=-0.7, BUY EV=+7.7」は BE/Trail ablation 前
+        # (2026-04-05 BT) の数字で引用禁止 — ablated 実測は packet §3。
+        "direction_filter": "BUY",
+        "shadow_only": True,  # 構造的 shadow-only 保証 — OANDA 送信全経路 block
     },
 }
 
@@ -5569,6 +5583,16 @@ class DemoTrader:
             # OOS arm B PASS N=177 gross+15.60p weekend-block p<1e-4 (凍結統計)。
             # card: strategies/weekend_gap_fade / decision: weekend-gap-stage2-execution-prereg-2026-07-24
             "weekend_gap_fade",
+            # 2026-09-10 stage-1 構造的 shadow-only 登録 (rule:R1, user 承認
+            # 2026-09-10, packet: rnb-support-bounce-r1-packet-2026-09-10)。
+            # 2026-04-05 db5e3e4c の登録漏れ解消 — mode rnb_usdjpy は
+            # shadow_only=True のため本登録で開くのは shadow 観測レーンのみ
+            # (OANDA 送信は _mode_is_shadow_only 3 点 block で構造的にゼロ)。
+            # 365d ablated BT N=126 net+0.04p NS = live 昇格根拠なし。
+            # forward LOCK: rnb-support-bounce-shadow-forward (first look
+            # shadow N>=41 or 2027-01-15) / R2 demote gate:
+            # tools/rnb_shadow_demote_gate.py (N>=30 ∧ Wilson_hi<42.9%)。
+            "rnb_support_bounce",   # RNB USD/JPY 15m BUY-only (shadow-only)
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
