@@ -1288,6 +1288,63 @@ class DemoTrader:
             self._block_counts_per_strategy.get(strat_key, 0) + 1
         )
 
+    def _persist_gate_block(self, *, mode: str, entry_type: str,
+                            instrument: str, reason_key: str) -> None:
+        """Best-effort durable gate-block aggregate (recording only).
+
+        2026-09-11 (rule:R3, P8 hull 残余帰属): in-memory の _block_counts は
+        再起動/デプロイで消え、Render ログは ~2 週で失効するため、block 帰属が
+        永続面に存在しなかった (hull 残余 4.7x が 49 日間 localize 不能だった
+        真因の 2 段目)。ここは記録のみ — 例外は握りつぶし、発注判断・ゲート
+        挙動には一切影響しない。estimand 宣言:
+        monitoring/estimand_declarations.yml: gate_block_attribution。
+        """
+        try:
+            from modules.block_event_logger import record_block
+            db_path = getattr(self._db, "_path", None)
+            if db_path:
+                record_block(db_path, mode=mode, entry_type=entry_type,
+                             instrument=instrument, reason_key=reason_key)
+        except Exception:
+            pass
+
+    def _record_entry_block(self, mode: str, entry_type: str,
+                            instrument: str, reason: str) -> None:
+        """_tick_entry の _block() 実体 — in-memory 記帳 + 永続集計 + 診断ログ.
+
+        2026-09-11 (rule:R3): 旧 _tick_entry 内 closure から抽出。in-memory
+        カウンタのキー生成 (`reason.split('(')[0]` による動的値除去) と
+        SENTINEL_BLOCK_DIAG 条件は旧 closure と同一 (挙動不変 pin:
+        tests/test_block_event_logger.py)。追加は gate_block_daily への
+        永続集計のみ。
+        """
+        if not hasattr(self, '_block_counts') or not isinstance(self._block_counts, dict):
+            self._block_counts = {}
+        if (
+            not hasattr(self, '_block_counts_per_strategy')
+            or not isinstance(self._block_counts_per_strategy, dict)
+        ):
+            self._block_counts_per_strategy = {}
+        # 動的値(秒数,pip数等)を除去してキー爆発を防止 (2026-04-05 audit fix)
+        _reason_key = reason.split('(')[0]
+        k = f"{mode}:{_reason_key}"
+        self._block_counts[k] = self._block_counts.get(k, 0) + 1
+        # SENTINEL silent-block diagnosis (2026-05-27): preserve strategy attribution
+        # without changing gate behavior.
+        k_strat = f"{entry_type}:{_reason_key}"
+        self._block_counts_per_strategy[k_strat] = (
+            self._block_counts_per_strategy.get(k_strat, 0) + 1
+        )
+        self._persist_gate_block(mode=mode, entry_type=entry_type,
+                                 instrument=instrument, reason_key=_reason_key)
+        if (
+            entry_type in self._UNIVERSAL_SENTINEL
+            or entry_type in self._SCALP_SENTINEL
+            or entry_type in self._SILENT_DROP_DIAG_TYPES
+        ):
+            self._add_log(f"[SENTINEL_BLOCK_DIAG] {entry_type} blocked at: {reason}")
+        return
+
     def _maybe_reserve_order_bar_emit(
         self,
         entry_type: str,
@@ -1311,17 +1368,26 @@ class DemoTrader:
         key = (entry_type, instrument, signal, norm_bar_ts)
         now = datetime.now(timezone.utc)
         window_sec = self._tf_to_window_sec(tf)
+        blocked = False
         with self._lock:
             if not isinstance(getattr(self, "_order_bar_signal_emits", None), dict):
                 self._order_bar_signal_emits = {}
             if key in self._order_bar_signal_emits:
                 self._record_order_bar_dedup_block(mode=mode, entry_type=entry_type)
-                return key
-            self._order_bar_signal_emits[key] = now
-            stale_cutoff = now - timedelta(seconds=max(7200, 2 * window_sec))
-            self._order_bar_signal_emits = {
-                k: v for k, v in self._order_bar_signal_emits.items() if v > stale_cutoff
-            }
+                blocked = True
+            else:
+                self._order_bar_signal_emits[key] = now
+                stale_cutoff = now - timedelta(seconds=max(7200, 2 * window_sec))
+                self._order_bar_signal_emits = {
+                    k: v for k, v in self._order_bar_signal_emits.items() if v > stale_cutoff
+                }
+        if blocked:
+            # 永続集計は lock の外 (SQLite 書込みでモードスレッドを塞がない)。
+            # 2026-09-11 rule:R3 P8 — 記録のみ、dedup 判定自体は不変。
+            self._persist_gate_block(mode=mode, entry_type=entry_type,
+                                     instrument=instrument,
+                                     reason_key="order_bar_dedup")
+            return key
         return None
 
     def _open_shadow_emit_trade(self, *, direction: str, entry_price: float,
@@ -4904,28 +4970,12 @@ class DemoTrader:
                 )
 
         # ── エントリーフィルター（ブロック理由カウント付き） ──
-        if not hasattr(self, '_block_counts'):
-            self._block_counts = {}
-        if not hasattr(self, '_block_counts_per_strategy'):
-            self._block_counts_per_strategy = {}
+        # 2026-09-11 (rule:R3, P8 hull 残余帰属): 記帳本体を _record_entry_block
+        # に抽出 (挙動不変 — in-memory カウンタ/SENTINEL ログは同一キー・同一条件)。
+        # 加えて gate_block_daily へ永続集計する (再起動/デプロイで消えない唯一の
+        # block 帰属面)。詳細: [[hull-fire-rate-funnel-2026-08-24]] §8。
         def _block(reason):
-            # 動的値(秒数,pip数等)を除去してキー爆発を防止 (2026-04-05 audit fix)
-            _reason_key = reason.split('(')[0]
-            k = f"{mode}:{_reason_key}"
-            self._block_counts[k] = self._block_counts.get(k, 0) + 1
-            # SENTINEL silent-block diagnosis (2026-05-27): preserve strategy attribution
-            # without changing gate behavior.
-            k_strat = f"{entry_type}:{_reason_key}"
-            self._block_counts_per_strategy[k_strat] = (
-                self._block_counts_per_strategy.get(k_strat, 0) + 1
-            )
-            if (
-                entry_type in self._UNIVERSAL_SENTINEL
-                or entry_type in self._SCALP_SENTINEL
-                or entry_type in self._SILENT_DROP_DIAG_TYPES
-            ):
-                self._add_log(f"[SENTINEL_BLOCK_DIAG] {entry_type} blocked at: {reason}")
-            return
+            return self._record_entry_block(mode, entry_type, instrument, reason)
 
         # ── 方向フィルター (RNB BUY-only等) ── (2026-04-05 audit fix)
         # ⚠️ estimand 分離 (2026-09-05, rule:R3 — 挙動不変、理由ラベルのみ):
