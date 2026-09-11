@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-11 — docs(e1): ingest 停止の帰属精密化 + budget debit 更新 — 復旧は user credentials 再投入のみ (rule:R3)
+
+- **停止境界を Render ログで確定** ([[e1-ingest-outage-2026-09-10]] §7a): 最終 login 成功 09-10T06:58:45Z (PR #231 デプロイ instance) → 最初の失敗 07:06:03Z (PR #232 デプロイ instance)。**credentials 無効化は 7.3 分窓 (JST 15:58–16:06) にサーバ側で発生**。§1 の「~07:18Z 推定」を置換
+- **帰属の消去法完遂** (§7b): プロセス停止 / disk / ベンダー API 全面障害 / rate limit (実測 <80 req/24h < 100) を全て実測で除外。統制実験 = garbage credentials で本番と同一の `"Wrong email/password."` (HTTP 200) → API は正常でエラーは認証拒否の正規応答。**残存仮説は (a) password 失効/変更 or (b) account lock のみ** — 新 egress IP login 直後の無効化という時刻相関は (b) を示唆、判別は user の web ログイン + メール受信箱 (09-10 16:00 JST 前後の Myfxbook メール) 確認のみ
+- **budget debit 更新** (§7c + [[e1-positioning-ingest-2026-07-14]] §14 台帳新設): 09-11T07:30Z 時点 残 **18.5h (h=4h) / 16.5h (h=24h)**。§2.5-2 連続欠測 24h には **09-11T08:58:44Z 到達**。breach 予測不変 = **09-13T23:57Z (h=24h)** → first look 4 週 postpone = M1 経路 ~4 週遅延。**実務デッドライン = 日曜再開 09-13T21:00Z までの credentials 再投入** ([[e1-ingest-outage-2026-09-10]] §5)
+- 通知経路 live 検証 (§7d): anomaly_watcher が `positioning_auth_failed`/`positioning_stale` を 15 分毎に発火中と実測 — 検知系は生きており律速は user アクションのみ。コード変更ゼロ、live 挙動不変。重複修理なし (backoff/fail-loud/runbook は PR #243 で完了済み)
+
 ## 2026-09-11 — fix(process): マージゲートが進捗サマリを「レビュー到着」と数えていた — R2 ゲートが全 PR で空だった (rule:R3)
 
 - 🔴 **実測 (PR #249)**: PR open の **18 秒後**に `tools/pr_review_gate.py 249` が「connector レビュー到着済み・P1/P2 指摘なし — **マージ可**」(exit 0) を返した。その時点で Codex connector の進捗サマリ Status は `🔄 **Running**` で、レビュー本体は 1 行も出ていない

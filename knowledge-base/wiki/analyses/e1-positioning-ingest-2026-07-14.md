@@ -287,3 +287,22 @@ LOCF の有効性判定 (stale cap) を「最終**保存**からの経過」に�
 
 **接続**: [[e1-positioning-contrarian-prereg-2026-07-16]] §2.2 の stale cap 主モード
 (age = t − last_verified_at > 2h → NA) がこのテーブルに依存。
+
+---
+
+## 14. 停止インシデント 2026-09-10 — Myfxbook 認証失敗と coverage budget debit (追記 2026-09-11)
+
+**2026-09-10T06:58:45Z (最終 login 成功) 以降、Myfxbook が credentials を拒否し全 13 instrument の蓄積が停止中**。
+無効化は 06:58:45–07:06:03Z の 7.3 分窓にサーバ側で発生 (code/env/プロセス由来は全て除外済み)。
+帰属・タイムライン・復旧手順の SSOT: [[e1-ingest-outage-2026-09-10]] (§7 = 2026-09-11 follow-up)。
+
+**coverage budget debit 台帳** (pre-reg §2.5、分母 = 評価窓 960 market-h − h censoring、budget = 10%):
+
+| debit | 期間 | h=4h | h=24h |
+|---|---|---|---|
+| Render Disk 満杯 ([[disk-full-write-outage-2026-08-26]]) | 08-23〜08-26 | −54.6h | −54.6h |
+| **本停止 (進行中)** | 09-10T08:58:44Z (NA 開始) 〜 09-11T07:30Z 実測 | −22.5h | −22.5h |
+| **残 budget (09-11T07:30Z)** | | **18.5h** | **16.5h** |
+
+- 停止継続時の breach (6 primary 全除外 → first look 4 週 postpone): **h=24h 09-13T23:57Z / h=4h 09-14T01:57Z**
+- **復旧は user の Myfxbook web ログイン確認 + credentials 再投入のみ** ([[e1-ingest-outage-2026-09-10]] §5)。実務デッドライン = 日曜市場再開 09-13T21:00Z
