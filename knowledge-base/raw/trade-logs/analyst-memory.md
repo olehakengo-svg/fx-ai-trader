@@ -4436,6 +4436,16 @@ N=1で−77.5というEVは統計的に無意味だが、実損失としては�
 - **USD系**: RANGING局面でスキャルプが有利なはずだが、`r2_shadow_demoted_cell`がブロックし機会を逃している
 - **JST 17:00-18:00（London Open）**: EUR/GBP系でhedge_block・dedup発動パターンが再現しやすい。`daytrade_eur:hedge_block`(254件)・`order_bar_dedup`(170件)がこの時間帯に集中する傾向
 
+### 2026-09-11 (Post-London Report)
+| WR | **100.0%** |
+| PnL | **+31.1 pips** |
+| 戦略 | ペア | PnL | 成功要因 |
+- **block_count累積が依然高水準** — `scalp:r2_shadow_demoted_cell`(854件)・`daytrade_eur:hedge_block`(716件)・`daytrade:hedge_block`(522件)が上位を占め、複数の有望シグナルがエントリーに到達できていない可能性がある。
+- **daytrade_1h系・scalp_xau・scalp_eurjpy** は全モードON/OFFながらトレード数ゼロ。
+| WR | — | 100.0% |
+| PnL | 0 | +31.1p |
+| USD_JPY | VOLATILE（78%ile）SMA20下向き | **米国CPI/PPI系指標次第で更にATR拡大リスク**。キャリー系の逆回転に注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
