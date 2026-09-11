@@ -1,8 +1,8 @@
 ---
 id: 20260907-1330-ps-seat-supply-remeasure-30d
 title: "[M3 スループット] ps 席供給是正 (PR #172) の 30d 供給率再計測 — capture ≥80% 検証 + 未達時 §8 補足検証"
-owner: unclaimed
-status: in_progress (harness merged 2026-09-09; awaiting window completion 2026-09-11)
+owner: claude-autopilot
+status: done (2026-09-11 verdict=REJECT + §8 完遂 + C1 計装執行)
 created_at: 2026-09-07T13:30:00+0900
 priority: P1
 deadline: 2026-09-10 (registry `ps-seat-supply-remeasure-30d` — 期日厳守、T5 型実行ギャップ防止)
@@ -113,3 +113,55 @@ python3 tools/ps_seat_supply_remeasure.py --json
 → analyses に verdict 追記 + 親監査 §9 に 1 行 + registry resolve/roll を同一コミット。
 
 KB: `knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md`
+
+---
+
+# 完了 (2026-09-11、rule:R3 — Claude autopilot)
+
+**verdict = 🔴 REJECT**。窓完成後 (as-of 2026-09-11T01:32Z、`window.complete=true`) に
+`python3 tools/ps_seat_supply_remeasure.py --json` を 1 回実行。
+design 期待 **34** (床 15 超) / 観測 unique **7** (LIVE 6 / shadow 1) / capture **20.6%**
+[Wilson 10.3-36.8%] < 80%。是正前 baseline 31% (親監査 §1) も下回り、§7(a) の
+「31% → ~100%」予測は不成立。09-09 中途窓 diagnostic から**差分ゼロ** (design 側も動かず)。
+
+**§8 補足検証 = 完遂。3 項目とも 3 席 (NZD_JPY/EUR_AUD/USD_CAD、design 17 本) のゼロを説明しない**:
+1. hedge_block 寄与 = **0 本**。MODE_CONFIG 実測で 3 ペアには搬送 mode が席のみ = 反対建玉を作る
+   経路が無く原理的に bind 不能。実測も 0 (`ps-seat-hedge-block-snapshot-2026-09-10` §2)
+2. blackout 床 = 実測 3.4 deploy/日 × 上界 5 分 → 17 本中 ~0.2 本 (10x 過大仮定でも ~2.0 本)。
+   説明要因になるには wall-clock **84%** の被覆が必要 = 実測の 70 倍
+3. 未説明残余 ~100%。**性質は「未知の抑制要因」ではなく「測っていない」** —
+   `_block_counts` は再起動で消え / `gate_block_daily` は 09-11 稼働開始 / `evaluated_candidates` は
+   **HourlyEngine に call site が無い** (31d summary に `price_shock_rev_*` が 1 件も無い)
+
+**是正実装の扱い**: 禁止事項の「REJECT でも是正実装は別タスク」は *supply 是正* に掛かる。
+帰属を可能にする観測面の追加 (C1 計装) は §8 完遂の前提条件そのものなので同一タスク内で執行した
+(PR #248 `gate_block_daily` と同一論拠・同一扱い)。**live パラメータ/tier/lot/gate は無変更**、
+EV/WR/PnL も未計算 (P-10 型 ban 遵守、`ps-carveout-regate-post-172` の look 未消費)。
+
+## 受け入れ条件
+
+- [x] pair×5 の capture 表 (design/LIVE/shadow/capture/Wilson) が analyses ページに存在 (§7)
+- [x] verdict が境界の数値とともに明記 (§7 判定根拠)
+- [x] registry 更新が同一コミット (`ps-seat-supply-remeasure-30d` resolved + 後続
+      `ps-seat-supply-hourly-c1-coverage` 09-25 新設)
+- [x] `python3 -m pytest tests/ -q` green (3,285 passed) / `python3 scripts/check.py` 全10チェック通過
+- [x] コミットメッセージに `rule:R3` 明示
+
+## Claude Review
+
+ハーネス出力をそのまま採らず、3 点を独立に検証した:
+
+1. **窓完成の実在性** — `window.complete` はコード判定 (`as_of >= win_end`) であり、
+   出力 JSON の `effective_end` が `end_frozen` と一致 (2026-09-11T00:00:00Z) することを目視確認。
+   中途窓の自己申告 (`MID_WINDOW_DIAGNOSTIC`) が出ていないことも確認済み
+2. **design 側の健全性** — provenance の overlap 比較で凍結 parquet と live top-up の
+   close 最大差が EUR_GBP 0.00075 / AUD_JPY 0.026 / NZD_JPY 0.029 / EUR_AUD 0.00052 /
+   USD_CAD 0.00028 (overlap 1,277-1,307 bars)。ベンダー境界での系列不一致は無く、
+   design 34 が top-up 由来の artifact でないことを確認
+3. **§8 の結論が数値の精度に依存しないこと** — blackout は 84% 被覆が必要という
+   感度境界を出し、deploy 頻度の再構成誤差 (buildFilter glob エミュレーションは
+   Render 実測より過少に出る) では結論が動かないことを確認。hedge_block は
+   頻度ではなく **mode 構成 (対向 mode の不在)** から導いたので推定誤差を持たない
+
+**盛っていない点の明示**: 3 席の残余は「計装が無いので分からない」であって
+「上流で候補が出ていない」ではない。(A)/(B) の判別は 09-25 の後続エントリに委ねる。

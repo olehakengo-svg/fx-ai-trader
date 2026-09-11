@@ -146,6 +146,17 @@ USD_CAD N=247 66.4% / EUR_AUD N=262 67.6% / EUR_GBP N=239 72.8%、07-24 exit-fre
 4. **30d 後に供給率を再計測** (§2 と同手法、design 期待 vs 観測) — 目標 capture ≥80%。未達なら §8 の補足検証 (hedge_block 寄与 / blackout 床) を精査
    → **監視主体併設済み (2026-08-12)**: registry `ps-seat-supply-remeasure-30d` (shadow_count_decision、since 08-11 / N≥15 早期実施 / 期日 09-10) — 「pre-reg には監視主体を必ず併設」教訓 (T5) 準拠。daily の prereg_trigger_watch → Discord レポートに載る
 
+### 検証計画 4 の結果 (2026-09-11) — 🔴 **REJECT**
+
+30d 供給率再計測 (窓 2026-08-11〜09-10、完成窓): design 期待 **34** / 観測 unique **7** /
+capture **20.6%** [Wilson 10.3-36.8%] — 目標 80% 未達、是正前 baseline 31% (§1) も下回る。
+NZD_JPY / EUR_AUD / USD_CAD は design 17 本に対し観測ゼロ。**§7(a) が予測した供給回復は
+成立していない。** §8 補足検証も完遂し、3 項目とも当該ゼロを説明しないことが確定した
+(hedge_block = 3 席では構造的に bind 不能で寄与 0 / blackout 床 = 上界でも 17 本中 ~1.2 本 /
+残余 ~100% は「未知の抑制要因」ではなく **HourlyEngine 経路に C1 candidate 計装が存在しない**
+ことによる測定不能)。計装は同日 rule:R3 で敷いた。
+詳細・生値: [[ps-seat-supply-remeasure-2026-09-10]] §7-§10
+
 ## 10. 追補: WEEKEND_CLOSE 残存逸脱の初実射と counterfactual verdict (2026-08-11)
 
 id=14900 (aud_jpy shadow、2026-07-31 金 13:31 entry) で WEEKEND_CLOSE (金 21:45 強制 close) が初めて material に bind:

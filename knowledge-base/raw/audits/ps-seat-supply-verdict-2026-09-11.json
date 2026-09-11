@@ -1,0 +1,203 @@
+{
+  "window": {
+    "start": "2026-08-11 00:00:00+00:00",
+    "end_frozen": "2026-09-11 00:00:00+00:00",
+    "effective_end": "2026-09-11 00:00:00+00:00",
+    "complete": true,
+    "as_of": "2026-09-11 01:32:34.596128+00:00"
+  },
+  "totals": {
+    "design_expected": 34,
+    "observed_live_unique": 6,
+    "observed_shadow_unique": 1,
+    "observed_unique_total": 7,
+    "observed_on_design_bar": 2,
+    "observed_on_design_bar_strict": 1,
+    "capture": 0.20588235294117646,
+    "capture_wilson_lo": 0.1034939602235132,
+    "capture_wilson_hi": 0.3679871610821398
+  },
+  "verdict": "REJECT",
+  "verdict_reason": "design N=34 >= 15 and capture 20.6% < 80%",
+  "seats": {
+    "price_shock_rev_eur_gbp_h1_long": {
+      "pair": "EUR_GBP",
+      "vol_q": "Q5",
+      "horizon_bars": 3,
+      "design_expected": 5,
+      "design_bars": [
+        "2026-08-20 15:00:00+00:00",
+        "2026-08-24 09:00:00+00:00",
+        "2026-08-28 14:00:00+00:00",
+        "2026-09-03 07:00:00+00:00",
+        "2026-09-03 14:00:00+00:00"
+      ],
+      "observed_live_unique": 4,
+      "observed_shadow_unique": 1,
+      "observed_unique_total": 5,
+      "observed_rows_raw": 5,
+      "observed_on_design_bar": 1,
+      "observed_on_design_bar_strict": 0,
+      "capture": 1.0,
+      "capture_wilson_lo": 0.5655085052479191,
+      "capture_wilson_hi": 1.0,
+      "provenance": {
+        "frozen_file": "EUR_GBP_1h_12y_audit.parquet",
+        "frozen_rows": 78850,
+        "frozen_last": "2026-07-24 10:00:00+00:00",
+        "topup_rows": 2107,
+        "topup_last": "2026-09-11 00:00:00+00:00",
+        "overlap_bars": 1277,
+        "overlap_close_max_abs_diff": 0.0007500000000000284,
+        "overlap_close_median_abs_diff": 0.0,
+        "overlap_close_p95_abs_diff": 0.0,
+        "overlap_bars_exact": 1251
+      }
+    },
+    "price_shock_rev_aud_jpy_h1_long": {
+      "pair": "AUD_JPY",
+      "vol_q": "ALL",
+      "horizon_bars": 12,
+      "design_expected": 12,
+      "design_bars": [
+        "2026-08-18 14:00:00+00:00",
+        "2026-08-21 20:00:00+00:00",
+        "2026-08-26 20:00:00+00:00",
+        "2026-08-28 15:00:00+00:00",
+        "2026-09-02 13:00:00+00:00",
+        "2026-09-03 02:00:00+00:00",
+        "2026-09-03 05:00:00+00:00",
+        "2026-09-03 13:00:00+00:00",
+        "2026-09-03 23:00:00+00:00",
+        "2026-09-04 12:00:00+00:00",
+        "2026-09-07 08:00:00+00:00",
+        "2026-09-08 18:00:00+00:00"
+      ],
+      "observed_live_unique": 2,
+      "observed_shadow_unique": 0,
+      "observed_unique_total": 2,
+      "observed_rows_raw": 2,
+      "observed_on_design_bar": 1,
+      "observed_on_design_bar_strict": 1,
+      "capture": 0.16666666666666666,
+      "capture_wilson_lo": 0.04696414761482223,
+      "capture_wilson_hi": 0.44803635738467273,
+      "provenance": {
+        "frozen_file": "AUD_JPY_1h_12y_audit.parquet",
+        "frozen_rows": 82922,
+        "frozen_last": "2026-07-24 10:00:00+00:00",
+        "topup_rows": 2118,
+        "topup_last": "2026-09-11 00:00:00+00:00",
+        "overlap_bars": 1288,
+        "overlap_close_max_abs_diff": 0.02600000000001046,
+        "overlap_close_median_abs_diff": 0.0,
+        "overlap_close_p95_abs_diff": 0.0,
+        "overlap_bars_exact": 1255
+      }
+    },
+    "price_shock_rev_nzd_jpy_h1_long": {
+      "pair": "NZD_JPY",
+      "vol_q": "Q5",
+      "horizon_bars": 12,
+      "design_expected": 6,
+      "design_bars": [
+        "2026-08-21 20:00:00+00:00",
+        "2026-09-02 02:00:00+00:00",
+        "2026-09-02 03:00:00+00:00",
+        "2026-09-03 05:00:00+00:00",
+        "2026-09-04 12:00:00+00:00",
+        "2026-09-07 08:00:00+00:00"
+      ],
+      "observed_live_unique": 0,
+      "observed_shadow_unique": 0,
+      "observed_unique_total": 0,
+      "observed_rows_raw": 0,
+      "observed_on_design_bar": 0,
+      "observed_on_design_bar_strict": 0,
+      "capture": 0.0,
+      "capture_wilson_lo": 0.0,
+      "capture_wilson_hi": 0.3903430336530645,
+      "provenance": {
+        "frozen_file": "NZD_JPY_1h_12y_audit.parquet",
+        "frozen_rows": 84096,
+        "frozen_last": "2026-07-24 10:00:00+00:00",
+        "topup_rows": 2137,
+        "topup_last": "2026-09-11 00:00:00+00:00",
+        "overlap_bars": 1307,
+        "overlap_close_max_abs_diff": 0.028999999999996362,
+        "overlap_close_median_abs_diff": 0.0,
+        "overlap_close_p95_abs_diff": 0.0,
+        "overlap_bars_exact": 1272
+      }
+    },
+    "price_shock_rev_eur_aud_h1_long": {
+      "pair": "EUR_AUD",
+      "vol_q": "Q5",
+      "horizon_bars": 12,
+      "design_expected": 7,
+      "design_bars": [
+        "2026-08-17 05:00:00+00:00",
+        "2026-08-20 13:00:00+00:00",
+        "2026-08-21 11:00:00+00:00",
+        "2026-08-21 12:00:00+00:00",
+        "2026-08-21 13:00:00+00:00",
+        "2026-08-26 01:00:00+00:00",
+        "2026-09-02 01:00:00+00:00"
+      ],
+      "observed_live_unique": 0,
+      "observed_shadow_unique": 0,
+      "observed_unique_total": 0,
+      "observed_rows_raw": 0,
+      "observed_on_design_bar": 0,
+      "observed_on_design_bar_strict": 0,
+      "capture": 0.0,
+      "capture_wilson_lo": 0.0,
+      "capture_wilson_hi": 0.35433884297520657,
+      "provenance": {
+        "frozen_file": "EUR_AUD_1h_12y_audit.parquet",
+        "frozen_rows": 79996,
+        "frozen_last": "2026-07-24 10:00:00+00:00",
+        "topup_rows": 2091,
+        "topup_last": "2026-09-11 00:00:00+00:00",
+        "overlap_bars": 1283,
+        "overlap_close_max_abs_diff": 0.0005199999999998539,
+        "overlap_close_median_abs_diff": 0.0,
+        "overlap_close_p95_abs_diff": 0.0,
+        "overlap_bars_exact": 1255
+      }
+    },
+    "price_shock_rev_usd_cad_h1_long": {
+      "pair": "USD_CAD",
+      "vol_q": "Q5",
+      "horizon_bars": 3,
+      "design_expected": 4,
+      "design_bars": [
+        "2026-08-19 13:00:00+00:00",
+        "2026-08-28 20:00:00+00:00",
+        "2026-09-02 13:00:00+00:00",
+        "2026-09-02 20:00:00+00:00"
+      ],
+      "observed_live_unique": 0,
+      "observed_shadow_unique": 0,
+      "observed_unique_total": 0,
+      "observed_rows_raw": 0,
+      "observed_on_design_bar": 0,
+      "observed_on_design_bar_strict": 0,
+      "capture": 0.0,
+      "capture_wilson_lo": 0.0,
+      "capture_wilson_hi": 0.48990002040399916,
+      "provenance": {
+        "frozen_file": "USD_CAD_1h_12y_audit.parquet",
+        "frozen_rows": 78569,
+        "frozen_last": "2026-07-24 10:00:00+00:00",
+        "topup_rows": 2137,
+        "topup_last": "2026-09-11 00:00:00+00:00",
+        "overlap_bars": 1307,
+        "overlap_close_max_abs_diff": 0.000280000000000058,
+        "overlap_close_median_abs_diff": 0.0,
+        "overlap_close_p95_abs_diff": 0.0,
+        "overlap_bars_exact": 1289
+      }
+    }
+  }
+}
