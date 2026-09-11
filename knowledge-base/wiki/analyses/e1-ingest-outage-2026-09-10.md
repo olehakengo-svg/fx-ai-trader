@@ -1,6 +1,6 @@
 # E1 positioning ingest 停止 — Myfxbook 認証失敗 (2026-09-10, P1, rule:R3)
 
-**状態**: 🔴 進行中 (2026-09-10T15:05Z 時点) — **復旧は user の credentials 再投入のみ** (§5)
+**状態**: 🔴 進行中 (2026-09-11T07:30Z 再実測、§7) — **復旧は user の credentials 再投入のみ** (§5)
 **影響**: E1 positioning (唯一の主力供給ライン) の pre-reg §2.5 coverage budget を market-hour 毎に不可逆燃焼中
 **関連**: [[e1-positioning-contrarian-prereg-2026-07-16]] / [[e1-positioning-ingest-2026-07-14]] / registry `e1-positioning-ingest-freshness`
 
@@ -107,3 +107,54 @@ print('verified USD_JPY:', d['health'].get('verified:USD_JPY:outlook'))"
 - **動機**: データ駆動 (registry 実測 + status API 実測 + pre-reg 原文の機械会計)。感情由来の項目なし。
 - **backoff は budget を守らない** ことを明記する: budget 燃焼は認証が直るまで続き、backoff はそれを止めない。backoff の目的は user の復旧可能性 (lockout 回避) の保全のみ。budget の救済は user の (a)〜(c) だけ。
 - 4 原則との整合: positioning は取引パス外 (原則 1 に非接触)。Shadow/LIVE データ蓄積系のクリーン性を守る修理 (最重要目標「クリーンデータ蓄積が最優先」に直結)。
+
+---
+
+## §7 追記 — 2026-09-11 follow-up 調査 (rule:R3)
+
+**状態**: 🔴 停止継続中 (2026-09-11T07:30Z 実測、verified age 24.5h)。復旧条件は §5 のまま (user credentials 再投入のみ)。worker は auth backoff pause 中 (`auth_paused=true`、次回自動 login 試行 = **10:46:37Z**、以後 6h 毎)。
+
+### 7a. 停止境界の精密化 (§1 の推定を Render ログ実測で置換)
+
+§1 は「~07:18Z (推定、[06:58:44, ~07:20] に有界)」としていたが、web service ログの全数突合で確定:
+
+| 時刻 (UTC) | 事象 | 根拠 |
+|---|---|---|
+| 09-10T06:58:45Z | **最後の login 成功** — PR #231 デプロイ (instance kzb7k) の初回 cycle、`cycle done saved=12` | Render ログ 06:58:45.041Z |
+| 09-10T07:06:03Z | **最初の login 失敗** — PR #232 デプロイ (instance j5974) の初回 cycle、`FETCH FAILED ... Wrong email/password.` | Render ログ 07:06:03.389Z |
+
+この間に client 側の login 試行はゼロ (成功した kzb7k session は生きたまま)、code/env 変更もゼロ。つまり **credentials の無効化は 7.3 分の窓 (06:58:45–07:06:03 UTC = JST 09-10 15:58–16:06) にサーバ側で発生**した。以後 09-11T06:46:37Z (直近試行) まで全 login が同一エラー。なお §1 の NA 燃焼開始 08:58:44Z (stale cap 定義準拠) は不変。
+
+### 7b. 帰属の絞り込み (統制実験 + 消去法)
+
+| 仮説 | 判定 | 根拠 (全て 2026-09-11 実測) |
+|---|---|---|
+| Render プロセス停止 | ❌ 除外 | worker 生存 (heartbeat `last_cycle_at` 前進、self-heal 正常)、複数 restart/デプロイを跨いで同一エラー |
+| Disk 満杯 / DB 書込み停止 | ❌ 除外 | `positioning_health` heartbeat 書込み継続、`db_error=null` |
+| ベンダー側 API 全面障害 / API 仕様変更 | ❌ 除外 | **統制実験**: garbage credentials で `login.json` → HTTP 200 + `{"error":true,"message":"Wrong email/password."}` (本番と同一文言・同一形状) = API は正常稼働し、本番エラーは「認証拒否」の正規応答。web 検索でも 09-10 のマス障害/仕様変更報告なし |
+| rate limit (100 req/24h) | ❌ ほぼ除外 | 停止前 24h の実測リクエスト = cycle done 71 行 (outlook 71 req) + login 数回 ≈ **<80 < 100** (ログ全数計数)。かつ 24h 窓 block なら 09-11T07:06Z までに解除のはずが onset+23.7h (06:46:37Z) で失敗継続。onset+27.7h の自動試行 (10:46:37Z) が成功した場合のみこの分岐が復活 |
+| **credentials のサーバ側無効化 / account lock** | ⭕ 残存 (唯一) | 上記消去法。内訳: (a) password 失効/変更 — user 自身の変更 or Myfxbook 強制 reset、(b) account lock/suspension — datacenter IP からの機械的 login パターンの abuse 判定。**06:58:45Z の新 instance (新 egress IP) login 直後に無効化された時刻相関は (b) を示唆**するが、web ログインなしに判別不能 |
+
+**§5-(a) への追加手順**: user は web ログイン試行の前に、**メール受信箱で 09-10 15:58–16:06 JST 前後の Myfxbook からのメール** (security alert / forced password reset / verification 要求) を確認すること — (a)/(b) の判別が最速で付き、web 側の失敗連打 (lockout 悪化) も避けられる。
+
+### 7c. Budget 会計の更新 (§3 の方法を延長、2026-09-11T07:30Z 時点)
+
+| 項目 | h=4h combo | h=24h combo |
+|---|---|---|
+| §3 時点 (09-10T14:44:46Z) の残 budget | 35.2h | 33.2h |
+| 追加燃焼 (14:44:46Z → 09-11T07:30Z、全域 market-h) | −16.75h | −16.75h |
+| **残 budget (09-11T07:30Z)** | **18.5h** | **16.5h** |
+
+- 金曜クローズ (09-11T21:00Z) まで放置した場合の週末持ち越し残 = **5.0h / 3.0h**
+- **§2.5-2 連続欠測 24h 到達: 2026-09-11T08:58:44Z (本追記の ~1.5h 後)** — 以後この区間は解析除外に転化し、除外日数が評価窓 20% (≈8 日) の当該ペア除外カウントへ積み上がり始める
+- breach 予測は §3 から不変 (停止が中断なく継続のため): **h=24h 2026-09-13T23:57Z / h=4h 2026-09-14T01:57Z** → 6 primary 全機械除外 → family verdict **4 週 postpone** (first look 10-15 → ~11-12) = M1 経路 ~4 週遅延
+- **実務デッドライン: 日曜市場再開 2026-09-13T21:00Z (JST 月曜 09-14 06:00) までに §5 (a)〜(c) 完了**。それ以降は数時間で breach。金曜クローズ前の復旧なら残 budget を最大 ~18h 温存できる
+
+### 7d. 通知経路の live 検証 (PR #243 修理の「読み手」確認)
+
+anomaly_watcher (cron `fx-ai-tier-c-anomaly`, */15) が `positioning_auth_failed` + `positioning_stale` を毎 run 発火中と実測 (09-11T05:30〜07:30Z の 9 run 連続で event line 出力、`oldest_verified_age_hours` が単調増加)。検知・通知経路は生きている — **残る律速は user アクションのみ**。
+
+### 7e. 本追記のクオンツ判断記録
+
+- **Rule 3**: インシデント帰属の精密化 + budget 会計更新のみ。コード変更ゼロ、live 挙動不変。
+- 重複修理なし確認: backoff / fail-loud / runbook は PR #243 で完了済み ([[trigger-watch-gap-audit-2026-09-10]] の「修復済みか先に確認」教訓を適用)。本追記は §1 の推定精緻化・§2 帰属候補の消去法完遂・§3 会計の時点更新のみを行った。
