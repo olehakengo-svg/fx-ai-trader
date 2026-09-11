@@ -435,7 +435,7 @@
     },
     {
       "id": "ps-seat-supply-remeasure-30d",
-      "active": true,
+      "active": false,
       "type": "shadow_count_decision",
       "entry_type": "price_shock_rev",
       "match": "prefix",
@@ -466,7 +466,9 @@
           "verdict": "MID_WINDOW_DIAGNOSTIC (no verdict — window incomplete and early-execution N>=15 unmet)",
           "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md"
         }
-      }
+      },
+      "resolved": "2026-09-11",
+      "resolution": "🔴 REJECT — 窓完成 (2026-08-11T00:00Z〜2026-09-11T00:00Z) 後に tools/ps_seat_supply_remeasure.py を 1 回実行 (as-of 2026-09-11T01:32Z、window.complete=true)。design 期待 34 (床 15 超) / 観測 unique 7 (LIVE 6 / shadow 1) / capture 20.6% [Wilson 10.3-36.8%] < 80%。是正前 baseline 31% (親監査 §1) も下回る。NZD_JPY / EUR_AUD / USD_CAD は design 17 本に対し観測ゼロ。§8 補足検証を完遂: hedge_block は 3 席で構造的に bind 不能 (対向 mode 不在) = 寄与 0 / blackout 床は実測 3.4 deploy/日 × 上界 5 分 = 17 本中 ~0.2 本 (10x 過大仮定でも ~2.0 本、説明には 84% wall-clock 被覆が必要) / 残余 ~100% は帰属不能 — HourlyEngine 経路に C1 candidate 計装 (log_candidates) が存在せず上流/下流を分離できない。計装は同コミットで rule:R3 追加 (live 挙動不変)。後続監視 = ps-seat-supply-hourly-c1-coverage (09-25)。詳細: knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md §7-§10 / 生値: knowledge-base/raw/audits/ps-seat-supply-verdict-2026-09-11.json"
     },
     {
       "id": "e21-personal-account-decision",
@@ -783,6 +785,14 @@
       "doc": "knowledge-base/wiki/decisions/pr-review-gate-2026-09-08.md",
       "reachability": "セッション作業 (R3): 現行 lint は NUMERIC/STRING/DATE/BOOL/ENUM/INT_MIN 等を 評価器の型強制から**手で写して**おり、PR #227 で同一家系の写し漏れが 11 巡に わたり計 25 件出た。恒久解は評価器側 (_evaluate_trigger_impl の各分岐) から 検査宣言を生成すること。メタ監査 process-meta-audit-2026-09-07 §4.2 R3 の 『estimand 宣言表 + CI 突合チェッカー』(monitoring/estimand_declarations.yml、2026-09-10 着地) の適用先として設計する。期日超過時は TRIGGERED で再起票。",
       "message": "PR #227 で確立した打ち切り判断の相方。lint の手写しは原理的に評価器と乖離し 続けるため、1 件ずつの修正では終わらない。R3 手続き (365d BT 不要、数学/code derivation を analyses/ に文書化) で実施可。"
+    },
+    {
+      "id": "ps-seat-supply-hourly-c1-coverage",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-09-25",
+      "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md",
+      "message": "【期日に実行するコマンド】curl -s 'https://fx-ai-trader.onrender.com/api/demo/evaluated-candidates?view=summary&days=14' → summary キーに price_shock_rev_* が出ているか確認。HourlyEngine C1 candidate 計装 (2026-09-11 rule:R3 追加、app.py::compute_hourly_signal) の 到達確認 + ps 席残余の帰属。deploy 後 14 日で 3 点を判定する: (i) 上記 summary に price_shock_rev_* 5 席が出現しているか — 出現しなければ計装が届いていない (配線落ち) として R3 再修理。(ii) C1 書込み量の実測が見積り (DTE 経路 3,125 行/日と同オーダー) の 範囲か — /api/admin/disk_status で disk が逼迫していれば retention 短縮 (R3)。(iii) 3 席 (NZD_JPY / EUR_AUD / USD_CAD) の観測ゼロが (A) 上流 = evaluate_all が候補を出していない / (B) 下流 = 候補は席優先 select で勝ったが _tick_entry/order 層で落ちた のどちらに割れたか。**この 3 点が揃うまで ps 席残余は『未帰属』のまま据え置く (盛らない)。帰属が出るまで §7(a) 型の 供給是正を重ねない。** 親 verdict: ps-seat-supply-remeasure-30d (2026-09-11 REJECT)。EV / WR / PnL は計算しない — EV 判定は ps-carveout-regate-post-172 の凍結 look に委ねる (P-10 型 ban)"
     }
   ]
 }

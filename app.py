@@ -4611,6 +4611,43 @@ def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
     best = engine.select_best(candidates)
     shadow_emits = engine.split_shadow_always(candidates, best)
 
+    # 2026-09-11 (rule:R3): C1 candidate logging を hourly 経路にも敷く。
+    # 発見経路: ps 席供給 30d 再計測の verdict=REJECT (capture 20.6%、design 34 /
+    # 観測 unique 7) を受けて親監査 §8 の帰属 (hedge_block 寄与 / 再起動 blackout 床 /
+    # 未説明残余) を計算しようとしたところ、**3 つの観測面すべてが hourly 経路を
+    # 覆っていない**ことが判明した:
+    #   - block_counts (in-memory) は再起動で消える (実測 tick_counts=45 = 数十分ぶん)
+    #   - gate_block_daily (PR #248) は 2026-09-11 稼働開始で窓の履歴を持たない
+    #   - evaluated_candidates は 2026-04-28 以来 `_dt_engine` 経路でしか書かれておらず、
+    #     HourlyEngine には call site が存在しない (31d summary に price_shock_rev_*
+    #     が 1 行も無い — 観測 7 行を出した EUR_GBP / AUD_JPY すら不在)
+    # 結果、NZD_JPY / EUR_AUD / USD_CAD の「design 17 本に対する観測ゼロ」を
+    #   (A) evaluate_all が候補を出していない (上流)
+    #   (B) 候補は出て席優先 select で勝ったが _tick_entry/order 層で落ちた (下流)
+    # のどちらにも帰属できない。hull funnel が 49 日未診断だったのと同じ
+    # 「書けるが読めない」ではなく、ここは**そもそも書いていない**段階の欠損。
+    # 本行は best-effort 計装のみで live 挙動は不変 (DTE 経路と同一の契約)。
+    # bar_time は PR #168 / 2026-08-24 で確立した fallback を踏襲する — live の
+    # compute_fn(df, tf, sr, symbol) は bar_time を渡さないので、素の bar_time を
+    # 渡すと hourly 行も全て NULL になり bar 粒度への正規化が不能になる。
+    # 詳細: knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md §7
+    try:
+        if bar_time is not None and hasattr(bar_time, "hour"):
+            _h1_bar_dt = bar_time
+        elif getattr(df, "index", None) is not None and len(df.index) and hasattr(df.index[-1], "hour"):
+            _h1_bar_dt = df.index[-1]
+        else:
+            _h1_bar_dt = datetime.now(timezone.utc)
+        if getattr(_h1_bar_dt, "tzinfo", None) is None:
+            _h1_bar_dt = _h1_bar_dt.replace(tzinfo=timezone.utc)
+        else:
+            _h1_bar_dt = _h1_bar_dt.astimezone(timezone.utc)
+        from modules.candidate_logger import log_candidates as _log_cands_h1
+        _log_cands_h1(_db_path, candidates, best,
+                      instrument=symbol, tf=tf, bar_time=_h1_bar_dt)
+    except Exception:
+        pass
+
     if best is None:
         _wait["entry"] = entry
         _wait["atr"] = atr
