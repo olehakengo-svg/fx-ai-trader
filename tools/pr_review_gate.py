@@ -87,7 +87,9 @@ def collect_findings(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], boo
     """(connector 由来の P1/P2 findings, connector レビュー到着済みか) を返す。"""
     arrived = False
     findings: list[dict[str, Any]] = []
-    buckets = (payload.get("reviews") or []) + (payload.get("comments") or [])
+    reviews = payload.get("reviews") or []
+    buckets = reviews + (payload.get("comments") or [])
+    review_ids = {id(r) for r in reviews}
     for item in buckets:
         author = ((item.get("author") or {}).get("login") or "")
         if not REVIEWER_PAT.search(author):
@@ -97,14 +99,23 @@ def collect_findings(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], boo
         # サマリ由来の到着判定は summary_state() 側だけで行う。
         if is_summary(item):
             continue
-        arrived = True
         body = item.get("body") or ""
-        for line in body.splitlines():
-            if FINDING_PAT.search(line):
-                findings.append({"author": author,
-                                 "submitted": item.get("submittedAt")
-                                 or item.get("createdAt") or "",
-                                 "line": line.strip()[:200]})
+        item_findings = [line.strip()[:200] for line in body.splitlines()
+                         if FINDING_PAT.search(line)]
+        # 2026-09-11 第 2 の空振り (PR #250 実測): connector は
+        # 「To use Codex here, create an environment for this repo」という
+        # **セットアップ通知**も同じ author で投げる。レビューは 1 度も
+        # 走っていないのに旧判定ではこれが到着 (findings ゼロ → exit 0) になった。
+        # 到着の positive evidence = (i) 正式 review オブジェクト /
+        # (ii) P1/P2 を含む本文 / (iii) サマリ Completed (evaluate 側) の 3 つだけ。
+        # 素の connector コメントは通知であって到着ではない (fail-closed)。
+        if id(item) in review_ids or item_findings:
+            arrived = True
+        for line in item_findings:
+            findings.append({"author": author,
+                             "submitted": item.get("submittedAt")
+                             or item.get("createdAt") or "",
+                             "line": line})
     return findings, arrived
 
 
@@ -151,8 +162,13 @@ def evaluate(pr: int) -> tuple[int, str]:
                 f"`gh pr comment {pr} --body \"@codex review\"` を先に実行せよ "
                 f"(CLAUDE.md コードレビュー節)")
     if not arrived:
-        return 2, (f"PR #{pr}: connector レビュー未到着 — 数分待つ (--wait)。"
-                   f"docs/KB のみの PR なら待たずにマージ可 (CLAUDE.md コードレビュー節)")
+        return 2, (
+            f"PR #{pr}: connector レビュー未到着 — 数分待つ (--wait)。"
+            f"connector が『create an environment for this repo』等の通知しか"
+            f"返していない場合はレビューが走っていない (通知は到着ではない) — "
+            f"`gh pr comment {pr} --body \"@codex review\"` で再依頼するか、"
+            f"`review-ack: <理由>` で明示 dismiss せよ。"
+            f"docs/KB のみの PR なら待たずにマージ可 (CLAUDE.md コードレビュー節)")
     if not findings:
         return 0, f"PR #{pr}: connector レビュー到着済み・P1/P2 指摘なし — マージ可"
     newest = max(f["submitted"] for f in findings)

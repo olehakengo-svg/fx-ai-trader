@@ -273,12 +273,62 @@ def test_summary_helpers_are_pure():
     assert gate.is_summary({"body": "P1: something"}) is False
 
 
-def test_counterfactual_old_behaviour_would_fail_the_new_pin(monkeypatch):
-    """旧実装 (サマリを到着扱い) ならこの pin が落ちることの証拠。"""
-    payload = _payload(comments=[_summary(_SUMMARY_RUNNING)])
+def _old_collect_findings(payload):
+    """2026-09-11 修理前の collect_findings (author マッチだけで到着)。"""
+    arrived = False
+    findings = []
+    for item in (payload.get("reviews") or []) + (payload.get("comments") or []):
+        author = ((item.get("author") or {}).get("login") or "")
+        if not gate.REVIEWER_PAT.search(author):
+            continue
+        arrived = True
+        for line in (item.get("body") or "").splitlines():
+            if gate.FINDING_PAT.search(line):
+                findings.append({"author": author, "line": line.strip(),
+                                 "submitted": item.get("submittedAt")
+                                 or item.get("createdAt") or ""})
+    return findings, arrived
+
+
+@pytest.mark.parametrize("body,label", [
+    (_SUMMARY_RUNNING, "進捗サマリ (Running)"),
+    ("To use Codex here, create an environment for this repo.", "セットアップ通知"),
+])
+def test_counterfactual_old_behaviour_passed_both_shapes(monkeypatch, body, label):
+    """旧実装なら両方の空振り形状で exit 0 が返ることの証拠 (pin が空でない)。
+
+    形状 1 = 進捗サマリ Running (PR #249 実測、open の 18 秒後に「マージ可」)。
+    形状 2 = connector のセットアップ通知 (PR #250 実測、レビューは 1 度も走らず)。
+    """
+    payload = _payload(comments=[_summary(body)])
     payload["headRefOid"] = "7e4fc417" + "0" * 32
     monkeypatch.setattr(gate, "_gh_pr_json", lambda *a, **k: payload)
-    monkeypatch.setattr(gate, "is_summary", lambda item: False)
+    monkeypatch.setattr(gate, "collect_findings", _old_collect_findings)
     monkeypatch.setattr(gate, "summary_state", lambda payload: ("", ""))
-    code, _ = gate.evaluate(249)
-    assert code == 0, "counterfactual 構築に失敗 — 旧挙動を再現できていない"
+    assert gate.evaluate(249)[0] == 0, f"{label}: 旧挙動を再現できていない"
+
+    # 修理後は両方とも「待て」(exit 2)。
+    monkeypatch.undo()
+    monkeypatch.setattr(gate, "_gh_pr_json", lambda *a, **k: payload)
+    assert gate.evaluate(249)[0] == 2, f"{label}: 修理後も素通りしている"
+
+
+def test_setup_notice_is_not_arrival(monkeypatch):
+    """PR #250 実測形状: connector 通知だけで exit 0 を返さないこと。"""
+    payload = _payload(comments=[{
+        "author": {"login": CONNECTOR},
+        "body": "To use Codex here, [create an environment for this repo](https://x).",
+        "createdAt": "2026-09-11T02:21:17Z"}])
+    payload["headRefOid"] = "c3dd1635" + "0" * 32
+    monkeypatch.setattr(gate, "_gh_pr_json", lambda *a, **k: payload)
+    code, msg = gate.evaluate(250)
+    assert code == 2, f"通知コメントで exit {code}: {msg}"
+    assert "@codex review" in msg
+
+
+def test_formal_review_object_still_counts_as_arrival(monkeypatch):
+    """findings ゼロでも正式 review オブジェクトがあれば到着 (通知との区別)。"""
+    payload = _payload(reviews=[_review("LGTM, no blocking issues.")])
+    payload["headRefOid"] = "c3dd1635" + "0" * 32
+    monkeypatch.setattr(gate, "_gh_pr_json", lambda *a, **k: payload)
+    assert gate.evaluate(250)[0] == 0
