@@ -4426,6 +4426,16 @@ N=1で−77.5というEVは統計的に無意味だが、実損失としては�
 - **RnB no_signal**: VOLATILE環境下でRnBはレンジを前提とするため構造的に不利。本日も同様と判断
 - **東京セッション（〜09:00 JST）**: USD/JPYのVOLATILE継続。carry_dip_accumulatorが下落トレンドの押し目を狙う展開に注意
 
+### 2026-09-11 (Pre-Tokyo Briefing)
+**2026-09-10実績**: トレード数 N=2、WR=100%、PnL=**+8.8p**
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+**全体合計**: N=7、WR=57.1%、PnL=**-78.4p**
+> **統計的注記**: 全戦略ともN<10。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）どちらも未到達。現時点では「判断不可」が正確な評価。
+前日ではなくCutoff後累計の単件だが、**EV=-77.5はシステム全体のPnLを支配**している。
+- **JPY系**: トレンドフォロー戦略は一見有利に見えるが、SMA20 Slope全面マイナス（円高方向）のため、既存のBUY偏重シグナルが不利な方向にある可能性
+- **USD系**: RANGING局面でスキャルプが有利なはずだが、`r2_shadow_demoted_cell`がブロックし機会を逃している
+- **JST 17:00-18:00（London Open）**: EUR/GBP系でhedge_block・dedup発動パターンが再現しやすい。`daytrade_eur:hedge_block`(254件)・`order_bar_dedup`(170件)がこの時間帯に集中する傾向
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
