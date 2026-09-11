@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-11 — fix(process): マージゲートが進捗サマリを「レビュー到着」と数えていた — R2 ゲートが全 PR で空だった (rule:R3)
+
+- 🔴 **実測 (PR #249)**: PR open の **18 秒後**に `tools/pr_review_gate.py 249` が「connector レビュー到着済み・P1/P2 指摘なし — **マージ可**」(exit 0) を返した。その時点で Codex connector の進捗サマリ Status は `🔄 **Running**` で、レビュー本体は 1 行も出ていない
+- **機構**: `collect_findings` は「author が codex/chatgpt にマッチするコメントが 1 件でもあれば `arrived = True`」としていた。connector は PR open 直後に `<!-- codex-pull-request-review-summary -->` の**状態表**を投げる (Status 列が `🔄 Running` → `✅ Completed` と in-place で書き換わる) ため、この 1 件で到着判定が立ち、findings は当然ゼロなので exit 0。**`--wait` も無効** — 状態 2 を一度も名乗らないので待ちループに入らない
+- **影響**: [[process-meta-audit-2026-09-07]] R2 ゲートは「レビュー→マージ 56 秒〜2 分が常態 / PR #213 はレビュー到着の 6 秒前にマージ」を塞ぐために作られたが、**ゲート自身が同じ追認をしていた**。CLAUDE.md がマージ前実行を義務づけている全 PR に対して実質空。「検知器も write-only になりうる」(2026-08-28) / 「防御が名乗る範囲をカバーしない」(keeper 09-10) と同型の 3 例目 — **ゲートは自分が測る量を名乗れていたか**を必ず counterfactual で確認すること
+- **修理**: (a) サマリコメントを findings 母集団から除外し、到着判定は `summary_state()` に一本化。(b) Status=`Running` は **exit 2 (待て)**、`Completed` のみ到着。複数レビューで Running と Completed が混在する場合は **Running 優先** (fail-closed)。(c) サマリ表の Commit 列 SHA と PR HEAD を照合し、不一致なら exit 2 + `@codex review` の実行を指示 — CLAUDE.md が prose で書いていた「修正 push 後は再レビューが自動で走らない」をコードに降ろした
+- **pin** (`tests/test_pr_review_gate.py` +7 本、計 21): Running サマリ単独で exit 0 を返さない (欠陥の直接 pin) / Completed + HEAD 一致で exit 0 / Completed だが HEAD 不一致で exit 2 / Running 優先 / サマリ除外が本物の finding コメントを落とさない / ヘルパの純粋性 / **counterfactual** (旧挙動を monkeypatch で再現すると exit 0 に戻る = pin が空でない証拠)
+- 本欠陥は PR #249 (ps 席 verdict) のマージ手続き中に、ゲート出力を額面で受け取らず GitHub 側の実状態と突合したことで発見した。#249 自体はその後 Status=Completed / SHA 一致 / findings ゼロを実確認してからマージしている
+
 ## 2026-09-11 — verdict(ps): 席供給 30d 再計測 = 🔴 REJECT (capture 20.6%) + §8 帰属完遂 + HourlyEngine C1 計装 (rule:R3)
 
 - **正式 verdict = REJECT** ([[ps-seat-supply-remeasure-2026-09-10]] §7): 窓完成 (2026-08-11〜09-11T00:00Z、`window.complete=true`) 後に `tools/ps_seat_supply_remeasure.py` を pre-reg どおり 1 回実行。design 期待 **34** (床 15 超) / 観測 unique **7** (LIVE 6 / shadow 1) / **capture 20.6%** [Wilson 10.3-36.8%] < 80%。是正前 baseline **31%** (親監査 §1) を**下回り**、PR #172 §7(a) の「31%→~100%」予測は不成立。09-09 中途窓 diagnostic から差分ゼロ (design 側も 1.9 日で 1 本も増えず)。生値: `raw/audits/ps-seat-supply-verdict-2026-09-11.json`
