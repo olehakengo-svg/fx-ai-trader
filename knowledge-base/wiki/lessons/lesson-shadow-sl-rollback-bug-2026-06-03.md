@@ -7,6 +7,7 @@ status: fixed in modules/demo_trader.py (commit pending)
 related:
   - knowledge-base/wiki/analyses/mfe-be-lock-design-2026-06-03.md
   - knowledge-base/wiki/lessons/lesson-snapshot-survivorship-bias-2026-06-03.md
+  - knowledge-base/wiki/analyses/win-side-exit-regime-break-2026-06-03.md
 ---
 
 # Lesson: shadow trades' SL changes were silently rolled back
@@ -108,3 +109,42 @@ the SL_HIT check later in the same iteration.
 > expected lock floor. The 2 group-B trades with stuck SL caught this
 > bug in 8 minutes post-deploy — without that check it would have hidden
 > for the entire 30-day A/B window and silently corrupted the verdict.
+
+---
+
+## 追記 (2026-09-14): 本 fix は shadow の estimand を切り替えていた
+
+修理は正しかったが、**「修理前後の shadow 統計が比較不能になる」という帰結が
+どこにも書かれておらず、下流の分析が 3 ヶ月半その境界をまたいで集計し続けた。**
+2026-09-13 の cell deepdive が `sr_anti_hunt_bounce` の R:R 反転 (2.30 → 0.25) を
+「継続中の構造的劣化」と読み、その原因調査を最優先アクションに指定したのが顕在化事例。
+実際には劣化ではなく、本 fix による**計測体制の一度きりの付け替え**だった。
+
+実測 (全戦略 shadow / XAU 除外 / dedup 除外、fix 時刻 = **2026-06-03T07:58Z**):
+
+| 期間 | N | WR | avg_win | R:R | EV | WIN 行の `close_reason=SL_HIT` 率 |
+|---|---|---|---|---|---|---|
+| pre-fix | 5,377 | 26.3% | 11.72p | 1.90 | −1.45 | 0.3% |
+| post-fix | 7,200 | **51.5%** | 4.35p | **0.55** | −1.61 | **88.3%** |
+
+- WR **+25.2pp** は MEMORY `project_be_trail_inflates_python_bt_wr` が Python BT の
+  ablation で示した +20pp 水増しの、**本番 shadow での再現**。
+- EV はほぼ不変 (−1.45 → −1.61)。WR だけ見れば大改善・R:R だけ見れば崩壊・
+  EV は一貫して負 — MEMORY `feedback_partial_quant_trap` の典型。
+- pre-fix の shadow R:R 1.90 に対し同期間 live は 1.01。post-fix は shadow 0.55 /
+  live 0.42。**異常だったのは pre-fix shadow の方**で、fix は live 忠実度を上げた。
+
+### 恒久ルール
+
+**shadow の payoff 系統計 (`avg_win` / `avg_loss` / `R:R` / `WR` / 保有時間) を
+2026-06-03T07:58Z をまたいで集計しない。** 境界前後は別 estimand。
+定数の SSOT = `tools/win_side_exit_decomposition.py::SHADOW_EXIT_REGIME_BREAK`、
+pin = `tests/test_win_side_exit_decomposition.py`。
+全文と決定への影響: [[win-side-exit-regime-break-2026-06-03]]
+
+### 教訓 (§Discipline reminder への追加)
+
+> 「デプロイを実挙動で検証せよ」に加えて — **挙動を変える修理は、その修理が
+> 過去データとの比較可能性を壊していないかを同時に宣言せよ。**
+> 修理ページに「この時刻をまたぐ集計は不可」の 1 行と、読み手側の pin が無ければ、
+> 下流は境界を知らないまま集計を続ける。本件は 103 日間そうなった。

@@ -1,5 +1,19 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-14 — diag(exit): 勝ち側 exit の regime break を確定 — shadow の avg_win 縮小は劣化でなく計測の是正 (rule:R3)
+
+- **起点**: 2026-09-13 cell deepdive が最優先アクションに指定した「`sr_anti_hunt_bounce` の avg_win が 2026-05 の 19.03p から 3.5〜5.9p へ 1/5 に縮んだ原因の実測特定」。新ツール `tools/win_side_exit_decomposition.py` (副作用なし) で Render PROD 17,602 件を close_reason × outcome × 保有時間 × MFE へ分解
+- 🔵 **確定**: 縮小の原因は市場でも戦略でもなく **shadow の終端機構が 1 日で入れ替わった**こと。WIN 行の終端は `< 06-03` = `MAX_HOLD_TIME` 70.6% / `WEEKEND_CLOSE` 29.4% / `SL_HIT` **0%** (avg_win 19.42p, median 保有 **8.00h**) → `≥ 06-03` = `SL_HIT` **100%** (avg_win 3.96p, median 保有 **0.54〜1.28h**)。`SL_HIT`∧`WIN` = BE/トレールが利益側で刈った の意 (MEMORY `project_sl_hit_label_collision`)
+- **機構帰属**: commit `ab7a4931` "fix(exit): persist shadow SL changes directly to DB" (2026-06-03 **07:58 UTC**)。それ以前 shadow の SL 変更は `modify_sl_sync` の False 戻りで毎 iteration ロールバックされ、**BE-lock / SMC BE+0.1 / ATR×0.8 BE / ATR×1.5 trail / v6.4 TP extender が全て dead code** だった ([[lesson-shadow-sl-rollback-bug-2026-06-03]])
+- **敵対的検証 3 点**: ①**遷移の鋭さ** — 全戦略 shadow の WIN 行 `SL_HIT` 率は 06-01 0.0%(N=19) / 06-02 0.0%(N=22) → **06-03 76.7%(N=73)** → 06-08 89.3% の step function。市場レジームでは作れない形。②**MFE censoring の排除** — capture 0.815→0.55 と avg_MFE 23.34→6p は exit を早めた機械的帰結 (MFE は exit 時点までしか観測されない)。exit 非依存の指標では全 clean 行 **median MFE が 2.00→5.70p と上昇**、LOSS 行保有時間も 2.01→4.00h と伸長 → **市場側の順行余地は劣化していない**。③**shift-share は非同定** — 群が前後で素に交わらない (share_A(SL_HIT)=0% / share_B=100%) ため `within 100%` は補完値。「群内劣化」と読んではならない
+- 🔴 **全戦略への波及 (estimand break)**: shadow pre-fix N=5,377 WR 26.3% / avg_win 11.72p / R:R **1.90** / EV −1.45 → post-fix N=7,200 WR **51.5%** / avg_win 4.35p / R:R **0.55** / EV −1.61。**WR +25.2pp は MEMORY `project_be_trail_inflates_python_bt_wr` の +20pp 水増しの本番 shadow での再現**。EV はほぼ不変 = MEMORY `feedback_partial_quant_trap` の典型。pre-fix shadow R:R 1.90 vs 同期間 live 1.01 (乖離 1.9×) → post-fix shadow 0.55 vs live 0.42 で接近、**異常だったのは pre-fix shadow の方**で fix は live 忠実度を上げた
+- ⚖️ **deepdive の解釈訂正**: 「R:R が反転したまま戻っていない = 継続中の構造的劣化」は誤り。**一度きりの計測体制の付け替え**であり、fix を戻さない限り「戻る」ことは起きない
+- 🔴 **決定への影響**: 9 週連続で出ている唯一の PAIR_PROMOTED 候補 `sr_anti_hunt_bounce × EUR_JPY × Tokyo × BUY` の掲載値 (N=32 / EV **+7.11** / PF 4.29) は、**pre-fix 14 行が総 pips の 77% (+174.4/+227.6) を担った結果**。fix 日で切ると post-fix は N=18 / EV **+2.96** / R:R 1.04 で、EV は 4.2 分の 1・N は候補化閾値 `MIN_N=20` 未満。前週の「post-May 単独で Wilson_lo 0.567 維持 ✅」は (a) cut が 5 月末で fix 日 (06-03) でない (b) 通した gate が WR ベースで、その WR こそ BE/trail が水増しする量 の 2 点で反証になっていない
+- ⚠️ **pre-reg LOCK は不可侵のまま**: forward 枠 (`entry_time ≥ 2026-08-05`, fresh N=32/40) は全数 post-fix で汚染なし。本件は週次レポートが毎週再掲する**記述統計の訂正**であって P-10 の中間再計算ではない
+- **恒久ルール + pin**: shadow の payoff 系統計 (`avg_win`/`avg_loss`/`R:R`/`WR`/保有時間) を **2026-06-03T07:58Z をまたいで集計しない**。定数 SSOT = `tools/win_side_exit_decomposition.py::SHADOW_EXIT_REGIME_BREAK`、pin = `tests/test_win_side_exit_decomposition.py` 6 本 (境界定数 / 既定 split が月境界へ戻らない / 宣言フィルタ 3 条件 / **close_reason を outcome 分割なしに集計しない** / 境界が時刻まで効く / 分解合計の健全性)
+- **メタ教訓** ([[lesson-shadow-sl-rollback-bug-2026-06-03]] に追記): 修理自体は正しかったが「**この修理は過去データとの比較可能性を壊す**」の 1 行と読み手側の pin が無かったため、下流が **103 日間**境界をまたいで集計し続けた。挙動を変える修理は estimand の断絶を同時に宣言せよ
+- 全文: [[win-side-exit-regime-break-2026-06-03]] / 入力証拠: `raw/cell_deepdive/2026-09-13/`
+
 ## 2026-09-11 — docs(e1): ingest 停止の帰属精密化 + budget debit 更新 — 復旧は user credentials 再投入のみ (rule:R3)
 
 - **停止境界を Render ログで確定** ([[e1-ingest-outage-2026-09-10]] §7a): 最終 login 成功 09-10T06:58:45Z (PR #231 デプロイ instance) → 最初の失敗 07:06:03Z (PR #232 デプロイ instance)。**credentials 無効化は 7.3 分窓 (JST 15:58–16:06) にサーバ側で発生**。§1 の「~07:18Z 推定」を置換
