@@ -1,0 +1,543 @@
+{
+ "pair": "EUR_JPY",
+ "window": {
+  "start": "2025-07-21T10:45:00+00:00",
+  "end": "2026-07-21T10:45:00+00:00"
+ },
+ "cells": [
+  {
+   "cell_id": "EUR_JPY_lb96_any_midasym",
+   "n": 263,
+   "wr": 0.467680608365019,
+   "ev_pips": 0.14685019515345646,
+   "total_pips": 38.62160132535905,
+   "wilson_lo": 0.40827779278759285,
+   "p_boot": 0.04409559044095591,
+   "p_block": 0.47155284471552844,
+   "wf_signs": [
+    -1,
+    1,
+    -1
+   ],
+   "median_hold_bars": 15.0,
+   "params": {
+    "lookback_bars": 96,
+    "regime": "any",
+    "exit_key": "midasym",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.35,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 50.0,
+    "max_width_atr_d1_mult": 1.5,
+    "rt_pips": 2.5,
+    "pip_size": 0.01
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 1,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 100,
+    "n_sell": 163,
+    "exit_reasons": {
+     "TP": 96,
+     "SL": 122,
+     "TIME": 45,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     100,
+     91,
+     72
+    ],
+    "wf_fold_total_pips": [
+     -252.45,
+     408.816,
+     -117.745
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb96_any_sym1r",
+   "n": 256,
+   "wr": 0.5390625,
+   "ev_pips": 0.8773876472555808,
+   "total_pips": 224.6112376974287,
+   "wilson_lo": 0.4778736268782368,
+   "p_boot": 0.056194380561943806,
+   "p_block": 0.33736626337366266,
+   "wf_signs": [
+    -1,
+    1,
+    1
+   ],
+   "median_hold_bars": 25.0,
+   "params": {
+    "lookback_bars": 96,
+    "regime": "any",
+    "exit_key": "sym1r",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.5,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 50.0,
+    "max_width_atr_d1_mult": 1.5,
+    "rt_pips": 2.5,
+    "pip_size": 0.01
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 1,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 97,
+    "n_sell": 159,
+    "exit_reasons": {
+     "TP": 103,
+     "SL": 81,
+     "TIME": 72,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     97,
+     87,
+     72
+    ],
+    "wf_fold_total_pips": [
+     -225.397,
+     401.061,
+     48.947
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb96_lowvol_midasym",
+   "n": 178,
+   "wr": 0.5,
+   "ev_pips": 1.846006745153646,
+   "total_pips": 328.589200637349,
+   "wilson_lo": 0.4273272420774954,
+   "p_boot": 0.0117988201179882,
+   "p_block": 0.21597840215978403,
+   "wf_signs": [
+    1,
+    1,
+    1
+   ],
+   "median_hold_bars": 14.0,
+   "params": {
+    "lookback_bars": 96,
+    "regime": "lowvol",
+    "exit_key": "midasym",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.35,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 50.0,
+    "max_width_atr_d1_mult": 1.5,
+    "rt_pips": 2.5,
+    "pip_size": 0.01
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 67,
+    "n_sell": 111,
+    "exit_reasons": {
+     "TP": 72,
+     "SL": 79,
+     "TIME": 27,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     59,
+     67,
+     52
+    ],
+    "wf_fold_total_pips": [
+     10.261,
+     230.675,
+     87.653
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb96_lowvol_sym1r",
+   "n": 174,
+   "wr": 0.5804597701149425,
+   "ev_pips": 3.33207411275188,
+   "total_pips": 579.7808956188271,
+   "wilson_lo": 0.5061731895200406,
+   "p_boot": 0.008999100089991,
+   "p_block": 0.11328867113288671,
+   "wf_signs": [
+    1,
+    1,
+    1
+   ],
+   "median_hold_bars": 23.5,
+   "params": {
+    "lookback_bars": 96,
+    "regime": "lowvol",
+    "exit_key": "sym1r",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.5,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 50.0,
+    "max_width_atr_d1_mult": 1.5,
+    "rt_pips": 2.5,
+    "pip_size": 0.01
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 66,
+    "n_sell": 108,
+    "exit_reasons": {
+     "TP": 77,
+     "SL": 50,
+     "TIME": 47,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     58,
+     64,
+     52
+    ],
+    "wf_fold_total_pips": [
+     22.888,
+     232.961,
+     323.932
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb192_any_midasym",
+   "n": 199,
+   "wr": 0.4824120603015075,
+   "ev_pips": -1.171463653778189,
+   "total_pips": -233.12126710185964,
+   "wilson_lo": 0.4139787944607447,
+   "p_boot": 0.22957704229577042,
+   "p_block": 0.696930306969303,
+   "wf_signs": [
+    -1,
+    -1,
+    -1
+   ],
+   "median_hold_bars": 45.0,
+   "params": {
+    "lookback_bars": 192,
+    "regime": "any",
+    "exit_key": "midasym",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.35,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 50.0,
+    "max_width_atr_d1_mult": 2.5,
+    "rt_pips": 2.5,
+    "pip_size": 0.01
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 1,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 76,
+    "n_sell": 123,
+    "exit_reasons": {
+     "TP": 40,
+     "SL": 63,
+     "TIME": 95,
+     "data_end": 1
+    },
+    "wf_fold_n": [
+     75,
+     65,
+     59
+    ],
+    "wf_fold_total_pips": [
+     -69.923,
+     -98.483,
+     -64.716
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb192_any_sym1r",
+   "n": 197,
+   "wr": 0.5076142131979695,
+   "ev_pips": -1.9485944901669983,
+   "total_pips": -383.87311456289865,
+   "wilson_lo": 0.43832656571735307,
+   "p_boot": 0.37616238376162386,
+   "p_block": 0.774022597740226,
+   "wf_signs": [
+    -1,
+    -1,
+    -1
+   ],
+   "median_hold_bars": 48.0,
+   "params": {
+    "lookback_bars": 192,
+    "regime": "any",
+    "exit_key": "sym1r",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.5,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 50.0,
+    "max_width_atr_d1_mult": 2.5,
+    "rt_pips": 2.5,
+    "pip_size": 0.01
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 1,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 75,
+    "n_sell": 122,
+    "exit_reasons": {
+     "TP": 41,
+     "SL": 43,
+     "TIME": 112,
+     "data_end": 1
+    },
+    "wf_fold_n": [
+     74,
+     64,
+     59
+    ],
+    "wf_fold_total_pips": [
+     -0.195,
+     -274.906,
+     -108.772
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb192_lowvol_midasym",
+   "n": 145,
+   "wr": 0.5241379310344828,
+   "ev_pips": 1.0667342620747644,
+   "total_pips": 154.67646800084083,
+   "wilson_lo": 0.44328019271709546,
+   "p_boot": 0.07589241075892411,
+   "p_block": 0.2977702229777022,
+   "wf_signs": [
+    -1,
+    1,
+    1
+   ],
+   "median_hold_bars": 45.0,
+   "params": {
+    "lookback_bars": 192,
+    "regime": "lowvol",
+    "exit_key": "midasym",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.35,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 50.0,
+    "max_width_atr_d1_mult": 2.5,
+    "rt_pips": 2.5,
+    "pip_size": 0.01
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 52,
+    "n_sell": 93,
+    "exit_reasons": {
+     "TP": 33,
+     "SL": 42,
+     "TIME": 69,
+     "data_end": 1
+    },
+    "wf_fold_n": [
+     47,
+     49,
+     49
+    ],
+    "wf_fold_total_pips": [
+     -143.407,
+     134.262,
+     163.821
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb192_lowvol_sym1r",
+   "n": 144,
+   "wr": 0.5416666666666666,
+   "ev_pips": -0.7084987622145059,
+   "total_pips": -102.02382175888886,
+   "wilson_lo": 0.4602598535051044,
+   "p_boot": 0.2615738426157384,
+   "p_block": 0.6133386661333866,
+   "wf_signs": [
+    -1,
+    -1,
+    1
+   ],
+   "median_hold_bars": 48.0,
+   "params": {
+    "lookback_bars": 192,
+    "regime": "lowvol",
+    "exit_key": "sym1r",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.5,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 50.0,
+    "max_width_atr_d1_mult": 2.5,
+    "rt_pips": 2.5,
+    "pip_size": 0.01
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 51,
+    "n_sell": 93,
+    "exit_reasons": {
+     "TP": 33,
+     "SL": 32,
+     "TIME": 78,
+     "data_end": 1
+    },
+    "wf_fold_n": [
+     47,
+     48,
+     49
+    ],
+    "wf_fold_total_pips": [
+     -203.743,
+     -35.806,
+     137.525
+    ]
+   }
+  }
+ ],
+ "meta": {
+  "spec_name": "range_boundary_limit_fade_v1_prereg",
+  "smoke": false,
+  "window_source": "spec bt_windows (pinned; tail-asserted == end_utc)",
+  "spec_bt_window": {
+   "start_utc": "2025-07-21T10:45:00Z",
+   "end_utc": "2026-07-21T10:45:00Z"
+  },
+  "parquet_tail_assert": "passed (== spec end_utc, tolerance 0)",
+  "data_sha256": "23b9f31a90a996c88c9391a20bc00ba43159b955f42c5584adc0df6c66de0ab0",
+  "freeze_manifest": "/private/tmp/claude-501/-Users-jg-n-012-test-fx-ai-trader/f3676a38-1de9-431d-9d65-ce8911465029/scratchpad/range_fade_freeze_manifest.json",
+  "freeze_status": "created_entry",
+  "boot_iters": 10000,
+  "block_boot_iters": 10000,
+  "mean_block_len": 10,
+  "seed": 20260914,
+  "generated_at": "2026-09-14T05:47:48.720407+00:00",
+  "bonferroni_alpha": 0.0015625,
+  "min_achievable_p_boot": 9.999000099990002e-05,
+  "min_achievable_p_block": 9.999000099990002e-05,
+  "p_boot_is_spec_gate_statistic": false,
+  "p_boot_usable_for_bonferroni_gate": false,
+  "p_boot_resolution_ok_for_alpha": true,
+  "p_block_is_spec_gate_statistic": true,
+  "p_block_usable_for_bonferroni_gate": true,
+  "p_boot_definition": "random-entry null (market fill at Open, uniform random window bar; same direction + TP/SL distances as each actual trade; SAME exit policy: per-bar SL-first, time stop = cell time_stop_bars, hold endogenous \u2014 fix M5), one-sided, add-one smoothed. DIAGNOSTIC ONLY \u2014 never the Bonferroni gate statistic.",
+  "p_block_definition": "recentered stationary block bootstrap on the cell's net per-trade PnL sequence (order preserved), mean block length 10 trades, 10000 iters, one-sided, add-one smoothed; H0 = mean 0 with dependence preserved (spec gate statistic).",
+  "entry_bar_tp_rule": "entry bar TP requires post-fill proof via Close (buy: Close>=tp; sell: Close<=tp); full-bar High/Low never used for TP on the entry bar; SL full-bar (provably post-fill); SL before TP (fix C1).",
+  "both_pen_policy": "skip only when BOTH sides armed (two resting orders, path ambiguous; spec-declared); one-armed side fills normally (fix M2); counterfactual SL-first PnL of skipped events in diagnostics."
+ }
+}
