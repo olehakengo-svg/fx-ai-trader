@@ -35,7 +35,8 @@ fi
 # Session log更新リマインド
 SESSION_REMIND=""
 if [[ -f "$SESSION_FILE" ]]; then
-    LAST_MOD=$(stat -f %m "$SESSION_FILE" 2>/dev/null || stat -c %Y "$SESSION_FILE" 2>/dev/null || echo 0)
+    # GNU stat を先に — BSD 形式の `stat -f %m` は GNU では FS 統計モードとして「成功」しフォールバックが働かない
+    LAST_MOD=$(stat -c %Y "$SESSION_FILE" 2>/dev/null || stat -f %m "$SESSION_FILE" 2>/dev/null || echo 0)
     NOW=$(date +%s)
     AGE=$(( NOW - LAST_MOD ))
     if (( AGE > 1800 )); then
@@ -78,8 +79,9 @@ QUANT_RULE="🔬 クオンツルール: XAU除外/ペア×戦略粒度/Post-cuto
 # v8.9: 宣言トラッカー — 未完了の宣言を毎メッセージ表示
 DECL_PENDING=""
 if [[ -f "$SESSION_FILE" ]]; then
-    DECL_COUNT=$(grep -c '^\- \[ \].*🔊' "$SESSION_FILE" 2>/dev/null || echo 0)
-    if [[ "$DECL_COUNT" -gt 0 ]]; then
+    # grep -c は不一致時に "0" を出力して exit 1 する — || echo だと "0\n0" になり [[ が壊れる
+    DECL_COUNT=$(grep -c '^\- \[ \].*🔊' "$SESSION_FILE" 2>/dev/null || true)
+    if [[ "${DECL_COUNT:-0}" -gt 0 ]]; then
         DECL_PENDING="🔊 原則0: 未完了の宣言が${DECL_COUNT}件。実行してから次に進め。"
     fi
 fi
