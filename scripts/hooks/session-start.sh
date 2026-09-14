@@ -12,8 +12,9 @@ LATEST_SESSION=$(ls -t "$KB/sessions/"*.md 2>/dev/null | head -1 || true)
 LEAKED=""
 LEAKED_FILE="$KB/leaked-items.md"
 if [[ -f "$LEAKED_FILE" ]]; then
-    LEAKED_PENDING=$(grep -c '| pending' "$LEAKED_FILE" 2>/dev/null || echo "0")
-    if [[ "$LEAKED_PENDING" -gt 0 ]]; then
+    # grep -c は不一致時に "0" を出力して exit 1 する — || echo だと "0\n0" になり [[ が壊れる
+    LEAKED_PENDING=$(grep -c '| pending' "$LEAKED_FILE" 2>/dev/null || true)
+    if [[ "${LEAKED_PENDING:-0}" -gt 0 ]]; then
         LEAKED=$(awk '/^## Active Items/,/^## Resolved Items/' "$LEAKED_FILE" 2>/dev/null | head -30 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
     fi
 fi
@@ -100,7 +101,9 @@ fi
 
 # Check if index.md is stale (>7 days old)
 if [[ -f "$INDEX_FILE" ]]; then
-    INDEX_MTIME=$(stat -f %m "$INDEX_FILE" 2>/dev/null || stat -c %Y "$INDEX_FILE" 2>/dev/null || echo 0)
+    # GNU stat を先に — BSD 形式の `stat -f %m` は GNU では FS 統計モードとして「成功」し
+    # フォールバックが働かず、複数行出力が set -u 下の算術展開を即死させる (クラウド Linux で全損していた)
+    INDEX_MTIME=$(stat -c %Y "$INDEX_FILE" 2>/dev/null || stat -f %m "$INDEX_FILE" 2>/dev/null || echo 0)
     NOW=$(date +%s)
     AGE_DAYS=$(( (NOW - INDEX_MTIME) / 86400 ))
     if [[ "$AGE_DAYS" -gt 7 ]]; then

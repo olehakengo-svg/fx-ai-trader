@@ -37,6 +37,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-bsd-stat-cloud-hook-blackout-2026-09-14]]
+**発見日**: 2026-09-14 | **rule**: R3
+- 問題: クラウド (Linux) セッションで SessionStart / UserPromptSubmit hook が exit 1 で全損 — KB 自動注入 (index/未解決/lessons/判断プロトコル) が一切効いていなかった
+- 症状: 静かな全損 — hook が死んでも additionalContext が無いだけでセッションは動くため、2026-07 以降のクラウド並行セッションは全て「素の Claude」で判断していた
+- 原因: BSD 専用 `stat -f %m` が GNU stat では FS 統計モードとして「成功」しフォールバック (`|| stat -c %Y`) が発火せず、複数行出力が set -u 下の算術展開を即死させた。副次: `grep -c || echo 0` の二重 0 出力 (3 箇所)
+- 修正: stat フォールバックを GNU 優先に入替 + grep -c を `|| true` + `${VAR:-0}` に + session-end-save の push 失敗握り潰し廃止。Linux で exit 0 + JSON 妥当性を実測確認
+- 教訓: **クロスプラットフォームのフォールバック連鎖は「異環境では失敗する」ことを前提にできない — 同名オプションが別の意味で「成功」すると静かに死ぬ。注入系の失敗は数ヶ月気づかれない「静かな全損」になるため、環境を増やしたら実行検証せよ**
+
 ### [[lesson-shadow-emit-dedup-writetime-2026-09-02]]
 **発見日**: 2026-09-02 | **修正**: rule:R3 (同 PR、`open_trade` write-time DB flag + audit 自己記述)
 - 問題: `_maybe_reserve_signal_emit` の dedup ゲートはプロセスローカル in-memory 状態で、プロセス境界 (デプロイ重複 / コンテナ置換 / 一時 2nd インスタンスの並走書込み) を越えられず同一キーを重複 INSERT していた (dedup 系 5 例目)。かつ `_backfill_dedup_violation` は起動時のみ = boot 後の重複を次回起動まで未 flag に残す

@@ -18,8 +18,9 @@ bash "$ROOT/scripts/hooks/pre-compact.sh" >/dev/null 2>/dev/null || true
 TODAY_SESSION="$KB/wiki/sessions/${TODAY}-session.md"
 if [[ -f "$TODAY_SESSION" ]]; then
     if grep -q "Claudeが記入" "$TODAY_SESSION" 2>/dev/null; then
-        SESSION_COMMITS=$(grep -cE "^[0-9]+\. " "$TODAY_SESSION" 2>/dev/null || echo 0)
-        if [[ "$SESSION_COMMITS" -le 1 ]]; then
+        # grep -c は不一致時に "0" を出力して exit 1 する — || echo だと "0\n0" になり [[ が壊れる
+        SESSION_COMMITS=$(grep -cE "^[0-9]+\. " "$TODAY_SESSION" 2>/dev/null || true)
+        if [[ "${SESSION_COMMITS:-0}" -le 1 ]]; then
             echo "⚠️  STUB WARNING: ${TODAY}-session.md は placeholder のまま + commit≤1。Tier 3 stub になります (KB graph noise)。" >&2
             echo "   → narrative を書くか、commit を増やすか、削除候補として _index.md に追加してください" >&2
             echo "   詳細: knowledge-base/wiki/sessions/_index.md" >&2
@@ -40,7 +41,8 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>" >/dev/null
     echo "KB changes auto-committed" >&2
 fi
 
-# 3. push（リモートにKB永続化）
-git push origin main >/dev/null 2>/dev/null || true
+# 3. push（リモートにKB永続化）— 失敗は握り潰さず stderr に可視化する
+#    (クラウド環境等で main 直 push が拒否されると KB 永続化が黙って抜けるため)
+git push origin main >/dev/null 2>/dev/null || echo "⚠️  KB push failed — session log はローカル commit のみ (要手動 push)" >&2
 
 echo '{"systemMessage":"Session log saved to KB."}'
