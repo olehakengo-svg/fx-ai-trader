@@ -4456,6 +4456,16 @@ N=1で−77.5というEVは統計的に無意味だが、実損失としては�
 - JPY系3ペアが全てVOLATILE×SMA下降という**最も危険なフェーズ**に入っている
 - 現在唯一稼働しているUSD_JPY買い系戦略は、このレジームと**構造的に逆行**している
 
+### 2026-09-14 (Pre-Tokyo Briefing)
+前日（2026-09-13）は**トレードゼロ**。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後累積（全期間）はN=6、WR=66.7%、PnL=+27.2pと極めて限定的な蓄積にとどまっている。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的地位**: N=6はいずれも「データなし」域。EV・WRは参考値に過ぎず、昇格基準（N≥30 & EV≥1.0）には遠く及ばない。
+- r2_shadow_demoted_cellの蓄積状況がscalp系の約定抑制の本体であることを意識して観察を継続する
+- hedge_blockの集中（daytrade + scalp_5m_eur + scalp_5m_gbp + daytrade_eurjpy）がJPY方向の一方向集中に起因していないか本日のレジームと照合する
+- rnb_usdjpyはVOLATILEレジーム（ATR%ile 76%）下でのno_signalが連続しており、このモードの稼働妥当性を継続注視する
+- JPY系のATR%ile（74〜79%）は高水準。週明け月曜の流動性回復で**VOLATILE継続 or 急転換**の分岐点
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
