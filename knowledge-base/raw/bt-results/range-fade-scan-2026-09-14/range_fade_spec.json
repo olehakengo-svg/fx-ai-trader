@@ -1,0 +1,1765 @@
+{
+ "declared_at": "2026-09-14",
+ "spec_name": "range_boundary_limit_fade_v1_prereg",
+ "status": "PRE-REG DECLARED — frozen. No cell additions, no parameter changes, no post-hoc slicing after this document.",
+ "hypothesis": "Within an ESTABLISHED intraday range (trailing rolling extreme aged >= 4h, width bounded below by 20x RT friction and above by a daily-ATR multiple), a strict penetration of the range boundary is, net of friction, followed by mean reversion toward the range interior sufficiently often that a resting limit order AT the boundary (filled mid-penetration, no confirmation) has positive net EV with fixed TP/SL and a 12h time stop. The claimed edge source is the CONDITIONING on range establishment plus the entry-price differential vs confirmation-based entries — NOT execution mechanics alone.",
+ "universe": {
+  "pairs": [
+   "USD_JPY",
+   "EUR_USD",
+   "GBP_USD",
+   "EUR_JPY"
+  ],
+  "excluded_pairs": {
+   "EUR_GBP": "excluded to preserve independence from sweep_reversion_eurgbp PASS sample and the running P-S1(a) lock population (declared, not optional)"
+  },
+  "timeframe": "15m",
+  "data_source": "data/cache/massive/{PAIR}_15m.parquet (frozen MASSIVE cache; refreeze --verify-only before run per project freeze procedure)",
+  "columns_allowed": [
+   "Open",
+   "High",
+   "Low",
+   "Close"
+  ],
+  "columns_forbidden": [
+   "Volume",
+   "vwap",
+   "any positioning/sentiment feature"
+  ],
+  "columns_forbidden_reason": "E12 volume forward pre-reg LOCK (first look 2027-02-05): parquet files DO contain Volume/vwap — they must not be read into the BT frame. E1/oanda_labs positioning LOCK: price-only features."
+ },
+ "bt_windows": {
+  "USD_JPY": {
+   "start_utc": "2025-09-14T04:00:00Z",
+   "end_utc": "2026-09-14T04:00:00Z"
+  },
+  "EUR_USD": {
+   "start_utc": "2025-09-14T04:00:00Z",
+   "end_utc": "2026-09-14T04:00:00Z"
+  },
+  "GBP_USD": {
+   "start_utc": "2025-09-14T04:00:00Z",
+   "end_utc": "2026-09-14T04:00:00Z"
+  },
+  "EUR_JPY": {
+   "start_utc": "2025-07-21T10:45:00Z",
+   "end_utc": "2026-07-21T10:45:00Z"
+  },
+  "caveat_eur_jpy": "EUR_JPY 15m cache tail is 2026-07-21T10:45Z (frozen 2026-07-22); its 365d window (2025-07-21..2026-07-21) is NOT contemporaneous with the other three pairs (2025-09-14..2026-09-14). Cross-pair comparisons and any pooled statements must carry this caveat; regime composition may differ across windows. No backfill/refetch before the run without a separate freeze + audit (MASSIVE vendor drift lesson 2026-07-29)."
+ },
+ "cells": [
+  {
+   "cell_id": "USD_JPY_lb96_any_midasym",
+   "pair": "USD_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 42.8,
+    "min_width_rule": "W >= 20.0x RT (2.14p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.14,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "USD_JPY_lb96_any_sym1r",
+   "pair": "USD_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 42.8,
+    "min_width_rule": "W >= 20.0x RT (2.14p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.14,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "USD_JPY_lb96_lowvol_midasym",
+   "pair": "USD_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 42.8,
+    "min_width_rule": "W >= 20.0x RT (2.14p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.14,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "USD_JPY_lb96_lowvol_sym1r",
+   "pair": "USD_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 42.8,
+    "min_width_rule": "W >= 20.0x RT (2.14p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.14,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "USD_JPY_lb192_any_midasym",
+   "pair": "USD_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 42.8,
+    "min_width_rule": "W >= 20.0x RT (2.14p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.14,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "USD_JPY_lb192_any_sym1r",
+   "pair": "USD_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 42.8,
+    "min_width_rule": "W >= 20.0x RT (2.14p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.14,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "USD_JPY_lb192_lowvol_midasym",
+   "pair": "USD_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 42.8,
+    "min_width_rule": "W >= 20.0x RT (2.14p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.14,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "USD_JPY_lb192_lowvol_sym1r",
+   "pair": "USD_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 42.8,
+    "min_width_rule": "W >= 20.0x RT (2.14p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.14,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb96_any_midasym",
+   "pair": "EUR_USD",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 40.0,
+    "min_width_rule": "W >= 20.0x RT (2.0p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.0,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb96_any_sym1r",
+   "pair": "EUR_USD",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 40.0,
+    "min_width_rule": "W >= 20.0x RT (2.0p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.0,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb96_lowvol_midasym",
+   "pair": "EUR_USD",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 40.0,
+    "min_width_rule": "W >= 20.0x RT (2.0p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.0,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb96_lowvol_sym1r",
+   "pair": "EUR_USD",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 40.0,
+    "min_width_rule": "W >= 20.0x RT (2.0p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.0,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb192_any_midasym",
+   "pair": "EUR_USD",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 40.0,
+    "min_width_rule": "W >= 20.0x RT (2.0p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.0,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb192_any_sym1r",
+   "pair": "EUR_USD",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 40.0,
+    "min_width_rule": "W >= 20.0x RT (2.0p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.0,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb192_lowvol_midasym",
+   "pair": "EUR_USD",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 40.0,
+    "min_width_rule": "W >= 20.0x RT (2.0p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.0,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb192_lowvol_sym1r",
+   "pair": "EUR_USD",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 40.0,
+    "min_width_rule": "W >= 20.0x RT (2.0p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.0,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "GBP_USD_lb96_any_midasym",
+   "pair": "GBP_USD",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 90.6,
+    "min_width_rule": "W >= 20.0x RT (4.53p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 4.53,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "GBP_USD_lb96_any_sym1r",
+   "pair": "GBP_USD",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 90.6,
+    "min_width_rule": "W >= 20.0x RT (4.53p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 4.53,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "GBP_USD_lb96_lowvol_midasym",
+   "pair": "GBP_USD",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 90.6,
+    "min_width_rule": "W >= 20.0x RT (4.53p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 4.53,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "GBP_USD_lb96_lowvol_sym1r",
+   "pair": "GBP_USD",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 90.6,
+    "min_width_rule": "W >= 20.0x RT (4.53p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 4.53,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "GBP_USD_lb192_any_midasym",
+   "pair": "GBP_USD",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 90.6,
+    "min_width_rule": "W >= 20.0x RT (4.53p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 4.53,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "GBP_USD_lb192_any_sym1r",
+   "pair": "GBP_USD",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 90.6,
+    "min_width_rule": "W >= 20.0x RT (4.53p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 4.53,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "GBP_USD_lb192_lowvol_midasym",
+   "pair": "GBP_USD",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 90.6,
+    "min_width_rule": "W >= 20.0x RT (4.53p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 4.53,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "GBP_USD_lb192_lowvol_sym1r",
+   "pair": "GBP_USD",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 90.6,
+    "min_width_rule": "W >= 20.0x RT (4.53p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 4.53,
+    "pip_size": 0.0001,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-09-14T04:00:00Z",
+    "end_utc": "2026-09-14T04:00:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb96_any_midasym",
+   "pair": "EUR_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 50.0,
+    "min_width_rule": "W >= 20.0x RT (2.5p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.5,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-07-21T10:45:00Z",
+    "end_utc": "2026-07-21T10:45:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb96_any_sym1r",
+   "pair": "EUR_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 50.0,
+    "min_width_rule": "W >= 20.0x RT (2.5p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.5,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-07-21T10:45:00Z",
+    "end_utc": "2026-07-21T10:45:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb96_lowvol_midasym",
+   "pair": "EUR_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 50.0,
+    "min_width_rule": "W >= 20.0x RT (2.5p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.5,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-07-21T10:45:00Z",
+    "end_utc": "2026-07-21T10:45:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb96_lowvol_sym1r",
+   "pair": "EUR_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 96,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-96 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-96 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 50.0,
+    "min_width_rule": "W >= 20.0x RT (2.5p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 1.5,
+    "max_width_rule": "W <= 1.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.5,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-07-21T10:45:00Z",
+    "end_utc": "2026-07-21T10:45:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb192_any_midasym",
+   "pair": "EUR_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 50.0,
+    "min_width_rule": "W >= 20.0x RT (2.5p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.5,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-07-21T10:45:00Z",
+    "end_utc": "2026-07-21T10:45:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb192_any_sym1r",
+   "pair": "EUR_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "any",
+   "regime_definition": "no additional state filter beyond range-establishment eligibility",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 50.0,
+    "min_width_rule": "W >= 20.0x RT (2.5p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.5,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-07-21T10:45:00Z",
+    "end_utc": "2026-07-21T10:45:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb192_lowvol_midasym",
+   "pair": "EUR_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "range-mid TP / 0.35W SL (asymmetric)",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.35*W beyond entry boundary (outside the range)",
+    "rr": 1.43,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "midasym",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 50.0,
+    "min_width_rule": "W >= 20.0x RT (2.5p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.5,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-07-21T10:45:00Z",
+    "end_utc": "2026-07-21T10:45:00Z"
+   }
+  },
+  {
+   "cell_id": "EUR_JPY_lb192_lowvol_sym1r",
+   "pair": "EUR_JPY",
+   "timeframe": "15m",
+   "lookback_bars": 192,
+   "regime": "lowvol",
+   "regime_definition": "ATR_D1(14) of the pair (D1 bars resampled from the same frozen 15m source, UTC day boundary) is below its median over the trailing 30 D1 observations (percentile < 50). Evaluated at the close of the prior UTC day; applies to all bars of the current day. No intraday recompute, no look-ahead.",
+   "exit": {
+    "label": "symmetric 1R: TP 0.5W / SL 0.5W",
+    "tp": "range midpoint = entry boundary +/- 0.5*W toward range interior (distance 0.5*W)",
+    "sl": "0.5*W beyond entry boundary (outside the range)",
+    "rr": 1.0,
+    "time_stop_bars": 48,
+    "time_stop_rule": "if neither TP nor SL hit within 48 bars (12h) of entry, exit at the 48th bar close; RT friction still deducted in full",
+    "frozen_at_entry": true,
+    "be_trail": "FORBIDDEN (project ablation: BE/trail inflates Python BT WR +20pp)"
+   },
+   "exit_key": "sym1r",
+   "range_definition": {
+    "high": "max(High[t-192 .. t-1]) (current bar t excluded)",
+    "low": "min(Low[t-192 .. t-1]) (current bar t excluded)",
+    "width_W": "range_high - range_low, in pips"
+   },
+   "eligibility": {
+    "boundary_age_min_bars": 16,
+    "boundary_age_rule": "a boundary is armed only if the bar that set the extreme is >= 16 bars (4h) before t; sides armed independently",
+    "min_width_pips": 50.0,
+    "min_width_rule": "W >= 20.0x RT (2.5p) => TP distance 0.5W >= 10x RT (friction/TP <= 10%, sr_channel_reversal rebrand guard)",
+    "max_width_atr_d1_mult": 2.5,
+    "max_width_rule": "W <= 2.5x ATR_D1(14) (excludes trend legs; ATR_D1 from D1 resample of same source, prior-day value)",
+    "one_position_per_cell": true,
+    "both_boundaries_penetrated_same_bar": "no entry on either side; event logged (intra-bar path ambiguous)"
+   },
+   "entry": {
+    "type": "resting limit at boundary, fade direction",
+    "buy": "limit at range_low; fills iff Low[t] < range_low STRICTLY (penetration); entry price = range_low",
+    "sell": "limit at range_high; fills iff High[t] > range_high STRICTLY (penetration); entry price = range_high",
+    "sides": "buy and sell POOLED within the cell; per-side results reported as diagnostics only, never gated or promoted separately (#19 no-post-hoc-slice inheritance)",
+    "confirmation": "NONE by design (no rejection candle, no RSI, no reclaim) — this is the declared differential vs sweep&reclaim and vs asia_range_fade_v1"
+   },
+   "friction": {
+    "rt_pips": 2.5,
+    "pip_size": 0.01,
+    "rule": "full declared RT deducted from every trade PnL; NO credit for limit-fill price improvement (conservative)"
+   },
+   "same_bar_rule": "if both TP and SL price levels lie within any bar's High-Low range (entry bar included, after fill), SL is deemed hit first (conservative)",
+   "bt_window": {
+    "start_utc": "2025-07-21T10:45:00Z",
+    "end_utc": "2026-07-21T10:45:00Z"
+   }
+  }
+ ],
+ "n_cells": 32,
+ "gates": {
+  "unit_of_test": "cell (pair x lookback x regime x exit). Sides pooled. All four primary gates must pass jointly for a cell PASS.",
+  "primary": {
+   "min_n": 30,
+   "friction_adjusted_ev": "mean net per-trade PnL (pips, after full RT deduction) > 0",
+   "null_bootstrap": {
+    "alpha": 0.0015625,
+    "alpha_value": 0.0015625,
+    "K": 32,
+    "method": "recentered stationary block bootstrap on the cell's net per-trade PnL sequence (trade order preserved), mean block length 10 trades, 10,000 iterations, one-sided: p = P(bootstrap mean under H0-recentered distribution >= observed mean). Pass iff p < 0.05/32 = 0.0015625."
+   },
+   "walk_forward": "each pair's 365d window split into 3 equal contiguous segments (no shuffling); sign(net mean EV) must be positive in >= 2 of 3 segments. Segments with < 5 trades count as NON-agreeing (conservative)."
+  },
+  "promotion_conditions_beyond_cell_pass": {
+   "stressed_rt": "net EV must remain > 0 at 1.5x declared RT; 2.0x reported. Rationale: #17 fx_quote_spread_state byproduct — boundary penetrations correlate with spread-anomaly onsets where realized RT is 2-3x nominal; nominal-RT net alone is optimistic for THIS entry type specifically.",
+   "asia_window_decomposition": "report net EV contribution of fills with entry bar in UTC 00:00-06:59. If a cell's positive EV is majority-sourced from this window, promotion is blocked pending the night-scalper archetype spread-envelope check (overnight spread widening not captured by nominal RT).",
+   "procedure": "any live/shadow promotion is Rule 1 (365d BT + Bonferroni + pre-reg LOCK already satisfied here, but tier action itself is a separate R1 task, not part of this BT)"
+  },
+  "hard_preconditions_before_first_run": [
+   "H4 ban-scope original audit (BLOCKING): per feedback_audit_past_verdicts (user standing order 2026-08-05), read the original decision doc for project_h4_level_edge_falsified and tools/h4_level_edge_explore.py BEFORE any BT execution. The audit summary marks its estimand extraction as [原本未読]. If the original ban scope explicitly covers conditional rolling-extreme fades (not just swing-pivot touch IC), this grid is VOID and must not run.",
+   "sweep&reclaim TF confirmation: confirm from tools/sweep_reclaim_explore.py that the falsified estimand was 15m (audit marks TF as inferred). Record in the run log.",
+   "Data freeze verify: refreeze --verify-only (sha256) on the four 15m parquets; no refetch."
+  ]
+ },
+ "fill_model": {
+  "signal_bar": "range computed on bars [t-lb, t-1]; orders live for bar t only if eligibility holds at t-1 close",
+  "penetration_required": true,
+  "entry_price": "exactly the boundary level (limit price), no slippage credit or debit",
+  "same_bar_tp_sl": "SL first (conservative)",
+  "position_limit": "1 per cell; no new entries while a position is open in that cell",
+  "no_lookahead": "all filters (regime, ATR, width, age) computed strictly from data available at t-1 close / prior day close"
+ },
+ "notes": [
+  "SAME-FORM AVOIDANCE MAP (one entry per audit item with risk >= partial):",
+  [
+   "[H4 horizontal-level edge — falsified, IC null | risk partial-yes] Differentiation is NOT execution (audit correctly rejects 'limit entry alone'). Declared differentials: (1) level constructor — trailing rolling window max/min refreshed every bar with NO pivot confirmation, vs static confirmed H4 swing pivots that persist as historical levels; event = FRESH trailing extreme penetration, not revisit of a confirmed level; (2) population conditioning — events admitted only in established-range state (age >= 16 bars, 20xRT <= W <= ATR-cap); the H4 study measured UNCONDITIONAL touch IC pooled over all market states (N=10-15k); a pooled IC null does not falsify a conditional-subpopulation hypothesis if the conditioned subset is a small fraction of pooled events (dilution). The run MUST report the fraction of our entry events that would also qualify as H4-swing-level touches; if overlap > 50% the differentiation claim is weakened and the result inherits the H4 prior in interpretation. (3) BLOCKING precondition: original ban-scope audit before first run (see gates.hard_preconditions)."
+  ],
+  [
+   "[Horizontal sweep&reclaim — falsified, negative EV | risk partial] Estimand is non-identical (entry trigger differs) but mechanism family is shared; adversarial justification (required by audit) is DECLARED here as the testable differential hypothesis: sweep&reclaim entered at the reclaim-confirmation close, surrendering the full sweep excursion + confirmation bars; this design fills AT the boundary. Per-trade entry-price differential = sweep depth + reclaim distance. Hypothesis: that differential exceeds |their negative EV| + the adverse-selection cost of unconfirmed fills (selection into continuation breakouts). This is exactly what the grid measures net; if adverse selection dominates, cells fail the gates — the design does not assume the answer. Additional separation: established-range conditioning (theirs was unconditional liquidity levels)."
+  ],
+  [
+   "[asia_range_fade_v1 — OPEN pre-reg LOCK | risk partial] P-10 informal-peek avoidance by ex-ante estimand differential, declared here BEFORE any measurement: lookback 96/192 bars vs their 24; entry limit-penetration with NO confirmation vs their market entry gated on rejection candle + RSI(14) extremes; session unconditional vs their UTC02-06 only; exit 0.35-0.5W SL + 12h time stop vs their ATR-based SL + London-open time stop. No result from this grid may be used to argue for/against asia_range_fade_v1 before its own Phase 3 BT; the Asia-window decomposition here is a friction diagnostic, not a session-edge readout."
+  ],
+  [
+   "[sr_channel_reversal — KILL/RETIRED | risk yes-partial] Rebrand-retry guard, all three audit requirements implemented: (1) friction/TP <= 10% STRUCTURAL via W >= 20xRT eligibility floor (their kill driver was friction = 23.7% of TP 7.2p); (2) limit penetration entry replaces touch-market entry (their losers' MAFE showed touch entry had zero predictive value; entry price here is better by construction); (3) this pre-reg diff section is the estimand-audit documentation. Full RT is still charged with no limit-improvement credit — conservative against their failure mode, not assuming it away."
+  ],
+  [
+   "[Night-scalper archetype — NOT-FEASIBLE-RETAIL | risk partial] Structurally avoided: TP distance >= 10x RT (>= 20-45p depending on pair) cannot sit inside an overnight spread envelope of 5-15p gross; additionally the Asia-window decomposition promotion condition directly tests the archetype's failure mode before any tier action."
+  ],
+  [
+   "[#21 commodity_cross_range_mr — explore FAIL | risk no, prior inherited] Non-overlap: majors/JPY x 15m intraday vs 3 commodity crosses x multi-day. The 12h (48-bar) time stop structurally prevents drift into multi-day holding (instant adjacency per audit). NEGATIVE PRIOR DECLARED: slow-MR band-fade is 0-for-4 ('direction right but weak': ppp/qs/rn/cc-mr). This grid's Bonferroni threshold and joint gates are set with that prior; a 'direction right but weak' outcome (EV>0, bootstrap fail) is a FAIL, and no advocacy for threshold relaxation is permitted post-hoc."
+  ],
+  [
+   "[#18 level_failed_break_d1 | risk no] Non-overlap (D1 close-confirmed failed break, multi-day). Inherited prior: at D1 scale, extreme-reach faded produced SIGN-REVERSED (continuation) results — fade-of-extremes does not extrapolate across timeframes; no post-hoc sign flip to continuation is permitted here either (declared)."
+  ],
+  [
+   "[#19 round_number_major_level | risk no] Level definition disjoint (trailing extremes vs 00 grid). USD_JPY range boundaries will occasionally coincide with 00 levels; coincidence events are NOT excluded (estimand non-identical) but the no-post-hoc-slicing clause is inherited in full: no side/pair/horizon/level-type carve-outs after results."
+  ],
+  [
+   "[bb_rsi_reversion T10 KILL | risk no] No indicator-band features. Inherited constraint implemented: headroom passes NET, not nominal — W>=20xRT floor + full-RT deduction + 1.5x stressed-RT promotion condition."
+  ],
+  [
+   "[channel edge / L-d ADJACENT clause | risk no] Geometry disjoint (horizontal range boundary vs sloped bands), but the L-d general clause is honored: explicit diff section (this notes block) + conditional-population-first framing."
+  ],
+  [
+   "[dt_sr_channel_reversal — live prior, not a ban] This grid is the legitimate test of its officially standing follow-up hypothesis (gross +2.25p eaten by friction 3.32p -> limit fill + tight-spread pairs). GBP_USD (RT 4.53p) is retained but its eligibility floor (W >= 90.6p) is expected to slash N; a GBP_USD cell failing min_n=30 is an honest outcome, NOT grounds for mid-course floor relaxation (declared)."
+  ],
+  [
+   "[#17 fx_quote_spread_state ban | risk no] No spread-state feature is used for direction. Its byproduct (2-3x RT at anomaly onset) is adopted as the stressed-RT promotion condition."
+  ],
+  [
+   "[sweep_reversion_eurgbp PASS + P-S1(a)] EUR_GBP excluded from universe (declared above). Positive prior used: 15m MR effective horizon 4-12h, reversal beyond 24h -> 12h time stop; no holding-period extension permitted post-hoc."
+  ],
+  [
+   "[E12 volume LOCK / E1 positioning LOCK / mtf_regime_range_cascade] Volume+vwap columns exist in the parquets and are DECLARED unread. No positioning/sentiment features. mtf_regime_range_cascade (range_tight scalp MR, small-N live losses) noted as adverse prior; estimand disjoint (1m/5m indicator MR vs 15m limit fade)."
+  ],
+  [
+   "EXECUTION DISCIPLINE: BE/trail forbidden; TP/SL frozen at entry; grid frozen at declaration (Bonferroni K=32 counts every cell whether or not it fires); harness code must be committed BEFORE the first full-window run; results go to knowledge-base/raw/bt-results/ and a wiki/learning/ rich report with Wilson/Bonferroni/bootstrap numbers regardless of outcome."
+  ]
+ ]
+}

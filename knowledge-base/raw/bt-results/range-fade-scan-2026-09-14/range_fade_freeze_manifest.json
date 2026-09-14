@@ -1,0 +1,22 @@
+{
+ "EUR_JPY": {
+  "frozen_at": "2026-09-14T05:47:45.130675+00:00",
+  "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/EUR_JPY_15m.parquet",
+  "sha256": "23b9f31a90a996c88c9391a20bc00ba43159b955f42c5584adc0df6c66de0ab0"
+ },
+ "EUR_USD": {
+  "frozen_at": "2026-09-14T05:47:42.953096+00:00",
+  "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/EUR_USD_15m.parquet",
+  "sha256": "8da4964d9e99ebc1d7a2dc152753cfb890c231092ac3c49c4631cc06f6a27d85"
+ },
+ "GBP_USD": {
+  "frozen_at": "2026-09-14T05:47:45.788020+00:00",
+  "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/GBP_USD_15m.parquet",
+  "sha256": "71b5dcda2773430aaa0b0446232c0eafd6a5ce6f04a8ef830d6799764cc5792a"
+ },
+ "USD_JPY": {
+  "frozen_at": "2026-09-14T05:45:51.694960+00:00",
+  "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/USD_JPY_15m.parquet",
+  "sha256": "55acea50d4d166465186c31f30f1178d16d1bf6008c9e1a0358d0186232aebf3"
+ }
+}

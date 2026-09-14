@@ -1,0 +1,543 @@
+{
+ "pair": "EUR_USD",
+ "window": {
+  "start": "2025-09-14T04:00:00+00:00",
+  "end": "2026-09-14T04:00:00+00:00"
+ },
+ "cells": [
+  {
+   "cell_id": "EUR_USD_lb96_any_midasym",
+   "n": 177,
+   "wr": 0.423728813559322,
+   "ev_pips": -1.5899435028248972,
+   "total_pips": -281.4200000000068,
+   "wilson_lo": 0.3533101874379408,
+   "p_boot": 0.3548645135486451,
+   "p_block": 0.9095090490950904,
+   "wf_signs": [
+    -1,
+    -1,
+    1
+   ],
+   "median_hold_bars": 21.0,
+   "params": {
+    "lookback_bars": 96,
+    "regime": "any",
+    "exit_key": "midasym",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.35,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 40.0,
+    "max_width_atr_d1_mult": 1.5,
+    "rt_pips": 2.0,
+    "pip_size": 0.0001
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 88,
+    "n_sell": 89,
+    "exit_reasons": {
+     "TP": 59,
+     "SL": 81,
+     "TIME": 37,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     68,
+     66,
+     43
+    ],
+    "wf_fold_total_pips": [
+     -59.425,
+     -247.34,
+     25.345
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb96_any_sym1r",
+   "n": 174,
+   "wr": 0.4827586206896552,
+   "ev_pips": -1.6879310344827558,
+   "total_pips": -293.69999999999953,
+   "wilson_lo": 0.40968831150803964,
+   "p_boot": 0.42595740425957407,
+   "p_block": 0.8872112788721128,
+   "wf_signs": [
+    -1,
+    -1,
+    1
+   ],
+   "median_hold_bars": 29.0,
+   "params": {
+    "lookback_bars": 96,
+    "regime": "any",
+    "exit_key": "sym1r",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.5,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 40.0,
+    "max_width_atr_d1_mult": 1.5,
+    "rt_pips": 2.0,
+    "pip_size": 0.0001
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 88,
+    "n_sell": 86,
+    "exit_reasons": {
+     "TP": 63,
+     "SL": 60,
+     "TIME": 51,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     67,
+     65,
+     42
+    ],
+    "wf_fold_total_pips": [
+     -188.0,
+     -205.05,
+     99.35
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb96_lowvol_midasym",
+   "n": 123,
+   "wr": 0.4634146341463415,
+   "ev_pips": -0.6015853658536805,
+   "total_pips": -73.9950000000027,
+   "wilson_lo": 0.3777351449104319,
+   "p_boot": 0.19718028197180282,
+   "p_block": 0.6655334466553344,
+   "wf_signs": [
+    -1,
+    -1,
+    1
+   ],
+   "median_hold_bars": 22.0,
+   "params": {
+    "lookback_bars": 96,
+    "regime": "lowvol",
+    "exit_key": "midasym",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.35,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 40.0,
+    "max_width_atr_d1_mult": 1.5,
+    "rt_pips": 2.0,
+    "pip_size": 0.0001
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 57,
+    "n_sell": 66,
+    "exit_reasons": {
+     "TP": 43,
+     "SL": 54,
+     "TIME": 26,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     64,
+     26,
+     33
+    ],
+    "wf_fold_total_pips": [
+     -76.89,
+     -104.75,
+     107.645
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb96_lowvol_sym1r",
+   "n": 120,
+   "wr": 0.5083333333333333,
+   "ev_pips": -1.4987500000000467,
+   "total_pips": -179.8500000000056,
+   "wilson_lo": 0.42002539783666054,
+   "p_boot": 0.4056594340565943,
+   "p_block": 0.7954204579542046,
+   "wf_signs": [
+    -1,
+    -1,
+    1
+   ],
+   "median_hold_bars": 29.5,
+   "params": {
+    "lookback_bars": 96,
+    "regime": "lowvol",
+    "exit_key": "sym1r",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.5,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 40.0,
+    "max_width_atr_d1_mult": 1.5,
+    "rt_pips": 2.0,
+    "pip_size": 0.0001
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 57,
+    "n_sell": 63,
+    "exit_reasons": {
+     "TP": 44,
+     "SL": 41,
+     "TIME": 35,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     63,
+     25,
+     32
+    ],
+    "wf_fold_total_pips": [
+     -197.95,
+     -152.95,
+     171.05
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb192_any_midasym",
+   "n": 170,
+   "wr": 0.37058823529411766,
+   "ev_pips": -4.65514705882352,
+   "total_pips": -791.3749999999984,
+   "wilson_lo": 0.30159755698243,
+   "p_boot": 0.9284071592840716,
+   "p_block": 0.9994000599940006,
+   "wf_signs": [
+    -1,
+    -1,
+    -1
+   ],
+   "median_hold_bars": 40.0,
+   "params": {
+    "lookback_bars": 192,
+    "regime": "any",
+    "exit_key": "midasym",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.35,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 40.0,
+    "max_width_atr_d1_mult": 2.5,
+    "rt_pips": 2.0,
+    "pip_size": 0.0001
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 88,
+    "n_sell": 82,
+    "exit_reasons": {
+     "TP": 25,
+     "SL": 68,
+     "TIME": 77,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     65,
+     55,
+     50
+    ],
+    "wf_fold_total_pips": [
+     -182.845,
+     -442.305,
+     -166.225
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb192_any_sym1r",
+   "n": 169,
+   "wr": 0.42011834319526625,
+   "ev_pips": -3.0609467455622092,
+   "total_pips": -517.3000000000134,
+   "wilson_lo": 0.34828896081455013,
+   "p_boot": 0.7155284471552845,
+   "p_block": 0.9637036296370363,
+   "wf_signs": [
+    -1,
+    -1,
+    1
+   ],
+   "median_hold_bars": 48.0,
+   "params": {
+    "lookback_bars": 192,
+    "regime": "any",
+    "exit_key": "sym1r",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.5,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 40.0,
+    "max_width_atr_d1_mult": 2.5,
+    "rt_pips": 2.0,
+    "pip_size": 0.0001
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 88,
+    "n_sell": 81,
+    "exit_reasons": {
+     "TP": 29,
+     "SL": 34,
+     "TIME": 106,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     64,
+     55,
+     50
+    ],
+    "wf_fold_total_pips": [
+     -138.2,
+     -386.75,
+     7.65
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb192_lowvol_midasym",
+   "n": 125,
+   "wr": 0.392,
+   "ev_pips": -3.597520000000011,
+   "total_pips": -449.69000000000136,
+   "wilson_lo": 0.31086100564156294,
+   "p_boot": 0.7747225277472253,
+   "p_block": 0.9902009799020098,
+   "wf_signs": [
+    -1,
+    -1,
+    -1
+   ],
+   "median_hold_bars": 38.0,
+   "params": {
+    "lookback_bars": 192,
+    "regime": "lowvol",
+    "exit_key": "midasym",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.35,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 40.0,
+    "max_width_atr_d1_mult": 2.5,
+    "rt_pips": 2.0,
+    "pip_size": 0.0001
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 64,
+    "n_sell": 61,
+    "exit_reasons": {
+     "TP": 19,
+     "SL": 52,
+     "TIME": 54,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     62,
+     24,
+     39
+    ],
+    "wf_fold_total_pips": [
+     -196.245,
+     -222.955,
+     -30.49
+    ]
+   }
+  },
+  {
+   "cell_id": "EUR_USD_lb192_lowvol_sym1r",
+   "n": 124,
+   "wr": 0.43548387096774194,
+   "ev_pips": -2.148387096774306,
+   "total_pips": -266.40000000001396,
+   "wilson_lo": 0.35145249768827286,
+   "p_boot": 0.5182481751824818,
+   "p_block": 0.8878112188781122,
+   "wf_signs": [
+    -1,
+    -1,
+    1
+   ],
+   "median_hold_bars": 48.0,
+   "params": {
+    "lookback_bars": 192,
+    "regime": "lowvol",
+    "exit_key": "sym1r",
+    "tp_mult_W": 0.5,
+    "sl_mult_W": 0.5,
+    "time_stop_bars": 48,
+    "boundary_age_min_bars": 16,
+    "min_width_pips": 40.0,
+    "max_width_atr_d1_mult": 2.5,
+    "rt_pips": 2.0,
+    "pip_size": 0.0001
+   },
+   "diagnostics": {
+    "both_pen": {
+     "ambiguous_skipped": 0,
+     "one_armed_filled": 0,
+     "unarmed_no_orders": 0,
+     "ambiguous_skip_ratio_vs_fills": 0.0,
+     "counterfactual_sl_first": {
+      "note": "per skipped ambiguous event: both hypothetical fills simulated independently under the same SL-first engine (entry-bar TP close-proof incl.), full RT deducted; diagnostics only \u2014 spec-level live divergence caveat, required in any PASS writeup",
+      "buy_net_pips": [],
+      "sell_net_pips": [],
+      "buy_total": 0.0,
+      "sell_total": 0.0,
+      "worst_case_total": 0.0
+     }
+    },
+    "n_buy": 64,
+    "n_sell": 60,
+    "exit_reasons": {
+     "TP": 22,
+     "SL": 26,
+     "TIME": 76,
+     "data_end": 0
+    },
+    "wf_fold_n": [
+     61,
+     24,
+     39
+    ],
+    "wf_fold_total_pips": [
+     -151.6,
+     -157.4,
+     42.6
+    ]
+   }
+  }
+ ],
+ "meta": {
+  "spec_name": "range_boundary_limit_fade_v1_prereg",
+  "smoke": false,
+  "window_source": "spec bt_windows (pinned; tail-asserted == end_utc)",
+  "spec_bt_window": {
+   "start_utc": "2025-09-14T04:00:00Z",
+   "end_utc": "2026-09-14T04:00:00Z"
+  },
+  "parquet_tail_assert": "passed (== spec end_utc, tolerance 0)",
+  "data_sha256": "8da4964d9e99ebc1d7a2dc152753cfb890c231092ac3c49c4631cc06f6a27d85",
+  "freeze_manifest": "/private/tmp/claude-501/-Users-jg-n-012-test-fx-ai-trader/f3676a38-1de9-431d-9d65-ce8911465029/scratchpad/range_fade_freeze_manifest.json",
+  "freeze_status": "created_entry",
+  "boot_iters": 10000,
+  "block_boot_iters": 10000,
+  "mean_block_len": 10,
+  "seed": 20260914,
+  "generated_at": "2026-09-14T05:47:45.520974+00:00",
+  "bonferroni_alpha": 0.0015625,
+  "min_achievable_p_boot": 9.999000099990002e-05,
+  "min_achievable_p_block": 9.999000099990002e-05,
+  "p_boot_is_spec_gate_statistic": false,
+  "p_boot_usable_for_bonferroni_gate": false,
+  "p_boot_resolution_ok_for_alpha": true,
+  "p_block_is_spec_gate_statistic": true,
+  "p_block_usable_for_bonferroni_gate": true,
+  "p_boot_definition": "random-entry null (market fill at Open, uniform random window bar; same direction + TP/SL distances as each actual trade; SAME exit policy: per-bar SL-first, time stop = cell time_stop_bars, hold endogenous \u2014 fix M5), one-sided, add-one smoothed. DIAGNOSTIC ONLY \u2014 never the Bonferroni gate statistic.",
+  "p_block_definition": "recentered stationary block bootstrap on the cell's net per-trade PnL sequence (order preserved), mean block length 10 trades, 10000 iters, one-sided, add-one smoothed; H0 = mean 0 with dependence preserved (spec gate statistic).",
+  "entry_bar_tp_rule": "entry bar TP requires post-fill proof via Close (buy: Close>=tp; sell: Close<=tp); full-bar High/Low never used for TP on the entry bar; SL full-bar (provably post-fill); SL before TP (fix C1).",
+  "both_pen_policy": "skip only when BOTH sides armed (two resting orders, path ambiguous; spec-declared); one-armed side fills normally (fix M2); counterfactual SL-first PnL of skipped events in diagnostics."
+ }
+}
