@@ -793,6 +793,14 @@
       "deadline": "2026-09-25",
       "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md",
       "message": "【期日に実行するコマンド】curl -s 'https://fx-ai-trader.onrender.com/api/demo/evaluated-candidates?view=summary&days=14' → summary キーに price_shock_rev_* が出ているか確認。HourlyEngine C1 candidate 計装 (2026-09-11 rule:R3 追加、app.py::compute_hourly_signal) の 到達確認 + ps 席残余の帰属。deploy 後 14 日で 3 点を判定する: (i) 上記 summary に price_shock_rev_* 5 席が出現しているか — 出現しなければ計装が届いていない (配線落ち) として R3 再修理。(ii) C1 書込み量の実測が見積り (DTE 経路 3,125 行/日と同オーダー) の 範囲か — /api/admin/disk_status で disk が逼迫していれば retention 短縮 (R3)。(iii) 3 席 (NZD_JPY / EUR_AUD / USD_CAD) の観測ゼロが (A) 上流 = evaluate_all が候補を出していない / (B) 下流 = 候補は席優先 select で勝ったが _tick_entry/order 層で落ちた のどちらに割れたか。**この 3 点が揃うまで ps 席残余は『未帰属』のまま据え置く (盛らない)。帰属が出るまで §7(a) 型の 供給是正を重ねない。** 親 verdict: ps-seat-supply-remeasure-30d (2026-09-11 REJECT)。EV / WR / PnL は計算しない — EV 判定は ps-carveout-regate-post-172 の凍結 look に委ねる (P-10 型 ban)"
+    },
+    {
+      "id": "daily-market-review-30d-effectiveness",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-14",
+      "doc": "knowledge-base/wiki/analyses/daily-market-review-protocol.md",
+      "message": "daily market review 30d 有効性レビュー期日 — 観測記録数 / 卒業 family 数 / 執行QA発見数を集計 (daily-observations-2026-09/10.md が SSOT)。稼働率 <50% または (執行QA発見 0 かつ 卒業 family 0) なら write-only 認定 → プロトコル廃止提案 (§6)。読み手 = wiki-daily Phase 2.5 + user 報告"
     }
   ]
 }

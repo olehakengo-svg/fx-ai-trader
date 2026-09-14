@@ -21,6 +21,10 @@ strategies/         → コード化されたもの
 ## Discovered Edges (Evaluation Pipeline)
 See [[edge-pipeline]]
 
+## Daily Observations (S0 intake 層、2026-09-14 新設)
+日次市場レビューの観測台帳 (記述級のみ、protocol: [[daily-market-review-protocol]]):
+- [[daily-observations-2026-09]] — 月次ファイル、週次 rollup は月曜
+
 ## Papers Read (25 papers, 2026-04-12 sweep)
 
 ### Pre-existing (7 papers)

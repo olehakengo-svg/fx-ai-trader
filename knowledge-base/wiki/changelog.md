@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-14 — feat(kb): 日次市場レビュー + 観測採集プロトコル新設 (S0 intake 層) (rule:R3)
+
+- **起点**: user 依頼「前営業日のチャート検証から毎日複数エッジを設計できないか」。クオンツ判定 = 「毎日勝てるエッジ設計」は base rate 4% ([[process-meta-audit-2026-09-07]] §1) の下で数学的に不成立 (年 700–1000 仮説の多重検定爆発)。**採集と検証を分離**した修正版のみ採用: 日次は記述級の観測採集、検証は既存 pre-reg バッチ経路
+- 🔵 **新設**: [[daily-market-review-protocol]] — S0 intake の上流観測層。統計規律 7 項 (記述級のみ / 凍結 look family の registry 事前確認 + outcome 量記載禁止 / counts=marginal 限定 / 保存 OOS 非接触 / トリガ日記録+卒業時 OOS 除外 / 台帳番号は既存経路のみ / 卒業前 ban 監査必須)、卒業 = 同一 family ≥3 独立観測 (独立 = 異日付の異 event)、読み手 4 層宣言、自己反証条項 §6。α 予算消費ゼロ。Tier B-daily (`daily_hypothesis_scan.py`) Phase 3 有効化は非スコープ (別決裁)
+- 🔵 観測台帳初号: [[daily-observations-2026-09]] — シード 3 観測 (O-2026-09-11-1 CPI flush 回帰 ⚠️**E15-H1 phase-0 CPI-fade OOS C5 FAIL が直接の先行 ban** / O-2026-09-14-1 WG drift 境界前提破れ / O-2026-09-14-2 CB 会合前週 marginal flag)。`.claude/commands/wiki-daily.md` に Phase 2.5 追加、registry に `daily-market-review-30d-effectiveness` (期日 2026-10-14) 追加
+- 🔵 **執行 QA 初発見 (O-2026-09-14-1)**: 2026-09-13 日曜 USD_JPY gap −50.0p で weekend_gap_fade は仕様通り発火 (shadow row id 17602 記録) したが、live 送信は WG_EXEC_B `ABANDONED_DRIFT` (tradeable 時点 drift +41.0p > 凍結境界 +8.0p)。**バグではなく凍結 amendment (user 承認 2026-09-10) の仕様通り**。ただし drift 実測は境界 +8.0p の ~5 倍 / 導出時 p90 6.7p (全 48 pair-weekend) の ~6 倍 — 大ギャップ event ほど live 送信が構造的に不可能になる選択バイアスの疑い。live fill 0 は live send 経路到達 event 4 連続 (meta-audit 集計基準、F2 期限 2026-12-31)。**escalation は registry `weekend-gap-execution-amendment-g0prime` (期日 09-28) へ回付 — +8.0p 境界の R1 再起案は packet §6 事前コミット (fill 不成立 2 連続、本 event は #1) まで保留** (user が独立に指示する場合はこの限りでない)
+- ⚠️ **敵対的レビュー (3 レンズ) が初稿を P1×3 で棄却 → 修正済み**: (1) O-2026-09-14-2 初稿の「30 分内回帰率 CB 週比較」は WG の未登録 split 事後シード = 観測前宣言違反 → marginal flag のみに縮退 (2) E7 の family 特徴づけを記憶から誤記 (正: E7=発表後 surprise-z 順方向 drift、直接 ban は E15 phase-0 CPI-fade) → 原本実読を §2.7 に義務化 (3) 初稿が shadow outcome を境界再審の根拠に併記 = selection-on-outcome → outcome 量を削除。**シード観測自身が規律違反を初日に 2 種踏んだ = 定義の緩さは即座に悪用される実証**として protocol 冒頭に記録
+- ⚖️ 月利目標への寄与の正直な評価: 本プロトコルは供給レートの乗数であり、M1 (現実的 2027 前半) / M2 (中心 2027-Q4〜2028) / M3 (中心 2029+) の時間軸自体は E1 first look (2026-10-15、⚠️ ingest 停止中 = 09-14 07:01Z 時点も AUTH FAILURE 継続、24h 欠測 breach 09-13T23:57Z 超過 → first look ~4 週延期が発効見込み) と PASS→live 変換の実証に律速される
+
 ## 2026-09-14 — diag(exit): 勝ち側 exit の regime break を確定 — shadow の avg_win 縮小は劣化でなく計測の是正 (rule:R3)
 
 - **起点**: 2026-09-13 cell deepdive が最優先アクションに指定した「`sr_anti_hunt_bounce` の avg_win が 2026-05 の 19.03p から 3.5〜5.9p へ 1/5 に縮んだ原因の実測特定」。新ツール `tools/win_side_exit_decomposition.py` (副作用なし) で Render PROD 17,602 件を close_reason × outcome × 保有時間 × MFE へ分解
