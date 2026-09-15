@@ -4506,6 +4506,16 @@ Cutoff後累積（全期間）はN=6、WR=66.7%、PnL=+27.2pと極めて限定�
 - Render管理コンソールでインスタンスの稼働状態を直接確認する
 - OANDA口座側でAPIアクセスログを確認し、接続拒否が発生していないかを検証する
 
+### 2026-09-15 (Pre-Tokyo Briefing)
+- **前日（2026-09-14）トレード数: 0件** — 全セッション（東京・ロンドン・NY）を通じて約定ゼロ
+- **Cutoff後累計**: N=4、WR=75.0%、PnL=+40.4p（全て`rnb_usdjpy`系列、USD_JPY集中）
+- 実質的に「待機セッション」が継続中。システムは稼働しているが信号生成・執行ともに機能停止状態
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+> **統計的注意**: N=4は「データなし」扱い。WR・EVの数値は参考値に過ぎず、昇格/降格判断の根拠にはなり得ない。EV+10.73は見栄えが良いが、4サンプルの正のバイアスである可能性を排除できない。
+- **主因**: Block Counts上位を見ると `hedge_block`（EUR/GBP系）・`order_bar_dedup`・`r2_shadow_demoted_cell`・`score_gate` が支配的
+- `daytrade_eurgbp:hedge_block` 544件、`daytrade_eur:hedge_block` 403件 — EUR系のヘッジブロックが突出して多く、シグナル自体は生成されているが相殺判定でカットされている
+- `scalp:r2_shadow_demoted_cell` 509件、`scalp_eur:r2_shadow_demoted_cell` 205件 — Scalp系はShadow降格セルへの到達が多く、執行フィルタで除去されている
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
