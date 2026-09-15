@@ -144,7 +144,7 @@ def unconditional_fwd5(valid: list[date], closes: dict[date, float],
         "p25": round(moves[len(moves) // 4], 2),
         "p75": round(moves[3 * len(moves) // 4], 2),
         "rt_pips": RT_PIPS[pair],
-        "gate_a_threshold_pips": GATE_A_MULTIPLE * RT_PIPS[pair],
+        "gate_a_threshold_pips": round(GATE_A_MULTIPLE * RT_PIPS[pair], 2),
         "gate_a_pass": statistics.median(moves) >= GATE_A_MULTIPLE * RT_PIPS[pair],
     }
 

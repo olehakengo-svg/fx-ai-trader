@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-15T03:46:41+00:00",
+ "generated_at": "2026-09-15T03:55:00+00:00",
  "prereg": "knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-10.md",
  "pass": "pass-1 イベント列挙 (forward 非接触 — 無条件 |fwd5| 集計のみ)",
  "explore_window": [
@@ -60,7 +60,7 @@
    "p25": 45.3,
    "p75": 165.0,
    "rt_pips": 4.53,
-   "gate_a_threshold_pips": 45.300000000000004,
+   "gate_a_threshold_pips": 45.3,
    "gate_a_pass": true
   },
   "USD_JPY": {
@@ -69,7 +69,7 @@
    "p25": 36.5,
    "p75": 158.1,
    "rt_pips": 2.14,
-   "gate_a_threshold_pips": 21.400000000000002,
+   "gate_a_threshold_pips": 21.4,
    "gate_a_pass": true
   }
  },
