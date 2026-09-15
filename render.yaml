@@ -70,6 +70,11 @@ services:
         - "bt-results/**"
         - "data/sentiment/**"
         - ".remember/**"
+        # 2026-09-15 (rule:R3): E23 pass-0 の中銀声明コーパス。研究ハーネス
+        # (tools/e23_corpus_*.py) のみが読み書きし、app.py / modules / demo_trader
+        # からの参照はゼロ (全数 grep)。~350 文書の一括コミットで取引エンジンを
+        # 再起動させない (deploy churn 対策の既存方針をそのまま適用)。
+        - "data/external/cb_statements/**"
     disk:
       name: fx-data
       mountPath: /var/data

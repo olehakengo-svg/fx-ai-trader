@@ -1,0 +1,353 @@
+{
+ "generated_at": "2026-09-15T03:26:37+00:00",
+ "prereg": "knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-10.md",
+ "pass": "pass-0 census (outcome 非接触 — 価格データ未参照)",
+ "explore_window": [
+  "2014-01-01",
+  "2023-12-31"
+ ],
+ "frozen_thresholds": {
+  "min_docs_per_year": 6,
+  "min_year_coverage_frac": 0.8,
+  "min_surviving_cbs": 2,
+  "staleness_void_days": 120
+ },
+ "n_docs_total": 398,
+ "n_docs_explore": 331,
+ "n_docs_explore_usable": 327,
+ "mechanical_missing": {
+  "boe:no_mps_boundary_html_or_pdf": 4
+ },
+ "per_cb": {
+  "fed": {
+   "n_docs_explore": 85,
+   "per_year": {
+    "2014": 8,
+    "2015": 8,
+    "2016": 8,
+    "2017": 8,
+    "2018": 8,
+    "2019": 9,
+    "2020": 12,
+    "2021": 8,
+    "2022": 8,
+    "2023": 8
+   },
+   "years_meeting_min": 10,
+   "year_coverage_frac": 1.0,
+   "coverage_gate_pass": true,
+   "gap_days": {
+    "n": 84,
+    "median": 42.0,
+    "min": 8,
+    "max": 56,
+    "gt_120d_void": 0,
+    "lt_20d_offcycle_hint": 4
+   },
+   "bigrams": {
+    "hawk_total": 5,
+    "dove_total": 10,
+    "inverted_unemployment_matches": 4,
+    "docs_with_any_match": 14,
+    "match_density_per_doc": 0.176,
+    "top20": [
+     [
+      "lower unemployment",
+      4
+     ],
+     [
+      "lower oil price",
+      4
+     ],
+     [
+      "decreasing price",
+      3
+     ],
+     [
+      "low inflation",
+      1
+     ],
+     [
+      "weak growth",
+      1
+     ],
+     [
+      "higher price",
+      1
+     ],
+     [
+      "slower growth",
+      1
+     ]
+    ]
+   },
+   "n_chars": {
+    "median": 3383,
+    "min": 1028,
+    "max": 6374,
+    "median_per_year": {
+     "2014": 5845,
+     "2015": 4119,
+     "2016": 3970,
+     "2017": 3690,
+     "2018": 2365,
+     "2019": 2521,
+     "2020": 3199,
+     "2021": 3417,
+     "2022": 2674,
+     "2023": 2557
+    }
+   }
+  },
+  "ecb": {
+   "n_docs_explore": 83,
+   "per_year": {
+    "2014": 11,
+    "2015": 8,
+    "2016": 8,
+    "2017": 8,
+    "2018": 8,
+    "2019": 8,
+    "2020": 8,
+    "2021": 8,
+    "2022": 8,
+    "2023": 8
+   },
+   "years_meeting_min": 10,
+   "year_coverage_frac": 1.0,
+   "coverage_gate_pass": true,
+   "gap_days": {
+    "n": 82,
+    "median": 42.5,
+    "min": 28,
+    "max": 57,
+    "gt_120d_void": 0,
+    "lt_20d_offcycle_hint": 0
+   },
+   "bigrams": {
+    "hawk_total": 3,
+    "dove_total": 0,
+    "inverted_unemployment_matches": 0,
+    "docs_with_any_match": 3,
+    "match_density_per_doc": 0.036,
+    "top20": [
+     [
+      "high inflation",
+      2
+     ],
+     [
+      "strong growth",
+      1
+     ]
+    ]
+   },
+   "n_chars": {
+    "median": 2066,
+    "min": 755,
+    "max": 7414,
+    "median_per_year": {
+     "2014": 848,
+     "2015": 904,
+     "2016": 1449,
+     "2017": 1990,
+     "2018": 1996,
+     "2019": 2182,
+     "2020": 4107,
+     "2021": 4716,
+     "2022": 6352,
+     "2023": 5141
+    }
+   }
+  },
+  "boe": {
+   "n_docs_explore": 66,
+   "per_year": {
+    "2014": 0,
+    "2015": 1,
+    "2016": 11,
+    "2017": 7,
+    "2018": 8,
+    "2019": 8,
+    "2020": 7,
+    "2021": 8,
+    "2022": 8,
+    "2023": 8
+   },
+   "years_meeting_min": 8,
+   "year_coverage_frac": 0.8,
+   "coverage_gate_pass": true,
+   "gap_days": {
+    "n": 65,
+    "median": 42,
+    "min": 21,
+    "max": 98,
+    "gt_120d_void": 0,
+    "lt_20d_offcycle_hint": 0
+   },
+   "bigrams": {
+    "hawk_total": 11,
+    "dove_total": 17,
+    "inverted_unemployment_matches": 6,
+    "docs_with_any_match": 19,
+    "match_density_per_doc": 0.424,
+    "top20": [
+     [
+      "higher unemployment",
+      5
+     ],
+     [
+      "low inflation",
+      4
+     ],
+     [
+      "low cost",
+      4
+     ],
+     [
+      "higher growth",
+      3
+     ],
+     [
+      "higher price",
+      2
+     ],
+     [
+      "faster growth",
+      1
+     ],
+     [
+      "low growth",
+      1
+     ],
+     [
+      "slower recovery",
+      1
+     ],
+     [
+      "lower unemployment",
+      1
+     ],
+     [
+      "higher inflation",
+      1
+     ],
+     [
+      "stronger growth",
+      1
+     ],
+     [
+      "lower growth",
+      1
+     ],
+     [
+      "higher oil price",
+      1
+     ],
+     [
+      "strong employment",
+      1
+     ],
+     [
+      "weak price",
+      1
+     ]
+    ]
+   },
+   "n_chars": {
+    "median": 5433,
+    "min": 3509,
+    "max": 8338,
+    "median_per_year": {
+     "2015": 5769,
+     "2016": 5411,
+     "2017": 5495,
+     "2018": 4266,
+     "2019": 4310,
+     "2020": 5183,
+     "2021": 6589,
+     "2022": 6260,
+     "2023": 5526
+    }
+   }
+  },
+  "boj": {
+   "n_docs_explore": 93,
+   "per_year": {
+    "2014": 14,
+    "2015": 14,
+    "2016": 8,
+    "2017": 8,
+    "2018": 8,
+    "2019": 8,
+    "2020": 9,
+    "2021": 8,
+    "2022": 8,
+    "2023": 8
+   },
+   "years_meeting_min": 10,
+   "year_coverage_frac": 1.0,
+   "coverage_gate_pass": true,
+   "gap_days": {
+    "n": 92,
+    "median": 41.0,
+    "min": 19,
+    "max": 68,
+    "gt_120d_void": 0,
+    "lt_20d_offcycle_hint": 1
+   },
+   "bigrams": {
+    "hawk_total": 0,
+    "dove_total": 15,
+    "inverted_unemployment_matches": 0,
+    "docs_with_any_match": 14,
+    "match_density_per_doc": 0.161,
+    "top20": [
+     [
+      "weak development",
+      9
+     ],
+     [
+      "low inflation",
+      6
+     ]
+    ]
+   },
+   "n_chars": {
+    "median": 6293,
+    "min": 944,
+    "max": 25351,
+    "median_per_year": {
+     "2014": 5346,
+     "2015": 5608,
+     "2016": 8769,
+     "2017": 5538,
+     "2018": 6642,
+     "2019": 8433,
+     "2020": 7890,
+     "2021": 7345,
+     "2022": 6335,
+     "2023": 7213
+    }
+   }
+  }
+ },
+ "fed_ecb_same_day_collisions": [],
+ "boj_same_day_attested": {
+  "n": 93,
+  "attested": 93
+ },
+ "surviving_cbs": [
+  "fed",
+  "ecb",
+  "boe",
+  "boj"
+ ],
+ "verdict": "PASS_TO_PASS1",
+ "power_flag": {
+  "docs_with_any_match_surviving": 50,
+  "event_count_upper_bound": 100,
+  "gate_b_threshold": 100,
+  "gate_b_reachable_upper_bound": true,
+  "note": "上界であって列挙ではない (実 N は pass-1 が決める)"
+ }
+}

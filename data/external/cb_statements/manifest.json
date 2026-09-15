@@ -1,0 +1,2026 @@
+{
+ "generated_at": "2026-09-15T03:24:58+00:00",
+ "prereg": "knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-10.md",
+ "pass": "pass-0 (outcome 非接触)",
+ "explore_window": [
+  "2014-01-01",
+  "2023-12-31"
+ ],
+ "oos_window": [
+  "2024-01-01",
+  "2026-06-30"
+ ],
+ "n_docs_total": 398,
+ "per_cb": {
+  "fed": {
+   "n_docs": 107,
+   "docs": {
+    "2014-01-29": {
+     "sha256": "569e0dd5ae60c4442a29f86b6c4ee7155b5013f5597dbad7cd137bca2d8f29e3",
+     "n_chars": 5893,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20140129a.htm"
+    },
+    "2014-03-19": {
+     "sha256": "ebcc0b4d6e90f620cd4f92d4789279e8c9805c21400f46412079882ab7fd41bf",
+     "n_chars": 6267,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20140319a.htm"
+    },
+    "2014-04-30": {
+     "sha256": "2e0f488fa6bfd79a3356e2a60ba75d5db61dea516b23160404c9bd33aca92638",
+     "n_chars": 5797,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20140430a.htm"
+    },
+    "2014-06-18": {
+     "sha256": "2c27eb28d751be94152ac7540d3ac9a1f975a63b1cf57a864e5deda053b03daf",
+     "n_chars": 5728,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20140618a.htm"
+    },
+    "2014-07-30": {
+     "sha256": "cd7f22bad462920cfb8b0c51bbe65e1cf597ef5ed0285f80675d4b8c20ac7d01",
+     "n_chars": 6105,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20140730a.htm"
+    },
+    "2014-09-17": {
+     "sha256": "9a0529f38d9923395e668240ae2e5f88dda2035b7138b236b0db0ce7c73c54a2",
+     "n_chars": 6374,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20140917a.htm"
+    },
+    "2014-10-29": {
+     "sha256": "027e33d8b99c3fc2f0df405657f81b6aed4523a12e2907b88e94681f4c1cd629",
+     "n_chars": 5249,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20141029a.htm"
+    },
+    "2014-12-17": {
+     "sha256": "5a0612774e1332ac98750c22fa1877a2a32f09e1677afccfed58e556b7e9e6dd",
+     "n_chars": 5231,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20141217a.htm"
+    },
+    "2015-01-28": {
+     "sha256": "ddcd478826fa7759e9f87ab334e8f5d485c9551dd29f03300554f5bcbe0efa7e",
+     "n_chars": 4146,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20150128a.htm"
+    },
+    "2015-03-18": {
+     "sha256": "4f6e176974602a95de885e587056f439f96da3859f72f58c4d3c4bb31fd03710",
+     "n_chars": 4161,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20150318a.htm"
+    },
+    "2015-04-29": {
+     "sha256": "188b311e272355d9892c3e6323504da753e5a84ec74450cf6ac76b6901d11e55",
+     "n_chars": 4041,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20150429a.htm"
+    },
+    "2015-06-17": {
+     "sha256": "9d4a527b16d7fa89b5bc6387cadb79cff5d4072e0d2e8e48c7d2d94fb87aa026",
+     "n_chars": 3915,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20150617a.htm"
+    },
+    "2015-07-29": {
+     "sha256": "d158a15b4592fddcb38a28198c1b9b8728ca7079c2ce57208dfe1827de143f33",
+     "n_chars": 3877,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20150729a.htm"
+    },
+    "2015-09-17": {
+     "sha256": "1a12f89cdc5025b1840a15a4f315a7cca28c60d1bbe2650b6f72d617072a26e3",
+     "n_chars": 4180,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20150917a.htm"
+    },
+    "2015-10-28": {
+     "sha256": "8a13ee8b2a7a2814ed982c769c003567f11eb6f8e2466e48f947cdc24cb5e50b",
+     "n_chars": 4092,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20151028a.htm"
+    },
+    "2015-12-16": {
+     "sha256": "8a6ee0ca5d2bae6559122ed8440339b9f8810c082e52abe5e09dd50874044cbe",
+     "n_chars": 4159,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20151216a.htm"
+    },
+    "2016-01-27": {
+     "sha256": "e7aa9aaf4be758ebb975fff8a5e99d1115b695f0b75072f5f82f50109407ba2b",
+     "n_chars": 3940,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20160127a.htm"
+    },
+    "2016-03-16": {
+     "sha256": "122e5cf78fdc4087356de7aebc17af862ef41df5db58528e3091885aca262969",
+     "n_chars": 4000,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20160316a.htm"
+    },
+    "2016-04-27": {
+     "sha256": "623d02cece58ccd31ad906ad46721d464e8f12784db26fbcece9bd5c16d52208",
+     "n_chars": 4026,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20160427a.htm"
+    },
+    "2016-06-15": {
+     "sha256": "ead6565279fb09ff489d378206f88a279d601e01bef13890d51d48e0ba1a12ea",
+     "n_chars": 3797,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20160615a.htm"
+    },
+    "2016-07-27": {
+     "sha256": "42c8a5f6478684951d11e2619216542f5b8a4caeb7e199e16455ebcaaed3b659",
+     "n_chars": 3941,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20160727a.htm"
+    },
+    "2016-09-21": {
+     "sha256": "7c7c067f1a9c00b87cae0be562fbf8cbe6e40393407841f35c9f59b53df02ad7",
+     "n_chars": 4168,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20160921a.htm"
+    },
+    "2016-11-02": {
+     "sha256": "087b135cf1d24cf389194a493b9ff3ebfb895e63a4407c5c7a2aa51fc7d36d20",
+     "n_chars": 4141,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20161102a.htm"
+    },
+    "2016-12-14": {
+     "sha256": "79d62b4d7eba3caca12669fae8b242a66f72923498a6161fba5b9307d153e8eb",
+     "n_chars": 3800,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20161214a.htm"
+    },
+    "2017-02-01": {
+     "sha256": "fa1b05b898becb864cb9f5b4194ac9d9a5b34f3af39d62a651c6f6a6449c27cd",
+     "n_chars": 3581,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20170201a.htm"
+    },
+    "2017-03-15": {
+     "sha256": "f024028d560bb839c1d71ba6c21fd1c1e561ae82b66e2650154174e7635838bc",
+     "n_chars": 3740,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20170315a.htm"
+    },
+    "2017-05-03": {
+     "sha256": "a0852185291b6fd8a9d7250ccd76d27157d1104140487c3fc4b5a2bf900c6507",
+     "n_chars": 3723,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20170503a.htm"
+    },
+    "2017-06-14": {
+     "sha256": "84cd07a085cf70ee1968b30ecf1108934cff134f77d198a440d00b8009652b9a",
+     "n_chars": 3918,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20170614a.htm"
+    },
+    "2017-07-26": {
+     "sha256": "f3f7e103273d2b1490e6b08f89f6188076c99803a0c200087f030aafb4852005",
+     "n_chars": 3606,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20170726a.htm"
+    },
+    "2017-09-20": {
+     "sha256": "60c4bad06aa1161fb9977570c57cb5f6f225f8a68d1fc5f3f876042c19d26bfa",
+     "n_chars": 3777,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20170920a.htm"
+    },
+    "2017-11-01": {
+     "sha256": "46d67771266960e0695ae15732d4c387aa8f31afd1c69a2ba4cd49a22d065f80",
+     "n_chars": 3658,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20171101a.htm"
+    },
+    "2017-12-13": {
+     "sha256": "764764ed25930e142d640b35f70e13155045a725e5bc5ea6f2059ff4ffff0ca7",
+     "n_chars": 3445,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20171213a.htm"
+    },
+    "2018-01-31": {
+     "sha256": "036fedb422f109c5bf08e16ddae885189f47047cc23332c60a5c24e66c4cadf2",
+     "n_chars": 2986,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20180131a.htm"
+    },
+    "2018-03-21": {
+     "sha256": "8932c3e284ac133619b62b4ad6804b0e7f3f347f0358fcbf919dfced7fa19579",
+     "n_chars": 3150,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20180321a.htm"
+    },
+    "2018-05-02": {
+     "sha256": "32dc77696a0812e3314d07eba362b352139ba4af5f4da929c2a5aba7a0df97a3",
+     "n_chars": 2968,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20180502a.htm"
+    },
+    "2018-06-13": {
+     "sha256": "116a0b55a78d76276d50ab51e609c314052fe44bbbbd594a21d5be88cad2dc55",
+     "n_chars": 2329,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20180613a.htm"
+    },
+    "2018-08-01": {
+     "sha256": "235419076f6fa3a2fb330008d18a6115f310bc998027b72001991421f0748ea1",
+     "n_chars": 2268,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20180801a.htm"
+    },
+    "2018-09-26": {
+     "sha256": "8d4127bf9a4374cc4ee7aab90cdac1c57ae9e288028ddeb829bc4fa99b023df5",
+     "n_chars": 2144,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20180926a.htm"
+    },
+    "2018-11-08": {
+     "sha256": "70a525ebc297067e8e8e3797b17a40997fe675c64f1c35de0142c8be9e07c634",
+     "n_chars": 2219,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20181108a.htm"
+    },
+    "2018-12-19": {
+     "sha256": "5be32e96c5ae7ec93dfc9c08c5a0eb065e8af9e6b996cbe7df23278914330014",
+     "n_chars": 2401,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20181219a.htm"
+    },
+    "2019-01-30": {
+     "sha256": "2ffd79776abe85461b0a4530857abdaf0e2ee2feba949bd34c73781a78262cf0",
+     "n_chars": 2396,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20190130a.htm"
+    },
+    "2019-03-20": {
+     "sha256": "4435888d7b7605f5d71be4a703598131faf7e4dc914f207f740e658303dc3c8d",
+     "n_chars": 2490,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20190320a.htm"
+    },
+    "2019-05-01": {
+     "sha256": "3e911c0484420a8648a3e5f5576686b5880335acc65f4bc4aaa4b9d26c1d0450",
+     "n_chars": 2322,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20190501a.htm"
+    },
+    "2019-06-19": {
+     "sha256": "babc597b0606ae900c1d30cdb1e8af2ec6dd69249a841f67a8dd829129422362",
+     "n_chars": 2563,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20190619a.htm"
+    },
+    "2019-07-31": {
+     "sha256": "71b3f3ace7419a7a1b9f0c35be67dafe190b6f9a40f01565be88f31ecb6eedea",
+     "n_chars": 2849,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20190731a.htm"
+    },
+    "2019-09-18": {
+     "sha256": "b9ac189ab1dd3e0c6662af6fd8610eb4776220ebc879e8609aba6433b80995f5",
+     "n_chars": 2748,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20190918a.htm"
+    },
+    "2019-10-11": {
+     "sha256": "5a25d9a690f0ec2762fc9bd2794ebc5c6bbfc3d358c433c3c912e3aef799755b",
+     "n_chars": 5006,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20191011a.htm"
+    },
+    "2019-10-30": {
+     "sha256": "29824071241131fd8b4d6267178d8febbb23244c6bf1a76b6af03e8318d59e9b",
+     "n_chars": 2521,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20191030a.htm"
+    },
+    "2019-12-11": {
+     "sha256": "cb9e5ab775ad7870394bf32e10ca54b1a215311b784812e945104c5ebe12b28d",
+     "n_chars": 2318,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20191211a.htm"
+    },
+    "2020-01-29": {
+     "sha256": "dc4630ef7c37f0d0c1581e8ed063ce26831159e47b95e528d5d6792e9eac6b48",
+     "n_chars": 2325,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200129a.htm"
+    },
+    "2020-03-03": {
+     "sha256": "535e648dda0113ca481bb2d79952ce0d162a909a60fcbebcd0db4b29c2d9693f",
+     "n_chars": 1028,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200303a.htm"
+    },
+    "2020-03-15": {
+     "sha256": "9cb2262e7e76c7d0c0e4d1f1018120659e1c2d9e7202ba7d322575dfc5e5cadd",
+     "n_chars": 4828,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200315a.htm"
+    },
+    "2020-03-23": {
+     "sha256": "5c0914bc8235bec9983de194715747ac59b793b93f06d9d3d1ef687a73de56a8",
+     "n_chars": 4329,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200323a.htm"
+    },
+    "2020-03-31": {
+     "sha256": "7e07e942a828e2eda093104ac972002573a7444d024a9c37938ec8d83c5fee9c",
+     "n_chars": 1920,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200331a.htm"
+    },
+    "2020-04-29": {
+     "sha256": "24a43694a49201619710491d53758789a5fc2110562198c9161f21e599230b41",
+     "n_chars": 3028,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200429a.htm"
+    },
+    "2020-06-10": {
+     "sha256": "c0f836ff76a1b4d96a8574478c9fc3df810059d05b95f4eed9f159b09139f79e",
+     "n_chars": 3029,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200610a.htm"
+    },
+    "2020-07-29": {
+     "sha256": "282a8a5aacbb0f3294f348527c2d72fb3d7dd4353474c0ed81f582d499dcc0b2",
+     "n_chars": 3163,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200729a.htm"
+    },
+    "2020-08-27": {
+     "sha256": "cb211044965458484b4e62f883f56a7b88a6a4b195080b30865d701caa7e7aea",
+     "n_chars": 4543,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200827a.htm"
+    },
+    "2020-09-16": {
+     "sha256": "43a904e290d5f567dd5f23db86b7cba3966b4e9da7e28cfd226b461471f54052",
+     "n_chars": 3763,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200916a.htm"
+    },
+    "2020-11-05": {
+     "sha256": "3e7d7f2ceed017af4811649662c5451362d3aa79d8b9d1622290f2d728793363",
+     "n_chars": 3236,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20201105a.htm"
+    },
+    "2020-12-16": {
+     "sha256": "ded8610ab5ac71a1e81f1219ed6f6f0bf67054f4a5bafe3db5043e3f43a16e37",
+     "n_chars": 3347,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20201216a.htm"
+    },
+    "2021-01-27": {
+     "sha256": "b70f7ad037c5120741e8dae5641e98ec567ffd0a03c62e485e6da1cad4b3c781",
+     "n_chars": 3419,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20210127a.htm"
+    },
+    "2021-03-17": {
+     "sha256": "341e9b5e2d61ad91ac65fab19c73e6b15322c211146b72d0d48b44b8ef917d26",
+     "n_chars": 3383,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20210317a.htm"
+    },
+    "2021-04-28": {
+     "sha256": "74570d64b347ed7553cb8f083ab59bac38b3eed8fb1d25e0b0f0c0a0b476b7e5",
+     "n_chars": 3371,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20210428a.htm"
+    },
+    "2021-06-16": {
+     "sha256": "d7e78d329ac96f46fada7e939ccbc8987322651710579725c778ddc3ba9486ae",
+     "n_chars": 3332,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20210616a.htm"
+    },
+    "2021-07-28": {
+     "sha256": "6719e76092deed4a8a8c7628d685bede38266d2b5f023aab084416e1c3be5f63",
+     "n_chars": 3415,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20210728a.htm"
+    },
+    "2021-09-22": {
+     "sha256": "91b93f93632bdff5fe4833c7303d9ee9097912fc681f590a4d9e483341d0d124",
+     "n_chars": 3529,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20210922a.htm"
+    },
+    "2021-11-03": {
+     "sha256": "7b62209891822526041fb14a1663561215a2f9a2efd7282e2fda663f8b2c3a41",
+     "n_chars": 4209,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20211103a.htm"
+    },
+    "2021-12-15": {
+     "sha256": "8a09317098de30521f70f1feb6d922bc2c68d05a0fcaa177911d51daa930fb4d",
+     "n_chars": 3605,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20211215a.htm"
+    },
+    "2022-01-26": {
+     "sha256": "9c29e878859272b559bf01f8107d6bcfd85ae565f1a0eeedc1a342f5cb06a6b9",
+     "n_chars": 2979,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20220126a.htm"
+    },
+    "2022-03-16": {
+     "sha256": "e6f192a42d33962a34a8c4862b9646f0e575b27ed8c901a0eb5a26207bcda7a3",
+     "n_chars": 2474,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20220316a.htm"
+    },
+    "2022-05-04": {
+     "sha256": "a944da4079328bdb36996c29fbd6a085e0fc280c7e544dae5102fe7c8c8827bf",
+     "n_chars": 2734,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20220504a.htm"
+    },
+    "2022-06-15": {
+     "sha256": "d08e990a74c91f99477e6bc13d7782d071b3e92190f21d2e19105b3e94c61058",
+     "n_chars": 2615,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20220615a.htm"
+    },
+    "2022-07-27": {
+     "sha256": "bc8332d7b9ea617655d3458882d09008e8fa60d73a1e4314e50e344ec3f4c567",
+     "n_chars": 2281,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20220727a.htm"
+    },
+    "2022-09-21": {
+     "sha256": "961507dc543752cdd662658bf5615b671689b6f17bde0f674182f4fd599c7910",
+     "n_chars": 2283,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20220921a.htm"
+    },
+    "2022-11-02": {
+     "sha256": "ca5f5e3381ce097c2fb9402222ecb810cbe366213ae683f6fe2c05f48f29dd39",
+     "n_chars": 2758,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20221102a.htm"
+    },
+    "2022-12-14": {
+     "sha256": "2505ea52ec4088d1c14c4458492f782d625681b8f34be43bbd027b4864493250",
+     "n_chars": 2759,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20221214a.htm"
+    },
+    "2023-02-01": {
+     "sha256": "40c62ea68e9f4cc895e733d1fe0fd209ab360ef60b2dfb4572830208167ae009",
+     "n_chars": 2505,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20230201a.htm"
+    },
+    "2023-03-22": {
+     "sha256": "57db8d81ae8bc065ea20bfebafd73c902324c19656906414bfa0f5a31cbc299d",
+     "n_chars": 2704,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20230322a.htm"
+    },
+    "2023-05-03": {
+     "sha256": "0f850a2b15e5092c41804d2856fd27cf706c5840aa97105843e5d0337e064b7b",
+     "n_chars": 2489,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20230503a.htm"
+    },
+    "2023-06-14": {
+     "sha256": "d4c7d9c0050163ea18a3a0e9c731fa61ddb7dd61bfed75893a39e02103358c23",
+     "n_chars": 2558,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20230614a.htm"
+    },
+    "2023-07-26": {
+     "sha256": "acd5185f0250093c34ffee8aab1fa2b850efd204b74e7aac0ab3776966b3ee90",
+     "n_chars": 2515,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20230726a.htm"
+    },
+    "2023-09-20": {
+     "sha256": "957ca7b551b4d38c4ea00fd7a765aa158d946f831c97d235acda41b09a257877",
+     "n_chars": 2557,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20230920a.htm"
+    },
+    "2023-11-01": {
+     "sha256": "115d94cf32312adee226489e903e1c3d11ca571cfd6a4390f7173b67d7586028",
+     "n_chars": 2592,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20231101a.htm"
+    },
+    "2023-12-13": {
+     "sha256": "4fa131026aa0c083da3c8e124355d205338cff4bf63d234d77c9f9ffef71578a",
+     "n_chars": 2646,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20231213a.htm"
+    },
+    "2024-01-31": {
+     "sha256": "d747a340c0ea69313dba45c875c253b098e1b4af2dee5f8fa467c2055ab19776",
+     "n_chars": 2459,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240131a.htm"
+    },
+    "2024-03-20": {
+     "sha256": "9540bae1d827d7fbdad179d2024d597da06f3aeed63743186c8e6e79c0cc794d",
+     "n_chars": 2421,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240320a.htm"
+    },
+    "2024-05-01": {
+     "sha256": "96af420722cdeda4823bb75de4cdf0585f5d04a6c81d202f958a32a73f0fb65b",
+     "n_chars": 2909,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240501a.htm"
+    },
+    "2024-06-12": {
+     "sha256": "a935de76bce48723ac727f14f7b8871017bc7e4cfa290a0e5571da359a26b387",
+     "n_chars": 2510,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240612a.htm"
+    },
+    "2024-07-31": {
+     "sha256": "9cd15d2879c9e14df034bcd44f4cea11410be7c013bd8f5cdf824942cee1bbd8",
+     "n_chars": 2590,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240731a.htm"
+    },
+    "2024-09-18": {
+     "sha256": "0b2cd18102a088963195647c940a65a647cde515ef254e9f6dfb35f1d9c96005",
+     "n_chars": 2584,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20240918a.htm"
+    },
+    "2024-11-07": {
+     "sha256": "c4395d55a8435b16a8d5c6de89ecbac669832b1bb6061fc0cc2e29c4114ca451",
+     "n_chars": 2360,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20241107a.htm"
+    },
+    "2024-12-18": {
+     "sha256": "48af04a99e03aa3505f97439fbe0da2e2389c7316e84ba2880bfd8dca570ecaf",
+     "n_chars": 2513,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20241218a.htm"
+    },
+    "2025-01-29": {
+     "sha256": "14de53fc1c6e1061a9543414140768d7014681b6ee7dbc227c2350bb2f24c69f",
+     "n_chars": 2290,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250129a.htm"
+    },
+    "2025-03-19": {
+     "sha256": "a0a6b7836ce2bc48d6fab2a3489e1bdecf9d30f44b45e3b70cb753390d75c43d",
+     "n_chars": 2671,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250319a.htm"
+    },
+    "2025-05-07": {
+     "sha256": "ba9374ffeefb667fb03ac62447642eae23747ff49dbb2b8b45a4ec8eb6f10eb1",
+     "n_chars": 2388,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250507a.htm"
+    },
+    "2025-06-18": {
+     "sha256": "3bfa57e4ce9c71c93557f02b8bc6e4bb6b9d963480dfb74b5bc0c4832f9bff86",
+     "n_chars": 2233,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250618a.htm"
+    },
+    "2025-07-30": {
+     "sha256": "d6d13c941d233ea8f19d861888dfb5da30da071fcf23bad751f558151aec2c49",
+     "n_chars": 2398,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250730a.htm"
+    },
+    "2025-08-22": {
+     "sha256": "2f65629ff796e29af059f524db76d632438858ac9f861a55c360b0f6a3d70d65",
+     "n_chars": 1564,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250822a.htm"
+    },
+    "2025-09-17": {
+     "sha256": "75bd2b48019ce8d5e067b3b8b826378486c4e8d5b2684dc86a9445b63d3d78e3",
+     "n_chars": 2436,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250917a.htm"
+    },
+    "2025-10-29": {
+     "sha256": "3427421f89e3725b4ed38e0c824f3cc95160eb74ffaed805d013ff9c7c7301c2",
+     "n_chars": 2610,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20251029a.htm"
+    },
+    "2025-12-10": {
+     "sha256": "9346dc309273bd407cc0207a4c6fb99c9c90b3096fc4bcc65b3a04d6549b7005",
+     "n_chars": 2742,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20251210a.htm"
+    },
+    "2026-01-28": {
+     "sha256": "93dbf0f405fba25c8d974de84d35dad9f63a4aed1ba7016547afca6c9f26cd16",
+     "n_chars": 2181,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260128a.htm"
+    },
+    "2026-03-18": {
+     "sha256": "3d12924562b528971baf304517c292ed436e1ea206fe31e4c27cab3fb158cc3c",
+     "n_chars": 2264,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260318a.htm"
+    },
+    "2026-04-29": {
+     "sha256": "8b9f060a54e661de4048950a642a778289c79b6bd69d75a5c0e1aaad50e970d3",
+     "n_chars": 2444,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260429a.htm"
+    },
+    "2026-06-17": {
+     "sha256": "d1dbe8b3be7a767e92624631c2f075aec78a0495839965f12df1e44d1588742a",
+     "n_chars": 1122,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260617a.htm"
+    },
+    "2026-07-29": {
+     "sha256": "fcc1cebbdf0ecf2101c460fa8b4732ff27da15be43584f0b02415f6e4c40b775",
+     "n_chars": 1337,
+     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260729a.htm"
+    }
+   }
+  },
+  "ecb": {
+   "n_docs": 83,
+   "docs": {
+    "2014-02-06": {
+     "sha256": "5ad14bcd30456d1c681823e9d52d5980c745fa2fc7c5f09c55a2a3382d466500",
+     "n_chars": 758,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr140206.en.html"
+    },
+    "2014-03-06": {
+     "sha256": "ed2f346933dfb0fde26e19e4077064c1c1b08cec3dbbace15b3e87706f8bbfc3",
+     "n_chars": 755,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr140306.en.html"
+    },
+    "2014-04-03": {
+     "sha256": "c74e45cbb26269fee2ab9703f7ae2aecf1469c2034fd37c690583c6a4806b699",
+     "n_chars": 755,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr140403.en.html"
+    },
+    "2014-05-08": {
+     "sha256": "12b3a65bf8d163f7aea321db60ea791db5f2d0f9c2bee5ea003d1bbc27626054",
+     "n_chars": 871,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr140508.en.html"
+    },
+    "2014-06-05": {
+     "sha256": "2d7f252f7f7b19ec18a6280a83c2995fe3f3df053dcb9478bb2b071f18a9370c",
+     "n_chars": 1450,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr140605.en.html"
+    },
+    "2014-07-03": {
+     "sha256": "45599610606d8cb2cecb5e8ed76aaef6397759ea659338d39f10326fa5ab6142",
+     "n_chars": 844,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr140703.en.html"
+    },
+    "2014-08-07": {
+     "sha256": "c6ddda6275b6adbcdf361c8cbb0f77b059450994812ae0d1396e1fac4ab25c18",
+     "n_chars": 846,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr140807.en.html"
+    },
+    "2014-09-04": {
+     "sha256": "3561e834b20bbe62951ccdd0eaa71617f014cab1180f510d002b66c59a648bdf",
+     "n_chars": 1138,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr140904.en.html"
+    },
+    "2014-10-02": {
+     "sha256": "59ec1a6facdbeeffe7f3893ae5350db8e3cf4323677f74e8c80ba686073025c1",
+     "n_chars": 874,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr141002.en.html"
+    },
+    "2014-11-06": {
+     "sha256": "2c8019b6215ebb6ed0fadfb4d058ea04b62be607061d0ded521ca9a04ddf93e4",
+     "n_chars": 848,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr141106.en.html"
+    },
+    "2014-12-04": {
+     "sha256": "fcae39a4e49003ab05814ac70ef8fa32409d31c2821dad245f8c31f0188fa8a4",
+     "n_chars": 848,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2014/html/pr141204.en.html"
+    },
+    "2015-01-22": {
+     "sha256": "22d71a44385f5385f4ca1ce388f3eca459703ff708a348049c21eecefa84f86b",
+     "n_chars": 843,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2015/html/pr150122.en.html"
+    },
+    "2015-03-05": {
+     "sha256": "c8d08ea679824611f85c926b46ea7ea9578501c87919610875ae39dfad33eaed",
+     "n_chars": 910,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2015/html/pr150305.en.html"
+    },
+    "2015-04-15": {
+     "sha256": "81dec90ae06fc2431c0ed9ac267a48001d7a00b38d4adefd6d699dd76a44fb95",
+     "n_chars": 879,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2015/html/pr150415.en.html"
+    },
+    "2015-06-03": {
+     "sha256": "6742d7026ac810461d330ab5f5409e7ffc3def0839e6185fa9dc0fee0a6fdc28",
+     "n_chars": 842,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2015/html/pr150603.en.html"
+    },
+    "2015-07-16": {
+     "sha256": "d6c5dd60993057176ab98bc0d0cfba89a365f878a59d627b893a90ddda4fabd6",
+     "n_chars": 921,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2015/html/pr150716.en.html"
+    },
+    "2015-09-03": {
+     "sha256": "210c645fec9db438448f8d0949413a0e431e9c5f587f68ab7604e73a21d89659",
+     "n_chars": 898,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2015/html/pr150903.en.html"
+    },
+    "2015-10-22": {
+     "sha256": "12218b09c582cbf80e39ff3a8d397f252556a28bec7aca862a080940ef44942c",
+     "n_chars": 923,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2015/html/pr151022.en.html"
+    },
+    "2015-12-03": {
+     "sha256": "746b56635dd7d13c9b2e223122b32222626fb72ba9bfaa6c20161572b3eb8bea",
+     "n_chars": 985,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2015/html/pr151203.en.html"
+    },
+    "2016-01-21": {
+     "sha256": "81dc62c31c6bfab37bebacb40fbae35c2474a824ba20234b29b1e41b215e8f71",
+     "n_chars": 888,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2016/html/pr160121.en.html"
+    },
+    "2016-03-10": {
+     "sha256": "40163816982581ee08776d0a0aa880e3368625a5439f8e75ceca17a488f3f72a",
+     "n_chars": 1962,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2016/html/pr160310.en.html"
+    },
+    "2016-04-21": {
+     "sha256": "f005891b70cb90ac816a7c0556dcb5c831a9aca019803b6cf53aa3ee775be0b9",
+     "n_chars": 1377,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2016/html/pr160421.en.html"
+    },
+    "2016-06-02": {
+     "sha256": "3498bda1964cbe9b92b6c205f82279cf5edb28be3c1c625738b5ba36d6778cde",
+     "n_chars": 1442,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2016/html/pr160602.en.html"
+    },
+    "2016-07-21": {
+     "sha256": "c370c5b2f83a56e67026d793921f670e5bdfb59be7f336d5a05ad22297f6db85",
+     "n_chars": 1444,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2016/html/pr160721.en.html"
+    },
+    "2016-09-08": {
+     "sha256": "f1e5f4da5fa1b5cf47157145f53670f61d4f54be740eb0cf5f48b72374211db5",
+     "n_chars": 1456,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2016/html/pr160908.en.html"
+    },
+    "2016-10-20": {
+     "sha256": "04c8c80ab652fa9af98a86c202f49517972d5794e3aecabe2b405fe6cb7c8b40",
+     "n_chars": 1455,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2016/html/pr161020.en.html"
+    },
+    "2016-12-08": {
+     "sha256": "bedc058efa8f9023e1804faefb2f9a60fd6626bead09ff8485776cf010cc93de",
+     "n_chars": 2492,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2016/html/pr161208.en.html"
+    },
+    "2017-01-19": {
+     "sha256": "0513bba64b0b0a2141f5e6f2e3b02bcc5ede15650cdbe8905e63cb3e0a824177",
+     "n_chars": 2062,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2017/html/pr170119.en.html"
+    },
+    "2017-03-09": {
+     "sha256": "ddf3e623b341de5f45a1b9feab7d9ef3584829869468831e7f9163632b10b263",
+     "n_chars": 2058,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2017/html/pr170309.en.html"
+    },
+    "2017-04-27": {
+     "sha256": "a34e3d149bb95e444bacbe9a92bd02d7c0fecb7c611a47a89771c0af4ca07303",
+     "n_chars": 1907,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2017/html/ecb.mp170427.en.html"
+    },
+    "2017-06-08": {
+     "sha256": "80afc5c06cbbc826f67ab153877ff598ce5c6ce9d787ff72968b5e789bae9918",
+     "n_chars": 1922,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2017/html/ecb.mp170608.en.html"
+    },
+    "2017-07-20": {
+     "sha256": "c224cd0da66eb5a453530440fb0a065a50b844d5098cdadc730eea73d5fdfdde",
+     "n_chars": 1891,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2017/html/ecb.mp170720.en.html"
+    },
+    "2017-09-07": {
+     "sha256": "79222eb0c82605cf963fd9ea70898e19ef3a954f1a222244dc1cb72184b70883",
+     "n_chars": 1895,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2017/html/ecb.mp170907.en.html"
+    },
+    "2017-10-26": {
+     "sha256": "e687f171ee6730f55a663696461b6581d45f02dc968ea77b5320a99a6c3faa52",
+     "n_chars": 2517,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2017/html/ecb.mp171026.en.html"
+    },
+    "2017-12-14": {
+     "sha256": "cd1d6c7c2e26c28820bbf1848801e50b972930d4984b165e3bdc444afc53b1e4",
+     "n_chars": 2121,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2017/html/ecb.mp171214.en.html"
+    },
+    "2018-01-25": {
+     "sha256": "bb55ef718dd0ff85c8469d057e2ebc709aed9d45f2a0015d7ea303801062de66",
+     "n_chars": 2081,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2018/html/ecb.mp180125.en.html"
+    },
+    "2018-03-08": {
+     "sha256": "d896dc5be7555495f765000bc935cd7c9db3eecf1bd32723f8734b7df1972ea5",
+     "n_chars": 1821,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2018/html/ecb.mp180308.en.html"
+    },
+    "2018-04-26": {
+     "sha256": "1cf3d6d8ee0129f72c7bc363cdc0d18e23aedebe10037ea55d3cbc72ef61a93b",
+     "n_chars": 1822,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2018/html/ecb.mp180426.en.html"
+    },
+    "2018-06-14": {
+     "sha256": "ec6e3277fc859e35706b6d7815cb0437990d0f303d5a6fe91996ab8de5458ae0",
+     "n_chars": 2739,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2018/html/ecb.mp180614.en.html"
+    },
+    "2018-07-26": {
+     "sha256": "400a8a7e4c3a3e95622c8eb4fb5b6bb142ae27166ed1e3a862470f7f530487e5",
+     "n_chars": 2066,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2018/html/ecb.mp180726.en.html"
+    },
+    "2018-09-13": {
+     "sha256": "15442dc5c864f84ecf69d6933a3678892947b603905ca47ef96558acac83d926",
+     "n_chars": 2061,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2018/html/ecb.mp180913.en.html"
+    },
+    "2018-10-25": {
+     "sha256": "f734bd848e27748d60398697cfb5f3fbc5ae4337509b3a2230709ddc16d1314e",
+     "n_chars": 1931,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2018/html/ecb.mp181025.en.html"
+    },
+    "2018-12-13": {
+     "sha256": "4a90d5d12d303f54c0488d06d596942860b4d13e3e3995ca3e80087ce49d1951",
+     "n_chars": 1857,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2018/html/ecb.mp181213.en.html"
+    },
+    "2019-01-24": {
+     "sha256": "35807062f9992892fc072fd54a7c65bfa5b8de4c4e07e3a1ad6066e7ef235de0",
+     "n_chars": 1687,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2019/html/ecb.mp190124~5c00d09d5d.en.html"
+    },
+    "2019-03-07": {
+     "sha256": "a3c458a1fce1abef83fe2bb224153e2e9d1ab453d931ab4315f1f9c497019d5b",
+     "n_chars": 2679,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2019/html/ecb.mp190307~7d8a9d2665.en.html"
+    },
+    "2019-04-10": {
+     "sha256": "cca7c96add6c43e40ed866d9aa7940fdf4ac81e614ab53b3671055e17fdf55d6",
+     "n_chars": 1632,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2019/html/ecb.mp190410~3df2ed8a4c.en.html"
+    },
+    "2019-06-06": {
+     "sha256": "949931f55d132a27ee097152d6cb495b1b36c3139eb6bb9a8e16941d19d2cdcb",
+     "n_chars": 2308,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2019/html/ecb.mp190606~1876cad9a5.en.html"
+    },
+    "2019-07-25": {
+     "sha256": "8157a1594e7ce09e1135f05cf33f57e3774c9d612a14c69aacc3d54b2983e5fc",
+     "n_chars": 2544,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2019/html/ecb.mp190725~52d3766c9e.en.html"
+    },
+    "2019-09-12": {
+     "sha256": "80bd90e3e0f877fb5f574965e694237c807e90f72c576316faea75dc4c86900d",
+     "n_chars": 3248,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2019/html/ecb.mp190912~08de50b4d2.en.html"
+    },
+    "2019-10-24": {
+     "sha256": "5548bac432d54dadfc77d40c5f3017f68f3dfe18d8d8c45c3fa356f4e27e3f11",
+     "n_chars": 2057,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2019/html/ecb.mp191024~438769bd4f.en.html"
+    },
+    "2019-12-12": {
+     "sha256": "3b5615931e48a84ceb0ad01f3ffd89435b42f2ded8d2a3bb3b4c0a2c9691cbb9",
+     "n_chars": 1987,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2019/html/ecb.mp191212~06d84240ae.en.html"
+    },
+    "2020-01-23": {
+     "sha256": "e7289975dbe17518e0a1e49135dc6d3d5dbbda24aacdd57cdc100aa379bd7453",
+     "n_chars": 2373,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.mp200123~ae33d37f6e.en.html"
+    },
+    "2020-03-12": {
+     "sha256": "f9d005c1909c5bcd158c199e0b64d65eca63385e5f788536c50a9498ed550a70",
+     "n_chars": 4209,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.mp200312~8d3aec3ff2.en.html"
+    },
+    "2020-04-30": {
+     "sha256": "c396104dc0e3739b880d6bcc1e946ad51da07fd4992e5cfb1d6c1dd4cbe8fde8",
+     "n_chars": 5101,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.mp200430~1eaa128265.en.html"
+    },
+    "2020-06-04": {
+     "sha256": "734d1e594c034eb55ef012020fa64cff542b0e8cb63123d427f63991a7f3acef",
+     "n_chars": 3753,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.mp200604~a307d3429c.en.html"
+    },
+    "2020-07-16": {
+     "sha256": "faf3d7f8a81d919f7ee9ed9d8ccd3d996c3a0ccce53b80b87192d4522a583ca0",
+     "n_chars": 4006,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.mp200716~fc5fbe06d9.en.html"
+    },
+    "2020-09-10": {
+     "sha256": "b36aa7d373b6a49fe3d6da896b29317055f3fa2cca7ae51c0c3d5a472b6f01ff",
+     "n_chars": 3821,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.mp200910~f4a8da495e.en.html"
+    },
+    "2020-10-29": {
+     "sha256": "ed7f15261ca90329b178b6abc5bcf570a2e0bf9bb870e64bf57217910c906556",
+     "n_chars": 4444,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.mp201029~4392a355f4.en.html"
+    },
+    "2020-12-10": {
+     "sha256": "514951c7638f2b7c264af57df19bcf40414bc8d61bf897d54169c6bdb4e0cbe8",
+     "n_chars": 5828,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2020/html/ecb.mp201210~8c2778b843.en.html"
+    },
+    "2021-01-21": {
+     "sha256": "117e53e66813a92a6ac2c5c787db559ffa8cdf4dec1478990b997148e2e42916",
+     "n_chars": 3770,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2021/html/ecb.mp210121~eb9154682e.en.html"
+    },
+    "2021-03-11": {
+     "sha256": "682b896601e0e9aa0b94c5d0f6ac0426141e12a6ebaeac017fad40c71fbe9dfd",
+     "n_chars": 4215,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2021/html/ecb.mp210311~35ba71f535.en.html"
+    },
+    "2021-04-22": {
+     "sha256": "5942b26f596139f2057a5c86b72ba1da9d323c0cb5c8859a77c65380c911ccbe",
+     "n_chars": 4434,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2021/html/ecb.mp210422~f075ebe1f0.en.html"
+    },
+    "2021-06-10": {
+     "sha256": "de189ec4179f84a951e01f6618d206651dab88482354d0e25ee6c9cbdfd636cd",
+     "n_chars": 4262,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2021/html/ecb.mp210610~b4d5381df0.en.html"
+    },
+    "2021-07-22": {
+     "sha256": "c8241811d3b5525150eb16c5c58cd570148a3d4305c40df2f1c38f10df3cbe75",
+     "n_chars": 6294,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2021/html/ecb.mp210722~48dc3b436b.en.html"
+    },
+    "2021-09-09": {
+     "sha256": "bd7e6d065374856024b3ce004b63111388e06057146510f8df13127e7ad2f287",
+     "n_chars": 5098,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2021/html/ecb.mp210909~2c94b35639.en.html"
+    },
+    "2021-10-28": {
+     "sha256": "ec635316d5b2afb0f44a27910f34cdf24ca79b95c7e2ec897b4507f3d91b7212",
+     "n_chars": 4998,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2021/html/ecb.mp211028~85474438a4.en.html"
+    },
+    "2021-12-16": {
+     "sha256": "977f0feb77919a1293cae61dcbd63900dc5d73f7be1de6889804886ad5d7a549",
+     "n_chars": 5877,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2021/html/ecb.mp211216~1b6d3a1fd8.en.html"
+    },
+    "2022-02-03": {
+     "sha256": "403a5a5d8618431bc676ae8354f7055fb40c73261e8c572748e0dbf46c2aab62",
+     "n_chars": 5396,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp220203~90fbe94662.en.html"
+    },
+    "2022-03-10": {
+     "sha256": "5e8497566a0a9c725b774fcf10852e7681c65ad5e9891c1ac705acf7ec30eaa9",
+     "n_chars": 7040,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp220310~2d19f8ba60.en.html"
+    },
+    "2022-04-14": {
+     "sha256": "977ec2b3aa256f5a9a7bccc80c2ede64753affcc0766eadb98faf271626b4419",
+     "n_chars": 6614,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp220414~d1b76520c6.en.html"
+    },
+    "2022-06-09": {
+     "sha256": "c9bbf6500b409acd7b52624c5e5ecb18166188bf5bbf0c79f11faa67b062072b",
+     "n_chars": 7414,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp220609~122666c272.en.html"
+    },
+    "2022-07-21": {
+     "sha256": "a50aa7ded7e4fd40264fbff9dfb677b465b980b77dfb617359d4612add4e4d14",
+     "n_chars": 6055,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp220721~53e5bdd317.en.html"
+    },
+    "2022-09-08": {
+     "sha256": "2f17e6902b97c43ed943612402f94d12d11767a4e3655c2ef27a96c2913bfdb1",
+     "n_chars": 6110,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp220908~c1b6839378.en.html"
+    },
+    "2022-10-27": {
+     "sha256": "b71c0e68367a59831f97cb4a917ad27865ae6d41445e434d3403f04a166c582e",
+     "n_chars": 5554,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp221027~df1d778b84.en.html"
+    },
+    "2022-12-15": {
+     "sha256": "cdaa1b69ba7df410227e6b43a165baa21e76ecdc3b5bdbd17df118a0d9fa639c",
+     "n_chars": 6595,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2022/html/ecb.mp221215~f3461d7b6e.en.html"
+    },
+    "2023-02-02": {
+     "sha256": "a508bf08201e41ba8afed0a57eaae0addafe5287d293c0a30f33d55002d3f386",
+     "n_chars": 5116,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2023/html/ecb.mp230202~08a972ac76.en.html"
+    },
+    "2023-03-16": {
+     "sha256": "60fe47a4903aea51b58e1eb3af0a77c1440f306438d375df8d2ce9db0a86d527",
+     "n_chars": 5503,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2023/html/ecb.mp230316~aad5249f30.en.html"
+    },
+    "2023-05-04": {
+     "sha256": "071bcd55c1fad43800cd28515ace5ae8500f71ae051833cae39c1248451c12af",
+     "n_chars": 4672,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2023/html/ecb.mp230504~cdfd11a697.en.html"
+    },
+    "2023-06-15": {
+     "sha256": "64db2163bc178fe24cc53a93dfa8f297803d01c8caa1c75c6cebacdcd58fc621",
+     "n_chars": 5286,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2023/html/ecb.mp230615~d34cddb4c6.en.html"
+    },
+    "2023-07-27": {
+     "sha256": "f70e8369afaf7a33f07d93ce8fd67163185ef0afa14d77a1f4ce508989da7b77",
+     "n_chars": 4865,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2023/html/ecb.mp230727~da80cfcf24.en.html"
+    },
+    "2023-09-14": {
+     "sha256": "e7cf66b6ca7d76a6140d1d26db4e246c5c86c6dd7a15a231bb624fbebc6cce48",
+     "n_chars": 5166,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2023/html/ecb.mp230914~aab39f8c21.en.html"
+    },
+    "2023-10-26": {
+     "sha256": "9d01fd79f2842c2f9911aa627224fd32037a8fad122cbe59fac45d6437e0bed2",
+     "n_chars": 4085,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2023/html/ecb.mp231026~6028cea576.en.html"
+    },
+    "2023-12-14": {
+     "sha256": "754f3cc38fc6319fb3094a9e4bbbf984657d854fca4c8463ef39715014854f01",
+     "n_chars": 5544,
+     "url": "https://www.ecb.europa.eu/press/pr/date/2023/html/ecb.mp231214~9846e62f62.en.html"
+    }
+   }
+  },
+  "boe": {
+   "n_docs": 94,
+   "docs": {
+    "2015-09-01": {
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "n_chars": 0,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2015/september-2015"
+    },
+    "2015-10-01": {
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "n_chars": 0,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2015/october-2015"
+    },
+    "2015-11-05": {
+     "sha256": "880a54d1b38a38a824417358353cd987a7ec1288e8d3f13de79bbf7848602dd4",
+     "n_chars": 5769,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2015/november-2015.pdf"
+    },
+    "2016-01-14": {
+     "sha256": "7e4b1d57f73d8e8a1549b066646649b9865f294f7fccfebd02092be52604b526",
+     "n_chars": 4918,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/january-2016.pdf"
+    },
+    "2016-02-04": {
+     "sha256": "61322d3bfd992f04ec9cf6fda50513201cf0ece0ec22b4eb16ae7d187a4f375f",
+     "n_chars": 6019,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/february-2016.pdf"
+    },
+    "2016-03-17": {
+     "sha256": "184c61bad7ebf2716bffc655f13628db73355d2b50cefcdaa7a33094561152a8",
+     "n_chars": 4687,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/march-2016.pdf"
+    },
+    "2016-04-14": {
+     "sha256": "8169227f3be1be3de1ef76bed036943c4173615d77e8b8c60eb907868fefa142",
+     "n_chars": 4308,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/april-2016.pdf"
+    },
+    "2016-05-12": {
+     "sha256": "e6e6c8be999a7acf893277de12ac6c3b48b2b2a3a900e7519982712bc802c62d",
+     "n_chars": 5902,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/may-2016.pdf"
+    },
+    "2016-06-16": {
+     "sha256": "628c5299bc0d41e46bef1788b50a01c44ca4c17a7131d54cf475c81e8f97b085",
+     "n_chars": 5982,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/june-2016.pdf"
+    },
+    "2016-07-14": {
+     "sha256": "54060ac614111536cc2aa53819f9d91d0bb13726366be6cb93f862a36468bdd3",
+     "n_chars": 4352,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/july-2016.pdf"
+    },
+    "2016-08-04": {
+     "sha256": "59947eee4b43c2c90a78db7f8589df35283ec5bb6bc1e902935dd6a9063aaaf9",
+     "n_chars": 7520,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/august-2016.pdf"
+    },
+    "2016-09-15": {
+     "sha256": "fc685024ebc31bc16bbcbb8ef1bb3c9520d535e2e49d159318cdaf29f8e9f7da",
+     "n_chars": 5179,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/september-2016.pdf"
+    },
+    "2016-11-03": {
+     "sha256": "00f6ead619eedb87ec4a67f11870d2072aa1c09420b254ec2aca3c72c62d154b",
+     "n_chars": 6490,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/november-2016.pdf"
+    },
+    "2016-12-15": {
+     "sha256": "cb54e82f4872ad3c531b09aeb0b7bc7e3d335ace027294076b67429b76d645f7",
+     "n_chars": 5411,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2016/december-2016.pdf"
+    },
+    "2017-02-02": {
+     "sha256": "74288d3185468a087617cea780fa2370eef515a91e13ef7b11c39b34a5fbb9b3",
+     "n_chars": 6141,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2017/february-2017.pdf"
+    },
+    "2017-03-16": {
+     "sha256": "a6cb613ac1f850ed186cd7d5fc282bc9e1d7e614fd6d3559448daddd04c77373",
+     "n_chars": 5888,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2017/march-2017.pdf"
+    },
+    "2017-05-11": {
+     "sha256": "7082cc9624a8b6d16e7ed694f2a139b736e738b0c26a848eee504cf13adbca70",
+     "n_chars": 5982,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2017/may-2017.pdf"
+    },
+    "2017-06-01": {
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "n_chars": 0,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2017/june-2017"
+    },
+    "2017-08-03": {
+     "sha256": "aff4ec9b62867dbaa6c0ccb82c5d340606f772adc9ef43b1767694d61c4625c2",
+     "n_chars": 5495,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2017/august-2017.pdf"
+    },
+    "2017-09-14": {
+     "sha256": "a3392e53f8df5bd63e2f0e31bb8a712a08336b68c961c229ced48aa9d873ca3b",
+     "n_chars": 5033,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2017/september-2017.pdf"
+    },
+    "2017-11-02": {
+     "sha256": "8ee781c1b7763f365c5427d712da4e00f9504612a06ed01e2121a0f3c563fdc5",
+     "n_chars": 5209,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2017/november-2017.pdf"
+    },
+    "2017-12-14": {
+     "sha256": "3e5d598fcd0549b6de3a2a94df5c6f533f7df500a9edade67f1ffd5a191cdf2c",
+     "n_chars": 4845,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2017/december-2017.pdf"
+    },
+    "2018-02-08": {
+     "sha256": "4916b5c492bfd0945903777d35404aa2d09ec306ad4645e5b5867789d52de495",
+     "n_chars": 5661,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2018/february-2018.pdf"
+    },
+    "2018-03-22": {
+     "sha256": "d07a3aaed1b4b4085cbd579151bc484c482b96e781c1e8a4f260056e8f7b12a9",
+     "n_chars": 4007,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2018/march-2018.pdf"
+    },
+    "2018-05-10": {
+     "sha256": "ef59f582643ea19f78fe072cd3cc77f6f01c4acb6cd5e94dfe6e7b3e55807191",
+     "n_chars": 4341,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2018/may-2018.pdf"
+    },
+    "2018-06-21": {
+     "sha256": "42ade8e063492ccadd164716833d782b241fa914154ed1c671eca33ef79866c0",
+     "n_chars": 4811,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2018/june-2018.pdf"
+    },
+    "2018-08-02": {
+     "sha256": "bacc4d4edda82564b60fb4105a2318d6988fe300a12caaa4caa7696a06dd94a9",
+     "n_chars": 3509,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2018/august-2018.pdf"
+    },
+    "2018-09-13": {
+     "sha256": "e3bb2c4105ece647cbfd872c3d30e3d3faf74d807b2ff3ca63177e6400f3bc0e",
+     "n_chars": 3778,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2018/september-2018.pdf"
+    },
+    "2018-11-01": {
+     "sha256": "6fbc1cbfed164c3609e1c52407ae2bbea871af2343cca616ce8e8f8e3b2e861d",
+     "n_chars": 4191,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2018/november-2018.pdf"
+    },
+    "2018-12-20": {
+     "sha256": "78157a9faadd74483b239fe0d0c77874acdd99f455620fa2d4b5f67aebad11a7",
+     "n_chars": 4474,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2018/december-2018.pdf"
+    },
+    "2019-02-07": {
+     "sha256": "8347910dece7000b3037159a29e05189b2f8c0eeb9efaa0c8d1b387e1ea946e6",
+     "n_chars": 4138,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2019/february-2019.pdf"
+    },
+    "2019-03-21": {
+     "sha256": "17f2872d4dc1c9e26ec429f5b8c6c14aef80873bc0b425dfaf6861abd8be335a",
+     "n_chars": 3577,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2019/march-2019.pdf"
+    },
+    "2019-05-02": {
+     "sha256": "3a71ad8ea0e65ef9fb3d1680fe0ccec04efa11c9ab29757cb75d7a69137eddb5",
+     "n_chars": 4682,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2019/may-2019.pdf"
+    },
+    "2019-06-20": {
+     "sha256": "95d354517848eeb94ddef2c26b2deb09c93c533b61074c8ba372ba127ae747e4",
+     "n_chars": 4483,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2019/june-2019.pdf"
+    },
+    "2019-08-01": {
+     "sha256": "1fc7b5687782de7ea3a3c2eaaf0d0742a2b6b538800fbe433b9f1ddbb26ca457",
+     "n_chars": 4639,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2019/august-2019.pdf"
+    },
+    "2019-09-19": {
+     "sha256": "49a7cc57ff567957067006cc11607e165b3d956fd9dbcaffe90b9513e771e853",
+     "n_chars": 4492,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2019/september-2019.pdf"
+    },
+    "2019-11-07": {
+     "sha256": "de70f8cf808fbe4ffbddd0d991bfb35e82dd6aeb443ac56022ab8e7a7620d588",
+     "n_chars": 3615,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2019/november-2019.pdf"
+    },
+    "2019-12-19": {
+     "sha256": "a915f11126eaf3b946f83b56a3ea1fc8c97db4ff34f46588096b8fdad9f358d8",
+     "n_chars": 3860,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2019/december-2019.pdf"
+    },
+    "2020-01-30": {
+     "sha256": "e9ed33ed3c1879d8a616438196ad2fd1cad602b0485d0c4b23f033674d5f0109",
+     "n_chars": 4120,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2020/january-2020.pdf"
+    },
+    "2020-03-01": {
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "n_chars": 0,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2020/march-2020"
+    },
+    "2020-05-07": {
+     "sha256": "6916e01abe5b02cd8facbb972007581aac981b5388e5a8e84013c0dd9f1a4477",
+     "n_chars": 6861,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2020/may-2020.pdf"
+    },
+    "2020-06-18": {
+     "sha256": "c3cd152a4986ffa911d6b61d24c5079fff38ef3a2051617aa6e0ef02226e4a65",
+     "n_chars": 5010,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2020/june-2020.pdf"
+    },
+    "2020-08-06": {
+     "sha256": "6497257547b5cc6afb6b0b801b5e805e82d56fe4fa433a04dda75f24d0305b97",
+     "n_chars": 5183,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2020/august-2020.pdf"
+    },
+    "2020-09-17": {
+     "sha256": "071b118f46c145d3587dd49113973769dbdd377da2b241f3dbcdc438cb302df7",
+     "n_chars": 4663,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2020/september-2020.pdf"
+    },
+    "2020-11-05": {
+     "sha256": "2bbc38cf5905fc083620033abbf35a6c063e196bfbb4d52ed955a298e575686b",
+     "n_chars": 5223,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2020/november-2020.pdf"
+    },
+    "2020-12-17": {
+     "sha256": "016d881f25cd5ab3f2537b64f26766a7e9c354775650276abcb0e55587b059f3",
+     "n_chars": 5456,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2020/december-2020.pdf"
+    },
+    "2021-02-04": {
+     "sha256": "8d7903ddc433c67cfeb667d1873dabf60ceaeea1aba92eb822e9e22de5ff8d6b",
+     "n_chars": 4596,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2021/february-2021.pdf"
+    },
+    "2021-03-18": {
+     "sha256": "5976682e7343d0c73665c839f569f0f36cdc09ec9a75ebeee72700ca2ddf0b31",
+     "n_chars": 5466,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2021/march-2021.pdf"
+    },
+    "2021-05-06": {
+     "sha256": "3fcb9453cd617f397c3422fda7822fc9fac89a9ce8c50b5ce40a97d026e5e17e",
+     "n_chars": 5891,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2021/may-2021.pdf"
+    },
+    "2021-06-24": {
+     "sha256": "54763795293f5577e9fbf0a0671aac3acf4aeb893f5cc40f61f12567e32c8c0c",
+     "n_chars": 6339,
+     "url": "https://www.bankofengland.co.uk/-/media/boe/files/monetary-policy-summary-and-minutes/2021/june-2021.pdf"
+    },
+    "2021-08-05": {
+     "sha256": "60a451e338b1ce206fb197af34ff1b1eb0c109dec79c421418ecfd4d4816ec54",
+     "n_chars": 7285,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2021/august-2021"
+    },
+    "2021-09-23": {
+     "sha256": "fb882f8152bbcae88c17186a6e6eb5458983d4933cba72606884f4f8aa46ae9a",
+     "n_chars": 7069,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2021/september-2021"
+    },
+    "2021-11-04": {
+     "sha256": "46deb4412d5fd4c729643a7380af9df7be082b346f4a99888874a1a61468f66a",
+     "n_chars": 7397,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2021/november-2021"
+    },
+    "2021-12-16": {
+     "sha256": "4a8d88dee199560f0c1df49e8af0d3c8b9a3fce85820092ef07ca820e9d5cf52",
+     "n_chars": 6839,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2021/december-2021"
+    },
+    "2022-02-03": {
+     "sha256": "28b042c9e5c917324be9a56e98e847b5a93c9c4c8067be7dfe0349c72b5e20e0",
+     "n_chars": 7966,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2022/february-2022"
+    },
+    "2022-03-17": {
+     "sha256": "e57968167ec17466e41ded3f9af6a0bdaddae41e7d2389486ab3be4353027362",
+     "n_chars": 6094,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2022/march-2022"
+    },
+    "2022-05-05": {
+     "sha256": "71a5c1e1f0972dd74c6c64ef1cd21cac99a59a742dababc466baead6c6171ce2",
+     "n_chars": 8338,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2022/may-2022"
+    },
+    "2022-06-16": {
+     "sha256": "3314598464a0cf355d70d5dfc29019d843c1021bbe1ed83653a07b05d246688f",
+     "n_chars": 6376,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2022/june-2022"
+    },
+    "2022-08-04": {
+     "sha256": "ba556d8050c4c08a7240162383598b68d66aab7e6670e77f8e224c4f497fa087",
+     "n_chars": 6145,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2022/august-2022"
+    },
+    "2022-09-22": {
+     "sha256": "31ddc7582c138d36c465718bd07c84afe634e31e7f04dee1cfd298177e2e9573",
+     "n_chars": 6053,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2022/september-2022"
+    },
+    "2022-11-03": {
+     "sha256": "da51961fc4d752ccc3d8a2acaee2441c1d59878835cd4baf92818002127f183f",
+     "n_chars": 6987,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2022/november-2022"
+    },
+    "2022-12-15": {
+     "sha256": "f19ca33eb07831cafd1f041cce7ffd761dde53f715a3fbf7759684982e8c9534",
+     "n_chars": 5966,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2022/december-2022"
+    },
+    "2023-02-02": {
+     "sha256": "7f09370da27e21b07a213dcee03f43ed574b32f87193d4733667687eac264875",
+     "n_chars": 4336,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2023/february-2023"
+    },
+    "2023-03-23": {
+     "sha256": "a46bf6eb480a254b2716459d230250246ab9ed841e95a04c065dd15230de8147",
+     "n_chars": 6283,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2023/march-2023"
+    },
+    "2023-05-11": {
+     "sha256": "be7e947e82e4dea4870851eacedb41ef0ffd2b77feaa945eab812293f06a66df",
+     "n_chars": 5538,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2023/may-2023"
+    },
+    "2023-06-22": {
+     "sha256": "b062d69ba05a421320999bd52ba32f7c9345d58866ccc3b479c4532cc9676e9a",
+     "n_chars": 4433,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2023/june-2023"
+    },
+    "2023-08-03": {
+     "sha256": "a21c2e2bef9b4cefd39530958f337edadc7f5e7b431f27c359582fdcee68e712",
+     "n_chars": 5189,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2023/august-2023"
+    },
+    "2023-09-21": {
+     "sha256": "b3b243890bdd05a12356b26a49d1456d3b81d9c6c61053edd212269b37209668",
+     "n_chars": 6455,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2023/september-2023"
+    },
+    "2023-11-02": {
+     "sha256": "9bda3df062399c5407c51d990a7d349d3be1ae58c04cf5c9c43545c9ac9cf262",
+     "n_chars": 5634,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2023/november-2023"
+    },
+    "2023-12-14": {
+     "sha256": "19915dc04e97c88f48f016e57cf800c7bb788660fd2ea75e956bed3972be9f39",
+     "n_chars": 5514,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2023/december-2023"
+    },
+    "2024-02-01": {
+     "sha256": "beb00fa06bef5d8cc1dc9f44fa71746687f657b2e4d4b3370acbb78ce1625183",
+     "n_chars": 5409,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2024/february-2024"
+    },
+    "2024-03-21": {
+     "sha256": "e01173036b656005c5e55ba50d12adfbab533c1ca30eeb454ec9b62acbc35acc",
+     "n_chars": 4283,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2024/march-2024"
+    },
+    "2024-05-09": {
+     "sha256": "ea9bf85cc51d396934419d85cbdd0e9861d8293a4dab0eb12281b0f94dba2505",
+     "n_chars": 4714,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2024/may-2024"
+    },
+    "2024-06-20": {
+     "sha256": "36b1006a857a7caeb4c1f5d0a6a6e1b4b9486b9413e13453e0d574f5755e10ae",
+     "n_chars": 3569,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2024/june-2024"
+    },
+    "2024-08-01": {
+     "sha256": "b595d33be2ca46b54440ca9af84e947bdb3e790fef7b1c153f62dcfa80a1b43a",
+     "n_chars": 3341,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2024/august-2024"
+    },
+    "2024-09-19": {
+     "sha256": "6a3f31869992cb19bb4f4abdb67662884aad61dfef87e043314a1addb28d4b10",
+     "n_chars": 3877,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2024/september-2024"
+    },
+    "2024-11-07": {
+     "sha256": "ef2895d9ceedbba1a2219623237b685bb1e58390c99e62bab52e5f47559e904b",
+     "n_chars": 4148,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2024/november-2024"
+    },
+    "2024-12-19": {
+     "sha256": "a7fb93ba16ddee132c43654c249716817461a9d589dfd14d00c9cfafede1b17b",
+     "n_chars": 3275,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2024/december-2024"
+    },
+    "2025-02-06": {
+     "sha256": "e964b7dd2d5e1fcbad1dcae668dfd38987a9953d3c102dff108cba7beceba42d",
+     "n_chars": 3592,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2025/february-2025"
+    },
+    "2025-03-20": {
+     "sha256": "06fb815ae0583d6f92e3b4c6fe1d22d42899be8ec7cd5ce157914ba871732e7d",
+     "n_chars": 3464,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2025/march-2025"
+    },
+    "2025-05-08": {
+     "sha256": "15653e6031b6803c892b01ee52f18785bce2a9d9e289fe440e453aaaabc25291",
+     "n_chars": 4182,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2025/may-2025"
+    },
+    "2025-06-19": {
+     "sha256": "0e0c67683831dd6ef9881a8d8271d7b37ce055900797ba5d867359f00716094e",
+     "n_chars": 2916,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2025/june-2025"
+    },
+    "2025-08-07": {
+     "sha256": "b93b43912caa55ef3f7fc918421b66c0c291b76cf8103e1b74d66b19732834d4",
+     "n_chars": 2808,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2025/august-2025"
+    },
+    "2025-09-18": {
+     "sha256": "95c2f13e3eb6c6cffcb42705af27fee8c3f299ba70e966e7522d0f0547f3cd4c",
+     "n_chars": 2693,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2025/september-2025"
+    },
+    "2025-11-06": {
+     "sha256": "c0dde5d613d3391e8f6f598d4c4416cd4442efe16569bf52ba50f45b093d38a5",
+     "n_chars": 1222,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2025/november-2025"
+    },
+    "2025-12-18": {
+     "sha256": "a3170e7a56943fd7b38dcc68f7b634af91024fdd8bab929b45cc524438457421",
+     "n_chars": 1344,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2025/december-2025"
+    },
+    "2026-02-05": {
+     "sha256": "c78031f549b30dc6a001b8a9685d7642311060399d26b0212ed890982f96051d",
+     "n_chars": 1384,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/february-2026"
+    },
+    "2026-03-19": {
+     "sha256": "1b08030b6d15191fd15fefddcc3743880100e306822a2bf5e8d5a59d648d1b14",
+     "n_chars": 1336,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/march-2026"
+    },
+    "2026-04-30": {
+     "sha256": "2cea7e5dd12b4512156193f54565bb36782870773594a6e5dccde8e8263048d2",
+     "n_chars": 1675,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/april-2026"
+    },
+    "2026-06-18": {
+     "sha256": "212071f74cf31e8796249d772b758c558b9984a6861e6db6cf2c0581fa1e593c",
+     "n_chars": 1805,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/june-2026"
+    },
+    "2026-07-30": {
+     "sha256": "cd026be306f904f794229e613a1ba30fc0ebd258dbcd42619a34984af403cd61",
+     "n_chars": 1912,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/july-2026"
+    },
+    "2026-09-01": {
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "n_chars": 0,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/september-2026"
+    },
+    "2026-11-01": {
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "n_chars": 0,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/november-2026"
+    },
+    "2026-12-01": {
+     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+     "n_chars": 0,
+     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/december-2026"
+    }
+   }
+  },
+  "boj": {
+   "n_docs": 114,
+   "docs": {
+    "2014-01-22": {
+     "sha256": "c6e3ab97531ded8eec0507a4a0a7f861563cbcbb8796615027d8bc90af3a40a8",
+     "n_chars": 9585,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140122a.pdf"
+    },
+    "2014-02-18": {
+     "sha256": "7e664586429651a417c7cc32885a3416f0859e67f4e354b20773fbed15e147e3",
+     "n_chars": 9083,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140218a.pdf"
+    },
+    "2014-03-11": {
+     "sha256": "7be4e35282ceff1d53c7b9bdbec6e2f778323c0fa9185166c9c1065630f93d5b",
+     "n_chars": 5174,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140311a.pdf"
+    },
+    "2014-04-08": {
+     "sha256": "85dc7bfa8a58d7a20fbf1914c1fa34b8b1f8ed0679f4ceb949f060f875dfff81",
+     "n_chars": 5110,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140408a.pdf"
+    },
+    "2014-04-30": {
+     "sha256": "45c73c8cc51fb39c098c4fb307e3c2f08b56fc9bf8c8f81b8e11b44a3cc54d79",
+     "n_chars": 944,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140430a.pdf"
+    },
+    "2014-05-21": {
+     "sha256": "e9a1b0a04508ace236f31d91709cbc99b9ff64243a9bfdfeeb98bb5cbecf197b",
+     "n_chars": 4744,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140521a.pdf"
+    },
+    "2014-06-13": {
+     "sha256": "f15415eee0bb26f981c1634c66152d314f47c120e66b908c1ecb485cdc2ea995",
+     "n_chars": 4763,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140613a.pdf"
+    },
+    "2014-07-15": {
+     "sha256": "844e2a43f5c214179dfdf34243d76fdc5464155115db35ba21afca8a5d4bbabd",
+     "n_chars": 9384,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140715a.pdf"
+    },
+    "2014-08-08": {
+     "sha256": "38c017d87405bdd133362120532caa8df1c8fdac4e3ab7fc135743121ae1855e",
+     "n_chars": 4844,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140808a.pdf"
+    },
+    "2014-09-04": {
+     "sha256": "45b1b031b0f1c6c7d3b193341550c5eb615eee4c4b49f088edea8f08a2172373",
+     "n_chars": 4934,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k140904a.pdf"
+    },
+    "2014-10-07": {
+     "sha256": "6d87064e97263dba90424debca50f4ee44e02266e219245ec0dfe31ec1ce177d",
+     "n_chars": 5519,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k141007a.pdf"
+    },
+    "2014-10-31": {
+     "sha256": "47e783add4497eda318d79185fbe529b0de506cd47447fc6400ca453ce1ea35a",
+     "n_chars": 5587,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k141031a.pdf"
+    },
+    "2014-11-19": {
+     "sha256": "385cbf29115e7351e1bcb40d63baf09ccfba57df9770a095e715825bc334093b",
+     "n_chars": 6128,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k141119a.pdf"
+    },
+    "2014-12-19": {
+     "sha256": "3e5c760b36b89b2567d1f6c25a6f43e698967a753e20b413f7101aba1286f474",
+     "n_chars": 6293,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2014/k141219a.pdf"
+    },
+    "2015-01-21": {
+     "sha256": "915ec61e057fb949fb590f77430a4b270677e1be4b7a9c01d47e81eda3f952dd",
+     "n_chars": 13699,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150121a.pdf"
+    },
+    "2015-02-18": {
+     "sha256": "cc23a4b5744431eabcc08c6b91968097e250a8c86609bd9b622202eaa862768a",
+     "n_chars": 5813,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150218a.pdf"
+    },
+    "2015-03-17": {
+     "sha256": "5084b3477c646a55afc7f4e1d24c7bde0d94a1e6bcdc2826859a21d54891f083",
+     "n_chars": 5876,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150317a.pdf"
+    },
+    "2015-04-08": {
+     "sha256": "9b34db4fbfc5cda8674d38fa84d9934c0a773d6f90b0794cf1a2e826465c1a34",
+     "n_chars": 5732,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150408a.pdf"
+    },
+    "2015-04-30": {
+     "sha256": "5c52862c074bf52686c8f492923a95203fe792c4877cc83cba4aa9a3c69cc63a",
+     "n_chars": 2363,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150430a.pdf"
+    },
+    "2015-05-22": {
+     "sha256": "29f7c16ad7fadf22949311277e66f5a93904bd867d016fb3efce7a8641e7ecf6",
+     "n_chars": 5465,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150522a.pdf"
+    },
+    "2015-06-19": {
+     "sha256": "68acda0359a13482470516188e98cb1de9453307f4c71baa18afd3dc7b9d679b",
+     "n_chars": 5455,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150619a.pdf"
+    },
+    "2015-07-15": {
+     "sha256": "68e6098b984864287515ac5eaeb0fd85af6f2b9f76e697a33407825d82fc056b",
+     "n_chars": 11382,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150715a.pdf"
+    },
+    "2015-08-07": {
+     "sha256": "012d3c34f76ffa6625e1ee9c114c766d32fc59e445e49d03a95d888cfca6a746",
+     "n_chars": 5322,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150807a.pdf"
+    },
+    "2015-09-15": {
+     "sha256": "95d01d6b15c59a920bb1e0a6b348a9a4ccc94ae00a8dc733ff62310169a41ec5",
+     "n_chars": 5530,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k150915a.pdf"
+    },
+    "2015-10-07": {
+     "sha256": "8ec22bfcbcc28dd40a15dffef796164cf4a26e72d4ebc86037cfe60884b749ee",
+     "n_chars": 5641,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k151007a.pdf"
+    },
+    "2015-10-30": {
+     "sha256": "b9a6230368c18726f69b5eed221a56eab032559739eab63335a4e13f5408bf75",
+     "n_chars": 2351,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k151030a.pdf"
+    },
+    "2015-11-19": {
+     "sha256": "d19f70d8bf230dd5a28617364dd0a9f8a187829818720025219ff4da11bbe33f",
+     "n_chars": 5576,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k151119a.pdf"
+    },
+    "2015-12-18": {
+     "sha256": "4985d6ceaec33da51042aa3a1fa65f2cf4b85aa5eb9139a7fdced3eed5eaa9e3",
+     "n_chars": 14695,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2015/k151218a.pdf"
+    },
+    "2016-01-29": {
+     "sha256": "257eb1709a7df5e394f26da534b3032b7d1b9aa77051b5560559b7ff2d0db19f",
+     "n_chars": 12895,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2016/k160129a.pdf"
+    },
+    "2016-03-15": {
+     "sha256": "2c37a6fad9cc1a4c5bd95aaa5ac1498920316782083c7c8b27383d08fbf2d5f9",
+     "n_chars": 10553,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2016/k160315a.pdf"
+    },
+    "2016-04-28": {
+     "sha256": "53337a706a7e266216e35aeca4fc86db02a1f59ab7facd2e3232ef951e230c1e",
+     "n_chars": 4896,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2016/k160428a.pdf"
+    },
+    "2016-06-16": {
+     "sha256": "3fe63859ffa9058bbff1296448c6b8639f8f63d651debe5a4a008b84692df027",
+     "n_chars": 8333,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2016/k160616a.pdf"
+    },
+    "2016-07-29": {
+     "sha256": "15c9f543b5f7149b95c1832f14b1346c49c93c6e01230816ca4d40dd1dbcdb24",
+     "n_chars": 9169,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2016/k160729a.pdf"
+    },
+    "2016-09-21": {
+     "sha256": "2b037bae1ad9978d47c844bb2dd55cece95bb8c520b7e7d5786703acce28170e",
+     "n_chars": 23036,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2016/k160921a.pdf"
+    },
+    "2016-11-01": {
+     "sha256": "485a499007df79f006c21837d916efc69205734ba9482f18308e2ae6acdd2c72",
+     "n_chars": 4503,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2016/k161101a.pdf"
+    },
+    "2016-12-20": {
+     "sha256": "060a1b1371bbfddfdca28eb7f6723be1b2ee692e4dc39543ce82929defa1009c",
+     "n_chars": 8369,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2016/k161220a.pdf"
+    },
+    "2017-01-31": {
+     "sha256": "d8917d91da241871891e7797cf817e9009c6217424cbcf1d72f9887dd6cc4396",
+     "n_chars": 4953,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2017/k170131a.pdf"
+    },
+    "2017-03-16": {
+     "sha256": "4ffbeec63c64f15296b66ace0c89f9b004c7255a184acba6fc310aabe22958dd",
+     "n_chars": 8260,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2017/k170316a.pdf"
+    },
+    "2017-04-27": {
+     "sha256": "9af09e7305c6da38e14910ba1fee3c9bac6a62b072c8cefddeae9c8a7837a3e1",
+     "n_chars": 4490,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2017/k170427a.pdf"
+    },
+    "2017-06-16": {
+     "sha256": "5c62e39f14a4c9c776587b2158f142b26a71aff747261454dac68a185b964703",
+     "n_chars": 8058,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2017/k170616a.pdf"
+    },
+    "2017-07-20": {
+     "sha256": "0d727fd2c91411918f02fa590a8958da39a8e93682ec4f2dc654dc11a5638669",
+     "n_chars": 4469,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2017/k170720a.pdf"
+    },
+    "2017-09-21": {
+     "sha256": "f071f92cc3459007fa2708316d4b3a41bef0056a56768f5cab375cd0adaaabea",
+     "n_chars": 6123,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2017/k170921a.pdf"
+    },
+    "2017-10-31": {
+     "sha256": "349ad486511c5c0a681d1802d423d601289f97d7663886b0eaa2d40c45ac6824",
+     "n_chars": 3478,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2017/k171031a.pdf"
+    },
+    "2017-12-21": {
+     "sha256": "73b2642964b1d8abf5cc25ea8916fcb0f59c341be6b7bd18ed5097d9cc0dbb10",
+     "n_chars": 6495,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2017/k171221a.pdf"
+    },
+    "2018-01-23": {
+     "sha256": "aa4b912a4a2a797ef7aa9769a605c9da1ab147777a00c87236ac771a46e51228",
+     "n_chars": 4287,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2018/k180123a.htm"
+    },
+    "2018-03-09": {
+     "sha256": "3a30b46ed7a0c9d148f11d21ee811ff162229d181b3d039ffad0dfa99cbd8ab8",
+     "n_chars": 6586,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2018/k180309a.htm"
+    },
+    "2018-04-27": {
+     "sha256": "2e113d54935e6a036364ee4a3f7ba2a43c5d2cc7c7bde125705b37222bd94422",
+     "n_chars": 4581,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2018/k180427a.htm"
+    },
+    "2018-06-15": {
+     "sha256": "483355470d54dfe60b6097217c5cd8ddec44d1f23d1ae2a8c03a7ef3af0fb431",
+     "n_chars": 6698,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2018/k180615a.htm"
+    },
+    "2018-07-31": {
+     "sha256": "1c7293d0872be4a340463bd117fce2cef532374b83cac13ff9c2527bf050901d",
+     "n_chars": 8413,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2018/k180731a.htm"
+    },
+    "2018-09-19": {
+     "sha256": "c1f9862c1a1ad8b4ecc407134282e5f3e38015141a2071a7d01334615f46200e",
+     "n_chars": 7821,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2018/k180919a.htm"
+    },
+    "2018-10-31": {
+     "sha256": "daf292e9f6538ee2f995149c68048f4af6ccd6a2985b2cb1759d346a14f4d7b9",
+     "n_chars": 5606,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2018/k181031a.htm"
+    },
+    "2018-12-20": {
+     "sha256": "b0e8648126467ddb73d1b159377ff74fc38fa70ca7c4c3b52b2707a6f8b7b89c",
+     "n_chars": 7877,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2018/k181220a.htm"
+    },
+    "2019-01-23": {
+     "sha256": "816c8053783fbead22a5222185c0adaec500526051957cbe7c816956d47648ad",
+     "n_chars": 5996,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2019/k190123a.htm"
+    },
+    "2019-03-15": {
+     "sha256": "273b61186b22888c1acec1cc51972a711fd1bdbc685f42aba8672ba0ac2436ab",
+     "n_chars": 8084,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2019/k190315a.htm"
+    },
+    "2019-04-25": {
+     "sha256": "ef91ff92c4eeea338ca078a90c0758ac1e38b1b389e68b928d8fb86fb2a262c2",
+     "n_chars": 10093,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2019/k190425a.htm"
+    },
+    "2019-06-20": {
+     "sha256": "9fc3c399e998e7979ba6050111f9242ba7fd55d3c5c385d82f8a3587a0f32e62",
+     "n_chars": 8302,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2019/k190620a.htm"
+    },
+    "2019-07-30": {
+     "sha256": "020e38299ae3f65fd672f718adbf26eba63eb6964b7fbd3c1b6bedb4da4c8a36",
+     "n_chars": 5737,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2019/k190730a.htm"
+    },
+    "2019-09-19": {
+     "sha256": "3e1c17dc1e4abe8a1e8352307d5803df5916795d5b831e6281b0820bee0314a0",
+     "n_chars": 9080,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2019/k190919a.htm"
+    },
+    "2019-10-31": {
+     "sha256": "29e514971fab0628f7b72abc08b3fd47317c51044b00abb27f4721f499c565be",
+     "n_chars": 12893,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2019/k191031a.htm"
+    },
+    "2019-12-19": {
+     "sha256": "34842327ca70bb2ac9341cfb72892ad6e3b348ef44a29206087bb078c019f209",
+     "n_chars": 8564,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2019/k191219a.htm"
+    },
+    "2020-01-21": {
+     "sha256": "676ed7c35eb9cd86e830a41dfd3498b35376afb4f9a334088bbc27118b34192c",
+     "n_chars": 5577,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2020/k200121a.htm"
+    },
+    "2020-03-16": {
+     "sha256": "29e0f34ff60305c50ca4cbe58cc40007fcb456c2b45fba95714ebc9483009257",
+     "n_chars": 10910,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2020/k200316b.htm"
+    },
+    "2020-04-27": {
+     "sha256": "fff073fda756f4c3e7a38dbd7d4fb62fe07fb6829dbe3a6ed19d0706cd846382",
+     "n_chars": 11435,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2020/k200427a.htm"
+    },
+    "2020-05-22": {
+     "sha256": "109d8c98ff01a2e25587971df0bef154a987c532fa6de8eb4715558c775eb40c",
+     "n_chars": 3863,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2020/k200522b.htm"
+    },
+    "2020-06-16": {
+     "sha256": "746a7403d37907edbd9e2db80a2b129d34c803f25653484e07876ad97539e422",
+     "n_chars": 7890,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2020/k200616a.htm"
+    },
+    "2020-07-15": {
+     "sha256": "71c20178e385a380ca9b380e7da98243e9119c39ae7fb12f84152b9b157890bc",
+     "n_chars": 5529,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2020/k200715a.htm"
+    },
+    "2020-09-17": {
+     "sha256": "981a0e79d8d73828d8b6564e058c9ac1b150602fe94f2fc8c0cb17e3349f6fd3",
+     "n_chars": 8189,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2020/k200917a.htm"
+    },
+    "2020-10-29": {
+     "sha256": "c8018904388d523c3408dc4bb0fcd026f8cda1dcffa51a4fafa32f9e05174737",
+     "n_chars": 5560,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2020/k201029a.htm"
+    },
+    "2020-12-18": {
+     "sha256": "a5e945ff79e2e28cc22d3617a04f7aaf9acbe28ca5f3b576d10e9d217c5d9ef6",
+     "n_chars": 10940,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2020/k201218a.htm"
+    },
+    "2021-01-21": {
+     "sha256": "a7b1a38375833c8607a3d7f5f27bf41c46bc3d1e74014344daab4275303e3d71",
+     "n_chars": 5988,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2021/k210121a.htm"
+    },
+    "2021-03-19": {
+     "sha256": "be98cd7922ae486c659c5c287564fc6a39548432868c171476eea0aec6f3a3e3",
+     "n_chars": 25351,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2021/k210319a.htm"
+    },
+    "2021-04-27": {
+     "sha256": "c36cbaa0b2b0802d8918bf7a29ebc2cb9d3092bb0560adacb836257bb4cd5132",
+     "n_chars": 4862,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2021/k210427a.htm"
+    },
+    "2021-06-18": {
+     "sha256": "1ac13ef112147f68635c77705ceaa9f89600b1246279a3fac0de49263b0b3b06",
+     "n_chars": 9360,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2021/k210618a.htm"
+    },
+    "2021-07-16": {
+     "sha256": "42f90547e032020fbfc15a64a98bac86bc61ebf196c531bfdf64e3597b9ef9d1",
+     "n_chars": 7066,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2021/k210716a.htm"
+    },
+    "2021-09-22": {
+     "sha256": "e11b6bffe6e705d7423e996b15e4153e2915d108ac381834a5542c8598807250",
+     "n_chars": 7625,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2021/k210922a.htm"
+    },
+    "2021-10-28": {
+     "sha256": "3a709021891709a97c01595b78e29e2a3257d2afa3cd58e29a812022813a580f",
+     "n_chars": 4781,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2021/k211028a.htm"
+    },
+    "2021-12-17": {
+     "sha256": "32e86f60d616219a1e484db996b82a305655c925251bff3f56ed415af62c02a8",
+     "n_chars": 10012,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2021/k211217a.htm"
+    },
+    "2022-01-18": {
+     "sha256": "a739811d1719284c27b7844d3103d24a4af087d5c00d6576b38fbbd23cab0ef9",
+     "n_chars": 4925,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2022/k220118a.htm"
+    },
+    "2022-03-18": {
+     "sha256": "a2fe44b0f7d8a9966c739f2eae2cf043751c96c84525915df14e6dbf13252331",
+     "n_chars": 7746,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2022/k220318a.htm"
+    },
+    "2022-04-28": {
+     "sha256": "8fd62e6566d43968bdf5b81e1993eafe1c8db2126bafabd31fd4e06bc42ee065",
+     "n_chars": 4725,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2022/k220428a.htm"
+    },
+    "2022-06-17": {
+     "sha256": "ee58e81c830b2d336a1949999271a27c894a652a79cf8c2ac4ef2e591149a7d8",
+     "n_chars": 7750,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2022/k220617a.htm"
+    },
+    "2022-07-21": {
+     "sha256": "e38cbba4b4f6fcc62ed44378f104303ebf26279cdc4138b8e3fbc704add0c18c",
+     "n_chars": 4755,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2022/k220721a.htm"
+    },
+    "2022-09-22": {
+     "sha256": "028e712f1c3a53900db55fbbfed82cc71ec7affbd8f59b5c4a1fab662c81bfc9",
+     "n_chars": 8637,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2022/k220922a.htm"
+    },
+    "2022-10-28": {
+     "sha256": "ab543197ee5665fa351113c2e803ce0c1bf8cd459dacf1981eddac064ec91e0f",
+     "n_chars": 3935,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2022/k221028a.htm"
+    },
+    "2022-12-20": {
+     "sha256": "db38c423fcd5712fb15eb4bf7e5fb3cd56024ef3129cd4cb6a71c2af684f57d1",
+     "n_chars": 8498,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2022/k221220a.htm"
+    },
+    "2023-01-18": {
+     "sha256": "189dd2ce65486add2b26a3b828b5cdcd82fd3d44d93c408c80b2c4a970158944",
+     "n_chars": 4852,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2023/k230118a.htm"
+    },
+    "2023-03-10": {
+     "sha256": "6da6d53d3e73a5ee41a6fe34a7037ed6022126065fa31ddda8aca912363daecb",
+     "n_chars": 6996,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2023/k230310a.htm"
+    },
+    "2023-04-28": {
+     "sha256": "a9d75efa5ff22752237cd7bd57f0824abc91552605885bde3b201d2f14c9e47a",
+     "n_chars": 5052,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2023/k230428a.htm"
+    },
+    "2023-06-16": {
+     "sha256": "8c2d468e5610368eb0ffa3c7949b250d9438553c54028bd86a6af8f654552ddd",
+     "n_chars": 7181,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2023/k230616a.htm"
+    },
+    "2023-07-28": {
+     "sha256": "67199d9b8195eebb01a1c71009277fe2c7f2fc7586bf173331984760bfd2f868",
+     "n_chars": 7919,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2023/k230728a.htm"
+    },
+    "2023-09-22": {
+     "sha256": "ef5f8366dec52af343ef244fd0f37a59d74cf1773b7bc130caa86a1524357431",
+     "n_chars": 7409,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2023/k230922a.htm"
+    },
+    "2023-10-31": {
+     "sha256": "c8b8de61ac7c031a4ed363371315c2d38104e413f771f7131edbe8393db33906",
+     "n_chars": 7521,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2023/k231031a.htm"
+    },
+    "2023-12-19": {
+     "sha256": "3538499fff3396c1f0f13e1852eca29a786d7c48e1cd691cfac6c5d28a615edd",
+     "n_chars": 7245,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2023/k231219a.htm"
+    },
+    "2024-01-23": {
+     "sha256": "d76ed1994a000d71bcbe87180f82d1574006015f0a97a312447b9f7e5d9024e8",
+     "n_chars": 4746,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2024/k240123a.htm"
+    },
+    "2024-03-19": {
+     "sha256": "736cd43e92a1e33c071909be690ae2c72bde30ba76acb828f437f53ee28c491a",
+     "n_chars": 10833,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2024/k240319a.htm"
+    },
+    "2024-04-26": {
+     "sha256": "7d859794d4bf68f3857448c2c0e2b1cc12109bd865d3902d42a5aa78153a7a6d",
+     "n_chars": 1932,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2024/k240426a.htm"
+    },
+    "2024-06-14": {
+     "sha256": "ebe8ce9fdc9883123f4b96f00c6064f05e63dc5ec598b8bda0805fac74e2f78e",
+     "n_chars": 5486,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2024/k240614a.htm"
+    },
+    "2024-07-31": {
+     "sha256": "6893aba3690ea963625d94251a06db23e582d280ef8ead38c125b88045d3a770",
+     "n_chars": 10056,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2024/k240731a.htm"
+    },
+    "2024-09-20": {
+     "sha256": "8e773e60f40e7733860b251ceb8df29f933c2e73f2c10d95f3f44329da24a35b",
+     "n_chars": 4360,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2024/k240920a.htm"
+    },
+    "2024-10-31": {
+     "sha256": "4549bd980f3fc2baa24a322b6d46423bc34766a5d7d32b0fc909a2738a9e6956",
+     "n_chars": 1640,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2024/k241031a.htm"
+    },
+    "2024-12-19": {
+     "sha256": "394a1cdf490c290a6b2552ac2f13a1ab0675c56c5dbc5b2955d910bb266bcf7f",
+     "n_chars": 5968,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2024/k241219a.htm"
+    },
+    "2025-01-24": {
+     "sha256": "369ffa53e351afdcbc5457d3d0436fd01e4208f3e15519201b0028b2eb89e50e",
+     "n_chars": 6790,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2025/k250124a.htm"
+    },
+    "2025-03-19": {
+     "sha256": "0a492fe4c3997ca73e30957f264d63c083152c8752f9018a3fb45231c3d5ec3b",
+     "n_chars": 4637,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2025/k250319a.htm"
+    },
+    "2025-05-01": {
+     "sha256": "6c91ea00e8c2158c50857b503eb7b840e83a81e2ec0c6b8d85558103a4023efe",
+     "n_chars": 1578,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2025/k250501a.htm"
+    },
+    "2025-06-17": {
+     "sha256": "121a31da52c87193eada346f038950f550ec9f8e65c4807bbd739632c80f966c",
+     "n_chars": 8437,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2025/k250617a.htm"
+    },
+    "2025-07-31": {
+     "sha256": "0a2b6cacbe8c07c0cc8fdd8740b506e7a7968a8cfb2fc25404c26d019295bc26",
+     "n_chars": 1591,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2025/k250731a.htm"
+    },
+    "2025-09-19": {
+     "sha256": "e65e8eb642754c73fdaa181ce72738c2ef77a45dbe8bd643acae540efe6448ce",
+     "n_chars": 10908,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2025/k250919a.htm"
+    },
+    "2025-10-30": {
+     "sha256": "4879611a8a6e1983b0d3579cf0f61dc374896c67be2d7c7670c1a8c031577e1a",
+     "n_chars": 2417,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2025/k251030a.htm"
+    },
+    "2025-12-19": {
+     "sha256": "44b2f1e7ae78d6b54766e3ebdf200c2c2e72590b2e6e427f71735107004ace3c",
+     "n_chars": 9407,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2025/k251219a.htm"
+    },
+    "2026-01-23": {
+     "sha256": "cf7bdb09a3091c8b77d8846b588afc7a6d9e4c0ed4df3ff10735e16fc57b0fb8",
+     "n_chars": 2330,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/state_2026/k260123a.htm"
+    },
+    "2026-03-19": {
+     "sha256": "75e98b72f40af6ab173dea8fd3784e2e30e3a4f2c2ebc48c0e02a6f90ae3c405",
+     "n_chars": 6899,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2026/k260319a.pdf"
+    },
+    "2026-04-28": {
+     "sha256": "b0d9268ccac5a3ea76b16ae1f242123267f26dfc6ae9a3e36088c8a6bccf2803",
+     "n_chars": 2650,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2026/k260428a.pdf"
+    },
+    "2026-06-16": {
+     "sha256": "905f95d712ed3eb4bd3274b38613201eadf692ecbcd7d9976fcb012cf2f850f4",
+     "n_chars": 10859,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2026/k260616a.pdf"
+    },
+    "2026-07-31": {
+     "sha256": "2bdc53c04edeb4336f2fb970a1d1e00d57b967d48c92ece25726e322d5357e47",
+     "n_chars": 2211,
+     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2026/k260731a.pdf"
+    }
+   }
+  }
+ }
+}
