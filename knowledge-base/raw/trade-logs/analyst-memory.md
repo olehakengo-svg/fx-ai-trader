@@ -4516,6 +4516,16 @@ Cutoff後累積（全期間）はN=6、WR=66.7%、PnL=+27.2pと極めて限定�
 - `daytrade_eurgbp:hedge_block` 544件、`daytrade_eur:hedge_block` 403件 — EUR系のヘッジブロックが突出して多く、シグナル自体は生成されているが相殺判定でカットされている
 - `scalp:r2_shadow_demoted_cell` 509件、`scalp_eur:r2_shadow_demoted_cell` 205件 — Scalp系はShadow降格セルへの到達が多く、執行フィルタで除去されている
 
+### 2026-09-15 (Pre-Tokyo Briefing)
+**2026-09-14（前日）: トレードなし / PnL = ¥0 / N = 0 / WR = N/A**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的注記**: 両戦略ともN<10。WR・EVは参考値として記録するに留める。「100% WR」「66.7% WR」はいずれも統計的に無意味。昇格基準（N≥30 & EV≥1.0）には程遠い。
+- `hedge_block`の多発はGBP系ペアの下方トレンド（GBP_JPY: TRENDING_DOWN）と整合。現在のレジームでヘッジブロックが緩和される可能性は低い → GBP系戦略のシグナル待ちは本日も期待薄と判断
+- `r2_shadow_demoted_cell`の解消はシャドウ昇格蓄積待ち。短期的な自然解消は困難
+| 時間帯 | 内容 | 注意点 |
+| 22:00〜翌01:00 | NY主要セッション | GBP系ボラ再拡大リスク。TRENDING_DOWNの加速に注意 |
+- **USD_JPY** VOLATILE→TRENDING_DOWN遷移リスク: SMAスロープ−0.00862は既に下方傾斜。154.344水準での支持喪失で遷移加速の可能性
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
