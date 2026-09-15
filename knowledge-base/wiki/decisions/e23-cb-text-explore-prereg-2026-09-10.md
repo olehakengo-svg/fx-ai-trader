@@ -128,7 +128,7 @@
 
 **成果物**: 取得ハーネス `tools/e23_corpus_fetch.py` / census `tools/e23_corpus_census.py` /
 コーパス `data/external/cb_statements/` (398 文書 + `manifest.json` = 文書別 sha256 + 文字数) /
-census 出力 [[../../raw/analysis/e23-pass0-census-2026-09-15|e23-pass0-census-2026-09-15]] (.md/.json) /
+census 出力 [[e23-pass0-census-2026-09-15]] (.md/.json) /
 pin `tests/test_e23_corpus_harness.py` (16 本)。凍結辞書 sha256 は実行時 assert ではなく
 **テストで pin** した (§0-3 の意図 = 語彙の後付け編集の機械封鎖、を CI で常時守る方が強い)。
 
@@ -189,9 +189,65 @@ DoF ではない**ため、同一の境界規則で両方から本文を取る�
 
 **副次の実証**: 初回取得で ECB 2022 が接続リセットで丸ごと欠落したが、census の年次内訳表
 (2022 = 0) が即座に露出させた。「収集経路を足したら読み手を同じコミットで足せ」
-([[../lessons/lesson-constructed-url-404-is-not-absence-2026-08-31|構成 URL 404 の教訓]]) が今回は先に守られていた形。
+([[lesson-constructed-url-404-is-not-absence-2026-08-31]]) が今回は先に守られていた形。
 
 ### §10.5 次の手順 (変更なし)
 
 pass-1 = イベント列挙 (ΔNH ≠ 0、staleness/同日 void 適用、fwd 非接触) → コミット →
 pass-2 = 測定 (seed 20260910、Gate A-G)。verdict 期日 `e23-explore-verdict-deadline` = 2026-09-20。
+
+---
+
+## §11 pass-1 verdict (2026-09-15、期日 09-20 の 5 日前倒し) — ❌ **UNDERPOWERED / park**
+
+> **pass-2 (測定) は解錠されていない。イベント×リターンの結合統計は一度も計算していない**
+> = explore 窓の outcome にも OOS 窓にも未接触のまま park する。
+
+**成果物**: `tools/e23_pass1_events.py` / [[e23-pass1-events-2026-09-15]] (.md/.json) /
+価格 sha256 pin `knowledge-base/raw/bt-results/e23/data_freeze_manifest_2026-09-15.json`
+(family C と同規律: gap-fill 済 `{PAIR}_15m_2014_2026.parquet` のみ使用、bare rolling parquet は
+コードとテストで使用禁止)。firewall pin = per-event に forward 値を持たせない構造テスト。
+
+### §11.1 gate 結果
+
+| gate | 内容 | 結果 |
+|---|---|---|
+| **A (headroom)** | 無条件 median \|fwd5\| ≥ 10×RT | ✅ 3/3 ペア通過 — EUR_USD 71.5p (閾値 20.0) / GBP_USD 95.0p (45.3) / USD_JPY 81.9p (21.4) |
+| **B (power)** | pooled イベント N ≥ 100 | ❌ **N = 56** (boe 22 / fed 15 / boj 14 / ecb 5) |
+
+**headroom は十分にあった。死因は特徴量側の疎性**である。
+
+### §11.2 イベントが積み上がらなかった機序 (会計は閉じている)
+
+explore 窓の使用可能文書 **327** 件 = イベント 56 + void 267 + 各 CB 初回 4。
+void は **全件が `delta_nh_zero`** (staleness >120 日 0 件 / Fed・ECB 同日衝突 0 日 /
+t0 写像不能 0 件)。**NH = 0 の文書が 279/327 (85.3%)**。
+
+敵対的確認 (抽出バグでないことの実証): 凍結辞書の形容詞語幹は explore コーパスに
+**7.27 回/文書**出現している。しかし直後トークンの上位は `in` 500 / `at` 210 / `than` 139 /
+`the` 111 / `levels` 84 / `trend` 64 … と機能語か辞書外名詞で、**ABG 名詞が隣接に来ない**。
+中銀声明の語法 ("increases **in** the federal funds rate" / "strong **labor** market" /
+"higher **levels**") が、ABG の two-word combination (形容詞語幹 + 名詞語幹の文内隣接) と
+噛み合っていない。原典 (Riksbank minutes) は長く叙述的な議事録で、政策声明はその語法を持たない。
+**文境界規則 (V6) は正しく機能しており** ("unemployment rate has remained **low. Inflation**
+remains elevated" は正しく非計数)、バグではない。§10.2 で予告した上界 100 に対し実測 56。
+
+### §11.3 分岐 (§4/§6 の事前規定どおり)
+
+- **verdict = UNDERPOWERED → park。** §6 のとおり **救済的な窓拡張・CB 追加・語彙拡張・
+  文書種追加 (minutes/議事要旨/会見) は禁止**。再開は split 再設計を伴う**新 pre-reg のみ**。
+- **explore 枠は LOCK 時に消費済み (1/3)**。本 verdict で追加消費はない。
+- **power caveat (§6 の義務)**: 本結果は「中銀テキストに方向情報が無い」ことを**一切示していない**。
+  示したのは「**凍結 ABG 辞書 × G4 政策声明という特徴量化では、10 年分でも検定可能な
+  イベントが 56 件しか作れない**」という**測定可能性の否定**である。「CB テキストは falsified」型の
+  引用は estimand 監査なしに禁止 (MEMORY `feedback_audit_past_verdicts_2026_08_05`)。
+- **コーパスは維持** (§6「コーパス蓄積は継続、アーカイブ価値独立")。398 文書 + sha256 manifest は
+  in-repo に残し、将来の新 pre-reg (別特徴量系) が再取得なしで使える。
+
+### §11.4 供給ラインへの含意 (正直な会計)
+
+E23 は **park 時点で唯一の能動測定ライン**だった。park により**能動測定ライン = 0 本**に戻る
+(残は時限系のみ: E1 first look 2026-10-15 / ECG 2026-11-06 / E12 2027-02-05)。
+これは registry `edge-supply-scan-monthly` の **WIP 原則 (S1-S4 の仮説が 2 本未満 → 期日を
+待たず臨時スキャン、R3)** の発動条件に該当する。外部仮説 explore→OOS 生存の base rate 4%
+(CI 0.7-19.5%) は不変で、本件はその分母に 1 本加わった (通算 0/18 系統)。

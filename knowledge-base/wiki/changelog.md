@@ -1,6 +1,18 @@
 # Changelog — バージョン別変更と評価基準日
 
-## 2026-09-15 — research(E23): pass-0 コーパス census 執行 — gates 全 4 CB PASS / pass-1 解錠、ただし Gate B 到達に赤信号 (rule:R1 手続き、純研究)
+## 2026-09-15 — research(E23): explore verdict = ❌ **UNDERPOWERED / park** — pass-0 census PASS → pass-1 で Gate B N=56<100 (rule:R1 手続き、純研究)
+
+- **期日 09-20 の 5 日前倒しで verdict 確定**。**pass-2 (測定) は解錠せず = イベント×リターンの結合統計を一度も計算していない** → explore 窓の outcome にも OOS 窓にも未接触のまま park (窓は焼いていない)
+- **Gate A (headroom) は 3/3 ペア通過** — 無条件 median |fwd5| = EUR_USD 71.5p (閾値 20.0) / GBP_USD 95.0p (45.3) / USD_JPY 81.9p (21.4)。**走る余地はあった**
+- ❌ **Gate B (power) 未達: pooled イベント N = 56 < 100** (boe 22 / fed 15 / boj 14 / ecb 5)。会計は閉じている: explore 使用可能文書 327 = イベント 56 + void 267 + 各 CB 初回 4。**void は全件 `delta_nh_zero`** (staleness>120d 0 / Fed·ECB 同日衝突 0 / t0 写像不能 0)、**NH=0 の文書が 279/327 = 85.3%**
+- 🔵 **死因 = 特徴量側の疎性 (抽出バグでないことを敵対的に実証)**: 凍結辞書の形容詞語幹は explore コーパスに **7.27 回/文書**出現するのに、直後トークン上位は `in` 500 / `at` 210 / `than` 139 / `the` 111 / `levels` 84 / `trend` 64 … と機能語・辞書外名詞。中銀声明の語法 ("increases **in** the federal funds rate" / "strong **labor** market" / "higher **levels**") が ABG の two-word combination (形容詞語幹 + 名詞語幹の**文内隣接**) と噛み合わない。原典 (Riksbank minutes) は長い叙述的議事録で、政策声明はその語法を持たない。**V6 の文境界規則は正しく機能** ("remained **low. Inflation** remains elevated" を正しく非計数) — バグではない
+- ⚠️ **power caveat (§6 の義務)**: 本結果は「中銀テキストに方向情報が無い」ことを**一切示していない**。示したのは「**凍結 ABG 辞書 × G4 政策声明という特徴量化では 10 年分でも検定可能なイベントが 56 件しか作れない**」= **測定可能性の否定**。「CB テキストは falsified」型の引用は estimand 監査なしに禁止 (MEMORY `feedback_audit_past_verdicts_2026_08_05`)
+- **救済禁止** (§6): 窓拡張・CB 追加・語彙拡張・文書種追加 (minutes/会見) はいずれも恒久禁止、再開は split 再設計を伴う**新 pre-reg のみ**。explore 枠は LOCK 時消費済み (1/3)、本 verdict で追加消費なし
+- 🔴 **供給ラインへの含意**: E23 は park 時点で**唯一の能動測定ライン**だった → **能動測定ライン = 0 本**へ (残は時限系のみ: E1 10-15 / ECG 11-06 / E12 2027-02-05)。registry `edge-supply-scan-monthly` の **WIP 原則 (S1-S4 < 2 本 → 期日を待たず臨時スキャン、R3) の発動条件が成立** → 期日を 10-18 → **09-18 へ前倒し**、到達経路 (第 5 次スキャンの起草先 + 先に読む ban 台帳) を message に明記。外部仮説 explore→OOS 生存は通算 **0/18 系統** (base rate 4%、CI 0.7-19.5% は不変)
+- 🟣 **新設 `tools/e23_pass1_events.py`**: イベント列挙 + Gate A/B。**firewall** = 成果物に per-date の forward 値を持たせない (構造テスト pin)。価格は (a) t0→valid D1 写像 (b) Gate A の**シグナル非依存**な無条件 |fwd5| 集計 の 2 用途のみ。価格ソースは family C と同規律で gap-fill 済 `{PAIR}_15m_2014_2026.parquet` に限定 + sha256/行数 manifest assert (`raw/bt-results/e23/data_freeze_manifest_2026-09-15.json`)、**bare rolling parquet はコードとテストで使用禁止**
+- 出力: `knowledge-base/raw/analysis/e23-pass1-events-2026-09-15.md` (+ `.json`) / verdict 全文 = pre-reg §11
+
+## 2026-09-15 — research(E23): pass-0 コーパス census 執行 — gates 全 4 CB PASS / pass-1 解錠 (rule:R1 手続き、純研究)
 
 - **起点**: registry `e23-explore-verdict-deadline` (2026-09-20) の未執行。E23 は **現在ただ一本の能動測定ライン** (E21/E22/E7/range_fade が全て FAIL クローズ、残りは時限系 E1 10-15 / ECG 11-06 / E12 2027-02-05)。pre-reg 🔒 [[e23-cb-text-explore-prereg-2026-09-10]] §9-2 の pass-0 (コーパス取得 + census、outcome 非接触) を執行
 - 🟣 **新設 `tools/e23_corpus_fetch.py`**: Fed / ECB / BOE / BoJ の**公式サイト primary** から政策声明を取得 (無料・keyless)。**398 文書** → `data/external/cb_statements/{cb}/{YYYY-MM-DD}.json` + `manifest.json` (文書別 sha256 + 文字数)。差分取得 (既取得は再取得しない)。配布形式は BoJ ≤2017 / BOE ≤2020 が PDF、以降 HTML — 同一の境界規則で両方から本文を取る (形式はコンテナであってシグナル DoF ではない)

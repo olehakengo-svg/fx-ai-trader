@@ -204,3 +204,56 @@ def test_pass0_modules_do_not_touch_price_data():
         )
         hit = banned.search(body)
         assert hit is None, f"{mod.name} が価格系を参照している: {hit.group(0)}"
+
+
+# ───────────────────────── pass-1 (イベント列挙) の pin ─────────────────────
+
+import e23_pass1_events as pass1_mod  # noqa: E402
+
+
+def test_pass1_frozen_constants():
+    assert pass1_mod.HORIZON_D1 == 5
+    assert pass1_mod.GATE_B_N == 100
+    assert pass1_mod.STALENESS_VOID_DAYS == 120
+    assert pass1_mod.MIN_BARS_PER_D1 == 24
+    assert pass1_mod.GATE_A_MULTIPLE == 10
+    # CB→ペアと方向 (pre-reg §2 凍結)
+    assert pass1_mod.CB_MAP == {
+        "ecb": ("EUR_USD", +1), "boe": ("GBP_USD", +1),
+        "boj": ("USD_JPY", -1), "fed": ("EUR_USD", -1)}
+
+
+def test_pass1_forbids_bare_rolling_parquet():
+    """bare {PAIR}_15m.parquet は直近ローリングキャッシュ = 使用禁止 (family C 同規律)."""
+    assert pass1_mod.PRICE_FILE_TMPL == "{pair}_15m_2014_2026.parquet"
+
+
+def test_pass1_event_records_carry_no_forward_values():
+    """firewall: pass-1 成果物の 1 イベントに forward 値を持たせない (構造 pin)."""
+    out = ROOT / "knowledge-base" / "raw" / "analysis" / \
+        "e23-pass1-events-2026-09-15.json"
+    if not out.exists():                       # 成果物未生成の環境では skip しない
+        return                                 # (CI は成果物を含むコミットで走る)
+    import json
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    allowed = {"cb", "statement_date", "t0_d1", "pair", "d", "delta_nh_sign",
+               "gap_days"}
+    banned = re.compile(r"fwd|ret|pnl|pip|move|close", re.I)
+    for ev in payload["enumeration"]["events"]:
+        assert set(ev) <= allowed, f"未知のキー: {set(ev) - allowed}"
+        assert not any(banned.search(k) for k in ev)
+
+
+def test_pass1_events_arithmetic_is_closed():
+    """列挙イベント + void + CB ごとの初回文書 = explore 使用可能文書数."""
+    out = ROOT / "knowledge-base" / "raw" / "analysis" / \
+        "e23-pass1-events-2026-09-15.json"
+    if not out.exists():
+        return
+    import json
+    p = json.loads(out.read_text(encoding="utf-8"))["enumeration"]
+    n_cb = len({e["cb"] for e in p["events"]} | {k.split(":")[0] for k in p["voids"]})
+    total = len(p["events"]) + sum(p["voids"].values()) + n_cb
+    assert total == p["n_docs_explore_usable"], (
+        f"会計が閉じていない: events {len(p['events'])} + voids "
+        f"{sum(p['voids'].values())} + 初回 {n_cb} != {p['n_docs_explore_usable']}")

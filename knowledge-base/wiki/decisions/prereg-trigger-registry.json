@@ -263,18 +263,21 @@
       "id": "edge-supply-scan-monthly",
       "active": true,
       "type": "deadline_info",
-      "deadline": "2026-10-18",
+      "deadline": "2026-09-18",
       "doc": "knowledge-base/wiki/syntheses/edge-development-pipeline-2026-07-18.md",
-      "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3)。第3次 2026-08-14 実行済 (採用 E21/E22・棄却 E24/E25・保留 E23)。**第4次 2026-09-10 実行済 (期日 09-18 の 8 日前倒し、WIP 原則 — [[external-hypothesis-scan-round4-2026-09-10]])**: family A 採用 (台帳 #27、敵対的検証+凍結は family-a-adversarial-freeze-deadline) / family B 不採用 (park、再裁定 = #27 verdict + mof-next-episode-reverdict 完了後) / family C 台帳整合 (FAIL 不変) / E23 testable form DRAFT→LOCK (残 item 3 完遂) / 新規 E26-E28 全棄却 / U4 材料 §4 凍結 / rate-anchor-daily+zn-cache-refresh 修復 (FRED WAF + git add ignored-path の二重根因)。次回第5次 = 2026-10-18。四半期モダリティ棚卸しは第6次に同乗。到達経路 (第5次の材料、性質 pin 継続): A forward 材料 = mof-statements-daily cron (lexicon_scores.csv 日次) — 基盤着地は statement-ladder-foundation-readiness で resolve 済み / B 再裁定入力 = intervention-watch workflow (E-A 凍結検知器、00:20 UTC) + mof-next-episode-reverdict / C 残置材料 = rate-anchor-daily workflow (平日 21:15 UTC、本 PR 修復 — 初回 green は dispatch 検証で確認)。"
+      "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3)。第3次 2026-08-14 実行済 (採用 E21/E22・棄却 E24/E25・保留 E23)。**第4次 2026-09-10 実行済 (期日 09-18 の 8 日前倒し、WIP 原則 — [[external-hypothesis-scan-round4-2026-09-10]])**: family A 採用 (台帳 #27、敵対的検証+凍結は family-a-adversarial-freeze-deadline) / family B 不採用 (park、再裁定 = #27 verdict + mof-next-episode-reverdict 完了後) / family C 台帳整合 (FAIL 不変) / E23 testable form DRAFT→LOCK (残 item 3 完遂) / 新規 E26-E28 全棄却 / U4 材料 §4 凍結 / rate-anchor-daily+zn-cache-refresh 修復 (FRED WAF + git add ignored-path の二重根因)。次回第5次 = 2026-10-18。四半期モダリティ棚卸しは第6次に同乗。到達経路 (第5次の材料、性質 pin 継続): A forward 材料 = mof-statements-daily cron (lexicon_scores.csv 日次) — 基盤着地は statement-ladder-foundation-readiness で resolve 済み / B 再裁定入力 = intervention-watch workflow (E-A 凍結検知器、00:20 UTC) + mof-next-episode-reverdict / C 残置材料 = rate-anchor-daily workflow (平日 21:15 UTC、本 PR 修復 — 初回 green は dispatch 検証で確認)。 【2026-09-15 WIP 原則の発動条件成立】E23 (台帳 #25) が UNDERPOWERED park となり **能動測定ライン = 0 本** (残は時限系のみ: E1 10-15 / ECG 11-06 / E12 2027-02-05)。S1-S4 が 2 本未満 = 期日 (10-18) を待たず**臨時スキャン (R3) の実施条件**を満たす。次セッションの最優先候補。",
+      "reachability": "Claude セッション手動 (Tier-A cron が TRIGGERED 表示)。2026-09-15 に WIP 原則の発動条件成立 (能動測定ライン 0 本) → 期日を 10-18 から 09-18 へ前倒し。前進経路 = 第 5 次外部仮説スキャン (wiki/research/ に external-hypothesis-scan-round5 を新設、既存 ban 台帳 + hypothesis-catalog-2026-07-24 の triage を先に読むこと)。"
     },
     {
       "id": "e23-explore-verdict-deadline",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-09-20",
       "doc": "knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-10.md",
       "message": "E23 中銀声明テキスト explore pre-reg (🔒 LOCKED 2026-09-10、台帳 #25、explore 枠 1/3) の verdict 期日 (LOCK+10日、T5 型ギャップ防止)。執行 = LOCK 後の別タスク: pass-0 コーパス取得ハーネス + census (outcome 非接触、per-CB 被覆 gate / 生存 <2 CB = DATA-BLOCKED) → コミット → pass-1 (イベント列挙、fwd 非接触) → コミット → pass-2 (測定、seed 20260910)。凍結辞書 sha256=f49586ca... を測定ハーネスが assert。期日到達で未執行なら stale レビュー。TDW/WCB (CC BY-NC) は事前コミット節どおり secondary 保留 = user 決裁点。 【2026-09-15 進捗】pass-0 (コーパス取得 + census) 執行完了 = gates 全 4 CB PASS で pass-1 解錠、outcome 非接触を test で構造 pin。残 = pass-1 (イベント列挙) → コミット → pass-2 (測定、seed 20260910)。⚠️ イベント数の機械的上界が 100 = Gate B 閾値ちょうどのため UNDERPOWERED 分岐の可能性が高い (pre-reg §10.2)。成果物: tools/e23_corpus_{fetch,census}.py / knowledge-base/raw/analysis/e23-pass0-census-2026-09-15.md",
-      "reachability": "Claude セッション手動。pass-0 完了済 (2026-09-15) — 前進経路 = pass-1 列挙ハーネス (価格非接触) → pass-2 測定。コーパスは in-repo (data/external/cb_statements/) で再取得不要。"
+      "reachability": "Claude セッション手動。pass-0 完了済 (2026-09-15) — 前進経路 = pass-1 列挙ハーネス (価格非接触) → pass-2 測定。コーパスは in-repo (data/external/cb_statements/) で再取得不要。",
+      "resolved": "2026-09-15",
+      "resolution": "explore verdict = UNDERPOWERED / park (期日 09-20 の 5 日前倒し)。pass-0 census 全 4 CB PASS → pass-1 で Gate A 3/3 通過・**Gate B N=56 < 100** で未達。pass-2 は解錠せず = イベント×リターン結合統計を一度も計算していない (explore outcome / OOS とも未接触)。救済禁止 (§6)、再開は新 pre-reg のみ。詳細: knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-10.md §10-§11 / 成果物 knowledge-base/raw/analysis/e23-pass{0,1}-*-2026-09-15.{md,json}"
     },
     {
       "id": "family-a-adversarial-freeze-deadline",

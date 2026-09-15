@@ -206,8 +206,7 @@ def render_md(c: dict) -> str:
     lines = [
         "# E23 pass-0 コーパス census — 2026-09-15",
         "",
-        f"**pre-reg**: [[../../wiki/decisions/e23-cb-text-explore-prereg-2026-09-10|"
-        f"E23 explore pre-reg 🔒]] / **pass**: {c['pass']}",
+        f"**pre-reg**: [[e23-cb-text-explore-prereg-2026-09-10]] 🔒 / **pass**: {c['pass']}",
         f"**生成**: `tools/e23_corpus_census.py` @ {c['generated_at']} / "
         f"コーパス取得 = `tools/e23_corpus_fetch.py`",
         f"**explore 窓**: {c['explore_window'][0]} 〜 {c['explore_window'][1]} "
