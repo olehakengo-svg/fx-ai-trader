@@ -1,5 +1,30 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-15 — research(E23): explore verdict = ❌ **UNDERPOWERED / park** — pass-0 census PASS → pass-1 で Gate B N=56<100 (rule:R1 手続き、純研究)
+
+- **期日 09-20 の 5 日前倒しで verdict 確定**。**pass-2 (測定) は解錠せず = イベント×リターンの結合統計を一度も計算していない** → explore 窓の outcome にも OOS 窓にも未接触のまま park (窓は焼いていない)
+- **Gate A (headroom) は 3/3 ペア通過** — 無条件 median |fwd5| = EUR_USD 71.5p (閾値 20.0) / GBP_USD 95.0p (45.3) / USD_JPY 81.9p (21.4)。**走る余地はあった**
+- ❌ **Gate B (power) 未達: pooled イベント N = 56 < 100** (boe 22 / fed 15 / boj 14 / ecb 5)。会計は閉じている: explore 使用可能文書 327 = イベント 56 + void 267 + 各 CB 初回 4。**void は全件 `delta_nh_zero`** (staleness>120d 0 / Fed·ECB 同日衝突 0 / t0 写像不能 0)、**NH=0 の文書が 279/327 = 85.3%**
+- 🔵 **死因 = 特徴量側の疎性 (抽出バグでないことを敵対的に実証)**: 凍結辞書の形容詞語幹は explore コーパスに **7.27 回/文書**出現するのに、直後トークン上位は `in` 500 / `at` 210 / `than` 139 / `the` 111 / `levels` 84 / `trend` 64 … と機能語・辞書外名詞。中銀声明の語法 ("increases **in** the federal funds rate" / "strong **labor** market" / "higher **levels**") が ABG の two-word combination (形容詞語幹 + 名詞語幹の**文内隣接**) と噛み合わない。原典 (Riksbank minutes) は長い叙述的議事録で、政策声明はその語法を持たない。**V6 の文境界規則は正しく機能** ("remained **low. Inflation** remains elevated" を正しく非計数) — バグではない
+- ⚠️ **power caveat (§6 の義務)**: 本結果は「中銀テキストに方向情報が無い」ことを**一切示していない**。示したのは「**凍結 ABG 辞書 × G4 政策声明という特徴量化では 10 年分でも検定可能なイベントが 56 件しか作れない**」= **測定可能性の否定**。「CB テキストは falsified」型の引用は estimand 監査なしに禁止 (MEMORY `feedback_audit_past_verdicts_2026_08_05`)
+- **救済禁止** (§6): 窓拡張・CB 追加・語彙拡張・文書種追加 (minutes/会見) はいずれも恒久禁止、再開は split 再設計を伴う**新 pre-reg のみ**。explore 枠は LOCK 時消費済み (1/3)、本 verdict で追加消費なし
+- 🔴 **供給ラインへの含意**: E23 は park 時点で**唯一の能動測定ライン**だった → **能動測定ライン = 0 本**へ (残は時限系のみ: E1 10-15 / ECG 11-06 / E12 2027-02-05)。registry `edge-supply-scan-monthly` の **WIP 原則 (S1-S4 < 2 本 → 期日を待たず臨時スキャン、R3) の発動条件が成立** → 期日を 10-18 → **09-18 へ前倒し**、到達経路 (第 5 次スキャンの起草先 + 先に読む ban 台帳) を message に明記。外部仮説 explore→OOS 生存は通算 **0/18 系統** (base rate 4%、CI 0.7-19.5% は不変)
+- 🟣 **新設 `tools/e23_pass1_events.py`**: イベント列挙 + Gate A/B。**firewall** = 成果物に per-date の forward 値を持たせない (構造テスト pin)。価格は (a) t0→valid D1 写像 (b) Gate A の**シグナル非依存**な無条件 |fwd5| 集計 の 2 用途のみ。価格ソースは family C と同規律で gap-fill 済 `{PAIR}_15m_2014_2026.parquet` に限定 + sha256/行数 manifest assert (`raw/bt-results/e23/data_freeze_manifest_2026-09-15.json`)、**bare rolling parquet はコードとテストで使用禁止**
+- 出力: `knowledge-base/raw/analysis/e23-pass1-events-2026-09-15.md` (+ `.json`) / verdict 全文 = pre-reg §11
+
+## 2026-09-15 — research(E23): pass-0 コーパス census 執行 — gates 全 4 CB PASS / pass-1 解錠 (rule:R1 手続き、純研究)
+
+- **起点**: registry `e23-explore-verdict-deadline` (2026-09-20) の未執行。E23 は **現在ただ一本の能動測定ライン** (E21/E22/E7/range_fade が全て FAIL クローズ、残りは時限系 E1 10-15 / ECG 11-06 / E12 2027-02-05)。pre-reg 🔒 [[e23-cb-text-explore-prereg-2026-09-10]] §9-2 の pass-0 (コーパス取得 + census、outcome 非接触) を執行
+- 🟣 **新設 `tools/e23_corpus_fetch.py`**: Fed / ECB / BOE / BoJ の**公式サイト primary** から政策声明を取得 (無料・keyless)。**398 文書** → `data/external/cb_statements/{cb}/{YYYY-MM-DD}.json` + `manifest.json` (文書別 sha256 + 文字数)。差分取得 (既取得は再取得しない)。配布形式は BoJ ≤2017 / BOE ≤2020 が PDF、以降 HTML — 同一の境界規則で両方から本文を取る (形式はコンテナであってシグナル DoF ではない)
+- 🟣 **新設 `tools/e23_corpus_census.py`**: pre-reg §2 の census gate を機械実行。**verdict = PASS_TO_PASS1** — per-CB 被覆 (各年 ≥6 声明を ≥80% の年で) は fed 10/10 / ecb 10/10 / **boe 8/10 (境界ちょうど、2014 は MPS という文書種が未存在・2015 は 8 月創設)** / boj 10/10 で**生存 CB 4 ≥ 2**。V1 Fed/ECB 同日衝突 0 件 / V3 BoJ 英語版 当日付一致 93/93 / staleness >120d void 0 件 / 機械的欠測 BOE 4 件。出力: `knowledge-base/raw/analysis/e23-pass0-census-2026-09-15.md` (+ `.json`)
+- 🔴 **正直な power 警告 (LOCK 時点では未知、§5 P-E3「コーパス本体未読」)**: 凍結 ABG 辞書の当たり密度が **0.036〜0.424 matched bigram / 文書**。生存 CB の explore 文書 327 件のうち **matched bigram を 1 つ以上持つ文書は 50 件** → ΔNH≠0 には NH_t / NH_{t−1} の一方が非ゼロ必要 ∧ 非ゼロ文書 1 件は隣接ペア 2 つにしか関与しない ⇒ **イベント数の機械的上界 = 100 = Gate B 閾値ちょうど**。実 N は void・隣接重複で必ず下回る ⇒ **pass-1 で UNDERPOWERED の公算が高い**。原因は設計どおり (ABG は長い議事録向けの文内隣接カウント、政策声明は短く "remained **low. Inflation** remains elevated" のように文境界を跨ぐ — V6 の文境界規則が正しく弾いておりバグではない)。**救済的な語彙拡張・文境界緩和・文書種追加は §0-3 / §6 により恒久禁止** — 凍結仕様のまま走らせて正直に park する
+- ⚖️ **BoJ 文書同定の解釈記録 (pre-reg §10.3、価格に一度も触れずに確定)**: BoJ は**政策変更があった回だけ表題を変える** (2014-10-31 QQE 拡大 / 2016-01-29 NIRP 導入 / 2018-07-31 / 2020-03-16 / 2024-03-19 / 2024-07-31 等)。表題文字列で拾うと **政策ニュース最大の回だけが落ちる = 内容条件付き選択バイアス**で estimand が「政策変更のなかった会合限定の tone 差分」へすり替わる → 同定を **表題一致 → BoJ 主文書スロット `k{YYMMDD}a` → 同日先頭** の順に凍結 (構造ベース、内容非依存)。ECB は "Monetary policy decisions" = 文書種名そのもので同じ問題を持たないため表題一致のまま
+- 🔵 **抽出は無トリム規則**: 公式ページの本文コンテナ (Fed `div#article` / ECB・BoJ `main` / BOE は MPS 節境界語) をトリムせず採る。定型フッタは hawk/dove bigram に寄与せず ΔNH は定数を打ち消すため、トリム規則を置かない方が抽出 DoF が閉じる
+- 🔵 **読み手が先にあった実証**: 初回取得で ECB 2022 が接続リセットで丸ごと欠落したが、census の年次内訳表 (2022 = 0) が即座に露出 → 再取得で埋めた。[[lesson-constructed-url-404-is-not-absence-2026-08-31]] の「収集経路を足したら読み手を同じコミットで足せ」が今回は先に守られていた形
+- 🧪 pin `tests/test_e23_corpus_harness.py` (16 本): 凍結辞書 sha256 == pre-reg pin (doc 側の書き換えも二重照合) / gate 閾値・窓の凍結値 / BOE MPS 節境界 (表題行・目次行を始点にしない) / 公表日 2 形式 / BoJ 同定が表題条件付けに退行しない / census の 80% 境界は inclusive / 生存 <2 で DATA-BLOCKED / **pass-0 モジュールが価格系を参照しない構造 pin**
+- ⚙️ `render.yaml` buildFilter に `data/external/cb_statements/**` を追加 (研究ハーネス専用・ランタイム参照ゼロを全数 grep で確認、コーパス一括コミットで取引エンジンを再起動させない)
+- **規律**: live/shadow/tier/lot/Kelly 変更ゼロ。価格データ未参照。explore 枠消費なし (LOCK 時に 1/3 消費済み)。残 = pass-1 (イベント列挙) → コミット → pass-2 (測定、seed 20260910)
+
 ## 2026-09-14 — feat(kb): 日次市場レビュー + 観測採集プロトコル新設 (S0 intake 層) (rule:R3)
 
 - **起点**: user 依頼「前営業日のチャート検証から毎日複数エッジを設計できないか」。クオンツ判定 = 「毎日勝てるエッジ設計」は base rate 4% ([[process-meta-audit-2026-09-07]] §1) の下で数学的に不成立 (年 700–1000 仮説の多重検定爆発)。**採集と検証を分離**した修正版のみ採用: 日次は記述級の観測採集、検証は既存 pre-reg バッチ経路

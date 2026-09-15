@@ -1,0 +1,18 @@
+{
+ "generated_at": "2026-09-15T03:44:30+00:00",
+ "purpose": "E23 pass-1/pass-2 価格ソースの sha256 + 行数 pin",
+ "files": {
+  "EUR_USD": {
+   "sha256": "c29e9f6dc8b6484b574b4ef5e8476940c1816595e4d6a4bf456203110e2a2925",
+   "rows": 311052
+  },
+  "GBP_USD": {
+   "sha256": "4e6f9e97362bc9e4e3e392e9338a929fbb9458e490a6fc27993d66c3f2536142",
+   "rows": 310500
+  },
+  "USD_JPY": {
+   "sha256": "f3b8cab6fad2bdf35629ff6501573e554a680bf917468b3304f10ec463811195",
+   "rows": 310624
+  }
+ }
+}

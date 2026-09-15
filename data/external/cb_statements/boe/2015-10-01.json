@@ -1,0 +1,13 @@
+{
+ "cb": "boe",
+ "date": "2015-10-01",
+ "doc_type": "Monetary Policy Summary",
+ "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2015/october-2015",
+ "published_raw": "",
+ "source_format": "html",
+ "text": "",
+ "text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+ "n_chars": 0,
+ "fetched_at": "2026-09-15T03:17:50+00:00",
+ "missing_reason": "no_mps_boundary_html_or_pdf"
+}

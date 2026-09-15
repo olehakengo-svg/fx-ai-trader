@@ -117,3 +117,137 @@
 1. 本 DRAFT (本コミット) → **LOCK = 別 commit** (lexicon sha256 pin + registry `e23-explore-verdict-deadline` 併設 + 台帳 #25 更新 + queue ticket done 移送 + SLA waiver 削除)。
 2. LOCK 後の別タスク: pass-0 コーパス取得ハーネス + census (outcome 非接触) → コミット → pass-1/pass-2 (two-pass、seed 20260910)。
 3. verdict 追記 + 台帳更新。explore スロット消費は **LOCK 時に 1/3 を宣言** (現在 0/3)。
+
+---
+
+## §10 pass-0 執行記録 (2026-09-15) — コーパス census: **gates PASS → pass-1 解錠**
+
+> **本節は執行記録であり設計変更ではない。** §0-§9 の凍結文言は一字も変えていない。pass-0 は
+> **価格データを一度も開いていない** (outcome 非接触、`tests/test_e23_corpus_harness.py::
+> test_pass0_modules_do_not_touch_price_data` が構造 pin)。
+
+**成果物**: 取得ハーネス `tools/e23_corpus_fetch.py` / census `tools/e23_corpus_census.py` /
+コーパス `data/external/cb_statements/` (398 文書 + `manifest.json` = 文書別 sha256 + 文字数) /
+census 出力 [[e23-pass0-census-2026-09-15]] (.md/.json) /
+pin `tests/test_e23_corpus_harness.py` (16 本)。凍結辞書 sha256 は実行時 assert ではなく
+**テストで pin** した (§0-3 の意図 = 語彙の後付け編集の機械封鎖、を CI で常時守る方が強い)。
+
+### §10.1 census gates (pre-reg §2、機械判定)
+
+| CB | explore 文書数 | 条件充足年/10 | 被覆率 | gate |
+|---|---|---|---|---|
+| fed | 85 | 10/10 | 100% | ✅ |
+| ecb | 83 | 10/10 | 100% | ✅ |
+| boe | 66 | 8/10 | 80% | ✅ (境界ちょうど — 2014 は MPS という文書種が未存在、2015 は 8 月創設で 1 件) |
+| boj | 93 | 10/10 | 100% | ✅ |
+
+**生存 CB = 4 ≥ 2 → DATA-BLOCKED ではない = pass-1 解錠。** 機械的欠測は BOE 4 件
+(MPS 節境界が HTML/PDF とも取れない回。2020-03 緊急会合等)。V1 Fed/ECB 同日衝突 **0 件**。
+V3 BoJ 英語版の当日付一致 **93/93**。staleness >120 日 void **0 件** (全 CB)。
+
+### §10.2 ⚠️ 正直な power 警告 — Gate B は上界でようやく閾値
+
+凍結辞書の当たり密度が **0.036〜0.424 matched bigram / 文書** (ecb / boe が両端) と極端に低い。
+生存 CB の explore 文書 327 件のうち **matched bigram を 1 つ以上持つ文書は 50 件**。
+ΔNH_t ≠ 0 には NH_t / NH_{t−1} の少なくとも一方が非ゼロである必要があり、非ゼロ文書 1 件は
+隣接ペア 2 つにしか関与できないので、**イベント数の機械的上界 = 100 = Gate B 閾値ちょうど**。
+実 N は staleness void・Fed/ECB 同日 void・非ゼロ文書の隣接重複で必ずこれを下回る
+⇒ **pass-1 で Gate B 未達 (UNDERPOWERED) となる公算が高い**。
+
+これは §1 の負 prior 3 (公表後減衰) や §4 の MDE 18-32bp とは別の、**特徴量側の疎性**という
+独立の弱点で、LOCK 時点では未知だった (§5 P-E3「コーパス本体は未読」)。原因は設計どおり:
+ABG 辞書は形容詞語幹 + 名詞語幹の**文内隣接**のみを数え、原典は長い議事録 (Riksbank minutes)
+を対象にしていた。政策声明は短く、"unemployment rate has remained **low. Inflation** remains
+elevated" のように文境界を跨ぐ組み合わせが多い (V6 の文境界規則が正しく弾いている = バグでは
+ない)。**救済的な語彙拡張・文境界緩和・文書種追加は §0-3 / §6 により恒久禁止** — pass-1 は
+凍結仕様のまま走らせ、未達なら UNDERPOWERED として正直に park する。
+
+### §10.3 BoJ 文書同定の解釈記録 (観測前・outcome 非接触で確定)
+
+§2 の凍結文言は「BoJ: Statement on Monetary Policy (英語公式版のみ、無い回は機械的欠測)」。
+実装時に判明した事実: **BoJ は政策変更があった回だけ表題を変える** (2014-10-31 "Expansion of
+the Quantitative and Qualitative Monetary Easing" / 2016-01-29 "Introduction of QQE with a
+Negative Interest Rate" / 2018-07-31 / 2020-03-16 / 2024-03-19 / 2024-07-31 等)。表題文字列
+だけで拾うと **政策ニュースが最大の回だけが機械的に落ちる = 内容条件付きの選択バイアス**に
+なり、estimand が「政策変更のなかった会合に限った tone 差分」へ静かにすり替わる。
+
+そこで同定規則を **(1) 表題が "Statement on Monetary Policy" で始まる同日文書 → (2) BoJ 自身の
+主文書スロット `k{YYMMDD}a` → (3) 同日先頭** の順に凍結した ("(Reference)" 系は除外)。これは
+表題文字列でなく **BoJ の文書スロット構造**で「1 中銀 = 1 文書種」を実装したもので、選択は
+内容に依存しない。ECB は政策変更の有無で表題が変わらない ("Monetary policy decisions" =
+文書種名そのもの) ため同じ問題を持たず、表題一致のままとした。**本決定は価格に一度も触れずに
+行われた** (round-3 の窓再指定と同じ扱い: 結果観測前の data-driven 再指定、look-ahead なし)。
+pin = `test_boj_doc_selection_rule_is_not_title_conditional`。配布形式は BoJ が 2017 年以前 PDF /
+2018 年以降 HTML、BOE が 2020 年以前 PDF / 以降 HTML — **形式はコンテナであってシグナル
+DoF ではない**ため、同一の境界規則で両方から本文を取る。
+
+### §10.4 抽出規約 (無トリム) と、取得漏れを可視化した読み手
+
+本文は公式ページの本文コンテナ (Fed `div#article` / ECB・BoJ `main` / BOE は MPS 節境界語) を
+**トリムせずそのまま**採る。定型フッタは hawk/dove bigram に寄与せず、かつ ΔNH は定数を
+打ち消すため、トリム規則を置かない方が抽出 DoF が閉じる。
+
+**副次の実証**: 初回取得で ECB 2022 が接続リセットで丸ごと欠落したが、census の年次内訳表
+(2022 = 0) が即座に露出させた。「収集経路を足したら読み手を同じコミットで足せ」
+([[lesson-constructed-url-404-is-not-absence-2026-08-31]]) が今回は先に守られていた形。
+
+### §10.5 次の手順 (変更なし)
+
+pass-1 = イベント列挙 (ΔNH ≠ 0、staleness/同日 void 適用、fwd 非接触) → コミット →
+pass-2 = 測定 (seed 20260910、Gate A-G)。verdict 期日 `e23-explore-verdict-deadline` = 2026-09-20。
+
+---
+
+## §11 pass-1 verdict (2026-09-15、期日 09-20 の 5 日前倒し) — ❌ **UNDERPOWERED / park**
+
+> **pass-2 (測定) は解錠されていない。イベント×リターンの結合統計は一度も計算していない**
+> = explore 窓の outcome にも OOS 窓にも未接触のまま park する。
+
+**成果物**: `tools/e23_pass1_events.py` / [[e23-pass1-events-2026-09-15]] (.md/.json) /
+価格 sha256 pin `knowledge-base/raw/bt-results/e23/data_freeze_manifest_2026-09-15.json`
+(family C と同規律: gap-fill 済 `{PAIR}_15m_2014_2026.parquet` のみ使用、bare rolling parquet は
+コードとテストで使用禁止)。firewall pin = per-event に forward 値を持たせない構造テスト。
+
+### §11.1 gate 結果
+
+| gate | 内容 | 結果 |
+|---|---|---|
+| **A (headroom)** | 無条件 median \|fwd5\| ≥ 10×RT | ✅ 3/3 ペア通過 — EUR_USD 71.5p (閾値 20.0) / GBP_USD 95.0p (45.3) / USD_JPY 81.9p (21.4) |
+| **B (power)** | pooled イベント N ≥ 100 | ❌ **N = 56** (boe 22 / fed 15 / boj 14 / ecb 5) |
+
+**headroom は十分にあった。死因は特徴量側の疎性**である。
+
+### §11.2 イベントが積み上がらなかった機序 (会計は閉じている)
+
+explore 窓の使用可能文書 **327** 件 = イベント 56 + void 267 + 各 CB 初回 4。
+void は **全件が `delta_nh_zero`** (staleness >120 日 0 件 / Fed・ECB 同日衝突 0 日 /
+t0 写像不能 0 件)。**NH = 0 の文書が 279/327 (85.3%)**。
+
+敵対的確認 (抽出バグでないことの実証): 凍結辞書の形容詞語幹は explore コーパスに
+**7.27 回/文書**出現している。しかし直後トークンの上位は `in` 500 / `at` 210 / `than` 139 /
+`the` 111 / `levels` 84 / `trend` 64 … と機能語か辞書外名詞で、**ABG 名詞が隣接に来ない**。
+中銀声明の語法 ("increases **in** the federal funds rate" / "strong **labor** market" /
+"higher **levels**") が、ABG の two-word combination (形容詞語幹 + 名詞語幹の文内隣接) と
+噛み合っていない。原典 (Riksbank minutes) は長く叙述的な議事録で、政策声明はその語法を持たない。
+**文境界規則 (V6) は正しく機能しており** ("unemployment rate has remained **low. Inflation**
+remains elevated" は正しく非計数)、バグではない。§10.2 で予告した上界 100 に対し実測 56。
+
+### §11.3 分岐 (§4/§6 の事前規定どおり)
+
+- **verdict = UNDERPOWERED → park。** §6 のとおり **救済的な窓拡張・CB 追加・語彙拡張・
+  文書種追加 (minutes/議事要旨/会見) は禁止**。再開は split 再設計を伴う**新 pre-reg のみ**。
+- **explore 枠は LOCK 時に消費済み (1/3)**。本 verdict で追加消費はない。
+- **power caveat (§6 の義務)**: 本結果は「中銀テキストに方向情報が無い」ことを**一切示していない**。
+  示したのは「**凍結 ABG 辞書 × G4 政策声明という特徴量化では、10 年分でも検定可能な
+  イベントが 56 件しか作れない**」という**測定可能性の否定**である。「CB テキストは falsified」型の
+  引用は estimand 監査なしに禁止 (MEMORY `feedback_audit_past_verdicts_2026_08_05`)。
+- **コーパスは維持** (§6「コーパス蓄積は継続、アーカイブ価値独立")。398 文書 + sha256 manifest は
+  in-repo に残し、将来の新 pre-reg (別特徴量系) が再取得なしで使える。
+
+### §11.4 供給ラインへの含意 (正直な会計)
+
+E23 は **park 時点で唯一の能動測定ライン**だった。park により**能動測定ライン = 0 本**に戻る
+(残は時限系のみ: E1 first look 2026-10-15 / ECG 2026-11-06 / E12 2027-02-05)。
+これは registry `edge-supply-scan-monthly` の **WIP 原則 (S1-S4 の仮説が 2 本未満 → 期日を
+待たず臨時スキャン、R3)** の発動条件に該当する。外部仮説 explore→OOS 生存の base rate 4%
+(CI 0.7-19.5%) は不変で、本件はその分母に 1 本加わった (通算 0/18 系統)。

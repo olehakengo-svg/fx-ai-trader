@@ -1,0 +1,605 @@
+{
+ "generated_at": "2026-09-15T03:55:00+00:00",
+ "prereg": "knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-10.md",
+ "pass": "pass-1 イベント列挙 (forward 非接触 — 無条件 |fwd5| 集計のみ)",
+ "explore_window": [
+  "2014-01-01",
+  "2023-12-31"
+ ],
+ "price_sources": {
+  "EUR_USD": {
+   "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/EUR_USD_15m_2014_2026.parquet",
+   "rows": 311052,
+   "sha256": "c29e9f6dc8b6484b574b4ef5e8476940c1816595e4d6a4bf456203110e2a2925",
+   "span": [
+    "2013-12-29 22:00:00+00:00",
+    "2026-07-02 14:45:00+00:00"
+   ],
+   "valid_d1": 3243,
+   "void_low_bars": 6,
+   "void_weekend": 715
+  },
+  "GBP_USD": {
+   "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/GBP_USD_15m_2014_2026.parquet",
+   "rows": 310500,
+   "sha256": "4e6f9e97362bc9e4e3e392e9338a929fbb9458e490a6fc27993d66c3f2536142",
+   "span": [
+    "2013-12-29 22:00:00+00:00",
+    "2026-07-02 14:45:00+00:00"
+   ],
+   "valid_d1": 3246,
+   "void_low_bars": 4,
+   "void_weekend": 710
+  },
+  "USD_JPY": {
+   "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/USD_JPY_15m_2014_2026.parquet",
+   "rows": 310624,
+   "sha256": "f3b8cab6fad2bdf35629ff6501573e554a680bf917468b3304f10ec463811195",
+   "span": [
+    "2013-12-29 22:00:00+00:00",
+    "2026-07-02 14:45:00+00:00"
+   ],
+   "valid_d1": 3243,
+   "void_low_bars": 6,
+   "void_weekend": 711
+  }
+ },
+ "gate_a": {
+  "EUR_USD": {
+   "n": 3238,
+   "median_abs_fwd5_pips": 71.45,
+   "p25": 35.0,
+   "p75": 124.0,
+   "rt_pips": 2.0,
+   "gate_a_threshold_pips": 20.0,
+   "gate_a_pass": true
+  },
+  "GBP_USD": {
+   "n": 3241,
+   "median_abs_fwd5_pips": 95.0,
+   "p25": 45.3,
+   "p75": 165.0,
+   "rt_pips": 4.53,
+   "gate_a_threshold_pips": 45.3,
+   "gate_a_pass": true
+  },
+  "USD_JPY": {
+   "n": 3238,
+   "median_abs_fwd5_pips": 81.85,
+   "p25": 36.5,
+   "p75": 158.1,
+   "rt_pips": 2.14,
+   "gate_a_threshold_pips": 21.4,
+   "gate_a_pass": true
+  }
+ },
+ "gate_a_surviving_pairs": [
+  "EUR_USD",
+  "GBP_USD",
+  "USD_JPY"
+ ],
+ "gate_b": {
+  "threshold": 100,
+  "n_events_all": 56,
+  "n_events_after_gate_a": 56,
+  "pass": false
+ },
+ "enumeration": {
+  "n_docs_explore_usable": 327,
+  "n_docs_nh_zero": 279,
+  "collision_days": [],
+  "voids": {
+   "boe:delta_nh_zero": 43,
+   "boj:delta_nh_zero": 78,
+   "ecb:delta_nh_zero": 77,
+   "fed:delta_nh_zero": 69
+  },
+  "events": [
+   {
+    "cb": "fed",
+    "statement_date": "2014-10-29",
+    "t0_d1": "2014-10-29",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2014-10-31",
+    "t0_d1": "2014-10-31",
+    "pair": "USD_JPY",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 24
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2014-12-17",
+    "t0_d1": "2014-12-17",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 49
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2015-01-28",
+    "t0_d1": "2015-01-28",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 42
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2015-04-29",
+    "t0_d1": "2015-04-29",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2015-04-30",
+    "t0_d1": "2015-04-30",
+    "pair": "USD_JPY",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 22
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2015-09-17",
+    "t0_d1": "2015-09-17",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 50
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2015-11-19",
+    "t0_d1": "2015-11-19",
+    "pair": "USD_JPY",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 20
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2016-01-14",
+    "t0_d1": "2016-01-14",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 70
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2016-01-29",
+    "t0_d1": "2016-01-29",
+    "pair": "USD_JPY",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2016-02-04",
+    "t0_d1": "2016-02-04",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 21
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2016-03-17",
+    "t0_d1": "2016-03-17",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2016-04-14",
+    "t0_d1": "2016-04-14",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 28
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2016-06-16",
+    "t0_d1": "2016-06-16",
+    "pair": "USD_JPY",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 49
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2016-07-27",
+    "t0_d1": "2016-07-27",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2016-07-29",
+    "t0_d1": "2016-07-29",
+    "pair": "USD_JPY",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 43
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2016-08-04",
+    "t0_d1": "2016-08-04",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 21
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2016-09-15",
+    "t0_d1": "2016-09-15",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2016-09-21",
+    "t0_d1": "2016-09-21",
+    "pair": "USD_JPY",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 54
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2016-09-21",
+    "t0_d1": "2016-09-21",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 56
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2016-11-01",
+    "t0_d1": "2016-11-01",
+    "pair": "USD_JPY",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 41
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2017-02-02",
+    "t0_d1": "2017-02-02",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 49
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2017-03-16",
+    "t0_d1": "2017-03-16",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2017-08-03",
+    "t0_d1": "2017-08-03",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 84
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2017-09-14",
+    "t0_d1": "2017-09-14",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 42
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2017-09-20",
+    "t0_d1": "2017-09-20",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 56
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2017-11-01",
+    "t0_d1": "2017-11-01",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2017-11-02",
+    "t0_d1": "2017-11-02",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 49
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2018-02-08",
+    "t0_d1": "2018-02-08",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 56
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2018-03-22",
+    "t0_d1": "2018-03-22",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2018-07-31",
+    "t0_d1": "2018-07-31",
+    "pair": "USD_JPY",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 46
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2018-08-02",
+    "t0_d1": "2018-08-02",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2018-09-19",
+    "t0_d1": "2018-09-19",
+    "pair": "USD_JPY",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 50
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2018-12-20",
+    "t0_d1": "2018-12-20",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 49
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2019-03-20",
+    "t0_d1": "2019-03-20",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 49
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2019-04-25",
+    "t0_d1": "2019-04-25",
+    "pair": "USD_JPY",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 41
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2019-05-01",
+    "t0_d1": "2019-05-01",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2019-06-20",
+    "t0_d1": "2019-06-20",
+    "pair": "USD_JPY",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 56
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2019-10-31",
+    "t0_d1": "2019-10-31",
+    "pair": "USD_JPY",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boj",
+    "statement_date": "2019-12-19",
+    "t0_d1": "2019-12-19",
+    "pair": "USD_JPY",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 49
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2020-04-29",
+    "t0_d1": "2020-04-29",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 29
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2020-08-27",
+    "t0_d1": "2020-08-27",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 29
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2020-09-16",
+    "t0_d1": "2020-09-16",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": -1,
+    "gap_days": 20
+   },
+   {
+    "cb": "fed",
+    "statement_date": "2020-11-05",
+    "t0_d1": "2020-11-05",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": 1,
+    "gap_days": 50
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2022-02-03",
+    "t0_d1": "2022-02-03",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 49
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2022-03-17",
+    "t0_d1": "2022-03-17",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2022-05-05",
+    "t0_d1": "2022-05-05",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 49
+   },
+   {
+    "cb": "ecb",
+    "statement_date": "2022-06-09",
+    "t0_d1": "2022-06-09",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 56
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2022-06-16",
+    "t0_d1": "2022-06-16",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "ecb",
+    "statement_date": "2022-07-21",
+    "t0_d1": "2022-07-21",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "ecb",
+    "statement_date": "2023-05-04",
+    "t0_d1": "2023-05-04",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 49
+   },
+   {
+    "cb": "ecb",
+    "statement_date": "2023-06-15",
+    "t0_d1": "2023-06-15",
+    "pair": "EUR_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2023-06-22",
+    "t0_d1": "2023-06-22",
+    "pair": "GBP_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2023-08-03",
+    "t0_d1": "2023-08-03",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "boe",
+    "statement_date": "2023-12-14",
+    "t0_d1": "2023-12-14",
+    "pair": "GBP_USD",
+    "d": -1,
+    "delta_nh_sign": -1,
+    "gap_days": 42
+   },
+   {
+    "cb": "ecb",
+    "statement_date": "2023-12-14",
+    "t0_d1": "2023-12-14",
+    "pair": "EUR_USD",
+    "d": 1,
+    "delta_nh_sign": 1,
+    "gap_days": 49
+   }
+  ]
+ },
+ "verdict": "UNDERPOWERED"
+}
