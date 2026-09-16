@@ -4546,6 +4546,16 @@ Cutoff後の累積有効データは **N=3（WR100%、PnL +39.9p）** のみ —
 - `order_bar_dedup`：同一バーで複数シグナルが重複 → 正常動作だが機会圧縮に寄与。
 - Scalp系の `r2_shadow_demoted_cell` 状態が継続しているかを開場後に確認。JPY下落トレンドが継続する限り、`hedge_block`による封鎖も継続すると見込む。期待値の変化はなく、システムのリスク管理が正常に機能している結果として受け入れる。
 
+### 2026-09-16 (Pre-Tokyo Briefing)
+- **2026-09-15（前日）：トレード数 = 0、PnL = ±0、WR = N/A**
+- 全モード稼働中にもかかわらず、前日は一件も約定が発生しなかった
+- Cutoff後累積は **N=3、WR=100%、PnL=+39.9p** — サンプル極小につきパフォーマンス評価は不能
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+> ⚠️ **N<10 = 「データなし」扱い。** 現時点のWR100%・EV正値は統計的無意味。昇格基準（N≥30 & EV≥1.0）まで **残り27件**。
+- `r2_shadow_demoted_cell` の累積が scalp・scalp_eur・scalp_5m_gbp・scalp_5m_eur・scalp_5m で顕著 → これらは現在「信号は出るが執行されない」状態。Shadowモード解除判断の前提となるN=30蓄積が最優先
+- `order_bar_dedup` はdaytrade_eur / gbpjpy / eurjpy / gbpusd で300件前後 → シグナル生成頻度は高いが重複バーフィルタで全消滅。レジームがTRENDING_DOWNである点（後述）と整合性を確認する必要あり
+- **今日変えるべきことはない（コード変更禁止）。待機継続**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
