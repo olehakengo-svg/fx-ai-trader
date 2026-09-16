@@ -4526,6 +4526,16 @@ Cutoff後累積（全期間）はN=6、WR=66.7%、PnL=+27.2pと極めて限定�
 | 22:00〜翌01:00 | NY主要セッション | GBP系ボラ再拡大リスク。TRENDING_DOWNの加速に注意 |
 - **USD_JPY** VOLATILE→TRENDING_DOWN遷移リスク: SMAスロープ−0.00862は既に下方傾斜。154.344水準での支持喪失で遷移加速の可能性
 
+### 2026-09-16 (Pre-Tokyo Briefing)
+前日（2026-09-15）はトレード**ゼロ**。東京・ロンドン・NY全セッションを通じてエントリーなし。PnL = ¥0、N = 0、WR = N/A。システムは稼働中だが、シグナル未発生またはブロックによる完全不発動の状態。
+| Strategy | Pair | N | WR% | EV | PnL |
+- 全戦略 N < 10 → **「データなし」扱い**。WR・EVは参考値に過ぎない
+- 昇格基準（N≥30 & EV≥1.0）到達まで、`usdjpy_carry_dip_accumulator` は **残り27件**、`kalman_d7_po_dn_flip` は **残り29件**
+- Sentinel蓄積進捗：最進捗戦略でも **N=3/30（10%）**。判断可能域まで遠い
+- `rnb_usdjpy:no_signal`の29件は、RnBロジックがUSD/JPYの現在レジーム（TRENDING_DOWN）でシグナルを生成できていないことを示す。レンジバウンド戦略がトレンド相場に当たって沈黙している典型的パターン。
+- `hedge_block`の計17件（daytrade_1h + daytrade + eurjpy）は、ポジション方向性の衝突回避が機能している。ロング/ショット混在環境での保護として正常作動とも読めるが、エントリー機会の大幅損失を意味する。
+- `gbp_asia_flash_crash`の6件はGBP/JPYのATR76%ile高水準（TRENDING_DOWN）と整合的。フラッシュクラッシュ検知がコスト（機会損失）として顕在化。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
