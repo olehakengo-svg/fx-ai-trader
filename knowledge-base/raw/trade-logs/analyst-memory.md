@@ -4556,6 +4556,16 @@ Cutoff後の累積有効データは **N=3（WR100%、PnL +39.9p）** のみ —
 - `order_bar_dedup` はdaytrade_eur / gbpjpy / eurjpy / gbpusd で300件前後 → シグナル生成頻度は高いが重複バーフィルタで全消滅。レジームがTRENDING_DOWNである点（後述）と整合性を確認する必要あり
 - **今日変えるべきことはない（コード変更禁止）。待機継続**
 
+### 2026-09-16 (Pre-Tokyo Briefing)
+**2026-09-15（前日）：トレードゼロ、PnL ¥0、WR N/A**
+| Strategy | Pair | N | WR% | EV | PnL |
+> ⚠️ 全戦略がN<10。EVの正値は「傾向」としても語れない水準。現時点でのパフォーマンス評価は不可能。
+- **Scalp群（scalp, scalp_eur, scalp_5m, scalp_5m_gbp, scalp_5m_eur）全5系統がr2_shadow_demoted_cellにより実質停止**。2,397件のブロックは単一戦略群として最大。
+- **daytrade系のhedge_block（1,662件）** は、JPY下落トレンドの中で方向が拮抗するポジションが蓄積している可能性を示唆。
+- **rnb_usdjpy（1,660件のno_signal）** はUSD_JPYがTRENDING_DOWNレジームにあり、RNBが想定するレンジ/反転条件を満たさないことが主因と推定される。
+- Scalp群はShadow状態が解除されない限り執行経路なし。Shadowからの復帰条件を確認すること。
+- rnb_usdjpy：TRENDING_DOWNが継続する限り no_signal 連発は構造的。レジーム変化を待つのみ。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
