@@ -1,5 +1,39 @@
 # FX AI Trader - Changelog
 
+## 2026-09-16 — fix(gate): P-S1(a) 執行トリガの estimand 不一致を修復 — gross/net 符号割れで自動 live 昇格を停止 (rule:R3)
+
+- **契機**: 2026-09-14T21:16Z の 10 本目到達で `tools/ps1a_execution_check.py` が
+  **`OPTION_B_EXECUTE`** (unique N=10 ∧ gross spaced EV +2.92p) を返し、scheduled task
+  `ps1a-sweep-trigger-executor` (毎日 19:37 JST、user 完全自動化委任 2026-08-05) が
+  runbook §3 (PR → `--admin` merge → deploy) まで自走する状態になっていた
+- **診断 (R3)**: 条件成立は **estimand 不一致の産物**。凍結閾値 +6.22 p/t は研究 grid の
+  **net-of-spread** (`research_sweep_reversion_grid_12y.py` L156-158 で `SPREAD_PIP`=1.5p を
+  往復1回控除) 由来だが、shadow の `pnl_pips` は `(exit−entry)×pip_mult` (`demo_db.py:1223`)
+  で **gross** — fill は mid (`entry_price == signal_price` が実測 **10/10 で差 0.00p**)。
+  同一 10 本を閾値と同じ estimand に揃えると **spaced net EV = −3.33 p/t (符号反転)**
+- **頑健性**: 負性は摩擦 convention 非依存 — 研究 parity `(s_e+s_x)/2` −3.33 / entry 全幅 −5.14 /
+  house RT `s_e+s_x` −9.59。唯一正になるのは「spread=1.5p」仮定 (+1.43) のみで、実測 entry
+  spread は 5.4〜16.6p = **pre-reg 前提 (≤3.5p) 充足 0/10** (平均超過ではなく全観測で反証)
+- **cap 再決裁の選択肢は空だった** (forensic #2 §8-1 を差し替え): cap≤5.0p で母集団 **N=0**、
+  cap 6.0/7.0/7.72/10.0p でも net はすべて負 ⇒ 「cap を締めて正 EV 部分集合を残す」経路なし
+- **修正**: `tools/ps1a_execution_check.py` が gross と net を併記し、**gross>0 ∧ net≤0** または
+  **spread 記録の被覆 <1.0** (「欠測 = 摩擦ゼロ」の黙読を禁止) の間は新 verdict
+  **`USER_REDECISION_ESTIMAND`** を返す → executor の既定分岐 (OPTION_B_EXECUTE 以外は
+  live 不触) で自動執行が停止。live コード・live パラメータは不変更 (本 cell は全行
+  `is_shadow=1` / `oanda_trade_id` 空 = live 露出ゼロ)
+- **Option C (retire) も自動執行していない** — どの量で読むかの変更自体が凍結文言の修正であり、
+  packet §6-2 は符号割れ時を user 再決裁と規定するため。⚠️ unique N は単調増加なので
+  registry の `2026-10-28 に N<5 → retire R2` 分岐は**到達不能** = 期日による自動終結は起きない
+- tests: `tests/test_ps1a_execution_check.py` 12 → **16 pin** (fixture に実測 spread 投入。中核 =
+  `test_gross_positive_but_net_negative_blocks_option_b` /
+  `test_live_population_2026_09_16_is_estimand_split` /
+  `test_missing_spread_records_cannot_certify_net_and_block`)
+- KB: [[ps1a-trigger-estimand-audit-2026-09-16]] (新規、全数値と導出) / packet Status を
+  🔴 執行停止へ / runbook §2 に新 verdict 分岐 / roadmap v2.3 T6 行 / registry
+  `t8-sweep-defer-decision` message に 09-16 修正記録
+- **user 決裁 (2 件を 1 件に整理)**: (a) Option C = retire [Claude 推奨] / (b) 研究前提を満たす
+  執行形態の再設計 (新規 pre-reg、Rule 1) の二択。forensic #2 の「cap を締める」選択肢は消滅
+
 ## 2026-08-11 — feat(supply): price_shock_rev 席供給の是正 — (a) 席優先 select + (c) live feed MASSIVE 統一 (rule:R1)
 
 - **決裁執行**: [[price-shock-seat-supply-audit-2026-07-29]] §7 パケット (user「進めて」2026-08-03/08-11)。

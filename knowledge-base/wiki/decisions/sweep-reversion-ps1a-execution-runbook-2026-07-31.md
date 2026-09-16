@@ -33,9 +33,21 @@ python3 tools/ps1a_execution_check.py
 - verdict `OPTION_B_EXECUTE` → §2.5 → §3 へ
 - verdict `OPTION_C_RETIRE` → §6 へ
 - verdict `USER_REDECISION_SIGN_SPLIT` → user へ両基準テーブルを提示して停止
+- verdict `USER_REDECISION_ESTIMAND` (🆕 2026-09-16) → **何も merge せず停止**。
+  gross/net で EV 符号が割れた (または spread 記録の被覆が 1.0 未満で net を
+  確定できない) 状態。凍結閾値 +6.22 p/t は研究 grid の net-of-spread 由来なので、
+  gross 単独で Option B を執行してはならない。根拠と実測:
+  [[ps1a-trigger-estimand-audit-2026-09-16]]
 - 判定器は凍結文言 (三基準定義・spacing 境界 ≥3h・判定分岐・retire 期日) を
-  `tests/test_ps1a_execution_check.py` の 12 pin でテスト固定済み。2026-07-31 本番
+  `tests/test_ps1a_execution_check.py` の 16 pin でテスト固定済み。2026-07-31 本番
   dry-run でパケット §1.1 と完全一致を確認済み (row +2.13 / unique +3.14 / spaced +2.47)
+
+> **⚠️ 2026-09-16 現況**: トリガは 09-14 に成立 (unique N=10 ∧ gross spaced
+> +2.92p) したが、net spaced は **−3.33p** で符号反転 → verdict は
+> `USER_REDECISION_ESTIMAND`。**§2.5 以降 (§3 Option B) には進めない。**
+> cap を締めて正 EV 部分集合を残す経路も空 (cap≤5.0p で N=0)。
+> 残る選択は Option C (retire、推奨) か執行形態の再設計 (新規 pre-reg) の
+> 二択で **user 決裁**。詳細: [[ps1a-trigger-estimand-audit-2026-09-16]] §3 §7
 
 ## 2.5 既知の追加ブロッカー 2 件 — AMENDMENT (✅ user 承認済み 2026-08-03)
 

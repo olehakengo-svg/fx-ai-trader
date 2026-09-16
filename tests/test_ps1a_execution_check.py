@@ -3,6 +3,9 @@
 fixture は決裁パケット §1.3 の実測 rescued shadow (2026-07-24 時点、
 unique 8 / row 14) を再現し、三基準の数値がパケット §1.1 と一致することを
 固定する。判定分岐 (§6-2 + T8 DEFER retire 期日) も全て pin。
+2026-09-16: fixture に実測 spread (§1.3 の spread@entry/@exit 列) を投入し、
+gross/net estimand 分岐 (USER_REDECISION_ESTIMAND) を pin。
+根拠: knowledge-base/wiki/analyses/ps1a-trigger-estimand-audit-2026-09-16.md
 根拠: knowledge-base/wiki/decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md
 """
 import pytest
@@ -14,6 +17,7 @@ from tools.ps1a_execution_check import (
     VERDICT_OPTION_C,
     VERDICT_RETIRE_DEADLINE,
     VERDICT_USER_REDECISION,
+    VERDICT_USER_REDECISION_ESTIMAND,
     VERDICT_WAITING,
     evaluate,
     select_rows,
@@ -22,33 +26,41 @@ from tools.ps1a_execution_check import (
 )
 
 
-def _row(id_, entry_time, pnl, dedup=0, entry_type=ENTRY_TYPE):
+def _row(id_, entry_time, pnl, dedup=0, entry_type=ENTRY_TYPE,
+         s_entry=0.0, s_exit=0.0):
     return {"id": id_, "entry_time": entry_time, "pnl_pips": pnl,
-            "dedup_violation": dedup, "entry_type": entry_type}
+            "dedup_violation": dedup, "entry_type": entry_type,
+            "spread_at_entry": s_entry, "spread_at_exit": s_exit}
 
 
 def packet_fixture():
     """§1.3 の unique 8 行 + 2-mode スレッド重複 6 行 (row 14)。"""
     uniques = [
-        _row(12359, "2026-07-06T21:16:31+00:00", -1.9),
-        _row(12361, "2026-07-06T21:32:09+00:00", 2.0),
-        _row(12480, "2026-07-07T21:16:22+00:00", 2.6),
-        _row(12486, "2026-07-07T21:47:02+00:00", 8.3),
-        _row(12625, "2026-07-08T21:16:13+00:00", -1.5),
-        _row(12747, "2026-07-09T21:16:55+00:00", 5.3),
-        _row(13025, "2026-07-13T21:16:38+00:00", 2.5),
-        _row(13273, "2026-07-15T21:46:21+00:00", 7.8),
+        _row(12359, "2026-07-06T21:16:31+00:00", -1.9, s_entry=6.9, s_exit=7.0),
+        _row(12361, "2026-07-06T21:32:09+00:00", 2.0, s_entry=6.1, s_exit=4.0),
+        _row(12480, "2026-07-07T21:16:22+00:00", 2.6, s_entry=6.3, s_exit=1.2),
+        _row(12486, "2026-07-07T21:47:02+00:00", 8.3, s_entry=5.4, s_exit=1.4),
+        _row(12625, "2026-07-08T21:16:13+00:00", -1.5, s_entry=6.1, s_exit=2.9),
+        _row(12747, "2026-07-09T21:16:55+00:00", 5.3, s_entry=16.6, s_exit=7.3),
+        _row(13025, "2026-07-13T21:16:38+00:00", 2.5, s_entry=7.9, s_exit=8.9),
+        _row(13273, "2026-07-15T21:46:21+00:00", 7.8, s_entry=7.7, s_exit=1.5),
     ]
     dups = [
-        _row(12360, "2026-07-06T21:16:34+00:00", -1.9, dedup=1),
-        _row(12481, "2026-07-07T21:16:44+00:00", 2.6, dedup=1),
-        _row(12487, "2026-07-07T21:47:04+00:00", 2.1, dedup=1),
-        _row(12626, "2026-07-08T21:17:04+00:00", -1.5, dedup=1),
-        _row(12748, "2026-07-09T21:16:56+00:00", 2.0, dedup=1),
-        _row(13026, "2026-07-13T21:17:02+00:00", 1.4, dedup=1),
+        _row(12360, "2026-07-06T21:16:34+00:00", -1.9, dedup=1,
+             s_entry=6.9, s_exit=7.0),
+        _row(12481, "2026-07-07T21:16:44+00:00", 2.6, dedup=1,
+             s_entry=4.5, s_exit=1.2),
+        _row(12487, "2026-07-07T21:47:04+00:00", 2.1, dedup=1,
+             s_entry=5.4, s_exit=2.5),
+        _row(12626, "2026-07-08T21:17:04+00:00", -1.5, dedup=1,
+             s_entry=6.5, s_exit=2.9),
+        _row(12748, "2026-07-09T21:16:56+00:00", 2.0, dedup=1,
+             s_entry=17.7, s_exit=16.6),
+        _row(13026, "2026-07-13T21:17:02+00:00", 1.4, dedup=1,
+             s_entry=8.1, s_exit=1.5),
     ]
     noise = [_row(99999, "2026-07-10T10:00:00+00:00", 5.0,
-                  entry_type="other_strategy")]
+                  entry_type="other_strategy", s_entry=1.0, s_exit=1.0)]
     return uniques + dups + noise
 
 
@@ -94,20 +106,99 @@ def test_verdict_waiting_below_n_decide():
     assert res["verdict"] == VERDICT_WAITING
 
 
-def _with_extra_uniques(pnls, start_day=20):
+def _with_extra_uniques(pnls, start_day=20, s_entry=1.0, s_exit=1.0):
     """fixture に unique 行を追加して N>=10 にする。"""
     rows = packet_fixture()
     for i, p in enumerate(pnls):
         rows.append(_row(20000 + i,
-                         f"2026-07-{start_day + i:02d}T21:16:00+00:00", p))
+                         f"2026-07-{start_day + i:02d}T21:16:00+00:00", p,
+                         s_entry=s_entry, s_exit=s_exit))
     return rows
 
 
-def test_verdict_option_b_when_triggered_and_spaced_ev_positive():
-    res = evaluate(_with_extra_uniques([1.0, 1.0]), today="2026-07-31")
+def _lowspread_fixture(pnls, s_entry=1.0, s_exit=1.0):
+    """spread が研究前提内 (net≈gross) の合成 fixture — 分岐 pin 用。
+
+    packet fixture は実測 spread 5.4-16.6p を持つため net が必ず負になる。
+    B/C/符号割れ分岐そのものを pin するには摩擦を前提内に置いた母集団が必要。
+    """
+    return [_row(40000 + i, f"2026-07-{2 + i:02d}T21:16:00+00:00", p,
+                 s_entry=s_entry, s_exit=s_exit)
+            for i, p in enumerate(pnls)]
+
+
+def test_verdict_option_b_when_triggered_and_net_ev_positive():
+    """Option B は gross と net の**両方**が正のときだけ成立する。"""
+    res = evaluate(_lowspread_fixture([3.0] * 10), today="2026-07-31")
     assert res["stats"]["unique"]["n"] == 10
     assert res["stats"]["spaced"]["ev_pips"] > 0
+    assert res["stats"]["spaced"]["net_ev_pips"] > 0
     assert res["verdict"] == VERDICT_OPTION_B
+
+
+def test_gross_positive_but_net_negative_blocks_option_b():
+    """2026-09-16 監査の中核 pin — gross だけで live 昇格させない。
+
+    凍結閾値 +6.22 p/t は研究 grid の net-of-spread (SPREAD_PIP=1.5p 控除) 由来。
+    shadow の pnl_pips は mid fill = gross。摩擦がその差を食う帯では
+    「spaced EV>0」が gross で真・net で偽になり、自動執行してはならない。
+    """
+    res = evaluate(_lowspread_fixture([3.0] * 10, s_entry=8.0, s_exit=4.0),
+                   today="2026-07-31")
+    assert res["stats"]["spaced"]["ev_pips"] == pytest.approx(3.0)
+    assert res["stats"]["spaced"]["net_ev_pips"] == pytest.approx(-3.0)
+    assert res["verdict"] == VERDICT_USER_REDECISION_ESTIMAND
+    assert res["verdict"] != VERDICT_OPTION_B
+
+
+def test_missing_spread_records_cannot_certify_net_and_block():
+    """spread 未記録の母集団で net を名乗れない → 執行不可 (fail-loud)。
+
+    「spread が無い = 摩擦ゼロ」と黙って読むと gross がそのまま net になり、
+    estimand ゲートを素通りする。被覆不足は執行不可として落とす。
+    """
+    res = evaluate(_lowspread_fixture([3.0] * 10, s_entry=0.0, s_exit=0.0),
+                   today="2026-07-31")
+    assert res["stats"]["spaced"]["spread_coverage"] == 0.0
+    assert res["verdict"] == VERDICT_USER_REDECISION_ESTIMAND
+
+
+def test_live_population_2026_09_16_is_estimand_split():
+    """2026-09-14 の 10 本目到達で実際に起きた状態を pin。
+
+    実測 (本番 API、unique 10 / spaced 8): gross spaced +2.92p だが
+    net spaced -3.33p。凍結文言の字義 (gross) では OPTION_B_EXECUTE に
+    なっていた = 負 EV 帯への自動 live 昇格が armed だった。
+    """
+    rows = packet_fixture() + [
+        _row(14800, "2026-08-12T21:16:11+00:00", 0.1, s_entry=5.6, s_exit=5.5),
+        _row(14801, "2026-08-12T21:16:12+00:00", 0.1, dedup=1,
+             s_entry=5.6, s_exit=5.5),
+        _row(15200, "2026-09-14T21:16:34+00:00", 8.5, s_entry=7.4, s_exit=1.3),
+        _row(15201, "2026-09-14T21:16:56+00:00", 8.5, dedup=1,
+             s_entry=7.4, s_exit=1.3),
+    ]
+    res = evaluate(rows, today="2026-09-16")
+    assert res["stats"]["unique"]["n"] == 10
+    assert res["stats"]["spaced"]["n"] == 8
+    assert res["stats"]["spaced"]["ev_pips"] == pytest.approx(2.925, abs=0.005)
+    assert res["stats"]["spaced"]["net_ev_pips"] == pytest.approx(-3.331,
+                                                                 abs=0.005)
+    assert res["stats"]["spaced"]["rows_within_prereg_spread_premise"] == 0
+    assert res["verdict"] == VERDICT_USER_REDECISION_ESTIMAND
+
+
+def test_net_conventions_are_ordered_from_optimistic_to_conservative():
+    """4 convention の順序 pin — 結論が convention 選択に依存しないことの担保。
+
+    研究の仮定 (1.5p 固定) >= 研究 parity ((s_e+s_x)/2) >= entry 全幅 (s_e)
+    >= house RT (s_e+s_x)。実測 spread が 1.5p を超える限りこの順。
+    """
+    res = evaluate(_lowspread_fixture([3.0] * 10, s_entry=8.0, s_exit=4.0),
+                   today="2026-07-31")
+    sp = res["stats"]["spaced"]
+    assert (sp["net_ev_research_assumption"] >= sp["net_ev_pips"]
+            >= sp["net_ev_entry_only"] >= sp["net_ev_house_rt"])
 
 
 def test_verdict_option_c_when_triggered_and_spaced_ev_negative():
