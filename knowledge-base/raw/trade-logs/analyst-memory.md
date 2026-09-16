@@ -4536,6 +4536,16 @@ Cutoff後累積（全期間）はN=6、WR=66.7%、PnL=+27.2pと極めて限定�
 - `hedge_block`の計17件（daytrade_1h + daytrade + eurjpy）は、ポジション方向性の衝突回避が機能している。ロング/ショット混在環境での保護として正常作動とも読めるが、エントリー機会の大幅損失を意味する。
 - `gbp_asia_flash_crash`の6件はGBP/JPYのATR76%ile高水準（TRENDING_DOWN）と整合的。フラッシュクラッシュ検知がコスト（機会損失）として顕在化。
 
+### 2026-09-16 (Pre-Tokyo Briefing)
+前日（2026-09-15）はトレードゼロ。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後の累積有効データは **N=3（WR100%、PnL +39.9p）** のみ — 判断可能な統計量が存在しない段階。
+| Strategy | Pair | N | WR% | EV (p/t) | PnL |
+> ⚠️ **統計的注意**: N=3は「データなし」扱い。WR100%・正EVはいずれもノイズ領域。昇格基準（N≥30 & EV≥1.0）まで残り **27件**。傾向すら読めない段階。
+- `r2_shadow_demoted_cell`：Scalp系の全戦略（scalp / scalp_eur / scalp_5m / scalp_5m_eur / scalp_5m_gbp）がシャドウセルに降格されており、エントリー資格を喪失している状態が継続中。
+- `hedge_block`：JPY系通貨（EUR_JPY・GBP_JPY・AUD_JPY）とUSD_JPYが **同方向トレンドダウン** のレジームにあり、ヘッジブロックが相互連鎖して多戦略を同時封鎖している可能性が高い。
+- `order_bar_dedup`：同一バーで複数シグナルが重複 → 正常動作だが機会圧縮に寄与。
+- Scalp系の `r2_shadow_demoted_cell` 状態が継続しているかを開場後に確認。JPY下落トレンドが継続する限り、`hedge_block`による封鎖も継続すると見込む。期待値の変化はなく、システムのリスク管理が正常に機能している結果として受け入れる。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
