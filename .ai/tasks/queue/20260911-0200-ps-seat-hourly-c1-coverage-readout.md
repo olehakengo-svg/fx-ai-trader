@@ -74,3 +74,40 @@ python3 -m pytest tests/ -x -q
 python3 scripts/check.py
 python3 tools/sync_kb_index.py --check
 ```
+
+---
+
+## 🔍 中間確認 (2026-09-16、roadmap autopilot — verdict ではない)
+
+check.py の queue SLA 警告 (5 日滞留) を受けて確認。**本タスクは日付ゲート
+(readout 実行可能日 = 2026-09-25 = 計装 deploy +14d) であり滞留ではない**が、
+手順 1 (「計装到達の確認。届いていなければ以降は無意味」) は今日実行できる —
+**届いていなければ 09-25 まで待つと 14 日窓を丸ごと失う**ため先行実施した。
+
+### 手順 1 = ✅ PASS (計装は本番に届いている)
+
+`/api/demo/evaluated-candidates?view=summary&days=14` → **46 キー**。うち hourly 経路:
+
+- `donchian_momentum_breakout` ✅ 出現
+- `price_shock_rev_eur_gbp_h1_long` ✅ 出現
+- `hull_donchian_fade` ✅ 出現
+
+⇒ 「配線落ちとして R3 再修理 + (iii) 未判定 roll」の分岐は**閉じた**。14 日窓は蓄積中。
+
+### 手順 3 の暫定シグナル (⚠️ 確定させない)
+
+ps 5 席のうち **`eur_gbp` のみ出現**。対象 3 席 (**NZD_JPY / EUR_AUD / USD_CAD**) と
+`aud_jpy` は **day 5 時点で行ゼロ**。タスクの判定規則では「行ゼロ → (A) 上流
+(`evaluate_all` が live feed 上で候補を出していない)」に該当する向きだが、
+**本タスクは 14 日窓での readout を予定しているため、ここでは帰属を確定しない**
+(day 5 の観測で 14 日設計の verdict を名乗るのは estimand のすり替え)。
+09-25 に全窓で再実行して確定させる。
+
+### 09-25 のチェックリストに追加
+
+- [ ] `keltner_squeeze_breakout` が C1 summary に**不在** — 現時点では
+      **「14 日間シグナルなし」と「配線ギャップ」を判別できない**。同じ hourly 経路の
+      `donchian_momentum_breakout` は出現しているため配線一般の問題ではない。
+      squeeze 系の低頻度で説明できるかを頻度期待値と突合して判別すること
+- [ ] 手順 2 (書込み量 / disk `used_pct`) は未実施 — 09-25 の本実行で計測
+
