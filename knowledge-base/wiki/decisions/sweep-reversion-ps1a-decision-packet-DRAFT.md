@@ -1,6 +1,21 @@
 # sweep_reversion_eurgbp_late — P-S1(a) HTF Exemption R1 決裁パケット
 
-**Status: 🟢 条件付き承認 (user 決裁 2026-07-24) — 執行待ち (unique バー N=8/10、live 変更は未発生)**
+**Status: 🔴 執行停止 — estimand 監査で条件成立が無効化 (2026-09-16)。unique N=10/10 到達済みだが
+gross/net 不一致のため `USER_REDECISION_ESTIMAND`、live 変更は未発生**
+
+> **🔴 執行停止 (2026-09-16、rule:R3 → user 決裁待ち)**: 2026-09-14 に unique N=10 到達し判定器は
+> `OPTION_B_EXECUTE` (gross spaced +2.92p) を返したが、**この条件成立は estimand 不一致の産物**。
+> 冒頭①の執行条件「spaced EV>0」の閾値 (+6.22 p/t) は研究 grid の **net-of-spread**
+> (`SPREAD_PIP[EUR_GBP]`=1.5p を往復1回控除) 由来である一方、shadow の `pnl_pips` は
+> mid fill の **gross** (摩擦控除なし、`entry_price == signal_price` が実測 10/10 で差 0.00p)。
+> 同一 10 本を閾値と同じ estimand に揃えると **spaced net EV = −3.33 p/t (符号反転)**。
+> 負性は摩擦 convention 4 通り中 3 通りで不変で、唯一正になるのは「spread=1.5p」仮定のみ
+> (実測 entry spread 5.4〜16.6p = **前提充足 0/10**)。**cap による救済集合も空**
+> (cap≤5.0p で N=0 / cap 6-10p では net 負)。⇒ ①の「再決裁なしに執行」は
+> **前提 (net 基準の EV>0) が満たされていない**ため発動しない。判定器は
+> `USER_REDECISION_ESTIMAND` を返すよう修正済み (scheduled task の自動執行は停止)。
+> 残る選択 = **(a) Option C retire [推奨] / (b) 執行形態の再設計 (新規 pre-reg、Rule 1)**。
+> 全数値と導出: [[ps1a-trigger-estimand-audit-2026-09-16]]
 起案: Claude 2026-07-24 / rule:R1 (live 経路の filter 変更 = Slow & Strict)
 決裁トリガ: [[t8-week1-gate-breach-2026-07-06]] Forensic #1 DEFER 裁定の機械的決定点 (rescued shadow N≥10)
 
