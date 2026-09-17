@@ -1,0 +1,123 @@
+{
+  "status": "BLOCKED_DATA",
+  "strategy": "month_end_usd_rebalance_short",
+  "primary_cell": {
+    "window": "fix-30min..fix+30min",
+    "exit": "60min",
+    "pairs": "USDJPY/EURUSD/GBPUSD"
+  },
+  "grid": [
+    {
+      "window": "fix-30min..fix+30min",
+      "exit": "60min",
+      "pairs": "USDJPY/EURUSD/GBPUSD"
+    },
+    {
+      "window": "fix-45min..fix+30min",
+      "exit": "60min",
+      "pairs": "USDJPY/EURUSD/GBPUSD"
+    },
+    {
+      "window": "fix-30min..fix+30min",
+      "exit": "90min",
+      "pairs": "USDJPY/EURUSD/GBPUSD"
+    }
+  ],
+  "bonferroni_m": 3,
+  "cache": {
+    "USDJPY": {
+      "rows": 903828,
+      "start": "2014-01-02T04:55:00+00:00",
+      "end": "2026-04-30T23:55:00+00:00"
+    },
+    "EURUSD": {
+      "rows": 37034,
+      "start": "2025-10-14T00:00:00+00:00",
+      "end": "2026-04-15T01:45:00+00:00"
+    },
+    "GBPUSD": {
+      "rows": 36915,
+      "start": "2025-10-14T00:00:00+00:00",
+      "end": "2026-04-15T01:45:00+00:00"
+    }
+  },
+  "coverage_errors": [
+    "EURUSD: insufficient cache coverage rows=37034 start=2025-10-14 00:00:00+00:00 end=2026-04-15 01:45:00+00:00",
+    "GBPUSD: insufficient cache coverage rows=36915 start=2025-10-14 00:00:00+00:00 end=2026-04-15 01:45:00+00:00"
+  ],
+  "summary": {
+    "n": 156,
+    "wins": 73,
+    "wr": 0.46794871794871795,
+    "wilson_lo": 0.3913604369762635,
+    "pf": 0.8139515798112434,
+    "wf": {
+      "folds": 3,
+      "folds_detail": [
+        {
+          "n": 52,
+          "pf": 0.33652553763440873,
+          "total_pip": -394.89999999999986
+        },
+        {
+          "n": 52,
+          "pf": 1.1874021909233177,
+          "total_pip": 47.89999999999999
+        },
+        {
+          "n": 52,
+          "pf": 1.327168887680174,
+          "total_pip": 120.3
+        }
+      ]
+    },
+    "bonferroni_p": 1.0,
+    "kelly": 0,
+    "max_dd_pip": 501.1999999999999,
+    "total_pip": -226.69999999999993,
+    "null_bootstrap_p": 0.823,
+    "single_year_concentration": 0.7816497573886192
+  },
+  "summary_2x": {
+    "n": 156,
+    "wins": 64,
+    "wr": 0.41025641025641024,
+    "wilson_lo": 0.3361274160515165,
+    "pf": 0.6181125017983022,
+    "wf": {
+      "folds": 3,
+      "folds_detail": [
+        {
+          "n": 52,
+          "pf": 0.25146286571642906,
+          "total_pip": -498.8999999999999
+        },
+        {
+          "n": 52,
+          "pf": 0.8212806626314112,
+          "total_pip": -56.099999999999966
+        },
+        {
+          "n": 52,
+          "pf": 1.0588091752074182,
+          "total_pip": 24.10000000000006
+        }
+      ]
+    },
+    "bonferroni_p": 1.0,
+    "kelly": 0,
+    "max_dd_pip": 716.6000000000001,
+    "total_pip": -530.9000000000003,
+    "null_bootstrap_p": 0.986,
+    "single_year_concentration": 0.37897909210774156
+  },
+  "subperiod": {
+    "n": 49,
+    "wilson_lo": 0.4327024751701555
+  },
+  "nsg1": "DEFERRED — NSG-1 implementation is a separate in-flight task; rerun after acceptance.",
+  "scenario_verdict": {
+    "scenario": "BLOCKED",
+    "text": "BLOCKED — required 12y real-data coverage is incomplete; no Wave 2 judgment."
+  }
+}

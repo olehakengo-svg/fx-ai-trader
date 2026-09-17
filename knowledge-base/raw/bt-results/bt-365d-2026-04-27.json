@@ -1,0 +1,610 @@
+{
+  "date": "2026-04-27T15:36:46.360658",
+  "lookback": 365,
+  "interval": "15m",
+  "results": {
+    "USDJPY=X": {
+      "trades": 2126,
+      "win_rate": 63.7,
+      "expected_value": 0.299,
+      "sharpe": 2.423,
+      "max_drawdown": 28.686,
+      "profit_factor": 1.422,
+      "entry_breakdown": {
+        "dt_bb_rsi_mr": {
+          "N": 118,
+          "WR": 51.7,
+          "EV": -0.043
+        },
+        "vol_spike_mr": {
+          "N": 83,
+          "WR": 54.2,
+          "EV": -0.098
+        },
+        "sr_break_retest": {
+          "N": 73,
+          "WR": 61.6,
+          "EV": -0.015
+        },
+        "doji_breakout": {
+          "N": 8,
+          "WR": 75.0,
+          "EV": 1.02
+        },
+        "htf_false_breakout": {
+          "N": 16,
+          "WR": 81.2,
+          "EV": 0.455
+        },
+        "vix_carry_unwind": {
+          "N": 110,
+          "WR": 71.8,
+          "EV": 0.713
+        },
+        "streak_reversal": {
+          "N": 479,
+          "WR": 71.2,
+          "EV": 0.953
+        },
+        "sr_fib_confluence": {
+          "N": 152,
+          "WR": 57.2,
+          "EV": 0.015
+        },
+        "session_time_bias": {
+          "N": 344,
+          "WR": 65.7,
+          "EV": 0.177
+        },
+        "xs_momentum": {
+          "N": 278,
+          "WR": 65.5,
+          "EV": 0.185
+        },
+        "dt_fib_reversal": {
+          "N": 25,
+          "WR": 72.0,
+          "EV": 0.207
+        },
+        "london_fix_reversal": {
+          "N": 50,
+          "WR": 54.0,
+          "EV": -0.089
+        },
+        "dt_sr_channel_reversal": {
+          "N": 76,
+          "WR": 51.3,
+          "EV": -0.149
+        },
+        "dual_sr_bounce": {
+          "N": 85,
+          "WR": 60.0,
+          "EV": 0.015
+        },
+        "tokyo_range_breakout_up": {
+          "N": 21,
+          "WR": 66.7,
+          "EV": 0.273
+        },
+        "ema200_trend_reversal": {
+          "N": 25,
+          "WR": 64.0,
+          "EV": 0.094
+        },
+        "orb_trap": {
+          "N": 16,
+          "WR": 50.0,
+          "EV": -0.658
+        },
+        "wick_imbalance_reversion": {
+          "N": 22,
+          "WR": 63.6,
+          "EV": 0.009
+        },
+        "intraday_seasonality": {
+          "N": 90,
+          "WR": 55.6,
+          "EV": -0.218
+        },
+        "post_news_vol": {
+          "N": 22,
+          "WR": 59.1,
+          "EV": 0.661
+        },
+        "inducement_ob": {
+          "N": 3,
+          "WR": 66.7,
+          "EV": 0.241
+        },
+        "liquidity_sweep": {
+          "N": 5,
+          "WR": 80.0,
+          "EV": 0.899
+        },
+        "ema_cross": {
+          "N": 23,
+          "WR": 52.2,
+          "EV": -0.145
+        },
+        "jpy_basket_trend": {
+          "N": 2,
+          "WR": 50.0,
+          "EV": 0.309
+        }
+      },
+      "walk_forward": [
+        {
+          "label": "\u7a931",
+          "window": 1,
+          "trades": 708,
+          "win_rate": 63.7,
+          "expected_value": 0.241
+        },
+        {
+          "label": "\u7a932",
+          "window": 2,
+          "trades": 708,
+          "win_rate": 63.6,
+          "expected_value": 0.34
+        },
+        {
+          "label": "\u7a933",
+          "window": 3,
+          "trades": 708,
+          "win_rate": 63.7,
+          "expected_value": 0.314
+        }
+      ],
+      "monte_carlo": {
+        "n_sims": 2000,
+        "n_trades": 2126,
+        "ci_level": 0.95,
+        "ev": {
+          "mean": 0.2994,
+          "median": 0.3005,
+          "ci_low": 0.217,
+          "ci_high": 0.3846,
+          "p5": 0.2284,
+          "p95": 0.3673
+        },
+        "win_rate": {
+          "mean": 63.6989,
+          "median": 63.6877,
+          "ci_low": 61.6181,
+          "ci_high": 65.7103,
+          "p5": 62.0414,
+          "p95": 65.428
+        },
+        "max_dd": {
+          "mean": 31.9117,
+          "median": 30.4111,
+          "ci_low": 21.6721,
+          "ci_high": 50.71,
+          "p5": 22.6603,
+          "p95": 46.4611
+        },
+        "profit_factor": {
+          "mean": 1.4249,
+          "median": 1.4243,
+          "ci_low": 1.2881,
+          "ci_high": 1.5786,
+          "p5": 1.3084,
+          "p95": 1.5476
+        },
+        "actual": {
+          "ev": 0.2994,
+          "max_dd": 28.6858,
+          "win_rate": 63.7
+        },
+        "mdd_luck_assessment": "NORMAL",
+        "ev_verdict": "SIGNIFICANT",
+        "ev_ci_width": 0.1676,
+        "ev_crosses_zero": "False",
+        "n_required_for_significance": 0
+      },
+      "elapsed_s": 691.3
+    },
+    "EURUSD=X": {
+      "trades": 1530,
+      "win_rate": 59.5,
+      "expected_value": 0.067,
+      "sharpe": 0.674,
+      "max_drawdown": 48.393,
+      "profit_factor": 1.098,
+      "entry_breakdown": {
+        "dt_bb_rsi_mr": {
+          "N": 80,
+          "WR": 41.2,
+          "EV": -0.322
+        },
+        "ema200_trend_reversal": {
+          "N": 13,
+          "WR": 30.8,
+          "EV": -0.637
+        },
+        "session_time_bias": {
+          "N": 442,
+          "WR": 62.7,
+          "EV": 0.131
+        },
+        "london_fix_reversal": {
+          "N": 53,
+          "WR": 52.8,
+          "EV": -0.057
+        },
+        "adx_trend_continuation": {
+          "N": 17,
+          "WR": 52.9,
+          "EV": -0.035
+        },
+        "sr_fib_confluence": {
+          "N": 258,
+          "WR": 57.0,
+          "EV": -0.04
+        },
+        "xs_momentum": {
+          "N": 258,
+          "WR": 64.3,
+          "EV": 0.146
+        },
+        "dt_sr_channel_reversal": {
+          "N": 44,
+          "WR": 52.3,
+          "EV": -0.109
+        },
+        "wick_imbalance_reversion": {
+          "N": 34,
+          "WR": 47.1,
+          "EV": -0.197
+        },
+        "lin_reg_channel": {
+          "N": 31,
+          "WR": 64.5,
+          "EV": 0.051
+        },
+        "dual_sr_bounce": {
+          "N": 39,
+          "WR": 61.5,
+          "EV": 0.059
+        },
+        "squeeze_release_momentum": {
+          "N": 13,
+          "WR": 61.5,
+          "EV": 0.168
+        },
+        "htf_false_breakout": {
+          "N": 20,
+          "WR": 70.0,
+          "EV": 0.656
+        },
+        "trendline_sweep": {
+          "N": 56,
+          "WR": 76.8,
+          "EV": 0.722
+        },
+        "intraday_seasonality": {
+          "N": 41,
+          "WR": 51.2,
+          "EV": -0.199
+        },
+        "dt_fib_reversal": {
+          "N": 25,
+          "WR": 60.0,
+          "EV": 0.075
+        },
+        "ema_cross": {
+          "N": 14,
+          "WR": 57.1,
+          "EV": -0.106
+        },
+        "orb_trap": {
+          "N": 39,
+          "WR": 41.0,
+          "EV": -0.284
+        },
+        "post_news_vol": {
+          "N": 24,
+          "WR": 70.8,
+          "EV": 0.588
+        },
+        "london_ny_swing": {
+          "N": 9,
+          "WR": 66.7,
+          "EV": 0.16
+        },
+        "doji_breakout": {
+          "N": 12,
+          "WR": 83.3,
+          "EV": 0.934
+        },
+        "inducement_ob": {
+          "N": 6,
+          "WR": 50.0,
+          "EV": -0.7
+        },
+        "liquidity_sweep": {
+          "N": 2,
+          "WR": 100.0,
+          "EV": 1.266
+        }
+      },
+      "walk_forward": [
+        {
+          "label": "\u7a931",
+          "window": 1,
+          "trades": 510,
+          "win_rate": 60.4,
+          "expected_value": 0.179
+        },
+        {
+          "label": "\u7a932",
+          "window": 2,
+          "trades": 510,
+          "win_rate": 57.3,
+          "expected_value": -0.059
+        },
+        {
+          "label": "\u7a933",
+          "window": 3,
+          "trades": 510,
+          "win_rate": 60.8,
+          "expected_value": 0.081
+        }
+      ],
+      "monte_carlo": {
+        "n_sims": 2000,
+        "n_trades": 1530,
+        "ci_level": 0.95,
+        "ev": {
+          "mean": 0.0687,
+          "median": 0.0691,
+          "ci_low": -0.0101,
+          "ci_high": 0.1508,
+          "p5": 0.0027,
+          "p95": 0.1359
+        },
+        "win_rate": {
+          "mean": 59.5125,
+          "median": 59.5425,
+          "ci_low": 57.0588,
+          "ci_high": 62.0915,
+          "p5": 57.451,
+          "p95": 61.634
+        },
+        "max_dd": {
+          "mean": 44.6836,
+          "median": 42.8172,
+          "ci_low": 27.7357,
+          "ci_high": 74.6452,
+          "p5": 29.3897,
+          "p95": 68.7874
+        },
+        "profit_factor": {
+          "mean": 1.103,
+          "median": 1.1013,
+          "ci_low": 0.9863,
+          "ci_high": 1.2381,
+          "p5": 1.0038,
+          "p95": 1.2119
+        },
+        "actual": {
+          "ev": 0.0667,
+          "max_dd": 48.3927,
+          "win_rate": 59.5
+        },
+        "mdd_luck_assessment": "NORMAL",
+        "ev_verdict": "INCONCLUSIVE",
+        "ev_ci_width": 0.1609,
+        "ev_crosses_zero": "True",
+        "n_required_for_significance": 0
+      },
+      "elapsed_s": 545.4
+    },
+    "GBPUSD=X": {
+      "trades": 1974,
+      "win_rate": 57.6,
+      "expected_value": -0.025,
+      "sharpe": -0.22,
+      "max_drawdown": 122.624,
+      "profit_factor": 0.969,
+      "entry_breakdown": {
+        "dt_sr_channel_reversal": {
+          "N": 73,
+          "WR": 47.9,
+          "EV": -0.241
+        },
+        "gbp_deep_pullback": {
+          "N": 98,
+          "WR": 65.3,
+          "EV": 0.721
+        },
+        "sr_fib_confluence": {
+          "N": 265,
+          "WR": 55.5,
+          "EV": -0.117
+        },
+        "wick_imbalance_reversion": {
+          "N": 42,
+          "WR": 64.3,
+          "EV": 0.089
+        },
+        "session_time_bias": {
+          "N": 443,
+          "WR": 59.6,
+          "EV": 0.017
+        },
+        "sr_break_retest": {
+          "N": 51,
+          "WR": 51.0,
+          "EV": -0.387
+        },
+        "xs_momentum": {
+          "N": 289,
+          "WR": 58.5,
+          "EV": -0.139
+        },
+        "dual_sr_bounce": {
+          "N": 73,
+          "WR": 56.2,
+          "EV": -0.165
+        },
+        "trendline_sweep": {
+          "N": 108,
+          "WR": 66.7,
+          "EV": 0.27
+        },
+        "htf_false_breakout": {
+          "N": 32,
+          "WR": 59.4,
+          "EV": -0.0
+        },
+        "dt_bb_rsi_mr": {
+          "N": 135,
+          "WR": 48.1,
+          "EV": -0.202
+        },
+        "london_fix_reversal": {
+          "N": 57,
+          "WR": 40.4,
+          "EV": -0.414
+        },
+        "dt_fib_reversal": {
+          "N": 36,
+          "WR": 55.6,
+          "EV": -0.166
+        },
+        "turtle_soup": {
+          "N": 55,
+          "WR": 63.6,
+          "EV": 0.529
+        },
+        "ema200_trend_reversal": {
+          "N": 38,
+          "WR": 55.3,
+          "EV": -0.28
+        },
+        "doji_breakout": {
+          "N": 16,
+          "WR": 68.8,
+          "EV": 0.391
+        },
+        "intraday_seasonality": {
+          "N": 71,
+          "WR": 63.4,
+          "EV": -0.121
+        },
+        "inducement_ob": {
+          "N": 6,
+          "WR": 66.7,
+          "EV": 0.313
+        },
+        "squeeze_release_momentum": {
+          "N": 6,
+          "WR": 50.0,
+          "EV": -0.356
+        },
+        "post_news_vol": {
+          "N": 23,
+          "WR": 73.9,
+          "EV": 1.12
+        },
+        "orb_trap": {
+          "N": 33,
+          "WR": 63.6,
+          "EV": 0.092
+        },
+        "london_ny_swing": {
+          "N": 7,
+          "WR": 42.9,
+          "EV": -0.936
+        },
+        "ema_cross": {
+          "N": 11,
+          "WR": 45.5,
+          "EV": -0.492
+        },
+        "atr_regime_break": {
+          "N": 1,
+          "WR": 0.0,
+          "EV": -2.034
+        },
+        "liquidity_sweep": {
+          "N": 5,
+          "WR": 20.0,
+          "EV": -2.653
+        }
+      },
+      "walk_forward": [
+        {
+          "label": "\u7a931",
+          "window": 1,
+          "trades": 658,
+          "win_rate": 56.7,
+          "expected_value": -0.028
+        },
+        {
+          "label": "\u7a932",
+          "window": 2,
+          "trades": 658,
+          "win_rate": 58.8,
+          "expected_value": 0.041
+        },
+        {
+          "label": "\u7a933",
+          "window": 3,
+          "trades": 658,
+          "win_rate": 57.4,
+          "expected_value": -0.087
+        }
+      ],
+      "monte_carlo": {
+        "n_sims": 2000,
+        "n_trades": 1974,
+        "ci_level": 0.95,
+        "ev": {
+          "mean": -0.0238,
+          "median": -0.0242,
+          "ci_low": -0.1013,
+          "ci_high": 0.0538,
+          "p5": -0.0881,
+          "p95": 0.0401
+        },
+        "win_rate": {
+          "mean": 57.6723,
+          "median": 57.7001,
+          "ci_low": 55.4711,
+          "ci_high": 59.7771,
+          "p5": 55.8764,
+          "p95": 59.4732
+        },
+        "max_dd": {
+          "mean": 112.3383,
+          "median": 110.1413,
+          "ci_low": 73.1105,
+          "ci_high": 168.3947,
+          "p5": 77.422,
+          "p95": 155.3951
+        },
+        "profit_factor": {
+          "mean": 0.9713,
+          "median": 0.9695,
+          "ci_low": 0.8777,
+          "ci_high": 1.0711,
+          "p5": 0.8926,
+          "p95": 1.053
+        },
+        "actual": {
+          "ev": -0.0248,
+          "max_dd": 122.6238,
+          "win_rate": 57.6
+        },
+        "mdd_luck_assessment": "NORMAL",
+        "ev_verdict": "INCONCLUSIVE",
+        "ev_ci_width": 0.1551,
+        "ev_crosses_zero": "True",
+        "n_required_for_significance": 0
+      },
+      "elapsed_s": 530.6
+    }
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "phase2_verdict": "STOP_DIRECTION_EDGE_DAMAGE",
+  "start": "2024-04-30",
+  "end": "2026-04-30",
+  "instrument": "USD_JPY",
+  "data_source": "local_parquet:data/cache/massive/USD_JPY_5m_2014_2026.parquet",
+  "git_sha": "fa339df",
+  "strategy_results": [
+    {
+      "strategy": "doji_breakout",
+      "overlay_tf": "M5",
+      "without_overlay": {
+        "n": 701,
+        "wilson_lo": 0.3694062611684686,
+        "pf": 0.9939046878582242,
+        "kelly": -0.0024845716983343813,
+        "max_dd_pip": 272.99428571430155,
+        "sharpe": -0.03722388900612845,
+        "total_pnl_pip": -17.47142857141739
+      },
+      "with_overlay": {
+        "n": 701,
+        "wilson_lo": 0.3694062611684686,
+        "pf": 0.9874454507568835,
+        "kelly": -0.005150961848751856,
+        "max_dd_pip": 297.5459883276262,
+        "sharpe": -0.07920700853792575,
+        "total_pnl_pip": -37.71277436962474
+      },
+      "max_dd_reduction_pct": -0.08993485907254085,
+      "kelly_change_pct": -1.073178991858026,
+      "verdict": "REJECT"
+    },
+    {
+      "strategy": "ema200_trend_reversal",
+      "overlay_tf": "M5",
+      "without_overlay": {
+        "n": 2169,
+        "wilson_lo": 0.2979490421825419,
+        "pf": 0.9128094301004435,
+        "kelly": -0.030298301606308697,
+        "max_dd_pip": 1195.4142857143183,
+        "sharpe": -0.6073812046678193,
+        "total_pnl_pip": -947.5285714286059
+      },
+      "with_overlay": {
+        "n": 2169,
+        "wilson_lo": 0.2979490421825419,
+        "pf": 0.8944589326833424,
+        "kelly": -0.03742742617837724,
+        "max_dd_pip": 1200.8083257791277,
+        "sharpe": -0.7727086449293266,
+        "total_pnl_pip": -1103.205795828675
+      },
+      "max_dd_reduction_pct": -0.00451227673056137,
+      "kelly_change_pct": -0.23529782839656344,
+      "verdict": "REJECT"
+    },
+    {
+      "strategy": "streak_reversal",
+      "overlay_tf": "M5",
+      "without_overlay": {
+        "n": 3799,
+        "wilson_lo": 0.38698601753611883,
+        "pf": 0.9569530315738538,
+        "kelly": -0.018847066884574992,
+        "max_dd_pip": 980.3642857142933,
+        "sharpe": -0.3007404944345335,
+        "total_pnl_pip": -728.4214285714285
+      },
+      "with_overlay": {
+        "n": 3799,
+        "wilson_lo": 0.38698601753611883,
+        "pf": 0.9588241664524781,
+        "kelly": -0.018024862774147166,
+        "max_dd_pip": 886.0527476374098,
+        "sharpe": -0.2996881300129129,
+        "total_pnl_pip": -648.2827219114145
+      },
+      "max_dd_reduction_pct": 0.09620050368131079,
+      "kelly_change_pct": 0.043625043380131644,
+      "verdict": "REJECT"
+    },
+    {
+      "strategy": "xs_momentum",
+      "overlay_tf": "M5",
+      "without_overlay": {
+        "n": 11655,
+        "wilson_lo": 0.40900622897401046,
+        "pf": 0.9419175259018985,
+        "kelly": -0.02583681820383854,
+        "max_dd_pip": 4986.51785714288,
+        "sharpe": -0.41000176902416774,
+        "total_pnl_pip": -4619.1678571429
+      },
+      "with_overlay": {
+        "n": 11655,
+        "wilson_lo": 0.40900622897401046,
+        "pf": 0.9388656974255379,
+        "kelly": -0.02727931097476488,
+        "max_dd_pip": 4649.4406161542865,
+        "sharpe": -0.4564920295711463,
+        "total_pnl_pip": -4413.059499064618
+      },
+      "max_dd_reduction_pct": 0.06759772062296954,
+      "kelly_change_pct": -0.055830898353885966,
+      "verdict": "REJECT"
+    },
+    {
+      "strategy": "trendline_sweep",
+      "overlay_tf": "H1",
+      "without_overlay": {
+        "n": 3424,
+        "wilson_lo": 0.33841483968991304,
+        "pf": 0.9415512647868026,
+        "kelly": -0.022161920508639632,
+        "max_dd_pip": 1332.94928571435,
+        "sharpe": -0.3876744038680052,
+        "total_pnl_pip": -1166.66142857148
+      },
+      "with_overlay": {
+        "n": 3424,
+        "wilson_lo": 0.33841483968991304,
+        "pf": 0.9621496268596372,
+        "kelly": -0.01410313466827029,
+        "max_dd_pip": 1007.2608084943079,
+        "sharpe": -0.24795311115443924,
+        "total_pnl_pip": -741.2166685238134
+      },
+      "max_dd_reduction_pct": 0.24433673562119074,
+      "kelly_change_pct": 0.36363210657793377,
+      "verdict": "REJECT"
+    }
+  ],
+  "trade_count_total": 21748,
+  "notes": [
+    "Reads local MASSIVE parquet only; no network or Yahoo/yfinance fallback.",
+    "Overlay is evaluated as a pure sizing multiplier on realized strategy trade PnL.",
+    "Task B keeps LIVE default OFF via FX_VOL_OVERLAY unset/0."
+  ]
+}
