@@ -4596,6 +4596,16 @@ Cutoff後の累積有効データは **N=3（WR100%、PnL +39.9p）** のみ —
 - これはシャドウセルがデモーション済みのため本番シグナルが通過できない構造的抑制であり、短期では解消しない可能性が高い。
 - daytrade_audjpy(133)・gbpusd(67)・eurjpy(65)・gbpjpy(45)・eurgbp(29)が hedge_blockを受けており、JPY・GBP方向への同一方向バイアスが集中しているシグナルと解釈できる。
 
+### 2026-09-17 (Pre-Tokyo Briefing)
+**2026-09-16（前日）: トレードゼロ。PnL = ¥0。WR = N/A。**
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的評価**: N=2は「データなし」カテゴリ（N<10）。WR100%・EV正値はサンプルノイズの域を出ない。いずれの戦略も昇格基準（N≥30 & EV≥1.0）まで **残28件**。
+- **`r2_shadow_demoted_cell`（906件）が最大のゲートキーパー**。Scalp系・daytrade_1h_usdchf・audjpy等で広範に機能しており、Shadow層の降格セルが現在のレジーム下で大量に一致している。これはシステム設計通りの安全弁だが、トレード機会を全面的に遮断している。
+- **`rnb_usdjpy:no_signal 515件`** — USD/JPYがVOLATILEレジーム（ATR%ile 78%）に入っており、RnBの「レンジ反発」条件が成立しない環境。レジームとの不整合。
+- **`order_bar_dedup 447件`** — daytrade_eurjpy/gbpjpy/eurで大量発生。同一バー内でシグナルが連発している可能性（レジームのトレンドダウン環境でオーバーシュートしている可能性）。
+- `r2_shadow_demoted_cell`の累積は現レジームが続く限り解消しない。**本日も約定ゼロまたは極少が継続する可能性が高い**と判断し、データ蓄積待ちのスタンスを維持する。
+- USD/JPY VOLATILEはRnB戦略に構造的に不利。レジーム転換まで`rnb_usdjpy`の出動は期待しない。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
