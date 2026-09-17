@@ -4,6 +4,12 @@
 - **Tier**: PAIR_PROMOTED (EUR_USD, USD_JPY, AUD_USD) + UNIVERSAL_SENTINEL 併存 (vix_carry_unwind と同型)。GBP_USD は永久対象外 (逆符号 family 用に OOS 清浄維持)
 - **実装**: 2026-07-24 (本カードと同一コミット)
 
+> ⚪🔴 **2026-09-07 実測 — 09-06 の発注は `MARKET_HALTED` で拒否され、約定していない (fill 実績にカウントしない)**。tx **837792** (2026-09-06T21:01:12Z、USD_JPY **+1,000u** `CLIENT_ORDER`) は **同一秒に tx 837793 で `ORDER_CANCEL` reason=`MARKET_HALTED`**。broker `openTradeCount` **0** が裏付け ⇒ **orphan 建玉なし**。⚠️ ただし `/api/oanda/status.recent_errors[0]` はこれを `"OPEN buy ok but no tradeID"` と記録しており、**ハンドラが halt キャンセルを「ok」と誤分類している** (本戦略の欠陥ではなく共通の error 分類バグ — 未修理の独立 item)。詳細: [[2026-09-07]]
+>
+> 🔑 **副産物として本戦略は診断上の対照群になった**: この発注は `stopLossOnFill` **154.452** を載せており、市場 ~156.0 に対し **~155 pip** = 設計通りの広い SL。同時期の [[usdjpy_carry_dip_accumulator]] は宣言 150p に対し **24.6–28.5 pip** しか載せていなかったため、**SL 切り詰めは `daytrade_1h_*` 共有ブリッジ普遍の現象ではなく carry_dip 側に固有**と切り分けられた。
+>
+> 📌 救済注記 (2026-09-17): 本項執筆時 (09-07) の「発注タイミングを市場再開の確定後にずらす価値がある」は、**2026-09-10 の執行契約 AMENDMENT (B) §4.1 (下記) で採用・実装済み** — 未決事項ではない。
+
 ## 根拠 (凍結統計 — OOS 再接触・再集計は §8 で禁止)
 
 | 項目 | 値 | 出典 |

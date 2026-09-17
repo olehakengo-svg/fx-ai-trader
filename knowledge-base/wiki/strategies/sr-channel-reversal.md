@@ -46,3 +46,19 @@ clean N=584 の要因解析で退役確定。詳細: [[edge-factor-audit-2026-06
 - 統合先なし: SR 生存者 [[sr-anti-hunt-bounce]] は別思想 (anti-hunt)、DT 版 [[dt-sr-channel-reversal]] は net −1.07
 - per-cell registry が EUR_USD/USD_JPY のみ列挙 → GBP_USD/USD_CHF 漏れ (30d N=159) を strategy-level で封鎖
 - 🟠 副次: dt_sr_channel_reversal は gross +2.25 (SR family 最高) が friction 3.32p に食われ net 負け → tight-spread pair 限定の follow-up 仮説 (本 kill とは別件)
+
+---
+
+## 🔴 2026-09-16: learner の除外が **131 日・13 回**発行されても適用されない — かつ本戦略は現在**発火していない**
+
+`/api/demo/learning` に **adjustment id 94 / 2026-09-15 13:18:14** (pull の **22.6 時間前**) が入った。内容は `sr_channel_reversal: WR 25.0%, EV -0.98 → 除外` で、**2026-05-07 以降 13 回目の同一再発行** (05-07 / 05-08 ×2 / 05-18 / 06-01 / 06-10 / 06-11 / 06-19 / 06-30 / 07-01 / 07-06 / 08-19 / **09-15** = **131 日間**)。
+
+🔑 **にもかかわらず `current_params.entry_type_blacklist` は `[]`、`blacklisted: true` は 100 戦略中 0 件、本戦略は `enabled: true`。**
+⇒ **「learner が stale だから反映されない」という従来の説明は本 run で消滅した。** learner は 22.6 時間前に走り、除外を発行し、それでも反映されていない ⇒ **欠陥は適用経路 (apply path) にある**。KB の当該項目を ⚪ から **🔴 に昇格**。
+
+⚠️ **reason 文字列が 13 回すべてバイト一致** (`WR 25.0%, EV -0.98`) なのに `sample_size` は 230→180→184→185→**190** と動いている ⇒ **reason は現サンプルから再計算されていない**。この文言を本戦略の現況統計として引用してはいけない。
+
+⚪ **現時点の実害はゼロ**: `/api/oanda/audit?limit=500` (09-09T12:16Z〜09-16T11:32Z = 7 日) で本戦略の発火は **0 件**。`promo_n` **4** / WR **50.0%** / EV **+1.73** は**その前の窓の残骸**であり、lifetime (N=34 / WR 26.5% / PnL −24.2 / Wilson BF 9.7) と**符号が逆** ⇒ N=4 では結論不可 ([[feedback_cohort_time_check]])。
+⚠️ 兄弟 [[dt-sr-channel-reversal]] は `promo_n` **15** / EV **−2.95** で**依然 blacklist 候補に入らない** (不変)。直近 2 日は audit 窓で最多発火 (09-15 に 16 件 / 09-16 に 12 件) = **除外されているのは発火していない方だけ**という倒錯した状態。
+
+詳細: [[2026-09-16]]

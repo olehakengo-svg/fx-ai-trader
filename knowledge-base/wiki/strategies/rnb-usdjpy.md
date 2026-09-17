@@ -34,3 +34,29 @@ forward 判定は 🔒 LOCK `rnb-support-bounce-shadow-forward` (first look shad
 - [[system-reference]] — Mode details
 - [[../decisions/rnb-support-bounce-r1-packet-2026-09-10]] — 登録 R1 パケット + §9 執行記録 (2026-09-10)
 - [[../analyses/rnb-dead-mode-and-block-estimand-2026-09-05]] — 153 日 dead mode の経緯
+
+---
+
+## ✅🔑 2026-09-16: **lifetime データで決着 — block 層ではなく signal 生成層で死んでいる。09-11/09-14 の読みは方向が逆だった**
+
+> 📌 **救済注記 (2026-09-17)**: 本節はローカル checkout の wiki-daily run 産で、09-10 の stage-1 shadow-only 登録 (上記 Status) を反映していない古いカードベース上に書かれた。「live fill 0 本」は現行では `shadow_only: True` による構造保証でもあるが、**本節の発見 (signal 生成層が lifetime で無発火 = `no_signal` 98.4%) は shadow レーンにもそのまま効く** — closed shadow N<3 なら lane-health 調査という registry `rnb-shadow-lane-health-checkpoint-1` (期日 09-24) の一次診断材料として読むこと。
+
+`/api/demo/block-counts` の **persisted (lifetime)** 集計:
+
+| block reason | 本 session 窓 | **lifetime** |
+|---|---|---|
+| `no_signal` | **935** | **16,919 (98.4%)** |
+| `order_bar_dedup` | **0** | **58 (0.34%)** |
+| `session_hours` | 0 | 211 |
+| その他 | 0 | 10 (`1h_rr_low` 3 / `mtf_strong_bias` 3 / `velocity_down` 3 / `same_price_3pip` 1) |
+| **合計** | **935** | **17,198** |
+
+本 session の tick は **929**、`no_signal` **935** ⇒ ratio ≈ **1.0000**。
+
+🔑 **`no_signal` が lifetime block の 98.4%、`order_bar_dedup` はわずか 0.34% (58/17,198)。**
+⇒ **ratio 1.0000 は base state であり、09-11 に観測された `order_bar_dedup` 21/971 = 2.2% のバーストこそが異常値だった。**
+⇒ 🔑 **本戦略は「dedup で emit が潰されている」のではなく、そもそも signal を出していない。** 09-11 の「`order_bar_dedup` は entry が emit された後でしか出ない block なので改善方向」という読みは**方向が逆**であり、09-14 の「より大きい窓で再確認が必要」は lifetime データで即座に決着した (本 run の窓は 929 tick = 09-11 の 971 tick と同規模)。
+
+⇒ **live fill 0 本の原因は block ではなく signal 不在。** 本項目 (KB で ⚪ 継続扱い) は**クローズ**し、必要なら「signal 条件が厳しすぎる / 発火条件が市場に取り残されている」という**別の問題**として再登録すること (`usdjpy_carry_dip_accumulator` の 07-02 zero-fire 診断と同型の可能性)。
+
+詳細: [[2026-09-16]]
