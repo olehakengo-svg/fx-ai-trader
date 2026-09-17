@@ -1,6 +1,9 @@
 # sweep_reversion_eurgbp_late — P-S1(a) 執行手順書 (トリガ成立日に読んで実行する)
 
-**Status: 準備完了 (2026-07-31 準備セッション) — 執行待ち (unique N=8/10)**
+**Status: ⬛ RETIRED — Option C 採択 (user 決裁 2026-09-17) で本手順書はクローズ。
+§6 (Option C 経路) を執行済み。詳細: [[ps1a-option-c-retire-2026-09-17]]。以下は歴史記録**
+
+**(旧 Status: 準備完了 (2026-07-31 準備セッション) — 執行待ち (unique N=8/10))**
 作成: Claude 2026-07-31 / rule:R1 準備 (live 変更はトリガ成立 + 本手順のみ)
 決裁根拠: [[sweep-reversion-ps1a-decision-packet-DRAFT]] 冒頭決裁記録 (user 条件付き承認 2026-07-24)
 
@@ -141,6 +144,24 @@ spaced EV≤0 の場合のみ。draft branch は使わず:
 2. 戦略カード + パケットに retire 判定を追記 (Status FINAL)
 3. `HTF_BLOCK_SHADOW_RESCUE` からの sweep 除去 (shadow 蓄積終了) は 4原則#3 と衝突する
    ため user に確認 — rescue 残置 = コストゼロで regime 反転の将来検証余地を残す選択肢あり
+
+### 6.1 執行記録 (2026-09-17 — ✅ 完了)
+
+user 決裁 2026-09-17「推奨で進めて」([[ps1a-option-c-retire-2026-09-17]]) で執行。
+「spaced EV≤0」は凍結閾値と同 estimand (net) で確定 — net spaced EV **−3.33 p/t**
+(gross +2.92p から符号反転、[[ps1a-trigger-estimand-audit-2026-09-16]] §2)。
+読む量の変更は packet §6-2 規定の **user 再決裁として成立** (機械執行ではない)。
+1. ✅ registry resolved 化 — `active:false` + resolution に EV 実測 (net spaced −3.33 /
+   gross +2.92 / cap 救済集合空 / エッジ再現 38%)
+2. ✅ 戦略カード + パケット FINAL 化 (パケットは wikilink 保全のため DRAFT ファイル名の
+   まま Status のみ FINAL)
+3. ✅ **rescue 残置を user 確認済みで採択** — `_GBP_ASIA_SHADOW_RESCUE_CELLS` 不変、
+   modules/ 変更ゼロ (4原則#3)。shadow 蓄積は継続するが読み手 registry なし —
+   再挑戦は net estimand の新規 pre-reg (Rule 1) のみ
+4. ✅ 判定器 `tools/ps1a_execution_check.py` は fetch/CLI 層で恒久 verdict
+   `OPTION_C_RETIRED_USER` (API 不触)。evaluate() の凍結文言リプレイは pin 温存
+5. ✅ scheduled task `ps1a-sweep-trigger-executor` — マージ + ローカル checkout 同期 +
+   実走確認後に無効化 (SKILL.md 残置)
 
 ## 7. 監視の現況 (2026-07-31 実測)
 

@@ -1,6 +1,6 @@
 # P-S1(a) 執行トリガの estimand 監査 — 発火した verdict は gross/net 不一致の産物 (2026-09-16、rule:R3)
 
-**Status**: 🔴 確定 / 自動執行を停止 (verdict を `USER_REDECISION_ESTIMAND` へ) / live 不触
+**Status**: 🔴 確定 / 自動執行を停止 (verdict を `USER_REDECISION_ESTIMAND` へ) / live 不触 → **✅ 決裁済み (2026-09-17): (a) Option C = retire 採択** ([[ps1a-option-c-retire-2026-09-17]])
 **対象**: `sweep_reversion_eurgbp_late` — T8 DEFER の Option B 執行トリガ
 **契機**: 2026-09-14T21:16Z の 10 本目到達で `tools/ps1a_execution_check.py` が
 **`OPTION_B_EXECUTE`** を返した (unique N=10 ∧ spaced EV=+2.92p>0)
@@ -142,6 +142,11 @@ BE/Trail は WR を +20pp 水増しする既知経路 (`project_be_trail_inflate
 2026-10-28 に unique N<5 なら `RETIRE_R2_DEADLINE`。ただし N は既に 10 に到達して
 いるため N<5 には戻らない ⇒ **期日による自動終結は起きない**。決裁なしでは
 本 cell は「毎日 user 再決裁と表示されるだけ」の状態で滞留する。
+
+> **✅ 決裁 (2026-09-17)**: user「推奨で進めて」により **(a) Option C = retire を採択**。
+> 執行記録: [[ps1a-option-c-retire-2026-09-17]] (registry resolved 化 / 判定器
+> `OPTION_C_RETIRED_USER` 恒久化 / scheduled task 無効化 / shadow rescue 残置)。
+> §7-2 score_gate 決裁は規定どおり不要化。本監査はクローズ。
 
 ## 8. 参照
 - forensic #2: [[sweep-zero-fire-forensic-2026-09-14]] (§6 の breakeven 7.72p 導出)

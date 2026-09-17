@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """P-S1(a) 執行条件判定 — sweep_reversion_eurgbp_late の凍結文言リプレイ。
 
+⚠️ **2026-09-17 user 決裁で Option C (retire) 採択済み** — fetch/CLI 層は API を
+叩かず恒久的に OPTION_C_RETIRED_USER を返す。以下の凍結文言と evaluate() の
+判定ロジックは歴史記録として不変に保つ (根拠:
+knowledge-base/wiki/decisions/ps1a-option-c-retire-2026-09-17.md)。
+
 user 条件付き承認 (2026-07-24、決裁パケット冒頭決裁記録) の執行条件を
 機械的に再現する dry-run 判定器。live には一切触れない (read-only)。
 
@@ -72,6 +77,17 @@ VERDICT_USER_REDECISION = "USER_REDECISION_SIGN_SPLIT"
 VERDICT_USER_REDECISION_ESTIMAND = "USER_REDECISION_ESTIMAND"
 VERDICT_RETIRE_DEADLINE = "RETIRE_R2_DEADLINE"
 VERDICT_UNAVAILABLE = "DATA_UNAVAILABLE"
+
+# 2026-09-17 user 決裁: estimand 監査 §7 の二択で (a) Option C = retire を採択。
+# 以後、CLI/fetch 層は API を叩かず恒久的に本 verdict を返す (live 不触・報告のみ)。
+# evaluate() は凍結文言の歴史リプレイとして不変に保つ (test pin 温存)。
+# 根拠: knowledge-base/wiki/decisions/ps1a-option-c-retire-2026-09-17.md
+RETIRED_ON = "2026-09-17"
+VERDICT_RETIRED = "OPTION_C_RETIRED_USER"
+RETIRED_DETAIL = (
+    f"user 決裁 {RETIRED_ON} で Option C (retire) 採択 — 執行トリガは恒久終了。"
+    "shadow rescue は残置 (4原則#3)。根拠 = net spaced EV −3.33p (gross +2.92p "
+    "から符号反転) ∧ cap 救済集合空 (ps1a-option-c-retire-2026-09-17)")
 
 
 # ── 純関数 (テスト対象) ──────────────────────────────────────────────
@@ -327,10 +343,14 @@ def to_markdown(res: dict) -> str:
 # ── データ取得 (CLI 実行時のみ) ──────────────────────────────────────
 
 def fetch_and_evaluate(app_base: str, today: str | None = None) -> dict:
+    today = today or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if RETIRED_ON:
+        # 退役済み — API を叩かない (network ゼロ、scheduled task は既定分岐で報告のみ)
+        return {"verdict": VERDICT_RETIRED, "detail": RETIRED_DETAIL,
+                "retired_on": RETIRED_ON, "today": today}
     if str(ROOT) not in sys.path:  # 直接実行時 (python3 tools/...) の package 解決
         sys.path.insert(0, str(ROOT))
     from tools.prereg_trigger_watch import fetch_trades_window
-    today = today or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     trades = fetch_trades_window(SINCE, app_base, mode=MODE)
     if trades is None:
         return {"verdict": VERDICT_UNAVAILABLE,
@@ -349,7 +369,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
     else:
-        if res["verdict"] == VERDICT_UNAVAILABLE:
+        if res["verdict"] in (VERDICT_UNAVAILABLE, VERDICT_RETIRED):
             print(f"## P-S1(a) dry-run: {res['verdict']} — {res['detail']}")
         else:
             print(to_markdown(res))
