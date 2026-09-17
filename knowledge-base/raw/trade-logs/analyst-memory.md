@@ -4566,6 +4566,16 @@ Cutoff後の累積有効データは **N=3（WR100%、PnL +39.9p）** のみ —
 - Scalp群はShadow状態が解除されない限り執行経路なし。Shadowからの復帰条件を確認すること。
 - rnb_usdjpy：TRENDING_DOWNが継続する限り no_signal 連発は構造的。レジーム変化を待つのみ。
 
+### 2026-09-17 (Pre-Tokyo Briefing)
+前日全セッション（東京・ロンドン・NY）を通じてシステムは稼働していたが、**約定トレード数 = 0**。PnL = ¥0。WR = N/A（サンプルなし）。Cutoff後累計はN=3、累計PnL=+39.9pipsと極小水準にとどまる。
+| Strategy | Pair | N | WR% | EV (pip/t) | PnL (pip) | 判定 |
+> **注**: 昇格基準（N≥30 & EV≥1.0）を満たす戦略は現時点でゼロ。降格基準（N≥30 & EV<−0.5）該当もなし。全戦略がN蓄積フェーズ。
+- usdjpy_carry_dip_accumulator: 2/30（残28件）
+- kalman_d7_po_dn_flip: 1/30（残29件）
+- 最速で昇格判定に到達できる見込みは、現在の約定ペースでは**数ヶ月単位**を要する。
+- ゼロ約定は異常ではなく**ガードが正常機能した結果**。強制介入は不要。
+- hedge_blockの累積が続く場合は、前日の未決済ポジション有無を再確認することが望ましい。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
