@@ -27,8 +27,12 @@ jobs:
       - name: Collect (interventions / conferences / rss / gdelt)
         run: python3 tools/mof_statements_daily.py
 
+      # 部分成果の永続化 (2026-09-17, rule:R3): collect step が hard 失敗で終了しても、
+      # 先行ソース (interventions / conferences / score / rss) が書いたファイルは commit する。
+      # これが無いと runner の ephemeral disk ごと破棄される (2026-09-16 run 35163419350 の実害)。
       - name: Commit data
         id: data-commit
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

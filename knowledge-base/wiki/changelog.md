@@ -1,5 +1,18 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-17 — research(scan#5): 外部仮説スキャン第5次 — WIP 会計訂正 + family A forward コーパスの構造修復 (rule:R3)
+
+- **新規採用 0 (3 周連続)** — E29 インフレリスク条件付き予測可能性 = 棄却 **C4** (条件付けるべき正 EV ホストが母集団に不在、[[friction-adjusted-ev-map-2026-07-07]]) / E30 CLS 決済フロー = 棄却 **C1** (商用のみ、U4 有償候補へ条件付き追加) / E31 グラフ学習・ハイブリッド DL = 棄却 **C2/C3** (E28 同型、OHLCV 3 周 FAIL + Mesfin 2026)
+- 🔴 **WIP 発動会計を訂正 (§2)** — 09-15 E23 park 時の「能動測定ライン = **0 本**」は **台帳 #27 (family A) の数え落とし**。統治規則は「S1-S4 の本数」でなく **「今日着手できる本数 ≥1」** (パイプライン §5 追補、2026-08-14 user 承認) であり、#27 の次ステップ (敵対的検証 → 凍結、期日 09-24) はブロッカー無しで着手可能だった → **臨時スキャンの発動条件は成立していなかった**。実害ゼロ (期日 09-18 は翌日、焼いた窓・消費枠なし) だが会計自体が発動ゲートなので訂正。**正: 着手可能 1 / 時限ロック 3 / 条件付き 2 / park 2**。phantom blocker 型の 2 例目
+- 🔴 **`mof-statements-daily` の構造欠陥を修復 + 実データ回収 (§1.2)** — 直近 20 run で **8 失敗 (40%)**、サンプル 4/4 が**同一根因 = GDELT HTTP 429** (ローカルでも再現 ⇒ 第4次 FRED の「runner IP WAF」仮説は本件では反証、GDELT 側の慢性レート制限)。`main()` の dict literal 直列評価で最後段 GDELT の raise が**先行 4 ソースの成果ごとプロセスを落とし**、workflow の commit step に `if:` が無いため runner の ephemeral disk ごと破棄されていた。**実害を実測**: 失敗 run 35163419350 は `[daily-conf] new=1` (my20260915.html) / `[daily-rss] new=1` / `[score] 512 conferences` まで到達して全破棄、repo は **511** で取り残されていた
+- 🟣 **修復**: per-source isolation (`_STEPS` + try/except、**全ソース試行後**に hard 失敗のみ raise、失敗も summary に `error` 保持) / **soft-hard 分類** `_SOFT_SOURCES={"gdelt"}` (全範囲再取得の派生系列 = 1 日の失敗に情報価値なし。hard 継続は 40% 頻度のアラート = 「読み手のいない検知器」の再生産) / workflow "Commit data" を **`if: ${{ !cancelled() }}`** / **test pin 4 本** (`tests/test_mof_statements_daily_isolation.py`: soft 非 raise / hard raise / **raise は全ソース試行後** / soft 集合固定)
+- **回収実行**: 修復後 driver をローカル実行し `my20260915.html` + RSS 1 件を回収、conferences **511→512**。⚠️ 回収した文書は **ladder 語句ヒット 0 = negative sample** — family A の検出器価値は **FP 率較正**にあり、negative 欠損は precision を機械的に押し上げる。凍結 (09-24) 直前だった点で単なる欠損より重い
+- 🔵 **欠陥族 3 例目**: zn-cache-refresh (write-only commit) / rate_anchor_ingest (直列 ingest) に続く同型。**第4次は姉妹ツールへ横展開せず 7 日後に実データ欠落として顕在化** → 教訓 [[lesson-defect-family-sweep-siblings-2026-09-17]]。第4次の「日次 union だから恒久損失なし」は **rss (ローリング窓) について偽**と訂正
+- ✅ **第4次修復の運用検証を消化 (§1.1)** — `rate-anchor-daily` **4/4 success** (us_treasury date_max 2026-09-16 = Treasury fallback が CI 実働) / `zn-cache-refresh` **2/2 success** (zn_f_daily 08-18 凍結 → 09-16)。第4次「次アクション 3: 初回 green を実ログで見るまで修復完了と言わない」をエビデンス付きでクローズ
+- **registry**: `edge-supply-scan-monthly` deadline 09-18 → **2026-10-18** (第6次、四半期モダリティ棚卸し同乗) / `family-a-adversarial-freeze-deadline` に「唯一の着手可能ライン」+ 凍結前 corpus 連続性チェックを追記
+- **§4 提案 (未執行、user 決裁事項)**: 月次スキャン → **四半期 + イベント駆動**。根拠 = 直近 2 周 採用 0、棄却理由が C1 有償 / C2 既 ban / C4 正 EV ホスト不在 の 3 分類に収束。**WIP 緊急トリガは維持**するので探索放棄ではない。cadence は user 承認済み規律のため autopilot の R2/R3 権限外
+- doc: [[external-hypothesis-scan-round5-2026-09-17]] / [[lesson-defect-family-sweep-siblings-2026-09-17]]
+
 ## 2026-09-15 — research(E23): explore verdict = ❌ **UNDERPOWERED / park** — pass-0 census PASS → pass-1 で Gate B N=56<100 (rule:R1 手続き、純研究)
 
 - **期日 09-20 の 5 日前倒しで verdict 確定**。**pass-2 (測定) は解錠せず = イベント×リターンの結合統計を一度も計算していない** → explore 窓の outcome にも OOS 窓にも未接触のまま park (窓は焼いていない)

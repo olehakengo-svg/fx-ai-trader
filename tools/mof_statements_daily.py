@@ -4,7 +4,12 @@ Run by .github/workflows/mof-statements-daily.yml (daily, JST 06:30); can also
 be run locally. Collection only — same discipline boundary as
 tools/mof_statements_ingest.py (no price data, no joint measurement).
 
-Steps (each independent; a hard failure raises and the workflow alerts):
+Steps are executed with per-source isolation: every source is attempted, and
+only *hard* failures raise (at the end, after all sources ran). GDELT is a
+*soft* source — it re-fetches its full range every run, so a single failure
+carries no information and must not abort the primary corpus collection.
+
+Steps:
   1. interventions  — refetch the official history CSV + monthly aggregate
      pages (self-healing full rewrite; picks up new quarterly disclosures).
   2. conferences    — fetch current + previous month pages, append any new
@@ -76,15 +81,54 @@ def run_rss() -> dict:
     return {"fx_items": len(fx_items), "new": len(new_items)}
 
 
+# ソース分類 (2026-09-17, rule:R3)。
+#   hard = 失敗を終端で raise する (family A forward corpus の一次供給)
+#   soft = 警告のみ。全範囲を毎回再取得する派生系列で、次回 run が完全に自己修復する
+#          ため 1 日の失敗に情報価値が無い。GDELT は runner IP に対する 429 が
+#          慢性的 (2026-09-03..16 で 8/20 run) で、hard 扱いだと本体を道連れにする。
+_SOFT_SOURCES = {"gdelt"}
+
+_STEPS = (
+    ("interventions", lambda: ing.run_interventions(check=False)),
+    ("conferences", run_conferences_recent),
+    ("score", ing.run_score),
+    ("rss", run_rss),
+    ("gdelt", ing.run_gdelt),
+)
+
+
 def main():
-    summary = {
-        "interventions": ing.run_interventions(check=False),
-        "conferences": run_conferences_recent(),
-        "score": ing.run_score(),
-        "rss": run_rss(),
-        "gdelt": ing.run_gdelt(),
-    }
+    """各ソースを隔離実行する (per-source isolation)。
+
+    2026-09-17 以前は dict literal で 5 ソースを直列評価していたため、最後段の
+    GDELT が 429 で raise すると **先に成功していた 4 ソースの成果ごと** プロセスが
+    落ち、workflow の commit step (当時 `if: success()` 相当) が走らず runner の
+    ephemeral disk ごと破棄されていた。実害は観測済み: 2026-09-16 の run 35163419350 は
+    `[daily-conf] new=1` (my20260915.html) / `[daily-rss] new=1` / `[score] 512 conferences`
+    まで到達してから 429 で全破棄し、repo 側は 511 conferences のまま取り残された。
+
+    本関数は全ソースを試行してから終端で hard 失敗のみ raise する。部分成果は
+    workflow 側の `if: !cancelled()` commit step が永続化する。
+    """
+    summary = {}
+    hard_failed, soft_failed = [], []
+    for name, fn in _STEPS:
+        try:
+            summary[name] = fn()
+        except Exception as exc:  # noqa: BLE001 — 隔離が目的
+            bucket = soft_failed if name in _SOFT_SOURCES else hard_failed
+            bucket.append(name)
+            summary[name] = {"error": f"{type(exc).__name__}: {exc}"}
+            print(f"[daily-{name}] FAILED ({'soft' if name in _SOFT_SOURCES else 'hard'}): {exc}")
+
     print("[daily-summary]", json.dumps(summary, ensure_ascii=False))
+    if soft_failed:
+        print(f"⚠️ soft sources failed (自己修復・アラート対象外): {soft_failed}")
+    if hard_failed:
+        raise RuntimeError(
+            "hard sources failed: " + ", ".join(hard_failed)
+            + " — 部分成果は commit 済み (if: !cancelled())。要調査"
+        )
     return summary
 
 
