@@ -4586,6 +4586,16 @@ Cutoff後の累積有効データは **N=3（WR100%、PnL +39.9p）** のみ —
 - **scalp系**: 全般的に高ATR環境 → スプレッドガード閾値に接近するリスク高。特にEUR_USD(VOLATILE)/GBP_JPY系
 - **USD_JPY（VOLATILE→TRENDING）**: ATR%ile=78%の高ボラが継続か、方向感が出るかで`rnb_usdjpy`の機能可否が変わる
 
+### 2026-09-17 (Pre-Tokyo Briefing)
+前日（2026-09-16）はトレードゼロ。Cutoff後累計も **N=3 / WR=100.0% / 総PnL=+39.9** と極めてサンプルが薄い状態が続いている。前日は全セッション（東京・ロンドン・NY）を通じて執行ゼロであり、システムはシグナル不発またはブロックにより不活動のまま終了した。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> ⚠️ 全戦略 N<10：統計的には「データなし」扱い。WR100%はサンプルバイアスであり、現時点で戦略有効性の判断は不可能。昇格基準（N≥30 & EV≥1.0）まで残り **最低27件**。
+- 前日・当日ともにExecution=0。原因はBlock Countsの構造から推察可能（下記Block分析参照）。
+- **本日の対処**：ブロック事由の主因（hedge_block / r2_shadow_demoted_cell / no_signal）が解消されるレジーム条件か否かを朝一で確認する。
+- scalp系（scalp: 130件、scalp_eur: 81件、scalp_5m: 55件、scalp_5m_eur: 47件）が `r2_shadow_demoted_cell` でブロック継続。
+- これはシャドウセルがデモーション済みのため本番シグナルが通過できない構造的抑制であり、短期では解消しない可能性が高い。
+- daytrade_audjpy(133)・gbpusd(67)・eurjpy(65)・gbpjpy(45)・eurgbp(29)が hedge_blockを受けており、JPY・GBP方向への同一方向バイアスが集中しているシグナルと解釈できる。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
