@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-17 — 決裁バッチ執行: P-S1(a) Option C retire / U1 ミッション改定 / kalman postfill / U4 feasibility (user「推奨で進めて」)
+
+- ⬛ **P-S1(a) sweep_reversion_eurgbp_late 退役 (rule:R2)** — estimand 監査 §7 二択で user が (a) Option C 採択。registry `t8-sweep-defer-decision` resolved 化 (net spaced EV −3.33 p/t / cap 救済集合空 / エッジ再現 38% を記録)、判定器は fetch/CLI 層で恒久 verdict `OPTION_C_RETIRED_USER` (evaluate() の凍結文言リプレイは pin 温存、新 pin 2 本 + watch 側退役 pin 1 本)。**shadow rescue は残置** (4原則#3、modules/ 変更ゼロ)。scheduled task `ps1a-sweep-trigger-executor` はマージ後に無効化。決裁記録: [[ps1a-option-c-retire-2026-09-17]]
+- 🎯 **U1=(b): 正式ミッション = M3 系列 (+2〜3%/月 複利) へ改定 (rule:R1 user 決裁)** — 旧 anchor「月利21.6%接近」「20%/月」を記録から除去 (歴史文書は不改変保存、superseded バナー方式)。CLAUDE.md / index.md / roadmap v2.3 / rederivation / agents/cma coordinator を改定。スコアリング分母は time-to-M2 に統一。決裁記録: [[u1-mission-redecision-2026-09-17]]。U2/U3/U5 は未決裁のまま
+- 🔵 **kalman carve-out GO の前提監査 → postfill packet 起案 (rule:R3 + R1 DRAFT)** — GO brief (09-01) の前提 2 点が stale と判明: carve-out は [[kalman-d7-minlot-carveout-prereg-2026-09-01]] LOCKED (PR #218) で**着地済み**、初 live fill #859468 (09-10、broker +9.1p) も**発生済み** → コード変更 no-op を明示。09-01 LOCK の凍結済み義務 (初 fill + 90 日) を機械執行し registry `t9-kalman-d7-live-n10-ev-check` deadline 2026-11-30 → **2026-12-09**。EV estimand 凍結 (broker realized net) + storm 拡張凍結は [[kalman-d7-carveout-postfill-packet-2026-09-17]] で user 最終承認待ち。座礁していた戦略カードの storm 族 A/B 法医学 (ローカル未コミット) を本 PR で救済
+- 📊 **U4 供給空間 feasibility 初版 (rule:R3)** — (a) 有償データ vs (c) FX 以外の比較 [[supply-space-feasibility-2026-09-17]]。packet §U4 の「E22 で決裁点定義済み・即決可能」は PASS 条件付きで実際は不到達 (explore FAIL で不要化済み) と訂正。推奨仮決め案 = (a) 主経路 (E1 verdict 条件付き CME DataMine probe 数百$ 上限) / (c) は S1 まで。判定点 10-15 (E1 first look) / 10-18 (scan#6)
+
 ## 2026-09-17 — research(scan#5): 外部仮説スキャン第5次 — WIP 会計訂正 + family A forward コーパスの構造修復 (rule:R3)
 
 - **新規採用 0 (3 周連続)** — E29 インフレリスク条件付き予測可能性 = 棄却 **C4** (条件付けるべき正 EV ホストが母集団に不在、[[friction-adjusted-ev-map-2026-07-07]]) / E30 CLS 決済フロー = 棄却 **C1** (商用のみ、U4 有償候補へ条件付き追加) / E31 グラフ学習・ハイブリッド DL = 棄却 **C2/C3** (E28 同型、OHLCV 3 周 FAIL + Mesfin 2026)

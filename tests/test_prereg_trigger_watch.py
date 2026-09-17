@@ -425,15 +425,26 @@ def test_paginate_closed_trades_full_walk_and_fail_loud():
     assert paginate_closed_trades(lambda off: None, page_size=500) is None
 
 
-def test_registry_t8_sweep_uses_unique_basis_and_mode():
-    """t8-sweep-defer-decision の計数意味論 pin: unique バー基準 + mode 絞り込み
-    (packet §1.4 決裁の registry 反映)。"""
-    from tools.prereg_trigger_watch import load_registry
-    trig = next(t for t in load_registry() if t["id"] == "t8-sweep-defer-decision")
+def test_registry_t8_sweep_retired_and_history_frozen():
+    """t8-sweep-defer-decision の退役 pin (Option C、user 決裁 2026-09-17)。
+
+    active:false で日次評価から外れること (load_registry に現れない) と、
+    凍結時代の計数意味論 (unique 基準 + mode + 期日 — packet §1.4 / 2026-08-17
+    繰り延べ決裁) が歴史記録として不変であることを固定する。
+    根拠: knowledge-base/wiki/decisions/ps1a-option-c-retire-2026-09-17.md
+    """
+    from tools.prereg_trigger_watch import load_registry, load_registry_raw
+    assert not any(t["id"] == "t8-sweep-defer-decision" for t in load_registry())
+    trig = next(t for t in load_registry_raw()
+                if t["id"] == "t8-sweep-defer-decision")
+    assert trig["active"] is False
+    assert trig["resolved"] == "2026-09-17"
+    assert "Option C" in trig["resolution"]
+    assert "3.33" in trig["resolution"]  # EV 実測 (net spaced) の記録
+    # 歴史記録 (凍結時代のフィールド) は不変 — lint_schema (raw 走査) の必須フィールドでもある
     assert trig["count_basis"] == "unique"
     assert trig["mode"] == "daytrade_eurgbp"
     assert trig["n_decide"] == 10 and trig["n_floor"] == 5
-    # 2026-08-17 user 決裁 (zero-fire forensic §4-2): 計数器故障 28 日分の繰り延べ
     assert trig["deadline"] == "2026-10-28"
 
 

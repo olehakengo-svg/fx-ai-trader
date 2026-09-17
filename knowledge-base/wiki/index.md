@@ -1,8 +1,8 @@
 # FX AI Trader Knowledge Base
 
-## 🎯 最重要目標: 段階目標 M1→M2→M3 (月次符号転換 → +0.5%/月 → +2〜3%/月) — 2026-07-10 段階化 (user 承認)
+## 🎯 正式ミッション: M3 系列 (+2〜3%/月 複利) — 2026-09-17 U1=(b) 改定 (user 決裁)。経路 = M1 (月次符号転換) → M2 (+0.5%/月) → M3 (2026-07-10 段階化)
 **全施策の判断基準。これに寄与しない施策は後回し。**
-- **21.6% は aspirational anchor に格下げ** — 導出母体 12-cell は live 経路残存 1〜2/12 でほぼ消滅、現行制約 (lot chain/agg-Kelly gate) 下で構造的到達不能。再導出: [[monthly-target-rederivation-2026-07-10]] / 決裁: [[shortest-path-decision-memo-2026-07-10]] (最短経路 = トラックA stage-2 / B 供給ライン / C 資本配管)
+- **旧 anchor (月利21.6%接近 / 20%/月) は U1=(b) で記録から除去 (2026-09-17)** — 決裁: [[u1-mission-redecision-2026-09-17]] ([[mission-capital-redecision-packet-2026-09-10]] §U1)。歴史的導出は [[monthly-target-rederivation-2026-07-10]] / [[shortest-path-decision-memo-2026-07-10]] に不改変で保存 — 引用時は「除去済み旧 anchor」と明示 (最短経路 = トラックA stage-2 / B 供給ライン / C 資本配管 は不変)
 - 現在: **DD防御0.2x (defensive mode、2026-07-08〜)**。監視は実口座 NAV(JPY) 基準 — 2026-09-10 実測 **¥275,486** / floor ¥262,000 (OANDA API 存続条件) 到達推定 2027-02〜04、資金時計 = registry `project-falsification-f4-nav-floor-clock`。旧「DD=100.01%」表示は eq_peak 極小分母のアーティファクトで KPI から除外済み ([[fable5-system-audit-2026-07-02]] P1-5 / [[process-meta-audit-2026-09-07]] goals-6)。「月利47% (BT推定)」も BE/Trail 水増し由来のため撤去
 - 旧目標「月利100%」「Phase 3 月利594%」は TP-HIT 12-cell 検証で数学的不可能と確定、user 承認で再設定 (roadmap v2.2 T12)
 - 詳細: **[[roadmap-v2.3-payoff-friction-repair]]** (✅ 正式版 2026-07-07 — 決済非対称/摩擦の是正。T3 診断確定 [[payoff-asymmetry-diagnosis-2026-07-07]]) / 前版: [[roadmap-v2.2-win-conversion]] (全12項目クローズ済) / 旧: [[roadmap-v2.1]]
@@ -16,7 +16,7 @@
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-09-11)
+## Current Portfolio (auto-synced, 2026-09-17)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |

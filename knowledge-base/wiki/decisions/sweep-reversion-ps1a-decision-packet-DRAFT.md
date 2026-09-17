@@ -1,7 +1,16 @@
 # sweep_reversion_eurgbp_late — P-S1(a) HTF Exemption R1 決裁パケット
 
-**Status: 🔴 執行停止 — estimand 監査で条件成立が無効化 (2026-09-16)。unique N=10/10 到達済みだが
-gross/net 不一致のため `USER_REDECISION_ESTIMAND`、live 変更は未発生**
+**Status: ⬛ FINAL — Option C (retire) 採択で本パケットはクローズ (user 決裁 2026-09-17)。
+Option B は永久に執行しない。詳細: [[ps1a-option-c-retire-2026-09-17]]**
+
+> **⬛ 退役 (2026-09-17、rule:R2)**: estimand 監査の二択 (下記 🔴 執行停止 block) で user が
+> **(a) Option C = retire** を採択。registry `t8-sweep-defer-decision` は resolved 化、
+> 判定器は `OPTION_C_RETIRED_USER` を恒久返答、scheduled task `ps1a-sweep-trigger-executor`
+> は無効化。shadow rescue は残置 (4原則#3、runbook §6-3 の残置選択肢)。
+> 以下は歴史記録として不変。
+
+**(旧 Status: 🔴 執行停止 — estimand 監査で条件成立が無効化 (2026-09-16)。unique N=10/10 到達済みだが
+gross/net 不一致のため `USER_REDECISION_ESTIMAND`、live 変更は未発生)**
 
 > **🔴 執行停止 (2026-09-16、rule:R3 → user 決裁待ち)**: 2026-09-14 に unique N=10 到達し判定器は
 > `OPTION_B_EXECUTE` (gross spaced +2.92p) を返したが、**この条件成立は estimand 不一致の産物**。

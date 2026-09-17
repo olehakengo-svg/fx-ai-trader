@@ -251,3 +251,36 @@ def test_unparseable_entry_time_fails_loud():
     rows = packet_fixture() + [_row(30000, "not-a-date", 1.0)]
     with pytest.raises(ValueError):
         evaluate(rows, today="2026-07-31")
+
+
+# ── 2026-09-17 user 決裁: Option C (retire) 採択の pin ─────────────────
+# fetch/CLI 層は API を叩かず恒久 verdict を返す。evaluate() の凍結文言
+# リプレイは歴史記録として上の pin 群で不変に保たれていることが前提。
+# 根拠: knowledge-base/wiki/decisions/ps1a-option-c-retire-2026-09-17.md
+
+def test_retired_short_circuit_returns_permanent_verdict_without_network():
+    from tools.ps1a_execution_check import (
+        RETIRED_ON,
+        VERDICT_RETIRED,
+        fetch_and_evaluate,
+    )
+    assert RETIRED_ON == "2026-09-17"
+    # app_base が不到達アドレスでも network に出ずに即答することを pin
+    res = fetch_and_evaluate("http://invalid.invalid", today="2026-09-17")
+    assert res["verdict"] == VERDICT_RETIRED == "OPTION_C_RETIRED_USER"
+    assert res["retired_on"] == RETIRED_ON
+    assert "retire" in res["detail"] or "退役" in res["detail"] \
+        or "恒久終了" in res["detail"]
+
+
+def test_retired_verdict_is_not_an_execute_verdict():
+    from tools.ps1a_execution_check import (
+        VERDICT_OPTION_B,
+        VERDICT_RETIRED,
+        fetch_and_evaluate,
+    )
+    # scheduled task の既定分岐は「OPTION_B_EXECUTE 以外は live 不触・報告のみ」。
+    # 退役 verdict がその分岐で誤って執行側に落ちないことを字面で pin。
+    res = fetch_and_evaluate("http://invalid.invalid", today="2026-10-01")
+    assert res["verdict"] != VERDICT_OPTION_B
+    assert res["verdict"] == VERDICT_RETIRED
