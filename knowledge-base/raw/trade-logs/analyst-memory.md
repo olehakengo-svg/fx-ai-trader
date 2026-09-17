@@ -4576,6 +4576,16 @@ Cutoff後の累積有効データは **N=3（WR100%、PnL +39.9p）** のみ —
 - ゼロ約定は異常ではなく**ガードが正常機能した結果**。強制介入は不要。
 - hedge_blockの累積が続く場合は、前日の未決済ポジション有無を再確認することが望ましい。
 
+### 2026-09-17 (Pre-Tokyo Briefing)
+前日は全セッション（東京・ロンドン・NY）を通じてトレード執行なし。PnL = ¥0、N = 0、WR = N/A。システムは稼働中だが、シグナル→執行の経路がブロック群によって完全に閉塞された状態。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的注記**: N=3（合計）は「データなし」水準（N<10）。WR 100%・EV+15.85は統計的に無意味。昇格基準（N≥30 & EV≥+1.0）まで距離は**27件以上**。現時点でパフォーマンス評価不可。
+- **daytrade_eurjpy**: TRENDING_DOWNで方向性あり → `order_bar_dedup`と`r2_shadow_demoted_cell`による閉塞が機会損失の主因
+- **daytrade_gbpjpy**: TRENDING_DOWNで方向性あり → `gbp_asia_flash_crash`が24件。レジームと戦略の相性は良いが安全装置が介入
+- **rnb_usdjpy**: VOLATILE環境 → RnBの根本前提（レンジ）と乖離。`no_signal`54件はレジーム不整合の結果として自然
+- **scalp系**: 全般的に高ATR環境 → スプレッドガード閾値に接近するリスク高。特にEUR_USD(VOLATILE)/GBP_JPY系
+- **USD_JPY（VOLATILE→TRENDING）**: ATR%ile=78%の高ボラが継続か、方向感が出るかで`rnb_usdjpy`の機能可否が変わる
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
