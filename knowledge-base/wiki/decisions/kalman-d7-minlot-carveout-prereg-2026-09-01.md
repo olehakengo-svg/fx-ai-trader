@@ -39,3 +39,16 @@
 1. 3 type の bypass set 追加 + 1000u 固定契約 (lot 増額は Live N≥30 の別 R1)
 2. R2 ゲートの deadline 再武装 (初 fill + 90 日)
 3. 本ドキュメントの DRAFT → LOCK 昇格
+
+
+## 2026-09-17 追記 — 初 fill 実測と事後義務の執行 (postfill packet 起案)
+
+- **到達性確認 ①〜③ 消込**: ①② = 初 live fill **#859468** (2026-09-10T17:00:51Z USD_JPY BUY 1,000u →
+  同日 21:04:55Z STOP_LOSS 決済、hold 4h04m)。**+8.2p (demo) / +¥91 = +9.1p (broker realized、差 0.9p 原因未判定)**。
+  05-28 決裁 SUCCESS 定義 (fill ≥1) 達成。「2026-10-15 まで fill ゼロなら到達性再監査」条項は消滅。
+  ③ = registry `t9-kalman-d7-live-n10-ev-check` を **2026-12-09** (初 fill + 90 日) へ再武装 (2026-09-17 執行、本 LOCK の凍結済み義務)。
+- ⚠️ **storm 4 caveat**: 本 fill が trail SL replacement 16,837 回 / 33,675 tx / 2h51m の storm を誘発
+  (初の非 carry_dip 系 storm、欠陥は戦略共有の trail/bracket 層)。storm guard 4 点セット
+  (累積 tx breaker / 冪等ガード / 単調性アサート / dead-band — [[kalman-d7-po-dn-flip]] 09-16 訂正版) は未実装。
+- 実測頻度: carve-out 着地から 16 日で 1 fill (~2/月) — 見込み +11-17/月 を大幅に下回る。M1 算数への ΔN 引用禁止。
+- 事後パケット (estimand 凍結 + storm 拡張凍結、user 最終承認待ち): [[kalman-d7-carveout-postfill-packet-2026-09-17]]
