@@ -1,0 +1,101 @@
+{
+  "status": "OK",
+  "strategy": "tokyo_fix_955_jpy_demand",
+  "primary_cell": {
+    "window": "fix-30min..fix",
+    "exit": "60min",
+    "pair": "USDJPY"
+  },
+  "grid": [
+    {
+      "window": "fix-30min..fix",
+      "exit": "60min",
+      "pair": "USDJPY"
+    }
+  ],
+  "bonferroni_m": 3,
+  "cache": {
+    "USDJPY": {
+      "rows": 903828,
+      "start": "2014-01-02T04:55:00+00:00",
+      "end": "2026-04-30T23:55:00+00:00"
+    },
+    "path": "data/cache/massive/USD_JPY_5m_2014_2026.parquet"
+  },
+  "coverage_errors": [],
+  "summary": {
+    "n": 2948,
+    "wins": 1308,
+    "wr": 0.44369063772048845,
+    "wilson_lo": 0.42584088755518984,
+    "pf": 0.7135874737543292,
+    "wf": {
+      "folds": 3,
+      "folds_detail": [
+        {
+          "n": 983,
+          "pf": 0.7236972961649247,
+          "total_pip": -1957.3010000000027
+        },
+        {
+          "n": 983,
+          "pf": 0.6014677782099181,
+          "total_pip": -2356.799999999998
+        },
+        {
+          "n": 982,
+          "pf": 0.7727299999999998,
+          "total_pip": -2272.700000000001
+        }
+      ]
+    },
+    "bonferroni_p": 1.0,
+    "kelly": 0,
+    "max_dd_pip": 6637.6010000000115,
+    "total_pip": -6586.801000000015,
+    "null_bootstrap_p": 1.0,
+    "single_year_concentration": 0.135832249979922
+  },
+  "summary_2x": {
+    "n": 2948,
+    "wins": 1126,
+    "wr": 0.3819538670284939,
+    "wilson_lo": 0.36457910104244523,
+    "pf": 0.5279408951250077,
+    "wf": {
+      "folds": 3,
+      "folds_detail": [
+        {
+          "n": 983,
+          "pf": 0.5226721834374974,
+          "total_pip": -3923.300999999999
+        },
+        {
+          "n": 983,
+          "pf": 0.3921822272215967,
+          "total_pip": -4322.799999999998
+        },
+        {
+          "n": 982,
+          "pf": 0.6187275017998557,
+          "total_pip": -4236.700000000005
+        }
+      ]
+    },
+    "bonferroni_p": 1.0,
+    "kelly": 0,
+    "max_dd_pip": 12501.501000000004,
+    "total_pip": -12482.801000000003,
+    "null_bootstrap_p": 1.0,
+    "single_year_concentration": 0.10660267675500074
+  },
+  "subperiod": {
+    "n": 753,
+    "wilson_lo": 0.41369405450538
+  },
+  "nsg1": "DEFERRED — NSG-1 implementation is a separate in-flight task; rerun after acceptance.",
+  "scenario_verdict": {
+    "scenario": "C",
+    "text": "C — primary literal BT failed at least one of Wilson/PF/Bonferroni/bootstrap axes."
+  }
+}

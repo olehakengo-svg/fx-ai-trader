@@ -1,0 +1,141 @@
+{
+  "status": "OK",
+  "strategy": "quarter_end_jpy_repat",
+  "primary_cell": {
+    "window": "last_5_business_days_mar_sep",
+    "exit": "month_end_17GMT",
+    "pair": "USDJPY"
+  },
+  "grid": [
+    {
+      "window": "last_5_business_days_mar_sep",
+      "exit": "month_end_17GMT",
+      "pair": "USDJPY"
+    }
+  ],
+  "bonferroni_m": 3,
+  "cache": {
+    "USDJPY": {
+      "rows": 903828,
+      "start": "2014-01-02T04:55:00+00:00",
+      "end": "2026-04-30T23:55:00+00:00"
+    },
+    "path": "data/cache/massive/USD_JPY_5m_2014_2026.parquet"
+  },
+  "coverage_errors": [],
+  "intervention_dates_excluded": [
+    "2022-09-22",
+    "2022-10-21",
+    "2024-04-29",
+    "2024-05-01",
+    "2026-04-30"
+  ],
+  "no_intervention_exclusion_summary": {
+    "n": 23,
+    "wins": 7,
+    "wr": 0.30434782608695654,
+    "wilson_lo": 0.15603828020972457,
+    "pf": 0.4756097560975609,
+    "wf": {
+      "folds": 3,
+      "folds_detail": [
+        {
+          "n": 8,
+          "pf": 0.249255751014885,
+          "total_pip": -277.4
+        },
+        {
+          "n": 8,
+          "pf": 0.6205055738734495,
+          "total_pip": -241.7
+        },
+        {
+          "n": 7,
+          "pf": 0.44942459115687466,
+          "total_pip": -181.8
+        }
+      ]
+    },
+    "bonferroni_p": 1.0,
+    "kelly": 0,
+    "max_dd_pip": 816.1999999999999,
+    "total_pip": -700.9,
+    "null_bootstrap_p": 0.907,
+    "single_year_concentration": 0.4420031388215152
+  },
+  "summary": {
+    "n": 23,
+    "wins": 7,
+    "wr": 0.30434782608695654,
+    "wilson_lo": 0.15603828020972457,
+    "pf": 0.4756097560975609,
+    "wf": {
+      "folds": 3,
+      "folds_detail": [
+        {
+          "n": 8,
+          "pf": 0.249255751014885,
+          "total_pip": -277.4
+        },
+        {
+          "n": 8,
+          "pf": 0.6205055738734495,
+          "total_pip": -241.7
+        },
+        {
+          "n": 7,
+          "pf": 0.44942459115687466,
+          "total_pip": -181.8
+        }
+      ]
+    },
+    "bonferroni_p": 1.0,
+    "kelly": 0,
+    "max_dd_pip": 816.1999999999999,
+    "total_pip": -700.9,
+    "null_bootstrap_p": 0.907,
+    "single_year_concentration": 0.4420031388215152
+  },
+  "summary_2x": {
+    "n": 23,
+    "wins": 6,
+    "wr": 0.2608695652173913,
+    "wilson_lo": 0.1254844588924897,
+    "pf": 0.4543794287384031,
+    "wf": {
+      "folds": 3,
+      "folds_detail": [
+        {
+          "n": 8,
+          "pf": 0.23093053735255573,
+          "total_pip": -293.4
+        },
+        {
+          "n": 8,
+          "pf": 0.6028663892741563,
+          "total_pip": -257.7
+        },
+        {
+          "n": 7,
+          "pf": 0.4215657311669128,
+          "total_pip": -195.8
+        }
+      ]
+    },
+    "bonferroni_p": 1.0,
+    "kelly": 0,
+    "max_dd_pip": 852.4999999999999,
+    "total_pip": -746.9,
+    "null_bootstrap_p": 0.923,
+    "single_year_concentration": 0.4094256259204713
+  },
+  "subperiod": {
+    "n": 6,
+    "wilson_lo": 0.1876128068994087
+  },
+  "nsg1": "DEFERRED — NSG-1 implementation is a separate in-flight task; rerun after acceptance.",
+  "scenario_verdict": {
+    "scenario": "D",
+    "text": "D — evidence too thin for R1 research verdict."
+  }
+}
