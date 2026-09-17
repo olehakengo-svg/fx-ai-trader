@@ -577,7 +577,8 @@ def test_registry_automation_packet_triggers_wired():
     assert t["requirements"], "artifact_presence は requirements 必須"
     assert "569dbe3f" in t["message"], "着地 commit を根拠として残すこと"
 
-    # 09-18 スキャンには A/B/C 統合裁定と各材料の到達経路が明記されていること
+    # 月次スキャンのエントリには各材料の到達経路が明記されていること
+    # (期日非依存の性質 pin — 2026-09-17 に 09-18→10-18 へ更新後も不変)
     t = triggers["edge-supply-scan-monthly"]
     assert "rate-anchor-daily" in t["message"]
     assert "intervention-watch" in t["message"]
