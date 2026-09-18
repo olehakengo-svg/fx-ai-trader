@@ -8,16 +8,25 @@ that an UNDERPOWERED verdict can be reached without touching the explore
 outcome — see pre-reg §10.3. The label join lives in pass-2 and is unlocked
 only when Gate A and Gate B both pass.
 
-    python3 tools/family_a_pass1.py [--json out.json]
+    python3 tools/family_a_pass1.py [--json out.json]     # 直接実行
+    python3 -m tools.family_a_pass1 [--json out.json]     # モジュール実行
 """
 from __future__ import annotations
 
 import argparse
 import datetime as _dt
 import json
+import pathlib
 import sys
 
-from tools import family_a_ladder_detector as det
+if __name__ == "__main__" and __package__ in (None, ""):
+    # 直接実行 (python3 tools/family_a_pass1.py) だと sys.path[0] が tools/ に
+    # なり `from tools import ...` が解決できない。リポジトリルートを足す。
+    # ライブラリとして import されたときは副作用ゼロ (CLAUDE.md の
+    # 「tools/*.py はスクリプトでありライブラリでもある」規律)。
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+
+from tools import family_a_ladder_detector as det  # noqa: E402
 
 # Frozen explore window (pre-reg §3 / §10.1)
 EXPLORE_START = _dt.date(2022, 1, 7)

@@ -10,6 +10,7 @@
 - ⚠️ **凍結条件を満たした上での正直な power 所見 (verdict で必ず併記)**: **Gate B は下限ぎりぎり** — 暦年ちょうど 2、内訳 **2022:2 / 2026:5** で供給の 5/7 が片山期に集中する (L4「断固」年次 2022:3 / 2023-25:0 / 2026:13)。Gate B の「暦年 ≥ 2」はまさにこの交絡分離のために置いた条件であり**通ったのだから解錠する**が、「話者非依存の検出器である」ことを示したわけではない。verdict では **speaker-stratified な記述 (secondary)** を併記し **2022 の 2 本だけで結論が反転しないか**を点検する。**閾値の事後強化は §10.5 で禁止** — ゴールポストの移動であり caveat として書くのであって gate は変えない
 - **次 = pass-2 (測定)**: day-level Youden **J = P(armed｜介入日) − P(armed｜非介入日)** + episode-block circular-shift **B=10,000**、α=0.05 片側、verdict 分岐 §10.4。期日 registry `family-a-explore-verdict-deadline` (**2026-09-28**)。**本 readout の main 着地後に 1 回だけ走らせる** (イベント集合を先に凍結してから outcome に触れる = event set チューニング防止)
 - 主張上限は不変 — 有効 N = 4 episode blocks につき **PASS しても記述級**、edge 主張・live 変更ゼロ
+- 🟠 **Codex P2 対応**: docstring に書いた `python3 tools/family_a_pass1.py` が **実際には ModuleNotFoundError で動かなかった** (直接実行だと `sys.path[0]` が `tools/` になり `from tools import ...` が解決できない)。`__main__` ガード内でのみリポジトリルートを `sys.path` に足して修復 — **ライブラリ import 時の副作用はゼロ** (CLAUDE.md「tools/*.py はスクリプトでありライブラリでもある」規律)。回帰 2 本 (**2 形態を実際に subprocess 起動して rc=0 と出力を確認** / sys.path 操作が `__main__` ガード外に出ていないことの構造 pin、5 → 7)
 - doc: [[family-a-pass1-gates-2026-09-18]] / 凍結 [[family-a-statement-ladder-prereg-2026-08-19]] §10.3
 ## 2026-09-18 — fix(process): マージゲートの findings 軸が導入以来ずっと恒真だった — 第 3 の空振り形状 (rule:R3)
 

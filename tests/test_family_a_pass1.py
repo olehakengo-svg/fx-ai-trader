@@ -49,3 +49,23 @@ def test_effective_level_hist_has_no_level_5():
     """
     res = p1.run()
     assert "5" not in res["effective_level_hist"]
+
+
+# --- Codex P2 (PR #268): 文書化された起動形態が実際に動くこと ------------------
+def test_documented_invocations_both_work():
+    """docstring の 2 形態を実際に起動して確認する (README 嘘の防止)。"""
+    import subprocess
+    root = pathlib.Path(p1.__file__).resolve().parents[1]
+    for cmd in (["python3", "tools/family_a_pass1.py"],
+                ["python3", "-m", "tools.family_a_pass1"]):
+        r = subprocess.run(cmd, cwd=root, capture_output=True, text=True, timeout=120)
+        assert r.returncode == 0, f"{cmd} -> rc={r.returncode}\n{r.stderr[-800:]}"
+        assert '"pass2_unlocked"' in r.stdout, f"{cmd} の出力が想定外"
+
+
+def test_path_bootstrap_has_no_import_side_effect():
+    """ライブラリ import 時に sys.path をいじらないこと (CLAUDE.md 規律)。"""
+    src = pathlib.Path(p1.__file__).read_text(encoding="utf-8")
+    for line in src.splitlines():
+        if "sys.path.insert" in line and not line.lstrip().startswith("#"):
+            assert line.startswith("    "), "sys.path 操作が __main__ ガード外にある"
