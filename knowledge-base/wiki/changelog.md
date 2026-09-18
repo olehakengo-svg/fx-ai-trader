@@ -1,5 +1,22 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-18 — research(family A): 🔒 explore pre-reg 凍結 — ladder の L5 は「梯子の段」ではなく事後ナレーションだった (rule:R1 手続き、純研究)
+
+- 🔒 **family A statement_ladder (台帳 #27) 凍結コミット執行** — 期日 09-24 の **6 日前倒し**。registry `family-a-adversarial-freeze-deadline` resolve → `family-a-explore-verdict-deadline` (2026-09-28) へ置換。**explore 枠 1 消費**。本ラインは scan 第5次 §2.3 会計で**プロジェクト唯一の「着手可能」な供給ライン**
+- 🔴 **blocking A-1: primary 検出器 (L≥4 遷移) に事後ナレーションが混入していた** — pin 版 lexicon v1 の level 5 は `レートチェック` (先行) と `介入を実施/行い/行った/いたし/行う`・`平衡操作を実施` (事後・一般論) を同一段に置く。corpus 全期間 512 会見の実査で **L5 判定 9 件すべてが過去形または規範的一般論**、`レートチェック` 由来は **0 件**。実例 = 2023-09-13「昨年９月に…介入を行い、続く10月にも…行った」(11 ヶ月後の回顧) / 2024-10-01「為替介入を行うというのはある意味まれでなければならない」(特定の介入を指さない一般論) / 2026-09-08「日米協調介入を実施したときから」(既往言及)
+- **なぜ blocking か** — family A の estimand は**先行検出器の hit/FA 較正**。事後ナレーションを段に数えると (i) 介入直後の会見が必ず L5 に上がる = **「起きたことを読んで当てる」look-ahead が検出器定義の内部に入り** hit を機械的に押し上げ FA を押し下げる、(ii) 回顧・一般論で無関係に発火し FP 側を不規則に汚す。scan 第5次 §1.2 の「negative 欠損は precision を機械的に押し上げる」と同型の欠陥が、データ側ではなく**検出器定義側**にあった
+- 🟣 **修正 = 検出器側の水準写像を凍結** (`tools/family_a_ladder_detector.py` 新設、label-free / price-free): leading 語 (`レートチェック`) を含まない L5 会見は、その会見が matched した L1–L4 の最大値へ降格。**pin 済 scorer `tools/mof_statements_lexicon.py` @ `569dbe3f` は不改変** = 比較可能性の凍結 (§0-4) を維持
+- 🟠 **A-2: rearm を event-to-event 化** — DRAFT の「直近 R 営業日に L≥4 が無いこと」を**水準系列**で読むと carry T=5 の分だけ実効不応期が **R+T=25bd (≈35 暦日)** へ膨張し、§3 の episode 個別化規約 (gap ≥ 30 暦日 ≈ 21bd) で**隣り合う 2 エピソードの 2 発目を構造的に取り逃す**。event 単位で測ると最小間隔 R+1=21bd となり、episode 規約と整合しつつ H=20 の hit 窓が重ならない (trial が清く分割)
+- ✅ **A-3: (T, R, H) = (5, 20, 20) は論拠で据置** — T=5 は会見 cadence 実測 2.1 回/週 に対する「次の会見+余裕1回」の最小値 / R=20 は episode gap 規約との可換性 / **H=R は必須** (H>R で hit 窓が従属化、H<R で死角)。候補空間の残りセルは**恒久放棄**。データ較正はしていない
+- ✅ **A-4: 統計量を 1 本に確定** — day-level Peirce/Youden **J = P(armed|介入日) − P(armed|非介入日)**。「リード付き overlap 計数」は event 供給量にスケールし「良い検出器」と「よく鳴る検出器」を分離できないため棄却。null = episode-block circular-shift B=10,000、α=0.05 片側、m=1
+- ✅ **A-5/A-6: pass-1 gate を label-free で数値凍結** (E23 two-pass 様式踏襲) — **Gate A (特異度)** armed 営業日率 ≤ 0.25 / **Gate B (供給)** event ≥ 5 **かつ相異なる暦年 ≥ 2**。暦年条件は話者交代の交絡分離: L4 `断固` の年次分布は **2022:3 / 2023:0 / 2024:0 / 2025:0 / 2026:13** で、単一年集中の event 群は「介入前の梯子」でなく「片山期の語法」を測っている可能性を分離できない。**pass-1 は label 非接触 = 不通過なら explore の look を一切消費せず park**
+- ✅ **A-7: corpus 連続性 PASS** (scan 第5次 §1.2 の凍結前チェック要求) — `conferences/*.jsonl` 57 月ファイルで **202201→202609 欠落月ゼロ**、レコード 512 / parse 失敗 0、`lexicon_scores.csv` **512 行 = 1:1**、右端 **2026-09-15 = 復旧された negative sample** (`my20260915.html`、max_level 0)。FP 率較正の分母は連続
+- ⚠️ **peek 会計 追補** — P-A6: 本検証で観測したのは **signal 側のみ** (水準分布・駆動語句・会見 cadence・corpus 連続性)。**発言×介入ラベルのジョイント量は一度も計算していない**。イベント列挙すら凍結後の pass-1 に回した / P-A7: forward 期の介入エピソード実在は既知 (月次開示 08-28、07-30..08-26 窓 15.4 兆円) だが**日次日付は未開示** — forward OOS は MoF 公式日次開示のみで判定し、**発言テキストからの介入日推定も禁止**
+- 🔴 **A-8 (レビュー由来 blocking、Codex P2 / PR #265 → 凍結前に修正)**: 初版の検出器は営業日カレンダー上でのみ会見日を引くため**土日祝開催の会見を黙って無視**していた。corpus 実測で該当 **13/512 件**、うち **2026-05-04 (みどりの日) は L4 `断固`** = trigger 水準なのに **event をひとつも生まない**実害。非営業日会見が集まるのは G7/IMF 総会週末と GW = 為替が最も緊張する局面で、miss 側バイアスが最悪の場所に入る。**修正 = 翌営業日へ roll forward (衝突は max)** — 前方に倒すのは、非営業日の発言が作用しうる最初の日が翌営業日だから (後方 roll は look-ahead)。**凍結後の検出器変更は pre-reg の破棄に等しいため、マージ前に修正**
+- ⚠️ **`tools/pr_review_gate.py` が本 P2 を「指摘なし」と報告した** — inline review comment を見ていない。ゲート出力を額面で受け取らず生のレビュー本文を読んだことで捕捉 (MEMORY `project_review_gate_vacuous_2026_09_11` の再発、2 例目)。ゲート自体の修理は別 PR
+- 回帰 pin `tests/test_family_a_ladder_detector.py` 20 本 (凍結定数 / A-1 remap 5 ケース / A-2 rearm / hit 窓分割 / gate 形状 / **検出器がラベル・価格を参照しない構造 pin** / A-8 roll-forward 4 本 — うち 1 本は corpus に L≥4 非営業日会見が存在することを pin する退行ガード)
+- doc: [[family-a-adversarial-verification-2026-09-18]] / 凍結内容 [[family-a-statement-ladder-prereg-2026-08-19]] §10
+
 ## 2026-09-17 — 決裁バッチ執行: P-S1(a) Option C retire / U1 ミッション改定 / kalman postfill / U4 feasibility (user「推奨で進めて」)
 
 - ⬛ **P-S1(a) sweep_reversion_eurgbp_late 退役 (rule:R2)** — estimand 監査 §7 二択で user が (a) Option C 採択。registry `t8-sweep-defer-decision` resolved 化 (net spaced EV −3.33 p/t / cap 救済集合空 / エッジ再現 38% を記録)、判定器は fetch/CLI 層で恒久 verdict `OPTION_C_RETIRED_USER` (evaluate() の凍結文言リプレイは pin 温存、新 pin 2 本 + watch 側退役 pin 1 本)。**shadow rescue は残置** (4原則#3、modules/ 変更ゼロ)。scheduled task `ps1a-sweep-trigger-executor` はマージ後に無効化。決裁記録: [[ps1a-option-c-retire-2026-09-17]]

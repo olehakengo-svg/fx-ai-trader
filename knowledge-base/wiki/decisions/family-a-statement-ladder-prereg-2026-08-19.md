@@ -1,8 +1,14 @@
-# 📝 DRAFT: family A statement_ladder — 発言ラダー→介入確率 explore pre-reg 起案 (2026-08-19)
+# 🔒 LOCKED: family A statement_ladder — 発言ラダー→介入確率 explore pre-reg (起案 2026-08-19 / 採用 2026-09-10 / 凍結 2026-09-18)
+
+**Status: 🔒 LOCKED 2026-09-18 — 採用済 (台帳 #27、scan 第4次)・凍結済・未測定。** 凍結内容は §10。以降のパラメータ変更は本 pre-reg の破棄と新規起案のみ。
+
+<details><summary>起草時 (DRAFT) の status 記述 — 不改変で保存</summary>
 
 **Status: DRAFT — 未採用・未凍結・未測定。** 採否 (台帳登録 + explore 枠付与) は **09-18 edge-supply-scan-monthly の A/B/C 統合裁定**。採用 → 敵対的検証 (blocking 条件解決) → 凍結コミット → two-pass 測定 の順。**それまで発言×介入ラベルのジョイント量 (hit/FA 率、リード時間、条件付き確率等) は計算禁止** — 本 doc 起草でも一切計算していない。
 
 **起点**: registry `statement-ladder-foundation-readiness` resolve (PR #195、条件 = 収集基盤 PR #194 の main 着地) + user「進めて」(2026-08-19)。claim = `.ai/tasks/queue/20260819-family-a-statement-ladder-prereg-draft.md` + 本 PR。
+</details>
+
 **基盤**: [[mof-communication-data-infrastructure]] (`data/external/mof_statements/`、収集 daily cron 稼働中)
 **裁定材料**: `knowledge-base/raw/analysis/intervention-history-anatomy-2026-08-18.md` (dossier) / [[mof-intervention-forward-prereg-2026-07-24]] §10 verdict (PARTIAL)
 **様式踏襲**: [[mof-intervention-forward-prereg-2026-07-24]] / [[e22-vrp-explore-prereg-2026-08-17]] (two-pass + 敵対的検証)
@@ -92,3 +98,64 @@
 - 「介入後ショート/ロング」方向主張なし (family B の領分、E-C 負 prior 継承)。
 - X (Twitter) データ不使用 (ToS)。財務官ぶら下がり発言は corpus 外 — 検出器の miss 側バイアス要因として verdict で言及必須 (2022 の主発信者は神田財務官)。
 - 話者交代 (片山 2025-10〜) による語彙分布シフトは既知リスク — forward で検出器が沈黙し続ける場合、FAIL ではなく「語彙陳腐化」の可能性を verdict で区別 (pin 版と運用版の乖離レポート)。
+
+---
+
+## 10. 🔒 凍結 (LOCK) — 2026-09-18
+
+**根拠**: [[family-a-adversarial-verification-2026-09-18]] (DRAFT §8 手順 2 の敵対的検証 1 本)。
+**registry**: `family-a-adversarial-freeze-deadline` (2026-09-24) を本コミットで resolve →
+`family-a-explore-verdict-deadline` (凍結 +10 日 = **2026-09-28**) へ置換。
+**explore 枠**: 本凍結で **1 枠を消費** (台帳 #27)。
+
+### 10.1 凍結した検出器
+
+| 項目 | 凍結値 |
+|---|---|
+| scorer | `tools/mof_statements_lexicon.py` @ `569dbe3f` (**不改変 pin**、§0-4) |
+| detector | `tools/family_a_ladder_detector.py` (本 PR 新設、label-free / price-free) |
+| 回帰 pin | `tests/test_family_a_ladder_detector.py` (16 tests) |
+| 水準写像 | **retrospective L5 の降格** — `レートチェック` 以外の L5 語 (`介入を実施/行い/行った/いたし/行う`, `平衡操作を実施`) のみで L5 になった会見は、その会見が matched した L1–L4 の最大値へ降格 (無ければ 0)。**根拠 = 敵対的検証 A-1** (corpus の L5 9 件すべてが事後ナレーション/一般論 = 検出器に答えを渡す look-ahead) |
+| 非営業日会見 | **翌営業日へ roll forward** (衝突は max)。**根拠 = A-8** (corpus 13/512 が土日祝、うち 2026-05-04 は L4 `断固` = 初版では event ゼロだった)。前方に倒すのは、非営業日の発言が作用しうる最初の日が翌営業日であるため (後方 roll は look-ahead) |
+| T (carry) | **5** 営業日 |
+| R (rearm) | **20** 営業日、**event-to-event で測る** (A-2。最小 event 間隔 R+1 = 21bd > H で hit 窓が清く分割) |
+| H (horizon) | **20** 営業日 |
+| trigger | X_d ≥ **4** |
+| 営業日 | 東京営業日 = 平日 − `jpholiday` 祝日 − 年末年始 (12/29–31, 1/2–3)。`jpholiday` は hard requirement (欠落時 ImportError = 暦の再現性を pin) |
+| explore 窓 | **2022-01-07 〜 2026-07-29** (凍結時点の端で固定、§3) |
+
+### 10.2 凍結した統計設計
+
+- **統計量 (m=1)**: day-level Peirce/Youden **J = P(armed | 介入日) − P(armed | 非介入日)**
+  (A-4。「リード付き overlap 計数」は event 供給量にスケールするため棄却)
+- **Null**: episode-block circular-shift、**B = 10,000**。相異なるシフト数が B を下回る場合は全数を使い
+  `p = (1 + #{J_shift ≥ J_obs}) / (1 + #shifts)`
+- **α = 0.05 片側** (J > 0)
+
+### 10.3 two-pass 手続きと pass-1 gate (label-free)
+
+| pass | 内容 | 接触 |
+|---|---|---|
+| **pass-1** | 凍結検出器でイベント列挙 + Gate A/B 判定 | **label 非接触**。不通過なら explore の look を消費せず park |
+| **pass-2** | J + block circular-shift p | Gate A ∧ Gate B 通過時のみ解錠 |
+
+| gate | 凍結条件 |
+|---|---|
+| **Gate A (特異度)** | armed 営業日 / 全営業日 ≤ **0.25** |
+| **Gate B (供給)** | event 数 ≥ **5** かつ event の相異なる暦年 ≥ **2** (A-6 話者交絡の分離) |
+
+### 10.4 verdict 固定分岐 (§5 の表の数値確定)
+
+| verdict | 条件 | 帰結 |
+|---|---|---|
+| **PASS (記述級)** | Gate A ∧ Gate B ∧ p ≤ 0.05 | forward OOS 継続 (§6) + family B 設計の入力資格。**edge 主張・live 変更ゼロ** |
+| **FAIL** | Gate A 不通過、または gate 通過後に p > 0.05 | ladder 検出器は介入確率に情報なしと記録。lexicon 基盤は収集継続 |
+| **UNDERPOWERED / park** | Gate B 不通過 | pass-2 を解錠しない (explore outcome 未接触のまま park)。救済的な語彙拡張・窓拡張・パラメータ移動は**恒久禁止**、再開は新 pre-reg のみ |
+
+### 10.5 凍結後の禁止事項
+
+- (T, R, H) 候補空間の他セル ({3,5,10}×{10,20}×{5,10,20} の残り) への移動は**恒久放棄**
+- pin 版 scorer / 水準写像 / gate 値の事後変更 (= 本 pre-reg の破棄)
+- **forward 期 (2026-07-30〜) の gate×outcome 計算は全面禁止** (P-10 型)。
+  forward OOS の判定は MoF 公式**日次**開示のみで行い、**発言テキストからの介入日推定も禁止**
+  (P-A7 — 月次開示 08-28 で 07-30..08-26 窓 15.4 兆円は既知だが、日次日付は未開示)
