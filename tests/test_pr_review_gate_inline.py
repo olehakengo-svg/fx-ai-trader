@@ -167,7 +167,21 @@ def test_all_pages_are_fetched(monkeypatch, _repo):
     th = gate.fetch_review_threads(1)
     assert len(th) == 3
     assert [t["path"] for t in th] == ["a.py", "b.py", "c.py"]
-    assert seen == ["", "c1", "c2"]     # 1 ページ目は cursor 無し
+    # 1 ページ目は `after` 引数そのものを付けない (空文字は opaque cursor ではない)
+    assert seen == [None, "c1", "c2"]
+
+
+def test_first_page_omits_the_after_argument(monkeypatch, _repo):
+    """`-F after=` は空文字を送る。cursor は opaque token なので付けない。"""
+    sent = []
+
+    def _run(cmd, **kw):
+        sent.append(cmd)
+        return _page([], has_next=False)
+
+    monkeypatch.setattr(gate.subprocess, "run", _run)
+    gate.fetch_review_threads(1)
+    assert not any(a.startswith("after=") for a in sent[0])
 
 
 def test_finding_on_a_later_page_still_blocks(monkeypatch, _repo):

@@ -138,8 +138,12 @@ def fetch_review_threads(pr: int) -> list[dict[str, Any]] | None:
     for _ in range(_THREADS_MAX_PAGES):
         cmd = ["gh", "api", "graphql", "-f", f"query={_THREADS_QUERY}",
                "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"pr={pr}"]
-        # gh -F with an empty value sends null, which GraphQL reads as "first page"
-        cmd += ["-F", f"after={cursor}"] if cursor else ["-F", "after="]
+        # The first page omits `after` entirely: `$after` is nullable, and a
+        # pagination cursor is an opaque token — an empty string is not one.
+        # (GitHub currently tolerates `after: ""` here, verified 2026-09-18,
+        # but that is undocumented and not something to depend on.)
+        if cursor:
+            cmd += ["-F", f"after={cursor}"]
         try:
             out = subprocess.run(cmd, capture_output=True, text=True,
                                  timeout=60, check=True)
