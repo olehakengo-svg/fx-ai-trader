@@ -4626,6 +4626,16 @@ Cutoff後累計はN=2、PnL=+39.3（WR=100%）のみ。実質的にシステム�
 - **`gbp_asia_flash_crash`（11件）**：GBPJPYのTRENDING_DOWN環境下でボラティリティ保護が正当に機能した証拠。**この件については対処不要** — むしろ健全なリスク管理
 - **`r2_shadow_demoted_cell`（15+4件）**：USDCHFと`scalp`でシャドウセルが蓄積中。降格セルが本番トレードを遮断している主因の一つ
 
+### 2026-09-18 (Pre-Tokyo Briefing)
+| PnL | **±0** |
+| WR | **N/A** |
+> **注意**: Cutoff後の累積母数がN=2（合計）。統計的判断に耐えない水準。
+| Strategy | Pair | N | WR% | EV | PnL |
+- **②**: `r2_shadow_demoted_cell`が累積154件（scalp_eur単独）に達している。シャドウトラッキング期間中のセル降格が多数発生している可能性が高い。N蓄積が進まない悪循環の主因として認識を維持すること
+- **③**: EUR系・GBP系でのヘッジブロックは、後述のTRENDING_DOWNレジームが同方向シグナルを多発させている可能性。今日も同レジームが継続するため類似パターンを想定
+- **⑤**: 全50件SKIP継続中。本番口座への転送が0本である状態が構造的に固定されているため、Sentinel N蓄積（=シャドウ実績）も本番昇格に機能していない
+- **daytrade_eur / daytrade_eurgbp**: TRENDING_DOWN × hedge_block → 本日もトレードゼロが続く可能性が高い
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
