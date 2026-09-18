@@ -73,48 +73,49 @@
     "note": "凍結時に power analysis を規定しなかったのは設計の不足。本曲線は Codex P2 (PR #270) を受けた post-hoc の解釈材料であり、verdict の判定には使わない。実 armed 系列 + 合成ラベルのみ。",
     "reps": 600,
     "seed": 20260918,
-    "observed_hits": 3,
-    "power_at_observed_effect": 0.3383333333333333,
+    "block_sizes_business_days": [
+      3,
+      1,
+      2,
+      1
+    ],
+    "observed_hit_blocks": 2,
+    "power_at_observed_effect": 0.145,
     "curve": [
       {
-        "hits": 0,
-        "mean_j": -0.13351498637602247,
-        "power": 0.0
+        "hit_blocks": 0,
+        "n_blocks": 4,
+        "mean_j": -0.11290861121923756,
+        "power": 0.0,
+        "reps_kept": 600
       },
       {
-        "hits": 1,
-        "mean_j": 0.010250421694563517,
-        "power": 0.0
+        "hit_blocks": 1,
+        "n_blocks": 4,
+        "mean_j": 0.09722849357726832,
+        "power": 0.0016666666666666668,
+        "reps_kept": 600
       },
       {
-        "hits": 2,
-        "mean_j": 0.15401582976514766,
-        "power": 0.0
+        "hit_blocks": 2,
+        "n_blocks": 4,
+        "mean_j": 0.2915514034860064,
+        "power": 0.145,
+        "reps_kept": 600
       },
       {
-        "hits": 3,
-        "mean_j": 0.29778123783573107,
-        "power": 0.3383333333333333
+        "hit_blocks": 3,
+        "n_blocks": 4,
+        "mean_j": 0.5175027031702792,
+        "power": 0.6016666666666667,
+        "reps_kept": 600
       },
       {
-        "hits": 4,
-        "mean_j": 0.4415466459063227,
-        "power": 0.9266666666666666
-      },
-      {
-        "hits": 5,
-        "mean_j": 0.5853120539769062,
-        "power": 0.995
-      },
-      {
-        "hits": 6,
-        "mean_j": 0.7290774620474858,
-        "power": 0.9983333333333333
-      },
-      {
-        "hits": 7,
-        "mean_j": 0.8728428701180678,
-        "power": 1.0
+        "hit_blocks": 4,
+        "n_blocks": 4,
+        "mean_j": 0.7233268457246634,
+        "power": 0.8633333333333333,
+        "reps_kept": 600
       }
     ]
   },

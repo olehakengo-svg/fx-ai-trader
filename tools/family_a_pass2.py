@@ -194,10 +194,14 @@ def run() -> dict:
         "PASS (記述級)" if stat["p_one_sided"] <= ALPHA and stat["j_obs"] > 0
         else "FAIL")
 
-    curve = power_curve(armed, npos)
-    observed_hits = tp
+    # 観測 block 構造 (営業日系列上) を保存して power を測る
+    iv_bd = [d for d in iv_days if d in idx]
+    bd_blocks = episode_blocks(iv_bd)
+    block_offsets = [[idx[d] - idx[b[0]] for d in b] for b in bd_blocks]
+    observed_hit_blocks = sum(1 for b in bd_blocks if any(d in out.armed for d in b))
+    curve = power_curve(armed, block_offsets)
     power_at_observed = next(
-        (r["power"] for r in curve if r["hits"] == observed_hits), None)
+        (r["power"] for r in curve if r["hit_blocks"] == observed_hit_blocks), None)
 
     return {
         "pre_reg": "family-a-statement-ladder-prereg-2026-08-19.md §10.2 / §10.4",
@@ -219,7 +223,8 @@ def run() -> dict:
                      "本曲線は Codex P2 (PR #270) を受けた post-hoc の解釈材料であり、"
                      "verdict の判定には使わない。実 armed 系列 + 合成ラベルのみ。"),
             "reps": POWER_REPS, "seed": POWER_SEED,
-            "observed_hits": observed_hits,
+            "block_sizes_business_days": [len(b) for b in bd_blocks],
+            "observed_hit_blocks": observed_hit_blocks,
             "power_at_observed_effect": power_at_observed,
             "curve": curve,
         },
@@ -237,8 +242,9 @@ POWER_REPS = 600
 POWER_SEED = 20260918
 
 
-def power_curve(armed: list[bool], n_positives: int, reps: int = POWER_REPS,
-                seed: int = POWER_SEED, alpha: float = ALPHA) -> list[dict]:
+def power_curve(armed: list[bool], block_offsets: list[list[int]],
+                reps: int = POWER_REPS, seed: int = POWER_SEED,
+                alpha: float = ALPHA) -> list[dict]:
     """効果量ごとの検出力を、実 armed 系列 + 合成ラベルで測る。
 
     ⚠️ **post-hoc**。凍結時に power analysis を規定しなかったのは設計の不足で、
@@ -246,8 +252,13 @@ def power_curve(armed: list[bool], n_positives: int, reps: int = POWER_REPS,
     一切使わない** — FAIL は凍結された α 規則のままで、本曲線はその FAIL を
     どう読むべきかの解釈材料。
 
-    `hits` = 7 陽性のうち armed 窓に入る個数 (= 検出器の質)。各 hits について
-    合成ラベルを reps 回引き、permutation p <= alpha となる割合を返す。
+    **episode block 構造を保存する** (Codex P2 第5波)。実ラベルは営業日系列上で
+    [3, 1, 2, 1] 日の 4 block に集中しており、7 陽性を一様ランダムに散らすと
+    実際より独立な試行を仮定して検出力を過大評価する。ここでは各 block を
+    内部間隔ごと丸ごとランダム位置へ置き、**armed 窓に入る block 数**を
+    効果量の軸にする。
+
+    block_offsets: 各 block 先頭からの営業日オフセット (実測値)。
     """
     import numpy as np
 
@@ -257,8 +268,10 @@ def power_curve(armed: list[bool], n_positives: int, reps: int = POWER_REPS,
     armed_idx = np.flatnonzero(a)
     non_idx = np.flatnonzero(a == 0)
     rng = np.random.default_rng(seed)
+    n_blocks = len(block_offsets)
+    n_positives = sum(len(b) for b in block_offsets)
 
-    def _p(lab: "np.ndarray") -> tuple[float, float]:
+    def _p(lab):
         tp = np.round(np.fft.irfft(fa * np.conj(np.fft.rfft(lab)), n))
         npos = lab.sum()
         fp = a.sum() - tp
@@ -266,17 +279,40 @@ def power_curve(armed: list[bool], n_positives: int, reps: int = POWER_REPS,
         null = j[1:]
         return float(j[0]), float((1 + (null >= j[0]).sum()) / (1 + null.size))
 
+    def _place(hit_blocks: int):
+        """block を丸ごと配置。hit_blocks 個は先頭を armed 内に置く。"""
+        lab = np.zeros(n)
+        order = rng.permutation(n_blocks)
+        for rank, bi in enumerate(order):
+            offs = block_offsets[bi]
+            span = offs[-1]
+            pool = armed_idx if rank < hit_blocks else non_idx
+            for _ in range(200):
+                start = int(rng.choice(pool))
+                if start + span >= n:
+                    continue
+                pos = [start + o for o in offs]
+                if any(lab[q] for q in pos):
+                    continue
+                for q in pos:
+                    lab[q] = 1
+                break
+        return lab
+
     out = []
-    for hits in range(n_positives + 1):
-        js, sig = [], 0
+    for hb in range(n_blocks + 1):
+        js, sig, kept = [], 0, 0
         for _ in range(reps):
-            lab = np.zeros(n)
-            lab[rng.choice(armed_idx, hits, replace=False)] = 1
-            lab[rng.choice(non_idx, n_positives - hits, replace=False)] = 1
+            lab = _place(hb)
+            if lab.sum() != n_positives:      # 配置に失敗した回は捨てる
+                continue
             j, pv = _p(lab)
             js.append(j)
             sig += pv <= alpha
-        out.append({"hits": hits, "mean_j": sum(js) / len(js), "power": sig / reps})
+            kept += 1
+        out.append({"hit_blocks": hb, "n_blocks": n_blocks,
+                    "mean_j": sum(js) / kept, "power": sig / kept,
+                    "reps_kept": kept})
     return out
 
 

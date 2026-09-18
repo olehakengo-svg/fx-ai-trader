@@ -186,23 +186,27 @@ def test_artifact_is_strict_json_without_nan():
 
 
 # --- Codex P2 (PR #270 第4波): perfect-effect control は power analysis ではない --
-def test_power_curve_is_reported_and_shows_low_power_at_observed_effect():
-    """FAIL を『分離が無い』と読ませないための pin。
+def test_power_curve_preserves_episode_blocks_and_shows_low_power():
+    """FAIL を『分離が無い』と読ませないための pin (Codex P2 第4-5波)。
 
-    完全効果が検出できることは、観測効果量での検出力の証拠にならない。
-    成果物が検出力曲線を持ち、観測効果量での power が実用域を下回ることを固定する。
+    効果量の軸は armed に入る **episode block** 数。実ラベルは営業日系列上で
+    [3,1,2,1] の 4 block に集中しており、一様散布は独立試行を仮定して
+    検出力を過大評価する (day 基準だと 0.338、block 保存だと 0.145)。
     """
     import json
     art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
     pa = json.loads(art.read_text(encoding="utf-8"))["power_analysis_post_hoc"]
-    curve = {r["hits"]: r["power"] for r in pa["curve"]}
-    assert pa["observed_hits"] == 3
-    # 観測効果量では実用域 (0.8) に遠く届かない
-    assert pa["power_at_observed_effect"] == curve[3]
-    assert 0.20 < curve[3] < 0.55, curve
-    # 弱い効果は原理的に検出不能、強い効果は検出可能 (単調)
-    assert curve[2] < 0.05 and curve[4] > 0.85 and curve[7] > 0.99
-    assert all(curve[k] <= curve[k + 1] + 1e-9 for k in range(7))
+    assert pa["block_sizes_business_days"] == [3, 1, 2, 1]
+    curve = {r["hit_blocks"]: r["power"] for r in pa["curve"]}
+    assert pa["observed_hit_blocks"] == 2
+    assert pa["power_at_observed_effect"] == curve[2]
+    # 観測効果量では実用域に遠く届かない
+    assert 0.05 < curve[2] < 0.30, curve
+    # 単調 + 弱い効果は検出不能
+    assert curve[0] < 0.02 and curve[1] < 0.05
+    assert all(curve[k] <= curve[k + 1] + 1e-9 for k in range(4))
+    # 完全な検出器ですら 0.9 に届かない = 設計そのものに無理があった
+    assert 0.75 < curve[4] < 0.90, curve
 
 
 def test_power_analysis_is_flagged_post_hoc_and_unused_for_verdict():
