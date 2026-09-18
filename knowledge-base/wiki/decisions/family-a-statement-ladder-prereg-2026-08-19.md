@@ -1,6 +1,11 @@
-# 🔒 LOCKED: family A statement_ladder — 発言ラダー→介入確率 explore pre-reg (起案 2026-08-19 / 採用 2026-09-10 / 凍結 2026-09-18)
+# ❌ FAIL (測定完了): family A statement_ladder — 発言ラダー→介入確率 explore pre-reg (起案 2026-08-19 / 採用 2026-09-10 / 凍結 2026-09-18 / verdict 2026-09-18)
+
+**Status: ❌ FAIL — 測定完了・クローズ (verdict 2026-09-18、期日 09-28 の 10 日前倒し)。** J=0.2978 / p=0.1074 > α=0.05 ⇒ §10.4 固定分岐により FAIL。**判定の全文と caveat は §11** (検出力 0.130 / 非有意≠不在 / 凍結欠陥 2 件)。凍結内容は §10。**引用時は §11.5 の引用規律に従うこと** — 否定されたのは凍結検出器のこの窓での分離であって「口先介入に情報がない」ではない。forward 期 (2026-07-30〜) は未接触のまま凍結維持。
+
+<details><summary>凍結時 (LOCKED・未測定) の status 記述 — 不改変で保存</summary>
 
 **Status: 🔒 LOCKED 2026-09-18 — 採用済 (台帳 #27、scan 第4次)・凍結済・未測定。** 凍結内容は §10。以降のパラメータ変更は本 pre-reg の破棄と新規起案のみ。
+</details>
 
 <details><summary>起草時 (DRAFT) の status 記述 — 不改変で保存</summary>
 
