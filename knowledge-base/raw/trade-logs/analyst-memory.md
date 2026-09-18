@@ -4636,6 +4636,16 @@ Cutoff後累計はN=2、PnL=+39.3（WR=100%）のみ。実質的にシステム�
 - **⑤**: 全50件SKIP継続中。本番口座への転送が0本である状態が構造的に固定されているため、Sentinel N蓄積（=シャドウ実績）も本番昇格に機能していない
 - **daytrade_eur / daytrade_eurgbp**: TRENDING_DOWN × hedge_block → 本日もトレードゼロが続く可能性が高い
 
+### 2026-09-18 (Post-London Report)
+| PnL | **0.0 pips / ¥0** |
+| WR | **N/A** |
+| PnL | ¥0 | ¥0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**`NO ACTION推奨`**
+- hedge_block が EUR/GBP 系に1,727件超積み上がっており、現在の相場構造（JPY全面高・円キャリー巻き戻し）が解消されない限りNYセッションでも同ブロックが継続する
+- r2_shadow_demoted_cell がscalp系をほぼ完全にシャットアウトしており、これはコード変更なしには解除されない
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
