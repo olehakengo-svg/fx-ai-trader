@@ -200,6 +200,10 @@ def test_power_curve_preserves_episode_blocks_and_shows_low_power():
     assert pa["observed_hit_blocks"] == 2
     assert pa["power_at_observed_effect"] == curve[2]
     assert 0.05 < curve[2] < 0.30, curve          # 観測効果量は実用域に遠い
+    # 各行が名乗った反復数を実際に集めていること (attempts != kept で誤魔化さない)
+    for r in pa["curve"]:
+        assert r["reached_target_reps"] is True, r
+        assert r["reps_kept"] == 600 and r["attempts"] >= r["reps_kept"], r
     assert curve[0] < 0.02 and curve[1] < 0.05    # 弱い効果は検出不能
     assert curve[3] < 0.80, curve                 # 3/4 でもまだ実用域未満
     assert curve[4] > 0.90, curve                 # 全 block hit なら実用域
@@ -292,3 +296,18 @@ def test_null_diagnostic_never_touches_the_signal():
     assert params == ["days", "iv_days"], params
     # armed を渡す余地が無い = 診断は signal から独立
     assert "armed" not in params
+
+
+# --- Codex P2 (PR #270 第9波): 凍結構成の全項目照合 ----------------------------
+def test_abort_when_frozen_configuration_drifts(monkeypatch):
+    """events が同じでも H / カレンダーが変われば別の J になる。
+
+    events だけの照合では『凍結された測定』を名乗ったまま値が変わりうる。
+    """
+    from tools import family_a_ladder_detector as det
+    monkeypatch.setattr(det, "H_HORIZON_BD", det.H_HORIZON_BD + 5)
+    with pytest.raises(SystemExit) as ei:
+        p2.run()
+    msg = str(ei.value)
+    assert "ABORT" in msg
+    assert "params" in msg or "armed" in msg, msg

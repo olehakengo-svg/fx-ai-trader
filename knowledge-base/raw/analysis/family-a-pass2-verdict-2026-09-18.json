@@ -91,42 +91,52 @@
       1
     ],
     "observed_hit_blocks": 2,
-    "power_at_observed_effect": 0.15756302521008403,
+    "power_at_observed_effect": 0.13166666666666665,
     "curve": [
       {
         "hit_blocks": 0,
         "n_blocks": 4,
-        "mean_j": -0.13351498637602138,
+        "mean_j": -0.13351498637602247,
         "power": 0.0,
-        "reps_kept": 498
+        "reps_kept": 600,
+        "attempts": 717,
+        "reached_target_reps": true
       },
       {
         "hit_blocks": 1,
         "n_blocks": 4,
-        "mean_j": 0.07081417233370631,
+        "mean_j": 0.0742260282859746,
         "power": 0.0,
-        "reps_kept": 489
+        "reps_kept": 600,
+        "attempts": 739,
+        "reached_target_reps": true
       },
       {
         "hit_blocks": 2,
         "n_blocks": 4,
-        "mean_j": 0.28570011110711235,
-        "power": 0.15756302521008403,
-        "reps_kept": 476
+        "mean_j": 0.28220665196141836,
+        "power": 0.13166666666666665,
+        "reps_kept": 600,
+        "attempts": 762,
+        "reached_target_reps": true
       },
       {
         "hit_blocks": 3,
         "n_blocks": 4,
-        "mean_j": 0.4893600282284376,
-        "power": 0.7104072398190046,
-        "reps_kept": 442
+        "mean_j": 0.49402101985208496,
+        "power": 0.735,
+        "reps_kept": 600,
+        "attempts": 789,
+        "reached_target_reps": true
       },
       {
         "hit_blocks": 4,
         "n_blocks": 4,
-        "mean_j": 0.697533996985587,
-        "power": 0.9683544303797469,
-        "reps_kept": 474
+        "mean_j": 0.6940945460836452,
+        "power": 0.9583333333333334,
+        "reps_kept": 600,
+        "attempts": 784,
+        "reached_target_reps": true
       }
     ]
   },

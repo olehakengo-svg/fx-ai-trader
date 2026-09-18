@@ -116,11 +116,31 @@ def run() -> dict:
     days = out.days
 
     frozen = json.load(open(FROZEN_EVENTS_JSON, encoding="utf-8"))
+    # 凍結成果物との照合は **events だけでは足りない** (Codex P2 第9波)。
+    # H や営業日カレンダーが変われば events が同じでも days / armed が変わり、
+    # 「凍結された測定」と名乗ったまま別の J / p が出てしまう。
+    mismatches = []
     frozen_events = [_dt.date.fromisoformat(d) for d in frozen["events"]]
     if frozen_events != out.events:
+        mismatches.append(f"events: frozen={frozen['events']} rebuilt={[str(d) for d in out.events]}")
+    want_params = {"T": det.T_CARRY_BD, "R": det.R_REARM_BD,
+                   "H": det.H_HORIZON_BD, "trigger": det.TRIGGER_LEVEL}
+    if frozen.get("params") != want_params:
+        mismatches.append(f"params: frozen={frozen.get('params')} current={want_params}")
+    if frozen.get("explore_window") != [str(EXPLORE_START), str(EXPLORE_END)]:
+        mismatches.append(f"window: frozen={frozen.get('explore_window')}")
+    fg = frozen.get("gates", {})
+    if fg.get("n_business_days") != len(days):
+        mismatches.append(f"n_business_days: frozen={fg.get('n_business_days')} rebuilt={len(days)}")
+    armed_n = len(out.armed)
+    if fg.get("armed_fraction") is not None and \
+            abs(fg["armed_fraction"] - armed_n / len(days)) > 1e-9:
+        mismatches.append(
+            f"armed: frozen_fraction={fg['armed_fraction']} rebuilt={armed_n}/{len(days)}")
+    if mismatches:
         raise SystemExit(
-            "ABORT: 凍結イベント集合と再計算が不一致 — pass-2 は凍結集合の上でしか走らせない\n"
-            f"  frozen={frozen['events']}\n  rebuilt={[str(d) for d in out.events]}")
+            "ABORT: 凍結設定と再計算が不一致 — pass-2 は凍結された構成の上でしか走らせない\n  "
+            + "\n  ".join(mismatches))
 
     iv_days = load_intervention_days()
     blocks = episode_blocks(iv_days)
@@ -323,8 +343,11 @@ def power_curve(armed: list[bool], block_offsets: list[list[int]],
 
     out = []
     for hb in range(n_blocks + 1):
-        js, sig, kept = [], 0, 0
-        for _ in range(reps):
+        js, sig, kept, attempts = [], 0, 0, 0
+        # `reps` は **受理された draw の数** であって試行回数ではない
+        # (Codex P2 第9波: 442-498 本しか集まっていないのに reps=600 と名乗っていた)。
+        while kept < reps and attempts < reps * 50:
+            attempts += 1
             lab = _place(hb)
             if lab is None or lab.sum() != n_positives:
                 continue
@@ -338,7 +361,8 @@ def power_curve(armed: list[bool], block_offsets: list[list[int]],
             kept += 1
         out.append({"hit_blocks": hb, "n_blocks": n_blocks,
                     "mean_j": sum(js) / kept, "power": sig / kept,
-                    "reps_kept": kept})
+                    "reps_kept": kept, "attempts": attempts,
+                    "reached_target_reps": kept == reps})
     return out
 
 
