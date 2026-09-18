@@ -143,28 +143,44 @@ def run() -> dict:
     nneg = len(label) - npos
 
     # --- secondary (descriptive only, never decisive — §2 / §10.4 caveat) ---
+    # ⚠️ 2 種類の分解を混同しないこと (Codex P2 / PR #270):
+    #   contribution : armed をその年の event だけに絞り、**ラベルは全年**のまま
+    #                  → 全体 J への**寄与**の分解であって層別 J ではない
+    #                  (分母が全 7 陽性なので「その話者の検出器の性能」ではない)
+    #   stratified   : armed も label も**その暦年の営業日だけ**に絞った within-year J
+    #                  → 話者/年ごとの検出器性能。話者交絡の点検にはこちらを使う
+    idx = {d: i for i, d in enumerate(days)}
+    all_years = sorted({d.year for d in days})
     per_year = {}
-    for yr in sorted({e.year for e in out.events}):
+    for yr in all_years:
         ev = [e for e in out.events if e.year == yr]
-        idx = {d: i for i, d in enumerate(days)}
         armed_y = set()
         for e in ev:
             i = idx[e]
             armed_y.update(days[i: i + det.H_HORIZON_BD + 1])
-        a_y = [d in armed_y for d in days]
         # `hit_days` は armed 窓に入った介入「日」数、`events_with_hit` は
         # 窓内に 1 日以上の介入を含む「event」数。1 event が複数の介入日を
         # 覆うため両者は一致しない (2022: 1 event が 10-21 と 10-24 を覆う)。
-        ev_hit = 0
-        for e in ev:
-            i = idx[e]
-            if any(d in iv_set for d in days[i: i + det.H_HORIZON_BD + 1]):
-                ev_hit += 1
+        ev_hit = sum(
+            1 for e in ev
+            if any(d in iv_set for d in days[idx[e]: idx[e] + det.H_HORIZON_BD + 1]))
+        # contribution (ラベルは全年のまま)
+        contrib_j = youden_j([d in armed_y for d in days], label)
+        # stratified (armed も label もその年の営業日に限定)
+        days_y = [d for d in days if d.year == yr]
+        strat_j = youden_j([d in armed_y for d in days_y],
+                           [d in iv_set for d in days_y])
         per_year[str(yr)] = {
             "n_events": len(ev),
             "events_with_hit": ev_hit,
             "hit_days": sum(1 for d in iv_days if d in armed_y),
-            "j": youden_j(a_y, label),
+            "n_intervention_days_in_year": sum(1 for d in iv_days if d.year == yr),
+            # stratified J の実際の陽性数 (営業日カレンダーに載った分だけ)。
+            # §11.3 の欠陥でこれが n_intervention_days_in_year を下回る年がある。
+            "n_positive_business_days_in_year": sum(
+                1 for d in days if d.year == yr and d in iv_set),
+            "contribution_j_labels_all_years": contrib_j,
+            "stratified_j_within_year": strat_j,
         }
 
     lead = []

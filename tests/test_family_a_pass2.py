@@ -51,21 +51,30 @@ def test_perfect_detector_reaches_minimum_p():
     assert r["n_shifts"] == n - 1
 
 
-def test_positive_control_has_power():
-    """陽性が全て armed 内なら α=0.05 を通せること。
+def test_positive_control_uses_the_production_armed_series():
+    """検出力の pin は**凍結検出器の実 armed 系列**の上で取る (Codex P2 / PR #270)。
 
+    circular-shift の有意性は armed 窓の位置と間隔に依存するので、
+    合成マスクで取った pin は verdict doc が主張する p=0.0027 を保証しない。
     これが落ちたら FAIL は『効果なし』ではなく『検出力ゼロ』を意味する。
     """
-    n = 1108
-    armed = [False] * n
-    for e in (30, 200, 520, 700, 800, 900, 1000):
-        for k in range(21):
-            if e + k < n:
-                armed[e + k] = True
-    pos = {e + 5 for e in (30, 200, 520, 700, 800, 900, 1000)}
-    lab = [i in pos for i in range(n)]
+    from tools import family_a_ladder_detector as det
+    from tools.family_a_pass1 import EXPLORE_END, EXPLORE_START
+
+    out = det.build(EXPLORE_START, EXPLORE_END)
+    days = out.days
+    armed = [d in out.armed for d in days]
+    assert sum(armed) == 147 and len(days) == 1108, (sum(armed), len(days))
+
+    # 各 event 窓の内側に合成陽性を 1 つずつ置く (実ラベルは使わない)
+    idx = {d: i for i, d in enumerate(days)}
+    pos = {idx[e] + 5 for e in out.events}
+    assert all(armed[i] for i in pos)
+    lab = [i in pos for i in range(len(days))]
     r = p2.permutation_p(armed, lab)
     assert r["p_one_sided"] <= p2.ALPHA, r
+    # verdict doc §2 が主張する値そのものを pin (実 armed 系列上の 0.0190)
+    assert abs(r["p_one_sided"] - 0.0190) < 0.0005, r["p_one_sided"]
 
 
 def test_null_is_centred_on_zero():
@@ -116,7 +125,7 @@ def test_secondary_separates_hit_events_from_hit_days():
     art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
     per_year = json.loads(art.read_text(encoding="utf-8"))["secondary_descriptive"]["per_event_year"]
     for yr, d in per_year.items():
-        assert {"n_events", "events_with_hit", "hit_days", "j"} <= set(d), (yr, d)
+        assert {"n_events", "events_with_hit", "hit_days"} <= set(d), (yr, d)
         assert d["events_with_hit"] <= d["n_events"]
     # 2022: 1 event (09-29) が 10-21 と 10-24 を覆う = event 1 / 日 2
     assert per_year["2022"]["events_with_hit"] == 1
@@ -129,3 +138,24 @@ def test_hits_field_name_is_gone():
     """曖昧な `hits` に戻ったら落ちる (命名が estimand を運ぶ)。"""
     src = pathlib.Path("tools/family_a_pass2.py").read_text(encoding="utf-8")
     assert '"hits"' not in src
+
+
+# --- Codex P2 (PR #270): 寄与 J と層別 J を分けて持つ -------------------------
+def test_contribution_and_stratified_j_are_separate_fields():
+    """寄与 J (ラベル全年) と層別 J (年内) は別物。混同すると話者性能を誤読する。
+
+    初版は寄与 J を「片山期の検出器性能」として読み、「ほぼゼロ」と書いていた。
+    """
+    import json
+    art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
+    per_year = json.loads(art.read_text(encoding="utf-8"))["secondary_descriptive"]["per_event_year"]
+    for yr, d in per_year.items():
+        assert "contribution_j_labels_all_years" in d
+        assert "stratified_j_within_year" in d
+    # 2026 は寄与 J だと ~0.048 だが層別では ~0.246 — 「ほぼゼロ」ではない
+    assert per_year["2026"]["contribution_j_labels_all_years"] < 0.10
+    assert per_year["2026"]["stratified_j_within_year"] > 0.20
+    # 2024 は介入があるのに event ゼロ = 検出器がまる 1 年沈黙した年
+    assert per_year["2024"]["n_events"] == 0
+    assert per_year["2024"]["n_intervention_days_in_year"] > 0
+    assert per_year["2024"]["stratified_j_within_year"] == 0.0

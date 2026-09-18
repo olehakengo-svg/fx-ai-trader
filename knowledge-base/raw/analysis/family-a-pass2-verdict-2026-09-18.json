@@ -75,13 +75,46 @@
         "n_events": 2,
         "events_with_hit": 1,
         "hit_days": 2,
-        "j": 0.24938367717659268
+        "n_intervention_days_in_year": 3,
+        "n_positive_business_days_in_year": 3,
+        "contribution_j_labels_all_years": 0.24938367717659268,
+        "stratified_j_within_year": 0.4971751412429378
+      },
+      "2023": {
+        "n_events": 0,
+        "events_with_hit": 0,
+        "hit_days": 0,
+        "n_intervention_days_in_year": 0,
+        "n_positive_business_days_in_year": 0,
+        "contribution_j_labels_all_years": 0.0,
+        "stratified_j_within_year": NaN
+      },
+      "2024": {
+        "n_events": 0,
+        "events_with_hit": 0,
+        "hit_days": 0,
+        "n_intervention_days_in_year": 4,
+        "n_positive_business_days_in_year": 3,
+        "contribution_j_labels_all_years": 0.0,
+        "stratified_j_within_year": 0.0
+      },
+      "2025": {
+        "n_events": 0,
+        "events_with_hit": 0,
+        "hit_days": 0,
+        "n_intervention_days_in_year": 0,
+        "n_positive_business_days_in_year": 0,
+        "contribution_j_labels_all_years": 0.0,
+        "stratified_j_within_year": NaN
       },
       "2026": {
         "n_events": 5,
         "events_with_hit": 1,
         "hit_days": 1,
-        "j": 0.04839756065914104
+        "n_intervention_days_in_year": 3,
+        "n_positive_business_days_in_year": 1,
+        "contribution_j_labels_all_years": 0.04839756065914104,
+        "stratified_j_within_year": 0.24637681159420288
       }
     },
     "lead_business_days_per_event": [
