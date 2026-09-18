@@ -1,0 +1,58 @@
+{
+  "pre_reg": "family-a-statement-ladder-prereg-2026-08-19.md §10",
+  "explore_window": [
+    "2022-01-07",
+    "2026-07-29"
+  ],
+  "params": {
+    "T": 5,
+    "R": 20,
+    "H": 20,
+    "trigger": 4
+  },
+  "conferences_in_window": 464,
+  "conferences_rolled_forward": [
+    "2022-07-16",
+    "2023-02-23",
+    "2023-05-13",
+    "2023-08-19",
+    "2024-03-31",
+    "2024-05-03",
+    "2024-05-25",
+    "2025-05-04",
+    "2025-05-05",
+    "2026-01-12",
+    "2026-03-14",
+    "2026-05-03",
+    "2026-05-04"
+  ],
+  "effective_level_hist": {
+    "0": 287,
+    "1": 22,
+    "2": 37,
+    "3": 101,
+    "4": 17
+  },
+  "events": [
+    "2022-05-19",
+    "2022-09-29",
+    "2026-01-16",
+    "2026-03-17",
+    "2026-04-24",
+    "2026-05-29",
+    "2026-06-30"
+  ],
+  "gates": {
+    "n_business_days": 1108,
+    "n_events": 7,
+    "event_years": [
+      2022,
+      2026
+    ],
+    "armed_fraction": 0.13267148014440433,
+    "gate_a_specificity": true,
+    "gate_b_supply": true,
+    "pass2_unlocked": true
+  },
+  "verdict_hint": "pass2_unlocked"
+}
