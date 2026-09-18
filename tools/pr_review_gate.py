@@ -93,10 +93,11 @@ def _gh_pr_json(pr: int, fields: str) -> dict[str, Any] | None:
 
 
 _THREADS_QUERY = """
-query($owner:String!,$name:String!,$pr:Int!){
+query($owner:String!,$name:String!,$pr:Int!,$after:String){
   repository(owner:$owner,name:$name){
     pullRequest(number:$pr){
-      reviewThreads(first:100){
+      reviewThreads(first:100, after:$after){
+        pageInfo{hasNextPage endCursor}
         nodes{
           isResolved
           isOutdated
@@ -108,6 +109,8 @@ query($owner:String!,$name:String!,$pr:Int!){
   }
 }
 """
+# 100 ページ = 10,000 thread。到達したら打ち切らず失敗させる (fail-closed)。
+_THREADS_MAX_PAGES = 100
 
 
 def _gh_repo() -> tuple[str, str] | None:
@@ -130,16 +133,29 @@ def fetch_review_threads(pr: int) -> list[dict[str, Any]] | None:
     if repo is None:
         return None
     owner, name = repo
-    try:
-        out = subprocess.run(
-            ["gh", "api", "graphql", "-f", f"query={_THREADS_QUERY}",
-             "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"pr={pr}"],
-            capture_output=True, text=True, timeout=60, check=True)
-        nodes = (json.loads(out.stdout)["data"]["repository"]["pullRequest"]
-                 ["reviewThreads"]["nodes"])
-    except (subprocess.SubprocessError, OSError, ValueError, KeyError, TypeError):
-        return None
-    return nodes or []
+    nodes: list[dict[str, Any]] = []
+    cursor: str | None = None
+    for _ in range(_THREADS_MAX_PAGES):
+        cmd = ["gh", "api", "graphql", "-f", f"query={_THREADS_QUERY}",
+               "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"pr={pr}"]
+        # gh -F with an empty value sends null, which GraphQL reads as "first page"
+        cmd += ["-F", f"after={cursor}"] if cursor else ["-F", "after="]
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True,
+                                 timeout=60, check=True)
+            page = (json.loads(out.stdout)["data"]["repository"]["pullRequest"]
+                    ["reviewThreads"])
+            nodes.extend(page.get("nodes") or [])
+            info = page.get("pageInfo") or {}
+        except (subprocess.SubprocessError, OSError, ValueError, KeyError, TypeError):
+            return None
+        if not info.get("hasNextPage"):
+            return nodes
+        cursor = info.get("endCursor")
+        if not cursor:
+            return None     # hasNextPage without a cursor = 打ち切れない
+    # ページ上限に達した = 全 thread を見ていない。clean を名乗らせない。
+    return None
 
 
 def thread_findings(threads: list[dict[str, Any]]) -> list[dict[str, Any]]:

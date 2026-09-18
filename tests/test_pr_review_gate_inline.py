@@ -131,3 +131,71 @@ def test_evaluate_actually_calls_the_thread_fetcher(monkeypatch):
     monkeypatch.setattr(gate, "fetch_review_threads", _spy)
     gate.evaluate(265)
     assert called == [265]
+
+
+# --- Codex P2 (PR #267、自分自身のゲートが拾った): ページング ---------------
+class _Proc:
+    def __init__(self, stdout):
+        self.stdout = stdout
+        self.returncode = 0
+
+
+def _page(nodes, *, has_next, cursor=None):
+    import json
+    return _Proc(json.dumps({"data": {"repository": {"pullRequest": {
+        "reviewThreads": {
+            "pageInfo": {"hasNextPage": has_next, "endCursor": cursor},
+            "nodes": nodes}}}}}))
+
+
+@pytest.fixture
+def _repo(monkeypatch):
+    monkeypatch.setattr(gate, "_gh_repo", lambda: ("o", "r"))
+
+
+def test_all_pages_are_fetched(monkeypatch, _repo):
+    pages = [_page([_thread(path="a.py")], has_next=True, cursor="c1"),
+             _page([_thread(path="b.py")], has_next=True, cursor="c2"),
+             _page([_thread(path="c.py")], has_next=False)]
+    seen = []
+
+    def _run(cmd, **kw):
+        seen.append(next((a.split("=", 1)[1] for a in cmd if a.startswith("after=")), None))
+        return pages.pop(0)
+
+    monkeypatch.setattr(gate.subprocess, "run", _run)
+    th = gate.fetch_review_threads(1)
+    assert len(th) == 3
+    assert [t["path"] for t in th] == ["a.py", "b.py", "c.py"]
+    assert seen == ["", "c1", "c2"]     # 1 ページ目は cursor 無し
+
+
+def test_finding_on_a_later_page_still_blocks(monkeypatch, _repo):
+    """P2 の失敗シナリオそのもの: 2 ページ目にだけ finding がある。"""
+    pages = [_page([_thread(body="nit", path="clean.py")], has_next=True, cursor="c1"),
+             _page([_thread(path="late.py")], has_next=False)]
+    monkeypatch.setattr(gate.subprocess, "run", lambda cmd, **kw: pages.pop(0))
+    monkeypatch.setattr(gate, "_gh_pr_json", lambda *a, **k: _payload(
+        reviews=[{"author": {"login": CONNECTOR}, "body": "Didn't find any major issues.",
+                  "submittedAt": "2026-09-18T02:11:00Z"}]))
+    code, msg = gate.evaluate(1)
+    assert code == 3, msg
+    assert "late.py" in msg
+
+
+def test_has_next_page_without_cursor_is_fail_closed(monkeypatch, _repo):
+    monkeypatch.setattr(gate.subprocess, "run",
+                        lambda cmd, **kw: _page([_thread()], has_next=True, cursor=None))
+    assert gate.fetch_review_threads(1) is None
+
+
+def test_page_limit_exhaustion_is_fail_closed(monkeypatch, _repo):
+    """打ち切ったリストを『全部見た』と名乗らせない。"""
+    monkeypatch.setattr(gate.subprocess, "run",
+                        lambda cmd, **kw: _page([_thread()], has_next=True, cursor="c"))
+    assert gate.fetch_review_threads(1) is None
+
+
+def test_repo_resolution_failure_is_fail_closed(monkeypatch):
+    monkeypatch.setattr(gate, "_gh_repo", lambda: None)
+    assert gate.fetch_review_threads(1) is None

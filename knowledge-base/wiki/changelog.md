@@ -7,7 +7,8 @@
 - **差分検証 (同一 PR、旧 vs 新)**: #264/#257/#253 は「マージ可」→「未消化 4/7/6 件」。一方 **#265 は「1 件は対応 commit で消化済み — マージ可」** = 消化の検出も効いており、何でもブロックする実装にはなっていない
 - 🟣 **修理**: `fetch_review_threads()` 新設 (GraphQL `reviewThreads`、`isResolved`/`isOutdated` は消化の positive evidence として除外) / **取得失敗は exit 4 の fail-closed** (「取れなかった」を「指摘なし」に折り畳まない) / inline finding の存在を到着判定にも算入 / 成功メッセージを「**review 本文 + inline thread N 件を検査**」に変更 — 恒真メッセージは探索範囲を名乗らないから恒真だと気付けない
 - 🔵 **プロセス所見**: 同等実装は **PR #227 に存在し 18 巡のレビュー後 CLOSED (未マージ)**。main に着地したのは #231 由来の簡易版で、既存テスト冒頭に「#227 版テスト (GraphQL reviewThreads …) は盲目移植していない」と明記されていた。**正しい設計は書かれ、レビューされ、捨てられていた**
-- 回帰 pin `tests/test_pr_review_gate_inline.py` 12 本 (open thread = finding / resolved・outdated は非ブロッキング / 非 connector 無視 / severity 無し無視 / **top-level clean + inline finding で exit 3 = 旧恒真形状の再現** / 対応 commit で消化 / inline 単独でも到着 / **取得失敗 exit 4** / 成功メッセージが探索範囲を名乗る / **fetcher が実際に呼ばれる配線 pin**)。既存 24 本は autouse stub で維持
+- 🔵 **修理版が自分自身の PR で同型 4 例目を拾った (Codex P2 / PR #267)** — 「修理 PR 自身をそのゲートに通せ」を実行したら **exit 3**。`reviewThreads(first:100)` がページングしておらず、**thread 100 超の PR では先頭ページだけを静かに返す** = 2 ページ目以降の未解決 P1/P2 を「なし」と誤報しうる。**修理そのものの中に同じ欠陥族が埋まっていた**。`pageInfo`/`after` で全ページ走査 + `hasNextPage` なのに cursor が無い場合とページ上限到達は **None で fail-closed** (切り詰めリストを「全部見た」と名乗らせない)。⚠️ #227 版にはページングがあった = 捨てられた設計から性質を 1 つ取りこぼしていた
+- 回帰 pin `tests/test_pr_review_gate_inline.py` 17 本 (open thread = finding / resolved・outdated は非ブロッキング / 非 connector 無視 / severity 無し無視 / **top-level clean + inline finding で exit 3 = 旧恒真形状の再現** / 対応 commit で消化 / inline 単独でも到着 / **取得失敗 exit 4** / 成功メッセージが探索範囲を名乗る / **fetcher が実際に呼ばれる配線 pin** / 全ページ取得 / **2 ページ目だけに finding がある失敗シナリオ** / cursor 欠落・ページ上限・repo 解決失敗の fail-closed 3 本)。既存 24 本は autouse stub で維持
 - 教訓: **検知器を作ったら「それが NG を返す実例」を同じコミットで pin する。「異常なし」メッセージには探索範囲を書く — 書けないなら探索していない**
 - doc: [[pr-review-gate-inline-blindness-2026-09-18]]
 
