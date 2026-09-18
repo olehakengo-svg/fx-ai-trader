@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-18 — fix(hunt_events): pytest 汚染を logger 側で遮断 — 判別署名は 1/3 しか捕まえていなかった (rule:R3)
+
+- 🔴 **判別署名の過小検出を実測** — PR #264 は既存の合成 15,649 行を除去したが **logger は未修正**で、以後も pytest のたび再混入していた。運用上の緩和策として記録していた判別署名「adx が整数 ∧ atr_price==0.001」を 2026-09-18 の実 run で検証すると、生成 36 行のうち**合致は 12 行のみ (33%)**。残り 24 行は実バーを再生する fixture 由来で **adx/atr が実測値らしい float** を持つ。⇒ **事後の署名フィルタは防御になりえない。書込みそのものを止める必要がある**
+- 🟣 **修正** `modules/hunt_event_logger.py`: `HUNT_EVENT_LOG_MODE` (`auto` 既定 / `on` / `off`) を追加し、`auto` では pytest 実行中 (`PYTEST_CURRENT_TEST` ∨ `sys.modules` に pytest) の書込みを抑止。logger 自身のテスト用に `HUNT_EVENT_LOG_DIR` で出力先を差し替え可能に (`mode=on` + tmp_path)。戻り値の契約を「書いた=True / 抑止 or 失敗=False」に明文化。**戦略評価パスは従来どおり never-raise**
+- **実測検証**: full suite (3,332 tests) 実行後に `knowledge-base/raw/hunt_events/` が**無変化** (新規ファイルゼロ、git status clean)
+- 回帰 pin `tests/test_hunt_event_logger_suppression.py` 11 本 — 既定抑止 / 実 log dir 無変化 / mode 環境変数 5 ケース / `mode=on` の実書込み内容 / dir override / 失敗時 never-raise / **戦略 2 ファイルが logger を迂回して直接書いていないことの構造 pin**
+- ⚠️ 本 PR は観測データの**将来の汚染**を止めるもので、既存行の再掃除はしていない (PR #264 で実施済み)。ただし上記のとおり署名フィルタは取りこぼすため、**2026-09-18 より前の hunt_events を使う sr 系分析は N の再確認が必要**
+
 ## 2026-09-17 — 決裁バッチ執行: P-S1(a) Option C retire / U1 ミッション改定 / kalman postfill / U4 feasibility (user「推奨で進めて」)
 
 - ⬛ **P-S1(a) sweep_reversion_eurgbp_late 退役 (rule:R2)** — estimand 監査 §7 二択で user が (a) Option C 採択。registry `t8-sweep-defer-decision` resolved 化 (net spaced EV −3.33 p/t / cap 救済集合空 / エッジ再現 38% を記録)、判定器は fetch/CLI 層で恒久 verdict `OPTION_C_RETIRED_USER` (evaluate() の凍結文言リプレイは pin 温存、新 pin 2 本 + watch 側退役 pin 1 本)。**shadow rescue は残置** (4原則#3、modules/ 変更ゼロ)。scheduled task `ps1a-sweep-trigger-executor` はマージ後に無効化。決裁記録: [[ps1a-option-c-retire-2026-09-17]]
