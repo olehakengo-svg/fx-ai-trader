@@ -1,5 +1,17 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-18 — research(family A): ❌ explore verdict = **FAIL** — 梯子は 2022 の 2 発だけを説明していた (rule:R1 手続き、純研究)
+
+- **期日 09-28 の 10 日前倒しで verdict 確定**。J = P(armed｜介入日) − P(armed｜非介入日) = **0.2978** / permutation p (片側、circular shift 全 **1,107** 通り) = **0.1074** > α=0.05 ⇒ §10.4 固定分岐により **FAIL**。2×2 = **TPR 3/7 / FPR 144/1101** (armed 147 / 1,108 営業日)
+- ✅ **検出力不足ではない (positive control)** — 実 armed 系列 + **合成ラベル**で「陽性が全て armed 窓内」の最良ケースを測ると **k=7 で p=0.0027 / k=10 で p=0.0027**。観測された陽性数でも強い効果なら α を通せた ⇒ **測って分離が無かった**。E23 の UNDERPOWERED (測れなかった) とは性質が別
+- 🔵 **secondary (記述): pass-1 の話者交絡 caveat が悪い方向に的中** — 2022 (鈴木期) J=**0.2494** (2 event / 2 hit) vs 2026 (片山期) J=**0.0484** (5 event / 1 hit)。pass-1 で「2022 の 2 本だけで結論が反転しないか点検せよ」と書いた点検の答えは「**全体 J のほぼ全てを 2022 の 2 event が担っている**」。検出器は「介入前の梯子」ではなく、せいぜい **2022 のエスカレーションの記述**。リードは 15 営業日 (2022-09-29→10-21) / 3 営業日 (2026-04-24→04-30) で、**7 event 中 5 が false alarm** = まさに family A が測ろうとした較正結果そのもの
+- 🔴 **凍結仕様の欠陥を測定時に発見 (自己申告)** — 介入日 10 のうち **3 日 (2024-04-29 昭和の日 / 2026-05-04 みどりの日 / 2026-05-06 振替休日) が凍結営業日カレンダーから落ち、陽性が 7 になっていた**。A-8 で非営業日の**会見 (signal)** は翌営業日へ roll forward すると決めたのに、非営業日の**介入 (label)** は営業日インデックスに無いため黙って捨てる — **非対称な実装**だった。FX 市場は日本の祝日でも開いており MoF は実際に祝日に介入している
+- ⚠️ **事後修正はしない** — §10.5 がカレンダーの凍結後変更を禁止しており、補正して再計算することは **explore の 2 度目の look = 窓を焼く行為**。**verdict は FAIL のまま確定させ、バイアスの向きは「判定不能」と明記**した (「補正すれば通ったはず」も「補正しても通らない」も、言うには禁止された再計算が要る)。再挑戦は label 側のカレンダー規則も明示した**新規 pre-reg のみ**
+- **§5 FAIL 分岐の執行**: ladder 検出器は介入確率に情報なしと記録 / **family B は発言層なしで設計** (or 独立裁定) / **lexicon 基盤の収集は継続** (`mof-statements-daily` cron 維持、アーカイブ価値は判定と独立)。explore 枠は凍結時に消費済みで追加消費なし
+- ⚠️ **引用規律**: 否定されたのは「**凍結 ladder 検出器 (L≥4 遷移 / T,R,H=5,20,20 / retrospective L5 降格 / 凍結営業日カレンダー) が 2022-01-07〜2026-07-29 で MoF 公式円買い介入日と day-level で分離する**」という一点のみ。**「口先介入に情報がない」ではない** (有効 N=4 blocks / 陽性 7 日の記述級)。引用時は**カレンダー欠陥を必ず併記** ([[feedback_audit_past_verdicts_2026_08_05]])
+- **forward 期 (2026-07-30〜) は未接触のまま凍結維持** — 将来の新 pre-reg が同じ窓を genuine OOS として使える状態を保つため、P-10 型 ban は解除しない
+- 成果物: `tools/family_a_pass2.py` (凍結測定ハーネス) / 回帰 pin `tests/test_family_a_pass2.py` / verdict [[family-a-pass2-verdict-2026-09-18]] / 生値 JSON / pre-reg §11 / registry `family-a-explore-verdict-deadline` resolved / 台帳 #27
+
 ## 2026-09-18 — research(family A): pass-1 執行 — Gate A / Gate B ともに PASS、**pass-2 解錠** (rule:R1 手続き、label 非接触)
 
 - ✅ **凍結検出器でイベント列挙 + gate 判定を実行** (`tools/family_a_pass1.py`)。**label 非接触** — 参照したのは `lexicon_scores.csv` のみで `interventions_daily.csv` は開いていない (`tests/test_family_a_pass1.py` で構造 pin)。pass-1 の存在理由は「explore outcome に触れずに park 判定できること」(pre-reg §10.3)
