@@ -11,6 +11,15 @@
     python3 tools/pr_review_gate.py <PR番号> --wait 300  # 到着まで最大 300 秒待つ
 
 exit code: 0 = マージ可 / 2 = レビュー未到着 (待て) / 3 = P1/P2 未消化 / 4 = gh 失敗
+
+2026-09-18 (rule:R3) — 第 3 の空振り形状: **findings 軸が構造的に空だった**。
+connector は P1/P2 を **inline review comment (review thread)** として投げるが、
+旧実装は `gh pr view --json reviews,comments` しか読まず、そこには thread 本文が
+含まれない。実測 (PR #249/#250/#253/#256/#257/#258/#261/#263/#264/#265) では
+**inline に 28 件の P1/P2 があり、top-level review 本文には 0 件** — つまり
+「P1/P2 指摘なし — マージ可」は導入以来ずっと**恒真**だった。
+到着判定 (進捗サマリ / review オブジェクト) は機能していたので空振りは
+findings 軸に限定されるが、ゲートの目的そのものが消化の強制なので実質空。
 """
 
 from __future__ import annotations
@@ -83,6 +92,108 @@ def _gh_pr_json(pr: int, fields: str) -> dict[str, Any] | None:
         return None
 
 
+_THREADS_QUERY = """
+query($owner:String!,$name:String!,$pr:Int!,$after:String){
+  repository(owner:$owner,name:$name){
+    pullRequest(number:$pr){
+      reviewThreads(first:100, after:$after){
+        pageInfo{hasNextPage endCursor}
+        nodes{
+          isResolved
+          isOutdated
+          path
+          comments(first:1){nodes{author{login} body url createdAt}}
+        }
+      }
+    }
+  }
+}
+"""
+# 100 ページ = 10,000 thread。到達したら打ち切らず失敗させる (fail-closed)。
+_THREADS_MAX_PAGES = 100
+
+
+def _gh_repo() -> tuple[str, str] | None:
+    try:
+        out = subprocess.run(["gh", "repo", "view", "--json", "owner,name"],
+                             capture_output=True, text=True, timeout=60, check=True)
+        d = json.loads(out.stdout)
+        return (d["owner"]["login"], d["name"])
+    except (subprocess.SubprocessError, OSError, ValueError, KeyError):
+        return None
+
+
+def fetch_review_threads(pr: int) -> list[dict[str, Any]] | None:
+    """PR の inline review thread を取得。None = 取得失敗 (握り潰さない)。
+
+    connector の P1/P2 はここにしか載らない。`gh pr view --json reviews` が
+    返すのは review の *本文* だけで、thread 本文は含まれない。
+    """
+    repo = _gh_repo()
+    if repo is None:
+        return None
+    owner, name = repo
+    nodes: list[dict[str, Any]] = []
+    cursor: str | None = None
+    for _ in range(_THREADS_MAX_PAGES):
+        cmd = ["gh", "api", "graphql", "-f", f"query={_THREADS_QUERY}",
+               "-F", f"owner={owner}", "-F", f"name={name}", "-F", f"pr={pr}"]
+        # The first page omits `after` entirely: `$after` is nullable, and a
+        # pagination cursor is an opaque token — an empty string is not one.
+        # (GitHub currently tolerates `after: ""` here, verified 2026-09-18,
+        # but that is undocumented and not something to depend on.)
+        if cursor:
+            cmd += ["-F", f"after={cursor}"]
+        try:
+            out = subprocess.run(cmd, capture_output=True, text=True,
+                                 timeout=60, check=True)
+            page = (json.loads(out.stdout)["data"]["repository"]["pullRequest"]
+                    ["reviewThreads"])
+            nodes.extend(page.get("nodes") or [])
+            info = page.get("pageInfo") or {}
+        except (subprocess.SubprocessError, OSError, ValueError, KeyError, TypeError):
+            return None
+        if not info.get("hasNextPage"):
+            return nodes
+        cursor = info.get("endCursor")
+        if not cursor:
+            return None     # hasNextPage without a cursor = 打ち切れない
+    # ページ上限に達した = 全 thread を見ていない。clean を名乗らせない。
+    return None
+
+
+def thread_findings(threads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """未解決の connector inline finding だけを返す。
+
+    `isResolved` / `isOutdated` は消化の positive evidence として扱う
+    (解決済みスレッドまでブロックするとゲートが実用に耐えない)。
+    """
+    out: list[dict[str, Any]] = []
+    for th in threads:
+        nodes = ((th.get("comments") or {}).get("nodes") or [])
+        if not nodes:
+            continue
+        first = nodes[0]
+        author = ((first.get("author") or {}).get("login") or "")
+        if not REVIEWER_PAT.search(author):
+            continue
+        if th.get("isResolved") or th.get("isOutdated"):
+            continue
+        body = first.get("body") or ""
+        if not FINDING_PAT.search(body):
+            continue
+        head = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
+        head = re.sub(r"!\[[^\]]*\]\([^)]*\)|</?sub>|\*\*", "", head).strip(" *·-")
+        out.append({
+            "author": author,
+            "submitted": first.get("createdAt") or "",
+            "line": f"{th.get('path', '')}: {head}"[:200],
+            "url": first.get("url") or "",
+            "inline": True,
+        })
+    return out
+
+
 def collect_findings(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], bool]:
     """(connector 由来の P1/P2 findings, connector レビュー到着済みか) を返す。"""
     arrived = False
@@ -147,6 +258,14 @@ def evaluate(pr: int) -> tuple[int, str]:
     if payload is None:
         return 4, f"PR #{pr}: gh 取得失敗 — 『取れなかった』を『指摘なし』と折り畳まない"
     findings, arrived = collect_findings(payload)
+    threads = fetch_review_threads(pr)
+    if threads is None:
+        return 4, (f"PR #{pr}: inline review thread の取得に失敗 — "
+                   f"『取れなかった』を『指摘なし』と折り畳まない (rule:R3 2026-09-18)")
+    inline = thread_findings(threads)
+    if inline:
+        arrived = True          # inline finding の存在は到着の positive evidence
+    findings = findings + inline
     state, reviewed_sha = summary_state(payload)
     if state == "running":
         return 2, (f"PR #{pr}: connector レビューは実行中 (サマリ Status=Running) — "
@@ -170,7 +289,8 @@ def evaluate(pr: int) -> tuple[int, str]:
             f"`review-ack: <理由>` で明示 dismiss せよ。"
             f"docs/KB のみの PR なら待たずにマージ可 (CLAUDE.md コードレビュー節)")
     if not findings:
-        return 0, f"PR #{pr}: connector レビュー到着済み・P1/P2 指摘なし — マージ可"
+        return 0, (f"PR #{pr}: connector レビュー到着済み・未解決 P1/P2 なし "
+                   f"(review 本文 + inline thread {len(threads)} 件を検査) — マージ可")
     newest = max(f["submitted"] for f in findings)
     if latest_ack(payload, newest):
         return 0, (f"PR #{pr}: P1/P2 {len(findings)} 件は到着後の対応 commit / "
