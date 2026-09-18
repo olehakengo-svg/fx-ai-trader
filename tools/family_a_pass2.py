@@ -218,12 +218,27 @@ def run() -> dict:
     }
 
 
+def _nan_to_none(obj):
+    """NaN を None に置換して strict JSON でシリアライズ可能にする。"""
+    if isinstance(obj, dict):
+        return {k: _nan_to_none(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_nan_to_none(v) for v in obj]
+    if isinstance(obj, float) and obj != obj:
+        return None
+    return obj
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--json", dest="out", default="")
     args = ap.parse_args(argv)
     res = run()
-    text = json.dumps(res, ensure_ascii=False, indent=2)
+    # NaN は JSON 仕様外 (json.dumps の既定は Python 拡張の `NaN` を書く)。
+    # 空の層 (event も介入日も無い年) は `null` としてシリアライズし、
+    # 厳格な JSON パーサでも読めるようにする (Codex P2 / PR #270)。
+    text = json.dumps(_nan_to_none(res), ensure_ascii=False, indent=2,
+                      allow_nan=False)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:
             fh.write(text + "\n")

@@ -159,3 +159,19 @@ def test_contribution_and_stratified_j_are_separate_fields():
     assert per_year["2024"]["n_events"] == 0
     assert per_year["2024"]["n_intervention_days_in_year"] > 0
     assert per_year["2024"]["stratified_j_within_year"] == 0.0
+
+
+# --- Codex P2 (PR #270): 成果物は strict JSON でなければならない ---------------
+def test_artifact_is_strict_json_without_nan():
+    """空の層 (2023/2025) を `NaN` で書くと JSON 仕様外になり厳格パーサが落ちる。"""
+    import json
+    art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
+    raw = art.read_text(encoding="utf-8")
+    assert "NaN" not in raw and "Infinity" not in raw
+    def _boom(x):
+        raise AssertionError(f"strict JSON violation: {x}")
+    d = json.loads(raw, parse_constant=_boom)
+    per_year = d["secondary_descriptive"]["per_event_year"]
+    # event も介入日も無い年は null (0.0 に潰さない — 「測れない」と「効果ゼロ」は別)
+    assert per_year["2023"]["stratified_j_within_year"] is None
+    assert per_year["2024"]["stratified_j_within_year"] == 0.0
