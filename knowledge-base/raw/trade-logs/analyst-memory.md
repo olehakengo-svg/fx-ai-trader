@@ -4606,6 +4606,16 @@ Cutoff後の累積有効データは **N=3（WR100%、PnL +39.9p）** のみ —
 - `r2_shadow_demoted_cell`の累積は現レジームが続く限り解消しない。**本日も約定ゼロまたは極少が継続する可能性が高い**と判断し、データ蓄積待ちのスタンスを維持する。
 - USD/JPY VOLATILEはRnB戦略に構造的に不利。レジーム転換まで`rnb_usdjpy`の出動は期待しない。
 
+### 2026-09-18 (Pre-Tokyo Briefing)
+Cutoff後累計はN=2、PnL=+39.3（WR=100%）のみ。実質的にシステムは静止状態が継続中。
+| Strategy | Pair | N | WR% | EV | PnL |
+> ⚠️ **統計判断不能ゾーン**: N=1×2。両戦略ともに「データなし」扱い。WR100%・EV正値はノイズ。昇格/降格判断の対象外。
+- `shadow_tracking`：16件
+- `shadow_tracking(shadow_emit_no_lot)`：4件
+- **コード変更は不要**。現状はレジームとパラメータの不一致問題であり、システムは設計通りに動作している
+- 本日はシグナル発生条件の監視に徹し、`no_signal`の件数推移を追う
+- USD_JPYのTRENDING_DOWNが継続するかどうかが、carry_dip_accumulatorの再発火条件に直結
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
