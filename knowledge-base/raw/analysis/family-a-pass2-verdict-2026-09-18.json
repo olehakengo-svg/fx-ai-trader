@@ -69,6 +69,17 @@
   },
   "alpha": 0.05,
   "verdict": "FAIL",
+  "frozen_null_structure_diagnostic": {
+    "observed_blocks": 4,
+    "n_shifts": 1107,
+    "block_count_distribution": {
+      "4": 882,
+      "5": 225
+    },
+    "non_preserving_shifts": 225,
+    "non_preserving_fraction": 0.2032520325203252,
+    "note": "凍結 null は『ラベル系列の一様 circular shift』であり実装はそのとおり。ただし営業日 index 上の一様シフトは暦日 episode 規約 (gap>=30d) を厳密には保たない。**事後修正は §10.5 で禁止** (null を変えると p が変わる = 凍結された primary の作り替え) — verdict は FAIL のまま、本診断は限界の開示であって再解析ではない。"
+  },
   "power_analysis_post_hoc": {
     "note": "凍結時に power analysis を規定しなかったのは設計の不足。本曲線は Codex P2 (PR #270) を受けた post-hoc の解釈材料であり、verdict の判定には使わない。実 armed 系列 + 合成ラベルのみ。",
     "reps": 600,

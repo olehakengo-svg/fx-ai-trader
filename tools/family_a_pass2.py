@@ -218,6 +218,7 @@ def run() -> dict:
         "statistic": stat,
         "alpha": ALPHA,
         "verdict": verdict,
+        "frozen_null_structure_diagnostic": null_structure_diagnostic(days, iv_days),
         "power_analysis_post_hoc": {
             "note": ("凍結時に power analysis を規定しなかったのは設計の不足。"
                      "本曲線は Codex P2 (PR #270) を受けた post-hoc の解釈材料であり、"
@@ -339,6 +340,44 @@ def power_curve(armed: list[bool], block_offsets: list[list[int]],
                     "mean_j": sum(js) / kept, "power": sig / kept,
                     "reps_kept": kept})
     return out
+
+
+def null_structure_diagnostic(days: list, iv_days: list) -> dict:
+    """凍結 null (label 系列の circular shift) が 4 block を保つかの診断。
+
+    ⚠️ **これは検定ではない** — signal (armed) を一切参照せず、
+    「ラベル × カレンダー × シフト」だけの構造的性質を数える。
+    J も p も計算しないので explore の look を消費しない。
+
+    凍結 null は「ラベル系列を一様に circular shift」と規定されており、
+    実装はそのとおり。ただし営業日 index 上で一様にずらしても、
+    **暦日ベースの episode 規約 (gap >= 30 暦日) は保たれない**ことがある
+    (span 20 営業日の block が祝日の多い区間に落ちると 2 episode に割れる)。
+    その割合をここで可視化する (Codex P2 第8波)。
+    """
+    idx = {d: i for i, d in enumerate(days)}
+    n = len(days)
+    iv_bd = [d for d in iv_days if d in idx]
+    lab = [d in set(iv_bd) for d in days]
+    base = len(episode_blocks(iv_bd))
+    counts: dict[int, int] = {}
+    for k in range(1, n):
+        sh = circular_shift(lab, k)
+        nb = len(episode_blocks([days[i] for i, v in enumerate(sh) if v]))
+        counts[nb] = counts.get(nb, 0) + 1
+    non_preserving = sum(v for b, v in counts.items() if b != base)
+    return {
+        "observed_blocks": base,
+        "n_shifts": n - 1,
+        "block_count_distribution": {str(k): v for k, v in sorted(counts.items())},
+        "non_preserving_shifts": non_preserving,
+        "non_preserving_fraction": non_preserving / (n - 1),
+        "note": ("凍結 null は『ラベル系列の一様 circular shift』であり実装はそのとおり。"
+                 "ただし営業日 index 上の一様シフトは暦日 episode 規約 (gap>=30d) を"
+                 "厳密には保たない。**事後修正は §10.5 で禁止** (null を変えると p が変わる = "
+                 "凍結された primary の作り替え) — verdict は FAIL のまま、"
+                 "本診断は限界の開示であって再解析ではない。"),
+    }
 
 
 def _nan_to_none(obj):

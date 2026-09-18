@@ -255,3 +255,40 @@ def test_power_sim_keeps_the_four_episode_blocks_distinct():
     # days を渡さないと 4-block 検証が働かず、通る本数が増える (= 潰れた分が混ざる)
     loose = p2.power_curve(armed, offsets, reps=60, seed=11)
     assert sum(r["reps_kept"] for r in loose) >= sum(r["reps_kept"] for r in curve)
+
+
+# --- Codex P2 (PR #270 第8波): 凍結 null の構造診断 -----------------------------
+def test_frozen_null_structure_defect_is_disclosed():
+    """凍結 null が 4 block を厳密には保たない事実を成果物に残す。
+
+    直さない代わりに**開示する**という判断そのものを pin する。
+    これを消して verdict だけ残すと、読み手は混合 null の上の p を額面で受け取る。
+    """
+    import json
+    art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
+    d = json.loads(art.read_text(encoding="utf-8"))
+    nd = d["frozen_null_structure_diagnostic"]
+    assert nd["observed_blocks"] == 4
+    assert nd["n_shifts"] == 1107
+    # 4 block を保たないシフトが実在する (= 開示すべき欠陥がある)
+    assert nd["non_preserving_shifts"] > 0
+    assert 0.10 < nd["non_preserving_fraction"] < 0.35, nd
+    assert set(nd["block_count_distribution"]) == {"4", "5"}
+    # 直さない判断が文章として残っていること
+    assert "10.5" in nd["note"] and "禁止" in nd["note"]
+    # verdict は凍結規則のまま
+    assert d["verdict"] == "FAIL"
+
+
+def test_null_diagnostic_never_touches_the_signal():
+    """診断は signal (armed) を参照しない = look を消費しない。
+
+    構文 grep ではなく **性質** で pin する — docstring が "armed" に言及するのは
+    正当なので、文字列検索だと誤検出する (本セッションで実際に踏んだ)。
+    ここでは「signal を受け取る引数が無い」= 構造的に参照不能、を固定する。
+    """
+    import inspect
+    params = list(inspect.signature(p2.null_structure_diagnostic).parameters)
+    assert params == ["days", "iv_days"], params
+    # armed を渡す余地が無い = 診断は signal から独立
+    assert "armed" not in params
