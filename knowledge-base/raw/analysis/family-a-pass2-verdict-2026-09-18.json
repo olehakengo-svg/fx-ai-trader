@@ -69,6 +69,55 @@
   },
   "alpha": 0.05,
   "verdict": "FAIL",
+  "power_analysis_post_hoc": {
+    "note": "凍結時に power analysis を規定しなかったのは設計の不足。本曲線は Codex P2 (PR #270) を受けた post-hoc の解釈材料であり、verdict の判定には使わない。実 armed 系列 + 合成ラベルのみ。",
+    "reps": 600,
+    "seed": 20260918,
+    "observed_hits": 3,
+    "power_at_observed_effect": 0.3383333333333333,
+    "curve": [
+      {
+        "hits": 0,
+        "mean_j": -0.13351498637602247,
+        "power": 0.0
+      },
+      {
+        "hits": 1,
+        "mean_j": 0.010250421694563517,
+        "power": 0.0
+      },
+      {
+        "hits": 2,
+        "mean_j": 0.15401582976514766,
+        "power": 0.0
+      },
+      {
+        "hits": 3,
+        "mean_j": 0.29778123783573107,
+        "power": 0.3383333333333333
+      },
+      {
+        "hits": 4,
+        "mean_j": 0.4415466459063227,
+        "power": 0.9266666666666666
+      },
+      {
+        "hits": 5,
+        "mean_j": 0.5853120539769062,
+        "power": 0.995
+      },
+      {
+        "hits": 6,
+        "mean_j": 0.7290774620474858,
+        "power": 0.9983333333333333
+      },
+      {
+        "hits": 7,
+        "mean_j": 0.8728428701180678,
+        "power": 1.0
+      }
+    ]
+  },
   "secondary_descriptive": {
     "per_event_year": {
       "2022": {

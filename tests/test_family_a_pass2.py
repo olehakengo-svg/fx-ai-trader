@@ -134,10 +134,18 @@ def test_secondary_separates_hit_events_from_hit_days():
     assert sum(d["events_with_hit"] for d in per_year.values()) == 2
 
 
-def test_hits_field_name_is_gone():
-    """曖昧な `hits` に戻ったら落ちる (命名が estimand を運ぶ)。"""
-    src = pathlib.Path("tools/family_a_pass2.py").read_text(encoding="utf-8")
-    assert '"hits"' not in src
+def test_per_year_never_uses_the_ambiguous_hits_field():
+    """per-year の曖昧な `hits` に戻ったら落ちる (命名が estimand を運ぶ)。
+
+    power_curve 側の `"hits"` (効果量の刀み) は別概念なので対象外 —
+    pin は **per_year のキー集合** で見る (文字列 grep ではなく性質で見る)。
+    """
+    import json
+    art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
+    per_year = json.loads(art.read_text(encoding="utf-8"))["secondary_descriptive"]["per_event_year"]
+    for yr, d in per_year.items():
+        assert "hits" not in d, (yr, sorted(d))
+        assert "events_with_hit" in d and "hit_days" in d
 
 
 # --- Codex P2 (PR #270): 寄与 J と層別 J を分けて持つ -------------------------
@@ -175,3 +183,35 @@ def test_artifact_is_strict_json_without_nan():
     # event も介入日も無い年は null (0.0 に潰さない — 「測れない」と「効果ゼロ」は別)
     assert per_year["2023"]["stratified_j_within_year"] is None
     assert per_year["2024"]["stratified_j_within_year"] == 0.0
+
+
+# --- Codex P2 (PR #270 第4波): perfect-effect control は power analysis ではない --
+def test_power_curve_is_reported_and_shows_low_power_at_observed_effect():
+    """FAIL を『分離が無い』と読ませないための pin。
+
+    完全効果が検出できることは、観測効果量での検出力の証拠にならない。
+    成果物が検出力曲線を持ち、観測効果量での power が実用域を下回ることを固定する。
+    """
+    import json
+    art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
+    pa = json.loads(art.read_text(encoding="utf-8"))["power_analysis_post_hoc"]
+    curve = {r["hits"]: r["power"] for r in pa["curve"]}
+    assert pa["observed_hits"] == 3
+    # 観測効果量では実用域 (0.8) に遠く届かない
+    assert pa["power_at_observed_effect"] == curve[3]
+    assert 0.20 < curve[3] < 0.55, curve
+    # 弱い効果は原理的に検出不能、強い効果は検出可能 (単調)
+    assert curve[2] < 0.05 and curve[4] > 0.85 and curve[7] > 0.99
+    assert all(curve[k] <= curve[k + 1] + 1e-9 for k in range(7))
+
+
+def test_power_analysis_is_flagged_post_hoc_and_unused_for_verdict():
+    """post-hoc であること・判定に使っていないことが成果物に明記されていること。"""
+    import json
+    art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
+    d = json.loads(art.read_text(encoding="utf-8"))
+    note = d["power_analysis_post_hoc"]["note"]
+    assert "post-hoc" in note and "verdict" in note
+    # verdict は凍結 α 規則だけで決まる (検出力曲線に依存しない)
+    assert d["verdict"] == "FAIL"
+    assert d["statistic"]["p_one_sided"] > d["alpha"]

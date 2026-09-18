@@ -194,6 +194,11 @@ def run() -> dict:
         "PASS (記述級)" if stat["p_one_sided"] <= ALPHA and stat["j_obs"] > 0
         else "FAIL")
 
+    curve = power_curve(armed, npos)
+    observed_hits = tp
+    power_at_observed = next(
+        (r["power"] for r in curve if r["hits"] == observed_hits), None)
+
     return {
         "pre_reg": "family-a-statement-ladder-prereg-2026-08-19.md §10.2 / §10.4",
         "explore_window": [str(EXPLORE_START), str(EXPLORE_END)],
@@ -209,6 +214,15 @@ def run() -> dict:
         "statistic": stat,
         "alpha": ALPHA,
         "verdict": verdict,
+        "power_analysis_post_hoc": {
+            "note": ("凍結時に power analysis を規定しなかったのは設計の不足。"
+                     "本曲線は Codex P2 (PR #270) を受けた post-hoc の解釈材料であり、"
+                     "verdict の判定には使わない。実 armed 系列 + 合成ラベルのみ。"),
+            "reps": POWER_REPS, "seed": POWER_SEED,
+            "observed_hits": observed_hits,
+            "power_at_observed_effect": power_at_observed,
+            "curve": curve,
+        },
         "secondary_descriptive": {
             "per_event_year": per_year,
             "lead_business_days_per_event": lead,
@@ -216,6 +230,54 @@ def run() -> dict:
         "claim_ceiling": ("有効 N = 4 episode blocks。PASS でも記述級 — "
                           "edge 主張・live/tier/lot 変更は恒久ゼロ (§5)"),
     }
+
+
+# --- post-hoc power analysis (label-free; 実ラベルは使わない) ------------------
+POWER_REPS = 600
+POWER_SEED = 20260918
+
+
+def power_curve(armed: list[bool], n_positives: int, reps: int = POWER_REPS,
+                seed: int = POWER_SEED, alpha: float = ALPHA) -> list[dict]:
+    """効果量ごとの検出力を、実 armed 系列 + 合成ラベルで測る。
+
+    ⚠️ **post-hoc**。凍結時に power analysis を規定しなかったのは設計の不足で、
+    Codex P2 (PR #270) の指摘を受けて事後に追加したもの。**verdict の判定には
+    一切使わない** — FAIL は凍結された α 規則のままで、本曲線はその FAIL を
+    どう読むべきかの解釈材料。
+
+    `hits` = 7 陽性のうち armed 窓に入る個数 (= 検出器の質)。各 hits について
+    合成ラベルを reps 回引き、permutation p <= alpha となる割合を返す。
+    """
+    import numpy as np
+
+    a = np.asarray(armed, dtype=float)
+    n = a.size
+    fa = np.fft.rfft(a)
+    armed_idx = np.flatnonzero(a)
+    non_idx = np.flatnonzero(a == 0)
+    rng = np.random.default_rng(seed)
+
+    def _p(lab: "np.ndarray") -> tuple[float, float]:
+        tp = np.round(np.fft.irfft(fa * np.conj(np.fft.rfft(lab)), n))
+        npos = lab.sum()
+        fp = a.sum() - tp
+        j = tp / npos - fp / (n - npos)
+        null = j[1:]
+        return float(j[0]), float((1 + (null >= j[0]).sum()) / (1 + null.size))
+
+    out = []
+    for hits in range(n_positives + 1):
+        js, sig = [], 0
+        for _ in range(reps):
+            lab = np.zeros(n)
+            lab[rng.choice(armed_idx, hits, replace=False)] = 1
+            lab[rng.choice(non_idx, n_positives - hits, replace=False)] = 1
+            j, pv = _p(lab)
+            js.append(j)
+            sig += pv <= alpha
+        out.append({"hits": hits, "mean_j": sum(js) / len(js), "power": sig / reps})
+    return out
 
 
 def _nan_to_none(obj):
