@@ -18,6 +18,17 @@ from tools import pr_review_gate as gate
 CONNECTOR = "chatgpt-codex-connector"
 
 
+@pytest.fixture(autouse=True)
+def _no_real_threads(monkeypatch):
+    """既存テストは inline thread を持たない PR を前提にしている。
+
+    2026-09-18 に `evaluate` が review thread も読むようになったため、
+    ネットワークに出ないよう既定で空リストを返す。thread 由来の性質は
+    `test_pr_review_gate_inline.py` で別に pin する。
+    """
+    monkeypatch.setattr(gate, "fetch_review_threads", lambda pr: [])
+
+
 def _payload(*, reviews=(), comments=(), commits=()):
     return {"reviews": list(reviews), "comments": list(comments),
             "commits": list(commits)}
@@ -308,7 +319,8 @@ def test_counterfactual_old_behaviour_passed_both_shapes(monkeypatch, body, labe
     assert gate.evaluate(249)[0] == 0, f"{label}: 旧挙動を再現できていない"
 
     # 修理後は両方とも「待て」(exit 2)。
-    monkeypatch.undo()
+    monkeypatch.undo()          # autouse の thread stub も外れるので張り直す
+    monkeypatch.setattr(gate, "fetch_review_threads", lambda pr: [])
     monkeypatch.setattr(gate, "_gh_pr_json", lambda *a, **k: payload)
     assert gate.evaluate(249)[0] == 2, f"{label}: 修理後も素通りしている"
 
