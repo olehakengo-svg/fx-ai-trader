@@ -336,9 +336,10 @@ def power_curve(armed: list[bool], block_offsets: list[list[int]],
     rng = np.random.default_rng(seed)
     n_blocks = len(block_offsets)
     n_positives = sum(len(b) for b in block_offsets)
-    # episode 個別化規約 (gap >= 30 暦日) を営業日で近似した最小間隔。
-    # これを下回る配置は `episode_blocks` で 1 block に潰れてしまう。
-    _GAP_BD = 21
+    # episode 個別化規約は **暦日 30 日**。営業日 21 日で近似すると、
+    # 年末年始を挟んで暦 30 日超だが営業日 index では ~20 しか離れていない
+    # 正当な配置まで棄却してしまい、間隔分布が季節的に偏る (Codex P2 第11波)。
+    # ここでは実日付で厳密に判定する。
 
     def _p(lab):
         tp = np.round(np.fft.irfft(fa * np.conj(np.fft.rfft(lab)), n))
@@ -369,10 +370,26 @@ def power_curve(armed: list[bool], block_offsets: list[list[int]],
             for _ in range(4000):
                 start = int(rng.integers(0, n - span))
                 end = start + span
-                # 他 block の episode-gap 近傍に入る配置は棄却 (4 block を保つ)
-                if any(start - _GAP_BD <= e and s0 - _GAP_BD <= end
-                       for s0, e in taken):
-                    continue
+                if days is None:
+                    # 日付が無い場合のみ index 近似 (テスト用の最小経路)
+                    if any(start - 21 <= e and s0 - 21 <= end for s0, e in taken):
+                        continue
+                else:
+                    # 実日付で「gap >= 30 暦日」を厳密に判定
+                    clash = False
+                    for s0, e in taken:
+                        if start > e:
+                            if (days[start] - days[e]).days < EPISODE_GAP_DAYS:
+                                clash = True
+                        elif end < s0:
+                            if (days[s0] - days[end]).days < EPISODE_GAP_DAYS:
+                                clash = True
+                        else:
+                            clash = True          # 区間が重なる
+                        if clash:
+                            break
+                    if clash:
+                        continue
                 pos = [start + o for o in offs]
                 if any(a[q] for q in pos) != want_hit:
                     continue
