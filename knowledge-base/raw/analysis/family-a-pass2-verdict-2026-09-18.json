@@ -80,42 +80,42 @@
       1
     ],
     "observed_hit_blocks": 2,
-    "power_at_observed_effect": 0.15166666666666667,
+    "power_at_observed_effect": 0.15756302521008403,
     "curve": [
       {
         "hit_blocks": 0,
         "n_blocks": 4,
-        "mean_j": -0.13351498637602247,
+        "mean_j": -0.13351498637602138,
         "power": 0.0,
-        "reps_kept": 600
+        "reps_kept": 498
       },
       {
         "hit_blocks": 1,
         "n_blocks": 4,
-        "mean_j": 0.07063189308420993,
+        "mean_j": 0.07081417233370631,
         "power": 0.0,
-        "reps_kept": 600
+        "reps_kept": 489
       },
       {
         "hit_blocks": 2,
         "n_blocks": 4,
-        "mean_j": 0.29394749362051614,
-        "power": 0.15166666666666667,
-        "reps_kept": 600
+        "mean_j": 0.28570011110711235,
+        "power": 0.15756302521008403,
+        "reps_kept": 476
       },
       {
         "hit_blocks": 3,
         "n_blocks": 4,
-        "mean_j": 0.49833398209420227,
-        "power": 0.6166666666666667,
-        "reps_kept": 600
+        "mean_j": 0.4893600282284376,
+        "power": 0.7104072398190046,
+        "reps_kept": 442
       },
       {
         "hit_blocks": 4,
         "n_blocks": 4,
-        "mean_j": 0.7135028761731735,
-        "power": 0.9016666666666666,
-        "reps_kept": 600
+        "mean_j": 0.697533996985587,
+        "power": 0.9683544303797469,
+        "reps_kept": 474
       }
     ]
   },

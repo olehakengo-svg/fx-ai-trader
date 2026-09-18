@@ -202,6 +202,7 @@ def test_power_curve_preserves_episode_blocks_and_shows_low_power():
     assert 0.05 < curve[2] < 0.30, curve          # 観測効果量は実用域に遠い
     assert curve[0] < 0.02 and curve[1] < 0.05    # 弱い効果は検出不能
     assert curve[3] < 0.80, curve                 # 3/4 でもまだ実用域未満
+    assert curve[4] > 0.90, curve                 # 全 block hit なら実用域
     assert all(curve[k] <= curve[k + 1] + 1e-9 for k in range(4))
 
 
@@ -232,3 +233,25 @@ def test_power_analysis_is_flagged_post_hoc_and_unused_for_verdict():
     # verdict は凍結 α 規則だけで決まる (検出力曲線に依存しない)
     assert d["verdict"] == "FAIL"
     assert d["statistic"]["p_one_sided"] > d["alpha"]
+
+
+# --- Codex P2 (PR #270 第7波): 生成ラベルが 4 block を保つこと ------------------
+def test_power_sim_keeps_the_four_episode_blocks_distinct():
+    """配置が episode-gap 内に重なると `episode_blocks` で 4 未満に潰れる。
+
+    潰れたサンプルを数えていると「4-block 設計の検出力」ではなくなる。
+    """
+    from tools import family_a_ladder_detector as det
+    from tools.family_a_pass1 import EXPLORE_END, EXPLORE_START
+    out = det.build(EXPLORE_START, EXPLORE_END)
+    days = out.days
+    armed = [d in out.armed for d in days]
+    offsets = [[0, 19, 20], [0], [0, 1], [0]]
+    curve = p2.power_curve(armed, offsets, days=days, reps=60, seed=11)
+    for row in curve:
+        assert row["reps_kept"] > 0, row
+        # 検証を通ったサンプルしか数えていないので、棄却分だけ reps を下回る
+        assert row["reps_kept"] <= 60, row
+    # days を渡さないと 4-block 検証が働かず、通る本数が増える (= 潰れた分が混ざる)
+    loose = p2.power_curve(armed, offsets, reps=60, seed=11)
+    assert sum(r["reps_kept"] for r in loose) >= sum(r["reps_kept"] for r in curve)

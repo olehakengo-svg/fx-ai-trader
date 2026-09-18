@@ -199,7 +199,7 @@ def run() -> dict:
     bd_blocks = episode_blocks(iv_bd)
     block_offsets = [[idx[d] - idx[b[0]] for d in b] for b in bd_blocks]
     observed_hit_blocks = sum(1 for b in bd_blocks if any(d in out.armed for d in b))
-    curve = power_curve(armed, block_offsets)
+    curve = power_curve(armed, block_offsets, days=days)
     power_at_observed = next(
         (r["power"] for r in curve if r["hit_blocks"] == observed_hit_blocks), None)
 
@@ -243,6 +243,7 @@ POWER_SEED = 20260918
 
 
 def power_curve(armed: list[bool], block_offsets: list[list[int]],
+                days: list | None = None,
                 reps: int = POWER_REPS, seed: int = POWER_SEED,
                 alpha: float = ALPHA) -> list[dict]:
     """効果量ごとの検出力を、実 armed 系列 + 合成ラベルで測る。
@@ -270,6 +271,9 @@ def power_curve(armed: list[bool], block_offsets: list[list[int]],
     rng = np.random.default_rng(seed)
     n_blocks = len(block_offsets)
     n_positives = sum(len(b) for b in block_offsets)
+    # episode 個別化規約 (gap >= 30 暦日) を営業日で近似した最小間隔。
+    # これを下回る配置は `episode_blocks` で 1 block に潰れてしまう。
+    _GAP_BD = 21
 
     def _p(lab):
         tp = np.round(np.fft.irfft(fa * np.conj(np.fft.rfft(lab)), n))
@@ -290,22 +294,30 @@ def power_curve(armed: list[bool], block_offsets: list[list[int]],
         (Codex P2 第6波)。ここでは生成位置の全日を検査して棄却サンプリングする。
         """
         lab = np.zeros(n)
+        taken: list[tuple[int, int]] = []          # 配置済み block の [start, end]
         order = rng.permutation(n_blocks)
         for rank, bi in enumerate(order):
             offs = block_offsets[bi]
             span = offs[-1]
             want_hit = rank < hit_blocks
+            placed = False
             for _ in range(4000):
                 start = int(rng.integers(0, n - span))
-                pos = [start + o for o in offs]
-                if any(lab[q] for q in pos):
+                end = start + span
+                # 他 block の episode-gap 近傍に入る配置は棄却 (4 block を保つ)
+                if any(start - _GAP_BD <= e and s0 - _GAP_BD <= end
+                       for s0, e in taken):
                     continue
-                is_hit = any(a[q] for q in pos)
-                if is_hit != want_hit:
+                pos = [start + o for o in offs]
+                if any(a[q] for q in pos) != want_hit:
                     continue
                 for q in pos:
                     lab[q] = 1
+                taken.append((start, end))
+                placed = True
                 break
+            if not placed:
+                return None
         return lab
 
     out = []
@@ -313,8 +325,12 @@ def power_curve(armed: list[bool], block_offsets: list[list[int]],
         js, sig, kept = [], 0, 0
         for _ in range(reps):
             lab = _place(hb)
-            if lab.sum() != n_positives:      # 配置に失敗した回は捨てる
+            if lab is None or lab.sum() != n_positives:
                 continue
+            if days is not None:              # 完成サンプルが 4 block か検証
+                pos_days = [days[i] for i in np.flatnonzero(lab)]
+                if len(episode_blocks(pos_days)) != n_blocks:
+                    continue
             j, pv = _p(lab)
             js.append(j)
             sig += pv <= alpha
