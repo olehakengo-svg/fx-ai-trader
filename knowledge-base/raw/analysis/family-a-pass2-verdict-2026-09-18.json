@@ -1,5 +1,12 @@
 {
   "pre_reg": "family-a-statement-ladder-prereg-2026-08-19.md §10.2 / §10.4",
+  "series_fingerprint": {
+    "days_sha256_16": "83a8291d1bfd1542",
+    "armed_sha256_16": "0828367a8a8645a7",
+    "expected_days_sha256_16": "83a8291d1bfd1542",
+    "expected_armed_sha256_16": "0828367a8a8645a7",
+    "note": "凍結 pass-1 成果物は days/armed のマスクを保存していなかったため (設計の不足)、本 pass-2 実行時点の指紋をここに記録して以後の drift 検出の基準点にする。照合自体は凍結 events から armed を 独立再構成して日付同一性まで行っている。"
+  },
   "explore_window": [
     "2022-01-07",
     "2026-07-29"

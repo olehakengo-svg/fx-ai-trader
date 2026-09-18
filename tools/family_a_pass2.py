@@ -48,6 +48,14 @@ EPISODE_GAP_DAYS = 30
 EXPECTED_INTERVENTION_DAYS = 10
 EXPECTED_EPISODE_BLOCKS = 4
 
+# 凍結測定を実行したときの営業日系列と armed マスクの指紋 (先頭 16 hex)。
+# pass-1 の凍結成果物はマスクを保存していなかったため (設計の不足)、
+# ここを基準点として **系列そのものの drift** を検出する。
+# 日数と armed 率だけの照合では、営業日を 1 日入れ替えても通ってしまう
+# (自分で再構成した armed と比べても系列が同じなので一致してしまう) — Codex P2 第10波。
+EXPECTED_DAYS_SHA16 = "83a8291d1bfd1542"
+EXPECTED_ARMED_SHA16 = "0828367a8a8645a7"
+
 
 # --- labels -----------------------------------------------------------------
 def load_intervention_days(path: str = LABELS_CSV) -> list[_dt.date]:
@@ -114,6 +122,7 @@ def permutation_p(armed: list[bool], label: list[bool], b: int = B_SHIFTS) -> di
 def run() -> dict:
     out = det.build(EXPLORE_START, EXPLORE_END)
     days = out.days
+    idx = {d: i for i, d in enumerate(days)}
 
     frozen = json.load(open(FROZEN_EVENTS_JSON, encoding="utf-8"))
     # 凍結成果物との照合は **events だけでは足りない** (Codex P2 第9波)。
@@ -137,6 +146,32 @@ def run() -> dict:
             abs(fg["armed_fraction"] - armed_n / len(days)) > 1e-9:
         mismatches.append(
             f"armed: frozen_fraction={fg['armed_fraction']} rebuilt={armed_n}/{len(days)}")
+    # 日数と armed 率だけでは、営業日が 1 日入れ替わっても通ってしまう
+    # (Codex P2 第10波)。**凍結 events から armed を独立に再構成**して
+    # 日付の同一性まで照合する。
+    missing = [str(d) for d in frozen_events if d not in idx]
+    if missing:
+        mismatches.append(f"frozen events not in business-day series: {missing}")
+    else:
+        rebuilt_armed = set()
+        for e in frozen_events:
+            i = idx[e]
+            rebuilt_armed.update(days[i: i + det.H_HORIZON_BD + 1])
+        if rebuilt_armed != out.armed:
+            only_a = sorted(str(d) for d in rebuilt_armed - out.armed)[:5]
+            only_b = sorted(str(d) for d in out.armed - rebuilt_armed)[:5]
+            mismatches.append(
+                f"armed mask mismatch: from_frozen_only={only_a} detector_only={only_b}")
+    import hashlib as _hl
+
+    def _sha16(seq):
+        return _hl.sha256("\n".join(str(x) for x in seq).encode()).hexdigest()[:16]
+
+    days_sha, armed_sha = _sha16(days), _sha16(sorted(out.armed))
+    if days_sha != EXPECTED_DAYS_SHA16:
+        mismatches.append(f"days series drift: {days_sha} != {EXPECTED_DAYS_SHA16}")
+    if armed_sha != EXPECTED_ARMED_SHA16:
+        mismatches.append(f"armed mask drift: {armed_sha} != {EXPECTED_ARMED_SHA16}")
     if mismatches:
         raise SystemExit(
             "ABORT: 凍結設定と再計算が不一致 — pass-2 は凍結された構成の上でしか走らせない\n  "
@@ -169,7 +204,6 @@ def run() -> dict:
     #                  (分母が全 7 陽性なので「その話者の検出器の性能」ではない)
     #   stratified   : armed も label も**その暦年の営業日だけ**に絞った within-year J
     #                  → 話者/年ごとの検出器性能。話者交絡の点検にはこちらを使う
-    idx = {d: i for i, d in enumerate(days)}
     all_years = sorted({d.year for d in days})
     per_year = {}
     for yr in all_years:
@@ -225,6 +259,16 @@ def run() -> dict:
 
     return {
         "pre_reg": "family-a-statement-ladder-prereg-2026-08-19.md §10.2 / §10.4",
+        "series_fingerprint": {
+            "days_sha256_16": days_sha,
+            "armed_sha256_16": armed_sha,
+            "expected_days_sha256_16": EXPECTED_DAYS_SHA16,
+            "expected_armed_sha256_16": EXPECTED_ARMED_SHA16,
+            "note": ("凍結 pass-1 成果物は days/armed のマスクを保存していなかったため "
+                     "(設計の不足)、本 pass-2 実行時点の指紋をここに記録して以後の "
+                     "drift 検出の基準点にする。照合自体は凍結 events から armed を "
+                     "独立再構成して日付同一性まで行っている。"),
+        },
         "explore_window": [str(EXPLORE_START), str(EXPLORE_END)],
         "n_business_days": len(days),
         "events": [str(d) for d in out.events],
@@ -379,8 +423,8 @@ def null_structure_diagnostic(days: list, iv_days: list) -> dict:
     (span 20 営業日の block が祝日の多い区間に落ちると 2 episode に割れる)。
     その割合をここで可視化する (Codex P2 第8波)。
     """
-    idx = {d: i for i, d in enumerate(days)}
     n = len(days)
+    idx = {d: i for i, d in enumerate(days)}
     iv_bd = [d for d in iv_days if d in idx]
     lab = [d in set(iv_bd) for d in days]
     base = len(episode_blocks(iv_bd))

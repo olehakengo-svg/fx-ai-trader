@@ -311,3 +311,38 @@ def test_abort_when_frozen_configuration_drifts(monkeypatch):
     msg = str(ei.value)
     assert "ABORT" in msg
     assert "params" in msg or "armed" in msg, msg
+
+
+# --- Codex P2 (PR #270 第10波): 日付の同一性まで照合 ----------------------------
+def test_abort_when_business_day_identity_changes(monkeypatch):
+    """営業日を 1 日入れ替えても長さと armed 率は変わりうる。
+
+    日数と率だけの照合では通ってしまうので、凍結 events から armed を
+    独立再構成して**日付の同一性**まで見る。
+    """
+    from tools import family_a_ladder_detector as det
+    import datetime as _d
+    real = det.is_business_day
+
+    def swapped(day: _d.date) -> bool:
+        # 平日 1 日を非営業日に、直後の土曜を営業日に入れ替える (総数は保つ)
+        if day == _d.date(2023, 3, 15):
+            return False
+        if day == _d.date(2023, 3, 18):
+            return True
+        return real(day)
+
+    monkeypatch.setattr(det, "is_business_day", swapped)
+    with pytest.raises(SystemExit) as ei:
+        p2.run()
+    assert "ABORT" in str(ei.value)
+
+
+def test_series_fingerprint_is_recorded():
+    """days / armed の指紋を成果物に残す (pass-1 が保存していなかった穴の補い)。"""
+    import json
+    art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
+    fp = json.loads(art.read_text(encoding="utf-8"))["series_fingerprint"]
+    assert len(fp["days_sha256_16"]) == 16 and len(fp["armed_sha256_16"]) == 16
+    assert fp["days_sha256_16"] != fp["armed_sha256_16"]
+    assert "pass-1" in fp["note"]
