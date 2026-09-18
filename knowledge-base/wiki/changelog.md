@@ -1,5 +1,16 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-18 — fix(process): マージゲートの findings 軸が導入以来ずっと恒真だった — 第 3 の空振り形状 (rule:R3)
+
+- 🔴 **`tools/pr_review_gate.py` は P1/P2 を 1 件も観測していなかった** — connector は指摘を **inline review comment (review thread)** で投げるが、旧実装は `gh pr view --json reviews,comments` しか読まない。`reviews` に入るのは review の**本文**であって thread 本文ではないため、**findings は構造的に空**。「P1/P2 指摘なし — マージ可」は**恒真命題**だった
+- **実測 (10 PR)**: #264:6 / #257:7 / #253:6 / #256:3 / #249:2 / #263,#261,#258,#250,#265 各 1 = **inline に 29 件、top-level review 本文に 0 件**。2026-09-11 の 2 度の修理は**到着軸だけ**を直しており、findings 軸には触れていなかった
+- **差分検証 (同一 PR、旧 vs 新)**: #264/#257/#253 は「マージ可」→「未消化 4/7/6 件」。一方 **#265 は「1 件は対応 commit で消化済み — マージ可」** = 消化の検出も効いており、何でもブロックする実装にはなっていない
+- 🟣 **修理**: `fetch_review_threads()` 新設 (GraphQL `reviewThreads`、`isResolved`/`isOutdated` は消化の positive evidence として除外) / **取得失敗は exit 4 の fail-closed** (「取れなかった」を「指摘なし」に折り畳まない) / inline finding の存在を到着判定にも算入 / 成功メッセージを「**review 本文 + inline thread N 件を検査**」に変更 — 恒真メッセージは探索範囲を名乗らないから恒真だと気付けない
+- 🔵 **プロセス所見**: 同等実装は **PR #227 に存在し 18 巡のレビュー後 CLOSED (未マージ)**。main に着地したのは #231 由来の簡易版で、既存テスト冒頭に「#227 版テスト (GraphQL reviewThreads …) は盲目移植していない」と明記されていた。**正しい設計は書かれ、レビューされ、捨てられていた**
+- 回帰 pin `tests/test_pr_review_gate_inline.py` 12 本 (open thread = finding / resolved・outdated は非ブロッキング / 非 connector 無視 / severity 無し無視 / **top-level clean + inline finding で exit 3 = 旧恒真形状の再現** / 対応 commit で消化 / inline 単独でも到着 / **取得失敗 exit 4** / 成功メッセージが探索範囲を名乗る / **fetcher が実際に呼ばれる配線 pin**)。既存 24 本は autouse stub で維持
+- 教訓: **検知器を作ったら「それが NG を返す実例」を同じコミットで pin する。「異常なし」メッセージには探索範囲を書く — 書けないなら探索していない**
+- doc: [[pr-review-gate-inline-blindness-2026-09-18]]
+
 ## 2026-09-18 — research(family A): 🔒 explore pre-reg 凍結 — ladder の L5 は「梯子の段」ではなく事後ナレーションだった (rule:R1 手続き、純研究)
 
 - 🔒 **family A statement_ladder (台帳 #27) 凍結コミット執行** — 期日 09-24 の **6 日前倒し**。registry `family-a-adversarial-freeze-deadline` resolve → `family-a-explore-verdict-deadline` (2026-09-28) へ置換。**explore 枠 1 消費**。本ラインは scan 第5次 §2.3 会計で**プロジェクト唯一の「着手可能」な供給ライン**
