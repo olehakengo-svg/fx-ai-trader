@@ -73,13 +73,15 @@
     "per_event_year": {
       "2022": {
         "n_events": 2,
-        "j": 0.24938367717659268,
-        "hits": 2
+        "events_with_hit": 1,
+        "hit_days": 2,
+        "j": 0.24938367717659268
       },
       "2026": {
         "n_events": 5,
-        "j": 0.04839756065914104,
-        "hits": 1
+        "events_with_hit": 1,
+        "hit_days": 1,
+        "j": 0.04839756065914104
       }
     },
     "lead_business_days_per_event": [

@@ -103,3 +103,29 @@ def test_verdict_artifact_records_the_calendar_defect():
     assert set(off) == {"2024-04-29", "2026-05-04", "2026-05-06"}
     assert res["contingency"]["n_pos"] == len(res["intervention_days"]) - len(off) == 7
     assert res["verdict"] == "FAIL"
+
+
+# --- Codex P2 (PR #270): event 数と介入「日」数を混同しない --------------------
+def test_secondary_separates_hit_events_from_hit_days():
+    """1 event が複数の介入日を覆うので、両者は別フィールドでなければならない。
+
+    初版は `hits` (= 介入日数) を「hit した event 数」として表に書き、
+    2022 を「2 event / 2 hit」と誤記していた (実際は 1/2 event)。
+    """
+    import json
+    art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
+    per_year = json.loads(art.read_text(encoding="utf-8"))["secondary_descriptive"]["per_event_year"]
+    for yr, d in per_year.items():
+        assert {"n_events", "events_with_hit", "hit_days", "j"} <= set(d), (yr, d)
+        assert d["events_with_hit"] <= d["n_events"]
+    # 2022: 1 event (09-29) が 10-21 と 10-24 を覆う = event 1 / 日 2
+    assert per_year["2022"]["events_with_hit"] == 1
+    assert per_year["2022"]["hit_days"] == 2
+    # 全 7 event のうち当てたのは 2 本だけ
+    assert sum(d["events_with_hit"] for d in per_year.values()) == 2
+
+
+def test_hits_field_name_is_gone():
+    """曖昧な `hits` に戻ったら落ちる (命名が estimand を運ぶ)。"""
+    src = pathlib.Path("tools/family_a_pass2.py").read_text(encoding="utf-8")
+    assert '"hits"' not in src

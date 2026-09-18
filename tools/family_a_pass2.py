@@ -152,10 +152,19 @@ def run() -> dict:
             i = idx[e]
             armed_y.update(days[i: i + det.H_HORIZON_BD + 1])
         a_y = [d in armed_y for d in days]
+        # `hit_days` は armed 窓に入った介入「日」数、`events_with_hit` は
+        # 窓内に 1 日以上の介入を含む「event」数。1 event が複数の介入日を
+        # 覆うため両者は一致しない (2022: 1 event が 10-21 と 10-24 を覆う)。
+        ev_hit = 0
+        for e in ev:
+            i = idx[e]
+            if any(d in iv_set for d in days[i: i + det.H_HORIZON_BD + 1]):
+                ev_hit += 1
         per_year[str(yr)] = {
             "n_events": len(ev),
+            "events_with_hit": ev_hit,
+            "hit_days": sum(1 for d in iv_days if d in armed_y),
             "j": youden_j(a_y, label),
-            "hits": sum(1 for d in iv_days if d in armed_y),
         }
 
     lead = []
