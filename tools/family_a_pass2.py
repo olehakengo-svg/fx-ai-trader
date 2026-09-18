@@ -55,6 +55,23 @@ EXPECTED_EPISODE_BLOCKS = 4
 # (自分で再構成した armed と比べても系列が同じなので一致してしまう) — Codex P2 第10波。
 EXPECTED_DAYS_SHA16 = "83a8291d1bfd1542"
 EXPECTED_ARMED_SHA16 = "0828367a8a8645a7"
+# ラベル母集団 (§3) の指紋 = 順序つき介入日リストの sha256 先頭 16 hex。
+# 日数と block 数だけの照合では、**同じ block 内で介入日が 1 日入れ替わっても通ってしまう**
+# — 陰性マスクも J も p も secondary も変わるのに ABORT しない (Codex P2 第14波)。
+# 本ハーネスは「一度限りの凍結測定」を名乗る以上、母集団は基数ではなく**実体**で pin する。
+EXPECTED_IV_SHA16 = "4351a80cac96a4f5"
+
+
+def _sha16_dates(seq) -> str:
+    """順序つきの日付列の指紋 (sha256 先頭 16 hex)。
+
+    本体と回帰 pin が**同じ関数**を使うことが条件 —
+    テスト側で指紋を再実装すると「両方とも同じく壊れる」経路ができる。
+    """
+    import hashlib
+
+    return hashlib.sha256(
+        "\n".join(str(x) for x in seq).encode()).hexdigest()[:16]
 
 
 # --- labels -----------------------------------------------------------------
@@ -162,12 +179,7 @@ def run() -> dict:
             only_b = sorted(str(d) for d in out.armed - rebuilt_armed)[:5]
             mismatches.append(
                 f"armed mask mismatch: from_frozen_only={only_a} detector_only={only_b}")
-    import hashlib as _hl
-
-    def _sha16(seq):
-        return _hl.sha256("\n".join(str(x) for x in seq).encode()).hexdigest()[:16]
-
-    days_sha, armed_sha = _sha16(days), _sha16(sorted(out.armed))
+    days_sha, armed_sha = _sha16_dates(days), _sha16_dates(sorted(out.armed))
     if days_sha != EXPECTED_DAYS_SHA16:
         mismatches.append(f"days series drift: {days_sha} != {EXPECTED_DAYS_SHA16}")
     if armed_sha != EXPECTED_ARMED_SHA16:
@@ -179,11 +191,16 @@ def run() -> dict:
 
     iv_days = load_intervention_days()
     blocks = episode_blocks(iv_days)
-    if len(iv_days) != EXPECTED_INTERVENTION_DAYS or len(blocks) != EXPECTED_EPISODE_BLOCKS:
+    iv_sha = _sha16_dates(iv_days)
+    if (len(iv_days) != EXPECTED_INTERVENTION_DAYS
+            or len(blocks) != EXPECTED_EPISODE_BLOCKS
+            or iv_sha != EXPECTED_IV_SHA16):
         raise SystemExit(
             "ABORT: ラベル母集団が pre-reg §3 の宣言と不一致 — estimand が凍結時と違う\n"
-            f"  期待 {EXPECTED_INTERVENTION_DAYS} 日 / {EXPECTED_EPISODE_BLOCKS} blocks\n"
-            f"  実測 {len(iv_days)} 日 / {len(blocks)} blocks: {[str(d) for d in iv_days]}")
+            f"  期待 {EXPECTED_INTERVENTION_DAYS} 日 / {EXPECTED_EPISODE_BLOCKS} blocks"
+            f" / sha {EXPECTED_IV_SHA16}\n"
+            f"  実測 {len(iv_days)} 日 / {len(blocks)} blocks / sha {iv_sha}:"
+            f" {[str(d) for d in iv_days]}")
 
     off_bd = [d for d in iv_days if not det.is_business_day(d)]
     iv_set = set(iv_days)

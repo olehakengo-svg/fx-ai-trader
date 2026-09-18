@@ -101,6 +101,40 @@ def test_label_population_matches_the_prereg_declaration():
     assert len(p2.episode_blocks(days)) == p2.EXPECTED_EPISODE_BLOCKS
 
 
+# --- Codex P2 (PR #270 第14波): ラベルは基数ではなく実体で pin ------------------
+def test_label_population_is_pinned_by_identity_not_cardinality():
+    """順序つき介入日リストの指紋が凍結時と一致すること。
+
+    日数 10 / block 数 4 だけの照合では、**同じ block 内で介入日が 1 日
+    入れ替わっても通る** — 陽性マスクも J も p も secondary も変わるのに
+    ABORT しない。「一度限りの凍結測定」を名乗る以上、母集団は実体で pin する。
+    """
+    days = p2.load_intervention_days()
+    assert p2._sha16_dates(days) == p2.EXPECTED_IV_SHA16, [str(d) for d in days]
+
+
+def test_abort_when_an_intervention_date_is_swapped_within_its_block(monkeypatch):
+    """基数を保ったまま介入日を 1 日ずらしたら ABORT すること (counterfactual)。
+
+    この入れ替えは 10 日 / 4 block を保つので、第13波までのガードは素通りした。
+    """
+    real = p2.load_intervention_days
+
+    def shifted():
+        days = list(real())
+        days[4] = days[4] + dt.timedelta(days=1)   # 2024-05-01 -> 05-02 (同 block 内)
+        return days
+
+    monkeypatch.setattr(p2, "load_intervention_days", shifted)
+    moved = shifted()
+    assert len(moved) == p2.EXPECTED_INTERVENTION_DAYS
+    assert len(p2.episode_blocks(moved)) == p2.EXPECTED_EPISODE_BLOCKS
+    with pytest.raises(SystemExit) as ei:
+        p2.run()
+    assert "ABORT" in str(ei.value)
+    assert "sha" in str(ei.value), str(ei.value)
+
+
 def test_verdict_artifact_records_the_calendar_defect():
     """凍結カレンダーが陽性を 3 日落とした事実が成果物に残っていること。
 
