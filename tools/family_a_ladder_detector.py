@@ -14,6 +14,8 @@ pass-1 gates computed here.
 
 Frozen parameters (design argument only, never data-calibrated):
     T = 5   business days  carry-forward of the last conference level
+    conferences held on a non-business day are rolled onto the next
+    business day (max on collision) — see `next_business_day`
     R = 20  business days  rearm window, measured event-to-event
                            (minimum separation R+1 = 21 bd > H, so the
                             per-event hit windows partition cleanly)
@@ -74,6 +76,22 @@ def is_business_day(day: _dt.date) -> bool:
     if (day.month, day.day) in ((12, 29), (12, 30), (12, 31), (1, 2), (1, 3)):
         return False
     return True
+
+
+def next_business_day(day: _dt.date) -> _dt.date:
+    """First Tokyo business day on or after `day`.
+
+    A conference held on a weekend or a public holiday (G7/IMF meeting
+    weekends, Golden Week — i.e. exactly the high-stress FX moments) is first
+    observable on the next business day.  Rolling *forward* is the only
+    normalization that does not place a statement before it was made.
+    """
+    d = day
+    for _ in range(14):
+        if is_business_day(d):
+            return d
+        d += _dt.timedelta(days=1)
+    return d
 
 
 def business_days(start: _dt.date, end: _dt.date) -> list[_dt.date]:
@@ -139,7 +157,14 @@ def build(
     scores_csv: str = DEFAULT_SCORES_CSV,
 ) -> DetectorOutput:
     """Build the frozen signal state series, event list and armed mask."""
-    conf = load_conference_levels(scores_csv) if conference_levels is None else conference_levels
+    conf_raw = load_conference_levels(scores_csv) if conference_levels is None else conference_levels
+    # Non-business-day conferences are rolled onto the next business day;
+    # collisions keep the max level (13 of 512 conferences in the frozen
+    # corpus fall on weekends/holidays, including an L4 断固 on 2026-05-04).
+    conf: dict[_dt.date, int] = {}
+    for day, lv in conf_raw.items():
+        bd = next_business_day(day)
+        conf[bd] = max(conf.get(bd, 0), lv)
     days = business_days(start, end)
     level: dict[_dt.date, int] = {}
     carry_lv, carry_age = 0, 0

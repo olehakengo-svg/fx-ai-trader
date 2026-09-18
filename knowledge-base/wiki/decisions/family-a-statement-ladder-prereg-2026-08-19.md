@@ -116,6 +116,7 @@
 | detector | `tools/family_a_ladder_detector.py` (本 PR 新設、label-free / price-free) |
 | 回帰 pin | `tests/test_family_a_ladder_detector.py` (16 tests) |
 | 水準写像 | **retrospective L5 の降格** — `レートチェック` 以外の L5 語 (`介入を実施/行い/行った/いたし/行う`, `平衡操作を実施`) のみで L5 になった会見は、その会見が matched した L1–L4 の最大値へ降格 (無ければ 0)。**根拠 = 敵対的検証 A-1** (corpus の L5 9 件すべてが事後ナレーション/一般論 = 検出器に答えを渡す look-ahead) |
+| 非営業日会見 | **翌営業日へ roll forward** (衝突は max)。**根拠 = A-8** (corpus 13/512 が土日祝、うち 2026-05-04 は L4 `断固` = 初版では event ゼロだった)。前方に倒すのは、非営業日の発言が作用しうる最初の日が翌営業日であるため (後方 roll は look-ahead) |
 | T (carry) | **5** 営業日 |
 | R (rearm) | **20** 営業日、**event-to-event で測る** (A-2。最小 event 間隔 R+1 = 21bd > H で hit 窓が清く分割) |
 | H (horizon) | **20** 営業日 |

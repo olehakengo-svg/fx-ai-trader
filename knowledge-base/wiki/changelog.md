@@ -12,7 +12,9 @@
 - ✅ **A-5/A-6: pass-1 gate を label-free で数値凍結** (E23 two-pass 様式踏襲) — **Gate A (特異度)** armed 営業日率 ≤ 0.25 / **Gate B (供給)** event ≥ 5 **かつ相異なる暦年 ≥ 2**。暦年条件は話者交代の交絡分離: L4 `断固` の年次分布は **2022:3 / 2023:0 / 2024:0 / 2025:0 / 2026:13** で、単一年集中の event 群は「介入前の梯子」でなく「片山期の語法」を測っている可能性を分離できない。**pass-1 は label 非接触 = 不通過なら explore の look を一切消費せず park**
 - ✅ **A-7: corpus 連続性 PASS** (scan 第5次 §1.2 の凍結前チェック要求) — `conferences/*.jsonl` 57 月ファイルで **202201→202609 欠落月ゼロ**、レコード 512 / parse 失敗 0、`lexicon_scores.csv` **512 行 = 1:1**、右端 **2026-09-15 = 復旧された negative sample** (`my20260915.html`、max_level 0)。FP 率較正の分母は連続
 - ⚠️ **peek 会計 追補** — P-A6: 本検証で観測したのは **signal 側のみ** (水準分布・駆動語句・会見 cadence・corpus 連続性)。**発言×介入ラベルのジョイント量は一度も計算していない**。イベント列挙すら凍結後の pass-1 に回した / P-A7: forward 期の介入エピソード実在は既知 (月次開示 08-28、07-30..08-26 窓 15.4 兆円) だが**日次日付は未開示** — forward OOS は MoF 公式日次開示のみで判定し、**発言テキストからの介入日推定も禁止**
-- 回帰 pin `tests/test_family_a_ladder_detector.py` 16 本 (凍結定数 / A-1 remap 5 ケース / A-2 rearm / hit 窓分割 / gate 形状 / **検出器がラベル・価格を参照しない構造 pin**)
+- 🔴 **A-8 (レビュー由来 blocking、Codex P2 / PR #265 → 凍結前に修正)**: 初版の検出器は営業日カレンダー上でのみ会見日を引くため**土日祝開催の会見を黙って無視**していた。corpus 実測で該当 **13/512 件**、うち **2026-05-04 (みどりの日) は L4 `断固`** = trigger 水準なのに **event をひとつも生まない**実害。非営業日会見が集まるのは G7/IMF 総会週末と GW = 為替が最も緊張する局面で、miss 側バイアスが最悪の場所に入る。**修正 = 翌営業日へ roll forward (衝突は max)** — 前方に倒すのは、非営業日の発言が作用しうる最初の日が翌営業日だから (後方 roll は look-ahead)。**凍結後の検出器変更は pre-reg の破棄に等しいため、マージ前に修正**
+- ⚠️ **`tools/pr_review_gate.py` が本 P2 を「指摘なし」と報告した** — inline review comment を見ていない。ゲート出力を額面で受け取らず生のレビュー本文を読んだことで捕捉 (MEMORY `project_review_gate_vacuous_2026_09_11` の再発、2 例目)。ゲート自体の修理は別 PR
+- 回帰 pin `tests/test_family_a_ladder_detector.py` 20 本 (凍結定数 / A-1 remap 5 ケース / A-2 rearm / hit 窓分割 / gate 形状 / **検出器がラベル・価格を参照しない構造 pin** / A-8 roll-forward 4 本 — うち 1 本は corpus に L≥4 非営業日会見が存在することを pin する退行ガード)
 - doc: [[family-a-adversarial-verification-2026-09-18]] / 凍結内容 [[family-a-statement-ladder-prereg-2026-08-19]] §10
 
 ## 2026-09-17 — 決裁バッチ執行: P-S1(a) Option C retire / U1 ミッション改定 / kalman postfill / U4 feasibility (user「推奨で進めて」)

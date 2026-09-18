@@ -130,3 +130,31 @@ def test_event_hit_windows_partition_cleanly():
     assert out.events == [d0, second]
     # armed days = 2 disjoint windows of H+1 days each
     assert len(out.armed) == 2 * (det.H_HORIZON_BD + 1)
+
+
+# --- Codex P2 (PR #265): weekend / holiday conferences must not be dropped ---
+def test_next_business_day_rolls_forward_only():
+    assert det.next_business_day(dt.date(2026, 9, 18)) == dt.date(2026, 9, 18)   # Fri
+    assert det.next_business_day(dt.date(2026, 9, 19)) == dt.date(2026, 9, 24)   # Sat -> 秋分/振替 明け
+    assert det.next_business_day(dt.date(2026, 5, 3)) == dt.date(2026, 5, 7)     # GW
+
+
+def test_weekend_l4_conference_still_emits_an_event():
+    """2026-05-04 (holiday) carries an L4 断固 in the frozen corpus."""
+    conf = {dt.date(2026, 5, 4): 4}
+    out = det.build(dt.date(2026, 4, 1), dt.date(2026, 6, 30), conference_levels=conf)
+    assert out.events == [dt.date(2026, 5, 7)]
+
+
+def test_rolled_conferences_collide_by_max():
+    conf = {dt.date(2026, 5, 3): 0, dt.date(2026, 5, 4): 4}   # both roll to 05-07
+    out = det.build(dt.date(2026, 4, 1), dt.date(2026, 6, 30), conference_levels=conf)
+    assert out.level[dt.date(2026, 5, 7)] == 4
+
+
+def test_corpus_has_non_business_day_conferences():
+    """Regression guard: the defect class is real in the committed corpus."""
+    levels = det.load_conference_levels()
+    off = [d for d in levels if not det.is_business_day(d)]
+    assert off, "corpus no longer exercises the roll-forward path"
+    assert max(levels[d] for d in off) >= 4, "an L>=4 non-business-day conference must exist"
