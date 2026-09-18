@@ -280,19 +280,28 @@ def power_curve(armed: list[bool], block_offsets: list[list[int]],
         return float(j[0]), float((1 + (null >= j[0]).sum()) / (1 + null.size))
 
     def _place(hit_blocks: int):
-        """block を丸ごと配置。hit_blocks 個は先頭を armed 内に置く。"""
+        """block を丸ごと配置し、**要求した hit/miss を全日で強制**する。
+
+        hit  = その block の **いずれかの日**が armed (検出器の event 意味論と一致)
+        miss = その block の **すべての日**が非 armed
+
+        先頭日だけで判定すると、miss 指定の block が後続日で armed に掛かったり、
+        hit 指定の block が実は 1 日しか掛かっていなかったりする
+        (Codex P2 第6波)。ここでは生成位置の全日を検査して棄却サンプリングする。
+        """
         lab = np.zeros(n)
         order = rng.permutation(n_blocks)
         for rank, bi in enumerate(order):
             offs = block_offsets[bi]
             span = offs[-1]
-            pool = armed_idx if rank < hit_blocks else non_idx
-            for _ in range(200):
-                start = int(rng.choice(pool))
-                if start + span >= n:
-                    continue
+            want_hit = rank < hit_blocks
+            for _ in range(4000):
+                start = int(rng.integers(0, n - span))
                 pos = [start + o for o in offs]
                 if any(lab[q] for q in pos):
+                    continue
+                is_hit = any(a[q] for q in pos)
+                if is_hit != want_hit:
                     continue
                 for q in pos:
                     lab[q] = 1

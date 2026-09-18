@@ -80,41 +80,41 @@
       1
     ],
     "observed_hit_blocks": 2,
-    "power_at_observed_effect": 0.145,
+    "power_at_observed_effect": 0.15166666666666667,
     "curve": [
       {
         "hit_blocks": 0,
         "n_blocks": 4,
-        "mean_j": -0.11290861121923756,
+        "mean_j": -0.13351498637602247,
         "power": 0.0,
         "reps_kept": 600
       },
       {
         "hit_blocks": 1,
         "n_blocks": 4,
-        "mean_j": 0.09722849357726832,
-        "power": 0.0016666666666666668,
+        "mean_j": 0.07063189308420993,
+        "power": 0.0,
         "reps_kept": 600
       },
       {
         "hit_blocks": 2,
         "n_blocks": 4,
-        "mean_j": 0.2915514034860064,
-        "power": 0.145,
+        "mean_j": 0.29394749362051614,
+        "power": 0.15166666666666667,
         "reps_kept": 600
       },
       {
         "hit_blocks": 3,
         "n_blocks": 4,
-        "mean_j": 0.5175027031702792,
-        "power": 0.6016666666666667,
+        "mean_j": 0.49833398209420227,
+        "power": 0.6166666666666667,
         "reps_kept": 600
       },
       {
         "hit_blocks": 4,
         "n_blocks": 4,
-        "mean_j": 0.7233268457246634,
-        "power": 0.8633333333333333,
+        "mean_j": 0.7135028761731735,
+        "power": 0.9016666666666666,
         "reps_kept": 600
       }
     ]

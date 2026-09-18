@@ -187,11 +187,10 @@ def test_artifact_is_strict_json_without_nan():
 
 # --- Codex P2 (PR #270 第4波): perfect-effect control は power analysis ではない --
 def test_power_curve_preserves_episode_blocks_and_shows_low_power():
-    """FAIL を『分離が無い』と読ませないための pin (Codex P2 第4-5波)。
+    """FAIL を『分離が無い』と読ませないための pin (Codex P2 第4-6波)。
 
-    効果量の軸は armed に入る **episode block** 数。実ラベルは営業日系列上で
-    [3,1,2,1] の 4 block に集中しており、一様散布は独立試行を仮定して
-    検出力を過大評価する (day 基準だと 0.338、block 保存だと 0.145)。
+    効果量の軸は armed に掛かる **episode block** 数 ([3,1,2,1] の 4 block)。
+    hit/miss は生成位置の**全日**で強制する。
     """
     import json
     art = pathlib.Path("knowledge-base/raw/analysis/family-a-pass2-verdict-2026-09-18.json")
@@ -200,13 +199,27 @@ def test_power_curve_preserves_episode_blocks_and_shows_low_power():
     curve = {r["hit_blocks"]: r["power"] for r in pa["curve"]}
     assert pa["observed_hit_blocks"] == 2
     assert pa["power_at_observed_effect"] == curve[2]
-    # 観測効果量では実用域に遠く届かない
-    assert 0.05 < curve[2] < 0.30, curve
-    # 単調 + 弱い効果は検出不能
-    assert curve[0] < 0.02 and curve[1] < 0.05
+    assert 0.05 < curve[2] < 0.30, curve          # 観測効果量は実用域に遠い
+    assert curve[0] < 0.02 and curve[1] < 0.05    # 弱い効果は検出不能
+    assert curve[3] < 0.80, curve                 # 3/4 でもまだ実用域未満
     assert all(curve[k] <= curve[k + 1] + 1e-9 for k in range(4))
-    # 完全な検出器ですら 0.9 に届かない = 設計そのものに無理があった
-    assert 0.75 < curve[4] < 0.90, curve
+
+
+def test_power_sim_enforces_hit_status_on_every_block_day():
+    """先頭日だけの判定だと miss 指定 block が armed に掛かる (Codex P2 第6波)。
+
+    hit = block のいずれかの日が armed / miss = 全日が非 armed、を全日検査で強制。
+    """
+    from tools import family_a_ladder_detector as det
+    from tools.family_a_pass1 import EXPLORE_END, EXPLORE_START
+    out = det.build(EXPLORE_START, EXPLORE_END)
+    armed = [d in out.armed for d in out.days]
+    # 内部間隔の広い block (span 20bd) を含む構成で 0 hit を要求すると、
+    # 先頭日だけの判定では armed に掛かる配置が混ざる。全日強制なら混ざらない。
+    curve = p2.power_curve(armed, [[0, 19, 20], [0], [0, 1], [0]], reps=40, seed=7)
+    zero = next(r for r in curve if r["hit_blocks"] == 0)
+    assert zero["power"] == 0.0, zero
+    assert zero["mean_j"] < 0, zero   # 全 miss なら J は必ず負
 
 
 def test_power_analysis_is_flagged_post_hoc_and_unused_for_verdict():
