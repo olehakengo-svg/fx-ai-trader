@@ -10,8 +10,12 @@
 - **§5 FAIL 分岐の執行**: ladder 検出器は介入確率に情報なしと記録 / **family B は発言層なしで設計** (or 独立裁定) / **lexicon 基盤の収集は継続** (`mof-statements-daily` cron 維持、アーカイブ価値は判定と独立)。explore 枠は凍結時に消費済みで追加消費なし
 - ⚠️ **引用規律**: 否定されたのは「**凍結 ladder 検出器 (L≥4 遷移 / T,R,H=5,20,20 / retrospective L5 降格 / 凍結営業日カレンダー) が 2022-01-07〜2026-07-29 で MoF 公式円買い介入日と day-level で分離する**」という一点のみ。**「口先介入に情報がない」ではない** (有効 N=4 blocks / 陽性 7 日の記述級)。引用時は**カレンダー欠陥を必ず併記** ([[feedback_audit_past_verdicts_2026_08_05]])
 - **forward 期 (2026-07-30〜) は未接触のまま凍結維持** — 将来の新 pre-reg が同じ窓を genuine OOS として使える状態を保つため、P-10 型 ban は解除しない
+- 🔴 **Codex P2 第 2 波 ×3 対応 — うち 2 件は公表した数値が誤りだった (primary J/p は不変)**:
+  - **(1) 話者層別が層別になっていなかった** — per-year の J は armed だけを年で絞り**ラベルは全年のまま**だったため、分母が全 7 陽性の「**寄与**分解」であって within-year の層別 J ではなかった。**「片山期 J はほぼゼロ (0.0484)」は誤り** — 層別で測ると **2026 = 0.2464**。`contribution_j_labels_all_years` と `stratified_j_within_year` を別フィールドに分離。🔵 **訂正して初めて見えた最強の所見 = 2024**: 介入 4 日 (営業日系列上 3 日) があるのに **event ゼロ / 層別 J = 0.0** — L4「断固」が 2023–2025 に皆無で **検出器がまる 1 年沈黙**していた。これが「話者/時代に縛られた検出器」の最も直接的な証拠であり全体 FAIL の主因。層別 J は 2022 **0.4972** > 2026 **0.2464** で話者勾配は実在するが初版が書いたほど極端ではない (かつ 2026 は営業日系列上の陽性 1 日のみで点推定はほぼ無意味)
+  - **(2) positive control の p=0.0027 が誤り** — あの値は**合成の等間隔 armed マスク**上のもので、**凍結検出器の実 armed 系列**ではなかった。circular-shift の有意性は armed 窓の位置と間隔に依存する。実系列で取り直すと **各 event 窓に陽性 1 つ (k=7) で p=0.0190** / armed 全日陽性で p=0.0009。**結論 (検出力はあった) は不変**だが数値を訂正し、回帰 pin を**凍結 events から armed を再構成する**形に作り直した
+  - **(3) registry / 台帳の resolution に旧解釈が残存** — 他ファイルを訂正しても canonical な registry と台帳が「2022 = 2 event / 2 hit」「片山期ほぼゼロ」を保持しており、読み手は訂正前の解釈を受け取る状態だった。両方を訂正
 - 🟠 **Codex P2 ×3 対応 (いずれも記述の正確さ、primary 統計 J/p は不変)**: (a) 上記 event/日 の混同を `events_with_hit` / `hit_days` に分離 + 回帰 2 本 pin / (b) 台帳 #27 の **verdict 列が「未測定」のままだった** → FAIL を verdict 列へ移動 (状態列だけ直しても canonical ledger の読み手には未測定に見える) / (c) **session log §6「触っていないもの」が「介入ラベルとのジョイント計算」を残したまま**で、look 消費後に**偽**になっていた → 「触った」節を新設。**peek 会計の記述は look を消費した時点で同じコミット内で更新する** (放置すると「窓は焼いていない」という最重要の主張が嘘のまま残る)
-- 成果物: `tools/family_a_pass2.py` (凍結測定ハーネス) / 回帰 pin `tests/test_family_a_pass2.py` (12 本) / verdict [[family-a-pass2-verdict-2026-09-18]] / 生値 JSON / pre-reg §11 / registry `family-a-explore-verdict-deadline` resolved / 台帳 #27
+- 成果物: `tools/family_a_pass2.py` (凍結測定ハーネス) / 回帰 pin `tests/test_family_a_pass2.py` (13 本) / verdict [[family-a-pass2-verdict-2026-09-18]] / 生値 JSON / pre-reg §11 / registry `family-a-explore-verdict-deadline` resolved / 台帳 #27
 
 ## 2026-09-18 — research(family A): pass-1 執行 — Gate A / Gate B ともに PASS、**pass-2 解錠** (rule:R1 手続き、label 非接触)
 
