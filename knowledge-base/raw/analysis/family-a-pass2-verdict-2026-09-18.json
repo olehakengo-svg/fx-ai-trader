@@ -1,0 +1,209 @@
+{
+  "pre_reg": "family-a-statement-ladder-prereg-2026-08-19.md §10.2 / §10.4",
+  "series_fingerprint": {
+    "days_sha256_16": "83a8291d1bfd1542",
+    "armed_sha256_16": "0828367a8a8645a7",
+    "expected_days_sha256_16": "83a8291d1bfd1542",
+    "expected_armed_sha256_16": "0828367a8a8645a7",
+    "note": "凍結 pass-1 成果物は days/armed のマスクを保存していなかったため (設計の不足)、本 pass-2 実行時点の指紋をここに記録して以後の drift 検出の基準点にする。照合自体は凍結 events から armed を 独立再構成して日付同一性まで行っている。"
+  },
+  "explore_window": [
+    "2022-01-07",
+    "2026-07-29"
+  ],
+  "n_business_days": 1108,
+  "events": [
+    "2022-05-19",
+    "2022-09-29",
+    "2026-01-16",
+    "2026-03-17",
+    "2026-04-24",
+    "2026-05-29",
+    "2026-06-30"
+  ],
+  "intervention_days": [
+    "2022-09-22",
+    "2022-10-21",
+    "2022-10-24",
+    "2024-04-29",
+    "2024-05-01",
+    "2024-07-11",
+    "2024-07-12",
+    "2026-04-30",
+    "2026-05-04",
+    "2026-05-06"
+  ],
+  "episode_blocks": [
+    [
+      "2022-09-22",
+      "2022-10-21",
+      "2022-10-24"
+    ],
+    [
+      "2024-04-29",
+      "2024-05-01"
+    ],
+    [
+      "2024-07-11",
+      "2024-07-12"
+    ],
+    [
+      "2026-04-30",
+      "2026-05-04",
+      "2026-05-06"
+    ]
+  ],
+  "intervention_days_off_business_calendar": [
+    "2024-04-29",
+    "2026-05-04",
+    "2026-05-06"
+  ],
+  "contingency": {
+    "n_pos": 7,
+    "n_neg": 1101,
+    "armed_and_pos": 3,
+    "armed_and_neg": 144,
+    "tpr": 0.42857142857142855,
+    "fpr": 0.1307901907356948
+  },
+  "statistic": {
+    "j_obs": 0.29778123783573374,
+    "p_one_sided": 0.10740072202166065,
+    "n_shifts": 1107,
+    "null_mean": -0.00026899840816218217,
+    "null_p95": 0.29778123783573374,
+    "null_max": 0.44154664590631887
+  },
+  "alpha": 0.05,
+  "verdict": "FAIL",
+  "frozen_null_structure_diagnostic": {
+    "observed_blocks": 4,
+    "n_shifts": 1107,
+    "block_count_distribution": {
+      "4": 882,
+      "5": 225
+    },
+    "non_preserving_shifts": 225,
+    "non_preserving_fraction": 0.2032520325203252,
+    "note": "凍結 null は『ラベル系列の一様 circular shift』であり実装はそのとおり。ただし営業日 index 上の一様シフトは暦日 episode 規約 (gap>=30d) を厳密には保たない。**事後修正は §10.5 で禁止** (null を変えると p が変わる = 凍結された primary の作り替え) — verdict は FAIL のまま、本診断は限界の開示であって再解析ではない。"
+  },
+  "power_analysis_post_hoc": {
+    "note": "凍結時に power analysis を規定しなかったのは設計の不足。本曲線は Codex P2 (PR #270) を受けた post-hoc の解釈材料であり、verdict の判定には使わない。実 armed 系列 + 合成ラベルのみ。",
+    "reps": 600,
+    "seed": 20260918,
+    "block_sizes_business_days": [
+      3,
+      1,
+      2,
+      1
+    ],
+    "observed_hit_blocks": 2,
+    "power_at_observed_effect": 0.13,
+    "curve": [
+      {
+        "hit_blocks": 0,
+        "n_blocks": 4,
+        "mean_j": -0.13351498637602247,
+        "power": 0.0,
+        "reps_kept": 600,
+        "attempts": 722,
+        "reached_target_reps": true
+      },
+      {
+        "hit_blocks": 1,
+        "n_blocks": 4,
+        "mean_j": 0.07494485532632755,
+        "power": 0.0,
+        "reps_kept": 600,
+        "attempts": 739,
+        "reached_target_reps": true
+      },
+      {
+        "hit_blocks": 2,
+        "n_blocks": 4,
+        "mean_j": 0.28124821590761456,
+        "power": 0.13,
+        "reps_kept": 600,
+        "attempts": 771,
+        "reached_target_reps": true
+      },
+      {
+        "hit_blocks": 3,
+        "n_blocks": 4,
+        "mean_j": 0.4954586739327908,
+        "power": 0.7266666666666667,
+        "reps_kept": 600,
+        "attempts": 791,
+        "reached_target_reps": true
+      },
+      {
+        "hit_blocks": 4,
+        "n_blocks": 4,
+        "mean_j": 0.6931361100298413,
+        "power": 0.9533333333333334,
+        "reps_kept": 600,
+        "attempts": 785,
+        "reached_target_reps": true
+      }
+    ]
+  },
+  "secondary_descriptive": {
+    "per_event_year": {
+      "2022": {
+        "n_events": 2,
+        "events_with_hit": 1,
+        "hit_days": 2,
+        "n_intervention_days_in_year": 3,
+        "n_positive_business_days_in_year": 3,
+        "contribution_j_labels_all_years": 0.24938367717659268,
+        "stratified_j_within_year": 0.4971751412429378
+      },
+      "2023": {
+        "n_events": 0,
+        "events_with_hit": 0,
+        "hit_days": 0,
+        "n_intervention_days_in_year": 0,
+        "n_positive_business_days_in_year": 0,
+        "contribution_j_labels_all_years": 0.0,
+        "stratified_j_within_year": null
+      },
+      "2024": {
+        "n_events": 0,
+        "events_with_hit": 0,
+        "hit_days": 0,
+        "n_intervention_days_in_year": 4,
+        "n_positive_business_days_in_year": 3,
+        "contribution_j_labels_all_years": 0.0,
+        "stratified_j_within_year": 0.0
+      },
+      "2025": {
+        "n_events": 0,
+        "events_with_hit": 0,
+        "hit_days": 0,
+        "n_intervention_days_in_year": 0,
+        "n_positive_business_days_in_year": 0,
+        "contribution_j_labels_all_years": 0.0,
+        "stratified_j_within_year": null
+      },
+      "2026": {
+        "n_events": 5,
+        "events_with_hit": 1,
+        "hit_days": 1,
+        "n_intervention_days_in_year": 3,
+        "n_positive_business_days_in_year": 1,
+        "contribution_j_labels_all_years": 0.04839756065914104,
+        "stratified_j_within_year": 0.24637681159420288
+      }
+    },
+    "lead_business_days_per_event": [
+      null,
+      15,
+      null,
+      null,
+      3,
+      null,
+      null
+    ]
+  },
+  "claim_ceiling": "有効 N = 4 episode blocks。PASS でも記述級 — edge 主張・live/tier/lot 変更は恒久ゼロ (§5)"
+}
