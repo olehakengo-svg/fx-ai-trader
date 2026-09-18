@@ -1,5 +1,17 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-18 — research(family A): pass-1 執行 — Gate A / Gate B ともに PASS、**pass-2 解錠** (rule:R1 手続き、label 非接触)
+
+- ✅ **凍結検出器でイベント列挙 + gate 判定を実行** (`tools/family_a_pass1.py`)。**label 非接触** — 参照したのは `lexicon_scores.csv` のみで `interventions_daily.csv` は開いていない (`tests/test_family_a_pass1.py` で構造 pin)。pass-1 の存在理由は「explore outcome に触れずに park 判定できること」(pre-reg §10.3)
+- **Gate A (特異度) PASS**: armed 営業日率 **0.1327** (147 / 1,108 bd) ≤ 0.25。凍結時に論拠として書いた設計期待 (event 5–8 本 × 21bd / 約 1,120bd = **9–15%**) の中に着地 — **データを見ずに置いた閾値が実測と整合**しており、事後的に緩めた閾値ではない
+- **Gate B (供給) PASS**: event **7** 本 ≥ 5、相異なる暦年 **2** (2022, 2026) ≥ 2 → **pass-2 解錠**
+- event = `2022-05-19 / 2022-09-29 / 2026-01-16 / 2026-03-17 / 2026-04-24 / 2026-05-29 / 2026-06-30`
+- 窓内サマリ (explore 2022-01-07〜2026-07-29、営業日 1,108 / 会見 464): 実効水準 L0:287 / L1:22 / L2:37 / L3:101 / **L4:17 / L5:0**。**L5 が 0 件**なのは A-1 remap が効いているため (corpus の L5 は全て retrospective で talk 水準へ降格、`レートチェック` は窓内に 1 件も出現せず)。非営業日会見 13 件は A-8 の roll-forward で readout に明示
+- ⚠️ **凍結条件を満たした上での正直な power 所見 (verdict で必ず併記)**: **Gate B は下限ぎりぎり** — 暦年ちょうど 2、内訳 **2022:2 / 2026:5** で供給の 5/7 が片山期に集中する (L4「断固」年次 2022:3 / 2023-25:0 / 2026:13)。Gate B の「暦年 ≥ 2」はまさにこの交絡分離のために置いた条件であり**通ったのだから解錠する**が、「話者非依存の検出器である」ことを示したわけではない。verdict では **speaker-stratified な記述 (secondary)** を併記し **2022 の 2 本だけで結論が反転しないか**を点検する。**閾値の事後強化は §10.5 で禁止** — ゴールポストの移動であり caveat として書くのであって gate は変えない
+- **次 = pass-2 (測定)**: day-level Youden **J = P(armed｜介入日) − P(armed｜非介入日)** + episode-block circular-shift **B=10,000**、α=0.05 片側、verdict 分岐 §10.4。期日 registry `family-a-explore-verdict-deadline` (**2026-09-28**)。**本 readout の main 着地後に 1 回だけ走らせる** (イベント集合を先に凍結してから outcome に触れる = event set チューニング防止)
+- 主張上限は不変 — 有効 N = 4 episode blocks につき **PASS しても記述級**、edge 主張・live 変更ゼロ
+- 🟠 **Codex P2 対応**: docstring に書いた `python3 tools/family_a_pass1.py` が **実際には ModuleNotFoundError で動かなかった** (直接実行だと `sys.path[0]` が `tools/` になり `from tools import ...` が解決できない)。`__main__` ガード内でのみリポジトリルートを `sys.path` に足して修復 — **ライブラリ import 時の副作用はゼロ** (CLAUDE.md「tools/*.py はスクリプトでありライブラリでもある」規律)。回帰 2 本 (**2 形態を実際に subprocess 起動して rc=0 と出力を確認** / sys.path 操作が `__main__` ガード外に出ていないことの構造 pin、5 → 7)
+- doc: [[family-a-pass1-gates-2026-09-18]] / 凍結 [[family-a-statement-ladder-prereg-2026-08-19]] §10.3
 ## 2026-09-18 — fix(process): マージゲートの findings 軸が導入以来ずっと恒真だった — 第 3 の空振り形状 (rule:R3)
 
 - 🔴 **`tools/pr_review_gate.py` は P1/P2 を 1 件も観測していなかった** — connector は指摘を **inline review comment (review thread)** で投げるが、旧実装は `gh pr view --json reviews,comments` しか読まない。`reviews` に入るのは review の**本文**であって thread 本文ではないため、**findings は構造的に空**。「P1/P2 指摘なし — マージ可」は**恒真命題**だった
