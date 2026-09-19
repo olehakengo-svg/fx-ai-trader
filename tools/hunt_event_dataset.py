@@ -73,6 +73,19 @@ IDENTITY_EXCLUDE = frozenset({
 # 黙って片方を採る場面ではない。会計に載せて validity gate で止める。
 OUTCOME_FIELDS = ("reversal", "actual_outcome", "actual_pnl_pips")
 
+# dedup の粒度は**母集団ごとに違う** (PR #272 Codex P2、3 巡目)。
+# `entry_time` が何を指すかが母集団で異なるのが理由:
+#   "signal" — hunt_events: engine が同じ bar を tick ごとに再評価し、`entry_time` は
+#              **書込み時刻**。同一 bar の反復発火は 1 観測なので除外する
+#   "bar"    — sr_audit の benchmark (「SR 近接 全 bar」): 1 bar 1 行で
+#              `entry_time` は **bar の identity**。除外すると相異なる bar が
+#              全部 1 群に潰れ、偽の outcome 衝突が出て N が床を割る
+# どちらも outcome 列は除外する (post-hoc なので観測の identity ではない)。
+DEDUP_MODES = {
+    "signal": IDENTITY_EXCLUDE,
+    "bar": frozenset(OUTCOME_FIELDS),
+}
+
 # D4: ラベル付き行がこれを下回れば verdict を出さない。
 # Rule 1 の N>=30 と同じ床 (CLAUDE.md 判断プロトコル)。
 LABELED_N_FLOOR = 30
@@ -154,14 +167,20 @@ def split_provenance(
     return collected, quarantined
 
 
-def identity(row: dict[str, Any]) -> tuple:
-    """D3: 独立観測の identity — signal 時点のフィールドのみ。
+def identity(row: dict[str, Any], *, dedup: str = "signal") -> tuple:
+    """D3: 独立観測の identity。`dedup` で粒度を選ぶ (`DEDUP_MODES` 参照)。
 
-    `IDENTITY_EXCLUDE` (書込み時刻 + post-hoc outcome 列) は含めない。
+    - `"signal"` (既定): 書込み時刻 + post-hoc outcome 列を除く
+    - `"bar"`: outcome 列のみ除く (`entry_time` = bar identity を保つ)
     """
+    try:
+        exclude = DEDUP_MODES[dedup]
+    except KeyError:
+        raise ValueError(
+            f"unknown dedup mode: {dedup!r} (expected {sorted(DEDUP_MODES)})") from None
     return tuple(sorted(
         (k, json.dumps(v, sort_keys=True))
-        for k, v in row.items() if k not in IDENTITY_EXCLUDE
+        for k, v in row.items() if k not in exclude
     ))
 
 
@@ -171,6 +190,8 @@ def _outcome_of(row: dict[str, Any]) -> tuple:
 
 def collapse_repeats(
     rows: Iterable[dict[str, Any]],
+    *,
+    dedup: str = "signal",
 ) -> tuple[list[dict[str, Any]], int, list[dict[str, Any]]]:
     """D3: 同一 signal identity の行を 1 件に潰す。
 
@@ -188,7 +209,7 @@ def collapse_repeats(
     groups: dict[tuple, list[dict[str, Any]]] = {}
     repeats = 0
     for row in rows:
-        key = identity(row)
+        key = identity(row, dedup=dedup)
         if key in groups:
             repeats += 1
             groups[key].append(row)
@@ -256,6 +277,7 @@ def prepare(
     side: str | None = None,
     labeled_n_floor: int = LABELED_N_FLOOR,
     enforce_provenance: bool = True,
+    dedup: str = "signal",
 ) -> dict[str, Any]:
     """読み取り〜validity gate までを 1 本にした入口。
 
@@ -266,6 +288,7 @@ def prepare(
         blocked_reasons — 通過しなかった理由 (空なら ok)
 
     `enforce_provenance=False` で D2 (feed-symbol 不変条件) を外す。
+    `dedup` で独立観測の粒度を選ぶ ("signal" / "bar"、`DEDUP_MODES` 参照)。
 
     ⚠️ **D2 は hunt logger 固有の規約であって母集団一般の規約ではない**
     (PR #272 Codex P2)。`sr_audit` の benchmark は「SR 近接 全 bar の reversal」
@@ -282,7 +305,7 @@ def prepare(
         collected, quarantined = split_provenance(raw)
     else:
         collected, quarantined = list(raw), []
-    deduped, repeats, conflicts = collapse_repeats(collected)
+    deduped, repeats, conflicts = collapse_repeats(collected, dedup=dedup)
     cell = select_cell(deduped, pair=pair, side=side)
     labeled, unlabeled = split_labels(cell)
 
@@ -319,6 +342,7 @@ def prepare(
             "side": side,
             "labeled_n_floor": labeled_n_floor,
             "enforce_provenance": enforce_provenance,
+            "dedup": dedup,
         },
     }
 

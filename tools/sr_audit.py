@@ -464,9 +464,14 @@ def main():
         # ⚠️ benchmark は「SR 近接 全 bar」という**別母集団**で hunt logger 由来とは
         # 限らないので、D2 (feed-symbol 不変条件) は課さない (PR #272 Codex P2)。
         # ラベル検査 / dedup / pair·side 絞りは課す。
+        # benchmark は「SR 近接 全 bar」= 1 bar 1 行で `entry_time` が **bar の
+        # identity**。hunt_events の "signal" 粒度 (entry_time = 書込み時刻なので
+        # 除外) をそのまま当てると**相異なる bar が全部 1 群に潰れ**、偽の
+        # outcome 衝突が出て N が床を割る (PR #272 Codex P2、3 巡目)。
+        # ⇒ provenance を外すだけでは足りず、dedup 粒度も母集団に合わせる。
         bench_prepared = hunt_event_dataset.prepare(
             args.benchmark_json, pair=args.pair, side=args.side,
-            enforce_provenance=False)
+            enforce_provenance=False, dedup="bar")
         # ⚠️ benchmark が DATA-BLOCKED のときに空リストを渡すと net_edge が None に
         # なり、**明示的に要求された baseline 比較なしで strict/lenient ゲートが
         # 通る** = promotion ゲートを黙って弱める (PR #272 Codex P1)。

@@ -468,3 +468,77 @@ def test_labeled_duplicates_do_not_inflate_n_after_dedup(tmp_path):
     assert out["accounting"]["outcome_conflicts"] == 0
     assert out["ok"] is True
     assert len(out["events"]) == 40             # 120 ではない
+
+
+# --------------------------------------------------------------------------
+# PR #272 レビュー 4 巡目 — `entry_time` の意味が母集団で違う (同じ根の 3 例目)
+#   hunt_events: entry_time = 書込み時刻  → "signal" 粒度で除外
+#   benchmark:   entry_time = bar identity → "bar" 粒度で保持
+# --------------------------------------------------------------------------
+
+def test_bar_dedup_keeps_distinct_benchmark_bars():
+    """NG 入力: 1 bar 1 行の baseline で entry_time と reversal だけが違う 40 行。
+
+    "signal" 粒度を当てると全行が 1 群に潰れ、偽の outcome 衝突が出て
+    N が床を割る (= exit 5)。"bar" 粒度なら 40 観測が保たれる。
+    """
+    rows = [_row(entry_time=f"2026-09-01T{h:02d}:00:00+00:00", reversal=(h % 2 == 0))
+            for h in range(40)]
+
+    signal_out, signal_repeats, signal_conflicts = hed.collapse_repeats(rows)
+    assert len(signal_out) == 1                       # 潰れてしまう
+    assert signal_repeats == 39
+    assert len(signal_conflicts) == 1                 # 偽の衝突
+
+    bar_out, bar_repeats, bar_conflicts = hed.collapse_repeats(rows, dedup="bar")
+    assert len(bar_out) == 40
+    assert bar_repeats == 0
+    assert bar_conflicts == []
+
+
+def test_bar_dedup_still_collapses_true_duplicates_of_one_bar():
+    """反対側: 同一 bar が 2 度書かれたら "bar" 粒度でも潰れる。"""
+    rows = [_row(entry_time="2026-09-01T00:00:00+00:00", reversal=True),
+            _row(entry_time="2026-09-01T00:00:00+00:00", reversal=True)]
+    out, repeats, conflicts = hed.collapse_repeats(rows, dedup="bar")
+    assert len(out) == 1
+    assert repeats == 1
+    assert conflicts == []
+
+
+def test_bar_dedup_still_flags_conflicts_within_one_bar():
+    rows = [_row(entry_time="2026-09-01T00:00:00+00:00", reversal=True,
+                 actual_outcome="WIN"),
+            _row(entry_time="2026-09-01T00:00:00+00:00", reversal=False,
+                 actual_outcome="LOSS")]
+    _, _, conflicts = hed.collapse_repeats(rows, dedup="bar")
+    assert len(conflicts) == 1
+
+
+def test_benchmark_prepare_passes_with_bar_dedup(tmp_path):
+    """documented benchmark 契約 (1 bar 1 行) が exit 5 にならないこと。"""
+    _write(tmp_path, [_row(instrument="USD_JPY", reversal=(h % 3 == 0),
+                           entry_time=f"2026-09-01T{h:02d}:00:00+00:00")
+                      for h in range(40)])
+    strict = hed.prepare(tmp_path, enforce_provenance=False)      # "signal" 既定
+    assert strict["ok"] is False                                  # 潰れて床割れ
+
+    bench = hed.prepare(tmp_path, enforce_provenance=False, dedup="bar")
+    assert bench["ok"] is True
+    assert len(bench["events"]) == 40
+    assert bench["accounting"]["dedup"] == "bar"
+    assert bench["accounting"]["outcome_conflicts"] == 0
+
+
+def test_unknown_dedup_mode_is_loud():
+    with pytest.raises(ValueError, match="unknown dedup mode"):
+        hed.identity(_row(), dedup="bogus")
+
+
+def test_dedup_modes_are_pinned():
+    """粒度の追加/変更は estimand の変更なので pin する。"""
+    assert set(hed.DEDUP_MODES) == {"signal", "bar"}
+    assert hed.DEDUP_MODES["signal"] == hed.IDENTITY_EXCLUDE
+    assert hed.DEDUP_MODES["bar"] == frozenset(hed.OUTCOME_FIELDS)
+    assert "entry_time" in hed.DEDUP_MODES["signal"]
+    assert "entry_time" not in hed.DEDUP_MODES["bar"]

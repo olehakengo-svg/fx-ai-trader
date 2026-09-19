@@ -177,7 +177,7 @@ negative-control fixture として機能させる。
 |---|---|
 | `load_rows` | JSONL / ディレクトリ / glob / 単一 JSON 配列。壊れた行は例外 (silent skip しない) |
 | `split_provenance` | feed-symbol 不変条件で (実収集, 隔離) に分割 |
-| `collapse_repeats` | identity = **signal 時点のフィールドのみ** (`entry_time` と post-hoc outcome 列を除く)。代表は最古 + グループ内のラベルを引き継ぐ。ラベル衝突は会計に載せて gate で止める |
+| `collapse_repeats` | identity の粒度は `dedup` で選ぶ — **"signal"** (既定、`entry_time` = 書込み時刻なので除外) / **"bar"** (`entry_time` = bar identity なので保持)。どちらも post-hoc outcome 列は除外。代表は最古 + グループ内のラベルを引き継ぐ。ラベル衝突は会計に載せて gate で止める |
 | `select_cell` | `pair` / `side` で**実際に**絞る (`bull`→`support`, `bear`→`resistance`) |
 | `split_labels` | `reversal is None` = 未ラベル。分母から除外 |
 | `prepare` | 上記を直列適用 + validity gate + 各段の会計を返す |
@@ -200,7 +200,7 @@ $ python3 tools/sr_audit.py --events-json knowledge-base/raw/hunt_events --pair 
   - labeled rows 0 < floor 30 (unlabeled 3057 — `reversal` は tools/attribute_hunt_outcomes.py が埋める約束のまま未実装)
 ```
 
-## 3. pin (48 本、`tests/test_hunt_event_dataset.py`)
+## 3. pin (51 本、`tests/test_hunt_event_dataset.py`)
 
 MEMORY `project_review_gate_vacuous_2026_09_11` の指示
 「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」に従い、
@@ -264,6 +264,7 @@ PR #272 の connector レビューが P1 2 件 + P2 1 件を返し、**すべて
 | D3 独立観測の単位 | ✅ 対称 | 同一 payload が独立観測でないのも母集団に依らない |
 | D5 pair / side 絞り | ✅ 対称 | 名乗る estimand を測る要件は同じ |
 | **D2 provenance** | ❌ **非対称** | **feed-symbol は `hunt_event_logger` 固有の規約**で、母集団一般の規約ではない |
+| **D3 の `entry_time` の意味論** | ❌ **非対称** (⚠️ この行は §3.5 で追加 — 初版の表は不完全だった) | hunt_events では書込み時刻 / benchmark では bar identity |
 
 ⇒ `prepare(..., enforce_provenance=False)` を追加し、benchmark はラベル・dedup・
 cell 絞りのみを通す。pin 4 本追加 (`USD_JPY` 表記の完備 baseline が strict では
@@ -317,6 +318,34 @@ event と `reversal` proxy 由来の event (後者は `tp_pip * 0.7` の haircut
 labeler を実装するなら**そのときに内訳を出す**べき。今は `prepare()` の
 validity gate が手前で止めるため到達不能なので、
 registry `hunt-events-labeler-disposition` の note に回した。
+
+### 3.5 レビュー 4 巡目 — `entry_time` の意味が母集団で違った (同じ根の 3 例目)
+
+§3.3 の修正 (outcome 列を identity から外す) は hunt_events には正しかったが、
+**benchmark には壊れた**:
+
+> **Use bar-level identity when deduplicating benchmarks** — benchmark は
+> 1 bar 1 行で、行は `entry_time` と `reversal` だけが違う。hunt-logger の
+> dedup 規則は**その両方**を identity から外すので、**相異なる baseline bar が
+> 全部 1 群に潰れ**、偽の outcome 衝突が出て N=30 の床を割り、`net_edge` を
+> 計算せず exit 5 になる。
+
+**これも正しい。** 根の原因は 1 つ — **`entry_time` が母集団で別の意味を持つ**:
+
+| 母集団 | `entry_time` の意味 | 正しい粒度 |
+|---|---|---|
+| `hunt_events` | engine の**書込み時刻** (同じ bar を tick ごとに再評価) | `"signal"` = 除外 |
+| `sr_audit` benchmark | **bar の identity** (1 bar 1 行) | `"bar"` = 保持 |
+
+⇒ `DEDUP_MODES` を導入し `prepare(..., dedup="bar")` で benchmark 用の粒度を選ぶ。
+pin 3 本追加 (同一 40 bar が "signal" では 1 群 + 偽衝突 1 件 / "bar" では 40 観測 /
+同一 bar の真の重複は "bar" でも潰れる)。
+
+🔴 **これは 1 巡目 (片側を忘れた) / 2 巡目 (provenance の対称化を取り違えた) と
+同じ根の 3 例目。** 2 巡目で「provenance だけが母集団固有」と表を書いたが、
+**`entry_time` の意味論も母集団固有**だった — 表そのものが不完全だった。
+「対称にすべき軸」を列挙したときに、**列挙が網羅的である保証をどこからも
+得ていなかった**。列挙は仮説であって検証ではない。
 
 ## 4. 未解決 — labeler を作るか、データセットを退役させるか
 
