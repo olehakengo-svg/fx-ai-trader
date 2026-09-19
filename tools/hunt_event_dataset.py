@@ -95,11 +95,24 @@ def load_rows(spec: str | Path) -> list[dict[str, Any]]:
     for path in _iter_paths(spec):
         text = path.read_text(encoding="utf-8")
         stripped = text.lstrip()
-        if stripped.startswith("["):
-            # 単一 JSON 配列も受ける (BT/合成入力の慣行)。
-            payload = json.loads(text)
-            rows.extend(payload.get("events", []) if isinstance(payload, dict) else payload)
-            continue
+        # 単一 JSON ドキュメントも受ける — 配列 `[...]` と wrapper `{"events": [...]}`
+        # の両方 (旧 sr_audit CLI が受けていた形。2026-09-19 の初版は `[` だけを
+        # 見ていたため wrapper 入力が 1 event 扱いで隔離される回帰があった、
+        # PR #272 Codex P2)。JSONL の 1 行目も `{` で始まるので、
+        # **ドキュメント全体が 1 個の JSON として読めるか**で分岐する。
+        if stripped[:1] in ("[", "{"):
+            try:
+                payload = json.loads(text)
+            except json.JSONDecodeError:
+                payload = None          # JSONL (複数行の JSON オブジェクト)
+            if isinstance(payload, list):
+                rows.extend(payload)
+                continue
+            if isinstance(payload, dict) and "events" in payload:
+                rows.extend(payload["events"])
+                continue
+            # dict だが wrapper ではない = **1 行だけの JSONL**。下の行単位に落とす
+            # (ここで raise すると 1 行ファイルが読めなくなる)。
         for lineno, line in enumerate(text.splitlines(), 1):
             line = line.strip()
             if not line:

@@ -1,5 +1,35 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-19 — fix(monitoring/KB): 未消化レビュー指摘の消化 ② — GDELT の soft 分類が全例外を飲んでいた + 撤回済み主張が見出しに残っていた (rule:R3)
+
+**PR #261 / #263 / #264 の未消化 P1/P2 指摘 6 件の消化。** (① = hunt_events readout、別 PR)
+
+### GDELT (PR #261 Codex P2) — 分類が広すぎ、かつ第 3 の失敗形が見えていなかった
+
+- **指摘**: `_SOFT_SOURCES = {"gdelt"}` により `run_gdelt` の**全例外**が soft に落ち、`main()` が exit 0 になるため workflow の `Notify failure` が走らない。恒久的な API/schema 変更や書込み失敗でも CSV が無期限 stale で残る。✅ **確定**
+- **対処 ①**: soft 判定を「ソース名」から「**ソース名 ∧ 例外形状**」へ。`ing.is_transient_fetch_error()` に集約し、`TransientFetchError` (429/500/502/503/504 と curl 7/28/52/55/56) のみ soft。`unexpected GDELT response` (上流恒久変更の署名) と `OSError` (書込み失敗) は **hard**。**列挙に無い形状は hard = fail-closed** — 上流がエラー表現を変えたら過剰 alert 側に倒れる方が、黙って stale で残るより安全 (文字列判定である以上この向きは崩せない)
+- 🔵 **対処 ②: 指摘が名指ししていない第 3 の失敗形を実測で発見した** — GDELT は **HTTP 200 + 正当な CSV ヘッダのまま系列が進まない**ことがあり、その形は**例外軸からは永久に見えない**。実測: committed CSV の末尾は **2026-09-13** で 3,518 行、**09-18 の run は "success" で同一の 3,518 行を書き diff ゼロ**。つまり本日 (09-19) 時点で **6 日 stale なのに監視は何も言っていない**。soft 分類の前提「全範囲を毎回再取得するので自己修復する」は、**上流が進まない場合には成立しない**
+- **閾値は仮定せず実測した**: `commit 日 − 系列末尾日` を CSV の git 履歴 **16 commit** で測ると **median 0 日 / max 1 日** ⇒ 内在ラグはほぼゼロ。`GDELT_STALE_DAYS_MAX = 3` は観測 max の **3 倍**で内在ラグでは誤発火しない。⚠️ 誤発火が出たら閾値は**上げる** (下げると何も検知しなくなる)。取得成功後に `gdelt_freshness()` を検査し、超過なら **hard** で raise
+- ⚠️ **自己訂正**: 当初「GDELT は 5-6 日ラグがあるはず」と推測したが、ラグ分布を実測したら **0 日**で、推測は誤り。stale は内在ラグではなく**実際の異常**だった。**閾値を置く前にラグ分布を測る**ことで、誤った threshold (5-6 日) と誤った安心の両方を回避できた
+- **pin 19 本** (`tests/test_mof_statements_daily_isolation.py`): 分類は**実観測の curl メッセージ**で固定 (作り物の文字列は「429 は soft」という覆域の錯覚だけを残すので使わない — 既存 pin の `"http 429"` を 09-17 run 35287482585 の実ログへ差し替え)。NG 入力 = `unexpected GDELT response` → hard / `OSError` → hard / hard ソースの 429 → hard / 404·403·未知形状 → hard。鮮度側は **凍結系列 (本番の現状) → NG** と **内在ラグ 1 日 → 誤発火しない**の両側を pin
+
+### KB 整合 (PR #263 / #264 Codex P2) — 撤回済みの主張が見出し・表・ロードマップ行に残っていた
+
+**2026-09-18 に 3 例出た「訂正を本文に書いても canonical な読み口が旧主張を返す」族の、4-6 例目。** 撤回は旧文の横に置くのではなく**旧文を置き換える** ([[lesson-unscoped-global-replace-2026-09-18]])。
+
+- **roadmap T6 行 (PR #263)**: P-S1(a) は 2026-09-17 に user 決裁 Option C = retire で確定しているのに、canonical roadmap の T6 行は「執行停止 / 残る選択 = user 決裁」+ 失効した期日 2026-09-30 のままだった ⇒ ロードマップから計画する読み手は**解決済みの退役を進行中の作業として扱う**。行を退役クローズへ書き換え [[ps1a-option-c-retire-2026-09-17]] をリンク。併せて「multi-bar cooldown の order 層実装」(唯一の要求元が T6) を不要化として明示
+- **carry カード §(1) 見出し (PR #264)**: 見出しが「storm は初 fill から**毎回**起きている」のまま、訂正 (実証は 11 fill 中 5) は直下の注記にあった ⇒ **見出しだけを読む読み手には撤回済みの主張が残る**。見出しを「確認済みだけで 11 fill 中 5 fill (45%)」へ差し替え。本文の「実発生率は fill あたりほぼ 1」も訂正 (上表が実証しない — 5 fill に storm 証拠なし、#893161 は本頁自身が storm 非該当と認定)
+- **carry カード broker 行 (PR #264)**: 09-17 に注記で訂正済みだったが**表の行は `N=14` のまま**で、表だけを読むと broker サンプル 14 が存在するように見えた (N≥30 live 判定の入力になる数字)。行名に「broker N ではない」を入れ、**broker 実測 N=7 を独立行として併記**
+
+### ① 側のレビュー 1 巡目 — 自分が 09-18 に書いた教訓をそのまま踏んだ (P1 ×2 / P2 ×1、全て正しかった)
+
+- 🔴 **P1 2 件は同じ形: primary 側だけ fail-closed にして対称な benchmark 側を自分で確認しなかった。** (a) CLI が `bench_prepared["ok"]` を読まず空 benchmark を渡すと `net_edge=None` になり**明示的に要求された baseline 比較なしで promotion ゲートが通る** / (b) `stage_a_audit` が benchmark のラベルを検査しないため **未ラベル行が `bench_n` に入り `bench_wins` から落ちて net_edge が過大**になる。readout §2 の「統計関数側で fail-closed にしたのでどの呼び出し元からも再発できない」は benchmark 経路では**偽**だった
+- **2026-09-18 に自分で定式化した「レビューが片側の穴を指摘したら対称な反対側を自分で確認する」(family A A-8) の翌日再発。** 教訓を書くことと次の設計でそれを検索することは別の作業。修正は両側を同じループで検査し `unlabeled_in` でどちらが汚染源かを返す形に。pin も両側に置いた
+- **P2**: `load_rows` の初版が先頭 `[` のときだけ単一ドキュメントとして読んでいたため、旧 CLI が受けていた `{"events": [...]}` wrapper が 1 event 扱いで隔離される回帰。判定を「ドキュメント全体が 1 個の JSON として読めるか」+「dict なら `events` メンバを持つか」に変更し、**1 行だけの JSONL が壊れない**ことも pin (fall-through)
+- pin 30 → **37 本**
+
+**検証**: `tests/test_hunt_event_dataset.py` 37 passed / `tests/test_mof_statements_daily_isolation.py` 19 passed、`scripts/check.py` 全 10 チェック通過。破損 wikilink は **382 → 373** (相対形 `[[../dir/name]]` が本 checker で解決しないため bare stem へ統一、既存 2 件も同時に解消)。live / tier / lot / 価格データには触れていない
+
 ## 2026-09-19 — fix(hunt_events): 観測データセットの読み手が 5 層で壊れていた — 書き手だけが 144 日動いていた (rule:R3)
 
 - **起点 = 未消化レビュー指摘の消化**。PR #267 (09-18) がマージゲートの findings 軸が導入以来**恒真**だったことを明かし、過去 10 PR に **未消化の connector P1/P2 指摘 19 件**が残っていた (MEMORY `project_review_gate_vacuous_2026_09_11`)。本 PR は PR #253 / #264 の hunt_events 系 4 件を消化したもので、**指摘より深い場所に 6 層の欠陥** (根因 D0 + 読み手 D1-D5) が見つかった。readout: [[hunt-events-dataset-readout-2026-09-19]]

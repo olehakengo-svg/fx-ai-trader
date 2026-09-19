@@ -139,19 +139,27 @@ def stage_a_audit(events: list[dict],
     # tools/attribute_hunt_outcomes.py が未実装) なので、素通しすると
     # WR=0% / n=69,577 の「有意に負のエッジ」という虚構が出る。
     # 統計関数の側で fail-closed にして、どの呼び出し元からも再発できなくする。
-    unlabeled = sum(1 for e in events if e.get("reversal") is None)
-    if unlabeled:
-        return {
-            "n": 0,
-            "n_supplied": n,
-            "n_unlabeled": unlabeled,
-            "verdict": "data_blocked",
-            "blocked_reason": (
-                f"{unlabeled}/{n} events have `reversal is None`. "
-                "未ラベル行は分母に数えてはならない "
-                "(tools/hunt_event_dataset.prepare() で除外してから渡すこと)"
-            ),
-        }
+    # ⚠️ benchmark 側も同じ検査を通す (PR #272 Codex P1)。初版は primary だけを
+    # 見ており、`benchmark_events` に未ラベル行があると `bench_n` には数えられて
+    # `bench_wins` からは落ちるので **baseline 側で同じバグが再生し net_edge が
+    # 過大**になる (= promotion verdict が変わりうる)。片側だけ塞ぐのは
+    # 「fail-closed にした」という主張自体を偽にする。
+    for label, population in (("events", events),
+                              ("benchmark_events", benchmark_events or [])):
+        unlabeled = sum(1 for e in population if e.get("reversal") is None)
+        if unlabeled:
+            return {
+                "n": 0,
+                "n_supplied": n,
+                "n_unlabeled": unlabeled,
+                "unlabeled_in": label,
+                "verdict": "data_blocked",
+                "blocked_reason": (
+                    f"{unlabeled}/{len(population)} rows in `{label}` have "
+                    "`reversal is None`. 未ラベル行は分母に数えてはならない "
+                    "(tools/hunt_event_dataset.prepare() で除外してから渡すこと)"
+                ),
+            }
 
     wins = sum(1 for e in events if e.get("reversal"))
     wr = wins / n
@@ -455,6 +463,17 @@ def main():
     if args.benchmark_json:
         bench_prepared = hunt_event_dataset.prepare(
             args.benchmark_json, pair=args.pair, side=args.side)
+        # ⚠️ benchmark が DATA-BLOCKED のときに空リストを渡すと net_edge が None に
+        # なり、**明示的に要求された baseline 比較なしで strict/lenient ゲートが
+        # 通る** = promotion ゲートを黙って弱める (PR #272 Codex P1)。
+        # 要求された比較ができないなら primary と同じく DATA-BLOCKED で止める。
+        if not bench_prepared["ok"]:
+            print("[sr_audit] verdict: DATA-BLOCKED — "
+                  "--benchmark-json の母集団が baseline を支えない "
+                  "(空 benchmark で net_edge を無効化するとゲートが緩む)")
+            for reason in bench_prepared["blocked_reasons"]:
+                print(f"  - benchmark: {reason}")
+            return 5
         bench = bench_prepared["events"]
 
     audit = stage_a_audit(events, benchmark_events=bench,

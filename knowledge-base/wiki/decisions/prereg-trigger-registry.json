@@ -834,6 +834,22 @@
         "resolve_when": "(a) tools/attribute_hunt_outcomes.py が存在し accounting.labeled > 0 になる = labeler 実装 → readout §4 を更新して resolve / (b) データセット退役を決定 → 書込み停止 + readout §4 を更新して resolve",
         "current_state": "rows_read 69577 / quarantined 1 / repeats_collapsed 59630 / distinct 9946 / labeled 0 → validity gate DATA-BLOCKED (2026-09-19 実測)"
       }
+    },
+    {
+      "id": "review-backlog-253-257-digest",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-03",
+      "doc": "knowledge-base/wiki/analyses/hunt-events-dataset-readout-2026-09-19.md",
+      "reachability": "artifact_presence",
+      "execution_command": "python3 tools/pr_review_gate.py 253 && python3 tools/pr_review_gate.py 257",
+      "execution_subject": "Claude (autopilot)",
+      "note": {
+        "pr_253": "5 件 (tools/win_side_exit_decomposition.py ×4 + wiki/analyses/win-side-exit-regime-break-2026-06-03.md ×1): (a) P1 live/shadow 混在 — 分解が live 行を含むため月次/close-reason/shift-share が 交絡 (ab7a4931 が変えたのは shadow 執行のみ) / (b) P2 デプロイ境界を跨ぐ建玉を entry_time だけで pre 群に入れている / (c) P2 偶数コホートの中央値が上側中央値 / (d) P2 cutoff が commit 分で rollout 実時刻でない / (e) P1 mafe も LOSS hold time も exit 機構に依存するので 『市場機会は悪化していない』の三点確認は成立しない。⚠️ (a)(e) は MEMORY project_shadow_exit_regime_break_2026_06_03 の主張に直接効く — 消化まで当該 MEMORY の WR/R:R 数値の引用は estimand 監査付きで行うこと",
+        "pr_257": "7 件 (tools/e23_corpus_fetch.py ×4 + tools/e23_pass1_events.py ×3): P1 Fed discovery が FOMC statement 以外を混入 / P1 BoJ 英訳の公開時刻を検証せず 印字日で lookahead gate を名乗る / P1 Gate A が explore 窓でなく全期間で median を計算 = 凍結 OOS に接触していた / P2 --refetch がキャッシュを迂回しない / P2 OOS_END 越えのレコードを保存 / P2 pass-0 survivor を強制していない / P2 lexicon hash を実行時に assert していない。⚠️ Gate A の OOS 接触は E23 の『OOS 非接触』主張に直接効く — E23 は UNDERPOWERED park 済みだが、**park の根拠 (pass-1 の gate 判定) が 汚染されていた可能性**があるので、消化時は『park の再判定』ではなく 『park の根拠の estimand 監査』として扱う (救済禁止は維持)",
+        "why_deferred": "2026-09-19 セッションでは #261/#263/#264 と hunt_events 4 件を消化。本 2 群はいずれも分析の再実行 (前者) / 凍結境界の扱いの判断 (後者) を要し、同一セッションで急ぐと 09-18 に踏んだ『修正作業そのものが新しい欠陥の発生源になる』型の事故を再生産する。ack ではなく追跡エントリで next session に渡す。"
+      },
+      "message": "未消化 connector レビュー指摘の残り 12 件 (PR #253 ×5 / PR #257 ×7) の消化期日。起点 = PR #267 (2026-09-18) が『マージゲートの findings 軸は導入以来恒真だった』と確定させ、過去 10 PR の inline P1/P2 29 件中 19 件が未消化と判明した件。2026-09-19 に 7 件消化 (hunt_events 4 / GDELT 1 / KB 整合 2、PR #272/#273)、残 12 件。TRIGGERED 時の手続き: 各指摘を (i) 実データで再現確認 → (ii) 修正 commit または `review-ack: <理由>` コメント → (iii) 完了を pr_review_gate で確認。⚠️ **『ack したから解決』ではない** — 指摘が実在の欠陥である以上、dismiss するなら estimand 上なぜ影響しないかを書くこと。⚠️ 消化前の引用規律は note の各群に記載 (MEMORY feedback_audit_past_verdicts_2026_08_05)。"
     }
   ]
 }

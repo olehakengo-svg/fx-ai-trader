@@ -83,6 +83,33 @@ FX_TITLE = re.compile(r"為替|介入|平衡操作|円相場|円安|円高|レ�
 
 # ---------------------------------------------------------------- fetch -----
 
+class TransientFetchError(RuntimeError):
+    """自己修復が見込める取得失敗 (rate limit / timeout / 接続断)。
+
+    2026-09-19 (rule:R3): soft/hard の分類は**ソース名だけでは決められない**。
+    同じ `run_gdelt` から出る例外にも (a) 429 = 翌 run で自己修復する
+    (b) `unexpected GDELT response` = 上流の恒久変更の署名 (c) 書込み失敗 が
+    あり、全部 soft にすると (b)(c) が alert に乗らず CSV が無期限に stale で
+    残る (PR #261 Codex P2)。型で分けて (a) だけを soft にする。
+    """
+
+
+# curl が返す transient の署名。**列挙に無いものは hard** (fail-closed) —
+# 上流がエラー表現を変えたら過剰 alert 側に倒れる方が、黙って stale で
+# 残るより安全。判定を文字列で行う以上この向きは崩せない。
+_TRANSIENT_CURL_PAT = re.compile(
+    r"returned error: (?:429|500|502|503|504)\b"   # curl: (22) + 一時的な HTTP
+    r"|curl: \((?:7|28|52|55|56)\)",              # connect / timeout / recv
+)
+
+
+def is_transient_fetch_error(exc: BaseException) -> bool:
+    """例外が「翌 run で自己修復が見込める」形状かを判定する。"""
+    if isinstance(exc, TransientFetchError):
+        return True
+    return bool(_TRANSIENT_CURL_PAT.search(str(exc)))
+
+
 def fetch(url: str, retries: int = 3, timeout: int = 60, backoff: float = 2.0) -> bytes:
     """curl-based fetch with UA, redirects followed, fail on non-2xx."""
     last_err = None
@@ -95,7 +122,10 @@ def fetch(url: str, retries: int = 3, timeout: int = 60, backoff: float = 2.0) -
             return proc.stdout
         last_err = proc.stderr.decode("utf-8", "replace")[:300]
         time.sleep(backoff * (attempt + 1))
-    raise RuntimeError(f"fetch failed after {retries} tries: {url}: {last_err}")
+    msg = f"fetch failed after {retries} tries: {url}: {last_err}"
+    if _TRANSIENT_CURL_PAT.search(last_err or ""):
+        raise TransientFetchError(msg)
+    raise RuntimeError(msg)
 
 
 def fetch_optional(url: str, timeout: int = 30):
@@ -477,8 +507,61 @@ def run_score() -> dict:
 
 # ---------------------------------------------------------------- gdelt -----
 
+# GDELT timelinevol の系列末尾は fetch 日に一致する — 実測 (2026-08-18〜09-13 の
+# 16 commit、`commit 日 − 系列末尾日`): median **0 日 / max 1 日**。
+# つまり「系列が進まない」= 上流が止まっているか、成功したまま古い応答を
+# 受けている、のいずれか。閾値 3 日は観測 max の 3 倍で、内在ラグでは誤発火しない。
+# ⚠️ 誤発火が出たら閾値は**上げる** (下げると何も検知しなくなる)。
+GDELT_STALE_DAYS_MAX = 3
+
+
+def gdelt_last_data_date(path: str) -> "dt.date | None":
+    """CSV の最終データ行の日付。コメント行 (`#`) とヘッダは除く。"""
+    try:
+        with open(path, encoding="utf-8") as f:
+            rows = [ln for ln in (l.strip() for l in f)
+                    if ln and not ln.startswith("#")]
+    except OSError:
+        return None
+    for ln in reversed(rows):
+        head = ln.split(",")[0].lstrip("\ufeff")
+        try:
+            return dt.date.fromisoformat(head)
+        except ValueError:
+            continue
+    return None
+
+
+def gdelt_freshness(as_of: "dt.date | None" = None) -> dict:
+    """各 slug の系列末尾日と stale 日数を返す (取得の成否とは独立の観測)。
+
+    2026-09-19 (rule:R3): soft/hard の軸は**例外が出たときしか動かない**。
+    GDELT は HTTP 200 + 正当な CSV ヘッダのまま**系列が進まない**ことがあり
+    (実測: 2026-09-13 以降 3,518 行で凍結、09-18 の run は "success" で
+    同一内容を書いて diff ゼロ)、その形は例外軸からは**永久に見えない**。
+    「全範囲を毎回再取得するので自己修復する」という soft 分類の前提は、
+    上流が進まない場合には成立しない。
+    """
+    as_of = as_of or dt.datetime.now(dt.timezone.utc).date()
+    out: dict = {"as_of": as_of.isoformat(), "slugs": {}, "stale": []}
+    for slug in GDELT_QUERIES:
+        path = os.path.join(GDELT_DIR, f"{slug}.csv")
+        last = gdelt_last_data_date(path)
+        days = None if last is None else (as_of - last).days
+        out["slugs"][slug] = {"last_data": last.isoformat() if last else None,
+                              "stale_days": days}
+        if days is None or days > GDELT_STALE_DAYS_MAX:
+            out["stale"].append(slug)
+    out["ok"] = not out["stale"]
+    return out
+
+
 def run_gdelt() -> dict:
-    """Fetch GDELT DOC timelinevol series (full range, overwrite = self-healing)."""
+    """Fetch GDELT DOC timelinevol series (full range, overwrite = self-healing).
+
+    取得成功後に系列の鮮度を検査し、`GDELT_STALE_DAYS_MAX` を超えて進んで
+    いなければ **hard** で raise する (成功したまま stale になる形を塞ぐ)。
+    """
     os.makedirs(GDELT_DIR, exist_ok=True)
     end = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d%H%M%S")
     out = {}
@@ -499,6 +582,18 @@ def run_gdelt() -> dict:
         print(f"[gdelt] wrote {path}: {n} datapoints")
         out[slug] = n
         time.sleep(SLEEP_GDELT)
+
+    fresh = gdelt_freshness()
+    out["freshness"] = fresh
+    print(f"[gdelt] freshness: {json.dumps(fresh['slugs'], ensure_ascii=False)}")
+    if not fresh["ok"]:
+        # TransientFetchError ではない = soft 分類の対象外 = hard。
+        raise RuntimeError(
+            "GDELT series did not advance: "
+            + json.dumps(fresh["slugs"], ensure_ascii=False)
+            + f" (threshold {GDELT_STALE_DAYS_MAX}d; 実測の内在ラグは median 0 / max 1 日)"
+            " — 取得は成功しているので上流停止か stale 応答。要調査"
+        )
     return out
 
 

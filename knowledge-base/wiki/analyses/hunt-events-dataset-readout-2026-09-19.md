@@ -4,10 +4,10 @@ date: 2026-09-19
 type: readout + bug-finding
 rule: R3
 related:
-  - "[[../decisions/sr-strategies-signal-track-2026-04-28]]"
-  - "[[../strategies/sr-anti-hunt-bounce]]"
+  - "[[sr-strategies-signal-track-2026-04-28]]"
+  - "[[sr-anti-hunt-bounce]]"
   - "[[candidate-gap-readout-2026-09-01]]"
-  - "[[../lessons/lesson-defect-family-sweep-siblings-2026-09-17]]"
+  - "[[lesson-defect-family-sweep-siblings-2026-09-17]]"
 ---
 
 # `raw/hunt_events/` は書けるが読めず、読めても意味を持たなかった (2026-09-19)
@@ -199,7 +199,7 @@ $ python3 tools/sr_audit.py --events-json knowledge-base/raw/hunt_events --pair 
   - labeled rows 0 < floor 30 (unlabeled 3057 — `reversal` は tools/attribute_hunt_outcomes.py が埋める約束のまま未実装)
 ```
 
-## 3. pin (30 本、`tests/test_hunt_event_dataset.py`)
+## 3. pin (37 本、`tests/test_hunt_event_dataset.py`)
 
 MEMORY `project_review_gate_vacuous_2026_09_11` の指示
 「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」に従い、
@@ -218,6 +218,31 @@ MEMORY `project_review_gate_vacuous_2026_09_11` の指示
 counterfactual: pre-fix の `stage_a_audit` に未ラベル 100 行を渡すと
 `verdict` キーが存在せず `n=100` が返るので、D4 の pin 3 本は pre-fix に対して
 落ちる (実測済み)。
+
+### 3.1 レビュー 1 巡目 — 自分が 09-18 に書いた教訓をそのまま踏んだ
+
+PR #272 の connector レビューが P1 2 件 + P2 1 件を返し、**すべて正しかった**:
+
+| # | 指摘 | 実体 |
+|---|---|---|
+| P1 | benchmark の DATA-BLOCKED を CLI が無視 | `bench_prepared["ok"]` を読まずに空リストを渡すと `net_edge=None` になり、**明示的に要求された baseline 比較なしで strict/lenient ゲートが通る** = promotion ゲートを黙って弱める |
+| P1 | `stage_a_audit` が benchmark のラベルを検査しない | 未ラベル行は `bench_n` に数えられ `bench_wins` から落ちるので **baseline 側で D4 がそのまま再生**し `net_edge` が過大になる |
+| P2 | wrapper JSON 入力の回帰 | 初版の `load_rows` は先頭が `[` のときだけ単一ドキュメントとして読んでいたため、旧 CLI が受けていた `{"events": [...]}` が 1 event 扱いで隔離される / 整形済みなら 1 行目で例外 |
+
+🔴 **P1 2 件は同じ形 — 「primary 側だけ fail-closed にして、対称な benchmark 側を
+自分で確認しなかった」。** §2 で「統計関数の側で fail-closed にしたので、
+`prepare()` を飛ばした呼び出し元からも再発できない」と書いたが、
+`benchmark_events` 経路では**その主張が偽**だった。
+
+これは **2026-09-18 に自分で書いた教訓の再発** — family A の A-8 で
+「レビューが signal 側の穴を指摘したとき label 側の同じ穴を自分で確認しなかった」
+と記録し、教訓を「**レビューが片側の穴を指摘したら対称な反対側を自分で確認する**」
+と定式化した、その翌日に、今度は**レビューを待たずに片側だけ塞いだ**。
+教訓を書くことと、次の設計でそれを検索することは別の作業である。
+
+修正は両側を同じループで検査する形にし (`for label, population in (("events", …), ("benchmark_events", …))`)、
+どちらが未ラベルだったかを `unlabeled_in` で返す。pin は**両側**に置いた
+(primary clean × benchmark 汚染 → DATA-BLOCKED / 両側 clean → `net_edge` 計算)。
 
 ## 4. 未解決 — labeler を作るか、データセットを退役させるか
 
@@ -239,7 +264,7 @@ registry に `hunt-events-labeler-disposition` (期日 2026-10-20) を追加し�
 
 ## 5. 付随する corrigendum — 2026-04-28 決定文書の Step 1
 
-[[../decisions/sr-strategies-signal-track-2026-04-28]] の Step 1 は
+[[sr-strategies-signal-track-2026-04-28]] の Step 1 は
 「`wc -l` → 81 events = 81 actual signal emissions」を根拠に
 「戦略は実際に signal を発射している」と結論している。
 
@@ -269,7 +294,7 @@ D1 は初日に落ちていた。
 値域を増やされるたびに破れる。**収集経路の構造 (feed symbol) で書けば
 値に依存しない。**
 
-**欠陥族の横展開を今度は先にやった。** [[../lessons/lesson-defect-family-sweep-siblings-2026-09-17]]
+**欠陥族の横展開を今度は先にやった。** [[lesson-defect-family-sweep-siblings-2026-09-17]]
 の通り、1 箇所直したら同型の兄弟を同じ PR で掃く。今回は指摘された
 「重複」「合成行」の 2 件から出発して、同じ読み取り経路の D0/D1/D4/D5 を
 先に grep で洗った結果、**指摘 2 件より重い D4 (偽陰性を生む分母汚染) と

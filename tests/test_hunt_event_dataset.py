@@ -265,3 +265,76 @@ def test_stage_a_computes_normally_on_a_fully_labeled_population():
     assert out["wins"] == 60
     assert out["wr"] == 60.0
     assert "blocked_reason" not in out
+
+
+# --------------------------------------------------------------------------
+# PR #272 レビュー指摘 3 件の回帰 pin
+# 教訓: 片側 (primary) だけ fail-closed にして **対称な反対側 (benchmark) を
+# 自分で確認しなかった** — 2026-09-18 に自分で書いた
+# 「レビューが片側の穴を指摘したら対称な反対側を自分で確認する」の再発。
+# --------------------------------------------------------------------------
+
+def test_load_rows_accepts_the_event_wrapper_object(tmp_path):
+    """旧 sr_audit CLI が受けていた `{"events": [...]}` を落とさない。"""
+    p = tmp_path / "wrapped.json"
+    p.write_text(json.dumps({"events": [_row(), _row(entry_price=150.5)]}),
+                 encoding="utf-8")
+    assert len(hed.load_rows(p)) == 2
+
+
+def test_load_rows_accepts_a_pretty_printed_wrapper(tmp_path):
+    """整形済み wrapper は 1 行目が部分 JSON なので JSONL 解釈では落ちる。"""
+    p = tmp_path / "wrapped_pretty.json"
+    p.write_text(json.dumps({"events": [_row()]}, indent=2), encoding="utf-8")
+    assert len(hed.load_rows(p)) == 1
+
+
+def test_load_rows_still_reads_a_single_row_jsonl(tmp_path):
+    """wrapper 判定が 1 行 JSONL を壊さないこと (fall-through の pin)。"""
+    p = tmp_path / "one.jsonl"
+    p.write_text(json.dumps(_row()) + "\n", encoding="utf-8")
+    assert len(hed.load_rows(p)) == 1
+
+
+def test_load_rows_accepts_a_bare_json_array(tmp_path):
+    p = tmp_path / "arr.json"
+    p.write_text(json.dumps([_row(), _row(entry_price=151.0)]), encoding="utf-8")
+    assert len(hed.load_rows(p)) == 2
+
+
+def test_stage_a_rejects_unlabeled_benchmark_even_when_primary_is_clean():
+    """NG 入力: primary は全ラベル付き、benchmark に未ラベル行。
+
+    未ラベル行は bench_n に数えられ bench_wins から落ちるので baseline 側で
+    同じバグが再生し net_edge が過大になる = promotion verdict が変わりうる。
+    """
+    from tools.sr_audit import stage_a_audit
+
+    primary = ([_row(reversal=True) for _ in range(60)]
+               + [_row(reversal=False) for _ in range(40)])
+    out = stage_a_audit(primary, benchmark_events=[_row(reversal=True),
+                                                  _row(reversal=None)])
+    assert out["verdict"] == "data_blocked"
+    assert out["unlabeled_in"] == "benchmark_events"
+
+
+def test_stage_a_accepts_a_fully_labeled_benchmark():
+    """反対側: benchmark も全ラベル付きなら net_edge を計算する。"""
+    from tools.sr_audit import stage_a_audit
+
+    primary = ([_row(reversal=True) for _ in range(60)]
+               + [_row(reversal=False) for _ in range(40)])
+    bench = ([_row(reversal=True) for _ in range(30)]
+             + [_row(reversal=False) for _ in range(70)])
+    out = stage_a_audit(primary, benchmark_events=bench)
+    assert "verdict" not in out          # 成功経路に verdict キーは無い
+    assert "blocked_reason" not in out
+    assert out["benchmark"]["n"] == 100
+    assert out["benchmark"]["net_edge_pp"] == 30.0
+
+
+def test_stage_a_reports_which_population_was_unlabeled():
+    from tools.sr_audit import stage_a_audit
+
+    out = stage_a_audit([_row(reversal=None)], benchmark_events=None)
+    assert out["unlabeled_in"] == "events"
