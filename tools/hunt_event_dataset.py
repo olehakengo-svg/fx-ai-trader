@@ -184,8 +184,35 @@ def identity(row: dict[str, Any], *, dedup: str = "signal") -> tuple:
     ))
 
 
-def _outcome_of(row: dict[str, Any]) -> tuple:
-    return tuple(row.get(k) for k in OUTCOME_FIELDS)
+def merge_outcomes(
+    group: list[dict[str, Any]],
+) -> tuple[dict[str, Any], dict[str, list]]:
+    """グループの outcome 列を**フィールドごとに**マージする。
+
+    Returns (マージ済み outcome, 不一致フィールド → 相異なる非 None 値)。
+
+    ⚠️ 2026-09-19 (PR #272 Codex P2、4 巡目): タプル一致で衝突判定すると
+    `(True, None, None)` と `(True, "WIN", 10.0)` が**衝突扱い**になる。
+    logger は 3 列を独立に初期化し、反復発火のうち**実約定に対応するのは
+    1 本だけ**という部分帰属が自然な状態なので、これは正常入力。
+    ⇒ フィールドごとに非 None 値を集め、**同一フィールドに相異なる非 None 値が
+    2 つ以上あるときだけ**衝突とする。
+    """
+    merged: dict[str, Any] = {}
+    disagreements: dict[str, list] = {}
+    for field in OUTCOME_FIELDS:
+        values = []
+        for row in group:
+            v = row.get(field)
+            if v is None:
+                continue
+            if v not in values:
+                values.append(v)
+        if len(values) > 1:
+            disagreements[field] = values
+        elif values:
+            merged[field] = values[0]
+    return merged, disagreements
 
 
 def collapse_repeats(
@@ -222,13 +249,18 @@ def collapse_repeats(
     for key in order:
         group = groups[key]
         rep = dict(group[0])
-        labeled = {_outcome_of(r) for r in group if r.get("reversal") is not None}
-        if len(labeled) > 1:
-            conflicts.append({"n_rows": len(group), "outcomes": sorted(map(str, labeled)),
-                              "representative_entry_time": rep.get("entry_time")})
-        elif len(labeled) == 1:
-            for field, value in zip(OUTCOME_FIELDS, next(iter(labeled))):
-                rep[field] = value
+        merged, disagreements = merge_outcomes(group)
+        if disagreements:
+            conflicts.append({
+                "n_rows": len(group),
+                "fields": {f: sorted(map(str, v)) for f, v in disagreements.items()},
+                "representative_entry_time": rep.get("entry_time"),
+                # cell 絞りの前に検出されるので、gate では **選択セルに属する
+                # 衝突だけ**を数える (PR #272 Codex P2、4 巡目)。
+                "representative": rep,
+            })
+        else:
+            rep.update(merged)
         out.append(rep)
     return out, repeats, conflicts
 
@@ -309,14 +341,22 @@ def prepare(
     cell = select_cell(deduped, pair=pair, side=side)
     labeled, unlabeled = split_labels(cell)
 
+    # ⚠️ 衝突は cell 絞りの**前**に検出されるので、そのまま gate に使うと
+    # 別ペア/別 side の衝突 1 件で無関係なセルが DATA-BLOCKED になる
+    # (PR #272 Codex P2、4 巡目)。選択セルに属する衝突だけを数える。
+    cell_conflicts = [
+        c for c in conflicts
+        if select_cell([c["representative"]], pair=pair, side=side)
+    ]
+
     reasons: list[str] = []
     if not raw:
         reasons.append("dataset is empty")
-    if conflicts:
+    if cell_conflicts:
         reasons.append(
-            f"{len(conflicts)} signal group(s) carry conflicting outcomes "
-            "— 同一 signal に 2 つの結果が付いている = labeler のバグ "
-            "(黙って片方を採らない)"
+            f"{len(cell_conflicts)} signal group(s) in this cell carry "
+            "conflicting outcomes — 同一 signal の同一フィールドに相異なる "
+            "非 None 値がある = labeler のバグ (黙って片方を採らない)"
         )
     if len(labeled) < labeled_n_floor:
         reasons.append(
@@ -333,7 +373,8 @@ def prepare(
             "rows_read": len(raw),
             "quarantined_provenance": len(quarantined),
             "collapsed_repeats": repeats,
-            "outcome_conflicts": len(conflicts),
+            "outcome_conflicts": len(cell_conflicts),
+            "outcome_conflicts_all_cells": len(conflicts),
             "distinct_observations": len(deduped),
             "in_cell": len(cell),
             "labeled": len(labeled),

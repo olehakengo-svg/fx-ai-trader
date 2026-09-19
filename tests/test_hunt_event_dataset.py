@@ -542,3 +542,75 @@ def test_dedup_modes_are_pinned():
     assert hed.DEDUP_MODES["bar"] == frozenset(hed.OUTCOME_FIELDS)
     assert "entry_time" in hed.DEDUP_MODES["signal"]
     assert "entry_time" not in hed.DEDUP_MODES["bar"]
+
+
+# --------------------------------------------------------------------------
+# PR #272 レビュー 5 巡目 — 衝突判定が広すぎた 2 形
+# --------------------------------------------------------------------------
+
+def test_partial_outcome_labels_merge_instead_of_conflicting():
+    """NG 入力: (True, None, None) と (True, "WIN", 10.0)。
+
+    logger は 3 列を独立に初期化し、反復発火のうち実約定に対応するのは
+    1 本だけ — 部分帰属は正常状態であって衝突ではない。
+    """
+    rows = [_row(entry_time="2026-09-01T00:00:00+00:00", reversal=True),
+            _row(entry_time="2026-09-01T00:01:00+00:00", reversal=True,
+                 actual_outcome="WIN", actual_pnl_pips=10.0)]
+    out, repeats, conflicts = hed.collapse_repeats(rows)
+    assert conflicts == []
+    assert len(out) == 1
+    assert out[0]["reversal"] is True
+    assert out[0]["actual_outcome"] == "WIN"
+    assert out[0]["actual_pnl_pips"] == 10.0
+
+
+def test_disagreeing_values_in_one_field_still_conflict():
+    """反対側: 同一フィールドに相異なる非 None 値 → 衝突。"""
+    rows = [_row(entry_time="2026-09-01T00:00:00+00:00", actual_pnl_pips=10.0),
+            _row(entry_time="2026-09-01T00:01:00+00:00", actual_pnl_pips=-5.0)]
+    _, _, conflicts = hed.collapse_repeats(rows)
+    assert len(conflicts) == 1
+    assert set(conflicts[0]["fields"]) == {"actual_pnl_pips"}
+
+
+def test_merge_outcomes_reports_the_disagreeing_field_only():
+    group = [_row(reversal=True, actual_outcome="WIN", actual_pnl_pips=10.0),
+             _row(reversal=True, actual_outcome="LOSS", actual_pnl_pips=10.0)]
+    merged, disagreements = hed.merge_outcomes(group)
+    assert set(disagreements) == {"actual_outcome"}
+    assert merged["reversal"] is True
+    assert merged["actual_pnl_pips"] == 10.0
+
+
+def test_conflict_in_another_cell_does_not_block_this_cell(tmp_path):
+    """NG 入力: 別ペアの衝突 1 件で、clean な要求セルが DATA-BLOCKED になる。"""
+    rows = [_row(instrument="USDJPY=X", side="support", reversal=True,
+                 entry_price=150 + i * 0.01) for i in range(40)]
+    rows += [_row(instrument="EURJPY=X", side="support", entry_price=160.0,
+                  entry_time="2026-09-01T00:00:00+00:00", actual_pnl_pips=10.0),
+             _row(instrument="EURJPY=X", side="support", entry_price=160.0,
+                  entry_time="2026-09-01T00:01:00+00:00", actual_pnl_pips=-5.0)]
+    _write(tmp_path, rows)
+
+    cell = hed.prepare(tmp_path, pair="USD_JPY", side="bull")
+    assert cell["accounting"]["outcome_conflicts"] == 0
+    assert cell["accounting"]["outcome_conflicts_all_cells"] == 1
+    assert cell["ok"] is True, cell["blocked_reasons"]
+    assert len(cell["events"]) == 40
+
+
+def test_conflict_inside_the_requested_cell_does_block(tmp_path):
+    """反対側: 要求セル内の衝突はちゃんと止める。"""
+    rows = [_row(instrument="USDJPY=X", side="support", reversal=True,
+                 entry_price=150 + i * 0.01) for i in range(40)]
+    rows += [_row(instrument="USDJPY=X", side="support", entry_price=149.0,
+                  entry_time="2026-09-01T00:00:00+00:00", actual_pnl_pips=10.0),
+             _row(instrument="USDJPY=X", side="support", entry_price=149.0,
+                  entry_time="2026-09-01T00:01:00+00:00", actual_pnl_pips=-5.0)]
+    _write(tmp_path, rows)
+
+    cell = hed.prepare(tmp_path, pair="USD_JPY", side="bull")
+    assert cell["accounting"]["outcome_conflicts"] == 1
+    assert cell["ok"] is False
+    assert any("conflicting outcomes" in r for r in cell["blocked_reasons"])

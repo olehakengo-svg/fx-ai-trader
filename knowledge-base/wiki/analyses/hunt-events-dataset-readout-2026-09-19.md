@@ -200,7 +200,7 @@ $ python3 tools/sr_audit.py --events-json knowledge-base/raw/hunt_events --pair 
   - labeled rows 0 < floor 30 (unlabeled 3057 — `reversal` は tools/attribute_hunt_outcomes.py が埋める約束のまま未実装)
 ```
 
-## 3. pin (51 本、`tests/test_hunt_event_dataset.py`)
+## 3. pin (56 本、`tests/test_hunt_event_dataset.py`)
 
 MEMORY `project_review_gate_vacuous_2026_09_11` の指示
 「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」に従い、
@@ -347,6 +347,33 @@ pin 3 本追加 (同一 40 bar が "signal" では 1 群 + 偽衝突 1 件 / "ba
 「対称にすべき軸」を列挙したときに、**列挙が網羅的である保証をどこからも
 得ていなかった**。列挙は仮説であって検証ではない。
 
+### 3.7 レビュー 5 巡目 — 3 巡目で足した衝突検出器が広すぎた (2 形)
+
+3 巡目で「同一 signal に 2 つの結果 → 衝突として gate で止める」を足したが、
+その検出器が **2 つの正常入力を衝突と誤判定**していた:
+
+| # | 指摘 | 実体 |
+|---|---|---|
+| P2 | **Merge compatible partial outcome labels** | `(True, None, None)` と `(True, "WIN", 10.0)` をタプル一致で比較していたため**衝突扱い**。logger は 3 列を独立に初期化し、反復発火のうち実約定に対応するのは 1 本だけ = **部分帰属は正常状態** |
+| P2 | **Scope conflict validation to the requested cell** | `collapse_repeats` は `select_cell` の**前**に走るので、**別ペアの衝突 1 件で無関係な clean セルが DATA-BLOCKED** になる (USD_JPY 30 観測が EUR_JPY の 1 件で止まる) |
+
+**どちらも正しい。** 修正:
+- `merge_outcomes()` を新設し **フィールドごとに**非 None 値をマージ。
+  **同一フィールドに相異なる非 None 値が 2 つ以上あるときだけ**衝突
+- 衝突エントリに representative 行を持たせ、gate は
+  **選択セルに属する衝突だけ**を数える (`outcome_conflicts` / 全セル分は
+  `outcome_conflicts_all_cells` に分離)
+
+pin 5 本追加 (部分ラベルはマージされる / 同一フィールドの不一致は衝突のまま /
+不一致フィールドだけが報告される / 別セルの衝突は要求セルを止めない /
+要求セル内の衝突はちゃんと止める)。
+
+🔴 **パターン: 私が足したガードは、ほぼ毎回「広すぎる」方向の新しい欠陥を作った。**
+3 巡目の衝突検出器 → 5 巡目で 2 件。2 巡目の provenance 対称化 → 4 巡目で 1 件。
+**fail-closed は安全側だが、安全側に倒しすぎると「正常入力を止める」という
+別の故障になる。** ガードを足したら「止めてはいけない入力」も同じコミットで
+pin する — NG 入力の pin と対になる **PASS 入力の pin** が必須。
+
 ### 3.6 レビュー 4 巡の総括 — 欠陥は「実データで回せない経路」に集中した
 
 | 巡 | severity | 経路 |
@@ -357,8 +384,10 @@ pin 3 本追加 (同一 40 bar が "signal" では 1 群 + 偽衝突 1 件 / "ba
 | 2 | P2 | benchmark (provenance の過剰適用) |
 | 3 | P2 | identity (両経路、labeler 稼働時に顕在化) |
 | 4 | P2 | benchmark (`entry_time` の粒度) |
+| 5 | P2 | 衝突検出器 (部分ラベルを誤って衝突扱い、両経路) |
+| 5 | P2 | 衝突検出器 (cell 絞り前に判定、両経路) |
 
-**6 件中 4 件が benchmark 経路。** benchmark は repo に実ファイルが無く、
+**8 件中 4 件が benchmark 経路**、残り 4 件は loader / identity / 衝突検出器 (両経路)。 benchmark は repo に実ファイルが無く、
 primary の validity gate が手前で止めるので、**本セッションで 1 度も実行できて
 いない経路**である。
 
