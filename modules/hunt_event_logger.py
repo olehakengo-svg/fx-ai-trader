@@ -9,7 +9,9 @@ Each line:
     {
         "entry_time": "2026-04-28T10:32:11.123456+00:00",
         "strategy": "sr_anti_hunt_bounce",
-        "instrument": "USD_JPY",
+        "instrument": "USDJPY=X",   # yfinance feed symbol — 実収集行は必ず
+                                    # `^[A-Z]{6}=X$`。OANDA 形式 ("USD_JPY") の行は
+                                    # 合成行として読み取り時に隔離される (D2 規約)
         "direction": "BUY" | "SELL",
         "entry_price": 153.50,
         "hunt_extreme": 153.30,    # SL price = expected hunt boundary
@@ -24,8 +26,20 @@ Each line:
         "actual_pnl_pips": null
     }
 
-The `reversal / actual_outcome / actual_pnl_pips` fields are appended later by
-`tools/attribute_hunt_outcomes.py` (deferred — runs after demo_trades close).
+The `reversal / actual_outcome / actual_pnl_pips` fields were meant to be
+appended later by `tools/attribute_hunt_outcomes.py`.
+
+⚠️ 2026-09-19 (rule:R3): **that labeler was never written.** `reversal` is None
+in 69,577 / 69,577 committed rows, so this dataset cannot answer the question
+`tools/sr_audit.py` asks. The reader (`tools/hunt_event_dataset.py`) now returns
+DATA-BLOCKED instead of a fabricated 0% win rate, and the disposition
+(build the labeler vs retire the dataset) is registry
+`hunt-events-labeler-disposition`, deadline 2026-10-20. Readout:
+`knowledge-base/wiki/analyses/hunt-events-dataset-readout-2026-09-19.md`.
+
+Anything reading these files must go through `tools/hunt_event_dataset.py` —
+rows are re-logged on every tick re-evaluation (85.7% of rows are repeats of
+9,946 distinct observations), so `len(rows)` is not an observation count.
 
 Test-write suppression (2026-09-18)
 -----------------------------------

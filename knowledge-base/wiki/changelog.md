@@ -1,5 +1,52 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-19 — fix(monitoring/KB): 未消化レビュー指摘の消化 ② — GDELT の soft 分類が全例外を飲んでいた + 撤回済み主張が見出しに残っていた (rule:R3)
+
+**PR #261 / #263 / #264 の未消化 P1/P2 指摘 6 件の消化。** (① = hunt_events readout、別 PR)
+
+### GDELT (PR #261 Codex P2) — 分類が広すぎ、かつ第 3 の失敗形が見えていなかった
+
+- **指摘**: `_SOFT_SOURCES = {"gdelt"}` により `run_gdelt` の**全例外**が soft に落ち、`main()` が exit 0 になるため workflow の `Notify failure` が走らない。恒久的な API/schema 変更や書込み失敗でも CSV が無期限 stale で残る。✅ **確定**
+- **対処 ①**: soft 判定を「ソース名」から「**ソース名 ∧ 例外形状**」へ。`ing.is_transient_fetch_error()` に集約し、`TransientFetchError` (429/500/502/503/504 と curl 7/28/52/55/56) のみ soft。`unexpected GDELT response` (上流恒久変更の署名) と `OSError` (書込み失敗) は **hard**。**列挙に無い形状は hard = fail-closed** — 上流がエラー表現を変えたら過剰 alert 側に倒れる方が、黙って stale で残るより安全 (文字列判定である以上この向きは崩せない)
+- 🔵 **対処 ②: 指摘が名指ししていない第 3 の失敗形を実測で発見した** — GDELT は **HTTP 200 + 正当な CSV ヘッダのまま系列が進まない**ことがあり、その形は**例外軸からは永久に見えない**。実測: committed CSV の末尾は **2026-09-13** で 3,518 行、**09-18 の run は "success" で同一の 3,518 行を書き diff ゼロ**。つまり本日 (09-19) 時点で **6 日 stale なのに監視は何も言っていない**。soft 分類の前提「全範囲を毎回再取得するので自己修復する」は、**上流が進まない場合には成立しない**
+- **閾値は仮定せず実測した**: `commit 日 − 系列末尾日` を CSV の git 履歴 **16 commit** で測ると **median 0 日 / max 1 日** ⇒ 内在ラグはほぼゼロ。`GDELT_STALE_DAYS_MAX = 3` は観測 max の **3 倍**で内在ラグでは誤発火しない。⚠️ 誤発火が出たら閾値は**上げる** (下げると何も検知しなくなる)。取得成功後に `gdelt_freshness()` を検査し、超過なら **hard** で raise
+- ⚠️ **自己訂正**: 当初「GDELT は 5-6 日ラグがあるはず」と推測したが、ラグ分布を実測したら **0 日**で、推測は誤り。stale は内在ラグではなく**実際の異常**だった。**閾値を置く前にラグ分布を測る**ことで、誤った threshold (5-6 日) と誤った安心の両方を回避できた
+- **pin 19 本** (`tests/test_mof_statements_daily_isolation.py`): 分類は**実観測の curl メッセージ**で固定 (作り物の文字列は「429 は soft」という覆域の錯覚だけを残すので使わない — 既存 pin の `"http 429"` を 09-17 run 35287482585 の実ログへ差し替え)。NG 入力 = `unexpected GDELT response` → hard / `OSError` → hard / hard ソースの 429 → hard / 404·403·未知形状 → hard。鮮度側は **凍結系列 (本番の現状) → NG** と **内在ラグ 1 日 → 誤発火しない**の両側を pin
+
+### KB 整合 (PR #263 / #264 Codex P2) — 撤回済みの主張が見出し・表・ロードマップ行に残っていた
+
+**2026-09-18 に 3 例出た「訂正を本文に書いても canonical な読み口が旧主張を返す」族の、4-6 例目。** 撤回は旧文の横に置くのではなく**旧文を置き換える** ([[lesson-unscoped-global-replace-2026-09-18]])。
+
+- **roadmap T6 行 (PR #263)**: P-S1(a) は 2026-09-17 に user 決裁 Option C = retire で確定しているのに、canonical roadmap の T6 行は「執行停止 / 残る選択 = user 決裁」+ 失効した期日 2026-09-30 のままだった ⇒ ロードマップから計画する読み手は**解決済みの退役を進行中の作業として扱う**。行を退役クローズへ書き換え [[ps1a-option-c-retire-2026-09-17]] をリンク。併せて「multi-bar cooldown の order 層実装」(唯一の要求元が T6) を不要化として明示
+- **carry カード §(1) 見出し (PR #264)**: 見出しが「storm は初 fill から**毎回**起きている」のまま、訂正 (実証は 11 fill 中 5) は直下の注記にあった ⇒ **見出しだけを読む読み手には撤回済みの主張が残る**。見出しを「確認済みだけで 11 fill 中 5 fill (45%)」へ差し替え。本文の「実発生率は fill あたりほぼ 1」も訂正 (上表が実証しない — 5 fill に storm 証拠なし、#893161 は本頁自身が storm 非該当と認定)
+- **carry カード broker 行 (PR #264)**: 09-17 に注記で訂正済みだったが**表の行は `N=14` のまま**で、表だけを読むと broker サンプル 14 が存在するように見えた (N≥30 live 判定の入力になる数字)。行名に「broker N ではない」を入れ、**broker 実測 N=7 を独立行として併記**
+
+### ① 側のレビュー 1 巡目 — 自分が 09-18 に書いた教訓をそのまま踏んだ (P1 ×2 / P2 ×1、全て正しかった)
+
+- 🔴 **P1 2 件は同じ形: primary 側だけ fail-closed にして対称な benchmark 側を自分で確認しなかった。** (a) CLI が `bench_prepared["ok"]` を読まず空 benchmark を渡すと `net_edge=None` になり**明示的に要求された baseline 比較なしで promotion ゲートが通る** / (b) `stage_a_audit` が benchmark のラベルを検査しないため **未ラベル行が `bench_n` に入り `bench_wins` から落ちて net_edge が過大**になる。readout §2 の「統計関数側で fail-closed にしたのでどの呼び出し元からも再発できない」は benchmark 経路では**偽**だった
+- **2026-09-18 に自分で定式化した「レビューが片側の穴を指摘したら対称な反対側を自分で確認する」(family A A-8) の翌日再発。** 教訓を書くことと次の設計でそれを検索することは別の作業。修正は両側を同じループで検査し `unlabeled_in` でどちらが汚染源かを返す形に。pin も両側に置いた
+- **P2**: `load_rows` の初版が先頭 `[` のときだけ単一ドキュメントとして読んでいたため、旧 CLI が受けていた `{"events": [...]}` wrapper が 1 event 扱いで隔離される回帰。判定を「ドキュメント全体が 1 個の JSON として読めるか」+「dict なら `events` メンバを持つか」に変更し、**1 行だけの JSONL が壊れない**ことも pin (fall-through)
+- pin 30 → **37 本**
+- 🔴 **レビュー 2 巡目 (P2、これも正しかった) — 1 巡目の修正で「対称にする」を 1 段取り違えていた**: benchmark を**同じ `prepare()` に通した**ため、`hunt_event_logger` 固有の provenance 規約 (feed-symbol `^[A-Z]{6}=X$`) が「SR 近接 全 bar」という別母集団に課され、**repo 慣行の `instrument: "USD_JPY"` 表記のラベル完備 baseline が全行隔離されて exit 5** になっていた。対称にすべき軸 (D4 ラベル検査 / D3 独立観測の単位 / D5 cell 絞り — いずれも算数が母集団に依らず壊れる) と、**母集団固有の軸 (D2 provenance)** を区別していなかった。`enforce_provenance=False` を追加して benchmark はラベル・dedup・cell 絞りのみ通す形に。pin 37 → **41 本**。**教訓: 「対称に処置せよ」は「同じ関数に通せ」ではない** — どの規約がどの母集団に固有かを先に列挙する ([[lesson-symmetric-side-check-2026-09-19]])。同じ指摘の周りで **1 巡目は片側を忘れ、2 巡目は対称化を取り違える**という 2 種類の間違いを続けてやった
+- 🔴 **レビュー 3 巡目 (P2、これも正しかった) — dedup が「意味を持ち始める日」に静かに壊れる設計だった**: `collapse_repeats` の identity に post-hoc の outcome 列 (`reversal` / `actual_outcome` / `actual_pnl_pips`) が 残っていたため、labeler が反復発火に異なるラベルを付けた瞬間に collapse が止まり、**N 膨張が復活するのは validity gate が通り始めるのと同じタイミング**だった。今日は全行未ラベルなので実害ゼロ = **だから気づけなかった** — 本 PR で診断した D4 (未ラベル) が D3 (dedup) の欠陥を隠しており、D1 が D4 を隠していたのと同じ入れ子構造が**自分の書いたコードの中に**もう一段あった。修正 = identity を **signal 時点のフィールドのみ**に。代表行はグループ内の非 None ラベルを引き継ぎ (観測を捨てない)、**同一 signal に 2 通りの outcome があれば衝突として gate で止める** (labeler のバグを片方採用で潰さない)。pin 41 → **48 本** (うち「ラベル付き重複 120 行 → distinct 40」は修正前に 120 を返す NG 入力)。**教訓: ガードが「今は効いている」ことと「効き続ける」ことは別 — 今日たまたま無害にしている前提が 解消された日に何が起こるかを、書いた時点で 1 回シミュレートする**
+
+**検証**: `tests/test_hunt_event_dataset.py` 37 passed / `tests/test_mof_statements_daily_isolation.py` 19 passed、`scripts/check.py` 全 10 チェック通過。破損 wikilink は **382 → 373** (相対形 `[[../dir/name]]` が本 checker で解決しないため bare stem へ統一、既存 2 件も同時に解消)。live / tier / lot / 価格データには触れていない
+
+## 2026-09-19 — fix(hunt_events): 観測データセットの読み手が 5 層で壊れていた — 書き手だけが 144 日動いていた (rule:R3)
+
+- **起点 = 未消化レビュー指摘の消化**。PR #267 (09-18) がマージゲートの findings 軸が導入以来**恒真**だったことを明かし、過去 10 PR に **未消化の connector P1/P2 指摘 19 件**が残っていた (MEMORY `project_review_gate_vacuous_2026_09_11`)。本 PR は PR #253 / #264 の hunt_events 系 4 件を消化したもので、**指摘より深い場所に 6 層の欠陥** (根因 D0 + 読み手 D1-D5) が見つかった。readout: [[hunt-events-dataset-readout-2026-09-19]]
+- **D0 (根因)**: `modules/hunt_event_logger.py` docstring が「`reversal` は `tools/attribute_hunt_outcomes.py` が後で埋める (deferred)」と書いた labeler が、2026-04-28 から **144 日経っても存在しない**
+- **D1**: documented consumer が documented dataset を**読めない** — `tools/sr_audit.py` は `json.loads(whole_file)` でデータセットは JSONL なので必ず 2 行目で `JSONDecodeError`。痕跡 = `raw/audits/sr_audit_*` の出力が **5 ヶ月で 1 件もゼロ**
+- **D2**: 合成行 1 行が残存 (`2026-04-28.jsonl`)。**旧署名 (`adx` 整数 ∧ `atr_price == 0.001`) では捕まらない** (adx=18.5 / atr=0.12)。代わりに **feed-symbol 不変条件** (`^[A-Z]{6}=X$`) を使うと **69,577 行中ちょうど 1 行**が落ちる — 値ではなく**収集経路の構造**なので値域が増えても破れない。会計: 当該ファイルは `e0836eff3` 時点で 301 行、PR #264 は旧署名合致の 300 行を正しく除去し 1 行を取り逃していた
+- **D3 (算数破綻)**: `entry_time` 以外が完全一致する重複評価が **59,630 / 69,576 (85.7%)**。相異なる観測は **9,946** のみで **N 膨張 7.0 倍**。`sr_audit.py:127` の `n = len(events)` は Wilson 下限と二項検定の分母に直入するため、Stage A strict (`wilson_lower_bf40 > 50%`) の通過必要 WR が **真の N=9,946 で 51.473% → 膨張後 N=69,577 で 50.558%** に下がる = 真 WR 51.0% のノイズセルが promotion ゲートを通る。重複群の `entry_time` スパンは中央値 **125 分** (最大 21h) で、原因 (bar 凍結の可能性) は**本 readout では未特定** — 独立観測でないことは原因に依らず成立するので dedup は原因特定を待たない
+- **D4 (最重量)**: `reversal` が **69,577 / 69,577 で None**。旧実装の分子 `sum(... if e.get("reversal"))` は None を分子から落としつつ**分母には数える**ので、未ラベル観測が自動的に敗北票になる。⚠️ **危険の向きは偽陽性でなく偽陰性** — 実データ全量なら **WR 0.00% / z = −263.8 / Wilson 上限 95% 0.0055% / p = 0**、つまり sr hunt 仮説を虚構の圧倒的証拠で**棄却**する経路だった。D1 (読めない) が偶然 D4 を隠していた
+- **D5**: `--pair` / `--side` / `--window` が出力ラベルにしか効かず**母集団を絞っていなかった** — 全ペア pooled の結果に単一ペア名が付く。「名乗る estimand を測っているか」欠陥族の 1 例追加
+- **対処**: `tools/hunt_event_dataset.py` (新規) に読み取り規約 D1-D5 を凍結 (`load_rows` / `split_provenance` / `collapse_repeats` / `select_cell` / `split_labels` / `prepare` + validity gate)。`tools/sr_audit.py` は読み取りを委譲し、**`stage_a_audit` 自体を fail-closed** に (未ラベル行を 1 行でも含む母集団は `verdict="data_blocked"` / `n=0`) — `prepare()` を飛ばした呼び出し元からも再発できない。**raw ファイルは書き換えない** (観測記録は as-collected で保存、除去は読み取り時。合成行 1 行は恒久 negative-control fixture として残す)
+- **pin 30 本** (`tests/test_hunt_event_dataset.py`) — MEMORY の「**検知器には NG を返す既知の入力を同じコミットで pin せよ**」に従い 5 層それぞれの**落ちるべき入力**を固定。恒真 NG でないことの pin も併設 (全行ラベル付き → PASS)。実データセットへの pin 2 本は **labeler が実装された日に落ちて readout 更新を促す**。counterfactual: pre-fix `stage_a_audit` に未ラベル 100 行で `n=100` / `verdict` キー無しが返ることを実測、D4 pin 3 本が落ちる
+- **未解決 (registry `hunt-events-labeler-disposition`、期日 2026-10-20)**: labeler を作って観測系として生かすか、退役させるかの二択。**決めずに期日を roll するのは禁止** (write-only を 4 段目まで放置した本件そのものの再発)。現状は validity gate が DATA-BLOCKED を返し続けるので**この経路から誤った verdict は出ない**
+- ⚠️ **引用規律**: 本データセットを使った過去の N 主張は再確認が必要。[[sr-strategies-signal-track-2026-04-28]] Step 1 の「81 events = 81 actual signal emissions」は**合成行を数えていた可能性が高い** (git に残る同ファイルの全スナップショットが旧合成署名に全行合致) — 同文書の結論は Step 3 の score 分布から独立に導かれるため揺らがない。決定文書は不改変、corrigendum は readout §5
+- **検証**: full suite **3,436 passed / 17 skipped / 1 xfailed**、実行後に `raw/hunt_events/` 無変化 (PR #266 の書込み抑止が効いていることを再確認)
+
 ## 2026-09-18 — research(family A): ❌ explore verdict = **FAIL** — 梯子は 2022 の 2 発だけを説明していた (rule:R1 手続き、純研究)
 
 - **期日 09-28 の 10 日前倒しで verdict 確定**。J = P(armed｜介入日) − P(armed｜非介入日) = **0.2978** / permutation p (片側、circular shift 全 **1,107** 通り) = **0.1074** > α=0.05 ⇒ §10.4 固定分岐により **FAIL**。2×2 = **TPR 3/7 / FPR 144/1101** (armed 147 / 1,108 営業日)
