@@ -32,6 +32,24 @@
 - **隣接 ban / 凍結 frame**: O-2026-09-14-1 と同一 (weekend_gap の 5 frame)。**初稿はここで「30 分内回帰率の CB 週比較」を提案し敵対的レビューで P1 棄却された** — 未登録 split の事後シード = 観測前宣言手続きの正面違反 (教訓として残す)
 - **経路**: 記録のみ (marginal flag)
 
+### O-2026-09-18-1: learner の blacklist 決定が `current_params` に到達していない (執行 QA / 制御系)
+- **現象**: `/api/demo/learning` の最新 adjustment は **id 94 / 2026-09-15 13:18:14 / mode `scalp` / `parameter: entry_type_blacklist_add` / `old_value 0.0 → new_value 1.0` / reason `sr_channel_reversal: WR 25.0%, EV -0.98 → 除外` / `sample_size 190`**。同一 payload の `current_params.entry_type_blacklist` は **`[]`**、`/api/demo/status` の `strategy_status` でも `sr_channel_reversal` は **`blacklisted: false` / `enabled: true`** (100 戦略中 `blacklisted: true` は **0 件**)。決定から **3.36 日**経過しても反映ゼロ
+- **トリガ日**: 2026-09-18 (観測日)。決定自体は 2026-09-15
+- **想定メカニズム**: 学習ループの**書き込み側**が no-op — 決定は adjustment テーブルに記録されるが、実行時パラメータへ伝播していない。コード未確認のため経路は特定していない
+- **family 候補**: なし — エッジ観測ではなく**制御系の欠陥**。outcome 量は一切含まない
+- **反証可能な予測**: 次に learner が blacklist 追加を記録した場合も `current_params.entry_type_blacklist` は空のままであるはず。逆に 1 件でも反映されれば本観測は棄却される (毎 run 2 フィールドの突合のみで検証可能、α 消費なし)
+- **隣接 ban / 凍結 frame**: `sr_channel_reversal` の**エッジ評価には触れない** — 本観測は「決定が反映されたか」だけを見ており、当該 cell の WR/EV を根拠に昇降格を論じない
+- **経路**: 記録 + [[2026-09-18]] 発見 2 に詳細。修復は user 決裁事項 (trade log 未決事項 #2)
+
+### O-2026-09-18-2: live-eligible cell 4 件中 1 件だけがゲート判定に現れない (執行 QA)
+- **現象**: 2026-09-18 の `/api/oanda/audit` 84 行のうち tier-master `pair_promoted` (21 cell) に該当する発火は **4 イベント**。うち 3 件 (`dt_bb_rsi_mr`×USD_JPY 01:01:21 / `vsg_jpy_reversal`×EUR_JPY 03:07:18 / `xs_momentum_rsi`×USD_JPY 12:08:42) は **`bridge_status: blocked` + `block_reason: agg_kelly=-0.327<0`** の行を持つ。残る 1 件 **`bb_squeeze_breakout`×EUR_USD BUY 09:34:33** は **`shadow_tracking` の skipped 行のみで、blocked 行が存在しない** = live 送信経路に到達した形跡がない
+- **トリガ日**: 2026-09-18
+- **想定メカニズム**: 同一の live-eligible 資格を持つ cell の間で、`agg_kelly` ゲートに**到達する経路と到達しない経路**が分かれている (mode 別配線 / 上流フィルタの差 / tier 判定タイミングの差のいずれか)。**コード未確認のため断定しない**
+- **family 候補**: なし — 執行契約の観測
+- **反証可能な予測**: `agg_kelly` が負で固定されている限り、今後の `bb_squeeze_breakout`×EUR_USD 発火も blocked 行を伴わないはず。逆に同 cell が 1 度でも `agg_kelly` blocked 行を出せば本観測は棄却される (audit の bridge_status/block_reason のみで検証、outcome 不要)
+- **隣接 ban / 凍結 frame**: `prereg-trigger-registry.json` を `bb_squeeze_breakout` / `agg_kelly` で検索 — **該当 family の事前コミット済み再審条件・監査 frame はヒットなし** ⇒ **独自 R1 マークでの前倒しはしない**
+- **経路**: 記録のみ。原因特定は次 run のコード読みへ
+
 ---
 
 ## 週次 rollup
