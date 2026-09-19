@@ -8,6 +8,7 @@ related:
   - "[[sr-anti-hunt-bounce]]"
   - "[[candidate-gap-readout-2026-09-01]]"
   - "[[lesson-defect-family-sweep-siblings-2026-09-17]]"
+  - "[[lesson-symmetric-side-check-2026-09-19]]"
 ---
 
 # `raw/hunt_events/` は書けるが読めず、読めても意味を持たなかった (2026-09-19)
@@ -269,7 +270,7 @@ cell 絞りのみを通す。pin 4 本追加 (`USD_JPY` 表記の完備 baseline
 全行隔離 / benchmark モードでは通る / provenance を外してもラベル検査と dedup は
 外れない / 会計に `enforce_provenance` を記録)。
 
-**教訓: 「対称に処置せよ」は「同じ関数に通せ」ではない。**
+**教訓: 「対称に処置せよ」は「同じ関数に通せ」ではない** ([[lesson-symmetric-side-check-2026-09-19]])**。**
 どの規約がどの母集団に固有かを先に列挙する。1 巡目で片側を忘れ、
 2 巡目で対称化を取り違えた — 同じ指摘の周りで**2 種類の間違いを続けて**やっている。
 

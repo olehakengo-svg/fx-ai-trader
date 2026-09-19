@@ -37,6 +37,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### `[[lesson-symmetric-side-check-2026-09-19]]`
+**発見日**: 2026-09-19 | **rule**: R3 | **PR #272 レビュー 1・2 巡目**
+- 問題: `stage_a_audit` の `events` 側だけを fail-closed にし、readout に「どの呼び出し元からも**再発できない**」と書いた。**`benchmark_events` 経路ではその主張が偽**で、未ラベル行が `bench_n` に入り `bench_wins` から落ちて `net_edge` が過大になる (promotion verdict が変わりうる)
+- 🔴 **前日 2026-09-18 に自分で定式化した教訓の再発** — family A A-8 で「レビューが片側の穴を指摘したら対称な反対側を自分で確認する」と書いた翌日、今度は**レビューを待たずに片側だけ塞いだ**
+- 2 巡目: 対称化しようとして benchmark を**同じ `prepare()` に通し**、logger 固有の provenance 規約 (feed-symbol) を別母集団に課して**妥当な baseline を全行隔離**した。同じ指摘の周りで **1 巡目は片側を忘れ、2 巡目は軸を取り違える** 2 種類の間違い
+- 対策: ガードを 1 箇所入れたら同型の入力 (signal↔label / primary↔benchmark / write↔read) を grep で列挙。ただし当てる前に**どの規約がどの母集団に固有か**を先に列挙する。pin は両側 (片側汚染→NG / 両側 clean→PASS) に置く
+- 教訓: **片側だけ塞いだ fail-closed は「再発できない」という主張を偽にする。「対称に処置せよ」は「同じ関数に通せ」ではない。教訓を書くことと、次の設計でそれを検索することは別の作業である**
+
 ### [[lesson-bsd-stat-cloud-hook-blackout-2026-09-14]]
 **発見日**: 2026-09-14 | **rule**: R3
 - 問題: クラウド (Linux) セッションで SessionStart / UserPromptSubmit hook が exit 1 で全損 — KB 自動注入 (index/未解決/lessons/判断プロトコル) が一切効いていなかった
