@@ -338,3 +338,53 @@ def test_stage_a_reports_which_population_was_unlabeled():
 
     out = stage_a_audit([_row(reversal=None)], benchmark_events=None)
     assert out["unlabeled_in"] == "events"
+
+
+# --------------------------------------------------------------------------
+# PR #272 レビュー 2 巡目 — 「対称にする」を 1 段取り違えていた
+# ラベル検査と独立観測の単位は両母集団で対称。**provenance 規約は母集団ごとに違う。**
+# --------------------------------------------------------------------------
+
+def test_benchmark_prepare_does_not_enforce_hunt_provenance(tmp_path):
+    """NG 入力: repo 慣行の `USD_JPY` 表記のラベル完備 baseline。
+
+    D2 を課すと全行隔離されて exit 5 になる (hunt logger 由来とは限らない
+    別母集団に logger 固有の規約を課していた)。
+    """
+    _write(tmp_path, [_row(instrument="USD_JPY", entry_price=150 + i * 0.01,
+                           reversal=(i % 3 == 0)) for i in range(40)])
+    strict = hed.prepare(tmp_path)
+    assert strict["ok"] is False
+    assert strict["accounting"]["quarantined_provenance"] == 40
+
+    bench = hed.prepare(tmp_path, enforce_provenance=False)
+    assert bench["ok"] is True
+    assert bench["accounting"]["quarantined_provenance"] == 0
+    assert len(bench["events"]) == 40
+
+
+def test_benchmark_prepare_still_enforces_labels_and_dedup(tmp_path):
+    """provenance を外してもラベル検査と dedup は外れないこと。"""
+    _write(tmp_path, [_row(instrument="USD_JPY") for _ in range(200)])
+    out = hed.prepare(tmp_path, enforce_provenance=False)
+    assert out["ok"] is False                       # 全行未ラベル
+    assert out["accounting"]["distinct_observations"] == 1   # dedup は効いている
+
+
+def test_benchmark_prepare_still_filters_pair_and_side(tmp_path):
+    _write(tmp_path, [_row(instrument="USD_JPY", side="support",
+                           entry_price=150 + i * 0.01, reversal=True)
+                      for i in range(40)]
+           + [_row(instrument="EUR_JPY", side="resistance",
+                   entry_price=160 + i * 0.01, reversal=True) for i in range(40)])
+    out = hed.prepare(tmp_path, pair="USD_JPY", side="bull",
+                      enforce_provenance=False)
+    assert out["ok"] is True
+    assert len(out["events"]) == 40
+
+
+def test_accounting_records_whether_provenance_was_enforced(tmp_path):
+    _write(tmp_path, [_row()])
+    assert hed.prepare(tmp_path)["accounting"]["enforce_provenance"] is True
+    assert hed.prepare(tmp_path, enforce_provenance=False)[
+        "accounting"]["enforce_provenance"] is False

@@ -199,7 +199,7 @@ $ python3 tools/sr_audit.py --events-json knowledge-base/raw/hunt_events --pair 
   - labeled rows 0 < floor 30 (unlabeled 3057 — `reversal` は tools/attribute_hunt_outcomes.py が埋める約束のまま未実装)
 ```
 
-## 3. pin (37 本、`tests/test_hunt_event_dataset.py`)
+## 3. pin (41 本、`tests/test_hunt_event_dataset.py`)
 
 MEMORY `project_review_gate_vacuous_2026_09_11` の指示
 「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」に従い、
@@ -243,6 +243,35 @@ PR #272 の connector レビューが P1 2 件 + P2 1 件を返し、**すべて
 修正は両側を同じループで検査する形にし (`for label, population in (("events", …), ("benchmark_events", …))`)、
 どちらが未ラベルだったかを `unlabeled_in` で返す。pin は**両側**に置いた
 (primary clean × benchmark 汚染 → DATA-BLOCKED / 両側 clean → `net_edge` 計算)。
+
+### 3.2 レビュー 2 巡目 — 「対称にする」を 1 段取り違えていた
+
+1 巡目の修正で benchmark を**同じ `prepare()` に通した**ところ、connector が P2 を返した:
+
+> **Avoid applying hunt-only provenance rules to benchmarks** — benchmark は
+> 「SR 近接 全 bar」という別母集団で hunt logger 由来とは限らないので、
+> `^[A-Z]{6}=X$` を強制すると repo 慣行の `instrument: "USD_JPY"` 表記の
+> **ラベル完備で妥当な baseline が全行隔離されて exit 5** になる。
+
+**これも正しい。** 1 巡目の指摘 (「benchmark 側も検査せよ」) に対して、
+私は「benchmark を primary と同じパイプラインに通す」と読んだが、
+**対称にすべき軸とそうでない軸を区別していなかった**:
+
+| 軸 | 対称か | 理由 |
+|---|---|---|
+| D4 ラベル検査 | ✅ 対称 | 未ラベル行が分母に入る算数は母集団に依らず壊れる |
+| D3 独立観測の単位 | ✅ 対称 | 同一 payload が独立観測でないのも母集団に依らない |
+| D5 pair / side 絞り | ✅ 対称 | 名乗る estimand を測る要件は同じ |
+| **D2 provenance** | ❌ **非対称** | **feed-symbol は `hunt_event_logger` 固有の規約**で、母集団一般の規約ではない |
+
+⇒ `prepare(..., enforce_provenance=False)` を追加し、benchmark はラベル・dedup・
+cell 絞りのみを通す。pin 4 本追加 (`USD_JPY` 表記の完備 baseline が strict では
+全行隔離 / benchmark モードでは通る / provenance を外してもラベル検査と dedup は
+外れない / 会計に `enforce_provenance` を記録)。
+
+**教訓: 「対称に処置せよ」は「同じ関数に通せ」ではない。**
+どの規約がどの母集団に固有かを先に列挙する。1 巡目で片側を忘れ、
+2 巡目で対称化を取り違えた — 同じ指摘の周りで**2 種類の間違いを続けて**やっている。
 
 ## 4. 未解決 — labeler を作るか、データセットを退役させるか
 

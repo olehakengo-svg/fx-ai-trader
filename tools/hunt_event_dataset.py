@@ -209,6 +209,7 @@ def prepare(
     pair: str | None = None,
     side: str | None = None,
     labeled_n_floor: int = LABELED_N_FLOOR,
+    enforce_provenance: bool = True,
 ) -> dict[str, Any]:
     """読み取り〜validity gate までを 1 本にした入口。
 
@@ -217,9 +218,24 @@ def prepare(
         accounting    — 各層で何行落ちたかの内訳 (readout 用)
         ok            — validity gate 通過か
         blocked_reasons — 通過しなかった理由 (空なら ok)
+
+    `enforce_provenance=False` で D2 (feed-symbol 不変条件) を外す。
+
+    ⚠️ **D2 は hunt logger 固有の規約であって母集団一般の規約ではない**
+    (PR #272 Codex P2)。`sr_audit` の benchmark は「SR 近接 全 bar の reversal」
+    という**別母集団**で、`modules/hunt_event_logger.py` 由来とは限らない。
+    そこに feed-symbol を強制すると、ラベル完備で妥当な baseline (repo 慣行の
+    `instrument: "USD_JPY"` 表記) が全行隔離されて exit 5 になる。
+
+    ⇒ **対称にすべきなのは「ラベル検査」と「独立観測の単位」で、
+    「provenance 規約」は母集団ごとに違う。** 直前の修正で benchmark を
+    同じ `prepare()` に通したのは、対称性を 1 段取り違えていた。
     """
     raw = load_rows(spec)
-    collected, quarantined = split_provenance(raw)
+    if enforce_provenance:
+        collected, quarantined = split_provenance(raw)
+    else:
+        collected, quarantined = list(raw), []
     deduped, repeats = collapse_repeats(collected)
     cell = select_cell(deduped, pair=pair, side=side)
     labeled, unlabeled = split_labels(cell)
@@ -249,6 +265,7 @@ def prepare(
             "pair": pair,
             "side": side,
             "labeled_n_floor": labeled_n_floor,
+            "enforce_provenance": enforce_provenance,
         },
     }
 
