@@ -301,6 +301,23 @@ pin 4 本追加。うち「ラベル付き重複 120 行 → distinct 40 / N=40�
 今日たまたま無害にしている前提 (= 全行未ラベル) が解消された日に何が起こるかを、
 ガードを書いた時点で 1 回シミュレートする。**
 
+### 3.4 Stage B を自分で確認した (§3.1-3.3 の教訓の適用)
+
+3 巡のレビューで「対称な反対側を自分で確認しろ」を 3 回言われたので、
+**指摘されていない Stage B (`stage_b_simulation`) を自分で監査した**。
+
+✅ **Stage B は D4 軸ではクリーン**。outcome を解決できない event は
+`else: continue` で**母集団から落ちる**ので、`n = len(sims)` は
+ラベル付き event のみを数え、全件未ラベルなら `verdict="no_simulatable_events"`
+を返す。Stage A の「未ラベル行が分母に入る」欠陥は Stage B には無い。
+
+⚠️ 別軸の観測 1 件 (**本 PR では変更しない**): Stage B は `actual_outcome` 由来の
+event と `reversal` proxy 由来の event (後者は `tp_pip * 0.7` の haircut) を
+**同一の `n` に混ぜ、内訳を返さない**。混合比が変われば EV / PF / Kelly が動くので、
+labeler を実装するなら**そのときに内訳を出す**べき。今は `prepare()` の
+validity gate が手前で止めるため到達不能なので、
+registry `hunt-events-labeler-disposition` の note に回した。
+
 ## 4. 未解決 — labeler を作るか、データセットを退役させるか
 
 本 PR は**読み手の防御まで**。`reversal` を埋める labeler

@@ -832,7 +832,8 @@
       "execution_subject": "Claude (autopilot) — 期日に disposition を決める。判定は手動",
       "note": {
         "resolve_when": "(a) tools/attribute_hunt_outcomes.py が存在し accounting.labeled > 0 になる = labeler 実装 → readout §4 を更新して resolve / (b) データセット退役を決定 → 書込み停止 + readout §4 を更新して resolve",
-        "current_state": "rows_read 69577 / quarantined 1 / repeats_collapsed 59630 / distinct 9946 / labeled 0 → validity gate DATA-BLOCKED (2026-09-19 実測)"
+        "current_state": "rows_read 69577 / quarantined 1 / repeats_collapsed 59630 / distinct 9946 / labeled 0 → validity gate DATA-BLOCKED (2026-09-19 実測)",
+        "stage_b_observation": "labeler を実装する場合の追加要件 (2026-09-19 の自主監査): tools/sr_audit.stage_b_simulation は actual_outcome 由来の event と reversal proxy 由来 (tp_pip*0.7 haircut) を同一の n に混ぜ内訳を返さない。混合比が変われば EV/PF/Kelly が動くので、labeler 実装時に内訳を出すこと。⚠️ D4 軸 (未ラベル行が分母に入る) は Stage B には無い — 未解決 outcome は `else: continue` で母集団から落ちる (確認済み)。"
       }
     },
     {
