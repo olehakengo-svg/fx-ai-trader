@@ -1,5 +1,20 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-19 — fix(hunt_events): 観測データセットの読み手が 5 層で壊れていた — 書き手だけが 144 日動いていた (rule:R3)
+
+- **起点 = 未消化レビュー指摘の消化**。PR #267 (09-18) がマージゲートの findings 軸が導入以来**恒真**だったことを明かし、過去 10 PR に **未消化の connector P1/P2 指摘 19 件**が残っていた (MEMORY `project_review_gate_vacuous_2026_09_11`)。本 PR は PR #253 / #264 の hunt_events 系 4 件を消化したもので、**指摘より深い場所に 6 層の欠陥** (根因 D0 + 読み手 D1-D5) が見つかった。readout: [[hunt-events-dataset-readout-2026-09-19]]
+- **D0 (根因)**: `modules/hunt_event_logger.py` docstring が「`reversal` は `tools/attribute_hunt_outcomes.py` が後で埋める (deferred)」と書いた labeler が、2026-04-28 から **144 日経っても存在しない**
+- **D1**: documented consumer が documented dataset を**読めない** — `tools/sr_audit.py` は `json.loads(whole_file)` でデータセットは JSONL なので必ず 2 行目で `JSONDecodeError`。痕跡 = `raw/audits/sr_audit_*` の出力が **5 ヶ月で 1 件もゼロ**
+- **D2**: 合成行 1 行が残存 (`2026-04-28.jsonl`)。**旧署名 (`adx` 整数 ∧ `atr_price == 0.001`) では捕まらない** (adx=18.5 / atr=0.12)。代わりに **feed-symbol 不変条件** (`^[A-Z]{6}=X$`) を使うと **69,577 行中ちょうど 1 行**が落ちる — 値ではなく**収集経路の構造**なので値域が増えても破れない。会計: 当該ファイルは `e0836eff3` 時点で 301 行、PR #264 は旧署名合致の 300 行を正しく除去し 1 行を取り逃していた
+- **D3 (算数破綻)**: `entry_time` 以外が完全一致する重複評価が **59,630 / 69,576 (85.7%)**。相異なる観測は **9,946** のみで **N 膨張 7.0 倍**。`sr_audit.py:127` の `n = len(events)` は Wilson 下限と二項検定の分母に直入するため、Stage A strict (`wilson_lower_bf40 > 50%`) の通過必要 WR が **真の N=9,946 で 51.473% → 膨張後 N=69,577 で 50.558%** に下がる = 真 WR 51.0% のノイズセルが promotion ゲートを通る。重複群の `entry_time` スパンは中央値 **125 分** (最大 21h) で、原因 (bar 凍結の可能性) は**本 readout では未特定** — 独立観測でないことは原因に依らず成立するので dedup は原因特定を待たない
+- **D4 (最重量)**: `reversal` が **69,577 / 69,577 で None**。旧実装の分子 `sum(... if e.get("reversal"))` は None を分子から落としつつ**分母には数える**ので、未ラベル観測が自動的に敗北票になる。⚠️ **危険の向きは偽陽性でなく偽陰性** — 実データ全量なら **WR 0.00% / z = −263.8 / Wilson 上限 95% 0.0055% / p = 0**、つまり sr hunt 仮説を虚構の圧倒的証拠で**棄却**する経路だった。D1 (読めない) が偶然 D4 を隠していた
+- **D5**: `--pair` / `--side` / `--window` が出力ラベルにしか効かず**母集団を絞っていなかった** — 全ペア pooled の結果に単一ペア名が付く。「名乗る estimand を測っているか」欠陥族の 1 例追加
+- **対処**: `tools/hunt_event_dataset.py` (新規) に読み取り規約 D1-D5 を凍結 (`load_rows` / `split_provenance` / `collapse_repeats` / `select_cell` / `split_labels` / `prepare` + validity gate)。`tools/sr_audit.py` は読み取りを委譲し、**`stage_a_audit` 自体を fail-closed** に (未ラベル行を 1 行でも含む母集団は `verdict="data_blocked"` / `n=0`) — `prepare()` を飛ばした呼び出し元からも再発できない。**raw ファイルは書き換えない** (観測記録は as-collected で保存、除去は読み取り時。合成行 1 行は恒久 negative-control fixture として残す)
+- **pin 30 本** (`tests/test_hunt_event_dataset.py`) — MEMORY の「**検知器には NG を返す既知の入力を同じコミットで pin せよ**」に従い 5 層それぞれの**落ちるべき入力**を固定。恒真 NG でないことの pin も併設 (全行ラベル付き → PASS)。実データセットへの pin 2 本は **labeler が実装された日に落ちて readout 更新を促す**。counterfactual: pre-fix `stage_a_audit` に未ラベル 100 行で `n=100` / `verdict` キー無しが返ることを実測、D4 pin 3 本が落ちる
+- **未解決 (registry `hunt-events-labeler-disposition`、期日 2026-10-20)**: labeler を作って観測系として生かすか、退役させるかの二択。**決めずに期日を roll するのは禁止** (write-only を 4 段目まで放置した本件そのものの再発)。現状は validity gate が DATA-BLOCKED を返し続けるので**この経路から誤った verdict は出ない**
+- ⚠️ **引用規律**: 本データセットを使った過去の N 主張は再確認が必要。[[sr-strategies-signal-track-2026-04-28]] Step 1 の「81 events = 81 actual signal emissions」は**合成行を数えていた可能性が高い** (git に残る同ファイルの全スナップショットが旧合成署名に全行合致) — 同文書の結論は Step 3 の score 分布から独立に導かれるため揺らがない。決定文書は不改変、corrigendum は readout §5
+- **検証**: full suite **3,436 passed / 17 skipped / 1 xfailed**、実行後に `raw/hunt_events/` 無変化 (PR #266 の書込み抑止が効いていることを再確認)
+
 ## 2026-09-18 — research(family A): ❌ explore verdict = **FAIL** — 梯子は 2022 の 2 発だけを説明していた (rule:R1 手続き、純研究)
 
 - **期日 09-28 の 10 日前倒しで verdict 確定**。J = P(armed｜介入日) − P(armed｜非介入日) = **0.2978** / permutation p (片側、circular shift 全 **1,107** 通り) = **0.1074** > α=0.05 ⇒ §10.4 固定分岐により **FAIL**。2×2 = **TPR 3/7 / FPR 144/1101** (armed 147 / 1,108 営業日)

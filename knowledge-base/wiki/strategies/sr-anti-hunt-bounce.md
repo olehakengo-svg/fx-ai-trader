@@ -59,7 +59,12 @@
 ## Components
 - `modules/sr_detector.py` — KDE + obviousness scoring (round-number, touch_count, age 統合)
 - `research/edge_discovery/hunt_analyzer.py` — hunt 統計 + reversal WR
-- `tools/sr_audit.py` — CLI audit
+- `tools/sr_audit.py` — CLI audit。⚠️ **2026-09-19 (rule:R3) 以降、`raw/hunt_events/` を入力に
+  した実行は `DATA-BLOCKED` を返す** — `reversal` が 69,577/69,577 で None (labeler
+  `tools/attribute_hunt_outcomes.py` が未実装) かつ重複評価 85.7% で N が 7.0 倍に膨らむ。
+  disposition = registry `hunt-events-labeler-disposition` (期日 2026-10-20)。
+  読み取り規約: [[../analyses/hunt-events-dataset-readout-2026-09-19]]
+- `tools/hunt_event_dataset.py` — hunt_events の読み手 (provenance / dedup / label gate)
 - `tools/sr_rigor_audit.py` — Wilson + Bonferroni + Quarterly + Trade-Sim audit
 - `strategies/daytrade/sr_anti_hunt_bounce.py`
 

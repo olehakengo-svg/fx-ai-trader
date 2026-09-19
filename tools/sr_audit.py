@@ -39,6 +39,9 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from tools import hunt_event_dataset  # noqa: E402
+
 # Stats helpers (mirror tools/cell_edge_audit.py)
 WILSON_Z_95 = 1.96
 WILSON_Z_BF40 = 2.94   # k=40 Bonferroni: α=0.05/40 → two-sided z
@@ -127,6 +130,28 @@ def stage_a_audit(events: list[dict],
     n = len(events)
     if n == 0:
         return {"n": 0, "verdict": "no_data"}
+
+    # 2026-09-19 (rule:R3) — 未ラベル行は敗北票ではない。
+    # 旧実装の `sum(1 for e in events if e.get("reversal"))` は
+    # `reversal is None` の行を分子から落としつつ分母 `n` には数えるので、
+    # ラベル未付与の観測が自動的に「反転しなかった」扱いになっていた。
+    # 実データは 69,577 行すべて `reversal is None` (labeler
+    # tools/attribute_hunt_outcomes.py が未実装) なので、素通しすると
+    # WR=0% / n=69,577 の「有意に負のエッジ」という虚構が出る。
+    # 統計関数の側で fail-closed にして、どの呼び出し元からも再発できなくする。
+    unlabeled = sum(1 for e in events if e.get("reversal") is None)
+    if unlabeled:
+        return {
+            "n": 0,
+            "n_supplied": n,
+            "n_unlabeled": unlabeled,
+            "verdict": "data_blocked",
+            "blocked_reason": (
+                f"{unlabeled}/{n} events have `reversal is None`. "
+                "未ラベル行は分母に数えてはならない "
+                "(tools/hunt_event_dataset.prepare() で除外してから渡すこと)"
+            ),
+        }
 
     wins = sum(1 for e in events if e.get("reversal"))
     wr = wins / n
@@ -389,7 +414,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--events-json", required=True,
-                        help="Path to hunt events JSON (list of dicts with reversal/entry_time/instrument)")
+                        help="hunt event JSONL / ディレクトリ / glob (既定のデータセットは knowledge-base/raw/hunt_events)")
     parser.add_argument("--benchmark-json", default=None,
                         help="Optional baseline events JSON for net_edge calc")
     parser.add_argument("--pair", default="USD_JPY")
@@ -404,16 +429,37 @@ def main():
     parser.add_argument("--out-dir", default="raw/audits")
     args = parser.parse_args()
 
-    events = json.loads(Path(args.events_json).read_text())
-    if isinstance(events, dict):
-        events = events.get("events", [])
+    # 2026-09-19 (rule:R3): 読み取りは tools/hunt_event_dataset に集約。
+    # 旧実装は `json.loads(whole_file)` で、データセットが JSONL なので
+    # 2 行目で必ず JSONDecodeError になっていた (= この CLI は 5 ヶ月間
+    # 一度も documented 入力を読めていなかった。raw/audits/sr_audit_* が
+    # 1 件も存在しないのがその痕跡)。--pair / --side も出力ラベルにしか
+    # 効いておらず、全ペア pooled の結果に単一ペア名が付いていた。
+    prepared = hunt_event_dataset.prepare(
+        args.events_json, pair=args.pair, side=args.side)
+    events = prepared["events"]
+    accounting = prepared["accounting"]
+    print("[sr_audit] dataset: "
+          f"read={accounting['rows_read']} "
+          f"quarantined={accounting['quarantined_provenance']} "
+          f"repeats_collapsed={accounting['collapsed_repeats']} "
+          f"distinct={accounting['distinct_observations']} "
+          f"in_cell={accounting['in_cell']} labeled={accounting['labeled']}")
+    if not prepared["ok"]:
+        print("[sr_audit] verdict: DATA-BLOCKED — 母集団が estimand を支えない")
+        for reason in prepared["blocked_reasons"]:
+            print(f"  - {reason}")
+        return 5
+
     bench = None
     if args.benchmark_json:
-        bench_data = json.loads(Path(args.benchmark_json).read_text())
-        bench = bench_data.get("events", []) if isinstance(bench_data, dict) else bench_data
+        bench_prepared = hunt_event_dataset.prepare(
+            args.benchmark_json, pair=args.pair, side=args.side)
+        bench = bench_prepared["events"]
 
     audit = stage_a_audit(events, benchmark_events=bench,
                           k_bonferroni=args.bonferroni_k)
+    audit["dataset_accounting"] = accounting
 
     # Stage B: only run if events have hypothetical trade fields
     stage_b = None
