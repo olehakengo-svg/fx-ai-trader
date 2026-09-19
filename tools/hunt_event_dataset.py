@@ -55,8 +55,23 @@ from typing import Any, Iterable
 # D2: 実収集行の instrument は yfinance feed symbol。
 FEED_SYMBOL_PAT = re.compile(r"^[A-Z]{6}=X$")
 
-# D3: 独立観測の identity から外すフィールド (logger が書込み時刻を入れる列)。
-IDENTITY_EXCLUDE = frozenset({"entry_time"})
+# D3: 独立観測の identity から外すフィールド。
+#
+# `entry_time` は logger が書込み時刻を入れる列。
+# `reversal` / `actual_outcome` / `actual_pnl_pips` は **post-hoc に付与される
+# outcome 列**で、signal 時点の観測ではない (PR #272 Codex P2)。
+# ⚠️ これを identity に残すと、labeler が同一 signal の反復発火に**異なるラベルを
+# 付けた瞬間に dedup が collapse をやめ**、N 膨張が復活する — しかも
+# **validity gate が通り始めるのと同じタイミングで**。今日は全行 None なので
+# 実害が出ず、「意味を持つようになった日」に静かに壊れる形だった。
+# identity は signal 時点のフィールドだけで組む。
+IDENTITY_EXCLUDE = frozenset({
+    "entry_time", "reversal", "actual_outcome", "actual_pnl_pips",
+})
+
+# collapse したグループ内で outcome が食い違ったら、それは labeler のバグであって
+# 黙って片方を採る場面ではない。会計に載せて validity gate で止める。
+OUTCOME_FIELDS = ("reversal", "actual_outcome", "actual_pnl_pips")
 
 # D4: ラベル付き行がこれを下回れば verdict を出さない。
 # Rule 1 の N>=30 と同じ床 (CLAUDE.md 判断プロトコル)。
@@ -140,30 +155,61 @@ def split_provenance(
 
 
 def identity(row: dict[str, Any]) -> tuple:
-    """D3: 独立観測の identity — `entry_time` 以外の全フィールド。"""
+    """D3: 独立観測の identity — signal 時点のフィールドのみ。
+
+    `IDENTITY_EXCLUDE` (書込み時刻 + post-hoc outcome 列) は含めない。
+    """
     return tuple(sorted(
         (k, json.dumps(v, sort_keys=True))
         for k, v in row.items() if k not in IDENTITY_EXCLUDE
     ))
 
 
+def _outcome_of(row: dict[str, Any]) -> tuple:
+    return tuple(row.get(k) for k in OUTCOME_FIELDS)
+
+
 def collapse_repeats(
     rows: Iterable[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], int]:
-    """D3: 同一 identity の行を 1 件に潰す。
+) -> tuple[list[dict[str, Any]], int, list[dict[str, Any]]]:
+    """D3: 同一 signal identity の行を 1 件に潰す。
 
-    Returns (代表行のリスト, 潰した行数)。代表は最初に現れた行 =
-    最も早い書込み時刻の評価。
+    Returns (代表行, 潰した行数, ラベル衝突リスト)。
+
+    代表は最初に現れた行 (= 最も早い書込み時刻) をベースに、グループ内に
+    非 None の outcome があればそれを引き継ぐ — 反復発火のうち 1 本だけが
+    labeler に拾われるのが自然な形なので、代表が未ラベルだからといって
+    観測を捨てない。
+
+    **非 None の outcome が 2 通り以上あれば衝突**として返す。同一 signal に
+    2 つの結果が付くのは labeler のバグであり、黙って片方を採ってはいけない。
     """
-    seen: dict[tuple, dict[str, Any]] = {}
+    order: list[tuple] = []
+    groups: dict[tuple, list[dict[str, Any]]] = {}
     repeats = 0
     for row in rows:
         key = identity(row)
-        if key in seen:
+        if key in groups:
             repeats += 1
-            continue
-        seen[key] = row
-    return list(seen.values()), repeats
+            groups[key].append(row)
+        else:
+            order.append(key)
+            groups[key] = [row]
+
+    out: list[dict[str, Any]] = []
+    conflicts: list[dict[str, Any]] = []
+    for key in order:
+        group = groups[key]
+        rep = dict(group[0])
+        labeled = {_outcome_of(r) for r in group if r.get("reversal") is not None}
+        if len(labeled) > 1:
+            conflicts.append({"n_rows": len(group), "outcomes": sorted(map(str, labeled)),
+                              "representative_entry_time": rep.get("entry_time")})
+        elif len(labeled) == 1:
+            for field, value in zip(OUTCOME_FIELDS, next(iter(labeled))):
+                rep[field] = value
+        out.append(rep)
+    return out, repeats, conflicts
 
 
 def select_cell(
@@ -236,13 +282,19 @@ def prepare(
         collected, quarantined = split_provenance(raw)
     else:
         collected, quarantined = list(raw), []
-    deduped, repeats = collapse_repeats(collected)
+    deduped, repeats, conflicts = collapse_repeats(collected)
     cell = select_cell(deduped, pair=pair, side=side)
     labeled, unlabeled = split_labels(cell)
 
     reasons: list[str] = []
     if not raw:
         reasons.append("dataset is empty")
+    if conflicts:
+        reasons.append(
+            f"{len(conflicts)} signal group(s) carry conflicting outcomes "
+            "— 同一 signal に 2 つの結果が付いている = labeler のバグ "
+            "(黙って片方を採らない)"
+        )
     if len(labeled) < labeled_n_floor:
         reasons.append(
             f"labeled rows {len(labeled)} < floor {labeled_n_floor} "
@@ -258,6 +310,7 @@ def prepare(
             "rows_read": len(raw),
             "quarantined_provenance": len(quarantined),
             "collapsed_repeats": repeats,
+            "outcome_conflicts": len(conflicts),
             "distinct_observations": len(deduped),
             "in_cell": len(cell),
             "labeled": len(labeled),

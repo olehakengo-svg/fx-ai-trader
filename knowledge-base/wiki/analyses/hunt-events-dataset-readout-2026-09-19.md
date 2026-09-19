@@ -177,7 +177,7 @@ negative-control fixture として機能させる。
 |---|---|
 | `load_rows` | JSONL / ディレクトリ / glob / 単一 JSON 配列。壊れた行は例外 (silent skip しない) |
 | `split_provenance` | feed-symbol 不変条件で (実収集, 隔離) に分割 |
-| `collapse_repeats` | identity = `entry_time` 以外の全フィールド完全一致。代表は最古 |
+| `collapse_repeats` | identity = **signal 時点のフィールドのみ** (`entry_time` と post-hoc outcome 列を除く)。代表は最古 + グループ内のラベルを引き継ぐ。ラベル衝突は会計に載せて gate で止める |
 | `select_cell` | `pair` / `side` で**実際に**絞る (`bull`→`support`, `bear`→`resistance`) |
 | `split_labels` | `reversal is None` = 未ラベル。分母から除外 |
 | `prepare` | 上記を直列適用 + validity gate + 各段の会計を返す |
@@ -200,7 +200,7 @@ $ python3 tools/sr_audit.py --events-json knowledge-base/raw/hunt_events --pair 
   - labeled rows 0 < floor 30 (unlabeled 3057 — `reversal` は tools/attribute_hunt_outcomes.py が埋める約束のまま未実装)
 ```
 
-## 3. pin (41 本、`tests/test_hunt_event_dataset.py`)
+## 3. pin (48 本、`tests/test_hunt_event_dataset.py`)
 
 MEMORY `project_review_gate_vacuous_2026_09_11` の指示
 「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」に従い、
@@ -273,6 +273,33 @@ cell 絞りのみを通す。pin 4 本追加 (`USD_JPY` 表記の完備 baseline
 **教訓: 「対称に処置せよ」は「同じ関数に通せ」ではない** ([[lesson-symmetric-side-check-2026-09-19]])**。**
 どの規約がどの母集団に固有かを先に列挙する。1 巡目で片側を忘れ、
 2 巡目で対称化を取り違えた — 同じ指摘の周りで**2 種類の間違いを続けて**やっている。
+
+### 3.3 レビュー 3 巡目 — dedup は「意味を持ち始める日」に静かに壊れる設計だった
+
+> **Exclude post-hoc outcomes from the repeat identity** — `reversal` /
+> `actual_outcome` / `actual_pnl_pips` は post-hoc 値なので、labeler が反復発火に
+> 異なるラベルを付けると identity が分かれ `collapse_repeats()` が両方を残す。
+> **N 膨張が復活するのは、データセットがラベル付きになって validity gate を
+> 通り始めるのと同じタイミング。**
+
+**これも正しい。** 今日は全行 `reversal is None` なので dedup は正しく働き、
+実害はゼロ。**だから気づけなかった** — 本 readout で診断した D4 (未ラベル) が
+D3 (dedup) の欠陥を隠していた。**D1 が D4 を隠していたのと同じ入れ子構造が、
+自分が書いたコードの中にもう一段あった。**
+
+修正:
+- `IDENTITY_EXCLUDE` に outcome 3 列を追加 ⇒ identity は **signal 時点のフィールドのみ**
+- 代表行はグループ内の非 None ラベルを**引き継ぐ** — 反復発火のうち 1 本だけが
+  labeler に拾われるのが自然な形なので、代表が未ラベルだからといって観測を捨てない
+- **同一 signal に 2 通りの非 None outcome があれば衝突として会計に載せ、
+  validity gate で止める** — labeler のバグを黙って片方採用で潰さない
+
+pin 4 本追加。うち「ラベル付き重複 120 行 → distinct 40 / N=40」は
+**修正前は 120 を返す** (= NG を返す既知の入力)。
+
+**教訓: ガードが「今は効いている」ことと「効き続ける」ことは別。
+今日たまたま無害にしている前提 (= 全行未ラベル) が解消された日に何が起こるかを、
+ガードを書いた時点で 1 回シミュレートする。**
 
 ## 4. 未解決 — labeler を作るか、データセットを退役させるか
 

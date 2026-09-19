@@ -116,9 +116,10 @@ def test_d2_keeps_every_symbol_the_real_collector_writes(inst):
 def test_d3_collapses_repeat_evaluations_of_the_same_bar():
     """NG 入力: entry_time だけ違う同一 payload — engine の tick 再評価。"""
     rows = [_row(entry_time=f"2026-09-01T00:0{i}:00+00:00") for i in range(5)]
-    deduped, repeats = hed.collapse_repeats(rows)
+    deduped, repeats, conflicts = hed.collapse_repeats(rows)
     assert len(deduped) == 1
     assert repeats == 4
+    assert conflicts == []
     # 代表は最初の書込み時刻
     assert deduped[0]["entry_time"] == "2026-09-01T00:00:00+00:00"
 
@@ -126,15 +127,21 @@ def test_d3_collapses_repeat_evaluations_of_the_same_bar():
 def test_d3_does_not_collapse_genuinely_distinct_signals():
     """誤爆しないこと: market/signal フィールドが違えば別観測。"""
     rows = [_row(), _row(entry_price=150.001), _row(side="resistance")]
-    deduped, repeats = hed.collapse_repeats(rows)
+    deduped, repeats, conflicts = hed.collapse_repeats(rows)
     assert len(deduped) == 3
     assert repeats == 0
+    assert conflicts == []
 
 
-def test_d3_identity_ignores_only_entry_time():
+def test_d3_identity_uses_signal_time_fields_only():
+    """identity = 書込み時刻と post-hoc outcome を除く全フィールド。"""
     a, b = _row(), _row(entry_time="2027-01-01T00:00:00+00:00")
     assert hed.identity(a) == hed.identity(b)
     assert hed.identity(a) != hed.identity(_row(adx=22.6))
+    # outcome 列は identity に入らない (PR #272 Codex P2)
+    for field, value in (("reversal", True), ("actual_outcome", "WIN"),
+                         ("actual_pnl_pips", 12.5)):
+        assert hed.identity(a) == hed.identity(_row(**{field: value})), field
 
 
 # --------------------------------------------------------------------------
@@ -388,3 +395,76 @@ def test_accounting_records_whether_provenance_was_enforced(tmp_path):
     assert hed.prepare(tmp_path)["accounting"]["enforce_provenance"] is True
     assert hed.prepare(tmp_path, enforce_provenance=False)[
         "accounting"]["enforce_provenance"] is False
+
+
+# --------------------------------------------------------------------------
+# PR #272 レビュー 3 巡目 — dedup が「意味を持ち始める日」に静かに壊れる形だった
+# --------------------------------------------------------------------------
+
+def test_d3_collapses_repeats_even_after_labels_are_attached():
+    """NG 入力: labeler が反復発火の 1 本だけにラベルを付けた状態。
+
+    outcome 列が identity に残っていると、この入力で collapse が止まり
+    **validity gate が通り始めるのと同じタイミングで** N 膨張が復活する。
+    """
+    rows = [_row(entry_time=f"2026-09-01T00:0{i}:00+00:00") for i in range(5)]
+    rows[2]["reversal"] = True
+    rows[2]["actual_outcome"] = "WIN"
+    rows[2]["actual_pnl_pips"] = 18.0
+
+    deduped, repeats, conflicts = hed.collapse_repeats(rows)
+    assert len(deduped) == 1, "outcome 列が identity に残っている"
+    assert repeats == 4
+    assert conflicts == []
+    # 代表は未ラベル行だが、グループ内のラベルを引き継ぐ (観測を捨てない)
+    assert deduped[0]["reversal"] is True
+    assert deduped[0]["actual_outcome"] == "WIN"
+    assert deduped[0]["actual_pnl_pips"] == 18.0
+    assert deduped[0]["entry_time"] == "2026-09-01T00:00:00+00:00"
+
+
+def test_d3_conflicting_outcomes_on_one_signal_are_loud():
+    """NG 入力: 同一 signal に 2 通りの結果 = labeler のバグ。黙って片方を採らない。"""
+    rows = [_row(entry_time="2026-09-01T00:00:00+00:00", reversal=True,
+                 actual_outcome="WIN", actual_pnl_pips=18.0),
+            _row(entry_time="2026-09-01T00:01:00+00:00", reversal=False,
+                 actual_outcome="LOSS", actual_pnl_pips=-9.0)]
+    deduped, repeats, conflicts = hed.collapse_repeats(rows)
+    assert len(deduped) == 1
+    assert len(conflicts) == 1
+    assert conflicts[0]["n_rows"] == 2
+
+
+def test_prepare_blocks_on_outcome_conflicts(tmp_path):
+    rows = []
+    for i in range(40):
+        rows.append(_row(entry_price=150 + i * 0.01, reversal=True,
+                         actual_outcome="WIN", actual_pnl_pips=10.0))
+        rows.append(_row(entry_price=150 + i * 0.01,
+                         entry_time="2026-09-01T01:00:00+00:00", reversal=False,
+                         actual_outcome="LOSS", actual_pnl_pips=-5.0))
+    _write(tmp_path, rows)
+    out = hed.prepare(tmp_path)
+    assert out["ok"] is False
+    assert out["accounting"]["outcome_conflicts"] == 40
+    assert any("conflicting outcomes" in r for r in out["blocked_reasons"])
+
+
+def test_labeled_duplicates_do_not_inflate_n_after_dedup(tmp_path):
+    """反対側: ラベル付きの重複を含む入力でも N は distinct signal 数になる。"""
+    rows = []
+    for i in range(40):
+        for rep in range(3):                     # 同一 signal を 3 回発火
+            r = _row(entry_price=150 + i * 0.01,
+                     entry_time=f"2026-09-01T0{rep}:00:00+00:00")
+            if rep == 1:                         # うち 1 本にだけラベル
+                r.update(reversal=(i % 2 == 0), actual_outcome="WIN",
+                         actual_pnl_pips=5.0)
+            rows.append(r)
+    _write(tmp_path, rows)
+    out = hed.prepare(tmp_path)
+    assert out["accounting"]["rows_read"] == 120
+    assert out["accounting"]["distinct_observations"] == 40
+    assert out["accounting"]["outcome_conflicts"] == 0
+    assert out["ok"] is True
+    assert len(out["events"]) == 40             # 120 ではない
