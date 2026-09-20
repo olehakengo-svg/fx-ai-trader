@@ -26,6 +26,7 @@ from tools.cell_deepdive_audit import (
     load_locked_cells,
     lock_for_cell,
     lock_population_count,
+    _entry_type_matches,
     run_audit,
     window_bounds,
 )
@@ -384,3 +385,77 @@ def test_lock_population_predicates_are_read_from_the_real_registry():
     assert lock["kind"] == "shadow"
     assert lock["n_decide"] == 40
     assert lock["dedup_violation"] == 0
+
+
+def test_malformed_but_parseable_registry_fails_closed(tmp_path):
+    """KNOWN-NG INPUTS: syntax-valid payloads that would silently unlock.
+
+    The first fail-closed fix only caught unreadable files and parse errors;
+    these shapes parse fine, iterate to nothing, and return [] (Codex P1,
+    PR #273, 2nd instance of the same fail-open class).
+    """
+    for name, payload in [
+        ("triggers_not_a_list", '{"triggers": "oops"}'),
+        ("root_scalar", '42'),
+        ("root_string", '"nope"'),
+        ("entry_not_object", '[42]'),
+        ("triggers_entry_not_object", '{"triggers": [{"id": "a"}, 7]}'),
+    ]:
+        f = tmp_path / f"{name}.json"
+        f.write_text(payload)
+        with pytest.raises(LockRegistryUnavailable):
+            load_locked_cells(f)
+
+    # Counter-pin: valid shapes still load, and an empty registry is legal.
+    ok = tmp_path / "ok.json"
+    ok.write_text(json.dumps({"triggers": [
+        {"id": "x", "active": True, "type": "shadow_count_decision",
+         "entry_type": "foo"}]}))
+    assert len(load_locked_cells(ok)) == 1
+    empty = tmp_path / "empty.json"
+    empty.write_text(json.dumps({"triggers": []}))
+    assert load_locked_cells(empty) == []
+
+
+def test_prefix_locks_cover_their_variant_family():
+    """KNOWN-NG INPUT: a variant of a prefix-locked family.
+
+    The registry marks kalman_d7 / price_shock_rev / weekend_gap with
+    `match: "prefix"` and tools/prereg_trigger_watch.py honours it.  Exact
+    comparison would miss every variant and publish a frozen family's outcome
+    statistics (Codex P2, PR #273).
+    """
+    fam = {"entry_type": "kalman_d7", "match": "prefix", "instrument": None,
+           "direction": None, "registry_id": "t9-kalman-d7-live-n10-ev-check",
+           "kind": "live", "since": None, "closed_only": False,
+           "dedup_violation": None, "mode": None, "n_decide": 10}
+
+    assert _entry_type_matches("kalman_d7_variant_a", fam)
+    assert _entry_type_matches("kalman_d7", fam)
+    assert not _entry_type_matches("kalman_d8", fam)
+    # Counter-pin: an exact lock must NOT swallow the family.
+    exact = dict(fam, match="exact")
+    assert _entry_type_matches("kalman_d7", exact)
+    assert not _entry_type_matches("kalman_d7_variant_a", exact)
+
+    trades = _rows("kalman_d7_variant_a", "USD_JPY", "BUY", 30, wins=27)
+    for t in trades:
+        t["oanda_trade_id"] = "1"          # live population
+    res = run_audit(trades, run_date="2026-09-20",
+                    targets=("kalman_d7_variant_a",), locked_cells=[fam])
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"][0] == "kalman_d7_variant_a"][0]
+    assert rec["redacted"] is True, "a prefix-locked variant must be redacted"
+    assert "wr" not in rec
+    assert rec["n_lock_population"] == 30, "prefix must apply to the count too"
+    assert res["candidates"] == []
+
+
+def test_real_registry_preserves_prefix_match_flags():
+    """Counter-pin against the live registry: prefix flags must survive."""
+    locked = load_locked_cells()
+    by_id = {lk["registry_id"]: lk for lk in locked}
+    assert by_id["t9-kalman-d7-live-n10-ev-check"]["match"] == "prefix"
+    assert by_id["ps-carveout-regate-post-172"]["match"] == "prefix"
+    # ...and a non-prefix lock is not silently widened.
+    assert by_id["sr-anti-hunt-eurjpy-buy-forward-confirm"]["match"] == "exact"

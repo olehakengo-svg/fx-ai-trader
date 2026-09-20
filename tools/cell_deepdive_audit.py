@@ -176,11 +176,31 @@ def load_locked_cells(registry_path=None) -> list:
             f"pre-reg LOCK registry unreadable ({path}): {exc}. "
             "Refusing to run — an unguarded audit would publish LOCKed cells."
         ) from exc
-    entries = payload if isinstance(payload, list) else payload.get("triggers", [])
+    # Structural validation.  Catching OSError/ValueError alone still let a
+    # syntax-valid but malformed payload through: {"triggers": "oops"} or [42]
+    # iterate to nothing, return [], and every LOCK silently disappears.  Same
+    # fail-open class as an unreadable file, different input shape — so it must
+    # fail the same way (Codex P1, PR #273, 2nd instance).
+    if isinstance(payload, list):
+        entries = payload
+    elif isinstance(payload, dict):
+        entries = payload.get("triggers", [])
+    else:
+        raise LockRegistryUnavailable(
+            f"pre-reg LOCK registry root must be a list or object ({path}): "
+            f"got {type(payload).__name__}")
+    if not isinstance(entries, list):
+        raise LockRegistryUnavailable(
+            f"pre-reg LOCK registry 'triggers' must be a list ({path}): "
+            f"got {type(entries).__name__}")
+    bad = [i for i, e in enumerate(entries) if not isinstance(e, dict)]
+    if bad:
+        raise LockRegistryUnavailable(
+            f"pre-reg LOCK registry has non-object entries at {bad[:5]} "
+            f"({path}) — refusing to run rather than skipping them silently")
+
     locked = []
     for e in entries:
-        if not isinstance(e, dict):
-            continue
         if not e.get("active"):
             continue
         if not str(e.get("type", "")).endswith("_count_decision"):
@@ -193,6 +213,12 @@ def load_locked_cells(registry_path=None) -> list:
             "instrument": e.get("instrument") or None,
             "direction": e.get("direction") or None,
             "registry_id": e.get("id"),
+            # `match: "prefix"` = the LOCK covers a multi-variant family
+            # (kalman_d7_*, price_shock_rev_*, weekend_gap_*).  Exact matching
+            # would miss every variant and expose a frozen family's outcome
+            # statistics (Codex P2, PR #273).  Semantics mirror
+            # tools/prereg_trigger_watch.py count_matching(prefix=...).
+            "match": "prefix" if e.get("match") == "prefix" else "exact",
             # Population predicates — the LOCK's N is defined by THESE, not by
             # this audit's window/filters (Codex P2, PR #273).  Reporting the
             # cell's 365d Live+Shadow row count next to the gate threshold
@@ -219,7 +245,7 @@ def lock_population_count(trades, lock) -> int:
     """
     n = 0
     for t in trades:
-        if t.get("entry_type") != lock["entry_type"]:
+        if not _entry_type_matches(t.get("entry_type"), lock):
             continue
         if lock.get("instrument") and t.get("instrument") != lock["instrument"]:
             continue
@@ -244,6 +270,17 @@ def lock_population_count(trades, lock) -> int:
     return n
 
 
+def _entry_type_matches(entry_type, lock) -> bool:
+    """Exact or prefix entry_type match, per the LOCK's `match` field."""
+    target = lock.get("entry_type")
+    if not target:
+        return False
+    et = entry_type or ""
+    if lock.get("match") == "prefix":
+        return et.startswith(target)
+    return et == target
+
+
 def lock_for_cell(entry_type, instrument, direction, locked_cells) -> dict | None:
     """Return the LOCK covering this cell, or None.
 
@@ -254,7 +291,7 @@ def lock_for_cell(entry_type, instrument, direction, locked_cells) -> dict | Non
     NOT covered — they are a different estimand and do not isolate the cell.
     """
     for lk in locked_cells:
-        if lk["entry_type"] != entry_type:
+        if not _entry_type_matches(entry_type, lk):
             continue
         if lk["instrument"] is not None and lk["instrument"] != instrument:
             continue

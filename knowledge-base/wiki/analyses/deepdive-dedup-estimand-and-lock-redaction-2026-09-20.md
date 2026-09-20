@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (18 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (21 pins)
 
 ---
 
@@ -222,6 +222,23 @@ ws3-t11 **22/30**。別実装の読み手が同じ数を出すことで実装の
 (35 vs 36 の読み手不一致 §4 / dedup 除外率の分母 §1 / 本項の `n=74` vs 36)。
 **同じ病が、それを指摘している当の PR にも出る**。
 
+### 2.3d レビュー第3波 (Codex P1 + P2) — fail-open の「対称な反対側」
+
+| 指摘 | なぜ妥当か | 修正 |
+|---|---|---|
+| **構造的に不正な registry も拒否せよ** | 第1波の fail-closed は **読めない場合**しか塞いでいなかった。`{"triggers": "oops"}` / `[42]` は **JSON として妥当**なので通過し、要素が dict でないため全て skip → `[]` → **全 LOCK が消える**。読めない場合と同じ fail-open クラスの別形状 | root / `triggers` が list であること、要素が全て object であることを検証し、違反は `LockRegistryUnavailable` |
+| **prefix LOCK を尊重せよ** | registry には `match: "prefix"` (multi-variant family 用) が実在し `tools/prereg_trigger_watch.py` が `count_matching(prefix=...)` で使っている。**完全一致だけでは `kalman_d7_variant_a` 等が LOCK を素通りし、凍結 family の outcome を公表しうる** | `match` を保持し `_entry_type_matches` で前方一致を実装。`lock_for_cell` と `lock_population_count` の**両方**に適用 (片側だけでは計数が壊れる) |
+
+🔴 **これは [[feedback_check_the_symmetric_side_2026_09_19]] の 3 度目の実例**。
+第1波で「registry が読めない」を塞いだとき、**「読めるが壊れている」**を塞いでいなかった。
+*片側だけの fail-closed は「再発できない」という主張を偽にする* — 自分で書いた教訓を、
+その教訓を引用している PR の中で踏んだ。
+
+✅ **prefix 指摘の検証**: 指摘を額面で受けず registry を実査した
+(`match` を持つ 5 エントリ、値は全て `"prefix"`、うち active な `*_count_decision` は
+`t9-kalman-d7-live-n10-ev-check` / `ps-carveout-regate-post-172` /
+`project-falsification-f2-wg-live-conversion`) — **指摘は事実**だった。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -237,6 +254,11 @@ ws3-t11 **22/30**。別実装の読み手が同じ数を出すことで実装の
 0c2. **LOCK の N は LOCK 母集団で数える** (`since` 前 / OPEN / live / dup 行を混ぜた
    KNOWN-NG 入力で `n_lock_population` が 12、`n_rows_in_window` はそれより大)
    ∧ 実 registry から母集団述語が読めている
+0c2b. **構文は妥当だが構造が壊れた registry 5 形状で raise** ∧ counter-pin: 正常 registry と
+   空 registry は通る
+0c2c. **prefix LOCK が variant family を覆う** (`kalman_d7_variant_a` が redact され
+   `n_lock_population` も prefix で数える) ∧ counter-pin: `exact` LOCK は variant を飲み込まない
+   ∧ 実 registry の prefix フラグが保持されている
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

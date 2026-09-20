@@ -36,7 +36,16 @@
 - 🔴 **本 PR だけで「隣に置いた閾値と estimand が合わない計数」が 3 例**
   (35 vs 36 / dedup 除外率の分母 / `n=74` vs 36)。**同じ病は、それを指摘している
   当の PR にも出る**
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**18 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第3波 (Codex P1 + P2) — fail-open の「対称な反対側」を塞いでいなかった**:
+  (f) **構造的に不正な registry も拒否**: 第1波の fail-closed は「読めない」しか塞いでおらず、
+  `{"triggers": "oops"}` / `[42]` は **JSON として妥当**なので通過し全 LOCK が消えていた。
+  root / `triggers` の list 性と要素の object 性を検証し違反は `LockRegistryUnavailable`
+  (g) **prefix LOCK を尊重**: registry の `match: "prefix"` (`prereg_trigger_watch` が実使用) を
+  無視しており `kalman_d7_variant_a` 等が LOCK を素通りしていた。`_entry_type_matches` を新設し
+  `lock_for_cell` と `lock_population_count` の**両方**に適用
+- 🔴 **[[feedback_check_the_symmetric_side_2026_09_19]] の 3 度目の実例** — 自分で書いた教訓を、
+  その教訓を引用している PR の中で踏んだ。✅ prefix 指摘は額面で受けず registry を実査して確認
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**21 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
