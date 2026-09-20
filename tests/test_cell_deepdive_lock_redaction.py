@@ -1393,7 +1393,8 @@ def test_pagination_only_claims_complete_on_a_short_page():
 
     out = paginate_trades(pages(25), page_size=10)
     assert out["count"] == 25
-    assert out["_fetch_meta"] == {"complete": True, "limit": 10, "pages": 3}
+    assert out["_fetch_meta"] == {"complete": True, "limit": 10, "pages": 3,
+                                  "rows": 25}
 
     # An exact multiple still needs the trailing short (empty) page.
     out = paginate_trades(pages(20), page_size=10)
@@ -1402,3 +1403,46 @@ def test_pagination_only_claims_complete_on_a_short_page():
     # Never return a silently truncated list.
     with pytest.raises(SystemExit, match="max_pages"):
         paginate_trades(pages(10**6), page_size=10, max_pages=3)
+
+
+def test_pagination_must_request_closed_only_pages():
+    """KNOWN-NG INPUT: the endpoint's status=all paging shape.
+
+    /api/demo/trades with the default status returns `open_t + closed_t`, i.e.
+    it prepends the WHOLE open list to EVERY page.  Advancing the offset by the
+    accumulated length then skips that many closed rows while duplicating the
+    open ones — and a later short page still marks the snapshot complete
+    (Codex P2, PR #273).
+    """
+    from tools.cell_deepdive_audit import paginate_trades
+
+    closed = [{"id": f"c{i}", "status": "CLOSED"} for i in range(25)]
+    open_rows = [{"id": f"o{i}", "status": "OPEN"} for i in range(3)]
+
+    def status_all(limit, offset):
+        """Reproduces the buggy shape: open prepended to every page."""
+        return open_rows + closed[offset:offset + limit]
+
+    def status_closed(limit, offset):
+        return closed[offset:offset + limit]
+
+    # The status=all shape silently loses closed rows...
+    bad = paginate_trades(status_all, page_size=10)
+    got = [r["id"] for r in bad["trades"] if r["id"].startswith("c")]
+    assert len(set(got)) < len(closed), (
+        "status=all paging must be shown to LOSE closed rows")
+    assert bad["_fetch_meta"]["complete"] is True, (
+        "...while still claiming completeness — that is the danger")
+
+    # ...whereas closed-only paging is exact.
+    good = paginate_trades(status_closed, page_size=10)
+    assert [r["id"] for r in good["trades"]] == [r["id"] for r in closed]
+    assert good["_fetch_meta"]["rows"] == 25
+
+    # And the shipped fetchers pin the explicit status in the URL.
+    import inspect
+    import tools.cell_deepdive_audit as m
+    src = inspect.getsource(m._http_fetch)
+    assert "status={status}" in src, "status must be explicit in the URL"
+    assert inspect.getsource(m._http_fetch_closed_page).count('"closed"') == 1
+    assert inspect.getsource(m._http_fetch_open).count('"open"') == 1

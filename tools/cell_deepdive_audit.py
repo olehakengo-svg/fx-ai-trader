@@ -988,29 +988,55 @@ def paginate_trades(fetch_page, page_size: int = 20000,
         if len(got) < page_size:               # short page == end of data
             return {"count": len(rows), "trades": rows,
                     "_fetch_meta": {"complete": True, "limit": page_size,
-                                    "pages": page + 1}}
+                                    "pages": page + 1, "rows": len(rows)}}
     raise SystemExit(
         f"pagination hit max_pages={max_pages} at {len(rows)} rows without a "
         f"short page — refusing to return a silently truncated snapshot")
 
 
-def _http_fetch_page(limit: int, offset: int) -> list:
+def _http_fetch(status: str, limit: int, offset: int) -> list:
+    """One page from /api/demo/trades with an EXPLICIT status.
+
+    `status` must never be left at the endpoint default ("all"): that route
+    returns `open_t + closed_t`, i.e. it prepends the WHOLE open-trade list to
+    EVERY page.  Paging by accumulated length then skips that many closed rows
+    while duplicating the open ones — and a later short page would still mark
+    the snapshot complete (Codex P2, PR #273).
+    """
     from urllib.request import urlopen
     url = (f"https://fx-ai-trader.onrender.com/api/demo/trades"
-           f"?limit={limit}&offset={offset}")
+           f"?status={status}&limit={limit}&offset={offset}")
     with urlopen(url, timeout=300) as r:        # noqa: S310 (fixed PROD host)
         payload = json.load(r)
     return payload.get("trades", []) if isinstance(payload, dict) else payload
 
 
+def _http_fetch_closed_page(limit: int, offset: int) -> list:
+    return _http_fetch("closed", limit, offset)
+
+
+def _http_fetch_open(limit: int = 100000) -> list:
+    return _http_fetch("open", limit, 0)
+
+
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     if args.fetch_to:
-        payload = paginate_trades(_http_fetch_page)
+        # Closed rows are paginated (status=closed so offsets are stable);
+        # open rows are fetched exactly ONCE and appended.
+        payload = paginate_trades(_http_fetch_closed_page)
+        open_rows = _http_fetch_open()
+        payload["trades"] = open_rows + payload["trades"]
+        payload["count"] = len(payload["trades"])
+        payload["_fetch_meta"].update({"status": "closed+open",
+                                       "closed": payload["_fetch_meta"]["rows"],
+                                       "open": len(open_rows)})
         with open(args.fetch_to, "w") as f:
             json.dump(payload, f)
+        m = payload["_fetch_meta"]
         print(f"wrote {args.fetch_to}: {payload['count']} rows "
-              f"({payload['_fetch_meta']['pages']} pages, completeness proven)")
+              f"(closed {m['closed']} in {m['pages']} pages + open {m['open']}, "
+              f"completeness proven)")
         return 0
     if not args.trades_json:
         raise SystemExit("trades_json is required unless --fetch-to is used")

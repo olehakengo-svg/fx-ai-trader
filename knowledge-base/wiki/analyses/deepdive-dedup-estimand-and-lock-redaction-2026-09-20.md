@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (51 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (52 pins)
 
 ---
 
@@ -469,6 +469,28 @@ over-redaction の 4 度目。母集団述語を 1 箇所 (`row_in_lock_populati
 「呼び出し側がそう言っている」だけで、**スナップショット自身は何も証明していなかった**。
 完全性のような性質は **生成時に確立して成果物に埋め込む**しかない。
 
+### 2.3r レビュー第17波 (Codex P2) — 自分で足した pagination が行を落としていた
+
+第16波で入れた `paginate_trades` が `/api/demo/trades` を**既定 `status=all`** で叩いていた。
+`app.py` のルートは `status=all` のとき **`open_t + closed_t`** を返す = **全 open 行を
+毎ページ先頭に付ける**。offset を累積長で進める実装だと:
+
+- page1 = open(K) + closed[0:20000] → 次 offset = 20000+K
+- ⇒ **closed を K 行スキップ**し、open は**ページ数ぶん重複**
+- なのに最後の short page で `_fetch_meta.complete=true` が立つ
+
+⇒ **「完全性を証明した」はずのスナップショットが outcome を欠落させる**。
+closed は `status=closed` でページングし、open は**一度だけ**取得して結合する方式に変更。
+`_fetch_meta` に `closed` / `open` / `status` を記録。
+
+🔑 **完全性の「証明」は、ページングの意味論が正しいことを前提にしている。**
+第16波で「表明でなく証拠を」と正した直後に、**その証拠の作り方自体が壊れていた** —
+証拠を生成する経路も検証対象であって、生成したという事実は正しさを含意しない。
+
+pin は「buggy な shape (`status=all`) で行が落ちることを実際に示す」形にした
+(壊れた側を再現して比較する — 正しい側だけ testして「動いた」とするのでは
+この欠陥は捕まらない)。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -539,6 +561,9 @@ over-redaction の 4 度目。母集団述語を 1 箇所 (`row_in_lock_populati
 0c2aa. **完全性は `_fetch_meta` のみを証拠に受理** (bare snapshot 拒否 / opt-out は loud かつ
    full page はなお拒否 / 証明済みは通る) ∧ `paginate_trades` は short page でのみ
    complete を主張し max_pages 到達では raise
+0c2ab. **pagination は closed-only を要求** (`status=all` shape では closed 行が実際に
+   欠落することを再現して示し、かつ complete が立ってしまうことも示す) ∧ closed-only なら
+   全行一致 ∧ 実装の URL に status が明示されている
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

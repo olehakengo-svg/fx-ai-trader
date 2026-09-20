@@ -203,7 +203,16 @@
   監査側はそれのみを証拠として受理 (`--fetch-to` / `--allow-unverified-snapshot`)
 - 🔑 **個別の穴を塞ぎ続ける限り常に 1 歩後ろ** — 正本 linter を呼べば将来の規則も自動で効く
 - 🔑 **表明は証拠ではない** — 完全性のような性質は**生成時に確立して成果物に埋め込む**
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**51 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第17波 (Codex P2) — 自分で足した pagination が行を落としていた**:
+  (ff) 第16波の `paginate_trades` が既定 `status=all` で叩いており、`app.py` は
+  `status=all` で **`open_t + closed_t`** を返す (= 全 open 行を毎ページ先頭に付ける)。
+  offset を累積長で進めるため **closed を K 行スキップ**し open は重複、
+  それでも short page で `complete=true` が立つ ⇒ **「完全性を証明した」スナップショットが
+  outcome を欠落**。closed は `status=closed` でページング、open は一度だけ取得して結合
+- 🔑 **完全性の「証明」はページング意味論の正しさを前提にしている** — 第16波で
+  「表明でなく証拠を」と正した直後に**その証拠の作り方が壊れていた**。
+  証拠を生成する経路も検証対象
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**52 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
