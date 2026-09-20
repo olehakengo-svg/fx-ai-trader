@@ -890,7 +890,11 @@ SENTINEL_OK_TYPES = frozenset({"info", "conditional_info"})
 # 評価器が bool として消費するフィールド。`closed_only: "false"` は
 # `bool(trig.get("closed_only"))` で **true** になり、監視母集団を黙って
 # 変える (PR #227 Codex P2 8 巡目)。
-BOOL_FIELDS = frozenset({"closed_only"})
+# `outcome_lock` (2026-09-20): 評価器は読まないが tools/cell_deepdive_audit.py の
+# P-10 redaction が `is False` で opt-out を判定する。`"false"` / `0` / `null` は
+# `is False` にならないため、**件数のみのモニタが黙って outcome lock 扱いになり
+# 正当な監査結果と昇格候補が握り潰される**。bool 型を強制して authoring 時に落とす。
+BOOL_FIELDS = frozenset({"closed_only", "outcome_lock"})
 
 # 評価器が `== 0` 等の値一致で消費するフィールド (文字列 "0" は一致しない)。
 EXACT_INT_FIELDS = frozenset({"dedup_violation"})

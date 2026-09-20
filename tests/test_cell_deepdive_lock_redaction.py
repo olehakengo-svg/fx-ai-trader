@@ -1030,3 +1030,42 @@ def test_locked_cells_are_reported_below_the_audit_minimum_n():
     # inflate the Bonferroni family.
     assert res["meta"]["m_global_v2"] == 0
     assert res["meta"]["m_family_v2_union_v3"] == 0
+
+
+_MISSING = object()
+
+
+def test_outcome_lock_must_be_a_real_boolean_in_the_registry():
+    """KNOWN-NG INPUTS: "false" / 0 / null for outcome_lock.
+
+    load_locked_cells opts out only when the value `is False`, so a truthy or
+    non-bool value silently turns a count-only monitor back into an outcome
+    lock and suppresses its valid results.  The registry linter must reject
+    such values at authoring time (Codex P2, PR #273).
+    """
+    from tools.prereg_trigger_watch import BOOL_FIELDS, lint_registry
+
+    assert "outcome_lock" in BOOL_FIELDS
+
+    def entry(value):
+        e = {"id": "monitor", "active": True, "type": "shadow_count_decision",
+             "entry_type": "foo", "deadline": "2027-01-01",
+             "since": "2026-09-01", "n_decide": 10, "n_floor": 1}
+        if value is not _MISSING:
+            e["outcome_lock"] = value
+        return e
+
+    for bad in ("false", "true", 0, 1, None, "no"):
+        errs = lint_registry([entry(bad)])
+        assert any("outcome_lock" in e for e in errs), (
+            f"lint must reject outcome_lock={bad!r}")
+
+    # Counter-pin: real booleans pass, and omitting the key is legal
+    # (omission means "outcome lock", the safe default).
+    for good in (True, False):
+        errs = lint_registry([entry(good)])
+        assert not any("outcome_lock" in e for e in errs), (
+            f"lint must accept outcome_lock={good!r}: {errs}")
+    assert not any("outcome_lock" in e
+                   for e in lint_registry([entry(_MISSING)]))
+

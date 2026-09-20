@@ -149,7 +149,14 @@
   **`rnb-support-bounce-shadow-forward` (本物の outcome LOCK) を件数のみと誤判定**
   (その文言は同エントリが併設する checkpoint の説明だった) ⇒ **明示フラグで表明する**
 - ✅ registry lint が新キーを正しく弾いた (reject-by-default が設計どおり機能)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**41 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第12波 (Codex P2) — 新フラグに型検査が無かった**: 第11波で足した
+  `outcome_lock` を `META_FIELDS` にだけ登録したため lint が `"false"` / `0` / `null` を
+  素通りさせ、`is False` 判定の opt-out が効かず**件数モニタが黙って outcome lock 扱いに
+  戻る**状態だった。`BOOL_FIELDS` へ追加 (3 形状すべて lint 拒否を実測、真 bool と
+  キー未記載は通る)
+- 🔑 **ガードを足したら、そのガード自身の入力も検査する** — `closed_only: "false"` の穴は
+  registry lint が既に塞いでいたのに、**同じ穴を新フラグで作り直した**
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**42 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

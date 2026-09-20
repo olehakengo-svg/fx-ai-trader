@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (41 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (42 pins)
 
 ---
 
@@ -390,6 +390,22 @@ grep したところ **`rnb-support-bounce-shadow-forward` (本物の outcome LO
 ✅ registry lint が新キーを正しく弾いた (`未知のキー 'outcome_lock'`) — allowlist の
 reject-by-default が設計どおり機能。allowlist へ意図を書いて登録した。
 
+### 2.3m レビュー第12波 (Codex P2) — 新フラグに型検査が無かった
+
+第11波で足した `outcome_lock` を `META_FIELDS` にだけ登録したため、registry lint は
+`"false"` / `0` / `null` を**素通り**させていた。`load_locked_cells` の opt-out 判定は
+`is False` なので、これらは**件数のみのモニタを黙って outcome lock 扱いに戻し**、
+正当な監査結果と昇格候補を握り潰す。⇒ `BOOL_FIELDS` へ追加し authoring 時に落とす。
+
+実測で 3 形状 (`"false"` / `0` / `null`) すべてが lint に弾かれることを確認、
+真の bool と**キー未記載**は通る (未記載 = redact が既定 = 安全側)。
+
+🔑 **ガードを足したら、そのガード自身の入力も検査する。** `closed_only: "false"` が
+`bool()` で true になる穴は既に registry lint が塞いでいた ([[prereg_trigger_watch]]
+BOOL_FIELDS の由来) のに、**同じ穴を新フラグで作り直した**。
+既存の防御が「なぜその形で存在するか」を読めば、新フィールドに同じ検査が要ることは
+追加時点で分かる。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -440,6 +456,8 @@ reject-by-default が設計どおり機能。allowlist へ意図を書いて登�
    ∧ 実 registry で count-only 3 件が除外され outcome LOCK 7 件が残る
 0c2r. **min_n 未満の LOCK セルも在庫に出る** (kalman `n_decide=10` で 10 行 → 記録あり)
    ∧ counter-pin: 多重度は min_n のままなので 10 行群は族を膨らませない
+0c2s. **`outcome_lock` は真の bool のみ** (`"false"` / `"true"` / `0` / `1` / `null` / `"no"`
+   を lint が拒否) ∧ counter-pin: `True`/`False`/キー未記載は通る
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:
