@@ -1069,3 +1069,49 @@ def test_outcome_lock_must_be_a_real_boolean_in_the_registry():
     assert not any("outcome_lock" in e
                    for e in lint_registry([entry(_MISSING)]))
 
+
+
+def test_locks_that_start_after_the_window_do_not_redact():
+    """KNOWN-NG INPUT: a historical rerun predating the LOCK's `since`.
+
+    Re-running --run-date 2026-07-01 redacted sr_anti_hunt_bounce x EUR_JPY x
+    BUY under a LOCK that only starts 2026-08-05, reporting n_lock_population:
+    0 and deleting valid historical statistics and candidates — over-redaction,
+    the mirror image of a leak (Codex P2, PR #273).
+    """
+    lock = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+            "direction": "BUY", "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+            "match": "exact", "kind": "shadow", "since": "2026-08-05",
+            "closed_only": True, "dedup_violation": 0, "mode": None,
+            "n_decide": 40, "reasons_marker": None, "count_basis": None}
+    rows = _rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 30, wins=24)
+    for t in rows:  # all in June, before the LOCK begins
+        t["entry_time"] = t["entry_time"].replace("2026-08-", "2026-06-")
+        t["status"] = "CLOSED"
+        t["oanda_trade_id"] = ""
+
+    early = run_audit(rows, run_date="2026-07-01",
+                      targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
+    red = early["prereg_lock_redaction"]
+    assert red["redacted_cell_count"] == 0, (
+        "a LOCK that has not begun cannot cover this window")
+    assert red["locks_not_yet_started"] == [
+        {"registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+         "since": "2026-08-05"}], "the omission must be visible, not silent"
+    rec = [c for c in early["eligible_cells_v2"]
+           if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec["redacted"] is False
+    assert rec["wr"] == pytest.approx(0.8), "historical statistics survive"
+
+    # Counter-pin: once the window reaches the LOCK, redaction resumes.
+    later = _rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 30, wins=24)
+    for t in later:
+        t["status"] = "CLOSED"
+        t["oanda_trade_id"] = ""
+    after = run_audit(rows + later, run_date="2026-09-20",
+                      targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
+    assert after["prereg_lock_redaction"]["locks_not_yet_started"] == []
+    assert after["prereg_lock_redaction"]["redacted_cell_count"] >= 1
+    rec2 = [c for c in after["eligible_cells_v2"]
+            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec2["redacted"] is True and "wr" not in rec2

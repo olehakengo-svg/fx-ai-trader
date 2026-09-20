@@ -590,8 +590,20 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
     # set rather than a cell, so their rows are removed BEFORE any outcome
     # statistic is built — otherwise the pooled LOCK outcomes reappear inside
     # whatever cell/strategy those rows happen to land in (Codex P1, PR #273).
-    marker_locks = [lk for lk in locked_cells if lk.get("reasons_marker")]
-    cell_locks = [lk for lk in locked_cells if lk.get("entry_type")]
+    # A LOCK whose population has not begun by the audit's upper bound cannot
+    # cover anything in this window.  Without this, re-running a historical
+    # --run-date redacts cells under a LOCK that starts later and reports
+    # n_lock_population: 0 — removing valid historical statistics and
+    # candidates (Codex P2, PR #273).  Over-redaction again: the mirror image
+    # of a leak.
+    def _lock_started(lk):
+        since = lk.get("since")
+        return not since or str(since) < win_hi
+
+    active_locks = [lk for lk in locked_cells if _lock_started(lk)]
+    not_yet_started = [lk for lk in locked_cells if not _lock_started(lk)]
+    marker_locks = [lk for lk in active_locks if lk.get("reasons_marker")]
+    cell_locks = [lk for lk in active_locks if lk.get("entry_type")]
     marker_excluded = 0
 
     # LOCKed rows are routed out from the RAW rows, before `outcome`/`pnl_pips`
@@ -815,6 +827,10 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                 "で食い違う。両方を出して差異を可視化するのみ — どちらを採るかは "
                 "LOCK トリガの計数規則の変更につき user 決裁 "
                 "(registry sr-anti-hunt-eurjpy-count-basis-declaration)",
+            "locks_not_yet_started": [
+                {"registry_id": lk.get("registry_id"), "since": lk.get("since")}
+                for lk in not_yet_started
+            ],
             "marker_locked_rows_excluded": marker_excluded,
             "marker_locks": [
                 {"registry_id": lk.get("registry_id"),

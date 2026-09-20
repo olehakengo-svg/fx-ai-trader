@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (42 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (43 pins)
 
 ---
 
@@ -406,6 +406,22 @@ BOOL_FIELDS の由来) のに、**同じ穴を新フラグで作り直した**�
 既存の防御が「なぜその形で存在するか」を読めば、新フィールドに同じ検査が要ることは
 追加時点で分かる。
 
+### 2.3n レビュー第13波 (Codex P2) — まだ始まっていない LOCK が過去を消していた
+
+LOCK の `since` より前で終わる窓を再実行しても、セル一致だけで routing していたため
+**まだ発効していない LOCK が過去の監査結果を redact** していた。
+実測: `--run-date 2026-07-01` で **14 セルが redact され全て `n_lock_population: 0`** —
+2026-08-05 開始の LOCK が 7 月の統計と候補を消していた。
+⇒ `since >= 窓の上界` の LOCK は routing 前に除外し、**除外した LOCK を
+`locks_not_yet_started` に列挙**して省略を可視化する。
+
+検証: 修正後 `--run-date 2026-07-01` は **redact 0 / clean_N 173** (7 LOCK すべてを
+not-yet-started として列挙)、`--run-date 2026-09-20` は **redact 15 / clean_N 273 で不変**。
+
+🔑 **over-redaction は本 PR で 3 度出た** (件数モニタ §2.3l / min_n 未満 §2.3l /
+未発効 LOCK)。**leak を塞ぐガードは、塞ぎすぎる方向にも同じ数だけ穴を開ける** —
+「redact する条件」を足すたびに「redact してはいけない条件」を対で確認する。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -458,6 +474,8 @@ BOOL_FIELDS の由来) のに、**同じ穴を新フラグで作り直した**�
    ∧ counter-pin: 多重度は min_n のままなので 10 行群は族を膨らませない
 0c2s. **`outcome_lock` は真の bool のみ** (`"false"` / `"true"` / `0` / `1` / `null` / `"no"`
    を lint が拒否) ∧ counter-pin: `True`/`False`/キー未記載は通る
+0c2t. **未発効 LOCK は redact しない** (6 月の行を 07-01 窓で監査 → redact 0・統計生存・
+   `locks_not_yet_started` に列挙) ∧ counter-pin: 窓が LOCK に届けば redaction 再開
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

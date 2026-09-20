@@ -156,7 +156,16 @@
   キー未記載は通る)
 - 🔑 **ガードを足したら、そのガード自身の入力も検査する** — `closed_only: "false"` の穴は
   registry lint が既に塞いでいたのに、**同じ穴を新フラグで作り直した**
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**42 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第13波 (Codex P2) — まだ始まっていない LOCK が過去を消していた**:
+  (x) LOCK の `since` より前で終わる窓を再実行しても セル一致だけで routing しており、
+  **未発効の LOCK が過去の監査結果を redact** していた (実測 `--run-date 2026-07-01` で
+  **14 セル redact / 全て `n_lock_population: 0`**)。`since >= 窓の上界` の LOCK を
+  routing 前に除外し、除外分を `locks_not_yet_started` に列挙して省略を可視化。
+  検証: 07-01 は redact **0** / clean_N 173、09-20 は redact **15** / clean_N 273 で不変
+- 🔑 **over-redaction は本 PR で 3 度出た** (件数モニタ / min_n 未満 / 未発効 LOCK) —
+  **leak を塞ぐガードは塞ぎすぎる方向にも同じ数だけ穴を開ける**。「redact する条件」を
+  足すたびに「redact してはいけない条件」を対で確認する
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**43 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
