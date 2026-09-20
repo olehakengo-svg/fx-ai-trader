@@ -953,3 +953,80 @@ def test_lock_population_is_bounded_by_the_audit_as_of_date():
     # Counter-pin: `since` still bounds the low side independently.
     early = dict(lock, since="2026-08-15")
     assert lock_population_count(rows, early, as_of_exclusive="2026-09-21") == 6
+
+
+def test_count_only_monitors_are_not_redacted(tmp_path):
+    """KNOWN-NG INPUT: a count-only monitor sharing the decision type.
+
+    Lane-health checkpoints and the weekend_gap live-conversion monitor are
+    *_count_decision but freeze no outcome look and say so.  Redacting them
+    silently discarded valid results and promotion candidates — the mirror
+    image of a leak (Codex P2, PR #273).
+    """
+    f = tmp_path / "r.json"
+    f.write_text(json.dumps({"triggers": [
+        {"id": "real-lock", "active": True, "type": "shadow_count_decision",
+         "entry_type": "foo"},
+        {"id": "count-monitor", "active": True, "type": "live_count_decision",
+         "entry_type": "bar", "outcome_lock": False},
+        {"id": "default-is-redact", "active": True,
+         "type": "shadow_count_decision", "entry_type": "baz"},
+    ]}))
+    ids = {lk["registry_id"] for lk in load_locked_cells(f)}
+    assert "real-lock" in ids
+    assert "default-is-redact" in ids, (
+        "omitting outcome_lock must default to REDACT (under-redaction is the "
+        "silent failure; over-redaction is at least visible)")
+    assert "count-monitor" not in ids
+
+
+def test_real_registry_classification_of_outcome_locks():
+    """Counter-pin on the live registry: the three count-only monitors are out,
+    every genuine outcome LOCK stays in."""
+    ids = {lk["registry_id"] for lk in load_locked_cells()}
+    for count_only in ("rnb-shadow-lane-health-checkpoint-1",
+                       "rnb-shadow-lane-health-checkpoint-2",
+                       "project-falsification-f2-wg-live-conversion"):
+        assert count_only not in ids, count_only
+    for outcome_lock in ("sr-anti-hunt-eurjpy-buy-forward-confirm",
+                         "ws3-t11-anti-hunt-usdjpy-recheck",
+                         "rnb-support-bounce-shadow-forward",
+                         "t9-kalman-d7-live-n10-ev-check",
+                         "hourblock-class-exempt-r2-rollback",
+                         "ps-carveout-regate-post-172",
+                         "ws3-stage2-underpowered-recheck"):
+        assert outcome_lock in ids, outcome_lock
+
+
+def test_locked_cells_are_reported_below_the_audit_minimum_n():
+    """KNOWN-NG INPUT: a LOCK whose own threshold is under MIN_N.
+
+    The kalman LOCK declares n_decide=10, but the inventory only listed groups
+    with >= min_n (20), so ten matching rows produced redacted_cell_count=0 and
+    no n_lock_population — the declared look was reached and nothing said so
+    (Codex P2, PR #273).
+    """
+    lock = {"entry_type": "kalman_d7", "match": "prefix", "instrument": None,
+            "direction": None, "registry_id": "t9-kalman-d7-live-n10-ev-check",
+            "kind": "live", "since": None, "closed_only": False,
+            "dedup_violation": None, "mode": None, "n_decide": 10,
+            "reasons_marker": None, "count_basis": None}
+    rows = _rows("kalman_d7", "USD_JPY", "BUY", 10, wins=7)
+    for t in rows:
+        t["oanda_trade_id"] = "1"
+
+    res = run_audit(rows, run_date="2026-09-20",
+                    targets=("kalman_d7",), locked_cells=[lock])
+    red = res["prereg_lock_redaction"]
+    assert red["redacted_cell_count"] >= 1, (
+        "a LOCK at its own declared threshold must appear in the inventory")
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["kalman_d7", "USD_JPY", "BUY"]][0]
+    assert rec["redacted"] is True
+    assert rec["n_lock_population"] == 10
+    assert rec["n_decide"] == 10
+    assert "wr" not in rec
+    # Counter-pin: multiplicity still uses min_n, so a 10-row group must not
+    # inflate the Bonferroni family.
+    assert res["meta"]["m_global_v2"] == 0
+    assert res["meta"]["m_family_v2_union_v3"] == 0

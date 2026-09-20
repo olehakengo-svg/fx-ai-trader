@@ -218,6 +218,19 @@ def load_locked_cells(registry_path=None) -> list:
             continue
         if not str(e.get("type", "")).endswith("_count_decision"):
             continue
+        # Not every *_count_decision freezes an outcome look: some are pure
+        # count monitors that state they are P-10 compatible (lane-health
+        # checkpoints, the weekend_gap live-conversion monitor).  Redacting
+        # those silently discards valid results and promotion candidates —
+        # the mirror image of a leak (Codex P2, PR #273).
+        #
+        # The default is True (redact) because under-redaction leaks silently
+        # while over-redaction is at least visible; a count-only monitor must
+        # opt out EXPLICITLY.  Inferring this from message prose was tried and
+        # misclassified rnb-support-bounce-shadow-forward, which IS an outcome
+        # LOCK — hence an explicit flag rather than a heuristic.
+        if e.get("outcome_lock", True) is False:
+            continue
         et = e.get("entry_type")
         marker = e.get("reasons_marker") or ""
         # A misspelled or deleted selector ({"type": "shadow_count_decision",
@@ -745,8 +758,13 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                     as_of_exclusive=win_hi)))
         return out
 
-    v2_eval = eval_cells(v2_elig, m_family, "v2") + locked_records(locked_v2_elig, "v2")
-    v3_eval = eval_cells(v3_elig, m_family, "v3") + locked_records(locked_v3_elig, "v3")
+    # `min_n` gates MULTIPLICITY eligibility, but the redaction/count inventory
+    # must cover EVERY non-empty locked group: a LOCK whose own threshold is
+    # below min_n (kalman: n_decide=10) otherwise produced no record at all —
+    # no redacted_cell_count, no n_lock_population — even once its declared
+    # look had been reached (Codex P2, PR #273).
+    v2_eval = eval_cells(v2_elig, m_family, "v2") + locked_records(locked_v2, "v2")
+    v3_eval = eval_cells(v3_elig, m_family, "v3") + locked_records(locked_v3, "v3")
     candidates = [c for c in (v2_eval + v3_eval) if c.get("promoted")]
     redacted_cells = [c for c in (v2_eval + v3_eval) if c.get("redacted")]
 

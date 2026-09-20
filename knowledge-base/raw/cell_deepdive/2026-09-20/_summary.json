@@ -121,54 +121,9 @@
         "dedup_violation": 0,
         "mode": "rnb_usdjpy",
         "n_decide": 41
-      },
-      {
-        "entry_type": "rnb_support_bounce",
-        "instrument": "USD_JPY",
-        "direction": "BUY",
-        "registry_id": "rnb-shadow-lane-health-checkpoint-1",
-        "match": "exact",
-        "reasons_marker": null,
-        "count_basis": null,
-        "kind": "shadow",
-        "since": "2026-09-10",
-        "closed_only": true,
-        "dedup_violation": 0,
-        "mode": "rnb_usdjpy",
-        "n_decide": 41
-      },
-      {
-        "entry_type": "rnb_support_bounce",
-        "instrument": "USD_JPY",
-        "direction": "BUY",
-        "registry_id": "rnb-shadow-lane-health-checkpoint-2",
-        "match": "exact",
-        "reasons_marker": null,
-        "count_basis": null,
-        "kind": "shadow",
-        "since": "2026-09-10",
-        "closed_only": true,
-        "dedup_violation": 0,
-        "mode": "rnb_usdjpy",
-        "n_decide": 41
-      },
-      {
-        "entry_type": "weekend_gap",
-        "instrument": null,
-        "direction": null,
-        "registry_id": "project-falsification-f2-wg-live-conversion",
-        "match": "prefix",
-        "reasons_marker": null,
-        "count_basis": null,
-        "kind": "live",
-        "since": "2026-07-25",
-        "closed_only": false,
-        "dedup_violation": null,
-        "mode": null,
-        "n_decide": 1
       }
     ],
-    "redacted_cell_count": 3,
+    "redacted_cell_count": 15,
     "redacted_cells": [
       {
         "level": "v2",
@@ -199,6 +154,20 @@
         "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
       },
       {
+        "level": "v2",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "USD_JPY",
+          "SELL"
+        ],
+        "n_unique_rows_in_window": 11,
+        "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
+        "n_decide": 30,
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+      },
+      {
         "level": "v3",
         "cell": [
           "sr_anti_hunt_bounce",
@@ -212,6 +181,171 @@
         "watcher_divergence": false,
         "n_decide": 40,
         "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "EUR_JPY",
+          "NY",
+          "BUY"
+        ],
+        "n_unique_rows_in_window": 19,
+        "n_lock_population": 36,
+        "n_lock_population_watcher": 36,
+        "watcher_divergence": false,
+        "n_decide": 40,
+        "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "EUR_JPY",
+          "overlap_LN",
+          "BUY"
+        ],
+        "n_unique_rows_in_window": 14,
+        "n_lock_population": 36,
+        "n_lock_population_watcher": 36,
+        "watcher_divergence": false,
+        "n_decide": 40,
+        "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "EUR_JPY",
+          "London",
+          "BUY"
+        ],
+        "n_unique_rows_in_window": 8,
+        "n_lock_population": 36,
+        "n_lock_population_watcher": 36,
+        "watcher_divergence": false,
+        "n_decide": 40,
+        "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "USD_JPY",
+          "NY",
+          "BUY"
+        ],
+        "n_unique_rows_in_window": 8,
+        "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
+        "n_decide": 30,
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "USD_JPY",
+          "London",
+          "BUY"
+        ],
+        "n_unique_rows_in_window": 8,
+        "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
+        "n_decide": 30,
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "USD_JPY",
+          "overlap_LN",
+          "BUY"
+        ],
+        "n_unique_rows_in_window": 5,
+        "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
+        "n_decide": 30,
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "USD_JPY",
+          "Tokyo",
+          "BUY"
+        ],
+        "n_unique_rows_in_window": 14,
+        "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
+        "n_decide": 30,
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "USD_JPY",
+          "London",
+          "SELL"
+        ],
+        "n_unique_rows_in_window": 3,
+        "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
+        "n_decide": 30,
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "USD_JPY",
+          "Tokyo",
+          "SELL"
+        ],
+        "n_unique_rows_in_window": 3,
+        "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
+        "n_decide": 30,
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "USD_JPY",
+          "NY",
+          "SELL"
+        ],
+        "n_unique_rows_in_window": 1,
+        "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
+        "n_decide": 30,
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+      },
+      {
+        "level": "v3",
+        "cell": [
+          "sr_anti_hunt_bounce",
+          "USD_JPY",
+          "overlap_LN",
+          "SELL"
+        ],
+        "n_unique_rows_in_window": 4,
+        "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
+        "n_decide": 30,
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
       }
     ],
     "watcher_divergent_locks": [],
@@ -509,6 +643,29 @@
         "dedup_violation": null,
         "mode": null
       }
+    },
+    {
+      "level": "v2",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "USD_JPY",
+        "SELL"
+      ],
+      "n_unique_rows_in_window": 11,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null
+      }
     }
   ],
   "eligible_cells_v3": [
@@ -533,6 +690,270 @@
         "since": "2026-08-05",
         "closed_only": true,
         "dedup_violation": 0,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "EUR_JPY",
+        "NY",
+        "BUY"
+      ],
+      "n_unique_rows_in_window": 19,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+      "n_lock_population": 36,
+      "n_lock_population_watcher": 36,
+      "watcher_divergence": false,
+      "n_decide": 40,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-08-05",
+        "closed_only": true,
+        "dedup_violation": 0,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "EUR_JPY",
+        "overlap_LN",
+        "BUY"
+      ],
+      "n_unique_rows_in_window": 14,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+      "n_lock_population": 36,
+      "n_lock_population_watcher": 36,
+      "watcher_divergence": false,
+      "n_decide": 40,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-08-05",
+        "closed_only": true,
+        "dedup_violation": 0,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "EUR_JPY",
+        "London",
+        "BUY"
+      ],
+      "n_unique_rows_in_window": 8,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+      "n_lock_population": 36,
+      "n_lock_population_watcher": 36,
+      "watcher_divergence": false,
+      "n_decide": 40,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-08-05",
+        "closed_only": true,
+        "dedup_violation": 0,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "USD_JPY",
+        "NY",
+        "BUY"
+      ],
+      "n_unique_rows_in_window": 8,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "USD_JPY",
+        "London",
+        "BUY"
+      ],
+      "n_unique_rows_in_window": 8,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "USD_JPY",
+        "overlap_LN",
+        "BUY"
+      ],
+      "n_unique_rows_in_window": 5,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "USD_JPY",
+        "Tokyo",
+        "BUY"
+      ],
+      "n_unique_rows_in_window": 14,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "USD_JPY",
+        "London",
+        "SELL"
+      ],
+      "n_unique_rows_in_window": 3,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "USD_JPY",
+        "Tokyo",
+        "SELL"
+      ],
+      "n_unique_rows_in_window": 3,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "USD_JPY",
+        "NY",
+        "SELL"
+      ],
+      "n_unique_rows_in_window": 1,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null
+      }
+    },
+    {
+      "level": "v3",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "USD_JPY",
+        "overlap_LN",
+        "SELL"
+      ],
+      "n_unique_rows_in_window": 4,
+      "redacted": true,
+      "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
         "mode": null
       }
     }

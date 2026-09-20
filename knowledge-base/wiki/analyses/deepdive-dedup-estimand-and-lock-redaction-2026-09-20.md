@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (38 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (41 pins)
 
 ---
 
@@ -375,6 +375,21 @@ LOCK セルに flag-drift 行も run 後の行も無いため) — 修正は**�
 🔑 **「47 本実在した」が効いた**。指摘を仮説として受け取らず PROD を数えたことで、
 これが理論上の穴ではなく**いつ踏んでもおかしくない穴**だと確定できた。
 
+### 2.3l レビュー第11波 (Codex P2×2) — 過剰 redaction と過少報告
+
+| 指摘 | 実態 | 修正 |
+|---|---|---|
+| **redaction を本物の outcome LOCK に限定せよ** | 全 `*_count_decision` を redact していたが、そのうち **3 件は件数監視のみで凍結 outcome look を持たない** (`rnb-shadow-lane-health-checkpoint-1/2` は「count のみで outcome は見ない = P-10 非抵触」と自称、`project-falsification-f2-wg-live-conversion` は N≥1 の転換監視)。⇒ **正当な監査結果と昇格候補まで握り潰す** = leak の鏡像 | registry に **`outcome_lock` フラグ**を新設し該当 3 件に `false` を明示。**既定は `True` (redact)** — 過少 redaction は静かに漏れ、過剰 redaction は少なくとも目に見えるため保守側に倒す。`prereg_trigger_watch` の key allowlist にも登録 (未登録キーは lint が reject-by-default で弾く) |
+| **min_n 未満の LOCK セルも報告せよ** | 在庫が `min_n=20` 以上の群に限られており、**自分の閾値が min_n 未満の LOCK** (kalman `n_decide=10`) は 10 行揃っても **`redacted_cell_count=0` / `n_lock_population` 無し** = 宣言した look に到達しているのに何も表示されない | 在庫は**全ての非空 LOCK 群**から作る。`min_n` は**多重度の資格**にのみ使う (実測: redacted 3 → **15** セル) |
+
+🔴 **文面から推測する実装は実際に誤分類した** — 「count のみ」「P-10 非抵触」で
+grep したところ **`rnb-support-bounce-shadow-forward` (本物の outcome LOCK) を
+件数のみと誤判定**した (その文言は同エントリが*併設する checkpoint* の説明だった)。
+⇒ **分類は文面推測でなく明示フラグで表明する**。
+
+✅ registry lint が新キーを正しく弾いた (`未知のキー 'outcome_lock'`) — allowlist の
+reject-by-default が設計どおり機能。allowlist へ意図を書いて登録した。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -421,6 +436,10 @@ LOCK セルに flag-drift 行も run 後の行も無いため) — 修正は**�
    9 のまま / watcher_compat は 16) ∧ counter-pin: drift 行は watcher_compat では数えられる
 0c2p. **LOCK 計数が監査の as-of 上界に従う** (run 後 2 本を足しても 11 のまま、run 当日は含む)
    ∧ counter-pin: `since` は下界として独立に効く
+0c2q. **件数監視 (`outcome_lock: false`) は redact されない** ∧ **キー未記載は redact が既定**
+   ∧ 実 registry で count-only 3 件が除外され outcome LOCK 7 件が残る
+0c2r. **min_n 未満の LOCK セルも在庫に出る** (kalman `n_decide=10` で 10 行 → 記録あり)
+   ∧ counter-pin: 多重度は min_n のままなので 10 行群は族を膨らませない
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

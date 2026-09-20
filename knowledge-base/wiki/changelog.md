@@ -136,7 +136,20 @@
   塞ぐもので今回の数値解釈には影響しない
 - 🔑 **指摘を仮説として受け取らず PROD を数えた**ことで、理論上の穴ではなく
   「いつ踏んでもおかしくない穴」と確定できた
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**38 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第11波 (Codex P2×2) — 過剰 redaction と過少報告 (いずれも leak の鏡像)**:
+  (v) **redaction を本物の outcome LOCK に限定** — 全 `*_count_decision` を redact していたが
+  **3 件は件数監視のみで凍結 outcome look を持たない** (lane-health checkpoint ×2 /
+  weekend_gap 転換監視)。**正当な監査結果と昇格候補まで握り潰していた**。
+  registry に `outcome_lock` フラグを新設し 3 件に `false` を明示、**既定は redact** で保守側。
+  `prereg_trigger_watch` の key allowlist にも登録
+  (w) **min_n 未満の LOCK セルも報告** — 在庫が `min_n=20` 以上に限られ、自分の閾値が
+  min_n 未満の LOCK (kalman `n_decide=10`) は宣言 look 到達でも**何も表示されなかった**。
+  在庫は全非空 LOCK 群から作り `min_n` は多重度資格にのみ使う (redacted 3 → **15** セル)
+- 🔴 **文面推測の実装は実際に誤分類した** — 「count のみ」で grep すると
+  **`rnb-support-bounce-shadow-forward` (本物の outcome LOCK) を件数のみと誤判定**
+  (その文言は同エントリが併設する checkpoint の説明だった) ⇒ **明示フラグで表明する**
+- ✅ registry lint が新キーを正しく弾いた (reject-by-default が設計どおり機能)
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**41 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

@@ -671,10 +671,11 @@
       "closed_only": true,
       "deadline": "2026-09-24",
       "doc": "knowledge-base/wiki/decisions/rnb-support-bounce-r1-packet-2026-09-10.md",
-      "message": "lane-health cadence checkpoint 1/2 (P16 型、blocker-refutation-2026-09-10 §2 rnb-shadow-forward 行の cadence 穴 + conf 単位バグ 2026-09-10 の再発検知)。TRIGGERED (deadline 分岐) = 2026-09-24 に closed shadow N<3 (期待 2.99/週 の約半分未満) → lane-health 調査 (conf gate / QUALIFIED_TYPES / shadow_only 配線 / signal 頻度) を R3 で実施し、修理 or 頻度前提の下方修正を起案。count のみで outcome (WR/EV) は見ない = P-10 (gate×outcome joint 計算禁止) 非抵触。母集団は LOCK rnb-support-bounce-shadow-forward と同一 (USD_JPY×BUY, closed, dedup_violation=0) — first look の N と同じ数を読む。n_decide=41 到達側の分岐は本体 LOCK が担うため、本 entry の N>=41 TRIGGERED は重複通知として本体と同時に resolve してよい。期日通過かつ N>=3 ならチェックポイント通過 = resolved クローズ (継続監視は checkpoint-2 と demote gate が担う)。",
+      "message": "lane-health cadence checkpoint 1/2 (P16 型、blocker-refutation-2026-09-10 §2 rnb-shadow-forward 行の cadence 穴 + conf 単位バグ 2026-09-10 の再発検知)。TRIGGERED (deadline 分岐) = 2026-09-24 に closed shadow N<3 (期待 2.99/週 の約半分未満) → lane-health 調査 (conf gate / QUALIFIED_TYPES / shadow_only 配線 / signal 頻度) を R3 で実施し、修理 or 頻度前提の下方修正を起案。count のみで outcome (WR/EV) は見ない = P-10 (gate×outcome joint 計算禁止) 非抵触。母集団は LOCK rnb-support-bounce-shadow-forward と同一 (USD_JPY×BUY, closed, dedup_violation=0) — first look の N と同じ数を読む。n_decide=41 到達側の分岐は本体 LOCK が担うため、本 entry の N>=41 TRIGGERED は重複通知として本体と同時に resolve してよい。期日通過かつ N>=3 ならチェックポイント通過 = resolved クローズ (継続監視は checkpoint-2 と demote gate が担う)。 🆕 **2026-09-20 追補**: `outcome_lock: false` を明示 — 本エントリは件数監視のみで 凍結された outcome look を持たない。`tools/cell_deepdive_audit.py` の redaction は 既定で全 `*_count_decision` を対象にする (保守側) ため、**件数のみのモニタは明示的に opt-out しないと正当な監査結果と昇格候補まで握り潰す**。判定を message の文面から 推測する実装は誤分類した (rnb-support-bounce-shadow-forward を件数のみと誤判定) ため、**明示フラグで表明する**。",
       "reachability": "状態を進めるジョブ = 本番エンジン自身 (rnb_usdjpy auto_start=True、30s tick、UTC 7-20)。評価主体 = tools/prereg_trigger_watch.py の shadow_count_decision 型 (日次 Tier A cron): 2026-09-24 超過 ∧ closed shadow N<3 で TRIGGERED。判定 = Claude (R3 修理は自走可、頻度前提の下方修正は分析文書化)。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
-      "execution_subject": "prereg_trigger_watch daily cron (Tier A)"
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
     },
     {
       "id": "rnb-shadow-lane-health-checkpoint-2",
@@ -691,10 +692,11 @@
       "closed_only": true,
       "deadline": "2026-10-08",
       "doc": "knowledge-base/wiki/decisions/rnb-support-bounce-r1-packet-2026-09-10.md",
-      "message": "lane-health cadence checkpoint 2/2 (P16 型)。TRIGGERED (deadline 分岐) = 2026-10-08 に closed shadow N<6 → checkpoint-1 通過後の cadence 失速も検知 (4 週で期待 ~12 の半分未満)。count のみで P-10 非抵触。母集団・手続きは checkpoint-1 と同一。期日通過かつ N>=6 ならチェックポイント通過 = resolved クローズ — 以後の dead-lane 検知は demote gate (tools/rnb_shadow_demote_gate.py) と LOCK 本体の stale 期日 (2027-01-15) が担う。",
+      "message": "lane-health cadence checkpoint 2/2 (P16 型)。TRIGGERED (deadline 分岐) = 2026-10-08 に closed shadow N<6 → checkpoint-1 通過後の cadence 失速も検知 (4 週で期待 ~12 の半分未満)。count のみで P-10 非抵触。母集団・手続きは checkpoint-1 と同一。期日通過かつ N>=6 ならチェックポイント通過 = resolved クローズ — 以後の dead-lane 検知は demote gate (tools/rnb_shadow_demote_gate.py) と LOCK 本体の stale 期日 (2027-01-15) が担う。 🆕 **2026-09-20 追補**: `outcome_lock: false` を明示 — 本エントリは件数監視のみで 凍結された outcome look を持たない。`tools/cell_deepdive_audit.py` の redaction は 既定で全 `*_count_decision` を対象にする (保守側) ため、**件数のみのモニタは明示的に opt-out しないと正当な監査結果と昇格候補まで握り潰す**。判定を message の文面から 推測する実装は誤分類した (rnb-support-bounce-shadow-forward を件数のみと誤判定) ため、**明示フラグで表明する**。",
       "reachability": "状態を進めるジョブ = 本番エンジン自身 (rnb_usdjpy auto_start=True、30s tick、UTC 7-20)。評価主体 = tools/prereg_trigger_watch.py の shadow_count_decision 型 (日次 Tier A cron): 2026-10-08 超過 ∧ closed shadow N<6 で TRIGGERED。判定 = Claude。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
-      "execution_subject": "prereg_trigger_watch daily cron (Tier A)"
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
     },
     {
       "id": "roster-e2-silent-promoted-cells",
@@ -729,7 +731,8 @@
       "n_decide": 1,
       "deadline": "2026-12-31",
       "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
-      "message": "プロジェクト falsification 条件 F2 (U7、user 承認 2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap の clean live (oanda_trade_id 非空) 約定が live 化 (2026-07-25) 以降ゼロのまま。N>=1 到達 = PASS→live 変換の初実証として resolve。期日 2026-12-31 に N=0 なら『PASS→live PnL 変換は未実証』と正式認定 — 以後の全 PASS の価値を執行実証まで割引き、pre-reg テンプレに fill 成立率の事前見積りを必須化する。関連: weekend-gap-execution-contract R1 パケット (2026-09-10 起案)。 ⚠️ 執行契約 AMENDMENT (B) 適用 (2026-09-10 user 承認、同日実装 PR): halt 決定論 cancel (fill 0/3 の機構) の修理。初回イベント 2026-09-13 (日) 21:00 UTC の検証手順 = weekend-gap-execution-amendment-g0prime エントリ参照。本改定は F2 の回避手段であって免除ではない (期日 2026-12-31 に N=0 なら従来どおり発動)。"
+      "message": "プロジェクト falsification 条件 F2 (U7、user 承認 2026-09-10)。唯一の OOS 確定 PASS セル weekend_gap の clean live (oanda_trade_id 非空) 約定が live 化 (2026-07-25) 以降ゼロのまま。N>=1 到達 = PASS→live 変換の初実証として resolve。期日 2026-12-31 に N=0 なら『PASS→live PnL 変換は未実証』と正式認定 — 以後の全 PASS の価値を執行実証まで割引き、pre-reg テンプレに fill 成立率の事前見積りを必須化する。関連: weekend-gap-execution-contract R1 パケット (2026-09-10 起案)。 ⚠️ 執行契約 AMENDMENT (B) 適用 (2026-09-10 user 承認、同日実装 PR): halt 決定論 cancel (fill 0/3 の機構) の修理。初回イベント 2026-09-13 (日) 21:00 UTC の検証手順 = weekend-gap-execution-amendment-g0prime エントリ参照。本改定は F2 の回避手段であって免除ではない (期日 2026-12-31 に N=0 なら従来どおり発動)。 🆕 **2026-09-20 追補**: `outcome_lock: false` を明示 — 本エントリは件数監視のみで 凍結された outcome look を持たない。`tools/cell_deepdive_audit.py` の redaction は 既定で全 `*_count_decision` を対象にする (保守側) ため、**件数のみのモニタは明示的に opt-out しないと正当な監査結果と昇格候補まで握り潰す**。判定を message の文面から 推測する実装は誤分類した (rnb-support-bounce-shadow-forward を件数のみと誤判定) ため、**明示フラグで表明する**。",
+      "outcome_lock": false
     },
     {
       "id": "project-falsification-f3-m1-durable-cell",
