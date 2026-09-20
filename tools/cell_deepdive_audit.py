@@ -69,6 +69,10 @@ PROMO_BONF_ALPHA = 0.05
 # overall vs 0.0% post-fix).
 DEDUP_GATE_FIX_TS = "2026-04-30T02:42:00"
 
+# /api/demo/trades' default page size (app.py).  A snapshot of exactly this
+# size is the signature of a plain curl without ?limit=.
+_API_DEFAULT_LIMIT = 50
+
 # Outcome fields that must never be emitted for a LOCKed cell.
 REDACTED_FIELDS = (
     "wr", "wilson_lo", "ev_net", "pf", "p_raw", "p_bonf", "kelly",
@@ -613,6 +617,7 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
     # 35-vs-36 discrepancy this analysis documents, reproduced inside the tool
     # meant to fix it (Codex P1, PR #273).
     locked_raw = defaultdict(list)
+    complement_cells = set()
     open_raw = []
     for t in target_all:
         if marker_locks and any(row_in_lock_population(t, lk)
@@ -621,10 +626,22 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             continue
         lock = lock_for_cell(t.get("entry_type"), t.get("instrument"),
                              t.get("direction"), cell_locks)
-        if lock is not None:
+        # Route out ONLY rows that are actually in the LOCK's population.  Cell
+        # identity alone over-routes: the shadow-only EUR_JPY BUY LOCK starting
+        # 2026-08-05 was swallowing live rows and pre-`since` rows of the same
+        # cell too (75 in-window unique rows routed for a population of 36),
+        # silently discarding statistics the LOCK never covered.  The unlocked
+        # complement stays evaluable (Codex P2, PR #273).
+        if lock is not None and row_in_lock_population(
+                t, lock, as_of_exclusive=win_hi):
             locked_raw[(t.get("entry_type"), t.get("instrument"),
                         t.get("direction"))].append(t)
             continue
+        if lock is not None:
+            # Same cell, outside the LOCK population: keep it, but remember the
+            # cell is a partial view so the report cannot be misread as whole.
+            complement_cells.add((t.get("entry_type"), t.get("instrument"),
+                                  t.get("direction")))
         open_raw.append(t)
 
     locked_rows_total = sum(len(v) for v in locked_raw.values())
@@ -753,6 +770,10 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                              and p_bonf < PROMO_BONF_ALPHA),
                 "redacted": False,
             }
+            if (entry_type, instrument, direction) in complement_cells:
+                rec["lock_complement_only"] = True
+                rec["note"] = ("LOCKed cell の母集団外だけを集計した部分ビュー — "
+                               "セル全体の統計ではない")
             out.append(rec)
         out.sort(key=lambda x: (x.get("redacted", False), -x.get("wilson_lo", 0.0)))
         return out
@@ -831,6 +852,7 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                 {"registry_id": lk.get("registry_id"), "since": lk.get("since")}
                 for lk in not_yet_started
             ],
+            "lock_complement_cells": [list(c) for c in sorted(complement_cells)],
             "marker_locked_rows_excluded": marker_excluded,
             "marker_locks": [
                 {"registry_id": lk.get("registry_id"),
@@ -870,10 +892,16 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("trades_json",
-                   help="PROD /api/demo/trades JSON (fetch with curl; local DB is stale)")
+                   help="PROD /api/demo/trades JSON. MUST be fetched with an "
+                        "explicit high limit — the endpoint defaults to 50 rows: "
+                        "curl -sS 'https://fx-ai-trader.onrender.com/api/demo/"
+                        "trades?limit=100000' -o trades.json  (local DB is stale)")
     p.add_argument("--run-date", default=datetime.now(timezone.utc).date().isoformat())
     p.add_argument("--out-dir", default=None,
                    help="default: knowledge-base/raw/cell_deepdive/<run-date>")
+    p.add_argument("--min-rows", type=int, default=1000,
+                   help="refuse a snapshot smaller than this (truncation guard; "
+                        "PROD currently returns ~18k rows)")
     p.add_argument("--window-days", type=int, default=365,
                    help="audit window length ending at --run-date (default 365)")
     p.add_argument("--no-write", action="store_true", help="print only")
@@ -905,6 +933,32 @@ def main(argv=None) -> int:
     if not isinstance(trades, list):
         raise SystemExit(
             f"{args.trades_json}: 'trades' is {type(trades).__name__}, expected a list")
+
+    # Completeness. /api/demo/trades defaults to limit=50 (app.py), so a plain
+    # curl of the documented URL yields a plausible but severely truncated
+    # audit — and without --no-write it overwrites the weekly summary with
+    # wrong N, multiplicity and candidates.  `count` equals len(trades) in the
+    # response, so it cannot detect truncation on its own; we fail loud on the
+    # signatures instead (Codex P2, PR #273).  Same invariant as the registry
+    # loader and paginate_closed_trades: never fold "cannot verify" into "fine".
+    if isinstance(payload, dict):
+        count = payload.get("count")
+        if count is not None and count != len(trades):
+            raise SystemExit(
+                f"{args.trades_json}: 'count' ({count}) != len(trades) "
+                f"({len(trades)}) — inconsistent snapshot, refusing to audit")
+    if len(trades) == _API_DEFAULT_LIMIT:
+        raise SystemExit(
+            f"{args.trades_json}: exactly {_API_DEFAULT_LIMIT} rows — that is "
+            f"/api/demo/trades' DEFAULT limit, i.e. almost certainly a "
+            f"truncated first page. Re-fetch with ?limit=100000 "
+            f"(or pass --min-rows 0 if you really mean {_API_DEFAULT_LIMIT})")
+    if len(trades) < args.min_rows:
+        raise SystemExit(
+            f"{args.trades_json}: only {len(trades)} rows < --min-rows "
+            f"{args.min_rows} — a truncated page must not silently become an "
+            f"audit. Re-fetch with ?limit=100000, or lower --min-rows "
+            f"deliberately")
     result = run_audit(trades, run_date=args.run_date,
                        window_days=args.window_days)
     if not args.no_write:

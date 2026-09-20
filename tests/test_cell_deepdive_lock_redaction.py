@@ -371,9 +371,16 @@ def test_lock_count_uses_the_locks_own_population_not_the_audit_window():
            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
     assert rec["n_lock_population"] == 12, "the gate-relevant count"
     assert rec["n_decide"] == 40
-    # The in-window row count is larger and must be labelled separately, never
-    # presented as the gate count.
-    assert rec["n_unique_rows_in_window"] > rec["n_lock_population"]
+    # Since routing now admits ONLY LOCK-population rows, the routed count and
+    # the population agree by construction — the two fields stay distinct
+    # because they answer different questions (rows in THIS window vs the
+    # LOCK's own `since`-anchored population, which can pre-date the window).
+    assert rec["n_unique_rows_in_window"] == rec["n_lock_population"] == 12
+    # The same-cell rows outside the population are kept (here 18 clean rows,
+    # under min_n so they form no eligible cell) and the cell is recorded as a
+    # partial view so the report cannot be misread as covering the whole cell.
+    assert res["prereg_lock_redaction"]["lock_complement_cells"] == [
+        ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]]
     assert rec["lock_population_predicates"]["since"] == "2026-08-05"
     assert rec["lock_population_predicates"]["closed_only"] is True
 
@@ -1108,10 +1115,108 @@ def test_locks_that_start_after_the_window_do_not_redact():
     for t in later:
         t["status"] = "CLOSED"
         t["oanda_trade_id"] = ""
+        t["is_shadow"] = 1
+        t["dedup_violation"] = 0
     after = run_audit(rows + later, run_date="2026-09-20",
                       targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
     assert after["prereg_lock_redaction"]["locks_not_yet_started"] == []
     assert after["prereg_lock_redaction"]["redacted_cell_count"] >= 1
     rec2 = [c for c in after["eligible_cells_v2"]
-            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
-    assert rec2["redacted"] is True and "wr" not in rec2
+            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]
+            and c.get("redacted")]
+    assert rec2, "the in-population rows must be redacted once the LOCK begins"
+    assert "wr" not in rec2[0]
+    # ...while the June complement is still evaluated, flagged as partial.
+    comp2 = [c for c in after["eligible_cells_v2"]
+             if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]
+             and not c.get("redacted")]
+    assert comp2 and comp2[0]["lock_complement_only"] is True
+
+
+def test_only_lock_population_rows_are_routed_out():
+    """KNOWN-NG INPUT: same-cell rows that fail the LOCK's own predicates.
+
+    Routing on cell identity alone swallowed live rows and pre-`since` rows of
+    a shadow-only LOCK's cell — the committed report showed 75 in-window unique
+    rows routed for a population of 36, silently discarding statistics the LOCK
+    never covered (Codex P2, PR #273).
+    """
+    lock = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+            "direction": "BUY", "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+            "match": "exact", "kind": "shadow", "since": "2026-08-05",
+            "closed_only": True, "dedup_violation": 0, "mode": None,
+            "n_decide": 40, "reasons_marker": None, "count_basis": None}
+
+    def r(ts, **kw):
+        base = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+                "direction": "BUY", "outcome": "WIN", "pnl_pips": 2.0,
+                "dedup_violation": 0, "is_shadow": 1, "status": "CLOSED",
+                "oanda_trade_id": "", "mode": "daytrade", "entry_time": ts}
+        base.update(kw)
+        return base
+
+    in_pop = [r(f"2026-08-{10 + i:02d}T02:00:00") for i in range(21)]
+    pre_since = [r("2026-07-20T02:00:00", outcome="LOSS", pnl_pips=-1.0)
+                 for _ in range(13)]                       # before `since`
+    live = [r("2026-08-20T02:00:00", oanda_trade_id="9", is_shadow=0,
+              outcome="LOSS", pnl_pips=-1.0) for _ in range(9)]   # not shadow
+
+    res = run_audit(in_pop + pre_since + live, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
+    red = res["prereg_lock_redaction"]
+    assert res["meta"]["locked_rows_routed_out"] == 21, (
+        "only the LOCK population may be routed out")
+
+    rec = [c for c in red["redacted_cells"]
+           if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec["n_unique_rows_in_window"] == rec["n_lock_population"] == 21, (
+        "the routed count must equal the LOCK population, not the whole cell")
+
+    # The unlocked complement stays evaluable, and is flagged as partial.
+    comp = [c for c in res["eligible_cells_v2"]
+            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]
+            and not c.get("redacted")][0]
+    assert comp["n"] == 22, "13 pre-since + 9 live rows survive"
+    assert comp["lock_complement_only"] is True
+    assert red["lock_complement_cells"] == [
+        ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]]
+    # ...and it must not carry the LOCKed rows' outcomes (all 22 are LOSS).
+    assert comp["wr"] == pytest.approx(0.0)
+
+
+def test_truncated_api_snapshot_is_refused(tmp_path, monkeypatch, capsys):
+    """KNOWN-NG INPUT: the endpoint's DEFAULT 50-row page.
+
+    /api/demo/trades defaults to limit=50, so following the help text with a
+    plain curl produced a plausible but severely truncated audit that (without
+    --no-write) overwrote the weekly summary (Codex P2, PR #273).
+    """
+    import tools.cell_deepdive_audit as m
+
+    def run(payload, extra=()):
+        f = tmp_path / "t.json"
+        f.write_text(json.dumps(payload))
+        argv = [str(f), "--run-date", "2026-09-20", "--no-write", *extra]
+        with pytest.raises(SystemExit) as ei:
+            m.main(argv)
+        return str(ei.value)
+
+    row = {"entry_type": "vsg_jpy_reversal", "instrument": "EUR_JPY",
+           "direction": "SELL", "outcome": "WIN", "pnl_pips": 1.0,
+           "dedup_violation": 0, "is_shadow": 1,
+           "entry_time": "2026-08-10T02:00:00"}
+
+    msg = run({"count": 50, "trades": [row] * 50})
+    assert "DEFAULT limit" in msg and "limit=100000" in msg
+
+    msg = run({"count": 120, "trades": [row] * 120})
+    assert "--min-rows" in msg, "a small-but-not-50 page must still be refused"
+
+    msg = run({"count": 999, "trades": [row] * 120})
+    assert "count" in msg and "len(trades)" in msg, "inconsistent snapshot"
+
+    # Counter-pin: a full-size snapshot runs, and --min-rows 0 is an explicit
+    # deliberate override for the 50-row case.
+    f = tmp_path / "ok.json"
+    f.write_text(json.dumps({"count": 1500, "trades": [row] * 1500}))
+    assert m.main([str(f), "--run-date", "2026-09-20", "--no-write"]) == 0

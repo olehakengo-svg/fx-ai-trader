@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (43 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (45 pins)
 
 ---
 
@@ -422,6 +422,22 @@ not-yet-started として列挙)、`--run-date 2026-09-20` は **redact 15 / cle
 未発効 LOCK)。**leak を塞ぐガードは、塞ぎすぎる方向にも同じ数だけ穴を開ける** —
 「redact する条件」を足すたびに「redact してはいけない条件」を対で確認する。
 
+### 2.3o レビュー第14波 (Codex P2×2) — routing が母集団でなくセルで切っていた
+
+| 指摘 | 実態 | 修正 |
+|---|---|---|
+| **LOCK 母集団の行だけを routing せよ** | routing が `(entry_type, instrument, direction)` だけを見ていたため、**LOCK の `kind`/`since`/`mode`/`closed_only`/dedup を満たさない同一セル行まで一緒に退避**していた。⚠️ **指摘は本 PR が公開した出力そのものを証拠にしている** — 「in-window unique **75** 行を退避して LOCK 母集団は **36**」= 39 行が LOCK の対象外なのに監査から消えていた | routing に `row_in_lock_population` を適用。母集団外の同一セル行は **unlocked complement** として評価を続け、`lock_complement_only` + `lock_complement_cells` で「セル全体ではない部分ビュー」と明示 |
+| **完全なスナップショットを要求せよ** | `/api/demo/trades` は **default limit=50** (app.py)。help のとおり素朴に curl すると**もっともらしいが激しく truncate された監査**になり、`--no-write` 無しでは週次サマリを誤った N・多重度・候補で上書きする。`count` は len(trades) と同値なので自己検知できない | 50 行ちょうど (= default の署名) / `--min-rows` (既定 1000) 未満 / `count != len(trades)` を **fail-loud** に。help も `?limit=100000` 付きに訂正 |
+
+**実測の変化**: `locked_rows_routed_out` **215 → 58**、`clean_N` **273 → 335**、
+`sr_anti_hunt_bounce × EUR_JPY × BUY` の redacted 記録は **uniq 75 → 36 で
+`n_lock_population` と一致** (指摘の数値がそのまま解消)。複合ビューは 3 セル。
+
+🔑 **「LOCK が覆う範囲」と「LOCK セルの全行」は別物**。cell identity で切ると
+**LOCK が一度も対象にしていない行 (live / `since` 前) まで巻き込む** —
+over-redaction の 4 度目。母集団述語を 1 箇所 (`row_in_lock_population`) に
+集約しておいたおかげで、routing 側に 1 行足すだけで整合した。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -476,6 +492,12 @@ not-yet-started として列挙)、`--run-date 2026-09-20` は **redact 15 / cle
    を lint が拒否) ∧ counter-pin: `True`/`False`/キー未記載は通る
 0c2t. **未発効 LOCK は redact しない** (6 月の行を 07-01 窓で監査 → redact 0・統計生存・
    `locks_not_yet_started` に列挙) ∧ counter-pin: 窓が LOCK に届けば redaction 再開
+0c2u. **routing が LOCK 母集団の行だけを退避** (母集団 21 / `since` 前 13 / live 9 の
+   fixture で退避は 21、`n_unique_rows_in_window == n_lock_population`)
+   ∧ complement 22 行は評価され `lock_complement_only` が立つ ∧ その WR に
+   LOCK 行の outcome が混ざらない
+0c2v. **truncate されたスナップショットを拒否** (50 行ちょうど / `--min-rows` 未満 /
+   `count != len(trades)` の 3 形状) ∧ counter-pin: 完全なスナップショットは通る
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:
