@@ -226,11 +226,26 @@ def test_real_dataset_is_currently_data_blocked():
 
 
 def test_real_dataset_repeat_share_is_material():
-    """N 膨張が「無視できる程度」ではないことの pin (約 7.0 倍)。"""
+    """N 膨張が「無視できる程度」ではないことの pin。
+
+    ⚠️ **膨張率は dedup 窓に強く依存する** — 既定 1h で約 3.4 倍、無制限なら
+    約 7.0 倍 (PR #272 Codex P2、5 巡目)。点推定として引用しないこと。
+    """
     acc = hed.prepare(REAL_DATASET)["accounting"]
+    assert acc["dedup_window_sec"] == hed.DEDUP_WINDOW_SEC
     distinct = acc["distinct_observations"]
     collected = distinct + acc["collapsed_repeats"]
-    assert collected / distinct > 5.0, f"inflation factor = {collected / distinct:.2f}"
+    assert collected / distinct > 3.0, f"inflation factor = {collected / distinct:.2f}"
+
+
+def test_real_dataset_inflation_is_window_dependent():
+    """窓を変えると膨張率が大きく動くこと自体を pin する。
+
+    単一の点推定 (旧 readout の「7.0 倍」) を publish した誤りの再発防止。
+    """
+    tight = hed.prepare(REAL_DATASET, window_sec=900.0)["accounting"]
+    loose = hed.prepare(REAL_DATASET, window_sec=None)["accounting"]
+    assert tight["distinct_observations"] > 2 * loose["distinct_observations"]
 
 
 # --------------------------------------------------------------------------
@@ -454,9 +469,9 @@ def test_labeled_duplicates_do_not_inflate_n_after_dedup(tmp_path):
     """反対側: ラベル付きの重複を含む入力でも N は distinct signal 数になる。"""
     rows = []
     for i in range(40):
-        for rep in range(3):                     # 同一 signal を 3 回発火
+        for rep in range(3):                     # 同一 bar 内で 3 回再評価
             r = _row(entry_price=150 + i * 0.01,
-                     entry_time=f"2026-09-01T0{rep}:00:00+00:00")
+                     entry_time=f"2026-09-01T00:{rep * 5:02d}:00+00:00")
             if rep == 1:                         # うち 1 本にだけラベル
                 r.update(reversal=(i % 2 == 0), actual_outcome="WIN",
                          actual_pnl_pips=5.0)
@@ -482,16 +497,17 @@ def test_bar_dedup_keeps_distinct_benchmark_bars():
     "signal" 粒度を当てると全行が 1 群に潰れ、偽の outcome 衝突が出て
     N が床を割る (= exit 5)。"bar" 粒度なら 40 観測が保たれる。
     """
-    rows = [_row(entry_time=f"2026-09-01T{h:02d}:00:00+00:00", reversal=(h % 2 == 0))
-            for h in range(40)]
+    # 同一窓 (1h) 内の 15m bar 4 本。payload は同一で entry_time と reversal だけが違う。
+    rows = [_row(entry_time=f"2026-09-01T00:{m:02d}:00+00:00", reversal=(m % 30 == 0))
+            for m in (0, 15, 30, 45)]
 
     signal_out, signal_repeats, signal_conflicts = hed.collapse_repeats(rows)
     assert len(signal_out) == 1                       # 潰れてしまう
-    assert signal_repeats == 39
+    assert signal_repeats == 3
     assert len(signal_conflicts) == 1                 # 偽の衝突
 
     bar_out, bar_repeats, bar_conflicts = hed.collapse_repeats(rows, dedup="bar")
-    assert len(bar_out) == 40
+    assert len(bar_out) == 4
     assert bar_repeats == 0
     assert bar_conflicts == []
 
@@ -614,3 +630,48 @@ def test_conflict_inside_the_requested_cell_does_block(tmp_path):
     assert cell["accounting"]["outcome_conflicts"] == 1
     assert cell["ok"] is False
     assert any("conflicting outcomes" in r for r in cell["blocked_reasons"])
+
+
+# --------------------------------------------------------------------------
+# PR #272 レビュー 6 巡目 — "signal" 粒度は時間窓が無いと全期間で潰れる
+# --------------------------------------------------------------------------
+
+def test_signal_dedup_does_not_merge_across_the_window():
+    """NG 入力: 同一 payload が窓を跨いで出る (実データに 68.5 日の群が存在)。"""
+    rows = [_row(entry_time="2026-05-01T00:00:00+00:00"),
+            _row(entry_time="2026-07-08T00:00:00+00:00")]
+    out, repeats, conflicts = hed.collapse_repeats(rows)
+    assert len(out) == 2, "窓外の同一 payload を別観測として残していない"
+    assert repeats == 0
+    # 無制限なら潰れる = 修正前の挙動
+    assert len(hed.collapse_repeats(rows, window_sec=None)[0]) == 1
+
+
+def test_signal_dedup_still_collapses_within_the_window():
+    rows = [_row(entry_time=f"2026-09-01T00:{m:02d}:00+00:00") for m in (0, 20, 50)]
+    out, repeats, _ = hed.collapse_repeats(rows)
+    assert len(out) == 1
+    assert repeats == 2
+
+
+def test_window_boundary_is_anchored_not_chained():
+    """anchored: 先頭から window_sec を超えたら新しい観測 (chaining しない)。"""
+    rows = [_row(entry_time="2026-09-01T00:00:00+00:00"),
+            _row(entry_time="2026-09-01T00:50:00+00:00"),   # 窓内
+            _row(entry_time="2026-09-01T01:30:00+00:00")]   # 先頭から 90 分 = 窓外
+    out, repeats, _ = hed.collapse_repeats(rows)
+    assert len(out) == 2
+    assert repeats == 1
+
+
+def test_rows_without_a_parsable_entry_time_are_never_merged():
+    """時刻が読めない行は窓を張れない → 潰さない (観測を消す方向に倒れない)。"""
+    rows = [_row(entry_time="not-a-timestamp"), _row(entry_time="not-a-timestamp")]
+    out, repeats, _ = hed.collapse_repeats(rows)
+    assert len(out) == 2
+    assert repeats == 0
+
+
+def test_dedup_window_default_is_pinned():
+    """窓を緩める (= 潰しすぎる) 方向の変更を pin する。"""
+    assert hed.DEDUP_WINDOW_SEC == 3600.0

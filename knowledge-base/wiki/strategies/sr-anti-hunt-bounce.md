@@ -61,7 +61,8 @@
 - `research/edge_discovery/hunt_analyzer.py` — hunt 統計 + reversal WR
 - `tools/sr_audit.py` — CLI audit。⚠️ **2026-09-19 (rule:R3) 以降、`raw/hunt_events/` を入力に
   した実行は `DATA-BLOCKED` を返す** — `reversal` が 69,577/69,577 で None (labeler
-  `tools/attribute_hunt_outcomes.py` が未実装) かつ重複評価 85.7% で N が 7.0 倍に膨らむ。
+  `tools/attribute_hunt_outcomes.py` が未実装) かつ重複評価 70.3% で N が 3.37 倍に膨らむ
+  (既定 dedup 窓 1h。⚠️ 膨張率は窓依存 — 点推定で引用しない)。
   disposition = registry `hunt-events-labeler-disposition` (期日 2026-10-20)。
   読み取り規約: [[hunt-events-dataset-readout-2026-09-19]]
 - `tools/hunt_event_dataset.py` — hunt_events の読み手 (provenance / dedup / label gate)

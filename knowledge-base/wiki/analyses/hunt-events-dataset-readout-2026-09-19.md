@@ -93,7 +93,7 @@ feed-symbol は**収集経路の構造**なので、値が変わっても誤ら�
 残る 1 行が上記。PR #264 (`5b7060c46`) は 300 行を正しく除去し、**1 行を取り逃した**。
 結果として現在この日付ファイルは**合成行 1 行だけ**になっている。
 
-### D3. 独立観測の単位 — N が 7.0 倍に膨らむ
+### D3. 独立観測の単位 — N が 3.4 倍に膨らむ (⚠️ 窓依存、下記)
 
 engine は同じ bar を tick ごとに再構築・再評価し、logger は評価成功ごとに 1 行
 書く (MEMORY `project_engine_reconstruction_live_dedup_dead`)。
@@ -103,11 +103,28 @@ engine は同じ bar を tick ごとに再構築・再評価し、logger は評�
 |---|---:|
 | 読み込み | 69,577 |
 | provenance 隔離 | −1 |
-| **重複評価の collapse** | **−59,630** |
-| 相異なる観測 | **9,946** |
+| **重複評価の collapse** (既定窓 1h) | **−48,934** |
+| 相異なる観測 | **20,642** |
 
-**膨張係数 = 69,576 / 9,946 = 7.0 倍** (ファイル内だけで数えると 82.9% / 5.8 倍、
-ファイル横断も含めると 85.7% / 7.0 倍)。
+**膨張係数 = 69,576 / 20,642 = 3.37 倍** (重複比率 70.3%)。
+
+🔴 **この数字は dedup の時間窓に強く依存する — 点推定として引用してはいけない**
+(PR #272 Codex P2、5 巡目の指摘で判明。**初版は窓無しの 9,946 / 7.0 倍を
+点推定として公表しており、誤りだった**):
+
+| 窓 | 相異なる観測 | 膨張係数 |
+|---|---:|---:|
+| 15m | 27,335 | 2.55x |
+| **1h (既定)** | **20,642** | **3.37x** |
+| 4h | 14,953 | 4.65x |
+| 24h | 11,614 | 5.99x |
+| 無制限 (初版) | 9,946 | 7.00x |
+
+既定 **1h** は「同一 bar の tick 再評価はその bar の長さを超えられない」という
+**機構からの導出**で、sr 系が使う最長 bar に合わせたもの — データに合わせた
+較正ではない。窓が必要な理由は実測で明らか: **窓無しだと同一 identity の群が
+2026-05-01〜2026-07-08 = 68.5 日にまたがる**。それは単一 bar の再評価では
+説明できず、**別観測を消している**。
 
 重複群の `entry_time` スパンは中央値 **125 分**、最大 21 時間 — 単一 bar 内の
 再評価では説明できない長さで、`level` / `hunt_extreme` / `opposite_sr` が同一の
@@ -122,10 +139,10 @@ engine は同じ bar を tick ごとに再構築・再評価し、logger は評�
 
 | N | 通過に必要な最小 WR |
 |---|---:|
-| 9,946 (真の観測数) | **51.473%** |
+| 20,642 (既定窓での観測数) | **51.025%** |
 | 69,577 (膨張後) | **50.558%** |
 
-真の N ではノイズと区別できない WR 51.0% のセルが、膨張後の N では
+真の N ではノイズと区別できない WR 50.8% のセルが、膨張後の N では
 **Bonferroni k=40 の promotion ゲートを通る**。
 
 ### D4. 未ラベル行が自動的に敗北票になる
@@ -195,12 +212,12 @@ validity gate: ラベル付き行 < **30** (Rule 1 の N 床と同値) で `DATA
 
 ```
 $ python3 tools/sr_audit.py --events-json knowledge-base/raw/hunt_events --pair USD_JPY --side bull
-[sr_audit] dataset: read=69577 quarantined=1 repeats_collapsed=59630 distinct=9946 in_cell=3057 labeled=0
+[sr_audit] dataset: read=69577 quarantined=1 repeats_collapsed=48934 distinct=20642 in_cell=8296 labeled=0
 [sr_audit] verdict: DATA-BLOCKED — 母集団が estimand を支えない
-  - labeled rows 0 < floor 30 (unlabeled 3057 — `reversal` は tools/attribute_hunt_outcomes.py が埋める約束のまま未実装)
+  - labeled rows 0 < floor 30 (unlabeled 8296 — `reversal` は tools/attribute_hunt_outcomes.py が埋める約束のまま未実装)
 ```
 
-## 3. pin (56 本、`tests/test_hunt_event_dataset.py`)
+## 3. pin (62 本、`tests/test_hunt_event_dataset.py`)
 
 MEMORY `project_review_gate_vacuous_2026_09_11` の指示
 「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」に従い、
@@ -374,6 +391,39 @@ pin 5 本追加 (部分ラベルはマージされる / 同一フィールドの
 別の故障になる。** ガードを足したら「止めてはいけない入力」も同じコミットで
 pin する — NG 入力の pin と対になる **PASS 入力の pin** が必須。
 
+### 3.8 レビュー 6 巡目 — 🔴 **私が公表した数字が誤りだった**
+
+> **Bound signal deduplication to one underlying bar** — `signal` 粒度は唯一の
+> 時刻を identity から外すので、`collapse_repeats()` は**全ファイル横断**で
+> グループ化する。別 bar の同一 payload が恒久的にマージされ、ラベル後は
+> 偽の衝突にもなる。committed dataset で既に観測可能: ひとつの identity が
+> **2026-05-01 から 2026-07-08** までグループ化されている。
+
+**正しい。そしてこれは、本 readout が §1 で公表した数字そのものを崩す。**
+
+初版は「相異なる観測 **9,946** / 膨張 **7.0 倍**」を**点推定として**書いた。
+実際には dedup の時間窓に強く依存し (§D3 の表)、**9,946 は窓無し = 最も
+攻撃的な端**だった。私は §D3 に「重複群のスパンは中央値 125 分、最大 21 時間で
+単一 bar の再評価では説明できない」と**自分で書いておきながら**、
+「独立観測でないことは原因に依らず成立する」と続けて点推定を publish した。
+**その一文が誤り** — 2 ヶ月離れた別 bar が偶然同一 payload を持つなら、
+それは**独立な 2 観測**である。payload 一致はデータセット全期間にわたる
+観測 identity ではない。
+
+修正: `DEDUP_WINDOW_SEC` (既定 3600 秒、anchored) を導入し、窓を跨いだ同一
+payload は**別観測として残す**。既定 1h は「同一 bar の tick 再評価は
+その bar 長を超えられない」という機構からの導出。**感度表を §D3 に併記**し、
+点推定での引用を禁じた。
+
+📌 **波及した訂正 (本 PR 内で全て実施)**: readout §D3 / §3 pin 数 / CLI 転写 /
+changelog 2 箇所 / session log 2 箇所 / strategy card / logger docstring /
+registry `hunt-events-labeler-disposition` / MEMORY 2 ファイル。
+
+**教訓: 自分で書いた caveat を、自分の結論で踏み潰していた。**
+「原因は特定していない」と書いた直後に「原因に依らず成立する」と書くのは、
+caveat を**記録**しただけで**適用**していない。caveat は書いた本人が
+最初の読み手であるべきだった。
+
 ### 3.6 レビュー 4 巡の総括 — 欠陥は「実データで回せない経路」に集中した
 
 | 巡 | severity | 経路 |
@@ -386,8 +436,9 @@ pin する — NG 入力の pin と対になる **PASS 入力の pin** が必須
 | 4 | P2 | benchmark (`entry_time` の粒度) |
 | 5 | P2 | 衝突検出器 (部分ラベルを誤って衝突扱い、両経路) |
 | 5 | P2 | 衝突検出器 (cell 絞り前に判定、両経路) |
+| 6 | P2 | **dedup が全期間で潰れる — 公表した点推定が誤りだった** |
 
-**8 件中 4 件が benchmark 経路**、残り 4 件は loader / identity / 衝突検出器 (両経路)。 benchmark は repo に実ファイルが無く、
+**9 件中 4 件が benchmark 経路**、残り 5 件は loader / identity / 衝突検出器 / dedup 窓 (両経路)。 benchmark は repo に実ファイルが無く、
 primary の validity gate が手前で止めるので、**本セッションで 1 度も実行できて
 いない経路**である。
 
@@ -405,7 +456,7 @@ pin 自身が同じ誤解の上に建っていれば成立しない (3 巡目・
 本 PR は**読み手の防御まで**。`reversal` を埋める labeler
 (`tools/attribute_hunt_outcomes.py`) は作っていない。作るべきかは別判断:
 
-- **作る場合**: hunt event (9,946 観測) × `demo_trades` の突合、または
+- **作る場合**: hunt event (既定窓で 20,642 観測) × `demo_trades` の突合、または
   hunt 後 H バーの価格 excursion による事後ラベル付け。後者は価格データを
   使うので、sr 系 pre-reg (`sr-anti-hunt-eurjpy-buy-forward-confirm`,
   期日 2027-02-28) の窓との干渉を先に確認する必要がある

@@ -86,6 +86,21 @@ DEDUP_MODES = {
     "bar": frozenset(OUTCOME_FIELDS),
 }
 
+# "signal" 粒度は `entry_time` を identity から外すので、**時間窓で区切らないと
+# データセット全期間にわたって payload 一致だけで潰れる** (PR #272 Codex P2、5 巡目)。
+# 実測: 同一 identity の群が **2026-05-01〜2026-07-08 = 68.5 日**にまたがる例があり、
+# これは単一 bar の tick 再評価では説明できない = **別観測を消している**。
+#
+# 窓は anchored (先頭からの経過で区切る、chaining しない)。既定 3600 秒 =
+# sr 系が使う最長 bar (1h) — 同一 bar の再評価はその長さを超えられない、という
+# 機構からの導出であって、データに合わせた較正ではない。
+#
+# ⚠️ **distinct 数は窓に強く依存する** (実測、collected 69,576 行):
+#     15m → 24,356 (2.86x) / 1h → 18,812 (3.70x) /
+#     4h → 13,208 (5.27x) / 24h → 11,213 (6.20x) / 無制限 → 9,946 (7.00x)
+#   ⇒ **単一の点推定として引用してはいけない。** 窓を併記すること。
+DEDUP_WINDOW_SEC = 3600.0
+
 # D4: ラベル付き行がこれを下回れば verdict を出さない。
 # Rule 1 の N>=30 と同じ床 (CLAUDE.md 判断プロトコル)。
 LABELED_N_FLOOR = 30
@@ -215,10 +230,22 @@ def merge_outcomes(
     return merged, disagreements
 
 
+def _parse_entry_time(row: dict[str, Any]):
+    raw = row.get("entry_time")
+    if not isinstance(raw, str):
+        return None
+    try:
+        import datetime as _dt
+        return _dt.datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+
+
 def collapse_repeats(
     rows: Iterable[dict[str, Any]],
     *,
     dedup: str = "signal",
+    window_sec: "float | None" = DEDUP_WINDOW_SEC,
 ) -> tuple[list[dict[str, Any]], int, list[dict[str, Any]]]:
     """D3: 同一 signal identity の行を 1 件に潰す。
 
@@ -232,11 +259,29 @@ def collapse_repeats(
     **非 None の outcome が 2 通り以上あれば衝突**として返す。同一 signal に
     2 つの結果が付くのは labeler のバグであり、黙って片方を採ってはいけない。
     """
+    # identity だけでなく **時間窓** でも区切る (anchored)。窓を跨いだ同一 payload は
+    # 別観測として残す — payload 一致は「同じ bar の再評価」の十分条件ではない。
     order: list[tuple] = []
     groups: dict[tuple, list[dict[str, Any]]] = {}
+    anchors: dict[tuple, Any] = {}     # identity -> 現在の窓の起点
+    seq: dict[tuple, int] = {}         # identity -> 窓の連番
     repeats = 0
     for row in rows:
-        key = identity(row, dedup=dedup)
+        base = identity(row, dedup=dedup)
+        if window_sec is None:
+            key = base
+        else:
+            ts = _parse_entry_time(row)
+            if ts is None:
+                # 時刻が読めない行は窓を張れないので、必ず別観測として残す
+                # (黙って潰すと観測を消す方向に倒れる)。
+                key = (base, "no-entry-time", len(order))
+            else:
+                anchor = anchors.get(base)
+                if anchor is None or (ts - anchor).total_seconds() > window_sec:
+                    anchors[base] = ts
+                    seq[base] = seq.get(base, -1) + 1
+                key = (base, seq[base])
         if key in groups:
             repeats += 1
             groups[key].append(row)
@@ -310,6 +355,7 @@ def prepare(
     labeled_n_floor: int = LABELED_N_FLOOR,
     enforce_provenance: bool = True,
     dedup: str = "signal",
+    window_sec: "float | None" = DEDUP_WINDOW_SEC,
 ) -> dict[str, Any]:
     """読み取り〜validity gate までを 1 本にした入口。
 
@@ -321,6 +367,7 @@ def prepare(
 
     `enforce_provenance=False` で D2 (feed-symbol 不変条件) を外す。
     `dedup` で独立観測の粒度を選ぶ ("signal" / "bar"、`DEDUP_MODES` 参照)。
+    `window_sec` で collapse の時間窓を選ぶ (既定 `DEDUP_WINDOW_SEC`、None で無制限)。
 
     ⚠️ **D2 は hunt logger 固有の規約であって母集団一般の規約ではない**
     (PR #272 Codex P2)。`sr_audit` の benchmark は「SR 近接 全 bar の reversal」
@@ -337,7 +384,8 @@ def prepare(
         collected, quarantined = split_provenance(raw)
     else:
         collected, quarantined = list(raw), []
-    deduped, repeats, conflicts = collapse_repeats(collected, dedup=dedup)
+    deduped, repeats, conflicts = collapse_repeats(
+        collected, dedup=dedup, window_sec=window_sec)
     cell = select_cell(deduped, pair=pair, side=side)
     labeled, unlabeled = split_labels(cell)
 
@@ -384,6 +432,7 @@ def prepare(
             "labeled_n_floor": labeled_n_floor,
             "enforce_provenance": enforce_provenance,
             "dedup": dedup,
+            "dedup_window_sec": window_sec,
         },
     }
 
