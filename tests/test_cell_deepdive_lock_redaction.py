@@ -75,7 +75,7 @@ def test_locked_cell_outcome_fields_are_redacted():
     assert v2, "the LOCKed cell should still appear (its N drives the trigger)"
     rec = v2[0]
     assert rec["redacted"] is True
-    assert rec["n_rows_in_window"] == 40, "the row count must survive"
+    assert rec["n_unique_rows_in_window"] == 40, "the row count must survive"
     assert "n" not in rec, "a bare 'n' is ambiguous next to a gate threshold"
     for field in REDACTED_FIELDS:
         assert field not in rec, f"{field} leaked for a LOCKed cell"
@@ -217,7 +217,7 @@ def test_no_outcome_statistic_is_computed_for_a_locked_cell(monkeypatch):
 
     rec = [c for c in res["eligible_cells_v2"]
            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
-    assert rec["redacted"] is True and rec["n_rows_in_window"] == 40
+    assert rec["redacted"] is True and rec["n_unique_rows_in_window"] == 40
 
 
 def test_outcome_statistics_still_run_for_unlocked_cells(monkeypatch):
@@ -372,7 +372,7 @@ def test_lock_count_uses_the_locks_own_population_not_the_audit_window():
     assert rec["n_decide"] == 40
     # The in-window row count is larger and must be labelled separately, never
     # presented as the gate count.
-    assert rec["n_rows_in_window"] > rec["n_lock_population"]
+    assert rec["n_unique_rows_in_window"] > rec["n_lock_population"]
     assert rec["lock_population_predicates"]["since"] == "2026-08-05"
     assert rec["lock_population_predicates"]["closed_only"] is True
 
@@ -622,3 +622,74 @@ def test_marker_exclusion_honours_the_locks_selectors():
     rec = [c for c in res["eligible_cells_v2"]
            if c["cell"] == ["vsg_jpy_reversal", "EUR_JPY", "SELL"]][0]
     assert rec["n"] == 22, "the two unlocked marked rows must stay in the audit"
+
+
+def test_locked_cell_count_is_independent_of_outcome():
+    """KNOWN-NG INPUT: a LOCKed cell containing BREAKEVEN rows.
+
+    Before the routing fix, LOCKed rows passed the WIN/LOSS filter first, so the
+    emitted count was itself a function of `outcome` — a BREAKEVEN row changed
+    both the count and whether the cell appeared at all.  That is the 35-vs-36
+    discrepancy this PR documents, reproduced inside the tool meant to fix it
+    (Codex P1, PR #273).
+    """
+    rows = _rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 40, wins=20)
+    for t in rows[:6]:
+        t["outcome"] = "BREAKEVEN"
+        t["pnl_pips"] = 0.0
+
+    res = run_audit(rows, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",), locked_cells=LOCKED)
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec["n_unique_rows_in_window"] == 40, (
+        "all 40 unique rows must count — the WIN/LOSS filter must not touch "
+        "a LOCKed cell (34 would mean outcome leaked into the count)")
+    assert rec["redacted"] is True
+    assert res["meta"]["locked_rows_routed_out"] == 40
+    assert res["meta"]["clean_N"] == 0, "no LOCKed row may enter `clean`"
+
+    # Counter-pin: flipping outcomes must not move any emitted number.
+    flipped = _rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 40, wins=40)
+    res2 = run_audit(flipped, run_date="2026-09-20",
+                     targets=("sr_anti_hunt_bounce",), locked_cells=LOCKED)
+    rec2 = [c for c in res2["eligible_cells_v2"]
+            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec2["n_unique_rows_in_window"] == rec["n_unique_rows_in_window"]
+
+
+def test_unlocked_cells_still_use_the_winloss_filter():
+    """Counter-pin: the outcome filter must remain for cells that are not LOCKed."""
+    rows = _rows("vsg_jpy_reversal", "EUR_JPY", "SELL", 40, wins=20)
+    for t in rows[:6]:
+        t["outcome"] = "BREAKEVEN"
+    res = run_audit(rows, run_date="2026-09-20",
+                    targets=("vsg_jpy_reversal",), locked_cells=LOCKED)
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["vsg_jpy_reversal", "EUR_JPY", "SELL"]][0]
+    assert rec["n"] == 34, "BREAKEVEN rows are excluded from tested cells"
+    assert res["meta"]["locked_rows_routed_out"] == 0
+
+
+def test_selector_less_active_decision_entry_is_rejected(tmp_path):
+    """KNOWN-NG INPUT: a misspelled selector key on an active decision.
+
+    Passes the structural checks and would be silently dropped, removing a
+    LOCK while the audit keeps publishing its population (Codex P1, PR #273).
+    """
+    f = tmp_path / "r.json"
+    f.write_text(json.dumps({"triggers": [
+        {"id": "typo-selector", "active": True,
+         "type": "shadow_count_decision", "entry_typo": "foo"}]}))
+    with pytest.raises(LockRegistryUnavailable, match="typo-selector"):
+        load_locked_cells(f)
+
+    # Counter-pins: an INACTIVE selector-less entry is fine (not a LOCK), and a
+    # non-decision entry is out of scope entirely.
+    ok = tmp_path / "ok.json"
+    ok.write_text(json.dumps({"triggers": [
+        {"id": "off", "active": False, "type": "shadow_count_decision"},
+        {"id": "info", "active": True, "type": "shadow_count_info"},
+        {"id": "real", "active": True, "type": "shadow_count_decision",
+         "entry_type": "foo"}]}))
+    assert {lk["registry_id"] for lk in load_locked_cells(ok)} == {"real"}

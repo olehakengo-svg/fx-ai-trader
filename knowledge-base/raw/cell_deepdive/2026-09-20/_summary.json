@@ -2,8 +2,8 @@
   "run_date": "2026-09-20",
   "tool": "tools/cell_deepdive_audit.py (in-repo since 2026-09-20; cell_edge_audit.py v2/v3 methodology against Render PROD API)",
   "data_source": "https://fx-ai-trader.onrender.com/api/demo/trades (PROD) \u2014 LOCAL demo_trades.db is STALE",
-  "window": "365d enforced [2025-09-21, 2026-09-21) (data span 2026-04-28T08:03:43 -> 2026-09-18T14:52:18)",
-  "scope": "Live + Shadow (371/385 clean rows are shadow)",
+  "window": "365d enforced [2025-09-21, 2026-09-21) (data span 2026-04-28T13:34:13 -> 2026-09-18T14:52:18)",
+  "scope": "Live + Shadow (262/273 clean rows are shadow)",
   "filters": {
     "exclude_xau": true,
     "exclude_dedup_violation": true,
@@ -177,7 +177,7 @@
           "EUR_JPY",
           "BUY"
         ],
-        "n_rows_in_window": 74,
+        "n_unique_rows_in_window": 75,
         "n_lock_population": 36,
         "n_decide": 40,
         "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
@@ -189,7 +189,7 @@
           "USD_JPY",
           "BUY"
         ],
-        "n_rows_in_window": 28,
+        "n_unique_rows_in_window": 35,
         "n_lock_population": 22,
         "n_decide": 30,
         "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
@@ -202,7 +202,7 @@
           "Tokyo",
           "BUY"
         ],
-        "n_rows_in_window": 33,
+        "n_unique_rows_in_window": 34,
         "n_lock_population": 36,
         "n_decide": 40,
         "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
@@ -224,7 +224,8 @@
     "target_rows_raw": 834,
     "dedup_violation_excluded": 427,
     "non_winloss_excluded": 22,
-    "clean_N": 385,
+    "clean_N": 273,
+    "locked_rows_routed_out": 215,
     "min_n": 20,
     "m_global_v2": 7,
     "m_global_v3": 1,
@@ -461,7 +462,7 @@
         "EUR_JPY",
         "BUY"
       ],
-      "n_rows_in_window": 74,
+      "n_unique_rows_in_window": 75,
       "redacted": true,
       "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
       "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
@@ -482,7 +483,7 @@
         "USD_JPY",
         "BUY"
       ],
-      "n_rows_in_window": 28,
+      "n_unique_rows_in_window": 35,
       "redacted": true,
       "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
       "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
@@ -506,7 +507,7 @@
         "Tokyo",
         "BUY"
       ],
-      "n_rows_in_window": 33,
+      "n_unique_rows_in_window": 34,
       "redacted": true,
       "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
       "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
@@ -631,7 +632,7 @@
       "wilson_lo": 0.435,
       "EV_net_pips": -4.27,
       "PF": 0.37,
-      "locked_rows_excluded": 112
+      "locked_rows_excluded": 215
     },
     "sr_liquidity_grab": {
       "raw": 4,

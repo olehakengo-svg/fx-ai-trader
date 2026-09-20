@@ -220,12 +220,17 @@ def load_locked_cells(registry_path=None) -> list:
             continue
         et = e.get("entry_type")
         marker = e.get("reasons_marker") or ""
-        # A marker-defined LOCK (e.g. hourblock-class-exempt-r2-rollback) has an
-        # empty entry_type and defines its population by a reasons literal;
-        # prereg_trigger_watch supports that shape, so dropping it here would
-        # silently un-redact an active decision LOCK (Codex P1, PR #273).
+        # A misspelled or deleted selector ({"type": "shadow_count_decision",
+        # "entry_typo": "foo"}) passes the structural checks and would be
+        # silently dropped — removing a LOCK while the audit keeps publishing
+        # that population.  This command does not run the canonical registry
+        # linter, so it must reject the entry itself (Codex P1, PR #273).
         if not et and not marker:
-            continue
+            raise LockRegistryUnavailable(
+                f"active {e.get('type')} entry {e.get('id')!r} has neither "
+                f"'entry_type' nor 'reasons_marker' ({path}); keys: "
+                f"{sorted(e)} — a selector-less LOCK cannot be honoured, and "
+                "skipping it would publish its population unredacted")
         locked.append({
             "entry_type": et or None,
             "instrument": e.get("instrument") or None,
@@ -356,7 +361,7 @@ def lock_for_cell(entry_type, instrument, direction, locked_cells) -> dict | Non
     return None
 
 
-def count_only_record(level, key, rows_in_window: int, lock: dict,
+def count_only_record(level, key, unique_rows_in_window: int, lock: dict,
                       lock_population_n=None) -> dict:
     """Build a LOCKed cell's record WITHOUT computing any outcome statistic.
 
@@ -374,7 +379,7 @@ def count_only_record(level, key, rows_in_window: int, lock: dict,
     rec = {
         "level": level,
         "cell": list(key),
-        "n_rows_in_window": rows_in_window,
+        "n_unique_rows_in_window": unique_rows_in_window,
         "redacted": True,
         "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
         "redaction_registry_id": lock.get("registry_id"),
@@ -542,18 +547,38 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
     # statistic is built — otherwise the pooled LOCK outcomes reappear inside
     # whatever cell/strategy those rows happen to land in (Codex P1, PR #273).
     marker_locks = [lk for lk in locked_cells if lk.get("reasons_marker")]
+    cell_locks = [lk for lk in locked_cells if lk.get("entry_type")]
     marker_excluded = 0
 
-    clean = []
+    # LOCKed rows are routed out from the RAW rows, before `outcome`/`pnl_pips`
+    # is ever read.  Previously they passed through the WIN/LOSS filter first,
+    # so the emitted count was itself a function of outcome (a BREAKEVEN row
+    # changed both the count and whether the cell appeared at all) — the very
+    # 35-vs-36 discrepancy this analysis documents, reproduced inside the tool
+    # meant to fix it (Codex P1, PR #273).
+    locked_raw = defaultdict(list)
+    open_raw = []
     for t in target_all:
+        if marker_locks and any(row_in_lock_population(t, lk)
+                                for lk in marker_locks):
+            marker_excluded += 1
+            continue
+        lock = lock_for_cell(t.get("entry_type"), t.get("instrument"),
+                             t.get("direction"), cell_locks)
+        if lock is not None:
+            locked_raw[(t.get("entry_type"), t.get("instrument"),
+                        t.get("direction"))].append(t)
+            continue
+        open_raw.append(t)
+
+    locked_rows_total = sum(len(v) for v in locked_raw.values())
+
+    clean = []
+    for t in open_raw:
         if t.get("dedup_violation") == 1:
             continue
         oc = t.get("outcome")
         if oc not in ("WIN", "LOSS"):
-            continue
-        if marker_locks and any(row_in_lock_population(t, lk)
-                                for lk in marker_locks):
-            marker_excluded += 1
             continue
         clean.append({
             "entry_type": t.get("entry_type"),
@@ -581,11 +606,11 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
     strat_summary = {}
     for s in targets:
         raw = sum(1 for t in target_all if t.get("entry_type") == s)
-        s_rows = [r for r in clean if r["entry_type"] == s]
-        rows = [r for r in s_rows
-                if lock_for_cell(s, r["instrument"], r["direction"],
-                                 locked_cells) is None]
-        locked_excluded = len(s_rows) - len(rows)
+        # LOCKed rows never reach `clean` (they are routed out of the raw rows
+        # before any outcome read), so the aggregate is unconditionally a
+        # different estimand: "all non-LOCKed cells of this strategy".
+        rows = [r for r in clean if r["entry_type"] == s]
+        locked_excluded = sum(len(v) for k, v in locked_raw.items() if k[0] == s)
         if not rows:
             strat_summary[s] = {"raw": raw, "clean_N": 0,
                                 "locked_rows_excluded": locked_excluded}
@@ -609,23 +634,36 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
     v3 = build_cells(
         lambda r: (r["entry_type"], r["instrument"], r["session"], r["direction"]))
 
+    # LOCKed cells: grouped from RAW rows with an outcome-FREE filter only
+    # (unique = dedup_violation != 1, in-window).  No outcome field is read.
+    locked_v2 = defaultdict(list)
+    locked_v3 = defaultdict(list)
+    for key, rows in locked_raw.items():
+        for t in rows:
+            if t.get("dedup_violation") == 1:
+                continue
+            locked_v2[key].append(t)
+            locked_v3[(key[0], key[1], derive_session(t.get("entry_time")),
+                       key[2])].append(t)
+
     v2_elig = {k: v for k, v in v2.items() if len(v) >= min_n}
     v3_elig = {k: v for k, v in v3.items() if len(v) >= min_n}
-    m_v2, m_v3 = len(v2_elig), len(v3_elig)
+    locked_v2_elig = {k: v for k, v in locked_v2.items() if len(v) >= min_n}
+    locked_v3_elig = {k: v for k, v in locked_v3.items() if len(v) >= min_n}
+    # Multiplicity DELIBERATELY still counts LOCKed eligible cells.  They can
+    # never become candidates, so excluding them would be defensible — but it
+    # shrinks m and makes every other cell's p_bonf easier to pass.  On a
+    # multiplicity correction we take the conservative direction.
+    m_v2 = len(v2_elig) + len(locked_v2_elig)
+    m_v3 = len(v3_elig) + len(locked_v3_elig)
 
     def eval_cells(cells, m, level):
         out = []
         for k, rows in cells.items():
             entry_type, instrument = k[0], k[1]
             direction = k[-1]
-            # LOCK check comes FIRST: for a LOCKed cell no outcome statistic is
-            # computed at all (P-10 bans recomputation, not just publication).
-            lock = lock_for_cell(entry_type, instrument, direction, locked_cells)
-            if lock is not None:
-                out.append(count_only_record(
-                    level, k, len(rows), lock,
-                    lock_population_n=lock_population_count(trades, lock)))
-                continue
+            # LOCKed cells never reach here — their rows were routed out of
+            # `clean` before any outcome field was read.
             st = cell_stats(rows)
             p_bonf = min(1.0, st["p_raw"] * m) if m > 0 else 1.0
             rec = {
@@ -645,8 +683,17 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
         out.sort(key=lambda x: (x.get("redacted", False), -x.get("wilson_lo", 0.0)))
         return out
 
-    v2_eval = eval_cells(v2_elig, m_v2, "v2")
-    v3_eval = eval_cells(v3_elig, m_v3, "v3")
+    def locked_records(groups, level):
+        out = []
+        for k, rows in groups.items():
+            lock = lock_for_cell(k[0], k[1], k[-1], cell_locks)
+            out.append(count_only_record(
+                level, k, len(rows), lock,
+                lock_population_n=lock_population_count(trades, lock)))
+        return out
+
+    v2_eval = eval_cells(v2_elig, m_v2, "v2") + locked_records(locked_v2_elig, "v2")
+    v3_eval = eval_cells(v3_elig, m_v3, "v3") + locked_records(locked_v3_elig, "v3")
     candidates = [c for c in (v2_eval + v3_eval) if c.get("promoted")]
     redacted_cells = [c for c in (v2_eval + v3_eval) if c.get("redacted")]
 
@@ -676,7 +723,7 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             "redacted_cell_count": len(redacted_cells),
             "redacted_cells": [
                 {"level": c["level"], "cell": c["cell"],
-                 "n_rows_in_window": c["n_rows_in_window"],
+                 "n_unique_rows_in_window": c["n_unique_rows_in_window"],
                  "n_lock_population": c.get("n_lock_population"),
                  "n_decide": c.get("n_decide"),
                  "registry_id": c.get("redaction_registry_id")}
@@ -700,6 +747,7 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             "dedup_violation_excluded": dedup_excl,
             "non_winloss_excluded": non_wl,
             "clean_N": len(clean),
+            "locked_rows_routed_out": locked_rows_total,
             "min_n": min_n,
             "m_global_v2": m_v2,
             "m_global_v3": m_v3,

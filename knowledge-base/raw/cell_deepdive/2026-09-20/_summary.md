@@ -145,7 +145,10 @@ sr_anti_hunt 13.46 / rsk 2.57 / vsg 2.49 / vdr 1.56 / mqe **0.08** 本/週 (90d)
 恒久修正: `tools/cell_deepdive_audit.py` が registry から LOCK セルを読み、
 一致セルと **その refinement (sub-cell)** の outcome を出力から除去し **`n` のみ残す**。
 同スナップショットで再実行すると **3 セルが redact され `candidates` は 1 → 0**
-(meta 計数 raw 834 / dedup 427 / non-WL 22 / clean 385 / m_v2 7 / m_v3 1 は本レポートと完全一致)。
+(⚠️ **初版では meta 計数が本レポートと完全一致したが、その後のレビュー対応で
+LOCK 行を outcome 読み取り前に分岐する修正を入れたため `clean_N` は 385 → **273**
+= LOCK 行 215 を routing 除外。**現在「ad-hoc 版と同一」は成立しない** — 同一なのは
+非 LOCK セルの統計と `m_v2`=7 / `m_v3`=1 / `candidates`=0)。
 pin: `tests/test_cell_deepdive_lock_redaction.py` (8 件、NG 入力と counter-pin を対で保持)。
 
 ### 訂正 3 — fresh N の計数基準が読み手間で不一致 (未解決)

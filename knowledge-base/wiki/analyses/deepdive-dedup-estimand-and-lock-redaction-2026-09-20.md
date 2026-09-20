@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (27 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (30 pins)
 
 ---
 
@@ -275,6 +275,28 @@ EUR_JPY **36/40** / ws3-t11 **22/30** と合わせ、3 本とも正本と一致�
 **「検査不能を『異常なし』に畳まない」は 1 つの不変条件であって、
 入力形状ごとに個別対応する類のものではない** — 正本はこれを 1 箇所で表明していた。
 
+### 2.3g レビュー第6波 (Codex P1×2) — 計数自体が outcome の関数だった
+
+| 指摘 | 実態 | 修正 |
+|---|---|---|
+| **LOCK 行は outcome を読む前に分岐せよ** | LOCK セルの行も先に **WIN/LOSS フィルタ**を通っていたため、**出力される計数そのものが `outcome` の関数**だった (BREAKEVEN 行 1 本で計数もセルの出現可否も変わる)。**これは本分析 §4 が指摘している 35 vs 36 そのもの — それを直すためのツールの中で再現していた** | raw 行の段階で LOCK セルを分岐し、`outcome`/`pnl_pips` を**一度も読まず**に count-only record を作る。計数は outcome 非依存 (`n_unique_rows_in_window` = dedup 除外 ∧ 窓内) に改名 |
+| **selector 無しの active decision を拒否せよ** | `{"type":"shadow_count_decision","entry_typo":"foo"}` は構造検査を通り**黙って捨てられる**。本コマンドは正本 linter を呼ばないので、綴り違い/削除された selector が **LOCK を消したまま監査は当該母集団を公表し続ける** | active な `*_count_decision` が `entry_type` も `reasons_marker` も持たなければ `LockRegistryUnavailable` |
+
+🔴 **実測で裏が取れた**: 修正後 `sr_anti_hunt_bounce × EUR_JPY × BUY` の計数は
+**74 → 75** に変わった。**増えた 1 本がまさに BREAKEVEN 行**で、§4 の「35 vs 36」の
+差分と同一の行である。`× USD_JPY × BUY` も 28 → 35 (非 WIN/LOSS 7 本)。
+
+⚠️ **「移植は忠実」の主張をここで更新する**: 第1波〜第5波までは meta 計数が ad-hoc 版と
+完全一致していたが、本修正で **`clean_N` 385 → 273** (LOCK 行 215 を routing で除外)、
+LOCK セルの計数も上記のとおり変わる。**これは意図した訂正であり、
+「ad-hoc 版と同一」はもはや成立しない** — 同一なのは
+**非 LOCK セルの統計** (`sr_anti_hunt_bounce` 集計 clean_N 135 / WR 0.519 /
+EV −4.27 / PF 0.37 は不変) と `m_v2` = 7 / `m_v3` = 1 / `candidates` = 0。
+
+多重度について: LOCK セルは候補になりえないので `m` から外す選択もありうるが、
+**外すと `m` が縮んで他セルの `p_bonf` が通りやすくなる** (危険な向き)。
+多重度補正では保守側を取り、**LOCK セルも `m` に数え続ける**。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -303,6 +325,10 @@ EUR_JPY **36/40** / ws3-t11 **22/30** と合わせ、3 本とも正本と一致�
    名指しする ∧ counter-pin: 実 registry は読める
 0c2h. **marker 除外が LOCK の述語を守る** (live 限定 LOCK に対し shadow 行・`since` 前の行は
    **削除されない**、除外は 1 行のみ・セル N は 22 のまま)
+0c2i. **LOCK セルの計数が outcome 非依存** (BREAKEVEN 6 本込みでも 40、outcome を全反転
+   させても同値) ∧ counter-pin: 非 LOCK セルでは WIN/LOSS フィルタが残る (34)
+0c2j. **selector 無しの active decision を拒否** ∧ counter-pin: inactive / `*_count_info` /
+   正常エントリは通る
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:
