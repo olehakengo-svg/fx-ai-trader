@@ -24,7 +24,19 @@
   (**leak 条件がデータ依存** = 静かに壊れる型)。⇒ 集計前に LOCK 行を除外し
   `locked_rows_excluded` を併記。`sr_anti_hunt_bounce` の集計 clean_N 247 → **135**。
   meta 計数は不変 (窓 filter は現データで no-op) で移植の忠実性の主張は維持
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**16 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第2波 (Codex P2×2) — 「N の estimand」が本 PR 自身にもあった**:
+  (d) **LOCK の N を LOCK 自身の母集団で数える** — count-only record が `n=74`
+  (セルの 365d Live+Shadow 行数) を**判定閾値 N=40 の隣**に出しており、
+  **既に gate を通過したかのように読めた**。LOCK 母集団 (`since`=2026-08-05 以降の
+  CLOSED shadow・`dedup_violation=0`) の実数は **36**。registry の母集団述語を保持・適用し
+  `n_lock_population` / `n_decide` / `n_rows_in_window` に分離、曖昧な `n` は廃止
+  (e) **inclusive 窓が 366 日だったのを 365 日に** (`window_days − 1`)
+- ✅ **独立クロスバリデーション**: `lock_population_count` が `prereg_trigger_watch` と
+  一致 (EUR_JPY **36/40** / ws3-t11 **22/30**) — 別実装の読み手が同じ数を出した
+- 🔴 **本 PR だけで「隣に置いた閾値と estimand が合わない計数」が 3 例**
+  (35 vs 36 / dedup 除外率の分母 / `n=74` vs 36)。**同じ病は、それを指摘している
+  当の PR にも出る**
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**18 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

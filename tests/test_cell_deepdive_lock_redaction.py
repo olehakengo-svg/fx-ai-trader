@@ -25,6 +25,7 @@ from tools.cell_deepdive_audit import (
     dedup_era_breakdown,
     load_locked_cells,
     lock_for_cell,
+    lock_population_count,
     run_audit,
     window_bounds,
 )
@@ -72,7 +73,8 @@ def test_locked_cell_outcome_fields_are_redacted():
     assert v2, "the LOCKed cell should still appear (its N drives the trigger)"
     rec = v2[0]
     assert rec["redacted"] is True
-    assert rec["n"] == 40, "N must survive — the trigger counts it"
+    assert rec["n_rows_in_window"] == 40, "the row count must survive"
+    assert "n" not in rec, "a bare 'n' is ambiguous next to a gate threshold"
     for field in REDACTED_FIELDS:
         assert field not in rec, f"{field} leaked for a LOCKed cell"
     assert rec["redaction_registry_id"] == "sr-anti-hunt-eurjpy-buy-forward-confirm"
@@ -213,7 +215,7 @@ def test_no_outcome_statistic_is_computed_for_a_locked_cell(monkeypatch):
 
     rec = [c for c in res["eligible_cells_v2"]
            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
-    assert rec["redacted"] is True and rec["n"] == 40
+    assert rec["redacted"] is True and rec["n_rows_in_window"] == 40
 
 
 def test_outcome_statistics_still_run_for_unlocked_cells(monkeypatch):
@@ -281,16 +283,21 @@ def test_window_is_enforced_not_merely_advertised():
     assert rec["n"] == 25, "stale/post-run rows must not enter the window"
     assert res["meta"]["target_rows_raw"] == 25
     assert res["filters"]["window_days"] == 365
-    assert res["filters"]["entry_time_ge"] == "2025-09-20"
+    assert res["filters"]["entry_time_ge"] == "2025-09-21"
     assert res["filters"]["entry_time_lt"] == "2026-09-21"
 
 
 def test_window_includes_run_date_itself():
     """A run executed mid-day must not drop that day's rows."""
     lo, hi = window_bounds("2026-09-20", 365)
-    assert lo == "2025-09-20"
+    assert lo == "2025-09-21"
     assert hi == "2026-09-21"
     assert lo <= "2026-09-20" < hi
+    # ...and it spans exactly 365 inclusive calendar days, not 366 (Codex P2).
+    from datetime import date
+    span = (date.fromisoformat(hi) - date.fromisoformat(lo)).days
+    assert span == 365, f"inclusive window must span 365 days, got {span}"
+    assert window_bounds("2026-09-20", 1) == ("2026-09-20", "2026-09-21")
 
 
 def test_strategy_aggregate_excludes_locked_rows():
@@ -320,3 +327,60 @@ def test_strategy_aggregate_keeps_unlocked_rows_only():
     assert summ["locked_rows_excluded"] == 40
     # 5/20 = 0.25 — if the LOCKed 40 WINs had leaked in, WR would be 45/60.
     assert summ["WR"] == pytest.approx(0.25)
+
+
+def test_lock_count_uses_the_locks_own_population_not_the_audit_window():
+    """KNOWN-NG INPUT: rows that are in the cell but OUTSIDE the LOCK population.
+
+    The LOCK counts fresh CLOSED shadow rows since its `since` date.  Emitting
+    the cell's whole in-window row count beside the gate threshold reads as
+    "the gate has been passed" when it has not (Codex P2, PR #273) — this is
+    the same defect class the PR documents: a count that does not match the
+    estimand printed next to it.
+    """
+    lock = {
+        "entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+        "direction": "BUY", "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+        "kind": "shadow", "since": "2026-08-05", "closed_only": True,
+        "dedup_violation": 0, "mode": None, "n_decide": 40,
+    }
+
+    def row(ts, **kw):
+        base = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+                "direction": "BUY", "outcome": "WIN", "pnl_pips": 1.0,
+                "dedup_violation": 0, "is_shadow": 1, "status": "CLOSED",
+                "oanda_trade_id": "", "mode": "daytrade", "entry_time": ts}
+        base.update(kw)
+        return base
+
+    in_pop = [row(f"2026-08-{10 + i:02d}T02:00:00") for i in range(12)]
+    pre_since = [row("2026-07-01T02:00:00") for _ in range(9)]      # before `since`
+    open_rows = [row("2026-08-20T02:00:00", status="OPEN") for _ in range(5)]
+    live_rows = [row("2026-08-21T02:00:00", oanda_trade_id="99") for _ in range(4)]
+    dupes = [row("2026-08-22T02:00:00", dedup_violation=1) for _ in range(6)]
+    trades = in_pop + pre_since + open_rows + live_rows + dupes
+
+    assert lock_population_count(trades, lock) == 12
+
+    res = run_audit(trades, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec["n_lock_population"] == 12, "the gate-relevant count"
+    assert rec["n_decide"] == 40
+    # The in-window row count is larger and must be labelled separately, never
+    # presented as the gate count.
+    assert rec["n_rows_in_window"] > rec["n_lock_population"]
+    assert rec["lock_population_predicates"]["since"] == "2026-08-05"
+    assert rec["lock_population_predicates"]["closed_only"] is True
+
+
+def test_lock_population_predicates_are_read_from_the_real_registry():
+    """Counter-pin: the live LOCK must carry its population, not defaults."""
+    lock = [lk for lk in load_locked_cells()
+            if lk["registry_id"] == "sr-anti-hunt-eurjpy-buy-forward-confirm"][0]
+    assert lock["since"] == "2026-08-05"
+    assert lock["closed_only"] is True
+    assert lock["kind"] == "shadow"
+    assert lock["n_decide"] == 40
+    assert lock["dedup_violation"] == 0

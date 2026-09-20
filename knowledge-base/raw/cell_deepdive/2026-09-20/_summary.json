@@ -2,7 +2,7 @@
   "run_date": "2026-09-20",
   "tool": "tools/cell_deepdive_audit.py (in-repo since 2026-09-20; cell_edge_audit.py v2/v3 methodology against Render PROD API)",
   "data_source": "https://fx-ai-trader.onrender.com/api/demo/trades (PROD) \u2014 LOCAL demo_trades.db is STALE",
-  "window": "365d enforced [2025-09-20, 2026-09-21) (data span 2026-04-28T08:03:43 -> 2026-09-18T14:52:18)",
+  "window": "365d enforced [2025-09-21, 2026-09-21) (data span 2026-04-28T08:03:43 -> 2026-09-18T14:52:18)",
   "scope": "Live + Shadow (371/385 clean rows are shadow)",
   "filters": {
     "exclude_xau": true,
@@ -12,7 +12,7 @@
       "LOSS"
     ],
     "window_days": 365,
-    "entry_time_ge": "2025-09-20",
+    "entry_time_ge": "2025-09-21",
     "entry_time_lt": "2026-09-21"
   },
   "prereg_lock_redaction": {
@@ -21,55 +21,109 @@
         "entry_type": "htf_false_breakout",
         "instrument": "AUD_JPY",
         "direction": null,
-        "registry_id": "ws3-stage2-underpowered-recheck"
+        "registry_id": "ws3-stage2-underpowered-recheck",
+        "kind": "shadow",
+        "since": "2026-07-10",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null,
+        "n_decide": 100
       },
       {
         "entry_type": "sr_anti_hunt_bounce",
         "instrument": "USD_JPY",
         "direction": null,
-        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+        "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null,
+        "n_decide": 30
       },
       {
         "entry_type": "sr_anti_hunt_bounce",
         "instrument": "EUR_JPY",
         "direction": "BUY",
-        "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
+        "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+        "kind": "shadow",
+        "since": "2026-08-05",
+        "closed_only": true,
+        "dedup_violation": 0,
+        "mode": null,
+        "n_decide": 40
       },
       {
         "entry_type": "kalman_d7",
         "instrument": "USD_JPY",
         "direction": null,
-        "registry_id": "t9-kalman-d7-live-n10-ev-check"
+        "registry_id": "t9-kalman-d7-live-n10-ev-check",
+        "kind": "live",
+        "since": "2026-08-09",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null,
+        "n_decide": 10
       },
       {
         "entry_type": "price_shock_rev",
         "instrument": null,
         "direction": null,
-        "registry_id": "ps-carveout-regate-post-172"
+        "registry_id": "ps-carveout-regate-post-172",
+        "kind": "live",
+        "since": "2026-08-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null,
+        "n_decide": 10
       },
       {
         "entry_type": "rnb_support_bounce",
         "instrument": "USD_JPY",
         "direction": "BUY",
-        "registry_id": "rnb-support-bounce-shadow-forward"
+        "registry_id": "rnb-support-bounce-shadow-forward",
+        "kind": "shadow",
+        "since": "2026-09-10",
+        "closed_only": true,
+        "dedup_violation": 0,
+        "mode": "rnb_usdjpy",
+        "n_decide": 41
       },
       {
         "entry_type": "rnb_support_bounce",
         "instrument": "USD_JPY",
         "direction": "BUY",
-        "registry_id": "rnb-shadow-lane-health-checkpoint-1"
+        "registry_id": "rnb-shadow-lane-health-checkpoint-1",
+        "kind": "shadow",
+        "since": "2026-09-10",
+        "closed_only": true,
+        "dedup_violation": 0,
+        "mode": "rnb_usdjpy",
+        "n_decide": 41
       },
       {
         "entry_type": "rnb_support_bounce",
         "instrument": "USD_JPY",
         "direction": "BUY",
-        "registry_id": "rnb-shadow-lane-health-checkpoint-2"
+        "registry_id": "rnb-shadow-lane-health-checkpoint-2",
+        "kind": "shadow",
+        "since": "2026-09-10",
+        "closed_only": true,
+        "dedup_violation": 0,
+        "mode": "rnb_usdjpy",
+        "n_decide": 41
       },
       {
         "entry_type": "weekend_gap",
         "instrument": null,
         "direction": null,
-        "registry_id": "project-falsification-f2-wg-live-conversion"
+        "registry_id": "project-falsification-f2-wg-live-conversion",
+        "kind": "live",
+        "since": "2026-07-25",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null,
+        "n_decide": 1
       }
     ],
     "redacted_cell_count": 3,
@@ -81,7 +135,9 @@
           "EUR_JPY",
           "BUY"
         ],
-        "n": 74,
+        "n_rows_in_window": 74,
+        "n_lock_population": 36,
+        "n_decide": 40,
         "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
       },
       {
@@ -91,7 +147,9 @@
           "USD_JPY",
           "BUY"
         ],
-        "n": 28,
+        "n_rows_in_window": 28,
+        "n_lock_population": 22,
+        "n_decide": 30,
         "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
       },
       {
@@ -102,7 +160,9 @@
           "Tokyo",
           "BUY"
         ],
-        "n": 33,
+        "n_rows_in_window": 33,
+        "n_lock_population": 36,
+        "n_decide": 40,
         "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
       }
     ],
@@ -350,10 +410,19 @@
         "EUR_JPY",
         "BUY"
       ],
-      "n": 74,
+      "n_rows_in_window": 74,
       "redacted": true,
       "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
-      "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
+      "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+      "n_lock_population": 36,
+      "n_decide": 40,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-08-05",
+        "closed_only": true,
+        "dedup_violation": 0,
+        "mode": null
+      }
     },
     {
       "level": "v2",
@@ -362,10 +431,19 @@
         "USD_JPY",
         "BUY"
       ],
-      "n": 28,
+      "n_rows_in_window": 28,
       "redacted": true,
       "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
-      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
+      "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
+      "n_lock_population": 22,
+      "n_decide": 30,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-07-11",
+        "closed_only": false,
+        "dedup_violation": null,
+        "mode": null
+      }
     }
   ],
   "eligible_cells_v3": [
@@ -377,10 +455,19 @@
         "Tokyo",
         "BUY"
       ],
-      "n": 33,
+      "n_rows_in_window": 33,
       "redacted": true,
       "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
-      "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
+      "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+      "n_lock_population": 36,
+      "n_decide": 40,
+      "lock_population_predicates": {
+        "kind": "shadow",
+        "since": "2026-08-05",
+        "closed_only": true,
+        "dedup_violation": 0,
+        "mode": null
+      }
     }
   ],
   "near_miss_positive_v2": [

@@ -193,8 +193,55 @@ def load_locked_cells(registry_path=None) -> list:
             "instrument": e.get("instrument") or None,
             "direction": e.get("direction") or None,
             "registry_id": e.get("id"),
+            # Population predicates — the LOCK's N is defined by THESE, not by
+            # this audit's window/filters (Codex P2, PR #273).  Reporting the
+            # cell's 365d Live+Shadow row count next to the gate threshold
+            # would suggest a gate had been passed that has not been.
+            "kind": "live" if str(e.get("type", "")).startswith("live")
+                    else "shadow",
+            "since": e.get("since") or None,
+            "closed_only": bool(e.get("closed_only")),
+            "dedup_violation": e.get("dedup_violation"),
+            "mode": e.get("mode") or None,
+            "n_decide": e.get("n_decide"),
         })
     return locked
+
+
+def lock_population_count(trades, lock) -> int:
+    """Count rows in the LOCK's OWN declared population.
+
+    The registry entry — not this audit's window — defines what the trigger
+    counts: ``since``, ``closed_only``, ``dedup_violation``, ``mode`` and
+    shadow-vs-live.  Emitting the cell's in-window row count instead would be
+    the very defect this PR documents (a count that does not match the
+    estimand printed beside it).
+    """
+    n = 0
+    for t in trades:
+        if t.get("entry_type") != lock["entry_type"]:
+            continue
+        if lock.get("instrument") and t.get("instrument") != lock["instrument"]:
+            continue
+        if lock.get("direction") and t.get("direction") != lock["direction"]:
+            continue
+        if lock.get("mode") and t.get("mode") != lock["mode"]:
+            continue
+        live = bool(t.get("oanda_trade_id"))
+        kind = lock.get("kind")
+        if kind == "live" and not live:
+            continue
+        if kind == "shadow" and live:
+            continue
+        if lock.get("closed_only") and t.get("status") != "CLOSED":
+            continue
+        if lock.get("dedup_violation") is not None:
+            if int(t.get("dedup_violation") or 0) != int(lock["dedup_violation"]):
+                continue
+        if lock.get("since") and _ts(t) < str(lock["since"]):
+            continue
+        n += 1
+    return n
 
 
 def lock_for_cell(entry_type, instrument, direction, locked_cells) -> dict | None:
@@ -217,23 +264,37 @@ def lock_for_cell(entry_type, instrument, direction, locked_cells) -> dict | Non
     return None
 
 
-def count_only_record(level, key, n: int, lock: dict) -> dict:
+def count_only_record(level, key, rows_in_window: int, lock: dict,
+                      lock_population_n=None) -> dict:
     """Build a LOCKed cell's record WITHOUT computing any outcome statistic.
 
     P-10 forbids *recomputation*, not merely publication, so no
     outcome-statistics helper (``cell_stats`` / ``wf_stable`` / Bonferroni) may
     run for a LOCKed cell at all — redacting an already-computed dict would
-    only prevent serialization (Codex P1, PR #273).  ``n`` is a row count, not
-    an outcome statistic, and the trigger needs it.
+    only prevent serialization (Codex P1, PR #273).
+
+    The counts are deliberately named for their estimands.  A bare ``n`` was
+    ambiguous and dangerous: the cell's 365d Live+Shadow row count (74) sitting
+    beside a gate threshold of 40 reads as "the gate has been passed", while
+    the LOCK's own population (fresh shadow rows since 2026-08-05) is 36
+    (Codex P2, PR #273).
     """
-    return {
+    rec = {
         "level": level,
         "cell": list(key),
-        "n": n,
+        "n_rows_in_window": rows_in_window,
         "redacted": True,
         "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
         "redaction_registry_id": lock.get("registry_id"),
     }
+    if lock_population_n is not None:
+        rec["n_lock_population"] = lock_population_n
+        rec["n_decide"] = lock.get("n_decide")
+        rec["lock_population_predicates"] = {
+            k: lock.get(k) for k in
+            ("kind", "since", "closed_only", "dedup_violation", "mode")
+        }
+    return rec
 
 
 # ── row shaping ───────────────────────────────────────────────────────────
@@ -359,7 +420,10 @@ def window_bounds(run_date: str, window_days: int):
     # hi is exclusive and set to the day AFTER run_date, so rows stamped on
     # run_date itself are included (a run executed mid-day must not silently
     # drop that day's rows) while post-run rows are excluded.
-    return (run_d - timedelta(days=window_days)).isoformat(), (
+    # window_days - 1: the interval is an INCLUSIVE calendar window whose last
+    # day is run_date, so [run_date-(N-1), run_date+1) spans exactly N days.
+    # [run_date-N, run_date+1) would span N+1 (Codex P2, PR #273).
+    return (run_d - timedelta(days=window_days - 1)).isoformat(), (
         run_d + timedelta(days=1)).isoformat()
 
 
@@ -455,7 +519,9 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             # computed at all (P-10 bans recomputation, not just publication).
             lock = lock_for_cell(entry_type, instrument, direction, locked_cells)
             if lock is not None:
-                out.append(count_only_record(level, k, len(rows), lock))
+                out.append(count_only_record(
+                    level, k, len(rows), lock,
+                    lock_population_n=lock_population_count(trades, lock)))
                 continue
             st = cell_stats(rows)
             p_bonf = min(1.0, st["p_raw"] * m) if m > 0 else 1.0
@@ -506,7 +572,10 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             "locked_cells": locked_cells,
             "redacted_cell_count": len(redacted_cells),
             "redacted_cells": [
-                {"level": c["level"], "cell": c["cell"], "n": c["n"],
+                {"level": c["level"], "cell": c["cell"],
+                 "n_rows_in_window": c["n_rows_in_window"],
+                 "n_lock_population": c.get("n_lock_population"),
+                 "n_decide": c.get("n_decide"),
                  "registry_id": c.get("redaction_registry_id")}
                 for c in redacted_cells
             ],

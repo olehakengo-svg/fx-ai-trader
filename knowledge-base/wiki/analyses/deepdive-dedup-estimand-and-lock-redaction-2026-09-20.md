@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (16 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (18 pins)
 
 ---
 
@@ -207,6 +207,21 @@ m_v2 7 / m_v3 1) は ad-hoc 版と完全一致 = 移植は忠実。
 **移植の忠実性の主張は維持**。`sr_anti_hunt_bounce` の戦略集計は
 LOCK 行 112 を除外して clean_N 247 → **135** になった。
 
+### 2.3c レビュー第2波 (Codex P2×2) — 「N の estimand」が本 PR 自身にもあった
+
+| 指摘 | なぜ妥当か | 修正 |
+|---|---|---|
+| **LOCK の N は LOCK 自身の母集団で数えよ** | count-only record が `n=74` (セルの 365d Live+Shadow 行数) を **判定閾値 N=40 の隣**に出していた。LOCK の母集団は「`since`=2026-08-05 以降の CLOSED shadow 行、`dedup_violation=0`」で実数は **36**。⇒ **既に gate を通過したかのように読める** — 本 PR が糾弾している「隣に置いた estimand と一致しない計数」そのものを自分でやっていた | registry の母集団述語 (`since` / `closed_only` / `dedup_violation` / `mode` / shadow-vs-live) を `load_locked_cells` に保持し `lock_population_count` で適用。出力は **`n_lock_population`** (gate 関連) / **`n_decide`** (閾値) / **`n_rows_in_window`** (別物と明示) に分離し、曖昧な `n` は廃止 |
+| **365d と言うなら 365 日にせよ** | 第1波の修正 `[run_date−365d, run_date+1d)` は両端を含んで **366 日**だった | `window_days − 1` を引き、inclusive 窓が厳密に `window_days` 日になるよう修正 (pin で日数を算術検査) |
+
+✅ **独立クロスバリデーション**: `lock_population_count` の出力は
+`tools/prereg_trigger_watch.py` の表示と一致した — EUR_JPY LOCK **36/40**、
+ws3-t11 **22/30**。別実装の読み手が同じ数を出すことで実装の正しさを確認。
+
+🔴 **本 PR だけで「隣に置いた閾値と estimand が合わない計数」が 3 例出た**
+(35 vs 36 の読み手不一致 §4 / dedup 除外率の分母 §1 / 本項の `n=74` vs 36)。
+**同じ病が、それを指摘している当の PR にも出る**。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -219,6 +234,11 @@ LOCK 行 112 を除外して clean_N 247 → **135** になった。
 0b. **registry 欠損/破損 → `LockRegistryUnavailable` 送出** ∧ counter-pin: 正常 registry は読める
    ∧ `run_audit` まで伝播する
 0c. **窓外 (2024 の stale / 2027 の post-run) 行は N・多重度に入らない** ∧ `run_date` 当日は入る
+0c2. **LOCK の N は LOCK 母集団で数える** (`since` 前 / OPEN / live / dup 行を混ぜた
+   KNOWN-NG 入力で `n_lock_population` が 12、`n_rows_in_window` はそれより大)
+   ∧ 実 registry から母集団述語が読めている
+0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
+   なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:
    非 LOCK ペアは集計される (LOCK の 40 WIN が混入すれば WR が 0.25 でなくなる)
 1. LOCK セル (WR 90% の派手な fixture) → outcome 全欠落 ∧ `n` 生存
