@@ -258,7 +258,7 @@ def load_locked_cells(registry_path=None) -> list:
             # would miss every variant and expose a frozen family's outcome
             # statistics (Codex P2, PR #273).  Semantics mirror
             # tools/prereg_trigger_watch.py count_matching(prefix=...).
-            "match": "prefix" if e.get("match") == "prefix" else "exact",
+            "match": _validated_match(e, path),
             "reasons_marker": marker or None,
             "count_basis": e.get("count_basis"),
             # Population predicates — the LOCK's N is defined by THESE, not by
@@ -343,6 +343,25 @@ def row_in_lock_population(t, lock, *, watcher_compat: bool = False,
     if as_of_exclusive and _ts(t)[:10] >= as_of_exclusive:
         return False
     return True
+
+
+def _validated_match(entry, path) -> str:
+    """`match` must be absent or exactly "prefix" — never silently coerced.
+
+    A misspelled value ("prefx") or key was being folded into "exact", which
+    would make a prefix outcome LOCK (kalman_d7) stop covering its variants and
+    publish their frozen statistics.  This command does not run
+    prereg_trigger_watch.lint_registry, so it validates here (Codex P1, PR #273).
+    """
+    if "match" not in entry:
+        return "exact"
+    value = entry.get("match")
+    if value == "prefix":
+        return "prefix"
+    raise LockRegistryUnavailable(
+        f"entry {entry.get('id')!r} has match={value!r} ({path}) — the only "
+        f"supported value is 'prefix'. Refusing to fall back to exact matching: "
+        f"a misspelled selector would silently un-cover a prefix LOCK's variants")
 
 
 def lock_population_count(trades, lock, *, watcher_compat: bool = False,
@@ -899,6 +918,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--run-date", default=datetime.now(timezone.utc).date().isoformat())
     p.add_argument("--out-dir", default=None,
                    help="default: knowledge-base/raw/cell_deepdive/<run-date>")
+    p.add_argument("--fetch-limit", type=int, default=100000,
+                   help="the ?limit= used when fetching; the snapshot must be a "
+                        "SHORT page (len < limit) to prove completeness")
     p.add_argument("--min-rows", type=int, default=1000,
                    help="refuse a snapshot smaller than this (truncation guard; "
                         "PROD currently returns ~18k rows)")
@@ -959,6 +981,19 @@ def main(argv=None) -> int:
             f"{args.min_rows} — a truncated page must not silently become an "
             f"audit. Re-fetch with ?limit=100000, or lower --min-rows "
             f"deliberately")
+    # Reaching a floor is NOT proof of completeness: ?limit=1000 returns
+    # exactly 1000 rows and `count` is the PAGE length, so a truncated fetch
+    # passes both checks above.  Completeness is proven only by a SHORT page —
+    # len(trades) < the limit actually requested (Codex P2, PR #273).  Same
+    # idiom as prereg_trigger_watch.paginate_closed_trades, which returns None
+    # (DATA_UNAVAILABLE) rather than a silently truncated list.
+    if len(trades) >= args.fetch_limit:
+        raise SystemExit(
+            f"{args.trades_json}: {len(trades)} rows == --fetch-limit "
+            f"{args.fetch_limit} — a FULL page proves nothing about "
+            f"completeness (the next page may exist). Re-fetch with a larger "
+            f"?limit= so the response is a SHORT page, and pass the same value "
+            f"as --fetch-limit")
     result = run_audit(trades, run_date=args.run_date,
                        window_days=args.window_days)
     if not args.no_write:

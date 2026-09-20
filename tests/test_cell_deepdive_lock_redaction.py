@@ -14,6 +14,7 @@ redactor that redacts everything (or nothing) fails.
 """
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -1220,3 +1221,80 @@ def test_truncated_api_snapshot_is_refused(tmp_path, monkeypatch, capsys):
     f = tmp_path / "ok.json"
     f.write_text(json.dumps({"count": 1500, "trades": [row] * 1500}))
     assert m.main([str(f), "--run-date", "2026-09-20", "--no-write"]) == 0
+
+
+def test_malformed_match_selector_fails_closed(tmp_path):
+    """KNOWN-NG INPUT: a misspelled `match` value or key.
+
+    "prefx" was silently coerced to exact matching, which would make the
+    kalman_d7 prefix LOCK stop covering its variants and publish their frozen
+    statistics.  This command never runs lint_registry, so it must validate
+    here (Codex P1, PR #273).
+    """
+    def reg(match_kv):
+        f = tmp_path / f"r{abs(hash(str(match_kv)))}.json"
+        entry = {"id": "fam", "active": True, "type": "live_count_decision",
+                 "entry_type": "kalman_d7"}
+        entry.update(match_kv)
+        f.write_text(json.dumps({"triggers": [entry]}))
+        return f
+
+    for bad in ({"match": "prefx"}, {"match": "PREFIX"}, {"match": True},
+                {"match": ""}, {"match": None}, {"match": "exact "}):
+        with pytest.raises(LockRegistryUnavailable, match="match="):
+            load_locked_cells(reg(bad))
+
+    # Counter-pins: "prefix" works, and an ABSENT key is legal (means exact).
+    assert load_locked_cells(reg({"match": "prefix"}))[0]["match"] == "prefix"
+    assert load_locked_cells(reg({}))[0]["match"] == "exact"
+    # ...and the real registry still loads with its prefix flags intact.
+    by_id = {lk["registry_id"]: lk for lk in load_locked_cells()}
+    assert by_id["t9-kalman-d7-live-n10-ev-check"]["match"] == "prefix"
+
+
+def test_a_full_page_is_not_proof_of_completeness(tmp_path):
+    """KNOWN-NG INPUT: exactly ?limit= rows.
+
+    /api/demo/trades sets `count` to the PAGE length, so ?limit=1000 returns
+    1000 rows with count=1000 and cleared both the count-consistency check and
+    --min-rows.  Completeness is proven only by a SHORT page (Codex P2,
+    PR #273).
+    """
+    import tools.cell_deepdive_audit as m
+
+    row = {"entry_type": "vsg_jpy_reversal", "instrument": "EUR_JPY",
+           "direction": "SELL", "outcome": "WIN", "pnl_pips": 1.0,
+           "dedup_violation": 0, "is_shadow": 1,
+           "entry_time": "2026-08-10T02:00:00"}
+
+    def run(n, limit):
+        f = tmp_path / f"p{n}_{limit}.json"
+        f.write_text(json.dumps({"count": n, "trades": [row] * n}))
+        return m.main([str(f), "--run-date", "2026-09-20", "--no-write",
+                       "--fetch-limit", str(limit)])
+
+    with pytest.raises(SystemExit, match="FULL page"):
+        run(1000, 1000)
+    with pytest.raises(SystemExit, match="FULL page"):
+        run(1500, 1500)
+    # Counter-pin: a SHORT page proves the end was reached and runs.
+    assert run(1500, 100000) == 0
+
+
+def test_committed_report_prose_matches_its_machine_readable_summary():
+    """The 2026-09-20 correction must not drift from _summary.json.
+
+    The prose claimed clean_N=273 / 215 routed while the regenerated JSON said
+    335 / 58 — the audit narrative described a different sample construction
+    than the machine-readable result (Codex P2, PR #273).  This is the same
+    "文章では正しく、コードでは違う" failure, in the KB writing this time.
+    """
+    root = Path(__file__).resolve().parent.parent
+    d = root / "knowledge-base" / "raw" / "cell_deepdive" / "2026-09-20"
+    data = json.loads((d / "_summary.json").read_text())
+    md = (d / "_summary.md").read_text()
+    for key in ("clean_N", "locked_rows_routed_out"):
+        value = data["meta"][key]
+        assert f"**{value}**" in md, (
+            f"{key}={value} from _summary.json is not stated in the prose — "
+            f"the narrative has drifted from the machine-readable result")

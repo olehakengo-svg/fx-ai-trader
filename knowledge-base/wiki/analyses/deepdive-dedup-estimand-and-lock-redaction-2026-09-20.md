@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (45 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (48 pins)
 
 ---
 
@@ -438,6 +438,21 @@ not-yet-started として列挙)、`--run-date 2026-09-20` は **redact 15 / cle
 over-redaction の 4 度目。母集団述語を 1 箇所 (`row_in_lock_population`) に
 集約しておいたおかげで、routing 側に 1 行足すだけで整合した。
 
+### 2.3p レビュー第15波 (Codex P1 + P2×2) — 最小値は完全性の証明ではない
+
+| 指摘 | 実態 | 修正 |
+|---|---|---|
+| **壊れた `match` 選択子で fail closed** | `match: "prefx"` (綴り違い) やキー誤記が**黙って exact に落ちて**おり、prefix LOCK (kalman_d7) が variant を覆わなくなって**凍結統計を公表**しうる。本コマンドは `lint_registry` を呼ばない | `match` は**不在 or 厳密に `"prefix"`** のみ許可、それ以外は `LockRegistryUnavailable` |
+| **最小行数は完全性の証明でない** | `?limit=1000` は 1000 行ちょうどを返し `count` も **page 長** なので、`count` 整合も `--min-rows 1000` も**素通り**する | **short page でのみ完全性を証明**: `--fetch-limit` (既定 100000) を導入し `len(trades) >= fetch_limit` を拒否 (`paginate_closed_trades` と同じ idiom) |
+| **訂正文が機械可読側と食い違っていた** | 週次レポートの訂正節が `clean_N=273 / routed 215` のままで、同一スナップショットの `_summary.json` は **335 / 58**。routing を母集団基準に narrowing した §2.3o で陳腐化していた | 訂正節を **335 / 58** に更新 (中間値 273/215 は「セル identity で切っていた版」と明記)。**pin を追加し prose ↔ JSON の一致を機械検査** |
+
+🔴 **「文章では正しく、コードでは違う」の 4 度目 — 今回は自分の KB 記述が対象**。
+本 PR は同じ病を 3 回コード側で指摘してきたのに、**訂正文自体が数値ドリフト**を起こした。
+⇒ 散文の数値主張は **JSON から機械検査** する pin を置いた (文言 grep でなく値の一致)。
+
+🔑 **「閾値を超えた」は「正しい」ではない。** `--min-rows` は truncation の*一部*しか
+捕まえない — full page はいつでも閾値を超える。**完全性は「短いページ」でしか証明できない**。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -498,6 +513,12 @@ over-redaction の 4 度目。母集団述語を 1 箇所 (`row_in_lock_populati
    LOCK 行の outcome が混ざらない
 0c2v. **truncate されたスナップショットを拒否** (50 行ちょうど / `--min-rows` 未満 /
    `count != len(trades)` の 3 形状) ∧ counter-pin: 完全なスナップショットは通る
+0c2w. **壊れた `match` で fail closed** (`prefx`/`PREFIX`/`True`/`""`/`None`/`"exact "`
+   の 6 形状) ∧ counter-pin: `prefix` は効き、**キー不在は合法 (= exact)**
+0c2x. **full page を拒否、short page のみ通す** (1000/1000・1500/1500 を拒否、
+   1500/100000 は通る)
+0c2y. **週次レポートの散文が `_summary.json` と一致** (`clean_N` / `locked_rows_routed_out`
+   を JSON から読んで prose に現れることを検査 — 文言 grep でなく値の一致)
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

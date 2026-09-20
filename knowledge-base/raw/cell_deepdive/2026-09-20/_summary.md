@@ -146,9 +146,14 @@ sr_anti_hunt 13.22 / rsk 2.57 / vsg 2.49 / vdr 1.48 / mqe **0.08** 本/週 (90d)
 一致セルと **その refinement (sub-cell)** の outcome を出力から除去し **`n` のみ残す**。
 同スナップショットで再実行すると **3 セルが redact され `candidates` は 1 → 0**
 (⚠️ **初版では meta 計数が本レポートと完全一致したが、その後のレビュー対応で
-LOCK 行を outcome 読み取り前に分岐する修正を入れたため `clean_N` は 385 → **273**
-= LOCK 行 215 を routing 除外。**現在「ad-hoc 版と同一」は成立しない** — 同一なのは
-非 LOCK セルの統計と `m_v2`=7 / `m_v3`=1 / `candidates`=0)。
+LOCK 行を outcome 読み取り前に分岐する修正、さらに routing を **LOCK 母集団基準**へ
+narrowing した修正を入れたため、`clean_N` は 385 → **335** = LOCK 行 **58** を routing 除外
+(中間段階の「273 / 215」は routing がセル identity で切っていた版の値で、
+**LOCK 母集団外の同一セル行まで巻き込んでいた** ため現在は該当しない)。
+**現在「ad-hoc 版と同一」は成立しない** — 同一なのは非 LOCK セルの統計と
+`m_v2`=7 / `m_v3`=1 / `candidates`=0)。⚠️ 本節の数値は
+`_summary.json` (機械可読側) と一致していること: `clean_N` **335** /
+`locked_rows_routed_out` **58**。
 pin: `tests/test_cell_deepdive_lock_redaction.py` (8 件、NG 入力と counter-pin を対で保持)。
 
 ### 訂正 3 — fresh N の計数基準が読み手間で不一致 (未解決)

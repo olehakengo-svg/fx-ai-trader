@@ -179,7 +179,21 @@
   EUR_JPY BUY の redacted 記録は **uniq 75 → 36** で `n_lock_population` と一致
 - 🔑 **「LOCK が覆う範囲」と「LOCK セルの全行」は別物** — over-redaction の 4 度目。
   母集団述語を 1 箇所に集約してあったので routing 側 1 行で整合した
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**45 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第15波 (Codex P1 + P2×2) — 最小値は完全性の証明ではない**:
+  (aa) **壊れた `match` 選択子で fail closed** — `"prefx"` 等が黙って exact に落ち、
+  prefix LOCK が variant を覆わず**凍結統計を公表**しうる状態だった
+  (bb) **最小行数は完全性の証明でない** — `?limit=1000` は 1000 行ちょうどを返し
+  `count` も page 長なので `--min-rows 1000` を素通りする。**short page でのみ完全性を
+  証明**する `--fetch-limit` を導入 (`paginate_closed_trades` と同じ idiom)
+  (cc) **訂正文が機械可読側と食い違っていた** — 週次レポートの訂正節が `clean_N=273 /
+  routed 215` のままで `_summary.json` は **335 / 58**。§2.3o の routing narrowing で
+  陳腐化。**335 / 58 へ更新 + prose ↔ JSON 一致の pin を追加**
+- 🔴 **「文章では正しく、コードでは違う」の 4 度目 — 今回は自分の KB 記述**。
+  同じ病を 3 回コード側で指摘しておきながら訂正文が数値ドリフトした ⇒
+  散文の数値主張を **JSON から機械検査**する pin を置いた
+- 🔑 **「閾値を超えた」は「正しい」ではない** — full page はいつでも閾値を超える。
+  完全性は「短いページ」でしか証明できない
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**48 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
