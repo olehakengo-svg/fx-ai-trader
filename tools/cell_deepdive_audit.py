@@ -436,6 +436,31 @@ def _entry_type_matches(entry_type, lock) -> bool:
     return et == target
 
 
+def locks_for_cell(entry_type, instrument, direction, locked_cells) -> list:
+    """EVERY active LOCK covering this cell, not just the first.
+
+    Two active LOCKs may cover the same (entry_type, instrument, direction)
+    with DIFFERENT populations — e.g. a shadow LOCK and a live LOCK on the same
+    strategy/pair/direction.  Testing only the first match let a live row fail
+    the shadow LOCK's population check, fall into the unlocked complement, and
+    have its WR/EV published although it belongs to the second LOCK.  The
+    canonical linter does not forbid overlapping selectors, so routing must
+    consider all of them (Codex P1, PR #273).
+    """
+    return [lk for lk in locked_cells
+            if _lock_covers_cell(lk, entry_type, instrument, direction)]
+
+
+def _lock_covers_cell(lk, entry_type, instrument, direction) -> bool:
+    if not _entry_type_matches(entry_type, lk):
+        return False
+    if lk["instrument"] is not None and lk["instrument"] != instrument:
+        return False
+    if lk["direction"] is not None and lk["direction"] != direction:
+        return False
+    return True
+
+
 def lock_for_cell(entry_type, instrument, direction, locked_cells) -> dict | None:
     """Return the LOCK covering this cell, or None.
 
@@ -678,20 +703,19 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                                 for lk in marker_locks):
             marker_excluded += 1
             continue
-        lock = lock_for_cell(t.get("entry_type"), t.get("instrument"),
-                             t.get("direction"), cell_locks)
-        # Route out ONLY rows that are actually in the LOCK's population.  Cell
-        # identity alone over-routes: the shadow-only EUR_JPY BUY LOCK starting
-        # 2026-08-05 was swallowing live rows and pre-`since` rows of the same
-        # cell too (75 in-window unique rows routed for a population of 36),
-        # silently discarding statistics the LOCK never covered.  The unlocked
-        # complement stays evaluable (Codex P2, PR #273).
-        if lock is not None and row_in_lock_population(
-                t, lock, as_of_exclusive=win_hi):
+        covering = locks_for_cell(t.get("entry_type"), t.get("instrument"),
+                                  t.get("direction"), cell_locks)
+        # Route out ONLY rows that are actually in some LOCK's population.
+        # Cell identity alone over-routes (the shadow-only EUR_JPY BUY LOCK was
+        # swallowing live and pre-`since` rows too), but checking only ONE
+        # covering LOCK under-routes when two LOCKs overlap.  So: in ANY
+        # covering LOCK's population => routed out.
+        if any(row_in_lock_population(t, lk, as_of_exclusive=win_hi)
+               for lk in covering):
             locked_raw[(t.get("entry_type"), t.get("instrument"),
                         t.get("direction"))].append(t)
             continue
-        if lock is not None:
+        if covering:
             # Same cell, outside the LOCK population: keep it, but remember the
             # cell is a partial view so the report cannot be misread as whole.
             complement_cells.add((t.get("entry_type"), t.get("instrument"),
@@ -835,14 +859,26 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
     def locked_records(groups, level):
         out = []
         for k, rows in groups.items():
-            lock = lock_for_cell(k[0], k[1], k[-1], cell_locks)
-            out.append(count_only_record(
+            covering = locks_for_cell(k[0], k[1], k[-1], cell_locks)
+            lock = covering[0]
+            rec = count_only_record(
                 level, k, len(rows), lock,
                 lock_population_n=lock_population_count(
                     trades, lock, as_of_exclusive=win_hi),
                 lock_population_watcher_n=lock_population_count(
                     trades, lock, watcher_compat=True,
-                    as_of_exclusive=win_hi)))
+                    as_of_exclusive=win_hi))
+            if len(covering) > 1:
+                # Overlapping LOCKs: report EACH lock's population separately.
+                # Collapsing them into one number would misrepresent the other
+                # lock's gate.
+                rec["covering_locks"] = [
+                    {"registry_id": lk.get("registry_id"),
+                     "n_lock_population": lock_population_count(
+                         trades, lk, as_of_exclusive=win_hi),
+                     "n_decide": lk.get("n_decide")}
+                    for lk in covering]
+            out.append(rec)
         return out
 
     # `min_n` gates MULTIPLICITY eligibility, but the redaction/count inventory

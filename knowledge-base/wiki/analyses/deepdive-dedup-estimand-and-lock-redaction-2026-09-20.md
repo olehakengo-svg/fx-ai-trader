@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (54 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (55 pins)
 
 ---
 
@@ -507,6 +507,29 @@ pin は「buggy な shape (`status=all`) で行が落ちることを実際に示
 argparse の %-formatting で `TypeError` になり、`format_help()` を呼ぶ pin が落ちた
 (`%%F` へ修正)。**「ドキュメントが描画できること」自体を pin する価値がある**。
 
+### 2.3t レビュー第19波 (Codex P1) — 「最初に一致した LOCK」しか見ていなかった
+
+`lock_for_cell` は**最初に一致した LOCK だけ**を返す。同一セル
+`(entry_type, instrument, direction)` を**異なる母集団の 2 つの active LOCK** が覆う場合
+(例: shadow LOCK と live LOCK が同じ戦略×ペア×方向に並ぶ)、
+
+- live 行は先頭の **shadow LOCK の母集団検査に落ちる**
+- ⇒ unlocked complement に回り **WR/EV が公表される**
+- しかし実際には **2 つ目の live LOCK に属している**
+
+正本 linter は selector の重複を禁止していないので、**routing は覆う LOCK を全部見る**必要がある。
+`locks_for_cell()` を新設し「**いずれかの LOCK の母集団に入るなら退避**」へ変更。
+複数が覆うセルは `covering_locks` に **LOCK ごとの母集団と n_decide を個別に出力**する
+(1 つの数字で代表させると別 LOCK の gate を誤読させる)。
+
+⚠️ **現 registry では実害ゼロ** — active な outcome LOCK 7 件に
+`(entry_type, instrument, direction)` の重複は **0 件**と実測確認した。
+**潜在的欠陥であり、修正は将来の重複登録に対する予防**。
+
+🔑 **§2.3o で「セル identity で切るな、母集団で切れ」と直した際、
+「母集団検査を *どの* LOCK に対して行うか」を 1 つに固定したままだった。**
+over-routing を直すと under-routing が生まれる — **両方向を同時に確認する**。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -584,6 +607,9 @@ argparse の %-formatting で `TypeError` になり、`format_help()` を呼ぶ 
    complete を立てない) ∧ counter-pin: 正常な short page は通常どおり終端になる
 0c2ad. **help が契約を満たす** (`--fetch-to` を案内 / 実行可能な curl を配らない /
    拒否を明示) — `format_help()` を実際に呼ぶので描画不能も捕まる
+0c2ae. **覆う LOCK を全部見る** (shadow+live が同一セルを覆う fixture で live 行が
+   complement に漏れない / `covering_locks` に 21 と 7 を個別報告) ∧ counter-pin:
+   shadow LOCK 単独なら live 行は正しく complement になる
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

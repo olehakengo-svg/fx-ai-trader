@@ -26,6 +26,7 @@ from tools.cell_deepdive_audit import (
     dedup_era_breakdown,
     load_locked_cells,
     lock_for_cell,
+    locks_for_cell,
     lock_population_count,
     row_in_lock_population,
     unique_accrual,
@@ -1511,3 +1512,62 @@ def test_help_example_satisfies_the_completeness_contract():
     assert "curl -" not in help_text and "curl '" not in help_text, (
         "the help must not hand out a runnable curl the CLI then rejects")
     assert "REJECTED" in help_text, "the rejection must be stated up front"
+
+
+def test_every_covering_lock_is_checked_before_a_row_is_exposed():
+    """KNOWN-NG INPUT: two active LOCKs on the same cell, different populations.
+
+    `lock_for_cell` returns only the FIRST match.  With a shadow LOCK listed
+    before a live LOCK on the same strategy/pair/direction, a live row failed
+    the shadow population check, fell into the unlocked complement, and had its
+    WR/EV published although it belonged to the second LOCK (Codex P1, PR #273).
+    """
+    shadow = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+              "direction": "BUY", "registry_id": "shadow-lock", "match": "exact",
+              "kind": "shadow", "since": "2026-08-05", "closed_only": True,
+              "dedup_violation": 0, "mode": None, "n_decide": 40,
+              "reasons_marker": None, "count_basis": None}
+    live = dict(shadow, registry_id="live-lock", kind="live", n_decide=10)
+    both = [shadow, live]          # shadow first, exactly as in the report
+
+    assert len(locks_for_cell("sr_anti_hunt_bounce", "EUR_JPY", "BUY", both)) == 2
+    assert lock_for_cell("sr_anti_hunt_bounce", "EUR_JPY", "BUY",
+                         both)["registry_id"] == "shadow-lock"
+
+    def row(**kw):
+        base = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+                "direction": "BUY", "outcome": "WIN", "pnl_pips": 5.0,
+                "dedup_violation": 0, "is_shadow": 1, "status": "CLOSED",
+                "oanda_trade_id": "", "mode": "daytrade",
+                "entry_time": "2026-08-20T02:00:00"}
+        base.update(kw)
+        return base
+
+    shadow_rows = [row() for _ in range(21)]
+    live_rows = [row(oanda_trade_id="77", is_shadow=0) for _ in range(7)]
+
+    res = run_audit(shadow_rows + live_rows, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",), locked_cells=both)
+
+    # Every row belongs to ONE of the two locks, so nothing may be exposed.
+    assert res["meta"]["locked_rows_routed_out"] == 28
+    assert res["meta"]["clean_N"] == 0, (
+        "a live row covered by the SECOND lock must not reach the complement")
+    exposed = [c for c in res["eligible_cells_v2"] if not c.get("redacted")]
+    assert exposed == []
+
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec["redacted"] is True and "wr" not in rec
+    # Both gates are reported; collapsing to one would misread the other.
+    ids = {c["registry_id"] for c in rec["covering_locks"]}
+    assert ids == {"shadow-lock", "live-lock"}
+    pops = {c["registry_id"]: c["n_lock_population"] for c in rec["covering_locks"]}
+    assert pops == {"shadow-lock": 21, "live-lock": 7}
+
+    # Counter-pin: with only the shadow lock, the live rows ARE the complement.
+    only_shadow = run_audit(shadow_rows + live_rows, run_date="2026-09-20",
+                            targets=("sr_anti_hunt_bounce",),
+                            locked_cells=[shadow])
+    assert only_shadow["meta"]["locked_rows_routed_out"] == 21
+    assert only_shadow["meta"]["clean_N"] == 7

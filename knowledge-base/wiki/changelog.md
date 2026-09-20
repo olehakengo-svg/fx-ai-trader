@@ -224,7 +224,17 @@
   (§2.3n の「文章が正しくコードが違う」と**向きが逆の同型**)
 - 🔵 **pin が自分のバグを即座に捕捉**: help の `$(date -u +%F)` が argparse の
   %-formatting で `TypeError` → `format_help()` を呼ぶ pin が落ちた (`%%F` へ修正)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**54 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第19波 (Codex P1) — 「最初に一致した LOCK」しか見ていなかった**:
+  (ii) 同一セルを**異なる母集団の 2 つの active LOCK** が覆う場合、live 行が先頭の
+  shadow LOCK の母集団検査に落ちて **complement に回り WR/EV が公表**されていた
+  (実際には 2 つ目の live LOCK に属する)。正本 linter は selector 重複を禁じていない。
+  `locks_for_cell()` を新設し「**いずれかの LOCK の母集団に入るなら退避**」へ変更、
+  複数が覆うセルは `covering_locks` に LOCK ごとの母集団と n_decide を個別出力
+- ⚠️ **現 registry では実害ゼロ** (active outcome LOCK 7 件に selector 重複 **0 件**を実測)
+  — 潜在的欠陥で、修正は将来の重複登録への予防
+- 🔑 **over-routing を直すと under-routing が生まれる** — §2.3o で「母集団で切れ」と
+  直した際、**その母集団検査をどの LOCK に対して行うかを 1 つに固定**したままだった
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**55 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
