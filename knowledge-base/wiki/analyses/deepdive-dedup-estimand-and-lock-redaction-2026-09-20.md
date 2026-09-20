@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (36 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (38 pins)
 
 ---
 
@@ -361,6 +361,20 @@ BREAKEVEN の扱いと **1 回で決める**よう明記した (別々に決め�
 **正本が常に正しいという意味ではない** — 正本と凍結文書が食い違ったら、
 勝手にどちらかへ寄せず**両方出して決裁に上げる**。
 
+### 2.3k レビュー第10波 (Codex P2×2) — 厳格 shadow の定義と as-of 上界
+
+| 指摘 | 実査結果 | 修正 |
+|---|---|---|
+| **厳格 shadow は `is_shadow` も要る** | `rnb-support-bounce-shadow-forward` の LOCK 文が**逐語で**「**厳格 shadow = is_shadow=1 ∧ oanda_trade_id 空**」と定義している。本ツールは OANDA id しか見ておらず、**flag-drift 行 (id 空 ∧ is_shadow=0) を shadow として数えて**いた。**PROD に該当行が実際に 47 本存在**するので潜在的でなく現実の危険 | faithful 側は `is_shadow` も要求。`watcher_compat` は正本の広い挙動を意図的に維持 (§2.3j の二本立てと整合) |
+| **LOCK の計数に監査の as-of 上界を** | `lock_population_count` が payload 全体を数えており、**過去日付の `--run-date` を現在のスナップショットに対して再実行すると run 後の行まで数え**、historical report が「もう n_decide に達していた」と示唆しうる | `as_of_exclusive` を追加し監査の排他的上界を適用。`since` は LOCK 自身の下界として独立に維持 |
+
+実測: PROD の LOCK 計数は **36/36・22/22・marker 2 のまま不変** (現時点で
+LOCK セルに flag-drift 行も run 後の行も無いため) — 修正は**将来の事故を塞ぐもの**で、
+今回の数値解釈には影響しない。
+
+🔑 **「47 本実在した」が効いた**。指摘を仮説として受け取らず PROD を数えたことで、
+これが理論上の穴ではなく**いつ踏んでもおかしくない穴**だと確定できた。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -403,6 +417,10 @@ BREAKEVEN の扱いと **1 回で決める**よう明記した (別々に決め�
    pre-reg 忠実 22 / watcher 互換 27 / `watcher_divergence=True`、v2 と v3 の両方が
    flag される) ∧ counter-pin: live fill 無しなら一致し flag は空 ∧ live LOCK は
    構造上乖離しえない
+0c2o. **厳格 shadow が `is_shadow` を要求** (flag-drift 4 本 + live 3 本を足しても faithful は
+   9 のまま / watcher_compat は 16) ∧ counter-pin: drift 行は watcher_compat では数えられる
+0c2p. **LOCK 計数が監査の as-of 上界に従う** (run 後 2 本を足しても 11 のまま、run 当日は含む)
+   ∧ counter-pin: `since` は下界として独立に効く
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

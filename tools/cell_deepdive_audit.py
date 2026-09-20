@@ -259,7 +259,8 @@ def load_locked_cells(registry_path=None) -> list:
     return locked
 
 
-def row_in_lock_population(t, lock, *, watcher_compat: bool = False) -> bool:
+def row_in_lock_population(t, lock, *, watcher_compat: bool = False,
+                           as_of_exclusive: str | None = None) -> bool:
     """True when row ``t`` belongs to ``lock``'s declared population.
 
     Single source of truth for BOTH the LOCK's N and the marker-row exclusion.
@@ -286,15 +287,20 @@ def row_in_lock_population(t, lock, *, watcher_compat: bool = False) -> bool:
     kind = lock.get("kind")
     if kind == "live" and not live:
         return False
-    if kind == "shadow" and live and not watcher_compat:
-        # Pre-reg text for the shadow LOCKs says the population is
-        # "dedup_violation=0 の shadow rows のみ", and MEMORY
-        # feedback_live_vs_shadow_strict_separation makes live =
-        # oanda_trade_id != ''.  The canonical watcher's count_matching does
-        # NOT apply this filter, so the two can diverge once a shadow LOCK's
-        # cell starts taking live fills.  We do NOT silently pick a side on a
-        # LOCK trigger: `watcher_compat=True` reproduces the watcher and the
-        # report emits BOTH counts plus a divergence flag (Codex P2, PR #273).
+    if kind == "shadow" and not watcher_compat and (
+            live or not t.get("is_shadow")):
+        # Strict shadow = `is_shadow=1 AND oanda_trade_id empty`, spelled out
+        # verbatim in the rnb-support-bounce-shadow-forward LOCK
+        # ("厳格 shadow = is_shadow=1 ∧ oanda_trade_id 空") and consistent with
+        # MEMORY feedback_live_vs_shadow_strict_separation.  Checking only the
+        # OANDA id let flag-drift rows (blank id but is_shadow=0) count as
+        # shadow — PROD currently holds 47 such rows, so the hazard is real,
+        # not hypothetical (Codex P2, PR #273).
+        #
+        # The canonical watcher's count_matching applies NEITHER filter, so the
+        # two can diverge.  We do NOT silently pick a side on a LOCK trigger:
+        # `watcher_compat=True` reproduces the watcher and the report emits
+        # BOTH counts plus a divergence flag.
         return False
     if lock.get("closed_only") and t.get("status") != "CLOSED":
         return False
@@ -313,10 +319,17 @@ def row_in_lock_population(t, lock, *, watcher_compat: bool = False) -> bool:
         return False
     if lock.get("since") and _ts(t) < str(lock["since"]):
         return False
+    # The LOCK's `since` is its own lower bound, but the population still needs
+    # the AUDIT's upper bound: re-running --run-date 2026-09-20 against a later
+    # snapshot otherwise counts post-run rows and can imply n_decide was already
+    # reached in a historical report (Codex P2, PR #273).
+    if as_of_exclusive and _ts(t)[:10] >= as_of_exclusive:
+        return False
     return True
 
 
-def lock_population_count(trades, lock, *, watcher_compat: bool = False) -> int:
+def lock_population_count(trades, lock, *, watcher_compat: bool = False,
+                          as_of_exclusive: str | None = None) -> int:
     """Count rows in the LOCK's OWN declared population.
 
     The registry entry — not this audit's window — defines what the trigger
@@ -326,7 +339,9 @@ def lock_population_count(trades, lock, *, watcher_compat: bool = False) -> int:
     estimand printed beside it).
     """
     return sum(1 for t in trades
-               if row_in_lock_population(t, lock, watcher_compat=watcher_compat))
+               if row_in_lock_population(t, lock,
+                                         watcher_compat=watcher_compat,
+                                         as_of_exclusive=as_of_exclusive))
 
 
 def _reasons_text(trade) -> str:
@@ -723,9 +738,11 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             lock = lock_for_cell(k[0], k[1], k[-1], cell_locks)
             out.append(count_only_record(
                 level, k, len(rows), lock,
-                lock_population_n=lock_population_count(trades, lock),
+                lock_population_n=lock_population_count(
+                    trades, lock, as_of_exclusive=win_hi),
                 lock_population_watcher_n=lock_population_count(
-                    trades, lock, watcher_compat=True)))
+                    trades, lock, watcher_compat=True,
+                    as_of_exclusive=win_hi)))
         return out
 
     v2_eval = eval_cells(v2_elig, m_family, "v2") + locked_records(locked_v2_elig, "v2")
@@ -784,7 +801,8 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             "marker_locks": [
                 {"registry_id": lk.get("registry_id"),
                  "reasons_marker": lk.get("reasons_marker"),
-                 "n_lock_population": lock_population_count(trades, lk),
+                 "n_lock_population": lock_population_count(
+                     trades, lk, as_of_exclusive=win_hi),
                  "n_decide": lk.get("n_decide")}
                 for lk in marker_locks
             ],

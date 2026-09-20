@@ -124,7 +124,19 @@
   (BREAKEVEN の扱いと **1 回で決める**)
 - 🔑 **「正本の読み取りコードを仕様として読め」(第4波) は「正本が常に正しい」ではない** —
   正本と凍結文書が食い違ったら、勝手にどちらかへ寄せず**両方出して決裁に上げる**
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**36 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第10波 (Codex P2×2) — 厳格 shadow の定義と as-of 上界**:
+  (t) **厳格 shadow は `is_shadow` も要る** — `rnb-support-bounce-shadow-forward` の LOCK 文が
+  逐語で「厳格 shadow = is_shadow=1 ∧ oanda_trade_id 空」と定義しているのに OANDA id しか
+  見ておらず、**flag-drift 行 (id 空 ∧ is_shadow=0) を shadow として数えて**いた。
+  **PROD に該当行が実際に 47 本存在**。faithful 側に `is_shadow` を追加、
+  `watcher_compat` は正本の広い挙動を維持
+  (u) **LOCK 計数に監査の as-of 上界** — payload 全体を数えており、過去日付の `--run-date` を
+  現スナップショットで再実行すると run 後の行まで数えていた。`since` は下界として独立維持
+- 実測: PROD の LOCK 計数は **36/36・22/22・marker 2 のまま不変** — 修正は将来の事故を
+  塞ぐもので今回の数値解釈には影響しない
+- 🔑 **指摘を仮説として受け取らず PROD を数えた**ことで、理論上の穴ではなく
+  「いつ踏んでもおかしくない穴」と確定できた
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**38 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

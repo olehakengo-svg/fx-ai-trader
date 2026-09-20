@@ -876,3 +876,80 @@ def test_live_locks_agree_with_the_watcher_by_construction():
         t["oanda_trade_id"] = "1" if i < 8 else ""
     assert (lock_population_count(rows, lock)
             == lock_population_count(rows, lock, watcher_compat=True) == 8)
+
+
+def test_strict_shadow_requires_is_shadow_not_just_a_blank_oanda_id():
+    """KNOWN-NG INPUT: a flag-drift row (blank OANDA id but is_shadow=0).
+
+    The rnb-support-bounce-shadow-forward LOCK spells the population out as
+    "厳格 shadow = is_shadow=1 ∧ oanda_trade_id 空".  Checking only the OANDA id
+    counted drift rows as shadow and inflated n_lock_population toward the
+    first-look threshold.  PROD held 47 such rows when this was found, so the
+    hazard is real rather than hypothetical (Codex P2, PR #273).
+    """
+    lock = {"entry_type": "rnb_support_bounce", "instrument": "USD_JPY",
+            "direction": "BUY", "registry_id": "rnb-support-bounce-shadow-forward",
+            "match": "exact", "kind": "shadow", "since": "2026-09-10",
+            "closed_only": True, "dedup_violation": 0, "mode": None,
+            "n_decide": 41, "reasons_marker": None, "count_basis": None}
+
+    def r(**kw):
+        base = {"entry_type": "rnb_support_bounce", "instrument": "USD_JPY",
+                "direction": "BUY", "status": "CLOSED", "oanda_trade_id": "",
+                "dedup_violation": 0, "is_shadow": 1,
+                "entry_time": "2026-09-15T02:00:00"}
+        base.update(kw)
+        return base
+
+    strict = [r() for _ in range(9)]
+    drift = [r(is_shadow=0) for _ in range(4)]        # blank id, is_shadow=0
+    live = [r(oanda_trade_id="7", is_shadow=0) for _ in range(3)]
+
+    assert lock_population_count(strict + drift + live, lock) == 9, (
+        "only is_shadow=1 AND blank OANDA id counts as strict shadow")
+    # watcher_compat keeps the canonical (broader) behaviour on purpose.
+    assert lock_population_count(strict + drift + live, lock,
+                                 watcher_compat=True) == 16
+    assert row_in_lock_population(drift[0], lock) is False
+    assert row_in_lock_population(drift[0], lock, watcher_compat=True) is True
+    assert row_in_lock_population(strict[0], lock) is True
+
+
+def test_lock_population_is_bounded_by_the_audit_as_of_date():
+    """KNOWN-NG INPUT: rows dated after the audit's run_date.
+
+    lock_population_count ran over the whole payload, so re-running an older
+    --run-date against a current snapshot counted post-run rows and could imply
+    n_decide had already been reached in a historical report (Codex P2,
+    PR #273).  `since` stays the LOCK's own lower bound.
+    """
+    lock = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+            "direction": "BUY", "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+            "match": "exact", "kind": "shadow", "since": "2026-08-05",
+            "closed_only": True, "dedup_violation": 0, "mode": None,
+            "n_decide": 40, "reasons_marker": None, "count_basis": None}
+
+    def r(ts):
+        return {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+                "direction": "BUY", "status": "CLOSED", "oanda_trade_id": "",
+                "dedup_violation": 0, "is_shadow": 1, "outcome": "WIN",
+                "pnl_pips": 1.0, "entry_time": ts}
+
+    rows = ([r(f"2026-08-{d:02d}T02:00:00") for d in range(10, 20)]   # 10 in
+            + [r("2026-09-20T23:00:00")]                              # run date: in
+            + [r("2026-09-21T02:00:00"), r("2026-10-05T02:00:00")])   # after: out
+
+    assert lock_population_count(rows, lock) == 13, "unbounded counts everything"
+    assert lock_population_count(rows, lock, as_of_exclusive="2026-09-21") == 11
+    # ...and the audit wires its own upper bound in automatically.
+    res = run_audit(rows, run_date="2026-09-20", min_n=5,
+                    targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec["n_lock_population"] == 11, (
+        "post-run rows must not enter a historical report's LOCK count")
+    assert rec["n_unique_rows_in_window"] == 11, (
+        "the in-window row count is bounded by the audit window too")
+    # Counter-pin: `since` still bounds the low side independently.
+    early = dict(lock, since="2026-08-15")
+    assert lock_population_count(rows, early, as_of_exclusive="2026-09-21") == 6
