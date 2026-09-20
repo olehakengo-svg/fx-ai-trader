@@ -176,23 +176,33 @@ def load_locked_cells(registry_path=None) -> list:
             f"pre-reg LOCK registry unreadable ({path}): {exc}. "
             "Refusing to run — an unguarded audit would publish LOCKed cells."
         ) from exc
-    # Structural validation.  Catching OSError/ValueError alone still let a
-    # syntax-valid but malformed payload through: {"triggers": "oops"} or [42]
-    # iterate to nothing, return [], and every LOCK silently disappears.  Same
-    # fail-open class as an unreadable file, different input shape — so it must
-    # fail the same way (Codex P1, PR #273, 2nd instance).
-    if isinstance(payload, list):
-        entries = payload
-    elif isinstance(payload, dict):
-        entries = payload.get("triggers", [])
-    else:
+    # Structural validation — mirrors tools/prereg_trigger_watch.load_registry_raw.
+    # Invariant: **never fold "cannot inspect" into "nothing wrong"**.
+    # `.get("triggers", [])` folds a misspelled/missing root key into an empty
+    # ledger, so {"trigers": []} would silently disable every LOCK; an empty
+    # ledger is likewise indistinguishable from a truncated one (Codex P1,
+    # PR #273, 3rd instance of this fail-open class).
+    if not isinstance(payload, dict):
         raise LockRegistryUnavailable(
-            f"pre-reg LOCK registry root must be a list or object ({path}): "
+            f"pre-reg LOCK registry root is not an object ({path}): "
             f"got {type(payload).__name__}")
+    if "triggers" not in payload:
+        near = [k for k in payload if "trig" in k.lower()]
+        raise LockRegistryUnavailable(
+            f"pre-reg LOCK registry has no 'triggers' key ({path}); "
+            f"keys present: {sorted(payload)}"
+            + (f" — misspelling candidates: {near}" if near else "")
+            + " — folding this into an empty ledger would drop every LOCK")
+    entries = payload["triggers"]
     if not isinstance(entries, list):
         raise LockRegistryUnavailable(
             f"pre-reg LOCK registry 'triggers' must be a list ({path}): "
             f"got {type(entries).__name__}")
+    if not entries:
+        raise LockRegistryUnavailable(
+            f"pre-reg LOCK registry 'triggers' is empty ({path}) — "
+            "'intentionally empty' and 'ledger lost' are indistinguishable, "
+            "so the audit assumes the latter")
     bad = [i for i, e in enumerate(entries) if not isinstance(e, dict)]
     if bad:
         raise LockRegistryUnavailable(
@@ -244,6 +254,55 @@ def load_locked_cells(registry_path=None) -> list:
     return locked
 
 
+def row_in_lock_population(t, lock) -> bool:
+    """True when row ``t`` belongs to ``lock``'s declared population.
+
+    Single source of truth for BOTH the LOCK's N and the marker-row exclusion.
+    They were separate before, and the marker exclusion matched on the reasons
+    literal alone — so a shadow or pre-``since`` row carrying the marker was
+    dropped from the audit although it is not locked (Codex P2, PR #273).
+    Over-exclusion is the mirror image of a leak: it silently deletes real
+    observations from the report.
+    """
+    # A marker LOCK has no entry_type — its population is defined by the
+    # reasons literal alone, so entry_type must not filter it out.
+    if lock.get("entry_type"):
+        if not _entry_type_matches(t.get("entry_type"), lock):
+            return False
+    elif not lock.get("reasons_marker"):
+        return False
+    if lock.get("instrument") and t.get("instrument") != lock["instrument"]:
+        return False
+    if lock.get("direction") and t.get("direction") != lock["direction"]:
+        return False
+    if lock.get("mode") and t.get("mode") != lock["mode"]:
+        return False
+    live = bool(t.get("oanda_trade_id"))
+    kind = lock.get("kind")
+    if kind == "live" and not live:
+        return False
+    if kind == "shadow" and live:
+        return False
+    if lock.get("closed_only") and t.get("status") != "CLOSED":
+        return False
+    dup = int(t.get("dedup_violation") or 0) == 1
+    if kind == "live":
+        # count_live_matching excludes dup rows UNCONDITIONALLY.
+        if dup:
+            return False
+    elif (lock.get("count_basis") == "unique"
+          or lock.get("dedup_violation") == 0):
+        # Mirrors count_matching(exclude_dedup_violation=...).
+        if dup:
+            return False
+    marker = lock.get("reasons_marker")
+    if marker and marker not in _reasons_text(t):
+        return False
+    if lock.get("since") and _ts(t) < str(lock["since"]):
+        return False
+    return True
+
+
 def lock_population_count(trades, lock) -> int:
     """Count rows in the LOCK's OWN declared population.
 
@@ -253,48 +312,7 @@ def lock_population_count(trades, lock) -> int:
     the very defect this PR documents (a count that does not match the
     estimand printed beside it).
     """
-    n = 0
-    for t in trades:
-        # A marker LOCK has no entry_type — its population is defined by the
-        # reasons literal alone, so entry_type must not filter it out.
-        if lock.get("entry_type"):
-            if not _entry_type_matches(t.get("entry_type"), lock):
-                continue
-        elif not lock.get("reasons_marker"):
-            continue
-        if lock.get("instrument") and t.get("instrument") != lock["instrument"]:
-            continue
-        if lock.get("direction") and t.get("direction") != lock["direction"]:
-            continue
-        if lock.get("mode") and t.get("mode") != lock["mode"]:
-            continue
-        live = bool(t.get("oanda_trade_id"))
-        kind = lock.get("kind")
-        if kind == "live" and not live:
-            continue
-        if kind == "shadow" and live:
-            continue
-        if lock.get("closed_only") and t.get("status") != "CLOSED":
-            continue
-        dup = int(t.get("dedup_violation") or 0) == 1
-        if kind == "live":
-            # count_live_matching excludes dup rows UNCONDITIONALLY; without
-            # this a duplicate live row inflates n_lock_population above the
-            # canonical watcher count (Codex P2, PR #273).
-            if dup:
-                continue
-        elif (lock.get("count_basis") == "unique"
-              or lock.get("dedup_violation") == 0):
-            # Mirrors count_matching(exclude_dedup_violation=...).
-            if dup:
-                continue
-        marker = lock.get("reasons_marker")
-        if marker and marker not in _reasons_text(t):
-            continue
-        if lock.get("since") and _ts(t) < str(lock["since"]):
-            continue
-        n += 1
-    return n
+    return sum(1 for t in trades if row_in_lock_population(t, lock))
 
 
 def _reasons_text(trade) -> str:
@@ -533,11 +551,10 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
         oc = t.get("outcome")
         if oc not in ("WIN", "LOSS"):
             continue
-        if marker_locks:
-            txt = _reasons_text(t)
-            if any(lk["reasons_marker"] in txt for lk in marker_locks):
-                marker_excluded += 1
-                continue
+        if marker_locks and any(row_in_lock_population(t, lk)
+                                for lk in marker_locks):
+            marker_excluded += 1
+            continue
         clean.append({
             "entry_type": t.get("entry_type"),
             "instrument": t.get("instrument"),
@@ -715,7 +732,27 @@ def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     with open(args.trades_json) as f:
         payload = json.load(f)
-    trades = payload.get("trades", []) if isinstance(payload, dict) else payload
+    # An error object (or a truncated response) must NOT become an empty
+    # dataset: without --no-write the run would overwrite the weekly summary
+    # with a plausible-looking PROD report showing zero rows and no candidates,
+    # instead of reporting that input acquisition failed (Codex P2, PR #273).
+    # Same invariant as the registry loader: never fold "cannot inspect" into
+    # "nothing wrong".
+    if isinstance(payload, list):
+        trades = payload
+    elif isinstance(payload, dict):
+        if "trades" not in payload:
+            raise SystemExit(
+                f"{args.trades_json}: no 'trades' key (keys: {sorted(payload)[:10]}) "
+                "— refusing to treat a failed fetch as an empty dataset")
+        trades = payload["trades"]
+    else:
+        raise SystemExit(
+            f"{args.trades_json}: root is {type(payload).__name__}, "
+            "expected an object with 'trades' or a list")
+    if not isinstance(trades, list):
+        raise SystemExit(
+            f"{args.trades_json}: 'trades' is {type(trades).__name__}, expected a list")
     result = run_audit(trades, run_date=args.run_date,
                        window_days=args.window_days)
     if not args.no_write:

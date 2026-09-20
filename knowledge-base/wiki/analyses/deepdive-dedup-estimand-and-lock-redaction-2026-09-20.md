@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (25 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (27 pins)
 
 ---
 
@@ -259,6 +259,22 @@ EUR_JPY **36/40** / ws3-t11 **22/30** と合わせ、3 本とも正本と一致�
 **同じ registry を読む 2 つ目の実装を書くときは、フィールド一覧ではなく
 正本の読み取りコードを仕様として読む。**
 
+### 2.3f レビュー第5波 (Codex P1 + P2×2) — 「検査不能を異常なしに畳まない」
+
+| 指摘 | 実査結果 | 修正 |
+|---|---|---|
+| **`triggers` の欠落/空を拒否せよ** | 正本 `load_registry_raw` は **root 非 dict / `triggers` キー欠落 (綴り違い候補を提示) / 非 list / 空** の 4 つを全て `RuntimeError` にする。本ツールは `.get("triggers", [])` のままで、`{"trigers": []}` も `{"triggers": []}` も**空台帳に畳んで全 LOCK を消して**いた | 正本の契約を 1:1 で移植 (綴り違いヒント込み)。🔴 **第3波で自分が書いた pin「空 registry は正当」は誤りだったので撤回** — 正本契約に反し、かつ fail-open そのものを pin していた |
+| **marker 除外にも LOCK の述語を適用せよ** | marker 除外が reasons 文字列一致のみで、`kind`/`since`/instrument/direction を見ていなかった。hourblock LOCK は **live 限定・2026-09-02 以降**だが marker は後段ゲートが shadow 化する前に付くので、**LOCK 外の shadow 行や `since` 前の行まで監査から削除**していた | `row_in_lock_population()` を**単一の真実**として抽出し、LOCK の N と marker 除外の**両方**がこれを使う |
+| **`trades` を欠く API 応答を拒否せよ** | `payload.get("trades", [])` がエラーオブジェクトを**空データセット**に畳み、`--no-write` なしだと「0 行・候補なし」の**もっともらしい週次レポートで上書き**していた | `trades` キーと list 性を検証し `SystemExit` (実測: エラーオブジェクトで exit 1) |
+
+🔴 **over-exclusion は leak の鏡像**。marker 除外の穴は P-10 的には「安全側」だが、
+**実在する観測を黙ってレポートから消す**という別の嘘を作っていた。
+片側 (漏れ) だけを見ていると、もう片側 (過剰削除) を見落とす。
+
+🔴 **fail-open クラスはこれで 3 度目** (読めない → 構造不正 → キー欠落/空)。
+**「検査不能を『異常なし』に畳まない」は 1 つの不変条件であって、
+入力形状ごとに個別対応する類のものではない** — 正本はこれを 1 箇所で表明していた。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -283,6 +299,10 @@ EUR_JPY **36/40** / ws3-t11 **22/30** と合わせ、3 本とも正本と一致�
    0.2 に保つ) ∧ `since` は marker LOCK にも効く ∧ 実 registry から marker LOCK が読める
 0c2e. **live LOCK の計数が重複行を無条件に除外** (dup 5 行を足しても 8 のまま)
 0c2f. **`active` 省略 = active** ∧ counter-pin: `active: false` は無効のまま
+0c2g. **`triggers` 欠落/綴り違い/空/list root で raise** ∧ 綴り違いヒントが near-miss キーを
+   名指しする ∧ counter-pin: 実 registry は読める
+0c2h. **marker 除外が LOCK の述語を守る** (live 限定 LOCK に対し shadow 行・`since` 前の行は
+   **削除されない**、除外は 1 行のみ・セル N は 22 のまま)
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

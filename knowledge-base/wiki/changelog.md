@@ -60,7 +60,23 @@
   watcher の `live N=2/10` と一致。EUR_JPY **36/40** / ws3-t11 **22/30** と合わせ 3 本とも一致
 - 🔴 **教訓: 同じ registry を読む 2 つ目の実装を書くときは、フィールド一覧ではなく
   正本の読み取りコードを仕様として読む**
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**25 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第5波 (Codex P1 + P2×2) — 「検査不能を異常なしに畳まない」の徹底**:
+  (k) **`triggers` の欠落/空を拒否** — 正本 `load_registry_raw` は root 非 dict / キー欠落 /
+  非 list / **空** の 4 つを全て拒否するのに、本ツールは `.get("triggers", [])` のままで
+  `{"trigers": []}` も `{"triggers": []}` も空台帳に畳んで全 LOCK を消していた。
+  正本契約を 1:1 移植 (綴り違いヒント込み)。🔴 **第3波で書いた pin「空 registry は正当」は
+  誤りにつき撤回** — 正本契約に反し fail-open 自体を pin していた
+  (l) **marker 除外にも LOCK の述語を適用** — reasons 文字列一致のみで `kind`/`since`/
+  instrument/direction を見ておらず、live 限定・`since` 後の hourblock LOCK に対し
+  **LOCK 外の shadow 行や `since` 前の行まで監査から削除**していた。
+  `row_in_lock_population()` を単一の真実として抽出し N と除外の両方で共用
+  (m) **`trades` を欠く API 応答を拒否** — エラーオブジェクトを空データセットに畳み、
+  「0 行・候補なし」の**もっともらしい週次レポートで上書き**していた (実測 exit 1)
+- 🔴 **over-exclusion は leak の鏡像** — P-10 的には安全側でも、実在する観測を黙って
+  レポートから消すという別の嘘。片側だけ見ているともう片側を見落とす
+- 🔴 **fail-open クラスはこれで 3 度目** (読めない → 構造不正 → キー欠落/空)。
+  **「検査不能を異常なしに畳まない」は 1 つの不変条件で、入力形状ごとの個別対応ではない**
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**27 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

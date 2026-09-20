@@ -26,6 +26,7 @@ from tools.cell_deepdive_audit import (
     load_locked_cells,
     lock_for_cell,
     lock_population_count,
+    row_in_lock_population,
     _entry_type_matches,
     run_audit,
     window_bounds,
@@ -406,15 +407,12 @@ def test_malformed_but_parseable_registry_fails_closed(tmp_path):
         with pytest.raises(LockRegistryUnavailable):
             load_locked_cells(f)
 
-    # Counter-pin: valid shapes still load, and an empty registry is legal.
+    # Counter-pin: a well-formed, non-empty registry still loads.
     ok = tmp_path / "ok.json"
     ok.write_text(json.dumps({"triggers": [
         {"id": "x", "active": True, "type": "shadow_count_decision",
          "entry_type": "foo"}]}))
     assert len(load_locked_cells(ok)) == 1
-    empty = tmp_path / "empty.json"
-    empty.write_text(json.dumps({"triggers": []}))
-    assert load_locked_cells(empty) == []
 
 
 def test_prefix_locks_cover_their_variant_family():
@@ -545,3 +543,82 @@ def test_entry_without_active_key_is_treated_as_active(tmp_path):
     ids = {lk["registry_id"] for lk in load_locked_cells(f)}
     assert "no-active-key" in ids, "omitted active must default to active"
     assert "explicitly-off" not in ids, "active: false must still deactivate"
+
+
+def test_missing_or_empty_triggers_ledger_fails_closed(tmp_path):
+    """KNOWN-NG INPUTS: a misspelled root key and an empty ledger.
+
+    `.get("triggers", [])` folds both into "no locks", which silently disables
+    every redaction.  The canonical load_registry_raw rejects both; this loader
+    must match (Codex P1, PR #273, 3rd instance of this fail-open class).
+
+    NOTE: an earlier revision of this file pinned "an empty registry is legal".
+    That pin was WRONG — it contradicted the canonical contract and asserted
+    exactly the fail-open state.  Corrected here.
+    """
+    for name, payload in [
+        ("typo_key", '{"trigers": []}'),
+        ("typo_key_nonempty", '{"trigers": [{"id": "a"}]}'),
+        ("empty_ledger", '{"triggers": []}'),
+        ("no_triggers_key", '{"other": 1}'),
+        ("list_root", '[{"id": "a"}]'),
+    ]:
+        f = tmp_path / f"{name}.json"
+        f.write_text(payload)
+        with pytest.raises(LockRegistryUnavailable):
+            load_locked_cells(f)
+
+    # The misspelling hint must name the near-miss key, or the operator cannot
+    # tell a typo from a genuinely absent ledger.
+    f = tmp_path / "hint.json"
+    f.write_text('{"trigers": []}')
+    with pytest.raises(LockRegistryUnavailable, match="trigers"):
+        load_locked_cells(f)
+
+    # Counter-pin: the real registry still loads.
+    assert load_locked_cells()
+
+
+def test_marker_exclusion_honours_the_locks_selectors():
+    """KNOWN-NG INPUT: marked rows OUTSIDE the marker lock's population.
+
+    The hourblock lock is live-only from 2026-09-02, but the marker is attached
+    before later gates can turn a trade into shadow.  Matching on the reasons
+    literal alone deleted shadow / pre-`since` rows from the audit although they
+    are not locked — over-exclusion is the mirror image of a leak (Codex P2,
+    PR #273).
+    """
+    lock = {"entry_type": None, "instrument": None, "direction": None,
+            "registry_id": "hourblock-class-exempt-r2-rollback", "match": "exact",
+            "kind": "live", "since": "2026-08-15", "closed_only": False,
+            "dedup_violation": None, "mode": None, "n_decide": 10,
+            "reasons_marker": "[HOURBLOCK_CLASS_EXEMPT]", "count_basis": None}
+
+    def marked(ts, **kw):
+        base = {"entry_type": "vsg_jpy_reversal", "instrument": "EUR_JPY",
+                "direction": "SELL", "outcome": "WIN", "pnl_pips": 1.0,
+                "dedup_violation": 0, "is_shadow": 0, "status": "CLOSED",
+                "oanda_trade_id": "5", "mode": "daytrade",
+                "reasons": ["[HOURBLOCK_CLASS_EXEMPT]"], "entry_time": ts}
+        base.update(kw)
+        return base
+
+    inside = marked("2026-08-20T02:00:00")
+    shadow_row = marked("2026-08-20T02:00:00", oanda_trade_id="")   # not live
+    too_early = marked("2026-08-01T02:00:00")                        # before since
+
+    assert row_in_lock_population(inside, lock) is True
+    assert row_in_lock_population(shadow_row, lock) is False, (
+        "a shadow row carrying the marker is not in a live-only LOCK")
+    assert row_in_lock_population(too_early, lock) is False, (
+        "a pre-`since` row carrying the marker is not locked yet")
+
+    plain = _rows("vsg_jpy_reversal", "EUR_JPY", "SELL", 20, wins=4)
+    res = run_audit(plain + [inside, shadow_row, too_early],
+                    run_date="2026-09-20", targets=("vsg_jpy_reversal",),
+                    locked_cells=[lock])
+    assert res["prereg_lock_redaction"]["marker_locked_rows_excluded"] == 1, (
+        "only the row actually inside the LOCK population may be removed")
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["vsg_jpy_reversal", "EUR_JPY", "SELL"]][0]
+    assert rec["n"] == 22, "the two unlocked marked rows must stay in the audit"
