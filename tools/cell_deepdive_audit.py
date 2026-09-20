@@ -15,7 +15,9 @@ repo it had no tests, and two defects survived undetected:
    stats is exactly the optional-stopping peek the LOCK exists to prevent.
    The 2026-09-20 run flagged the conflict in prose ("weekly deepdive が毎週
    再計算しており、ツール自体が LOCK と構造的に衝突") but still printed the
-   numbers.  This module redacts them instead.
+   numbers.  This module checks the lock **before** any statistic is computed,
+   so a LOCKed cell yields a count-only record and no outcome helper ever runs
+   for it — P-10 bans recomputation, not merely publication.
 
 2. **dedup exclusion rate presented as the cause of N starvation.**  Falsified
    2026-09-20: ``dedup_violation=1`` marks *redundant tick-level re-emits of
@@ -140,6 +142,17 @@ def wf_stable(rows: list):
 
 # ── pre-reg LOCK redaction ────────────────────────────────────────────────
 
+class LockRegistryUnavailable(RuntimeError):
+    """The pre-reg LOCK registry could not be read.
+
+    This MUST abort the audit.  Registry loading is the only thing standing
+    between this tool and a P-10 disclosure, so a missing/corrupt registry has
+    to fail **closed** — returning an empty lock list would silently disable
+    every LOCK and publish exactly the statistics this module exists to
+    suppress (Codex P1, PR #273).
+    """
+
+
 def load_locked_cells(registry_path=None) -> list:
     """Return active pre-reg LOCKed cells as (entry_type, instrument, direction).
 
@@ -147,16 +160,22 @@ def load_locked_cells(registry_path=None) -> list:
     every pair / both directions of that strategy).
 
     Only ``*_count_decision`` entries are redacted: those carry a verdict rule
-    evaluated once at a declared N, so republishing their outcome statistics is
+    evaluated once at a declared N, so recomputing their outcome statistics is
     an optional-stopping peek.  ``*_count_info`` entries are frequency monitors
     with no outcome gate and are left alone.
+
+    Raises:
+        LockRegistryUnavailable: if the registry is missing or unparseable.
     """
     path = Path(registry_path) if registry_path else REGISTRY_PATH
     try:
         with open(path) as f:
             payload = json.load(f)
-    except (OSError, ValueError):
-        return []
+    except (OSError, ValueError) as exc:
+        raise LockRegistryUnavailable(
+            f"pre-reg LOCK registry unreadable ({path}): {exc}. "
+            "Refusing to run — an unguarded audit would publish LOCKed cells."
+        ) from exc
     entries = payload if isinstance(payload, list) else payload.get("triggers", [])
     locked = []
     for e in entries:
@@ -198,13 +217,23 @@ def lock_for_cell(entry_type, instrument, direction, locked_cells) -> dict | Non
     return None
 
 
-def redact(rec: dict, lock: dict) -> dict:
-    """Strip outcome statistics, keeping only the count the trigger needs."""
-    out = {k: v for k, v in rec.items() if k not in REDACTED_FIELDS}
-    out["redacted"] = True
-    out["redaction_reason"] = "prereg_lock_p10_no_intermediate_recompute"
-    out["redaction_registry_id"] = lock.get("registry_id")
-    return out
+def count_only_record(level, key, n: int, lock: dict) -> dict:
+    """Build a LOCKed cell's record WITHOUT computing any outcome statistic.
+
+    P-10 forbids *recomputation*, not merely publication, so no
+    outcome-statistics helper (``cell_stats`` / ``wf_stable`` / Bonferroni) may
+    run for a LOCKed cell at all — redacting an already-computed dict would
+    only prevent serialization (Codex P1, PR #273).  ``n`` is a row count, not
+    an outcome statistic, and the trigger needs it.
+    """
+    return {
+        "level": level,
+        "cell": list(key),
+        "n": n,
+        "redacted": True,
+        "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
+        "redaction_registry_id": lock.get("registry_id"),
+    }
 
 
 # ── row shaping ───────────────────────────────────────────────────────────
@@ -317,16 +346,35 @@ def unique_accrual(target_all: list, targets, as_of: str) -> dict:
 
 # ── main audit ────────────────────────────────────────────────────────────
 
+def window_bounds(run_date: str, window_days: int):
+    """Half-open [lo, hi) ISO bounds for the audit window ending at run_date.
+
+    The report advertises a 365-day window; without this the input was filtered
+    only by strategy and XAU, so once PROD holds >1y of history — or when
+    rerunning an older run_date against a current snapshot — stale and even
+    post-run rows would change N, multiplicity and candidates while the report
+    still claimed 365d (Codex P2, PR #273).
+    """
+    run_d = datetime.fromisoformat(run_date).date()
+    # hi is exclusive and set to the day AFTER run_date, so rows stamped on
+    # run_date itself are included (a run executed mid-day must not silently
+    # drop that day's rows) while post-run rows are excluded.
+    return (run_d - timedelta(days=window_days)).isoformat(), (
+        run_d + timedelta(days=1)).isoformat()
+
+
 def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
-              min_n=MIN_N):
+              min_n=MIN_N, window_days=365):
     """Pure function: trades (list of dicts) -> result dict.  No I/O."""
     if locked_cells is None:
         locked_cells = load_locked_cells()
     targets = tuple(targets)
 
+    win_lo, win_hi = window_bounds(run_date, window_days)
     target_all = [t for t in trades
                   if t.get("entry_type") in targets
-                  and "XAU" not in (t.get("instrument") or "")]
+                  and "XAU" not in (t.get("instrument") or "")
+                  and win_lo <= _ts(t)[:10] < win_hi]
 
     dedup_excl = sum(1 for t in target_all if t.get("dedup_violation") == 1)
     non_wl = sum(1 for t in target_all
@@ -354,12 +402,26 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
 
     shadow_n = sum(1 for r in clean if r["is_shadow"])
 
+    # Strategy-level aggregate: LOCKed rows are removed BEFORE aggregating.
+    #
+    # The original design exempted strict super-sets ("a strategy aggregate
+    # spans other pairs, so it is a different estimand").  That is only true
+    # when other pairs actually have rows — if every row of a strategy belongs
+    # to the LOCKed cell, the "aggregate" IS the LOCKed cell and leaks it.  The
+    # leak condition is data-dependent, i.e. exactly the kind that breaks
+    # silently.  Excluding LOCKed rows makes the aggregate unconditionally a
+    # different estimand (all non-LOCKed cells of that strategy).
     strat_summary = {}
     for s in targets:
         raw = sum(1 for t in target_all if t.get("entry_type") == s)
-        rows = [r for r in clean if r["entry_type"] == s]
+        s_rows = [r for r in clean if r["entry_type"] == s]
+        rows = [r for r in s_rows
+                if lock_for_cell(s, r["instrument"], r["direction"],
+                                 locked_cells) is None]
+        locked_excluded = len(s_rows) - len(rows)
         if not rows:
-            strat_summary[s] = {"raw": raw, "clean_N": 0}
+            strat_summary[s] = {"raw": raw, "clean_N": 0,
+                                "locked_rows_excluded": locked_excluded}
             continue
         st = cell_stats(rows)
         strat_summary[s] = {
@@ -367,6 +429,7 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             "wilson_lo": round(st["wilson_lo"], 3),
             "EV_net_pips": round(st["ev"], 2),
             "PF": round(st["pf"], 2) if st["pf"] != float("inf") else None,
+            "locked_rows_excluded": locked_excluded,
         }
 
     def build_cells(keyfn):
@@ -388,6 +451,12 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
         for k, rows in cells.items():
             entry_type, instrument = k[0], k[1]
             direction = k[-1]
+            # LOCK check comes FIRST: for a LOCKed cell no outcome statistic is
+            # computed at all (P-10 bans recomputation, not just publication).
+            lock = lock_for_cell(entry_type, instrument, direction, locked_cells)
+            if lock is not None:
+                out.append(count_only_record(level, k, len(rows), lock))
+                continue
             st = cell_stats(rows)
             p_bonf = min(1.0, st["p_raw"] * m) if m > 0 else 1.0
             rec = {
@@ -403,9 +472,6 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                              and p_bonf < PROMO_BONF_ALPHA),
                 "redacted": False,
             }
-            lock = lock_for_cell(entry_type, instrument, direction, locked_cells)
-            if lock is not None:
-                rec = redact(rec, lock)
             out.append(rec)
         out.sort(key=lambda x: (x.get("redacted", False), -x.get("wilson_lo", 0.0)))
         return out
@@ -429,10 +495,13 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                 "cell_edge_audit.py v2/v3 methodology against Render PROD API)",
         "data_source": "https://fx-ai-trader.onrender.com/api/demo/trades (PROD) "
                        "— LOCAL demo_trades.db is STALE",
-        "window": f"365d (data span {span_lo} -> {span_hi})",
+        "window": f"{window_days}d enforced [{win_lo}, {win_hi}) "
+                  f"(data span {span_lo} -> {span_hi})",
         "scope": f"Live + Shadow ({shadow_n}/{len(clean)} clean rows are shadow)",
         "filters": {"exclude_xau": True, "exclude_dedup_violation": True,
-                    "outcome_in": ["WIN", "LOSS"]},
+                    "outcome_in": ["WIN", "LOSS"],
+                    "window_days": window_days,
+                    "entry_time_ge": win_lo, "entry_time_lt": win_hi},
         "prereg_lock_redaction": {
             "locked_cells": locked_cells,
             "redacted_cell_count": len(redacted_cells),
@@ -441,8 +510,9 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                  "registry_id": c.get("redaction_registry_id")}
                 for c in redacted_cells
             ],
-            "note": "outcome statistics suppressed — P-10 (no intermediate "
-                    "recomputation until the declared N is reached)",
+            "note": "outcome statistics NOT COMPUTED for these cells — P-10 "
+                    "(no intermediate recomputation until the declared N is "
+                    "reached); the lock is checked before any statistic runs",
         },
         "meta": {
             "prod_trades_fetched": len(trades),
@@ -472,6 +542,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--run-date", default=datetime.now(timezone.utc).date().isoformat())
     p.add_argument("--out-dir", default=None,
                    help="default: knowledge-base/raw/cell_deepdive/<run-date>")
+    p.add_argument("--window-days", type=int, default=365,
+                   help="audit window length ending at --run-date (default 365)")
     p.add_argument("--no-write", action="store_true", help="print only")
     return p
 
@@ -481,7 +553,8 @@ def main(argv=None) -> int:
     with open(args.trades_json) as f:
         payload = json.load(f)
     trades = payload.get("trades", []) if isinstance(payload, dict) else payload
-    result = run_audit(trades, run_date=args.run_date)
+    result = run_audit(trades, run_date=args.run_date,
+                       window_days=args.window_days)
     if not args.no_write:
         out_dir = args.out_dir or str(
             PROJECT_ROOT / "knowledge-base" / "raw" / "cell_deepdive" / args.run_date)

@@ -2,7 +2,7 @@
   "run_date": "2026-09-20",
   "tool": "tools/cell_deepdive_audit.py (in-repo since 2026-09-20; cell_edge_audit.py v2/v3 methodology against Render PROD API)",
   "data_source": "https://fx-ai-trader.onrender.com/api/demo/trades (PROD) \u2014 LOCAL demo_trades.db is STALE",
-  "window": "365d (data span 2026-04-28T08:03:43 -> 2026-09-18T14:52:18)",
+  "window": "365d enforced [2025-09-20, 2026-09-21) (data span 2026-04-28T08:03:43 -> 2026-09-18T14:52:18)",
   "scope": "Live + Shadow (371/385 clean rows are shadow)",
   "filters": {
     "exclude_xau": true,
@@ -10,7 +10,10 @@
     "outcome_in": [
       "WIN",
       "LOSS"
-    ]
+    ],
+    "window_days": 365,
+    "entry_time_ge": "2025-09-20",
+    "entry_time_lt": "2026-09-21"
   },
   "prereg_lock_redaction": {
     "locked_cells": [
@@ -103,7 +106,7 @@
         "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
       }
     ],
-    "note": "outcome statistics suppressed \u2014 P-10 (no intermediate recomputation until the declared N is reached)"
+    "note": "outcome statistics NOT COMPUTED for these cells \u2014 P-10 (no intermediate recomputation until the declared N is reached); the lock is checked before any statistic runs"
   },
   "meta": {
     "prod_trades_fetched": 18057,
@@ -485,11 +488,12 @@
   "target_strategies": {
     "sr_anti_hunt_bounce": {
       "raw": 462,
-      "clean_N": 247,
-      "WR": 0.538,
-      "wilson_lo": 0.476,
-      "EV_net_pips": -1.92,
-      "PF": 0.63
+      "clean_N": 135,
+      "WR": 0.519,
+      "wilson_lo": 0.435,
+      "EV_net_pips": -4.27,
+      "PF": 0.37,
+      "locked_rows_excluded": 112
     },
     "sr_liquidity_grab": {
       "raw": 4,
@@ -497,11 +501,13 @@
       "WR": 1.0,
       "wilson_lo": 0.342,
       "EV_net_pips": 1.95,
-      "PF": null
+      "PF": null,
+      "locked_rows_excluded": 0
     },
     "cpd_divergence": {
       "raw": 0,
-      "clean_N": 0
+      "clean_N": 0,
+      "locked_rows_excluded": 0
     },
     "vdr_jpy": {
       "raw": 44,
@@ -509,7 +515,8 @@
       "WR": 0.63,
       "wilson_lo": 0.442,
       "EV_net_pips": 1.64,
-      "PF": 1.23
+      "PF": 1.23,
+      "locked_rows_excluded": 0
     },
     "vsg_jpy_reversal": {
       "raw": 84,
@@ -517,7 +524,8 @@
       "WR": 0.673,
       "wilson_lo": 0.541,
       "EV_net_pips": 0.77,
-      "PF": 1.17
+      "PF": 1.17,
+      "locked_rows_excluded": 0
     },
     "rsk_gbpjpy_reversion": {
       "raw": 152,
@@ -525,7 +533,8 @@
       "WR": 0.521,
       "wilson_lo": 0.383,
       "EV_net_pips": -3.73,
-      "PF": 0.53
+      "PF": 0.53,
+      "locked_rows_excluded": 0
     },
     "mqe_gbpusd_fix": {
       "raw": 88,
@@ -533,7 +542,8 @@
       "WR": 0.667,
       "wilson_lo": 0.3,
       "EV_net_pips": 5.85,
-      "PF": 2.53
+      "PF": 2.53,
+      "locked_rows_excluded": 0
     }
   }
 }

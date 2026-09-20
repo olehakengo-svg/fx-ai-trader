@@ -17,13 +17,16 @@ import json
 
 import pytest
 
+import tools.cell_deepdive_audit as cda
 from tools.cell_deepdive_audit import (
     DEDUP_GATE_FIX_TS,
     REDACTED_FIELDS,
+    LockRegistryUnavailable,
     dedup_era_breakdown,
     load_locked_cells,
     lock_for_cell,
     run_audit,
+    window_bounds,
 )
 
 LOCKED = [
@@ -178,3 +181,142 @@ def test_dedup_gate_fix_timestamp_matches_the_backfill_cutoff():
     from modules.demo_db import DemoDB
 
     assert DemoDB._DEDUP_BACKFILL_CUTOFF.startswith(DEDUP_GATE_FIX_TS)
+
+
+# ── 3. Codex P1/P2 (PR #273) ──────────────────────────────────────────────
+
+def test_no_outcome_statistic_is_computed_for_a_locked_cell(monkeypatch):
+    """P-10 bans RECOMPUTATION, not just publication (Codex P1).
+
+    Redacting an already-computed dict would still have run the forbidden
+    calculation.  This pins the stronger property: for a LOCKed cell the
+    outcome-statistics helpers are never invoked at all.
+    """
+    calls = []
+
+    def spy_cell_stats(rows):
+        calls.append(("cell_stats", len(rows)))
+        raise AssertionError("cell_stats ran for a LOCKed cell")
+
+    def spy_wf(rows):
+        calls.append(("wf_stable", len(rows)))
+        raise AssertionError("wf_stable ran for a LOCKed cell")
+
+    monkeypatch.setattr(cda, "cell_stats", spy_cell_stats)
+    monkeypatch.setattr(cda, "wf_stable", spy_wf)
+
+    trades = _rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 40, wins=36)
+    # Only LOCKed cells present -> no helper may run, so this must not raise.
+    res = run_audit(trades, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",), locked_cells=LOCKED)
+    assert calls == [], f"outcome helpers ran for a LOCKed cell: {calls}"
+
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec["redacted"] is True and rec["n"] == 40
+
+
+def test_outcome_statistics_still_run_for_unlocked_cells(monkeypatch):
+    """Counter-pin: the skip must be lock-scoped, not a global disable."""
+    seen = []
+    real = cda.cell_stats
+    monkeypatch.setattr(
+        cda, "cell_stats", lambda rows: (seen.append(len(rows)), real(rows))[1])
+
+    trades = _rows("vsg_jpy_reversal", "EUR_JPY", "SELL", 40, wins=36)
+    run_audit(trades, run_date="2026-09-20",
+              targets=("vsg_jpy_reversal",), locked_cells=LOCKED)
+    assert seen, "cell_stats must still run for cells that are not LOCKed"
+
+
+def test_unreadable_registry_fails_closed(tmp_path):
+    """KNOWN-NG INPUT: a corrupt registry must abort, not silently unlock.
+
+    Returning [] here would disable every LOCK and publish exactly what this
+    module exists to suppress (Codex P1).
+    """
+    missing = tmp_path / "does_not_exist.json"
+    with pytest.raises(LockRegistryUnavailable):
+        load_locked_cells(missing)
+
+    corrupt = tmp_path / "corrupt.json"
+    corrupt.write_text("{not json")
+    with pytest.raises(LockRegistryUnavailable):
+        load_locked_cells(corrupt)
+
+    # Counter-pin: a well-formed registry still loads.
+    ok = tmp_path / "ok.json"
+    ok.write_text(json.dumps({"triggers": [
+        {"id": "x", "active": True, "type": "shadow_count_decision",
+         "entry_type": "foo", "instrument": "EUR_JPY", "direction": "BUY"}]}))
+    assert len(load_locked_cells(ok)) == 1
+
+
+def test_run_audit_propagates_registry_failure(monkeypatch):
+    """The abort must reach run_audit — not be swallowed into an empty list."""
+    def boom(*a, **k):
+        raise LockRegistryUnavailable("registry gone")
+
+    monkeypatch.setattr(cda, "load_locked_cells", boom)
+    with pytest.raises(LockRegistryUnavailable):
+        run_audit(_rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 40, wins=36),
+                  run_date="2026-09-20", targets=("sr_anti_hunt_bounce",))
+
+
+def test_window_is_enforced_not_merely_advertised():
+    """KNOWN-NG INPUT: rows outside the advertised 365d window (Codex P2).
+
+    Before the fix the input was filtered only by strategy/XAU, so stale and
+    post-run rows silently changed N and multiplicity while the report still
+    claimed 365d.
+    """
+    inside = _rows("vsg_jpy_reversal", "EUR_JPY", "SELL", 25, wins=20)
+    stale = [dict(r, entry_time="2024-01-15T02:00:00") for r in inside[:10]]
+    future = [dict(r, entry_time="2027-01-15T02:00:00") for r in inside[:10]]
+
+    res = run_audit(inside + stale + future, run_date="2026-09-20",
+                    targets=("vsg_jpy_reversal",), locked_cells=LOCKED)
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["vsg_jpy_reversal", "EUR_JPY", "SELL"]][0]
+    assert rec["n"] == 25, "stale/post-run rows must not enter the window"
+    assert res["meta"]["target_rows_raw"] == 25
+    assert res["filters"]["window_days"] == 365
+    assert res["filters"]["entry_time_ge"] == "2025-09-20"
+    assert res["filters"]["entry_time_lt"] == "2026-09-21"
+
+
+def test_window_includes_run_date_itself():
+    """A run executed mid-day must not drop that day's rows."""
+    lo, hi = window_bounds("2026-09-20", 365)
+    assert lo == "2025-09-20"
+    assert hi == "2026-09-21"
+    assert lo <= "2026-09-20" < hi
+
+
+def test_strategy_aggregate_excludes_locked_rows():
+    """A strategy aggregate must never BE the LOCKed cell.
+
+    KNOWN-NG INPUT: a strategy whose only rows belong to the LOCKed cell.  The
+    original "strict super-sets are a different estimand" exemption held only
+    when other pairs had rows, so the leak was data-dependent.
+    """
+    trades = _rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 40, wins=36)
+    res = run_audit(trades, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",), locked_cells=LOCKED)
+    summ = res["target_strategies"]["sr_anti_hunt_bounce"]
+    assert summ["clean_N"] == 0, "every row was LOCKed — nothing may aggregate"
+    assert summ["locked_rows_excluded"] == 40
+    assert "WR" not in summ and "EV_net_pips" not in summ
+
+
+def test_strategy_aggregate_keeps_unlocked_rows_only():
+    """Counter-pin: unlocked pairs of the same strategy still aggregate."""
+    trades = (_rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 40, wins=40)
+              + _rows("sr_anti_hunt_bounce", "GBP_JPY", "BUY", 20, wins=5))
+    res = run_audit(trades, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",), locked_cells=LOCKED)
+    summ = res["target_strategies"]["sr_anti_hunt_bounce"]
+    assert summ["clean_N"] == 20, "only the unlocked GBP_JPY rows"
+    assert summ["locked_rows_excluded"] == 40
+    # 5/20 = 0.25 — if the LOCKed 40 WINs had leaked in, WR would be 45/60.
+    assert summ["WR"] == pytest.approx(0.25)

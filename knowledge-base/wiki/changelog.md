@@ -12,7 +12,19 @@
 - 🔴 **開示 (P-10 抵触)**: 上記の計数照合中に Claude が本セル fresh 行の WIN/LOSS 内訳を **1 回観測**。これにより計数基準の確定は Claude 単独では中立でない ⇒ **user 決裁へ**。ただし**重大なのは本観測ではなく 5 週の systematic exposure の方**
 - **user 決裁点 2 件を registry へ追加 (いずれも期日 2026-10-12 = 本体トリガ ETA 2026-10 中旬の手前)**: `sr-anti-hunt-eurjpy-count-basis-declaration` (BREAKEVEN の扱い — **決め方は ② の分母定義との整合のみで行い outcome から優劣を判断しない**) / `sr-anti-hunt-eurjpy-lock-validity-disposition` (5 週露出を受けて凍結 α のまま判定してよいか)。**期日を超過して N≥40 が先に来た場合、判定は確定まで保留**
 - ⚠️ **引用規律**: 本セルの今後の verdict を引用する際は 5 週の optional stopping 露出を必ず併記する。露出を伏せた「Bonferroni 通過」型の引用は禁止
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (8 本): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **connector レビュー対応 (Codex P1×2 / P2×1、PR #273) — 3 件とも妥当につき修正**:
+  (a) **LOCK 判定を統計計算の前に**移動 — 禁じられているのは「**再計算**」であって印字ではない。
+  該当セルは `cell_stats`/`wf_stable`/Bonferroni を一切呼ばず `n` だけの record を作る
+  (b) **registry 読み込み失敗を fail-closed 化** (`LockRegistryUnavailable`) — 旧実装は `[]` を
+  返し**全 LOCK を黙って無効化**していた
+  (c) **365d 窓を実際に適用** — 旧実装は `run_date` と比較せず「365d 監査」を名乗っていた
+- 🔵 **(a) の pin (spy) が自分では見つけていなかった leak を 1 件露出**: **戦略レベル集計**が
+  落ちた。「strict な super-set は別 estimand」の免除は**他ペアに行があるときだけ**成立し、
+  ある戦略の行が全て LOCK セルに属すれば「集計」は **LOCK セルそのもの**になる
+  (**leak 条件がデータ依存** = 静かに壊れる型)。⇒ 集計前に LOCK 行を除外し
+  `locked_rows_excluded` を併記。`sr_anti_hunt_bounce` の集計 clean_N 247 → **135**。
+  meta 計数は不変 (窓 filter は現データで no-op) で移植の忠実性の主張は維持
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**16 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

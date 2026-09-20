@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (8 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (16 pins)
 
 ---
 
@@ -184,6 +184,29 @@ OOS 窓を切り直す (= N 蓄積やり直し、時間コスト大) (c) 判定�
 `candidates` は 1 → **0** になった。meta 計数 (raw 834 / dedup 427 / non-WL 22 / clean 385 /
 m_v2 7 / m_v3 1) は ad-hoc 版と完全一致 = 移植は忠実。
 
+### 2.3b レビュー指摘による硬化 (Codex P1×2 / P2×1、PR #273)
+
+初版の redaction は **「計算してから出力で隠す」** 実装だった。connector レビューが
+これを含む 3 件を指摘し、いずれも妥当だったので修正した。
+
+| # | 指摘 | なぜ妥当か | 修正 |
+|---|---|---|---|
+| P1 | **LOCK 判定を統計計算の前に行え** | pre-reg が禁じているのは「**再計算**」であって印字ではない。dict を作ってから削るのでは、禁止された計算自体は走っている | `eval_cells` で LOCK を**先に**判定し、該当セルは `cell_stats` / `wf_stable` / Bonferroni を**一切呼ばず** `n` だけの record を作る |
+| P1 | **registry 読み込み失敗時は fail-closed に** | 旧実装は `except` で `[]` を返しており、registry が欠損/破損すると**全 LOCK が黙って無効化**され、まさに抑止対象の統計を公表していた | `LockRegistryUnavailable` を送出して監査を中断 |
+| P2 | **365d 窓を実際に適用せよ** | 入力は戦略と XAU でしか絞られておらず、`run_date` との比較が無いまま「365d 監査」を名乗っていた。PROD が 1 年を超えたら/過去日付で再実行したら、stale 行や run 後の行が N・多重度・候補を変えるのにレポートは 365d と主張し続ける | `[run_date−365d, run_date+1d)` で `entry_time` を実際に filter し、適用窓を `window`/`filters` に出力 |
+
+🔵 **P1 修正の副産物として、自分では見つけていなかった leak が 1 件出た** —
+「LOCK セルの統計を一切計算しない」を spy で pin したところ、**戦略レベル集計**
+(`target_strategies`) が落ちた。初版は「strict な super-set は別 estimand だから対象外」
+と文書化していたが、**それが成り立つのは他ペアに行が存在するときだけ**で、
+ある戦略の行が全て LOCK セルに属する場合その「集計」は **LOCK セルそのもの**になる。
+**leak 条件がデータ依存** = 静かに壊れる型。⇒ 集計前に LOCK 行を除外し
+(`locked_rows_excluded` を併記)、集計を**無条件に**別 estimand にした。
+
+実測への影響: meta 計数は不変 (現データは全て 365d 窓内のため filter は no-op) で
+**移植の忠実性の主張は維持**。`sr_anti_hunt_bounce` の戦略集計は
+LOCK 行 112 を除外して clean_N 247 → **135** になった。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -191,6 +214,13 @@ m_v2 7 / m_v3 1) は ad-hoc 版と完全一致 = 移植は忠実。
 すべて**非 redaction の counter-pin と対**にした (全部 redact する実装・何も redact しない実装の
 双方が落ちる):
 
+0. **LOCK セルでは outcome ヘルパが 1 度も呼ばれない** (spy で `cell_stats`/`wf_stable`
+   を差し替え) ∧ counter-pin: 非 LOCK セルでは呼ばれる
+0b. **registry 欠損/破損 → `LockRegistryUnavailable` 送出** ∧ counter-pin: 正常 registry は読める
+   ∧ `run_audit` まで伝播する
+0c. **窓外 (2024 の stale / 2027 の post-run) 行は N・多重度に入らない** ∧ `run_date` 当日は入る
+0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:
+   非 LOCK ペアは集計される (LOCK の 40 WIN が混入すれば WR が 0.25 でなくなる)
 1. LOCK セル (WR 90% の派手な fixture) → outcome 全欠落 ∧ `n` 生存
 2. 非 LOCK セル (同じ fixture) → outcome 全生存
 3. LOCK セルの session sub-cell → redact ∧ `candidates == []`
