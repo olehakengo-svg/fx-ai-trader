@@ -491,7 +491,12 @@ def unique_accrual(target_all: list, targets, as_of: str) -> dict:
                       "unique_per_week_90d": 0.0, "last_unique_fire": None}
             continue
         stamps.sort()
-        c = lambda d: sum(1 for x in stamps if x >= asof_dt - timedelta(days=d))
+        # d - 1: an INCLUSIVE calendar window ending on as_of spans exactly d
+        # days.  `days=d` counted d+1 (2026-06-22..2026-09-20 = 91 for d=90)
+        # and inflated the accrual rates used to diagnose signal starvation
+        # (Codex P2, PR #273).  Mirrors window_bounds().
+        c = lambda d: sum(1 for x in stamps
+                          if x >= asof_dt - timedelta(days=d - 1))
         out[s] = {
             "unique_365d": c(365),
             "unique_90d": c(90),
@@ -663,6 +668,14 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
     # multiplicity correction we take the conservative direction.
     m_v2 = len(v2_elig) + len(locked_v2_elig)
     m_v3 = len(v3_elig) + len(locked_v3_elig)
+    # Bonferroni is applied over ONE exploration family, v2 ∪ v3.  Correcting
+    # each grid separately let a lone v3 sub-cell pass with almost no penalty
+    # (m_v3 = 1 ⇒ p_bonf = p_raw) even though the combined family rejects it —
+    # which is exactly how the Tokyo sub-cell appeared as a "candidate" for 4
+    # consecutive weeks.  The 2026-09-20 report had already identified v2 ∪ v3
+    # (m = 8, p_bonf = 0.0720, FAIL) as the applicable family in prose while
+    # the harness kept the per-grid split (Codex P1, PR #273).
+    m_family = m_v2 + m_v3
 
     def eval_cells(cells, m, level):
         out = []
@@ -699,13 +712,13 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                 lock_population_n=lock_population_count(trades, lock)))
         return out
 
-    v2_eval = eval_cells(v2_elig, m_v2, "v2") + locked_records(locked_v2_elig, "v2")
-    v3_eval = eval_cells(v3_elig, m_v3, "v3") + locked_records(locked_v3_elig, "v3")
+    v2_eval = eval_cells(v2_elig, m_family, "v2") + locked_records(locked_v2_elig, "v2")
+    v3_eval = eval_cells(v3_elig, m_family, "v3") + locked_records(locked_v3_elig, "v3")
     candidates = [c for c in (v2_eval + v3_eval) if c.get("promoted")]
     redacted_cells = [c for c in (v2_eval + v3_eval) if c.get("redacted")]
 
     near = eval_cells({k: v for k, v in v2.items() if len(v) >= 5},
-                      max(1, m_v2), "v2_all")
+                      max(1, m_family), "v2_all")
     near = [c for c in near
             if not c.get("redacted") and c.get("ev_net") and c["ev_net"] > 0][:8]
 
@@ -758,6 +771,7 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             "min_n": min_n,
             "m_global_v2": m_v2,
             "m_global_v3": m_v3,
+            "m_family_v2_union_v3": m_family,
             "candidates": len(candidates),
         },
         "dedup_era_breakdown": dedup_era_breakdown(target_all, targets),

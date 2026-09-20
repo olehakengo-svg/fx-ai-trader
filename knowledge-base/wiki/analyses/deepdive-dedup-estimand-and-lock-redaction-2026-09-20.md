@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (32 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (34 pins)
 
 ---
 
@@ -99,10 +99,10 @@ tf は全戦略 15m で窓と整合 (over-flagging を起こす tf 誤指定は�
 
 | strategy | unique 365d | 90d | 30d | **unique/週 (90d)** | 最終 unique 発火 |
 |---|---:|---:|---:|---:|---|
-| sr_anti_hunt_bounce | 267 | 173 | 30 | **13.46** | 2026-09-18T00:00 |
+| sr_anti_hunt_bounce | 267 | 170 | 27 | **13.22** | 2026-09-18T00:00 |
 | rsk_gbpjpy_reversion | 48 | 33 | 10 | 2.57 | 2026-09-15T21:31 |
 | vsg_jpy_reversal | 56 | 32 | 13 | 2.49 | 2026-09-18T03:07 |
-| vdr_jpy | 28 | 20 | 3 | 1.56 | 2026-09-18T14:52 |
+| vdr_jpy | 28 | 19 | 3 | 1.48 | 2026-09-18T14:52 |
 | mqe_gbpusd_fix | 6 | 1 | 1 | **0.08** | 2026-08-28T15:31 |
 | sr_liquidity_grab | 2 | 2 | 0 | 0.16 | 2026-08-07T13:19 |
 | cpd_divergence | 0 | 0 | 0 | 0.00 | — |
@@ -313,6 +313,25 @@ EV −4.27 / PF 0.37 は不変) と `m_v2` = 7 / `m_v3` = 1 / `candidates` = 0�
 直接 assert する。本 PR が主張している性質そのもので、フィールドが増えても自動で守られる
 (lesson: *pin は構文でなく性質で書く* [[lesson_validity_check_pins_proxy_2026_09_02]])。
 
+### 2.3i レビュー第8波 (Codex P1 + P2) — 多重度族の分割 (統計的欠陥)
+
+| 指摘 | 実態 | 修正 |
+|---|---|---|
+| **v2 と v3 を 1 つの多重度族で補正せよ** | `m_v2` と `m_v3` を別々に当てて結果を `candidates` に merge していたため、**単独の v3 sub-cell が多重度ペナルティをほぼ受けずに通る** (`m_v3=1` ⇒ `p_bonf = p_raw`)。レビューの数値例: N=20/15勝 は Wilson_lo 0.531・`p_raw≈0.025` で **promote されるが、v2 7 セルを含む族なら `p_bonf≈0.203` で FAIL**。🔴 **これが Tokyo sub-cell が 4 週連続「候補」に出ていた機構**であり、**2026-09-20 レポートは本文で「探索族を v2∪v3 (m=8) で取れば p_bonf=0.0720 → FAIL」と正しく書きながら、ハーネスは分割のままだった** | `m_family = m_v2 + m_v3` を単一の族として両グリッドに適用 (実測 **m_family = 8** = レポート本文と一致)。`m_family_v2_union_v3` を meta に出力 |
+| **accrual の窓を名乗った長さに揃えよ** | `x >= as_of − d 日` は両端を含んで **d+1 日**を数えていた (d=90 で 2026-06-22〜09-20 = 91 日)。**signal 枯渇の診断に使う accrual rate を過大に出す** | `d − 1` を引いて inclusive で厳密に d 日に (`window_bounds` と同じ規約) |
+
+**実測の変化** (本 doc §1.5 の表・changelog・週次レポートの引用値も同コミットで訂正):
+`sr_anti_hunt_bounce` 90d 173→**170** / 13.46→**13.22 本/週**、
+`vdr_jpy` 90d 20→**19** / 1.56→**1.48**。
+**`mqe_gbpusd_fix` の 0.08 本/週 は不変** — §1.4 の結論 (真因は発火枯渇) に影響なし。
+訂正は行アンカー完全一致 + 出現回数の事前表明 + `--word-diff` 全数照合で実施
+([[feedback_scoped_edits_no_global_replace_2026_09_18]])。
+
+🔴 **本 PR で最も statistically 重い指摘**。他の指摘が「漏れ/fail-open」だったのに対し、
+これは **promote 判定そのものを甘くする**欠陥で、危険の向きは偽陽性。
+しかも **レポート本文は正しい族を書いていた** — 「文章では正しく、コードでは違う」の
+3 例目 (§2.1 の LOCK 衝突認識、§2.3e の正本契約、本項)。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -347,6 +366,10 @@ EV −4.27 / PF 0.37 は不変) と `m_v2` = 7 / `m_v3` = 1 / `candidates` = 0�
    正常エントリは通る
 0c2k. 🔑 **LOCK 行の outcome を反転してもレポート JSON 全体が不変** (性質 pin)
    ∧ counter-pin: 非 LOCK 行では `non_winloss_excluded` が実際に 7 を返す (非空振り)
+0c2l. **Bonferroni が v2∪v3 の単一族** (レビューの数値例を fixture 化: 15/20 の v3 sub-cell が
+   `p_bonf > p_raw` を受け `promoted=False`、`candidates` は空) ∧ 全 tested セルの
+   `p_bonf` が `p_raw × m_family` と一致
+0c2m. **accrual 窓が名乗った長さちょうど** (30d/90d の境界日をまたぐ行で off-by-one を検出)
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

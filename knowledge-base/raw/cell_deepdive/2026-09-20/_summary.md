@@ -125,7 +125,7 @@ pre-reg 本体セル (sr_anti_hunt_bounce × EUR_JPY × **BUY**、dedup=0、shad
 いずれにせよ unique N には効かない。
 
 **正しい指標 = unique 蓄積速度** (`_summary.json` の `unique_accrual`):
-sr_anti_hunt 13.46 / rsk 2.57 / vsg 2.49 / vdr 1.56 / mqe **0.08** 本/週 (90d)。
+sr_anti_hunt 13.22 / rsk 2.57 / vsg 2.49 / vdr 1.48 / mqe **0.08** 本/週 (90d)。
 
 ### 訂正 2 — LOCK セルの outcome 統計を印刷していた (P-10 違反)
 

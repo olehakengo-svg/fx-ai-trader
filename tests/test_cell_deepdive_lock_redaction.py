@@ -27,6 +27,7 @@ from tools.cell_deepdive_audit import (
     lock_for_cell,
     lock_population_count,
     row_in_lock_population,
+    unique_accrual,
     _entry_type_matches,
     run_audit,
     window_bounds,
@@ -729,3 +730,80 @@ def test_non_winloss_counter_still_works_for_unlocked_rows():
     res = run_audit(rows, run_date="2026-09-20",
                     targets=("vsg_jpy_reversal",), locked_cells=LOCKED)
     assert res["meta"]["non_winloss_excluded"] == 7
+
+
+def test_bonferroni_uses_one_family_across_v2_and_v3():
+    """KNOWN-NG INPUT: the reviewer's worked example.
+
+    A lone v3 sub-cell (N=20, 15 wins) has Wilson_lo 0.531 and p_raw ~0.025, so
+    under the old per-grid correction (m_v3 = 1 => p_bonf = p_raw) it was
+    PROMOTED — while the combined v2 u v3 family rejects it.  That is how the
+    Tokyo sub-cell appeared as a "candidate" for 4 consecutive weeks; the
+    2026-09-20 report named v2 u v3 (m=8) as the family in prose while the
+    harness kept the split (Codex P1, PR #273).
+    """
+    # One tightly-scoped v3 cell (all rows in the Tokyo bucket) ...
+    v3_cell = _rows("vsg_jpy_reversal", "EUR_JPY", "SELL", 20, wins=15)
+    # ... plus other eligible v2 cells that enlarge the family.
+    others = []
+    for pair in ("GBP_JPY", "USD_JPY", "AUD_JPY", "NZD_JPY"):
+        others += _rows("vsg_jpy_reversal", pair, "BUY", 20, wins=10)
+
+    res = run_audit(v3_cell + others, run_date="2026-09-20",
+                    targets=("vsg_jpy_reversal",), locked_cells=[])
+    m_v2 = res["meta"]["m_global_v2"]
+    m_v3 = res["meta"]["m_global_v3"]
+    assert res["meta"]["m_family_v2_union_v3"] == m_v2 + m_v3
+
+    tested = [c for c in res["eligible_cells_v2"] + res["eligible_cells_v3"]
+              if not c.get("redacted")]
+    assert tested, "fixture must produce tested cells"
+    m_family = res["meta"]["m_family_v2_union_v3"]
+    for c in tested:
+        expected = min(1.0, c["p_raw"] * m_family)
+        # p_raw is emitted rounded to 4dp, so the reconstructed product carries
+        # up to 5e-5 * m of rounding error (plus p_bonf's own 5e-5).
+        tol = 5e-5 * (m_family + 1)
+        assert c["p_bonf"] == pytest.approx(expected, abs=tol), (
+            "every tested cell must be corrected over the combined family")
+
+    # The discriminating cell: 15/20 (p_raw ~0.025) must NOT be promoted, and
+    # must carry a real penalty rather than p_bonf == p_raw.  (Cells at 10/20
+    # already sit at p_raw = 1.0, where the clamp makes the comparison vacuous.)
+    target = [c for c in res["eligible_cells_v3"]
+              if c["cell"][:2] == ["vsg_jpy_reversal", "EUR_JPY"]
+              and not c.get("redacted")]
+    assert target, "expected the 15/20 v3 sub-cell"
+    for c in target:
+        assert c["p_raw"] < 1.0
+        assert c["p_bonf"] > c["p_raw"], (
+            "a v3 cell must carry a real multiplicity penalty, not p_bonf=p_raw")
+        assert c["promoted"] is False, (
+            "the combined family must reject what the per-grid split promoted")
+    assert res["candidates"] == []
+
+
+def test_accrual_windows_span_exactly_their_advertised_length():
+    """KNOWN-NG INPUT: rows exactly on the old, too-wide boundary.
+
+    `days=d` counted d+1 inclusive days (2026-06-22..2026-09-20 = 91 for
+    d=90), inflating the accrual rates used to diagnose signal starvation
+    (Codex P2, PR #273).
+    """
+    def row(ts):
+        return {"entry_type": "vdr_jpy", "instrument": "USD_JPY",
+                "direction": "BUY", "outcome": "WIN", "pnl_pips": 1.0,
+                "dedup_violation": 0, "is_shadow": 1, "entry_time": ts}
+
+    trades = [
+        row("2026-09-20T10:00:00"),   # run date -> inside every window
+        row("2026-08-22T10:00:00"),   # 30d window: day 30 inclusive -> inside
+        row("2026-08-21T10:00:00"),   # day 31 -> outside 30d
+        row("2026-06-23T10:00:00"),   # 90d window: day 90 inclusive -> inside
+        row("2026-06-22T10:00:00"),   # day 91 -> outside 90d (the old bug)
+    ]
+    out = unique_accrual(trades, ("vdr_jpy",), "2026-09-20")["vdr_jpy"]
+    assert out["unique_30d"] == 2, "30d must span exactly 30 inclusive days"
+    assert out["unique_90d"] == 4, "90d must span exactly 90 inclusive days"
+    assert out["unique_365d"] == 5
+    assert out["last_unique_fire"].startswith("2026-09-20")

@@ -7,7 +7,7 @@
 - ✅ **修正**: `tools/cell_deepdive_audit.py` を新設し registry から active な `*_count_decision` の LOCK セル `(entry_type, instrument, direction)` を読む (`None` = ワイルドカード)。一致セル**およびその refinement (sub-cell)** の `wr/wilson_lo/ev_net/pf/p_raw/p_bonf/kelly/wf_stable/promoted/wins` を出力から除去し **`n` のみ残す** (トリガが数えるのは N なので運用は止まらない)。strict な super-set (戦略集計) は別 estimand につき対象外、`*_count_info` (頻度監視) も対象外。実測で **3 セル redact / `candidates` 1 → 0**。meta 計数 (raw 834 / dedup 427 / non-WL 22 / clean 385 / m_v2 7 / m_v3 1) は ad-hoc 版と完全一致 = 移植は忠実
 - 🔴 **欠陥 B — 「N 枯渇の真因は発火数でなく dedup 除外率」は falsified**: `dedup_violation=1` は「直前の**採用**行から TF 窓以内」にのみ付き各窓の先頭は必ず残る (`modules/demo_db.py` write-time L1114-1145 / boot backfill L701-766)。実測でも flag 行は直前の採用行から **中央値 14-25 秒 / p90 ≤ 50 秒** (窓 900 秒、対象は全 tf=15m) = 同一バー内の tick 重複、かつ**採用行どうしの間隔は 1 件も窓を下回らない** (過剰抑制なし) ⇒ **独立観測を 1 件も取り除かず unique N の蓄積速度に影響しない**。`dedup_excluded / raw` を枯渇の指標に使ったのは分母の取り違え
 - 🔵 **`mqe_gbpusd_fix` の 93.2% の正体**: 88 行中 **86 行が dedup ゲート導入 (commit 6a45bb2、2026-04-30T02:42Z) 以前**の凍結アーティファクトで **post-fix 除外率 0.0%** (post-fix raw = 2 行)。月次 `2026-04:87 / 2026-08:1` = **2026-05 以降 4.7 ヶ月で発火 2 本**。真因はレポートが否定した側の**発火枯渇そのもの** (unique 90d = 1 本 = **0.08 本/週**、最終 unique 発火 2026-08-28T15:31)。引用されていた「outcome は WIN 42 / LOSS 46 と拮抗」も大半が 4 月バースト由来で現状記述に使えない。`rsk_gbpjpy_reversion` の 68.4% は post-fix でも高いが月次で 90% → 22% へ減衰済み
-- ✅ **正しい指標を出力**: `unique_accrual` (unique/週 90d: sr_anti_hunt 13.46 / rsk 2.57 / vsg 2.49 / vdr 1.56 / **mqe 0.08**) と `dedup_era_breakdown` (pre/post ゲート導入の分割) を新設し、除外率単独の提示をやめた。**M3 のスループット律速は「dedup 構造の是正」ではなく引き続きシグナル供給** — 本行のボトルネック帰属 (摩擦調整 EV 不在の帰結) は不変
+- ✅ **正しい指標を出力**: `unique_accrual` (unique/週 90d: sr_anti_hunt 13.22 / rsk 2.57 / vsg 2.49 / vdr 1.48 / **mqe 0.08**) と `dedup_era_breakdown` (pre/post ゲート導入の分割) を新設し、除外率単独の提示をやめた。**M3 のスループット律速は「dedup 構造の是正」ではなく引き続きシグナル供給** — 本行のボトルネック帰属 (摩擦調整 EV 不在の帰結) は不変
 - 🟠 **付随発見 — LOCK トリガの計数基準が読み手間で不一致 (未解決)**: `prereg_trigger_watch` は **36** (registry `closed_only: true` = CLOSED 全件)、weekly deepdive は **35** (`outcome ∈ {WIN,LOSS}`)。差 1 行は `outcome=BREAKEVEN`。pre-reg 原文は BREAKEVEN の扱いを規定していない (`closed_only` 自体 registry 側の補間)。判定式 ② `Wilson_lo(95%) > 38.7%` は WIN/LOSS の二値分母を要するため **トリガが N=40 で発火しても ② の実 N は ≤39** = 「宣言した N で判定した」前提が崩れる
 - 🔴 **開示 (P-10 抵触)**: 上記の計数照合中に Claude が本セル fresh 行の WIN/LOSS 内訳を **1 回観測**。これにより計数基準の確定は Claude 単独では中立でない ⇒ **user 決裁へ**。ただし**重大なのは本観測ではなく 5 週の systematic exposure の方**
 - **user 決裁点 2 件を registry へ追加 (いずれも期日 2026-10-12 = 本体トリガ ETA 2026-10 中旬の手前)**: `sr-anti-hunt-eurjpy-count-basis-declaration` (BREAKEVEN の扱い — **決め方は ② の分母定義との整合のみで行い outcome から優劣を判断しない**) / `sr-anti-hunt-eurjpy-lock-validity-disposition` (5 週露出を受けて凍結 α のまま判定してよいか)。**期日を超過して N≥40 が先に来た場合、判定は確定まで保留**
@@ -101,7 +101,19 @@
   **「LOCK 行の outcome を反転させてもレポート JSON 全体が 1 バイトも変わらない」**を
   直接 assert。本 PR が主張する性質そのもので、フィールドが増えても自動で守られる
   ([[lesson_validity_check_pins_proxy_2026_09_02]] の適用)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**32 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第8波 (Codex P1 + P2) — 多重度族の分割 = 本 PR で最も statistically 重い欠陥**:
+  (q) **v2 と v3 を 1 つの多重度族で補正** — 別々の `m` を当てて結果を merge していたため
+  **単独の v3 sub-cell が多重度ペナルティをほぼ受けずに通る** (`m_v3=1` ⇒ `p_bonf=p_raw`)。
+  🔴 **これが Tokyo sub-cell が 4 週連続「候補」に出ていた機構**で、しかも
+  **レポート本文は「v2∪v3 (m=8) なら p_bonf=0.0720 → FAIL」と正しく書いていた**。
+  `m_family = m_v2 + m_v3` を単一族として適用 (実測 m_family = **8** = 本文と一致)
+  (r) **accrual 窓を名乗った長さに** — `>= as_of − d 日` が両端込みで d+1 日を数え、
+  signal 枯渇の診断に使う accrual rate を過大に出していた
+- ⚠️ **引用値の訂正** (行アンカー完全一致 + `--word-diff` 全数照合):
+  `sr_anti_hunt_bounce` 13.46→**13.22 本/週**、`vdr_jpy` 1.56→**1.48**。
+  **`mqe_gbpusd_fix` の 0.08 は不変**で §1.4 の結論に影響なし
+- 🔴 **「文章では正しく、コードでは違う」の 3 例目** (LOCK 衝突の認識 / 正本契約 / 多重度族)
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**34 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
