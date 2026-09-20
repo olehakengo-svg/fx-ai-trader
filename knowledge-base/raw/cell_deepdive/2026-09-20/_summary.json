@@ -223,7 +223,7 @@
     "prod_trades_fetched": 18057,
     "target_rows_raw": 834,
     "dedup_violation_excluded": 427,
-    "non_winloss_excluded": 22,
+    "non_winloss_excluded": 13,
     "clean_N": 273,
     "locked_rows_routed_out": 215,
     "min_n": 20,

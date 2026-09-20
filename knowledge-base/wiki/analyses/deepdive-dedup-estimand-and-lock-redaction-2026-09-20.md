@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (30 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (32 pins)
 
 ---
 
@@ -297,6 +297,22 @@ EV −4.27 / PF 0.37 は不変) と `m_v2` = 7 / `m_v3` = 1 / `candidates` = 0�
 **外すと `m` が縮んで他セルの `p_bonf` が通りやすくなる** (危険な向き)。
 多重度補正では保守側を取り、**LOCK セルも `m` に数え続ける**。
 
+### 2.3h レビュー第7波 (Codex P1×1) — meta 診断値にも outcome が漏れていた
+
+第6波で cell の計数は outcome 非依存にしたが、**`meta.non_winloss_excluded` は
+依然 `target_all` (LOCK 行込み) で `outcome` を読んで**いた。LOCK セルだけの監査で
+1 行を WIN→BREAKEVEN にすると、count-only record は不変なのに**メタデータが 0→1 に動く**
+= 凍結母集団の outcome 由来の性質を公表していた。
+⇒ `open_raw` (LOCK/marker 行を除いた後) から計算するよう変更。
+`dedup_violation_excluded` は outcome 非依存なので全行対象のまま。
+
+実測: `non_winloss_excluded` **22 → 13** (LOCK 行由来の 9 が除かれた)。
+
+🔑 **この波で不変条件を「性質」として pin し直した** — 個別フィールドを列挙するのではなく
+**「LOCK 行の outcome を反転させてもレポート JSON 全体が 1 バイトも変わらない」**を
+直接 assert する。本 PR が主張している性質そのもので、フィールドが増えても自動で守られる
+(lesson: *pin は構文でなく性質で書く* [[lesson_validity_check_pins_proxy_2026_09_02]])。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -329,6 +345,8 @@ EV −4.27 / PF 0.37 は不変) と `m_v2` = 7 / `m_v3` = 1 / `candidates` = 0�
    させても同値) ∧ counter-pin: 非 LOCK セルでは WIN/LOSS フィルタが残る (34)
 0c2j. **selector 無しの active decision を拒否** ∧ counter-pin: inactive / `*_count_info` /
    正常エントリは通る
+0c2k. 🔑 **LOCK 行の outcome を反転してもレポート JSON 全体が不変** (性質 pin)
+   ∧ counter-pin: 非 LOCK 行では `non_winloss_excluded` が実際に 7 を返す (非空振り)
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

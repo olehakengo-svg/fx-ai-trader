@@ -693,3 +693,39 @@ def test_selector_less_active_decision_entry_is_rejected(tmp_path):
         {"id": "real", "active": True, "type": "shadow_count_decision",
          "entry_type": "foo"}]}))
     assert {lk["registry_id"] for lk in load_locked_cells(ok)} == {"real"}
+
+
+def test_meta_counters_never_read_outcome_of_locked_rows():
+    """KNOWN-NG INPUT: flipping a LOCKed row's outcome must move NO output.
+
+    `meta.non_winloss_excluded` used to be computed over all target rows, so a
+    single WIN -> BREAKEVEN flip inside the frozen population changed the
+    emitted metadata from 0 to 1 — an outcome-derived property of a LOCKed
+    population, published despite the count-only record being unchanged
+    (Codex P1, PR #273).
+    """
+    base = _rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 30, wins=15)
+    flipped = [dict(t) for t in base]
+    for t in flipped[:7]:
+        t["outcome"] = "BREAKEVEN"
+        t["pnl_pips"] = 0.0
+
+    a = run_audit(base, run_date="2026-09-20",
+                  targets=("sr_anti_hunt_bounce",), locked_cells=LOCKED)
+    b = run_audit(flipped, run_date="2026-09-20",
+                  targets=("sr_anti_hunt_bounce",), locked_cells=LOCKED)
+    assert a["meta"] == b["meta"], (
+        "no meta counter may depend on a LOCKed row's outcome")
+    assert a["meta"]["non_winloss_excluded"] == 0
+    assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True), (
+        "the ENTIRE report must be invariant to LOCKed rows' outcomes")
+
+
+def test_non_winloss_counter_still_works_for_unlocked_rows():
+    """Counter-pin: the metric must not be vacuously zero."""
+    rows = _rows("vsg_jpy_reversal", "EUR_JPY", "SELL", 30, wins=15)
+    for t in rows[:7]:
+        t["outcome"] = "BREAKEVEN"
+    res = run_audit(rows, run_date="2026-09-20",
+                    targets=("vsg_jpy_reversal",), locked_cells=LOCKED)
+    assert res["meta"]["non_winloss_excluded"] == 7

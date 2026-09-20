@@ -538,9 +538,6 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                   and win_lo <= _ts(t)[:10] < win_hi]
 
     dedup_excl = sum(1 for t in target_all if t.get("dedup_violation") == 1)
-    non_wl = sum(1 for t in target_all
-                 if t.get("dedup_violation") != 1
-                 and t.get("outcome") not in ("WIN", "LOSS"))
 
     # Marker-defined LOCKs (empty entry_type + `reasons_marker`) define a row
     # set rather than a cell, so their rows are removed BEFORE any outcome
@@ -572,6 +569,16 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
         open_raw.append(t)
 
     locked_rows_total = sum(len(v) for v in locked_raw.values())
+
+    # `non_wl` reads `outcome`, so it is computed from `open_raw` ONLY — after
+    # locked and marker-defined populations are removed.  Over `target_all` it
+    # published an outcome-derived property of a frozen population (flipping
+    # one locked row WIN->BREAKEVEN moved the emitted metadata), which the
+    # count-only record being unchanged does not excuse (Codex P1, PR #273).
+    # `dedup_excl` above is outcome-free, so it may span all rows.
+    non_wl = sum(1 for t in open_raw
+                 if t.get("dedup_violation") != 1
+                 and t.get("outcome") not in ("WIN", "LOSS"))
 
     clean = []
     for t in open_raw:

@@ -92,7 +92,16 @@
   (`sr_anti_hunt_bounce` 集計 clean_N 135 / WR 0.519 / EV −4.27 / PF 0.37) と
   `m_v2`=7 / `m_v3`=1 / `candidates`=0。多重度は保守側を取り LOCK セルも `m` に数え続ける
   (外すと `m` が縮み他セルの `p_bonf` が通りやすくなる)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**30 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第7波 (Codex P1×1) — meta 診断値にも outcome が漏れていた**:
+  (p) `meta.non_winloss_excluded` が `target_all` (LOCK 行込み) で `outcome` を読んでおり、
+  LOCK 行 1 本を WIN→BREAKEVEN にすると **count-only record は不変なのにメタデータが 0→1**
+  に動いていた。`open_raw` から計算するよう変更 (実測 **22 → 13**)。
+  `dedup_violation_excluded` は outcome 非依存につき全行対象のまま
+- 🔑 **不変条件を「性質」として pin し直した** — フィールドを列挙せず
+  **「LOCK 行の outcome を反転させてもレポート JSON 全体が 1 バイトも変わらない」**を
+  直接 assert。本 PR が主張する性質そのもので、フィールドが増えても自動で守られる
+  ([[lesson_validity_check_pins_proxy_2026_09_02]] の適用)
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**32 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
