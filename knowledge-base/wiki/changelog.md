@@ -193,7 +193,17 @@
   散文の数値主張を **JSON から機械検査**する pin を置いた
 - 🔑 **「閾値を超えた」は「正しい」ではない** — full page はいつでも閾値を超える。
   完全性は「短いページ」でしか証明できない
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**48 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第16波 (Codex P1 + P2) — 自前ガードは正本を追い越せない / 表明は証拠でない**:
+  (dd) **綴り違いの selector キーも拒否** — 第15波で `match` の「値」を検証したが
+  `"mtach": "prefix"` は「キー不在」枝で **exact lock** になっていた。
+  **自前検証をやめ正本 `lint_registry` に委譲** (unknown key の reject-by-default を継承)
+  (ee) **完全性は snapshot が運ぶ** — `--fetch-limit` はファイルに記録されない値についての
+  caller の表明にすぎず、`?limit=1000` 取得を CLI 既定で監査すると通ってしまう。
+  `paginate_trades()` で **short page を実見してから** `_fetch_meta.complete=true` を書き、
+  監査側はそれのみを証拠として受理 (`--fetch-to` / `--allow-unverified-snapshot`)
+- 🔑 **個別の穴を塞ぎ続ける限り常に 1 歩後ろ** — 正本 linter を呼べば将来の規則も自動で効く
+- 🔑 **表明は証拠ではない** — 完全性のような性質は**生成時に確立して成果物に埋め込む**
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**51 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

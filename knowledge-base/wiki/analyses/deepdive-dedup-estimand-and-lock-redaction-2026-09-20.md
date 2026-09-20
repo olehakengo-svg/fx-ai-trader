@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (48 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (51 pins)
 
 ---
 
@@ -453,6 +453,22 @@ over-redaction の 4 度目。母集団述語を 1 箇所 (`row_in_lock_populati
 🔑 **「閾値を超えた」は「正しい」ではない。** `--min-rows` は truncation の*一部*しか
 捕まえない — full page はいつでも閾値を超える。**完全性は「短いページ」でしか証明できない**。
 
+### 2.3q レビュー第16波 (Codex P1 + P2) — 自前のガードは正本を追い越せない / 表明は証拠でない
+
+| 指摘 | 実態 | 修正 |
+|---|---|---|
+| **綴り違いの selector *キー* も拒否せよ** | 第15波で `match` の**値**は検証したが、`"mtach": "prefix"` のような**キーの綴り違い**は「キー不在」枝を通って **exact lock** になる。active な `kalman_d7` で起きれば variant の凍結統計が全公開される | **自前検証をやめ、正本 `prereg_trigger_watch.lint_registry` に委譲**。unknown key の reject-by-default をそのまま継承する |
+| **完全性は snapshot が運べ** | `--fetch-limit` は**ファイルに記録されていない値についての caller の表明**にすぎない。`?limit=1000` の取得を CLI 既定で監査すると 1000 行が既定 100000 と比較されて**通ってしまう** | `paginate_trades()` を実装し、**short page を実際に見てから** `_fetch_meta.complete=true` を書く。監査側はこのメタデータのみを完全性の証拠として受理 (`--fetch-to` で取得、`--allow-unverified-snapshot` は loud な opt-out) |
+
+🔑 **自前のガードは正本を追い越せない。** 第15波で「値」を検証したら第16波で「キー」が来た。
+**個別の穴を塞ぎ続ける限り常に 1 歩後ろにいる** ⇒ 正本の linter を呼べば、
+正本が将来得る規則もすべて自動で効く。委譲した結果、テスト fixture が
+「正本的に不完全な entry」だったことも露見して修正できた (副作用として検証が強化された)。
+
+🔑 **表明は証拠ではない。** `--fetch-limit` / `--min-rows` はどちらも
+「呼び出し側がそう言っている」だけで、**スナップショット自身は何も証明していなかった**。
+完全性のような性質は **生成時に確立して成果物に埋め込む**しかない。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -519,6 +535,10 @@ over-redaction の 4 度目。母集団述語を 1 箇所 (`row_in_lock_populati
    1500/100000 は通る)
 0c2y. **週次レポートの散文が `_summary.json` と一致** (`clean_N` / `locked_rows_routed_out`
    を JSON から読んで prose に現れることを検査 — 文言 grep でなく値の一致)
+0c2z. **綴り違いキー (`mtach`) を正本 linter が拒否** ∧ counter-pin: 正しい `match` は prefix
+0c2aa. **完全性は `_fetch_meta` のみを証拠に受理** (bare snapshot 拒否 / opt-out は loud かつ
+   full page はなお拒否 / 証明済みは通る) ∧ `paginate_trades` は short page でのみ
+   complete を主張し max_pages 到達では raise
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

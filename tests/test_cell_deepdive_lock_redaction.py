@@ -61,6 +61,26 @@ def _rows(entry_type, instrument, direction, n, *, wins, base_ts="2026-08-10T0")
     return out
 
 
+
+def _entry(**over):
+    """A registry entry that is CLEAN under the canonical linter.
+
+    load_locked_cells now delegates schema validation to
+    prereg_trigger_watch.lint_registry, so fixtures must be canonical-complete
+    (required selectors present) or they are rejected for the wrong reason.
+    """
+    base = {"id": "e", "active": True, "type": "shadow_count_decision",
+            "entry_type": "foo", "since": "2026-09-01", "n_decide": 10,
+            "n_floor": 1, "deadline": "2027-01-01"}
+    base.update(over)
+    if base.get("type") == "live_count_decision":
+        base.pop("n_floor", None)
+    return {k: v for k, v in base.items() if v is not _DROP}
+
+
+_DROP = object()
+
+
 # ── 1. LOCK redaction ─────────────────────────────────────────────────────
 
 def test_locked_cell_outcome_fields_are_redacted():
@@ -253,8 +273,8 @@ def test_unreadable_registry_fails_closed(tmp_path):
     # Counter-pin: a well-formed registry still loads.
     ok = tmp_path / "ok.json"
     ok.write_text(json.dumps({"triggers": [
-        {"id": "x", "active": True, "type": "shadow_count_decision",
-         "entry_type": "foo", "instrument": "EUR_JPY", "direction": "BUY"}]}))
+        _entry(id="x", entry_type="foo", instrument="EUR_JPY",
+               direction="BUY")]}))
     assert len(load_locked_cells(ok)) == 1
 
 
@@ -418,9 +438,7 @@ def test_malformed_but_parseable_registry_fails_closed(tmp_path):
 
     # Counter-pin: a well-formed, non-empty registry still loads.
     ok = tmp_path / "ok.json"
-    ok.write_text(json.dumps({"triggers": [
-        {"id": "x", "active": True, "type": "shadow_count_decision",
-         "entry_type": "foo"}]}))
+    ok.write_text(json.dumps({"triggers": [_entry(id="x", entry_type="foo")]}))
     assert len(load_locked_cells(ok)) == 1
 
 
@@ -544,10 +562,9 @@ def test_entry_without_active_key_is_treated_as_active(tmp_path):
     """
     f = tmp_path / "r.json"
     f.write_text(json.dumps({"triggers": [
-        {"id": "no-active-key", "type": "shadow_count_decision",
-         "entry_type": "foo", "instrument": "EUR_JPY", "direction": "BUY"},
-        {"id": "explicitly-off", "active": False,
-         "type": "shadow_count_decision", "entry_type": "bar"},
+        _entry(id="no-active-key", entry_type="foo", instrument="EUR_JPY",
+               direction="BUY", active=_DROP),
+        _entry(id="explicitly-off", active=False, entry_type="bar"),
     ]}))
     ids = {lk["registry_id"] for lk in load_locked_cells(f)}
     assert "no-active-key" in ids, "omitted active must default to active"
@@ -688,8 +705,7 @@ def test_selector_less_active_decision_entry_is_rejected(tmp_path):
     """
     f = tmp_path / "r.json"
     f.write_text(json.dumps({"triggers": [
-        {"id": "typo-selector", "active": True,
-         "type": "shadow_count_decision", "entry_typo": "foo"}]}))
+        _entry(id="typo-selector", entry_type=_DROP)]}))
     with pytest.raises(LockRegistryUnavailable, match="typo-selector"):
         load_locked_cells(f)
 
@@ -697,10 +713,11 @@ def test_selector_less_active_decision_entry_is_rejected(tmp_path):
     # non-decision entry is out of scope entirely.
     ok = tmp_path / "ok.json"
     ok.write_text(json.dumps({"triggers": [
-        {"id": "off", "active": False, "type": "shadow_count_decision"},
-        {"id": "info", "active": True, "type": "shadow_count_info"},
-        {"id": "real", "active": True, "type": "shadow_count_decision",
-         "entry_type": "foo"}]}))
+        _entry(id="off", active=False, entry_type="bar"),
+        _entry(id="info", type="shadow_count_info", entry_type="baz",
+               n_decide=_DROP, n_floor=_DROP, deadline=_DROP,
+               expected_per_week=1.0),
+        _entry(id="real", entry_type="foo")]}))
     assert {lk["registry_id"] for lk in load_locked_cells(ok)} == {"real"}
 
 
@@ -973,12 +990,10 @@ def test_count_only_monitors_are_not_redacted(tmp_path):
     """
     f = tmp_path / "r.json"
     f.write_text(json.dumps({"triggers": [
-        {"id": "real-lock", "active": True, "type": "shadow_count_decision",
-         "entry_type": "foo"},
-        {"id": "count-monitor", "active": True, "type": "live_count_decision",
-         "entry_type": "bar", "outcome_lock": False},
-        {"id": "default-is-redact", "active": True,
-         "type": "shadow_count_decision", "entry_type": "baz"},
+        _entry(id="real-lock", entry_type="foo"),
+        _entry(id="count-monitor", type="live_count_decision",
+               entry_type="bar", outcome_lock=False),
+        _entry(id="default-is-redact", entry_type="baz"),
     ]}))
     ids = {lk["registry_id"] for lk in load_locked_cells(f)}
     assert "real-lock" in ids
@@ -1216,10 +1231,11 @@ def test_truncated_api_snapshot_is_refused(tmp_path, monkeypatch, capsys):
     msg = run({"count": 999, "trades": [row] * 120})
     assert "count" in msg and "len(trades)" in msg, "inconsistent snapshot"
 
-    # Counter-pin: a full-size snapshot runs, and --min-rows 0 is an explicit
-    # deliberate override for the 50-row case.
+    # Counter-pin: a full-size snapshot whose completeness is PROVEN runs.
     f = tmp_path / "ok.json"
-    f.write_text(json.dumps({"count": 1500, "trades": [row] * 1500}))
+    f.write_text(json.dumps({"count": 1500, "trades": [row] * 1500,
+                             "_fetch_meta": {"complete": True,
+                                             "limit": 100000, "pages": 1}}))
     assert m.main([str(f), "--run-date", "2026-09-20", "--no-write"]) == 0
 
 
@@ -1233,8 +1249,8 @@ def test_malformed_match_selector_fails_closed(tmp_path):
     """
     def reg(match_kv):
         f = tmp_path / f"r{abs(hash(str(match_kv)))}.json"
-        entry = {"id": "fam", "active": True, "type": "live_count_decision",
-                 "entry_type": "kalman_d7"}
+        entry = _entry(id="fam", type="live_count_decision",
+                       entry_type="kalman_d7")
         entry.update(match_kv)
         f.write_text(json.dumps({"triggers": [entry]}))
         return f
@@ -1267,18 +1283,25 @@ def test_a_full_page_is_not_proof_of_completeness(tmp_path):
            "dedup_violation": 0, "is_shadow": 1,
            "entry_time": "2026-08-10T02:00:00"}
 
-    def run(n, limit):
-        f = tmp_path / f"p{n}_{limit}.json"
-        f.write_text(json.dumps({"count": n, "trades": [row] * n}))
-        return m.main([str(f), "--run-date", "2026-09-20", "--no-write",
-                       "--fetch-limit", str(limit)])
+    def run(n, limit, proven=False):
+        f = tmp_path / f"p{n}_{limit}_{proven}.json"
+        payload = {"count": n, "trades": [row] * n}
+        if proven:
+            payload["_fetch_meta"] = {"complete": True, "limit": limit,
+                                      "pages": 1}
+        f.write_text(json.dumps(payload))
+        argv = [str(f), "--run-date", "2026-09-20", "--no-write",
+                "--fetch-limit", str(limit)]
+        if not proven:
+            argv.append("--allow-unverified-snapshot")
+        return m.main(argv)
 
     with pytest.raises(SystemExit, match="FULL page"):
         run(1000, 1000)
     with pytest.raises(SystemExit, match="FULL page"):
         run(1500, 1500)
-    # Counter-pin: a SHORT page proves the end was reached and runs.
-    assert run(1500, 100000) == 0
+    # Counter-pin: a snapshot whose completeness is PROVEN runs.
+    assert run(1500, 100000, proven=True) == 0
 
 
 def test_committed_report_prose_matches_its_machine_readable_summary():
@@ -1298,3 +1321,84 @@ def test_committed_report_prose_matches_its_machine_readable_summary():
         assert f"**{value}**" in md, (
             f"{key}={value} from _summary.json is not stated in the prose — "
             f"the narrative has drifted from the machine-readable result")
+
+
+def test_misspelled_match_key_is_rejected_by_the_canonical_linter(tmp_path):
+    """KNOWN-NG INPUT: a misspelled selector KEY, not just a bad value.
+
+    `"mtach": "prefix"` took the absent-key branch and became an exact lock,
+    so a typo on the active kalman_d7 lock would expose every variant's frozen
+    outcomes.  Value-only validation trails the canonical linter, so this
+    loader now DELEGATES schema validation to it (Codex P1, PR #273).
+    """
+    f = tmp_path / "typo.json"
+    f.write_text(json.dumps({"triggers": [
+        dict(_entry(id="fam", type="live_count_decision",
+                    entry_type="kalman_d7"), mtach="prefix")]}))
+    with pytest.raises(LockRegistryUnavailable, match="linter"):
+        load_locked_cells(f)
+
+    # Counter-pin: the correctly spelled key loads as a prefix lock.
+    ok = tmp_path / "ok.json"
+    ok.write_text(json.dumps({"triggers": [
+        _entry(id="fam", type="live_count_decision", entry_type="kalman_d7",
+               match="prefix")]}))
+    assert load_locked_cells(ok)[0]["match"] == "prefix"
+
+
+def test_completeness_must_come_from_the_snapshot_not_a_cli_flag(tmp_path):
+    """KNOWN-NG INPUT: a truncated page audited under CLI defaults.
+
+    `--fetch-limit` is an assertion about a file it is not recorded in: a
+    ?limit=1000 fetch has 1000 rows, clears --min-rows, and is compared against
+    the 100000 default.  Completeness must be carried BY the snapshot
+    (Codex P2, PR #273).
+    """
+    import tools.cell_deepdive_audit as m
+
+    row = {"entry_type": "vsg_jpy_reversal", "instrument": "EUR_JPY",
+           "direction": "SELL", "outcome": "WIN", "pnl_pips": 1.0,
+           "dedup_violation": 0, "is_shadow": 1,
+           "entry_time": "2026-08-10T02:00:00"}
+
+    def write(name, payload):
+        f = tmp_path / name
+        f.write_text(json.dumps(payload))
+        return str(f)
+
+    bare = write("bare.json", {"count": 1000, "trades": [row] * 1000})
+    with pytest.raises(SystemExit, match="_fetch_meta"):
+        m.main([bare, "--run-date", "2026-09-20", "--no-write"])
+
+    # The opt-out is loud, and still refuses a full page.
+    with pytest.raises(SystemExit, match="FULL page"):
+        m.main([bare, "--run-date", "2026-09-20", "--no-write",
+                "--allow-unverified-snapshot", "--fetch-limit", "1000"])
+
+    # Counter-pin: a snapshot that PROVES completeness runs.
+    good = write("good.json", {"count": 1500, "trades": [row] * 1500,
+                               "_fetch_meta": {"complete": True,
+                                               "limit": 100000, "pages": 1}})
+    assert m.main([good, "--run-date", "2026-09-20", "--no-write"]) == 0
+
+
+def test_pagination_only_claims_complete_on_a_short_page():
+    """`paginate_trades` must prove the end, and fail loud when it cannot."""
+    from tools.cell_deepdive_audit import paginate_trades
+
+    def pages(total):
+        def fetch(limit, offset):
+            return [{"i": i} for i in range(offset, min(offset + limit, total))]
+        return fetch
+
+    out = paginate_trades(pages(25), page_size=10)
+    assert out["count"] == 25
+    assert out["_fetch_meta"] == {"complete": True, "limit": 10, "pages": 3}
+
+    # An exact multiple still needs the trailing short (empty) page.
+    out = paginate_trades(pages(20), page_size=10)
+    assert out["count"] == 20 and out["_fetch_meta"]["pages"] == 3
+
+    # Never return a silently truncated list.
+    with pytest.raises(SystemExit, match="max_pages"):
+        paginate_trades(pages(10**6), page_size=10, max_pages=3)

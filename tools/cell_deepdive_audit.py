@@ -213,6 +213,15 @@ def load_locked_cells(registry_path=None) -> list:
             f"pre-reg LOCK registry has non-object entries at {bad[:5]} "
             f"({path}) — refusing to run rather than skipping them silently")
 
+    # Delegate SCHEMA validation to the canonical linter instead of
+    # hand-rolling a weaker copy.  A misspelled selector KEY ("mtach":
+    # "prefix") slips past value-only checks and silently becomes an exact
+    # lock, which would expose a prefix family's frozen outcomes.  The
+    # canonical linter already rejects unknown keys (reject-by-default), so
+    # the right fix is to call it rather than to keep adding checks that
+    # trail it (Codex P1, PR #273).
+    _lint_entries_or_raise(entries, path)
+
     locked = []
     for e in entries:
         # Canonical loader is `t.get("active", True)` — an omitted flag means
@@ -343,6 +352,32 @@ def row_in_lock_population(t, lock, *, watcher_compat: bool = False,
     if as_of_exclusive and _ts(t)[:10] >= as_of_exclusive:
         return False
     return True
+
+
+def _lint_entries_or_raise(entries, path) -> None:
+    """Run tools/prereg_trigger_watch's linter over the entries; raise on error.
+
+    Importing the canonical linter keeps this loader from drifting behind it —
+    every rule it gains (unknown keys, type checks, selector completeness)
+    applies here automatically.
+    """
+    try:
+        # Path insertion is done HERE, not at import time: tools/*.py are also
+        # libraries and must stay side-effect free on import.
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from tools.prereg_trigger_watch import lint_registry
+    except Exception as exc:                       # pragma: no cover
+        raise LockRegistryUnavailable(
+            f"cannot import the canonical registry linter ({exc}) — refusing "
+            f"to validate the LOCK registry with a weaker local copy") from exc
+    errors = lint_registry(entries)
+    if errors:
+        head = "\n  - ".join(errors[:5])
+        raise LockRegistryUnavailable(
+            f"pre-reg LOCK registry fails the canonical linter ({path}):\n"
+            f"  - {head}"
+            + (f"\n  ... (+{len(errors) - 5} more)" if len(errors) > 5 else ""))
 
 
 def _validated_match(entry, path) -> str:
@@ -910,7 +945,7 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("trades_json",
+    p.add_argument("trades_json", nargs="?",
                    help="PROD /api/demo/trades JSON. MUST be fetched with an "
                         "explicit high limit — the endpoint defaults to 50 rows: "
                         "curl -sS 'https://fx-ai-trader.onrender.com/api/demo/"
@@ -918,6 +953,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--run-date", default=datetime.now(timezone.utc).date().isoformat())
     p.add_argument("--out-dir", default=None,
                    help="default: knowledge-base/raw/cell_deepdive/<run-date>")
+    p.add_argument("--fetch-to", metavar="PATH",
+                   help="paginate /api/demo/trades into PATH with a proven-"
+                        "complete _fetch_meta, then exit")
+    p.add_argument("--allow-unverified-snapshot", action="store_true",
+                   help="audit a snapshot whose completeness is NOT proven "
+                        "(loud warning; still refuses a full page)")
     p.add_argument("--fetch-limit", type=int, default=100000,
                    help="the ?limit= used when fetching; the snapshot must be a "
                         "SHORT page (len < limit) to prove completeness")
@@ -930,8 +971,49 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def paginate_trades(fetch_page, page_size: int = 20000,
+                    max_pages: int = 50) -> dict:
+    """Page until a SHORT page proves the end was reached.
+
+    `fetch_page(limit, offset) -> list[dict]`.  Returns a payload carrying
+    `_fetch_meta.complete`, which is the only completeness evidence this tool
+    accepts.  Mirrors prereg_trigger_watch.paginate_closed_trades: exhausting
+    max_pages is NOT completeness, so it raises instead of returning a
+    silently truncated list.
+    """
+    rows: list = []
+    for page in range(max_pages):
+        got = fetch_page(page_size, len(rows))
+        rows.extend(got)
+        if len(got) < page_size:               # short page == end of data
+            return {"count": len(rows), "trades": rows,
+                    "_fetch_meta": {"complete": True, "limit": page_size,
+                                    "pages": page + 1}}
+    raise SystemExit(
+        f"pagination hit max_pages={max_pages} at {len(rows)} rows without a "
+        f"short page — refusing to return a silently truncated snapshot")
+
+
+def _http_fetch_page(limit: int, offset: int) -> list:
+    from urllib.request import urlopen
+    url = (f"https://fx-ai-trader.onrender.com/api/demo/trades"
+           f"?limit={limit}&offset={offset}")
+    with urlopen(url, timeout=300) as r:        # noqa: S310 (fixed PROD host)
+        payload = json.load(r)
+    return payload.get("trades", []) if isinstance(payload, dict) else payload
+
+
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+    if args.fetch_to:
+        payload = paginate_trades(_http_fetch_page)
+        with open(args.fetch_to, "w") as f:
+            json.dump(payload, f)
+        print(f"wrote {args.fetch_to}: {payload['count']} rows "
+              f"({payload['_fetch_meta']['pages']} pages, completeness proven)")
+        return 0
+    if not args.trades_json:
+        raise SystemExit("trades_json is required unless --fetch-to is used")
     with open(args.trades_json) as f:
         payload = json.load(f)
     # An error object (or a truncated response) must NOT become an empty
@@ -987,13 +1069,33 @@ def main(argv=None) -> int:
     # len(trades) < the limit actually requested (Codex P2, PR #273).  Same
     # idiom as prereg_trigger_watch.paginate_closed_trades, which returns None
     # (DATA_UNAVAILABLE) rather than a silently truncated list.
-    if len(trades) >= args.fetch_limit:
+    # `--fetch-limit` is a CALLER ASSERTION, not evidence: a snapshot fetched
+    # with ?limit=1000 audited under CLI defaults compares 1000 rows against
+    # 100000 and passes while being a full truncated page (Codex P2, PR #273).
+    # Completeness must come from the SNAPSHOT.  `_fetch_meta` is written by
+    # fetch_prod_trades(), which paginates and only marks complete=true after
+    # it actually sees a short page.
+    meta = payload.get("_fetch_meta") if isinstance(payload, dict) else None
+    if isinstance(meta, dict) and meta.get("complete") is True:
+        pass                                   # proven by construction
+    elif args.allow_unverified_snapshot:
+        print(f"[WARN] {args.trades_json}: completeness NOT verified "
+              f"(--allow-unverified-snapshot). N / multiplicity / candidates "
+              f"may be wrong.", file=sys.stderr)
+        if len(trades) >= args.fetch_limit:
+            raise SystemExit(
+                f"{args.trades_json}: {len(trades)} rows >= --fetch-limit "
+                f"{args.fetch_limit} — a FULL page proves nothing about "
+                f"completeness even with --allow-unverified-snapshot")
+    else:
         raise SystemExit(
-            f"{args.trades_json}: {len(trades)} rows == --fetch-limit "
-            f"{args.fetch_limit} — a FULL page proves nothing about "
-            f"completeness (the next page may exist). Re-fetch with a larger "
-            f"?limit= so the response is a SHORT page, and pass the same value "
-            f"as --fetch-limit")
+            f"{args.trades_json}: no '_fetch_meta.complete' — a bare curl "
+            f"cannot prove the response was not truncated, and --fetch-limit "
+            f"is only an assertion about a file it is not recorded in.\n"
+            f"Fetch with this tool instead:\n"
+            f"  python3 tools/cell_deepdive_audit.py --fetch-to {args.trades_json}\n"
+            f"or pass --allow-unverified-snapshot to audit it anyway "
+            f"(the report may carry truncated N / multiplicity / candidates)")
     result = run_audit(trades, run_date=args.run_date,
                        window_days=args.window_days)
     if not args.no_write:
