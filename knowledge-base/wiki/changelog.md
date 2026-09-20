@@ -212,7 +212,19 @@
 - 🔑 **完全性の「証明」はページング意味論の正しさを前提にしている** — 第16波で
   「表明でなく証拠を」と正した直後に**その証拠の作り方が壊れていた**。
   証拠を生成する経路も検証対象
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**52 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第18波 (Codex P2×2) — fetch 経路と help が契約に追いついていなかった**:
+  (gg) **壊れたページで abort** — `payload.get("trades", [])` が HTTP-200 のエラー
+  オブジェクトを `[]` にし、`paginate_trades` がそれを**データ終端**と読んで
+  成功済みページだけで `complete=true` を立てていた ⇒ truncate された snapshot が
+  「証明済み」になる。list 値の `trades` を検証し無ければ `SystemExit`
+  (hh) **help の例が契約を満たしていない** — bare curl を案内したままで CLI はそれを拒否、
+  手順どおり実行すると必ず落ちる。`--fetch-to` → 監査 の 2 段手順へ
+- 🔑 **契約を強めたら、その契約を語る文書も同じコミットで更新する** — 第16波で導入した
+  完全性契約に help を合わせず、**公式手順が常に失敗する**状態を 2 波放置していた
+  (§2.3n の「文章が正しくコードが違う」と**向きが逆の同型**)
+- 🔵 **pin が自分のバグを即座に捕捉**: help の `$(date -u +%F)` が argparse の
+  %-formatting で `TypeError` → `format_help()` を呼ぶ pin が落ちた (`%%F` へ修正)
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**54 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

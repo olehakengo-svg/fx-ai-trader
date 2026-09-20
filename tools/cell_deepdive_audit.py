@@ -946,10 +946,12 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("trades_json", nargs="?",
-                   help="PROD /api/demo/trades JSON. MUST be fetched with an "
-                        "explicit high limit — the endpoint defaults to 50 rows: "
-                        "curl -sS 'https://fx-ai-trader.onrender.com/api/demo/"
-                        "trades?limit=100000' -o trades.json  (local DB is stale)")
+                   help="snapshot produced by --fetch-to (local DB is stale). "
+                        "A bare curl is REJECTED: it cannot prove the response "
+                        "was not truncated. Standard flow:\n"
+                        "  python3 tools/cell_deepdive_audit.py --fetch-to snap.json\n"
+                        "  python3 tools/cell_deepdive_audit.py snap.json "
+                        "--run-date $(date -u +%%F)")
     p.add_argument("--run-date", default=datetime.now(timezone.utc).date().isoformat())
     p.add_argument("--out-dir", default=None,
                    help="default: knowledge-base/raw/cell_deepdive/<run-date>")
@@ -1008,7 +1010,19 @@ def _http_fetch(status: str, limit: int, offset: int) -> list:
            f"?status={status}&limit={limit}&offset={offset}")
     with urlopen(url, timeout=300) as r:        # noqa: S310 (fixed PROD host)
         payload = json.load(r)
-    return payload.get("trades", []) if isinstance(payload, dict) else payload
+    # An HTTP-200 error object must NOT become []: paginate_trades would read
+    # that as a short page proving end-of-data, keep whatever pages already
+    # succeeded, and stamp _fetch_meta.complete=true on a truncated snapshot
+    # (Codex P2, PR #273).  Never fold "cannot inspect" into "no more data".
+    if isinstance(payload, list):
+        return payload
+    if not isinstance(payload, dict) or not isinstance(payload.get("trades"), list):
+        keys = sorted(payload)[:8] if isinstance(payload, dict) else type(payload).__name__
+        raise SystemExit(
+            f"/api/demo/trades?status={status}&limit={limit}&offset={offset}: "
+            f"response has no list-valued 'trades' (got {keys}) — aborting the "
+            f"fetch rather than treating it as end-of-data")
+    return payload["trades"]
 
 
 def _http_fetch_closed_page(limit: int, offset: int) -> list:

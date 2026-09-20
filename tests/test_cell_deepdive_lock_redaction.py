@@ -1446,3 +1446,68 @@ def test_pagination_must_request_closed_only_pages():
     assert "status={status}" in src, "status must be explicit in the URL"
     assert inspect.getsource(m._http_fetch_closed_page).count('"closed"') == 1
     assert inspect.getsource(m._http_fetch_open).count('"open"') == 1
+
+
+def test_malformed_page_aborts_instead_of_faking_end_of_data(monkeypatch):
+    """KNOWN-NG INPUT: an HTTP-200 object with no `trades` key, mid-pagination.
+
+    `payload.get("trades", [])` turned it into [], which paginate_trades reads
+    as a short page proving end-of-data — keeping the pages that already
+    succeeded and stamping complete=true on a truncated snapshot (Codex P2,
+    PR #273).
+    """
+    import io
+    import tools.cell_deepdive_audit as m
+
+    calls = {"n": 0}
+
+    class FakeResp(io.StringIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(url, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:                      # a good full page
+            rows = [{"id": i} for i in range(10)]
+            return FakeResp(json.dumps({"count": 10, "trades": rows}))
+        return FakeResp(json.dumps({"error": "rate limited"}))   # then garbage
+
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    with pytest.raises(SystemExit, match="no list-valued 'trades'"):
+        m.paginate_trades(m._http_fetch_closed_page, page_size=10)
+
+    # Counter-pin: a well-formed short page still ends pagination normally.
+    calls["n"] = 0
+
+    def good_urlopen(url, timeout=None):
+        calls["n"] += 1
+        n = 10 if calls["n"] == 1 else 3
+        return FakeResp(json.dumps({"count": n,
+                                    "trades": [{"id": i} for i in range(n)]}))
+
+    monkeypatch.setattr(urllib.request, "urlopen", good_urlopen)
+    out = m.paginate_trades(m._http_fetch_closed_page, page_size=10)
+    assert out["_fetch_meta"]["complete"] is True and out["count"] == 13
+
+
+def test_help_example_satisfies_the_completeness_contract():
+    """The documented flow must not be one the CLI immediately rejects.
+
+    The help told users to bare-curl while the CLI had started refusing exactly
+    that — the example contradicted the contract it was documenting (Codex P2,
+    PR #273).
+    """
+    from tools.cell_deepdive_audit import build_parser
+
+    help_text = build_parser().format_help()
+    assert "--fetch-to" in help_text, "the working flow must be documented"
+    # Mentioning curl to WARN about it is fine; handing the user a runnable
+    # curl command is not, because the CLI rejects what it produces.
+    assert "curl -" not in help_text and "curl '" not in help_text, (
+        "the help must not hand out a runnable curl the CLI then rejects")
+    assert "REJECTED" in help_text, "the rejection must be stated up front"

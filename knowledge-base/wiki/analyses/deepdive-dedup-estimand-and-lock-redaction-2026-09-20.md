@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (52 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (54 pins)
 
 ---
 
@@ -491,6 +491,22 @@ pin は「buggy な shape (`status=all`) で行が落ちることを実際に示
 (壊れた側を再現して比較する — 正しい側だけ testして「動いた」とするのでは
 この欠陥は捕まらない)。
 
+### 2.3s レビュー第18波 (Codex P2×2) — fetch 経路と help が契約に追いついていなかった
+
+| 指摘 | 実態 | 修正 |
+|---|---|---|
+| **壊れたページで abort せよ** | `_http_fetch` が `payload.get("trades", [])` で、**HTTP-200 のエラーオブジェクトを `[]`** にしていた。`paginate_trades` はそれを **short page = データ終端**と読み、成功済みページだけ残して `complete=true` を立てる ⇒ **truncate された snapshot が「証明済み」になる** | 各ページに list 値の `trades` があることを検証し、無ければ `SystemExit`。**「検査不能」を「もうデータが無い」に畳まない** |
+| **help の例が契約を満たしていない** | help は bare curl を案内したままで、**CLI はまさにそれを拒否する**。手順どおり実行すると必ず監査前に落ちる | `--fetch-to` → 監査、の実際に通る 2 段手順へ書き換え |
+
+🔑 **契約を強めたら、その契約を語る文書も同じコミットで更新する。**
+第16波で完全性契約を導入した時に help を直さなかったため、**公式手順が常に失敗する**状態を
+2 波ぶん放置していた。⚠️ これは §2.3n で「文章では正しくコードでは違う」と書いたのと
+**向きが逆の同型** (コードが正しく文章が古い)。
+
+🔵 **pin が自分のバグを即座に捕まえた**: help に `$(date -u +%F)` を入れたところ
+argparse の %-formatting で `TypeError` になり、`format_help()` を呼ぶ pin が落ちた
+(`%%F` へ修正)。**「ドキュメントが描画できること」自体を pin する価値がある**。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -564,6 +580,10 @@ pin は「buggy な shape (`status=all`) で行が落ちることを実際に示
 0c2ab. **pagination は closed-only を要求** (`status=all` shape では closed 行が実際に
    欠落することを再現して示し、かつ complete が立ってしまうことも示す) ∧ closed-only なら
    全行一致 ∧ 実装の URL に status が明示されている
+0c2ac. **壊れたページで fetch が abort** (成功ページの後にエラーオブジェクトが来ても
+   complete を立てない) ∧ counter-pin: 正常な short page は通常どおり終端になる
+0c2ad. **help が契約を満たす** (`--fetch-to` を案内 / 実行可能な curl を配らない /
+   拒否を明示) — `format_help()` を実際に呼ぶので描画不能も捕まる
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:
