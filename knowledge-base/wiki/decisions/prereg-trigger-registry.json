@@ -819,6 +819,26 @@
       "deadline": "2026-10-14",
       "doc": "knowledge-base/wiki/analyses/daily-market-review-protocol.md",
       "message": "daily market review 30d 有効性レビュー期日 — 観測記録数 / 卒業 family 数 / 執行QA発見数を集計 (daily-observations-2026-09/10.md が SSOT)。稼働率 <50% または (執行QA発見 0 かつ 卒業 family 0) なら write-only 認定 → プロトコル廃止提案 (§6)。読み手 = wiki-daily Phase 2.5 + user 報告"
+    },
+    {
+      "id": "sr-anti-hunt-eurjpy-count-basis-declaration",
+      "active": true,
+      "type": "conditional_info",
+      "deadline": "2026-10-12",
+      "doc": "knowledge-base/wiki/analyses/deepdive-dedup-estimand-and-lock-redaction-2026-09-20.md",
+      "message": "🔴 **user 決裁点 (R1) — LOCK `sr-anti-hunt-eurjpy-buy-forward-confirm` の計数基準が 読み手間で不一致**。prereg_trigger_watch は registry `closed_only: true` = CLOSED 全件で N=36、weekly deepdive は outcome∈{WIN,LOSS} で N=35。差 1 行は outcome=BREAKEVEN の CLOSED 行。pre-reg 原文 (sr-anti-hunt-eurjpy-r1-verdict-2026-08-05 §Forward 確認 pre-reg) は母集団を 『dedup_violation=0 の shadow rows / 2026-08-05 以降の新規』としか書いておらず BREAKEVEN の 扱いを規定していない (`closed_only` 自体が registry 側の補間)。判定式 ② Wilson_lo(95%)>38.7% は WIN/LOSS の二値分母を要するため、このままだと **トリガは N=40 で発火するのに ② の実 N は ≤39** = 『宣言した N で判定した』前提が崩れる。選択肢: (a) BREAKEVEN を母集団から除外し N=40 を WIN/LOSS で数える (b) 含めて数え ② は WIN/LOSS 部分集合で評価すると明記し power 低下を受容 (c) BREAKEVEN を LOSS 扱い。**決め方は ② の分母定義との整合のみで行い、outcome から優劣を 判断してはならない。** ⚠️ **Claude は中立でない** — 2026-09-20 の計数照合中に本セル fresh 行の WIN/LOSS 内訳を 1 回観測した (P-10 抵触、上記 doc §3 に開示)。よって基準の確定は user 決裁とし autopilot は執行しない。**いま決める理由**: outcome を見る前の確定は無バイアスだが、N=40 到達後の 確定は結果を見てからのルール変更になる。残り 4-5 本 / ETA 2026-10 中旬 (直近 4 週 1.75 本/週)。",
+      "condition": "LOCK sr-anti-hunt-eurjpy-buy-forward-confirm の N 計数基準 (BREAKEVEN の扱い) を fresh N=40 到達前に user が確定すること",
+      "reachability": "user 決裁待ち (R1 = 凍結 pre-reg の判定規則の補完)。到達経路 = user が (a)/(b)/(c) を選び、pre-reg doc の §Forward 確認 pre-reg に補記 + registry の本エントリと sr-anti-hunt-eurjpy-buy-forward-confirm の closed_only/count_basis を同一コミットで揃える。進捗の読み手 = tools/prereg_trigger_watch.py (N 表示) と tools/cell_deepdive_audit.py (LOCK セルは n のみ出力)。期日 2026-10-12 は本体トリガ ETA (2026-10 中旬) の手前に置いてある — 超過して N≥40 が先に来た場合、判定は基準確定まで保留すること (先に判定してはならない)。"
+    },
+    {
+      "id": "sr-anti-hunt-eurjpy-lock-validity-disposition",
+      "active": true,
+      "type": "conditional_info",
+      "deadline": "2026-10-12",
+      "doc": "knowledge-base/wiki/analyses/deepdive-dedup-estimand-and-lock-redaction-2026-09-20.md",
+      "message": "🔴 **user 決裁点 (R1) — LOCK `sr-anti-hunt-eurjpy-buy-forward-confirm` の optional stopping 露出**。weekly deepdive が本セルの outcome 統計 (WR/EV/PF/Wilson/p) を **2026-08-23 / 08-30 / 09-06 / 09-13 / 09-20 の 5 回**印刷し、いずれも main にコミット済み (LOCK 発効 2026-08-05、`knowledge-base/raw/cell_deepdive/*/_summary.md` を grep で確認)。さらに 09-20 に Claude が fresh 行の WIN/LOSS 内訳を 1 回観測 (doc §3 に開示)。⇒ **『fresh N≥40 到達時に 1 回限り判定』という前提は本 PR 以前に実質崩れており、凍結時の α をそのまま使えるかは自明でない**。2026-09-20 の PR で redaction 層を入れて **追加の露出は停止**したが、既発生分は取り消せない。選択肢: (a) そのまま判定し verdict に『optional stopping 露出あり』を明記して結論の強度を下げる (b) LOCK 失効扱いとし redaction 済みハーネス下で fresh OOS 窓を切り直す (N 蓄積やり直し = 時間コスト大) (c) 判定は行うが昇格の必要条件を引き上げる。⚠️ **引用規律: 本セルの今後の verdict を 引用する際はこの露出を必ず併記すること。露出を伏せた『Bonferroni 通過』型の引用は禁止。** 本件は計数基準 (`sr-anti-hunt-eurjpy-count-basis-declaration`) とは別問題 — 混同しないこと。",
+      "condition": "5 週の optional stopping 露出を受けて LOCK sr-anti-hunt-eurjpy-buy-forward-confirm の 判定を凍結時の α のまま行ってよいかを user が確定すること",
+      "reachability": "user 決裁待ち (R1)。到達経路 = user が (a)/(b)/(c) を選び、pre-reg doc sr-anti-hunt-eurjpy-r1-verdict-2026-08-05 と本エントリを同一コミットで更新。追加露出の停止は執行済み (tools/cell_deepdive_audit.py の redaction 層 + tests/test_cell_deepdive_lock_redaction.py の 8 pins、2026-09-20)。期日 2026-10-12 は本体トリガ ETA (2026-10 中旬) の手前。超過して N≥40 が先に来た場合、判定は disposition 確定まで保留すること。"
     }
   ]
 }
