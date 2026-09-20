@@ -113,7 +113,18 @@
   `sr_anti_hunt_bounce` 13.46→**13.22 本/週**、`vdr_jpy` 1.56→**1.48**。
   **`mqe_gbpusd_fix` の 0.08 は不変**で §1.4 の結論に影響なし
 - 🔴 **「文章では正しく、コードでは違う」の 3 例目** (LOCK 衝突の認識 / 正本契約 / 多重度族)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**34 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第9波 (Codex P2) — 正本の方が pre-reg から外れていた例**:
+  (s) shadow LOCK の母集団が pre-reg 原文 (**shadow rows のみ**) と正本
+  `count_matching` (**`oanda_trade_id` で絞らない**) で食い違う。現データは
+  **両者 36 で一致**しており潜在だが、本セルが live fill を取れば
+  **watcher が先に発火したのに監査は未達と表示する**事故になる。
+  **どちらも採らず両方を出力** (`n_lock_population` / `n_lock_population_watcher` /
+  `watcher_divergence` / `watcher_divergent_locks`) し、決裁点
+  `sr-anti-hunt-eurjpy-count-basis-declaration` に第 2 の論点として追記
+  (BREAKEVEN の扱いと **1 回で決める**)
+- 🔑 **「正本の読み取りコードを仕様として読め」(第4波) は「正本が常に正しい」ではない** —
+  正本と凍結文書が食い違ったら、勝手にどちらかへ寄せず**両方出して決裁に上げる**
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**36 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

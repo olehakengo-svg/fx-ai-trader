@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (34 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (36 pins)
 
 ---
 
@@ -332,6 +332,35 @@ EV −4.27 / PF 0.37 は不変) と `m_v2` = 7 / `m_v3` = 1 / `candidates` = 0�
 しかも **レポート本文は正しい族を書いていた** — 「文章では正しく、コードでは違う」の
 3 例目 (§2.1 の LOCK 衝突認識、§2.3e の正本契約、本項)。
 
+### 2.3j レビュー第9波 (Codex P2) — 正本の方が pre-reg から外れていた例
+
+指摘: 「shadow LOCK の `n_lock_population` が canonical watcher と食い違いうる」。
+**実査したところ指摘は事実だが、ズレているのは本ツールではなく正本の方だった**:
+
+- pre-reg 原文 ([[sr-anti-hunt-eurjpy-r1-verdict-2026-08-05]]) の母集団 =
+  「`dedup_violation=0` の **shadow rows のみ**」
+- MEMORY `feedback_live_vs_shadow_strict_separation` = live は `oanda_trade_id != ''`
+- しかし正本 `count_matching` は instrument/direction/closed/dedup は適用するが
+  **`oanda_trade_id` で絞らない** ⇒ live fill 済みの行も「shadow 件数」に入る
+
+現データでは**両者とも 36 で一致**しており潜在 (本セルにまだ live fill が無い)。
+だが本セルが live fill を取り始めた瞬間に顕在化し、
+**watcher が先に発火したのに監査は未達と表示する** (またはその逆) 事故になる。
+
+**どちらも採らなかった。** LOCK トリガの計数規則を一方的に変えることは、
+本 PR が §4 で「user 決裁」に回したのと同じ種類の行為だからである。
+代わりに **両方を出力して差異を可視化**する:
+`n_lock_population` (pre-reg 忠実) / `n_lock_population_watcher` (watcher 互換) /
+`watcher_divergence` フラグ + `watcher_divergent_locks` 一覧。
+決裁点 `sr-anti-hunt-eurjpy-count-basis-declaration` に**第 2 の論点として追記**し、
+BREAKEVEN の扱いと **1 回で決める**よう明記した (別々に決めると 2 つの読み手が
+別の理由でずれ続ける)。
+
+🔑 **レビュー指摘を「直す」ことと「正しい側に寄せる」ことは別。**
+第4波で得た「正本の読み取りコードを仕様として読め」は、
+**正本が常に正しいという意味ではない** — 正本と凍結文書が食い違ったら、
+勝手にどちらかへ寄せず**両方出して決裁に上げる**。
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -370,6 +399,10 @@ EV −4.27 / PF 0.37 は不変) と `m_v2` = 7 / `m_v3` = 1 / `candidates` = 0�
    `p_bonf > p_raw` を受け `promoted=False`、`candidates` は空) ∧ 全 tested セルの
    `p_bonf` が `p_raw × m_family` と一致
 0c2m. **accrual 窓が名乗った長さちょうど** (30d/90d の境界日をまたぐ行で off-by-one を検出)
+0c2n. **shadow LOCK の watcher 乖離が可視化される** (live fill 5 本を足すと
+   pre-reg 忠実 22 / watcher 互換 27 / `watcher_divergence=True`、v2 と v3 の両方が
+   flag される) ∧ counter-pin: live fill 無しなら一致し flag は空 ∧ live LOCK は
+   構造上乖離しえない
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

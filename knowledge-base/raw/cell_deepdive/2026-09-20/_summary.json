@@ -179,6 +179,8 @@
         ],
         "n_unique_rows_in_window": 75,
         "n_lock_population": 36,
+        "n_lock_population_watcher": 36,
+        "watcher_divergence": false,
         "n_decide": 40,
         "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
       },
@@ -191,6 +193,8 @@
         ],
         "n_unique_rows_in_window": 35,
         "n_lock_population": 22,
+        "n_lock_population_watcher": 22,
+        "watcher_divergence": false,
         "n_decide": 30,
         "registry_id": "ws3-t11-anti-hunt-usdjpy-recheck"
       },
@@ -204,10 +208,14 @@
         ],
         "n_unique_rows_in_window": 34,
         "n_lock_population": 36,
+        "n_lock_population_watcher": 36,
+        "watcher_divergence": false,
         "n_decide": 40,
         "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm"
       }
     ],
+    "watcher_divergent_locks": [],
+    "watcher_divergence_note": "shadow LOCK \u306e\u6bcd\u96c6\u56e3\u5b9a\u7fa9\u304c pre-reg \u539f\u6587 (shadow rows \u306e\u307f) \u3068 canonical watcher count_matching (oanda_trade_id \u3067\u7d5e\u3089\u306a\u3044) \u3067\u98df\u3044\u9055\u3046\u3002\u4e21\u65b9\u3092\u51fa\u3057\u3066\u5dee\u7570\u3092\u53ef\u8996\u5316\u3059\u308b\u306e\u307f \u2014 \u3069\u3061\u3089\u3092\u63a1\u308b\u304b\u306f LOCK \u30c8\u30ea\u30ac\u306e\u8a08\u6570\u898f\u5247\u306e\u5909\u66f4\u306b\u3064\u304d user \u6c7a\u88c1 (registry sr-anti-hunt-eurjpy-count-basis-declaration)",
     "marker_locked_rows_excluded": 0,
     "marker_locks": [
       {
@@ -468,6 +476,8 @@
       "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
       "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
       "n_lock_population": 36,
+      "n_lock_population_watcher": 36,
+      "watcher_divergence": false,
       "n_decide": 40,
       "lock_population_predicates": {
         "kind": "shadow",
@@ -489,6 +499,8 @@
       "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
       "redaction_registry_id": "ws3-t11-anti-hunt-usdjpy-recheck",
       "n_lock_population": 22,
+      "n_lock_population_watcher": 22,
+      "watcher_divergence": false,
       "n_decide": 30,
       "lock_population_predicates": {
         "kind": "shadow",
@@ -513,6 +525,8 @@
       "redaction_reason": "prereg_lock_p10_no_intermediate_recompute",
       "redaction_registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
       "n_lock_population": 36,
+      "n_lock_population_watcher": 36,
+      "watcher_divergence": false,
       "n_decide": 40,
       "lock_population_predicates": {
         "kind": "shadow",

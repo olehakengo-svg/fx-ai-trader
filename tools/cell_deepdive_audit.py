@@ -259,7 +259,7 @@ def load_locked_cells(registry_path=None) -> list:
     return locked
 
 
-def row_in_lock_population(t, lock) -> bool:
+def row_in_lock_population(t, lock, *, watcher_compat: bool = False) -> bool:
     """True when row ``t`` belongs to ``lock``'s declared population.
 
     Single source of truth for BOTH the LOCK's N and the marker-row exclusion.
@@ -286,7 +286,15 @@ def row_in_lock_population(t, lock) -> bool:
     kind = lock.get("kind")
     if kind == "live" and not live:
         return False
-    if kind == "shadow" and live:
+    if kind == "shadow" and live and not watcher_compat:
+        # Pre-reg text for the shadow LOCKs says the population is
+        # "dedup_violation=0 の shadow rows のみ", and MEMORY
+        # feedback_live_vs_shadow_strict_separation makes live =
+        # oanda_trade_id != ''.  The canonical watcher's count_matching does
+        # NOT apply this filter, so the two can diverge once a shadow LOCK's
+        # cell starts taking live fills.  We do NOT silently pick a side on a
+        # LOCK trigger: `watcher_compat=True` reproduces the watcher and the
+        # report emits BOTH counts plus a divergence flag (Codex P2, PR #273).
         return False
     if lock.get("closed_only") and t.get("status") != "CLOSED":
         return False
@@ -308,7 +316,7 @@ def row_in_lock_population(t, lock) -> bool:
     return True
 
 
-def lock_population_count(trades, lock) -> int:
+def lock_population_count(trades, lock, *, watcher_compat: bool = False) -> int:
     """Count rows in the LOCK's OWN declared population.
 
     The registry entry — not this audit's window — defines what the trigger
@@ -317,7 +325,8 @@ def lock_population_count(trades, lock) -> int:
     the very defect this PR documents (a count that does not match the
     estimand printed beside it).
     """
-    return sum(1 for t in trades if row_in_lock_population(t, lock))
+    return sum(1 for t in trades
+               if row_in_lock_population(t, lock, watcher_compat=watcher_compat))
 
 
 def _reasons_text(trade) -> str:
@@ -362,7 +371,8 @@ def lock_for_cell(entry_type, instrument, direction, locked_cells) -> dict | Non
 
 
 def count_only_record(level, key, unique_rows_in_window: int, lock: dict,
-                      lock_population_n=None) -> dict:
+                      lock_population_n=None,
+                      lock_population_watcher_n=None) -> dict:
     """Build a LOCKed cell's record WITHOUT computing any outcome statistic.
 
     P-10 forbids *recomputation*, not merely publication, so no
@@ -386,6 +396,10 @@ def count_only_record(level, key, unique_rows_in_window: int, lock: dict,
     }
     if lock_population_n is not None:
         rec["n_lock_population"] = lock_population_n
+        if lock_population_watcher_n is not None:
+            rec["n_lock_population_watcher"] = lock_population_watcher_n
+            rec["watcher_divergence"] = (
+                lock_population_watcher_n != lock_population_n)
         rec["n_decide"] = lock.get("n_decide")
         rec["lock_population_predicates"] = {
             k: lock.get(k) for k in
@@ -709,7 +723,9 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             lock = lock_for_cell(k[0], k[1], k[-1], cell_locks)
             out.append(count_only_record(
                 level, k, len(rows), lock,
-                lock_population_n=lock_population_count(trades, lock)))
+                lock_population_n=lock_population_count(trades, lock),
+                lock_population_watcher_n=lock_population_count(
+                    trades, lock, watcher_compat=True)))
         return out
 
     v2_eval = eval_cells(v2_elig, m_family, "v2") + locked_records(locked_v2_elig, "v2")
@@ -745,10 +761,25 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                 {"level": c["level"], "cell": c["cell"],
                  "n_unique_rows_in_window": c["n_unique_rows_in_window"],
                  "n_lock_population": c.get("n_lock_population"),
+                 "n_lock_population_watcher": c.get("n_lock_population_watcher"),
+                 "watcher_divergence": c.get("watcher_divergence"),
                  "n_decide": c.get("n_decide"),
                  "registry_id": c.get("redaction_registry_id")}
                 for c in redacted_cells
             ],
+            "watcher_divergent_locks": [
+                {"registry_id": c.get("redaction_registry_id"),
+                 "cell": c["cell"],
+                 "n_prereg_faithful": c.get("n_lock_population"),
+                 "n_watcher": c.get("n_lock_population_watcher")}
+                for c in redacted_cells if c.get("watcher_divergence")
+            ],
+            "watcher_divergence_note":
+                "shadow LOCK の母集団定義が pre-reg 原文 (shadow rows のみ) と "
+                "canonical watcher count_matching (oanda_trade_id で絞らない) "
+                "で食い違う。両方を出して差異を可視化するのみ — どちらを採るかは "
+                "LOCK トリガの計数規則の変更につき user 決裁 "
+                "(registry sr-anti-hunt-eurjpy-count-basis-declaration)",
             "marker_locked_rows_excluded": marker_excluded,
             "marker_locks": [
                 {"registry_id": lk.get("registry_id"),

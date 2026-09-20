@@ -807,3 +807,72 @@ def test_accrual_windows_span_exactly_their_advertised_length():
     assert out["unique_90d"] == 4, "90d must span exactly 90 inclusive days"
     assert out["unique_365d"] == 5
     assert out["last_unique_fire"].startswith("2026-09-20")
+
+
+def test_shadow_lock_watcher_divergence_is_surfaced_not_silently_resolved():
+    """KNOWN-NG INPUT: a shadow LOCK cell that also took live fills.
+
+    The pre-reg says the population is "dedup_violation=0 の shadow rows のみ",
+    but the canonical count_matching never filters `oanda_trade_id`, so the two
+    diverge once a shadow LOCK's cell takes live fills.  Picking a side would
+    change a LOCK trigger's counting rule, so the report emits BOTH counts and
+    a divergence flag instead (Codex P2, PR #273).
+    """
+    lock = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+            "direction": "BUY", "registry_id": "sr-anti-hunt-eurjpy-buy-forward-confirm",
+            "match": "exact", "kind": "shadow", "since": "2026-08-05",
+            "closed_only": True, "dedup_violation": 0, "mode": None,
+            "n_decide": 40, "reasons_marker": None, "count_basis": None}
+
+    shadow = _rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 22, wins=11)
+    for t in shadow:
+        t["status"] = "CLOSED"
+        t["oanda_trade_id"] = ""
+    live = _rows("sr_anti_hunt_bounce", "EUR_JPY", "BUY", 5, wins=3)
+    for t in live:
+        t["status"] = "CLOSED"
+        t["oanda_trade_id"] = "900123"
+
+    assert lock_population_count(shadow + live, lock) == 22, (
+        "pre-reg faithful: shadow rows only")
+    assert lock_population_count(shadow + live, lock, watcher_compat=True) == 27, (
+        "watcher compatible: count_matching does not filter oanda_trade_id")
+
+    res = run_audit(shadow + live, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec["n_lock_population"] == 22
+    assert rec["n_lock_population_watcher"] == 27
+    assert rec["watcher_divergence"] is True
+    divergent = res["prereg_lock_redaction"]["watcher_divergent_locks"]
+    # Both the v2 cell and its v3 refinement are flagged — they share the LOCK,
+    # so they report the same (LOCK-level) population counts.
+    assert len(divergent) == 2
+    assert {d["registry_id"] for d in divergent} == {
+        "sr-anti-hunt-eurjpy-buy-forward-confirm"}
+    assert all(d["n_prereg_faithful"] == 22 for d in divergent)
+    assert all(d["n_watcher"] == 27 for d in divergent)
+
+    # Counter-pin: with no live fills the two agree and nothing is flagged.
+    res2 = run_audit(shadow, run_date="2026-09-20",
+                     targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
+    rec2 = [c for c in res2["eligible_cells_v2"]
+            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec2["watcher_divergence"] is False
+    assert res2["prereg_lock_redaction"]["watcher_divergent_locks"] == []
+
+
+def test_live_locks_agree_with_the_watcher_by_construction():
+    """Counter-pin: for live LOCKs both paths filter oanda_trade_id, so no
+    divergence can arise there."""
+    lock = {"entry_type": "kalman_d7", "match": "prefix", "instrument": None,
+            "direction": None, "registry_id": "t9-kalman-d7-live-n10-ev-check",
+            "kind": "live", "since": None, "closed_only": False,
+            "dedup_violation": None, "mode": None, "n_decide": 10,
+            "reasons_marker": None, "count_basis": None}
+    rows = _rows("kalman_d7", "USD_JPY", "BUY", 12, wins=6)
+    for i, t in enumerate(rows):
+        t["oanda_trade_id"] = "1" if i < 8 else ""
+    assert (lock_population_count(rows, lock)
+            == lock_population_count(rows, lock, watcher_compat=True) == 8)
