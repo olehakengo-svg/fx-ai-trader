@@ -45,7 +45,22 @@
   `lock_for_cell` と `lock_population_count` の**両方**に適用
 - 🔴 **[[feedback_check_the_symmetric_side_2026_09_19]] の 3 度目の実例** — 自分で書いた教訓を、
   その教訓を引用している PR の中で踏んだ。✅ prefix 指摘は額面で受けず registry を実査して確認
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**21 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第4波 (Codex P1 + P2×2) — 欠陥の主系統は正本 `prereg_trigger_watch` との契約ズレ**
+  (registry と正本ハーネスを実査して 3 件とも事実確認後に修正):
+  (h) **marker 定義 LOCK を落としていた** — `hourblock-class-exempt-r2-rollback` は active で
+  `entry_type` が空・`reasons_marker` で母集団を定義し正本も対応済みだが、本ツールは
+  `entry_type` 空で `continue` して **active な decision LOCK を丸ごと無視**。marker LOCK は
+  行集合なので `clean` を組む前に該当行を除去する方式に
+  (i) **live LOCK の計数から重複行を無条件除外** — `count_live_matching` は無条件除外するのに
+  本ツールは registry 明示時のみ。重複 live 行が `n_lock_population` を正本より大きくし
+  **n_decide 到達に見せうる**。shadow 側も `count_basis == "unique"` を honor
+  (j) **`active` 省略 = active** — 正本は `.get("active", True)`、本ツールは省略を非 active 扱い
+  (現 registry に省略 0 件で実害は未発生、潜在的 fail-open)
+- ✅ **3 度目の独立クロスバリデーション**: marker LOCK の `n_lock_population` = **2** が
+  watcher の `live N=2/10` と一致。EUR_JPY **36/40** / ws3-t11 **22/30** と合わせ 3 本とも一致
+- 🔴 **教訓: 同じ registry を読む 2 つ目の実装を書くときは、フィールド一覧ではなく
+  正本の読み取りコードを仕様として読む**
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**25 本**): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

@@ -201,15 +201,23 @@ def load_locked_cells(registry_path=None) -> list:
 
     locked = []
     for e in entries:
-        if not e.get("active"):
+        # Canonical loader is `t.get("active", True)` — an omitted flag means
+        # ACTIVE.  Treating it as inactive would let the watcher evaluate a
+        # LOCK this audit publishes unredacted (Codex P2, PR #273).
+        if not e.get("active", True):
             continue
         if not str(e.get("type", "")).endswith("_count_decision"):
             continue
         et = e.get("entry_type")
-        if not et:
+        marker = e.get("reasons_marker") or ""
+        # A marker-defined LOCK (e.g. hourblock-class-exempt-r2-rollback) has an
+        # empty entry_type and defines its population by a reasons literal;
+        # prereg_trigger_watch supports that shape, so dropping it here would
+        # silently un-redact an active decision LOCK (Codex P1, PR #273).
+        if not et and not marker:
             continue
         locked.append({
-            "entry_type": et,
+            "entry_type": et or None,
             "instrument": e.get("instrument") or None,
             "direction": e.get("direction") or None,
             "registry_id": e.get("id"),
@@ -219,6 +227,8 @@ def load_locked_cells(registry_path=None) -> list:
             # statistics (Codex P2, PR #273).  Semantics mirror
             # tools/prereg_trigger_watch.py count_matching(prefix=...).
             "match": "prefix" if e.get("match") == "prefix" else "exact",
+            "reasons_marker": marker or None,
+            "count_basis": e.get("count_basis"),
             # Population predicates — the LOCK's N is defined by THESE, not by
             # this audit's window/filters (Codex P2, PR #273).  Reporting the
             # cell's 365d Live+Shadow row count next to the gate threshold
@@ -245,7 +255,12 @@ def lock_population_count(trades, lock) -> int:
     """
     n = 0
     for t in trades:
-        if not _entry_type_matches(t.get("entry_type"), lock):
+        # A marker LOCK has no entry_type — its population is defined by the
+        # reasons literal alone, so entry_type must not filter it out.
+        if lock.get("entry_type"):
+            if not _entry_type_matches(t.get("entry_type"), lock):
+                continue
+        elif not lock.get("reasons_marker"):
             continue
         if lock.get("instrument") and t.get("instrument") != lock["instrument"]:
             continue
@@ -261,19 +276,41 @@ def lock_population_count(trades, lock) -> int:
             continue
         if lock.get("closed_only") and t.get("status") != "CLOSED":
             continue
-        if lock.get("dedup_violation") is not None:
-            if int(t.get("dedup_violation") or 0) != int(lock["dedup_violation"]):
+        dup = int(t.get("dedup_violation") or 0) == 1
+        if kind == "live":
+            # count_live_matching excludes dup rows UNCONDITIONALLY; without
+            # this a duplicate live row inflates n_lock_population above the
+            # canonical watcher count (Codex P2, PR #273).
+            if dup:
                 continue
+        elif (lock.get("count_basis") == "unique"
+              or lock.get("dedup_violation") == 0):
+            # Mirrors count_matching(exclude_dedup_violation=...).
+            if dup:
+                continue
+        marker = lock.get("reasons_marker")
+        if marker and marker not in _reasons_text(t):
+            continue
         if lock.get("since") and _ts(t) < str(lock["since"]):
             continue
         n += 1
     return n
 
 
+def _reasons_text(trade) -> str:
+    """Flatten a trade's `reasons` to text (mirrors prereg_trigger_watch)."""
+    r = trade.get("reasons") or ""
+    if isinstance(r, list):
+        r = " | ".join(str(x) for x in r)
+    return str(r)
+
+
 def _entry_type_matches(entry_type, lock) -> bool:
     """Exact or prefix entry_type match, per the LOCK's `match` field."""
     target = lock.get("entry_type")
     if not target:
+        # Marker-defined LOCK: population is a row set, not a cell, so it
+        # never claims a cell here (its rows are removed up-front instead).
         return False
     et = entry_type or ""
     if lock.get("match") == "prefix":
@@ -482,6 +519,13 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                  if t.get("dedup_violation") != 1
                  and t.get("outcome") not in ("WIN", "LOSS"))
 
+    # Marker-defined LOCKs (empty entry_type + `reasons_marker`) define a row
+    # set rather than a cell, so their rows are removed BEFORE any outcome
+    # statistic is built — otherwise the pooled LOCK outcomes reappear inside
+    # whatever cell/strategy those rows happen to land in (Codex P1, PR #273).
+    marker_locks = [lk for lk in locked_cells if lk.get("reasons_marker")]
+    marker_excluded = 0
+
     clean = []
     for t in target_all:
         if t.get("dedup_violation") == 1:
@@ -489,6 +533,11 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
         oc = t.get("outcome")
         if oc not in ("WIN", "LOSS"):
             continue
+        if marker_locks:
+            txt = _reasons_text(t)
+            if any(lk["reasons_marker"] in txt for lk in marker_locks):
+                marker_excluded += 1
+                continue
         clean.append({
             "entry_type": t.get("entry_type"),
             "instrument": t.get("instrument"),
@@ -615,6 +664,14 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
                  "n_decide": c.get("n_decide"),
                  "registry_id": c.get("redaction_registry_id")}
                 for c in redacted_cells
+            ],
+            "marker_locked_rows_excluded": marker_excluded,
+            "marker_locks": [
+                {"registry_id": lk.get("registry_id"),
+                 "reasons_marker": lk.get("reasons_marker"),
+                 "n_lock_population": lock_population_count(trades, lk),
+                 "n_decide": lk.get("n_decide")}
+                for lk in marker_locks
             ],
             "note": "outcome statistics NOT COMPUTED for these cells — P-10 "
                     "(no intermediate recomputation until the declared N is "

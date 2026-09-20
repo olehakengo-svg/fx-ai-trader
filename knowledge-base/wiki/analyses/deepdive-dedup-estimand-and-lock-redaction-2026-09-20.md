@@ -4,7 +4,7 @@
 **きっかけ**: 2026-09-20 weekly deepdive 実行結果 (`knowledge-base/raw/cell_deepdive/2026-09-20/_summary.md`)
 **データ**: Render PROD `/api/demo/trades?limit=100000` スナップショット (18,057 行、2026-09-20T15:51Z 取得)。
 ローカル `demo_trades.db` は STALE のため不使用。
-**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (21 pins)
+**成果物**: `tools/cell_deepdive_audit.py` (新規、in-repo 化) / `tests/test_cell_deepdive_lock_redaction.py` (25 pins)
 
 ---
 
@@ -239,6 +239,26 @@ ws3-t11 **22/30**。別実装の読み手が同じ数を出すことで実装の
 `t9-kalman-d7-live-n10-ev-check` / `ps-carveout-regate-post-172` /
 `project-falsification-f2-wg-live-conversion`) — **指摘は事実**だった。
 
+### 2.3e レビュー第4波 (Codex P1 + P2×2) — 正本 (`prereg_trigger_watch`) との契約ズレ
+
+3 件とも **registry と正本ハーネスを実査して事実確認**した上で修正:
+
+| 指摘 | 実査結果 | 修正 |
+|---|---|---|
+| **marker 定義の LOCK を落とすな** | `hourblock-class-exempt-r2-rollback` は **active / `live_count_decision` / `entry_type` が空 / `reasons_marker: "[HOURBLOCK_CLASS_EXEMPT]"`** で実在し、`prereg_trigger_watch` は `fetch_live_count(reasons_marker=...)` で対応済み。本ツールは `entry_type` が空だと `continue` していたので **active な decision LOCK を丸ごと無視**していた | marker LOCK は「セル」でなく**行集合**を定義するので、`clean` を組む**前**に該当行を除去 (`marker_locked_rows_excluded` を出力)。`lock_population_count` も marker で数える |
+| **live LOCK の計数から重複行を除け** | `count_live_matching` は `dedup_violation == 1` を**無条件で**除外する。本ツールは registry が明示した時だけ除外していたため、重複 live 行が `n_lock_population` を正本より大きくし **n_decide 到達に見せうる** | `kind == "live"` は無条件除外。shadow 側は正本どおり `count_basis == "unique"` **または** `dedup_violation == 0` の時に除外 |
+| **`active` 省略時は active 扱い** | 正本 `load_registry` は `t.get("active", True)`。本ツールは `e.get("active")` で **省略 = 非 active** と解釈しており fail-open (現 registry に省略エントリは 0 件なので実害は未発生、潜在) | `e.get("active", True)` に合わせた |
+
+✅ **3 度目の独立クロスバリデーション**: marker LOCK の `n_lock_population` = **2**
+が `prereg_trigger_watch` の `hourblock-class-exempt-r2-rollback: live N=2/10` と一致。
+EUR_JPY **36/40** / ws3-t11 **22/30** と合わせ、3 本とも正本と一致した。
+
+🔴 **本 PR の欠陥の主系統は「正本との契約ズレ」だった** — registry のフィールド
+(`match` / `reasons_marker` / `count_basis` / `active` 既定 / live の暗黙 dedup) を
+**正本ハーネスがどう解釈しているか**を読まずに自前解釈したのが原因。
+**同じ registry を読む 2 つ目の実装を書くときは、フィールド一覧ではなく
+正本の読み取りコードを仕様として読む。**
+
 ### 2.4 pin (同一コミット、`tests/test_cell_deepdive_lock_redaction.py`)
 
 教訓「**検知器には『NG を返す既知の入力』を同じコミットで pin せよ**」
@@ -259,6 +279,10 @@ ws3-t11 **22/30**。別実装の読み手が同じ数を出すことで実装の
 0c2c. **prefix LOCK が variant family を覆う** (`kalman_d7_variant_a` が redact され
    `n_lock_population` も prefix で数える) ∧ counter-pin: `exact` LOCK は variant を飲み込まない
    ∧ 実 registry の prefix フラグが保持されている
+0c2d. **marker LOCK の行が outcome 計算に入らない** (marked 15 行が WR を 0.5 でなく
+   0.2 に保つ) ∧ `since` は marker LOCK にも効く ∧ 実 registry から marker LOCK が読める
+0c2e. **live LOCK の計数が重複行を無条件に除外** (dup 5 行を足しても 8 のまま)
+0c2f. **`active` 省略 = active** ∧ counter-pin: `active: false` は無効のまま
 0c3. **inclusive 窓が厳密に 365 日** (`window_bounds` の日数を算術検査、`window_days=1`
    なら 1 日)
 0d. **戦略集計が LOCK セルそのものにならない** (全行 LOCK なら `clean_N=0`) ∧ counter-pin:

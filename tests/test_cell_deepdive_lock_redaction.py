@@ -459,3 +459,89 @@ def test_real_registry_preserves_prefix_match_flags():
     assert by_id["ps-carveout-regate-post-172"]["match"] == "prefix"
     # ...and a non-prefix lock is not silently widened.
     assert by_id["sr-anti-hunt-eurjpy-buy-forward-confirm"]["match"] == "exact"
+
+
+def test_marker_defined_lock_rows_are_excluded_from_outcomes():
+    """KNOWN-NG INPUT: rows carrying an active marker LOCK's reasons literal.
+
+    `hourblock-class-exempt-r2-rollback` has an EMPTY entry_type and defines
+    its population via `reasons_marker`; prereg_trigger_watch supports that
+    shape.  Dropping such LOCKs meant their pooled outcomes were recomputed
+    inside whatever cell the rows landed in (Codex P1, PR #273).
+    """
+    marker_lock = {
+        "entry_type": None, "instrument": None, "direction": None,
+        "registry_id": "hourblock-class-exempt-r2-rollback", "match": "exact",
+        # `since` deliberately covers the fixture rows (2026-08-1x); the real
+        # entry's 2026-09-02 is exercised by the population test above.
+        "kind": "live", "since": "2026-08-01", "closed_only": False,
+        "dedup_violation": None, "mode": None, "n_decide": 10,
+        "reasons_marker": "[HOURBLOCK_CLASS_EXEMPT]", "count_basis": None,
+    }
+    plain = _rows("vsg_jpy_reversal", "EUR_JPY", "SELL", 25, wins=5)
+    marked = _rows("vsg_jpy_reversal", "EUR_JPY", "SELL", 15, wins=15)
+    for t in marked:
+        t["reasons"] = ["[HOURBLOCK_CLASS_EXEMPT] exempt", "x"]
+        t["oanda_trade_id"] = "7"
+
+    res = run_audit(plain + marked, run_date="2026-09-20",
+                    targets=("vsg_jpy_reversal",), locked_cells=[marker_lock])
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["vsg_jpy_reversal", "EUR_JPY", "SELL"]][0]
+    assert rec["n"] == 25, "marker rows must not enter the cell"
+    # 5/25 = 0.2 — if the 15 marked WINs leaked in it would be 20/40 = 0.5.
+    assert rec["wr"] == pytest.approx(0.2)
+    red = res["prereg_lock_redaction"]
+    assert red["marker_locked_rows_excluded"] == 15
+    assert red["marker_locks"][0]["n_lock_population"] == 15
+    # Counter-pin: `since` still bounds a marker LOCK's population.
+    late = dict(marker_lock, since="2026-09-02")
+    assert lock_population_count(plain + marked, late) == 0
+
+
+def test_registry_keeps_the_marker_lock():
+    """Counter-pin on the live registry: the marker LOCK must load."""
+    ids = {lk["registry_id"] for lk in load_locked_cells()}
+    assert "hourblock-class-exempt-r2-rollback" in ids
+
+
+def test_live_lock_counts_exclude_duplicate_rows_unconditionally():
+    """KNOWN-NG INPUT: a duplicate live row on a lock that omits dedup_violation.
+
+    count_live_matching excludes dedup_violation == 1 unconditionally, so
+    without this the report's n_lock_population exceeds the canonical watcher
+    count and can look like n_decide was reached (Codex P2, PR #273).
+    """
+    lock = {"entry_type": "kalman_d7", "match": "prefix", "instrument": None,
+            "direction": None, "registry_id": "t9-kalman-d7-live-n10-ev-check",
+            "kind": "live", "since": None, "closed_only": False,
+            "dedup_violation": None, "mode": None, "n_decide": 10,
+            "reasons_marker": None, "count_basis": None}
+    good = _rows("kalman_d7", "USD_JPY", "BUY", 8, wins=4)
+    dupes = _rows("kalman_d7", "USD_JPY", "BUY", 5, wins=5)
+    for t in good:
+        t["oanda_trade_id"] = "1"
+    for t in dupes:
+        t["oanda_trade_id"] = "1"
+        t["dedup_violation"] = 1
+
+    assert lock_population_count(good + dupes, lock) == 8, (
+        "duplicate live rows must never count toward the gate")
+
+
+def test_entry_without_active_key_is_treated_as_active(tmp_path):
+    """Canonical loader is .get('active', True) — an omitted flag means ACTIVE.
+
+    Treating it as inactive fails open: the watcher would evaluate the LOCK
+    while this audit publishes it unredacted (Codex P2, PR #273).
+    """
+    f = tmp_path / "r.json"
+    f.write_text(json.dumps({"triggers": [
+        {"id": "no-active-key", "type": "shadow_count_decision",
+         "entry_type": "foo", "instrument": "EUR_JPY", "direction": "BUY"},
+        {"id": "explicitly-off", "active": False,
+         "type": "shadow_count_decision", "entry_type": "bar"},
+    ]}))
+    ids = {lk["registry_id"] for lk in load_locked_cells(f)}
+    assert "no-active-key" in ids, "omitted active must default to active"
+    assert "explicitly-off" not in ids, "active: false must still deactivate"
