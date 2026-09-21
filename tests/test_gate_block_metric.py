@@ -52,12 +52,41 @@ def _light_trader(db_path: str) -> DemoTrader:
 
 
 def test_parse_reason_metric_extracts_measured_value():
-    # 実際に本番 _block() が生成する文字列そのまま
+    """allowlist 済み reason の測定値 — 文字列は modules/demo_trader.py の
+    `_block(f"...")` 実形から採取している (架空の形式で pin すると本番で外れる)。"""
     assert parse_reason_metric("spread_wide(4.2pip>3.0)") == 4.2
     assert parse_reason_metric("spread_wide(15.0pip>1.5)") == 15.0
-    assert parse_reason_metric("cooldown(45s)") == 45.0
-    assert parse_reason_metric("velocity_down(-3.5pip)") == -3.5
-    assert parse_reason_metric("spread_sl_gate(0.35>0.20)") == 0.35
+    assert parse_reason_metric("velocity_down(-3.5pip)_vs_BUY") == -3.5
+    assert parse_reason_metric("spike(12.3pip/60s)") == 12.3
+    assert parse_reason_metric("spread_sl_gate(1.2/8.0pip=15%>12%)") == 1.2
+    assert parse_reason_metric("cooldown(45s/300s)") == 45.0
+    assert parse_reason_metric("friction_guard_cd(USD_JPY,12s/300s)") == 12.0
+    assert parse_reason_metric("1h_rr_low(0.85<1.2,doji_breakout)") == 0.85
+    assert parse_reason_metric("rr_floor(0.90<1.10,doji_breakout)") == 0.90
+    assert parse_reason_metric("consec_loss(3)") == 3.0
+    assert parse_reason_metric("max_open(5/5)") == 5.0
+
+
+def test_parse_reason_metric_rejects_identifier_digits():
+    """🔴 Codex P2 (PR #275) の反例 — 括弧内の先頭が識別子で数字を含む形。
+
+    初版の貪欲 regex (「括弧内の最初の数値」) はこれらを測定値と誤認していた:
+      * recent_emit(...nzd_jpy_h1_long,35s<3600s) → **1.0** ("h1" の 1)
+      * layer_trade_not_ok(ema200_trend_reversal) → **200.0**
+      * alpha_scan(EUR_USD_SELL,N=43,EV=-2.714)   → **43.0**
+    min/sum/max に不可逆に畳まれるため、消費側が偽の測定値を本物と区別できなくなる。
+    allowlist を外すとこのテストが落ちる (= P2 修正の counterfactual)。
+    """
+    # recent_emit は allowlist にあるが、拾うのは entry_type の数字ではなく経過秒
+    assert parse_reason_metric(
+        "recent_emit(price_shock_rev_nzd_jpy_h1_long,35s<3600s)") == 35.0
+    # allowlist に無い reason は数字があっても None (fail-closed)
+    assert parse_reason_metric("layer_trade_not_ok(ema200_trend_reversal)") is None
+    assert parse_reason_metric("alpha_scan(EUR_USD_SELL,N=43,EV=-2.714)") is None
+    assert parse_reason_metric("alpha_scan(H11_EUR_USD,N=9,EV=-4.489)") is None
+    assert parse_reason_metric("session_pair(EUR_USD_Tokyo,WR=20%)") is None
+    assert parse_reason_metric("mtf_strong_bias(bear_vs_BUY,doji_breakout)") is None
+    assert parse_reason_metric("circuit_breaker(3losses/5max_in_30min, total=-12.3pip)") is None
 
 
 def test_parse_reason_metric_returns_none_for_known_unmeasured():
@@ -261,16 +290,18 @@ def test_unmeasured_reason_via_entry_block_stays_null(tmp_path):
 def test_metric_unit_is_per_reason_not_global():
     """magnitude の単位は reason ごとに違う — 跨いで平均してはいけない.
 
-    同一 reason 内では一貫する (spread_wide は常に pip) が、
-    `gbp_asia_flash_crash(UTC21)` は「21 pip」ではなく **UTC 時刻 21 時**。
-    per_cell_metrics のキーが reason を含むのはこのため。ここは仕様の
-    文書化であって欠陥ではない — 将来の読み手が 21 を pip と誤読しないよう pin する。
+    同一 reason 内では一貫する (spread_wide は常に pip) が、reason が変われば
+    pip / 秒 / 比 / 件数 と単位が変わる。per_cell_metrics のキーが reason を
+    含むのはこのため。仕様の文書化 pin。
     """
-    assert parse_reason_metric("spread_wide(4.2pip>3.0)") == 4.2        # pip
-    assert parse_reason_metric("cooldown(45s)") == 45.0                 # 秒
-    assert parse_reason_metric("gbp_asia_flash_crash(UTC21)") == 21.0   # UTC 時
-    # → 同じ metric 列に入るが、キーが reason で分かれるので混ざらない
-    assert parse_reason_metric("velocity_down(-3.5pip)") == -3.5        # pip (符号つき)
+    assert parse_reason_metric("spread_wide(4.2pip>3.0)") == 4.2            # pip
+    assert parse_reason_metric("velocity_down(-3.5pip)_vs_BUY") == -3.5     # pip (符号つき)
+    assert parse_reason_metric("cooldown(45s/300s)") == 45.0                # 秒
+    assert parse_reason_metric("1h_rr_low(0.85<1.2,x)") == 0.85             # 比 (無次元)
+    assert parse_reason_metric("consec_loss(3)") == 3.0                     # 件数
+    # `gbp_asia_flash_crash(UTC21)` の 21 は UTC 時刻 = 測定値ではないので
+    # allowlist に入れず None を返す (Codex P2 の是正で「拾わない」側へ変更)
+    assert parse_reason_metric("gbp_asia_flash_crash(UTC21)") is None
 
 
 def test_app_exposes_per_cell_metrics_explicitly():

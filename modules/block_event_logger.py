@@ -96,6 +96,48 @@ def _ensure_metric_columns(conn) -> None:
             cur.execute(f"ALTER TABLE gate_block_daily ADD COLUMN {col} {decl}")
 
 
+# 2026-09-21 (rule:R3, Codex P2 #275): reason ごとの「測定値フィールド」allowlist。
+#
+# 初版は「最初の括弧内の最初の数値」を拾う貪欲 regex だったが、本番 reason の多くは
+# 括弧内の先頭に**識別子や静的メタデータ**を置くため測定値でない数値を掴んでいた
+# (実測: recent_emit(price_shock_rev_nzd_jpy_h1_long,35s<3600s) → **1.0** ("h1" の 1) /
+#  layer_trade_not_ok(ema200_trend_reversal) → **200.0** /
+#  alpha_scan(EUR_USD_SELL,N=43,EV=-2.714) → **43.0**)。
+# これらは min/sum/max に**不可逆に畳まれる**ので、消費側が偽の測定値と本物を
+# 区別できなくなる = 計測面の汚染。
+#
+# 対策 = **fail-closed の allowlist**: reason 名ごとに測定値の位置をアンカー付きで
+# 宣言し、**宣言の無い reason は None** (測っていない) を返す。新しい reason に
+# magnitude が要るようになったらここへ 1 行足す = 明示的な設計判断にする。
+# パターンは modules/demo_trader.py の `_block(f"...")` 実形から採取している。
+_METRIC_PATTERNS: tuple[tuple[str, str], ...] = (
+    # spread_wide(4.2pip>3.0) — 本 readout が必要としている測定値 (pip)
+    ("spread_wide", r"^(-?\d+(?:\.\d+)?)pip>"),
+    # velocity_down(-3.5pip)_vs_BUY / velocity_up(...) (pip)
+    ("velocity_down", r"^(-?\d+(?:\.\d+)?)pip"),
+    ("velocity_up", r"^(-?\d+(?:\.\d+)?)pip"),
+    # spike(12.3pip/60s) (pip)
+    ("spike", r"^(-?\d+(?:\.\d+)?)pip/"),
+    # spread_sl_gate(1.2/8.0pip=15%>12%) — 先頭は spread (pip)
+    ("spread_sl_gate", r"^(-?\d+(?:\.\d+)?)/"),
+    # cooldown(45s/300s) — 経過秒
+    ("cooldown", r"^(\d+)s/"),
+    # friction_guard_cd(USD_JPY,12s/300s) — 経過秒 (先頭は instrument)
+    ("friction_guard_cd", r",\s*(\d+)s/"),
+    # recent_emit(entry_type,35s<3600s) — 経過秒 (先頭は entry_type: 数字を含む)
+    ("recent_emit", r",\s*(\d+)s<"),
+    # 1h_rr_low(0.85<1.2,entry_type) / rr_floor(0.90<1.10,entry_type) — R:R 比
+    ("1h_rr_low", r"^(-?\d+(?:\.\d+)?)<"),
+    ("rr_floor", r"^(-?\d+(?:\.\d+)?)<"),
+    # consec_loss(3) — 連敗数
+    ("consec_loss", r"^(\d+)\s*\)?\s*$"),
+    # max_open(5/5) — 現在の建玉数
+    ("max_open", r"^(\d+)/"),
+)
+
+_METRIC_BY_REASON = {k: re.compile(v) for k, v in _METRIC_PATTERNS}
+
+
 def parse_reason_metric(reason: str) -> Optional[float]:
     """Extract the measured magnitude from a raw ``_block()`` reason string.
 
@@ -107,16 +149,32 @@ def parse_reason_metric(reason: str) -> Optional[float]:
     keeps the magnitude as min/sum/max per key instead, so the key space is
     unchanged (same PRIMARY KEY) while the distribution becomes readable.
 
-    Returns the first number inside the first parenthetical, or None when the
-    reason carries no measurement (e.g. ``order_bar_dedup``,
-    ``no_confirm:macd_rsi_pullback``). Never raises.
+    **Fail-closed by contract**: only the reasons declared in
+    ``_METRIC_PATTERNS`` yield a number, and each pattern anchors the position
+    of the measured field. Every other reason returns ``None`` — meaning "this
+    gate reports no measurement", which the rollup stores as NULL rather than
+    0. A greedy "first number in the parentheses" parse is WRONG here: many
+    production reasons lead with identifiers that contain digits
+    (``recent_emit(price_shock_rev_nzd_jpy_h1_long,...)`` → the ``1`` of
+    ``h1``; ``layer_trade_not_ok(ema200_...)`` → ``200``), and because the
+    value is folded irreversibly into min/sum/max a consumer could not tell
+    such garbage from a real observation (Codex P2, PR #275).
+
+    ⚠️ Units differ per reason (pip / seconds / ratio / count) and are only
+    consistent WITHIN one ``reason`` key — never average across reasons.
+    Never raises.
     """
     try:
         if not reason or "(" not in reason:
             return None
-        inner = reason.split("(", 1)[1]
-        m = re.search(r"-?\d+(?:\.\d+)?", inner)
-        return float(m.group(0)) if m else None
+        key, _, rest = reason.partition("(")
+        pattern = _METRIC_BY_REASON.get(key.strip())
+        if pattern is None:
+            return None
+        # 末尾の閉じ括弧以降 (例 ")_vs_BUY") は落として本体だけを見る
+        body = rest.rsplit(")", 1)[0] if ")" in rest else rest
+        m = pattern.search(body)
+        return float(m.group(1)) if m else None
     except Exception:
         return None
 

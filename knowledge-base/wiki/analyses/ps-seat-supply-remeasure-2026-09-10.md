@@ -396,7 +396,8 @@ USD_CAD **1.5p** / EUR_AUD **2.0p** / NZD_JPY **3.0p** — 平常時基準の値
 - `modules/block_event_logger.py`: `gate_block_daily` に `metric_n / metric_sum /
   metric_min / metric_max` を追加 (既存本番テーブルは `_ensure_metric_columns` で
   idempotent に ALTER、過去行は NULL = 「測っていない」を捏造しない)。
-  `parse_reason_metric()` が raw reason の最初の括弧内の数値を取る
+  `parse_reason_metric()` は **reason ごとの測定値フィールドを宣言した allowlist** で、
+  **宣言の無い reason は None** (fail-closed)
 - `modules/demo_trader.py::_record_entry_block`: raw `reason` から magnitude を抜いて渡す。
   **in-memory キーは従来どおり `'('` 前で正規化 = 挙動不変。PRIMARY KEY も不変なので
   キー空間は増えない** (magnitude は行ではなく min/sum/max に畳む)
@@ -409,11 +410,25 @@ USD_CAD **1.5p** / EUR_AUD **2.0p** / NZD_JPY **3.0p** — 平常時基準の値
     実在するか) が「読み手がコード上のどこにも**名前で**現れない」を ERROR にした。
     **暗黙の透過は「読み手あり」ではない**ので宣言を緩めずコード側を直した
     (`per_cell_metrics` を endpoint payload に明示)。検査が設計の弱点を捕まえた事例
-  - ⚠️ **magnitude の単位は reason ごとに違う** — `spread_wide`=pip / `cooldown`=秒 /
-    `velocity_down`=pip (符号つき) / `gbp_asia_flash_crash`=**UTC 時**。
+  - ⚠️ **magnitude の単位は reason ごとに違う** — `spread_wide` / `velocity_down` / `spike`=pip /
+    `cooldown` / `recent_emit`=秒 / `1h_rr_low` / `rr_floor`=比 / `consec_loss` / `max_open`=件数。
     `per_cell_metrics` のキーが reason を含むので同一 reason 内では一貫するが、
     **reason を跨いだ平均は無意味** (`test_metric_unit_is_per_reason_not_global` で pin)
-- pin: `tests/test_gate_block_metric.py` (12 tests)。**counterfactual を実測で確認済み** —
+  - 🔴 **初版の貪欲 regex (「括弧内の最初の数値」) は Codex P2 (PR #275) で棄却された** —
+    本番 reason の多くは括弧内の**先頭に識別子**を置き、その識別子が数字を含む。実測:
+    `recent_emit(price_shock_rev_nzd_jpy_h1_long,35s<3600s)` → **1.0** (`h1` の 1、正は 35) /
+    `layer_trade_not_ok(ema200_trend_reversal)` → **200.0** /
+    `alpha_scan(EUR_USD_SELL,N=43,EV=-2.714)` → **43.0**。
+    値は min/sum/max に**不可逆に畳まれる**ので、消費側が偽の測定値と本物を区別できなくなる
+    = 計測面の汚染。**fail-closed の allowlist へ置換** (reason ごとに測定値の位置を
+    アンカー付きで宣言、パターンは `modules/demo_trader.py` の `_block(f"...")` 実形から採取)。
+    `gbp_asia_flash_crash(UTC21)` の 21 は UTC 時刻 = 測定値ではないので**拾わない側**へ変更。
+    反例 3 件は `test_parse_reason_metric_rejects_identifier_digits` に pin (= P2 の counterfactual)
+  - 🔵 **教訓 (再発)**: 初版は「数字を持たない括弧」(`hedge_block(daytrade/EUR_USD:BUY)`) の側は
+    pin していたが、**「数字を持つが測定値ではない括弧」という対称な反対側を確認していなかった**。
+    MEMORY `feedback_check_the_symmetric_side_2026_09_19` と同型の見落としを 2 日で再発させた
+    — 「片側を塞いだ」時点で反対側を自分で列挙する
+- pin: `tests/test_gate_block_metric.py` (13 tests)。**counterfactual を実測で確認済み** —
   `_persist_gate_block` の metric passthrough を外すと
   `test_spread_wide_magnitude_survives_entry_block_path` が落ちる (恒真な pin ではない)。
   「NG を返す既知の入力」も同時に pin (`order_bar_dedup` /
