@@ -4676,6 +4676,16 @@ Cutoff後累計はN=2、PnL=+39.3（WR=100%）のみ。実質的にシステム�
 - **今日も同条件が継続する可能性が高い**
 - scalp・scalp_eur・scalp_5m・scalp_5m_eur・daytrade_1h_usdchfの5系列が全て降格セルにヒット
 
+### 2026-09-21 (Post-NY Report)
+| WR | — |
+| PnL | **+0.0 pips** |
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **合計PnL**: +0.0（ノートレードデー）
+- **合計トレード数**: 0
+- **最良セッション**: N/A
+- **最悪セッション**: N/A（全セッション同値）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
