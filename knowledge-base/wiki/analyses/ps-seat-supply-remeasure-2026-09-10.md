@@ -288,3 +288,165 @@ PR #248 の `gate_block_daily` が同じ論拠で同じ扱いを受けた前例�
   本ページは EV / WR / PnL を一切計算していない (P-10 型 ban 準拠)。
   ただし供給率 20.6% のままでは 09-30 までに N≥10 到達は困難 —
   同エントリの「N<10 なら供給側の別問題として stale レビュー」分岐に入る見込み
+
+---
+
+## 11. ✅ readout 執行 = **(B) 下流 100%** (2026-09-21、期日 09-25 の 4 日前倒し)
+
+registry `ps-seat-supply-hourly-c1-coverage` の 3 点を執行。rule:R3 (readout と帰属のみ
+— gate / tier / lot / 供給是正は本節の範囲外、EV/WR/PnL は計算していない = P-10 型 ban 準拠)。
+
+as-of **2026-09-21T01:05Z** / `days=14` (窓 09-07〜09-21、hourly C1 計装は 09-11 稼働)。
+
+### 11.1 (i) 計装到達 = **PASS**
+
+`/api/demo/evaluated-candidates?view=summary&days=14` の `n_strategies=50` に
+`price_shock_rev_*` **5 席すべてが出現**。§9 の配線は本番に届いている
+(期日 09-25 を待たず確認できたので、配線落ちだった場合の 14 日ロスを回避した)。
+
+### 11.2 (ii) 書込み量 = **見積り範囲内、retention 短縮不要**
+
+| 実測 (09-21T01:05Z) | 値 |
+|---|---|
+| `evaluated_candidates` 行数 | **325,530** (first 2026-06-23 / last 2026-09-21T01:05:30) |
+| disk `used_pct` | **60.4%** (`level=ok`、warn 75 / critical 90) |
+| disk free | 387,461,120 B |
+| `c1_retention_days` | 90 |
+| `write_probe` | `ok=true` @ 01:05:43Z |
+
+§9 の見積り (DTE 経路 3,125 行/日と同オーダー) を覆す逼迫は無い。**retention 短縮は不要** —
+見積りを実測で置き換え、§9 の「見積りのまま放置しない」を履行した。
+
+### 11.3 (iii) 帰属 = **(B) 下流。上流 (A) は棄却**
+
+**⚠️ 機会の単位は行ではなく `bar_time`。** C1 行は `evaluate_all()` の全候補を
+~30s poll ごとに記録する (app.py:4634 の call site、estimand は
+`gate_block_attribution` と同じ per-tick)。生 141 行 → distinct bar **10 本** =
+**14.1 倍の重複膨張**。行数で機会を数えると 1 バーを 39 回数える
+(hunt_events の N 膨張と同型 — MEMORY `project_hunt_events_dataset_readout_2026_09_19`)。
+
+| seat | `vol_q` | C1 行 | **distinct bar** | `selected=1` | order_bar_dedup | recent_emit | spread_wide | velocity_down | gbp_asia_flash_crash | Σblocks |
+|---|---|---|---|---|---|---|---|---|---|---|
+| nzd_jpy | Q5 | 42 | **2** | 42/42 | 39 | 1 | **2** | – | – | **42** |
+| eur_aud | Q5 | 24 | **3** | 24/24 | 20 | 1 | **3** | – | – | **24** |
+| usd_cad | Q5 | 39 | **1** | 39/39 | 37 | – | **2** | – | – | **39** |
+| aud_jpy | ALL | 15 | **2** | 15/15 | 11 | 2 | – | **2** | – | **15** |
+| eur_gbp | Q5 | 21 | **2** | 21/21 | – | – | – | – | **21** | **21** |
+| **計** | | **141** | **10** | **141/141** | 107 | 4 | 7 | 2 | 21 | **141** |
+
+**Σblocks が C1 行数と 5 席すべてで厳密一致** = order 層に到達した候補はゼロ。
+かつ `selected=1` が **141/141** なので、席優先 select は一度も負けていない。
+
+→ **(A) 上流 = `evaluate_all` が候補を出していない は棄却。(B) 下流で確定。**
+
+### 11.4 どの gate が落としたか (コード照合済み)
+
+`_maybe_reserve_order_bar_emit` (modules/demo_trader.py:1348) は
+`(entry_type, instrument, signal, 正規化 bar_ts)` で **1 バー 1 予約**。初回は `None`
+(= 通過)、同バーの再評価が `order_bar_dedup`。call site は `_tick_entry` primary 経路の
+**5491 行**で、`spread_wide` 判定は **6244 行 = 予約より後**。したがって:
+
+- **初回/バー**の候補は dedup を通過して終端 gate に到達する
+- **同バー再評価**ぶんは `order_bar_dedup` / `recent_emit` が吸収する = **これは機会損失ではない**
+
+この分解を当てると、**終端 gate の発火数 ≒ distinct bar 数**になり実測と合う:
+
+- nzd_jpy: bar 2 / spread_wide 2 ✅ ・ eur_aud: bar 3 / spread_wide 3 ✅ ・ aud_jpy: bar 2 / velocity_down 2 ✅
+- usd_cad のみ bar 1 に対し spread_wide 2 (+1)。最も素直な説明は
+  `_order_bar_signal_emits` が **in-memory dict** で、Render 再起動が同バー中に予約を消して
+  2 本目が終端まで届いたこと (MEMORY `project_engine_reconstruction_live_dedup_dead` /
+  「in-memory dedup はプロセス境界を越えられない」)。**独立確認はしていない** — 帰属の向きは変わらない
+- eur_gbp は `order_bar_dedup` が **0** で `gbp_asia_flash_crash` が全 21 行 =
+  この guard は**予約より前**に評価されている (gate 順序が本番データから直接読める)
+
+**結論: 対象 3 席 (NZD_JPY / EUR_AUD / USD_CAD) の distinct bar 機会 6/6 は
+`spread_wide` で落ちている。** `order_bar_dedup` 107 + `recent_emit` 4 は同バー重複の
+抑制であって attrition ではない。
+(`recent_emit` 4 本は初回/バーか重複かを現行計装で分離できない — この規模では帰属を変えない)
+
+### 11.5 🔴 これは配線バグではなく **設計レベルの衝突**
+
+3 席の entry 条件を読むと (`strategies/hourly/price_shock_reversion_base.py:63-70`):
+
+- **`log_return ≤ 252 バー rolling 1%-tile`** = 定義上「最も極端な下落 ~1%」でのみ発火
+- **3 席すべて `vol_q="Q5"`** (nzd_jpy / eur_aud / usd_cad) = **最高ボラ分位でのみ**発火
+
+一方 `spread_wide` の閾値は**静的な per-pair 定数** (modules/demo_trader.py:6221-6236):
+USD_CAD **1.5p** / EUR_AUD **2.0p** / NZD_JPY **3.0p** — 平常時基準の値。
+
+**つまり席の設計 (Q5 ボラ × 1%-tile ショック) は、spread gate が弾く状態を狙って撃っている。**
+スプレッドはショック時に拡大するので、**entry 条件と block 条件が構造的に正相関**している。
+同じ構造は他 2 席にも出る — aud_jpy (`vol_q=ALL`) の終端 gate は `velocity_down`
+(急落速度) で、これもショック条件と同軸。eur_gbp は 2 本とも **21:00 UTC** (Asia 開始) に
+落ちており `gbp_asia_flash_crash` に当たる — こちらは 4原則#3 の
+「LIVE 側は勝てる場所で勝つ条件だけ転送」に沿った**意図された**静的ブロックなので欠陥ではない。
+
+**したがって ps 席が clean live N を産まないのは供給不足ではなく、
+「ショックを狙う戦略」と「ショック時に閉じる保護 gate 群」の設計衝突である。**
+
+### 11.6 ⚠️ 残る 1 つの未測定量 — 本コミットで計装した
+
+「marginal (3.1p vs 3.0p limit = 調整可能)」と「absolute (15p = 構造的)」は
+**disposition を正反対にする**が、判定できなかった: `gate_block_daily` は
+`reason.split('(')[0]` で正規化していたため `spread_wide(4.2pip>3.0)` の **4.2 を捨てていた**
+(in-memory counter のキー爆発防止が永続面まで波及していた)。Render ログも ~2 週で失効し、
+09-17/09-18 のバーは既に取れない。
+
+**本コミットの実装 (rule:R3、live 挙動不変)**:
+- `modules/block_event_logger.py`: `gate_block_daily` に `metric_n / metric_sum /
+  metric_min / metric_max` を追加 (既存本番テーブルは `_ensure_metric_columns` で
+  idempotent に ALTER、過去行は NULL = 「測っていない」を捏造しない)。
+  `parse_reason_metric()` が raw reason の最初の括弧内の数値を取る
+- `modules/demo_trader.py::_record_entry_block`: raw `reason` から magnitude を抜いて渡す。
+  **in-memory キーは従来どおり `'('` 前で正規化 = 挙動不変。PRIMARY KEY も不変なので
+  キー空間は増えない** (magnitude は行ではなく min/sum/max に畳む)
+- **読み手を同一コミットで併設**: `query_block_counts` が `per_cell_metrics`
+  (`{n, min, mean, max}`) を返し、`/api/demo/block-counts` が **top-level キーとしても
+  明示的に露出**する。収集だけ足して読み手を足さないのが本プロジェクト再発の
+  write-only 欠陥 ([[c1-candidate-readout-hull-funnel-2026-08-24]])
+  - ⚠️ **初版は `persisted` 経由の dict 透過だけで済ませようとして pre-commit に止められた** —
+    estimand 宣言 `gate_block_attribution` の reader 配線検査 (`app.py` に検索文字列が
+    実在するか) が「読み手がコード上のどこにも**名前で**現れない」を ERROR にした。
+    **暗黙の透過は「読み手あり」ではない**ので宣言を緩めずコード側を直した
+    (`per_cell_metrics` を endpoint payload に明示)。検査が設計の弱点を捕まえた事例
+  - ⚠️ **magnitude の単位は reason ごとに違う** — `spread_wide`=pip / `cooldown`=秒 /
+    `velocity_down`=pip (符号つき) / `gbp_asia_flash_crash`=**UTC 時**。
+    `per_cell_metrics` のキーが reason を含むので同一 reason 内では一貫するが、
+    **reason を跨いだ平均は無意味** (`test_metric_unit_is_per_reason_not_global` で pin)
+- pin: `tests/test_gate_block_metric.py` (12 tests)。**counterfactual を実測で確認済み** —
+  `_persist_gate_block` の metric passthrough を外すと
+  `test_spread_wide_magnitude_survives_entry_block_path` が落ちる (恒真な pin ではない)。
+  「NG を返す既知の入力」も同時に pin (`order_bar_dedup` /
+  `hedge_block(daytrade/EUR_USD:BUY)` = 括弧内に数値なし → None)
+  — MEMORY `project_review_gate_vacuous_2026_09_11`
+
+### 11.7 所見 (帰属のみ。是正は起案せず)
+
+- **`confidence=70` / `score=1.0` が 141 行すべてで定数**なのは
+  `price_shock_reversion_base.py:88` のハードコード = **設計どおり**。
+  「定数なら異常」の不変条件に対する**文書化された例外** (次の読み手が再フラグしないように記録)
+- 10 本の機会バーは **09-15/16/17/18 に集中**し、09-11〜09-14 と 09-19〜09-21 はゼロ =
+  バースト構造 (MEMORY `project_row_freshness_candidate_cadence`)。
+  レート主張には bar 単位の窓が必要
+- **供給量そのものは (A) を支持しない**が「design どおり」とも言わない:
+  3 席 design 17 本/30d → 計装窓 11 日ぶんの期待 ≈ 6.2 に対し実測 distinct bar **6**。
+  Poisson(6.2) の下で完全に整合する一方、**N=6 では ~2 倍の不足も排除できない**。
+  言えるのは「**(A) が律速ではない**」だけ (§2 の分子/分母 disjoint 問題と同じ規律)
+
+### 11.8 registry 処理
+
+- `ps-seat-supply-hourly-c1-coverage` → **resolved** (3 点すべて判定、roll 不要)
+- **ps 席残余は本節で「帰属済み」に昇格**。§8-3 の「未帰属残余 ~100%」は
+  **`spread_wide` (3 席) / `velocity_down` (aud_jpy) / `gbp_asia_flash_crash` (eur_gbp)**
+  へ解決した。§7(a) 型の**供給**是正は引き続き不要 — 律速は下流である
+- **次の決裁点は Rule 1** (autopilot は執行しない): 3 席の disposition =
+  (a) 退役 / (b) ショック時スプレッドを許容する per-strategy cap の pre-reg
+  (`weekend_gap_fade` の専用 cap 10.0p が同型の前例、
+  modules/demo_trader.py:6241) / (c) 静的閾値を動的 (ATR 比 / 分位) 化。
+  **いずれも 11.6 の magnitude 分布が溜まるまで選べない** ので、
+  新 registry `ps-seat-spread-magnitude-readout` (期日 **2026-10-19**、
+  計装 deploy + 4 週) で min/mean/max を読んでから起案する
+- `ps-carveout-regate-post-172` (09-30) の凍結 look は**未消費** (本節は EV/WR/PnL を
+  計算していない)。live N=6/10 で、供給が下流 gate に律速されている以上
+  09-30 までの N≥10 到達は見込めない → 同エントリの
+  「N<10 なら供給側の別問題として stale レビュー」分岐に入る見込みは §10 から変更なし
