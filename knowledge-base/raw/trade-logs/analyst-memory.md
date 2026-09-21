@@ -4656,6 +4656,16 @@ Cutoff後累計はN=2、PnL=+39.3（WR=100%）のみ。実質的にシステム�
 - **EUR_USD / GBP_USD（RANGING）**: Daytrade系はトレンド相関が高いため、レンジ環境では**シグナルそのものが発生しにくい**構造。これがゼロトレードの主因の一つと推測
 - **USD_JPY（VOLATILE, ATR83%）**: Scalp系のATRフィルターがVOLATILE判定を弾いている可能性。あるいはspread_guard（Scalp=30%閾値）がボラ高騰時に常時ブロックしている
 
+### 2026-09-21 (Pre-Tokyo Briefing)
+| PnL合計 | 0.0p（トレード執行なし） |
+| 全体WR | N/A |
+| 戦略 | N | WR | EV |
+2. **r2_shadow_demoted_cell（155件/26%）** — scalp系・audjpy・daytrade全般に広がり。シャドウ期間中の負EV確認によりセルが降格済みであることを示す。昇格条件（N≥30 & EV≥1.0）に達したセルが存在しない状態が継続中。
+- **対処の余地はシステム設定レベルのみ**（コード変更なし）。レジームが変わるまでblock_count構造は変化しない
+- **監視ポイント:** USD/JPYがVOLATILEからRANGINGに遷移した場合、rnb_usdjpyのno_signal件数が減少し始める初期シグナルになる
+- **hedge_block解消の条件:** JPYペアのATR%ile低下（現在79-83%）が必要。本日の東京セッションで相場が落ち着くか注視
+| 時間帯 | セッション | 注意事項 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
