@@ -4666,6 +4666,16 @@ Cutoff後累計はN=2、PnL=+39.3（WR=100%）のみ。実質的にシステム�
 - **hedge_block解消の条件:** JPYペアのATR%ile低下（現在79-83%）が必要。本日の東京セッションで相場が落ち着くか注視
 | 時間帯 | セッション | 注意事項 |
 
+### 2026-09-21 (Pre-Tokyo Briefing)
+- PnL合計: **±0 pip**（エントリーなし）
+- トレード数: **0件**（全セッション通じて）
+- 全体WR: **算定不能**（N=0）
+| 戦略 | N | WR | EV | ステータス |
+- USD/JPYはレジーム分類で**VOLATILE（ATR%ile 83%）**かつSMA20スロープ−0.00532
+- RnB戦略は「レンジ内反発」が前提。高ボラティリティ局面では構造的にシグナルが出ない
+- **今日も同条件が継続する可能性が高い**
+- scalp・scalp_eur・scalp_5m・scalp_5m_eur・daytrade_1h_usdchfの5系列が全て降格セルにヒット
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
