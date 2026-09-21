@@ -18,6 +18,15 @@ def test_api_demo_block_counts_returns_mode_and_strategy_counts(flask_client, mo
     # 2026-09-11 P8: 永続面 (gate_block_daily) を "persisted" として併載。
     # legacy キーの形は不変 (in-memory、再起動で消える方)。
     persisted = payload.pop("persisted")
+    # 2026-09-21 (rule:R3): gate block の magnitude (spread_wide(4.2pip>3.0) の 4.2 等)
+    # を top-level にも明示露出。persisted 経由の dict 透過だけだと読み手が
+    # コード上のどこにも名前で現れず estimand 宣言の reader 配線検査にも掛からない
+    # (= 暗黙の読み手 = write-only の再発形)。露出が persisted の忠実な鏡である
+    # ことまで pin する — 別物を返すようになったらここが落ちる。
+    per_cell_metrics = payload.pop("per_cell_metrics")
+    assert isinstance(per_cell_metrics, dict)
+    if "error" not in persisted:
+        assert per_cell_metrics == (persisted.get("per_cell_metrics") or {})
     assert payload == {
         "counts": {
             "daytrade_eurgbp:session_pair": 3,
@@ -35,7 +44,7 @@ def test_api_demo_block_counts_returns_mode_and_strategy_counts(flask_client, mo
     # fail-loud の error 文字列のどちらか — 黙って欠落しない
     assert ("error" in persisted) or (
         {"counts", "per_strategy_counts", "per_cell_counts",
-         "total", "days"} <= set(persisted)
+         "per_cell_metrics", "total", "days"} <= set(persisted)
     )
     assert persisted.get("days") == 7
 

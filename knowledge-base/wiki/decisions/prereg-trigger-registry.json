@@ -806,11 +806,23 @@
     },
     {
       "id": "ps-seat-supply-hourly-c1-coverage",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-09-25",
       "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md",
-      "message": "【期日に実行するコマンド】curl -s 'https://fx-ai-trader.onrender.com/api/demo/evaluated-candidates?view=summary&days=14' → summary キーに price_shock_rev_* が出ているか確認。HourlyEngine C1 candidate 計装 (2026-09-11 rule:R3 追加、app.py::compute_hourly_signal) の 到達確認 + ps 席残余の帰属。deploy 後 14 日で 3 点を判定する: (i) 上記 summary に price_shock_rev_* 5 席が出現しているか — 出現しなければ計装が届いていない (配線落ち) として R3 再修理。(ii) C1 書込み量の実測が見積り (DTE 経路 3,125 行/日と同オーダー) の 範囲か — /api/admin/disk_status で disk が逼迫していれば retention 短縮 (R3)。(iii) 3 席 (NZD_JPY / EUR_AUD / USD_CAD) の観測ゼロが (A) 上流 = evaluate_all が候補を出していない / (B) 下流 = 候補は席優先 select で勝ったが _tick_entry/order 層で落ちた のどちらに割れたか。**この 3 点が揃うまで ps 席残余は『未帰属』のまま据え置く (盛らない)。帰属が出るまで §7(a) 型の 供給是正を重ねない。** 親 verdict: ps-seat-supply-remeasure-30d (2026-09-11 REJECT)。EV / WR / PnL は計算しない — EV 判定は ps-carveout-regate-post-172 の凍結 look に委ねる (P-10 型 ban)"
+      "message": "【期日に実行するコマンド】curl -s 'https://fx-ai-trader.onrender.com/api/demo/evaluated-candidates?view=summary&days=14' → summary キーに price_shock_rev_* が出ているか確認。HourlyEngine C1 candidate 計装 (2026-09-11 rule:R3 追加、app.py::compute_hourly_signal) の 到達確認 + ps 席残余の帰属。deploy 後 14 日で 3 点を判定する: (i) 上記 summary に price_shock_rev_* 5 席が出現しているか — 出現しなければ計装が届いていない (配線落ち) として R3 再修理。(ii) C1 書込み量の実測が見積り (DTE 経路 3,125 行/日と同オーダー) の 範囲か — /api/admin/disk_status で disk が逼迫していれば retention 短縮 (R3)。(iii) 3 席 (NZD_JPY / EUR_AUD / USD_CAD) の観測ゼロが (A) 上流 = evaluate_all が候補を出していない / (B) 下流 = 候補は席優先 select で勝ったが _tick_entry/order 層で落ちた のどちらに割れたか。**この 3 点が揃うまで ps 席残余は『未帰属』のまま据え置く (盛らない)。帰属が出るまで §7(a) 型の 供給是正を重ねない。** 親 verdict: ps-seat-supply-remeasure-30d (2026-09-11 REJECT)。EV / WR / PnL は計算しない — EV 判定は ps-carveout-regate-post-172 の凍結 look に委ねる (P-10 型 ban)",
+      "resolved": "2026-09-21",
+      "resolution": "執行済み (期日 09-25 の 4 日前倒し) — 3 点すべて判定、roll 不要。(i) 計装到達 = PASS (summary n_strategies=50 に price_shock_rev_* 5 席すべて出現)。(ii) 書込み量 = 見積り範囲内 (evaluated_candidates 325,530 行 / disk used_pct 60.4% level=ok / c1_retention_days 90 / write_probe ok) → retention 短縮不要。(iii) 帰属 = **(B) 下流で確定、(A) 上流は棄却**。5 席とも Σblocks が C1 行数と厳密一致 (order 層に到達した候補ゼロ) かつ selected=1 が 141/141 (席優先 select は一度も負けていない)。⚠️ 機会の単位は行ではなく bar_time — 生 141 行 → distinct bar 10 本 = 14.1 倍の重複膨張。終端 gate は席ごとに違う: 対象 3 席 (NZD_JPY/EUR_AUD/USD_CAD) は distinct bar 6/6 が **spread_wide**、aud_jpy は velocity_down 2/2、eur_gbp は gbp_asia_flash_crash (21:00 UTC の 2 本、4原則#3 に沿った意図されたブロック)。order_bar_dedup 107 + recent_emit 4 は同バー重複の抑制で attrition ではない (gate 順序をコード照合: 予約 5491 行 → spread_wide 6244 行)。🔴 **配線バグではなく設計衝突** — 3 席は log_return≤1%-tile かつ vol_q=Q5 = 最高ボラ分位の極端下落でのみ 発火する一方、spread_wide 閾値は静的 per-pair 定数 (USD_CAD 1.5p / EUR_AUD 2.0p / NZD_JPY 3.0p) なので entry 条件と block 条件が構造的に正相関している。**残余は「未帰属」から「帰属済み」へ昇格 — 供給是正 (§7(a) 型) は引き続き不要、律速は下流**。EV/WR/PnL は未計算 (P-10 型 ban 準拠)。詳細: knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md §11"
+    },
+    {
+      "id": "ps-seat-spread-magnitude-readout",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-19",
+      "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md",
+      "message": "【期日に実行するコマンド】curl -s 'https://fx-ai-trader.onrender.com/api/demo/block-counts?days=28' → persisted.per_cell_metrics の price_shock_rev_*|*:spread_wide を読む (n / min / mean / max)。背景: §11 readout (2026-09-21) で 3 席 (NZD_JPY/EUR_AUD/USD_CAD) の distinct bar 機会 6/6 が spread_wide で落ちていると帰属できたが、**閾値をどれだけ超えたか**が永続面に無く 「marginal (例 3.1p vs 3.0p limit = 調整可能)」と「absolute (例 15p = 構造的)」を区別できなかった (gate_block_daily が reason.split('(')[0] で数値を捨てていた)。本エントリはその計装 (2026-09-21 rule:R3、metric_n/sum/min/max + per_cell_metrics 読み手) の deploy + 4 週で magnitude 分布を読む。**判定はここでは行わない — 読んだ上で disposition を起案する**: (a) 3 席退役 / (b) ショック時スプレッドを許容する per-strategy cap の pre-reg (weekend_gap_fade の専用 cap 10.0p が同型の前例、modules/demo_trader.py:6241) / (c) 静的閾値を動的 (ATR 比 / 分位) 化。**いずれも Rule 1 = 365d BT + Bonferroni + pre-reg LOCK + user 最終承認が必要で autopilot は執行しない**。EV/WR/PnL は計算しない — EV 判定は ps-carveout-regate-post-172 の凍結 look に委ねる (P-10 型 ban)。⚠️ n が 0 のまま期日到達 = 3 席が 4 週間ショックを引かなかった (供給バースト構造) か 計装が届いていないかの二択 → まず /api/demo/block-counts に per_cell_metrics キー自体が 存在するかを確認し、無ければ配線落ちとして R3 再修理して +4 週 roll する (推測で起案しない)",
+      "reachability": "状態を進めるジョブ = 本番エンジン自身 (hourly mode の _tick_entry が spread_wide block ごとに modules/block_event_logger.record_block へ magnitude を書く)。読み手 = /api/demo/block-counts の persisted.per_cell_metrics (query_block_counts、同一コミットで併設済み)。判定 = Claude セッション手動。計装は 2026-09-21 PR で main 着地 → Render auto-deploy。",
+      "execution_command": "curl -s 'https://fx-ai-trader.onrender.com/api/demo/block-counts?days=28'"
     },
     {
       "id": "daily-market-review-30d-effectiveness",
