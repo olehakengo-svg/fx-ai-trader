@@ -896,6 +896,16 @@
         "why_deferred": "2026-09-19 セッションでは #261/#263/#264 と hunt_events 4 件を消化。本 2 群はいずれも分析の再実行 (前者) / 凍結境界の扱いの判断 (後者) を要し、同一セッションで急ぐと 09-18 に踏んだ『修正作業そのものが新しい欠陥の発生源になる』型の事故を再生産する。ack ではなく追跡エントリで next session に渡す。"
       },
       "message": "未消化 connector レビュー指摘の残り 12 件 (PR #253 ×5 / PR #257 ×7) の消化期日。起点 = PR #267 (2026-09-18) が『マージゲートの findings 軸は導入以来恒真だった』と確定させ、過去 10 PR の inline P1/P2 29 件中 19 件が未消化と判明した件。2026-09-19 に 7 件消化 (hunt_events 4 / GDELT 1 / KB 整合 2、PR #272/#273)、残 12 件。TRIGGERED 時の手続き: 各指摘を (i) 実データで再現確認 → (ii) 修正 commit または `review-ack: <理由>` コメント → (iii) 完了を pr_review_gate で確認。⚠️ **『ack したから解決』ではない** — 指摘が実在の欠陥である以上、dismiss するなら estimand 上なぜ影響しないかを書くこと。⚠️ 消化前の引用規律は note の各群に記載 (MEMORY feedback_audit_past_verdicts_2026_08_05)。"
+    },
+    {
+      "id": "kb-session-log-postcommit-trailing-edit",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-13",
+      "doc": "knowledge-base/wiki/changelog.md",
+      "message": "🟠 **繰延: post-commit の session-log 追記が必ず「ローカル未コミットの差分」を 1 本残す (Codex P2、PR #276 5 巡目で指摘、意図的に PR 範囲外へ繰延)**。`scripts/hooks/git-post-commit.sh` は**コミット作成後**に当該コミットを今日の session log へ追記するので、その編集は**そのコミットには入らない**。次回 run が それをコミットすると post-commit がまた 1 行追記する ⇒ **末尾差分が永久に 1 本残り続ける**。本セッション中、`git commit` のたびに session log が再 dirty 化し merge を 2 回ブロックしたのはこれが原因 (実観測)。⚠️ **PR #276 が作った欠陥ではなく、post-commit hook の既存の設計性質**なので 同 PR では直さなかった (直すには追記を pre-commit 側へ移して同一コミットに含める等の設計変更が必要 = 別 PR 相当)。⇒ 期日までに **(a) 追記を pre-commit へ移す / (b) 追記を廃して session log を 生成物として扱う / (c) 現状を仕様として文書化し merge 手順に「session log の 末尾差分は先にコミットする」を明記** のいずれかを選ぶ。🔴 **放置の実害は「merge 直前に必ず 1 ファイル dirty」で、`git merge` が `local changes would be overwritten` で止まること** — 今日は手で退避したが、自動化が同じ所で止まる",
+      "condition": "post-commit の session-log 追記が残す末尾差分について (a)/(b)/(c) のいずれかを選び実装または文書化すること",
+      "reachability": "Claude が期日までに scripts/hooks/git-post-commit.sh と scripts/hooks/git-pre-commit.sh を読み、追記タイミングを移せるか (pre-commit で今日の session log を更新して stage できるか) を判定する。移せない場合は (c) を採り CLAUDE.md の自走原則節に手順を 1 行追記する"
     }
   ]
 }

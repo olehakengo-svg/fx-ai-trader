@@ -344,3 +344,78 @@ def test_mixed_history_is_detected_when_the_path_list_fills_a_pipe(repo):
     assert mixed not in _git(repo["remote"], "log", "--all",
                              "--format=%H").stdout, (
         "the non-KB commit must not have been published")
+
+def test_the_push_refspec_source_is_a_pinned_sha_not_symbolic_head():
+    """MECHANISM pin (stated as such): the refspec source must not be `HEAD`.
+
+    `HEAD` is symbolic, so if another agent commits to this shared checkout
+    between the safety checks and the push, `HEAD:refs/heads/...` publishes
+    the NEW head — including exactly the non-KB work the guard withholds
+    (Codex P1, PR #276, 5th round).  This repo assumes concurrent agents, so
+    the race is real (MEMORY feedback_concurrent_agent_repo_hazard).
+
+    ⚠️ Honest limitation: this race has **no deterministic injection point** —
+    there is no git hook between "rev-list finished" and "push starts", and a
+    commit injected any earlier is caught by the mixed-history guard instead
+    (verified: restoring `HEAD:` leaves
+    `test_a_non_kb_local_commit_is_never_published` green, so a behavioural
+    pin here would be VACUOUS).  So this is deliberately a mechanism
+    assertion, and it is written narrowly: the push must name a pinned sha,
+    and the sha must be captured BEFORE the history is inspected.
+    """
+    import re
+
+    body = open(HOOK, encoding="utf-8").read()
+
+    pushes = re.findall(r"git push origin \"([^\"]+):refs/heads/([^\"]+)\"", body)
+    assert pushes, "the rescue push must use an explicit refspec"
+    for source, _dest in pushes:
+        assert source != "HEAD", (
+            "the refspec source must be a pinned sha, not symbolic HEAD — "
+            "otherwise a concurrent commit is published instead of the "
+            "validated history")
+        assert source == "${VALIDATED}", f"unexpected refspec source {source!r}"
+
+    # And VALIDATED must be captured before rev-list inspects the history,
+    # otherwise pinning it buys nothing.
+    assert body.index("VALIDATED=\"$(git rev-parse HEAD") < body.index(
+        "git rev-list origin/main.."), (
+        "the sha must be pinned BEFORE the history is inspected")
+
+
+def test_a_concurrent_non_kb_commit_is_still_never_published(repo):
+    """Behavioural companion: whatever the timing, the intruder stays local.
+
+    A `post-commit` hook in the work repo appends a non-KB commit right after
+    the hook's own KB commit — i.e. "someone else committed while we were
+    working".  Here the mixed-history guard is what catches it; the pinned-sha
+    refspec covers the narrower window the guard cannot see.
+    """
+    work = repo["work"]
+    _make_main_behind(repo)
+
+    hook_dir = os.path.join(work, ".git", "hooks")
+    os.makedirs(hook_dir, exist_ok=True)
+    intruder = os.path.join(hook_dir, "post-commit")
+    with open(intruder, "w") as f:
+        f.write(
+            "#!/usr/bin/env bash\n"
+            "[[ -f .git/intruded ]] && exit 0\n"
+            "touch .git/intruded\n"
+            "echo 'secret' > intruder.py\n"
+            "git add intruder.py\n"
+            "git -c core.hooksPath=/dev/null commit -q -m 'wip: intruder' || true\n")
+    os.chmod(intruder, 0o755)
+
+    with open(os.path.join(work, "knowledge-base", "mine.md"), "w") as f:
+        f.write("mine\n")
+
+    # Do NOT neutralise hooks here: the intruder hook must fire.
+    res = subprocess.run(["bash", os.path.join(work, "scripts", "hooks",
+                                               "session-end-save.sh")],
+                         cwd=work, capture_output=True, text=True,
+                         env=_clean_env())
+    assert res.returncode == 0, res.stderr
+    assert "intruder" not in _git(repo["remote"], "log", "--all",
+                                  "--format=%s").stdout, (
+        "a concurrent non-KB commit must never reach origin")

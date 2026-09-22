@@ -82,7 +82,15 @@ else
         # 直接コミットした作業) が混じっていると、**それも頼まれずに公開**される。
         # 混在していたら publish せず、理由を出して止まる (公開は不可逆なので
         # fail-closed が正しい向き)。
-        UNPUBLISHED="$(git rev-list origin/main..HEAD 2>/dev/null || echo FAIL)"
+        # 検査対象の sha を**固定**する (Codex P1, PR #276)。`HEAD` は symbolic
+        # なので、収集〜検査の間に**別エージェントがこの共有 checkout へコミット**
+        # すると、検査は旧履歴に対して行われたのに `HEAD:refs/heads/...` は**新しい
+        # HEAD を publish** する = ガードが留め置くはずの非 KB work がすり抜ける。
+        # この repo は並行エージェント前提なので実在のリスク
+        # (MEMORY feedback_concurrent_agent_repo_hazard)。以後 VALIDATED のみを使う。
+        VALIDATED="$(git rev-parse HEAD 2>/dev/null || echo '')"
+        UNPUBLISHED="$(git rev-list origin/main.."$VALIDATED" 2>/dev/null || echo FAIL)"
+        [[ -z "$VALIDATED" ]] && UNPUBLISHED=FAIL
         MIXED=0
         if [[ "$UNPUBLISHED" == "FAIL" ]]; then
             MIXED=1                     # 比較できない = 検査不能 ⇒ 公開しない
@@ -127,8 +135,9 @@ else
             # `-f` は使わない (他人の退避を壊すため) ので、名前を一意にする方で解く。
             # ⚠️ `--short` は **`core.abbrev` に従う**ので 4 桁まで縮みうる = 前置が
             # 衝突して同じ問題が再発する。一意性が目的なら省略形を使ってはいけない。
-            RESCUE="kb-rescue/main-${TODAY}-$(git rev-parse HEAD 2>/dev/null || echo unknown)"
-            if git push origin "HEAD:refs/heads/${RESCUE}" >/dev/null 2>/dev/null; then
+            RESCUE="kb-rescue/main-${TODAY}-${VALIDATED}"
+            # **検査した sha を明示的に**押す。`HEAD` を渡すと上記 TOCTOU が開く。
+            if git push origin "${VALIDATED}:refs/heads/${RESCUE}" >/dev/null 2>/dev/null; then
                 echo "⚠️  KB push to main failed — origin/${RESCUE} へ退避した (要 PR 化)" >&2
             else
                 echo "⚠️  KB push failed — session log はローカル commit のみ (要手動 push)" >&2
