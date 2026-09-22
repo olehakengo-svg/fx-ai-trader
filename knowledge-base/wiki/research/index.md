@@ -92,6 +92,7 @@ WS3 内部母集団探索 2 周 FAIL → 外部仮説転進。スクリーン + 
 - 第 2 次スキャン (E7–E19): [[external-hypothesis-scan-round2-2026-07-18]] — E15/E7 イベント + E12 flow 採用。
 - **E20 金利差方向バイアス × テクニカル entry (user 仮説 2026-07-22)**: [[e20-rate-differential-feasibility-2026-07-22]] — **S1 条件付き採用 (S2 GO)**。政策金利差 8/8 (BIS keyless) + 2y 国債差 6/8 現行を実 fetch 確認、第 4 モダリティ (rates)。
 - **EA Landscape Sweep (user 指示 2026-07-31)**: [[ea-landscape-sweep-2026-07-31]] — 「勝てている EA」13 ソース大規模調査 (31-agent、113 findings → 18 敵対的検証)。**multi-year verified の勝者は 2 アーキタイプに収斂** (ナイトスキャル MR = ブローカー回収済みで移植不能 / コモディティ三角クロス = per-position 核が未検証)。GO 2 family → 台帳 #21 commodity_cross_range_mr / #22 equity_curve_shadow_gating (queued)。副産物 = 生存率ベースレート割引関数 + THA→E7 prior 加点。
+- **臨時スキャン #29 S1 step 0 (2026-09-22、WIP 規則「着手可能 0 本なら期日を待たない」の発動)**: [[adhoc-scan-29-step0-2026-09-22]] — license-free × dense × 凍結可能な中銀声明 stance モデルの候補同定 (記述級、モデル DL・推論・census は未実行)。**無条件候補 0 / 条件付き 2** (WCB pooled = ライセンス不整合で記述 secondary 固定 / ABGH-2019 FOMC 辞書 = primary 候補・再利用許諾未確認・密度未測定)。LLM zero-shot / frozen-LLM 表現採点は知識カットオフ汚染で恒久除外 (C5 text 規律の提案)。step 1 census の実行可否は第6次スキャン (10-18) で裁定、registry `edge-supply-scan-monthly` 追記済み。前回: [[external-hypothesis-scan-round5-2026-09-17]] / [[external-hypothesis-scan-round4-2026-09-10]]。
 
 ## Still Unexplored
 - [x] ~~High-frequency lead-lag between FX pairs (Hasbrouck 2003)~~ → **CLOSED 2026-07-13**: OHLCV 内部 + cross-asset とも ≥1h で裁定消滅 (実証 probe、[[external-hypothesis-scan-2026-07-13]] §3)。naive の有意は Lo-MacKinlay 非同期取引 artifact

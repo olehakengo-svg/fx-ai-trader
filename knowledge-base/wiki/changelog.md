@@ -1,5 +1,18 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 / 更新 9 / 新規 5) + index/changelog/session 同期 (rule:R3)
+
+- **同日マージ 11 PR (#277〜#287) の KB 統合**。code PR 4 本の要点:
+  - fix(nav_floor) **F4 資金時計 burn を decomposed (keeper 確定分 + edge 30d) に分解、fit は参考列へ** (PR #285、[[nav-floor-f4-estimator-decomposition-2026-09-22]]) — registry F4 の condition 不変、発火日は幅で引用 (keeper のみ 2027-01-05 / drift 込み 2026-12-04)。`tests/test_nav_floor_projection_f4.py` が再現値と安定性を pin
+  - feat(e1) **凍結 export tool `tools/e1_positioning_frozen_export.py` + first look 手順書** (PR #286、[[e1-first-look-runbook-2026-09-22]]) — pre-reg §2.5-6「1 回だけ + sha256」の機械担保 (marker / attempt 台帳 hash chain / preflight / staging 公開)、判定器 `load_bars` の epoch 分解能バグ修復 (ns/us/ms で pin)
+  - fix(oanda_bridge) **SL replacement storm guard 4 点 (breaker → 冪等 → 単調性 → dead-band)、既定は検知のみ** (PR #287、[[storm-guard-design-2026-09-22]]) — `STORM_GUARD_ENFORCE=1` で有効化、判断期日は registry `storm-guard-enforce-decision` (10-20)。レビュー依頼 18 回 / inline P1 18 件全修正 (繰延は P2 のみ)
+  - fix(fork-safety) HTTP 全盲根因修復 (PR #277) は上のエントリ参照
+- **docs 群**: 再評価 (#278 [[path-to-win-reassessment-2026-09-22]]) / 統合決裁パケット D1〜D12 DRAFT v0 (#279 [[integrated-decision-packet-d1-d12-2026-09-22]]) / 30 日 triage + PR 規律 (#280 [[sprint-triage-pr-discipline-2026-09-22]]) / wg card 09-13・09-20 転記 + R1 再審骨子 DRAFT (#281 [[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]]) / carry_dip broker 突合 14/14 (#282 [[carry-dip-broker-reconcile-2026-09-22]]) / rnb lane-health 事前調査 (#283 [[rnb-shadow-lane-health-precheck-2026-09-22]]) / 臨時スキャン #29 step 0 (#284 [[adhoc-scan-29-step0-2026-09-22]])
+- **registry** (`prereg-trigger-registry.json`、80 → 86 entry): 新規 `review-backlog-sprint0922-p2-deferrals` (10-08、P2 巡目上限到達で未修正のまま繰延した 9 件 — 全て実欠陥、個別期日 09-27 / 10-03 / 10-06 / 10-17) / `ud1-gold-screen-check` (09-23、user) / `e1-first-look-freeze-due` (10-08) / `storm-guard-enforce-decision` (10-20) / `wg-dst-cutoff-basis-r3` (10-25) / `sprint-0922-triage-close` (10-22)。既存 9 entry へ 09-22 追記 (message のみ、condition / since 不変): g0prime (**deadline 09-28 → 10-05**) / F2 / carry-dip-v3-revival-watch (broker realized 併記、凍結 estimand 不変) / rnb checkpoint-1・-2・shadow-forward (期日 ≠ 判定日、厳格 shadow 再計数) / edge-supply-scan-monthly (臨時スキャン記録) / review-backlog-253-257-digest (消化順序) / e1-prereg-verdict-deadline (手順書・tool)
+- **render.yaml ignoredPaths** += `knowledge-base/raw/alpha_budget/**` / `knowledge-base/wiki/research/**` — `auto: KB session-end save` (b53fd5cd 06:24Z) が alpha_budget json 1 ファイルで本番を再デプロイしていた残余 churn。web プロセス (app.py / modules/) からの参照ゼロを grep で確認 (読み手は cron service の tools/quant_gate_status.py / scripts/daily_hypothesis_scan.py と手動 tools/qdrant_ingest_kb.py のみ、cron service は buildFilter を持たず毎 push で再デプロイされる)。pin: `tests/test_render_build_filter.py::test_cron_only_kb_state_paths_are_ignored`
+- hot file 同期: index.md System State 先頭ブロック / research/index.md (adhoc-scan link) / audit-index.md (3 行) / sessions/2026-09-22 Phase 32
+- ⚠️ 未解決のまま registry に置いたもの: engine 二重起動 (`dual-engine-master-worker-disposition` 10-06) / UD1 user 未回答 / 繰延 P2 9 件
+
 ## 2026-09-22 — fix(fork-safety): 本番 HTTP 全盲 3h18m の根本原因 — gunicorn master の pre-fork 窓で DailyReview が SQLite を回していた (rule:R3)
 
 - **事故**: 00:12:50 デプロイ直後〜03:33Z、全 API が 499 (client timeout)。`[MainLoop]` は連続、`[API-SLOW]` 0 / `WORKER TIMEOUT` 0 / memory 562MB。Render が 03:33:27 に SIGTERM → 復旧。**同型が 09-12 (3h31m) / 09-15 (3h22m) にも発生** (本調査で発見)。3 件とも UTC 0 時台デプロイ直後、0 時台起動 7 件中 3 件が盲目、0 時台以外は 0 件

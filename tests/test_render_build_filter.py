@@ -285,3 +285,43 @@ def test_nightly_ingest_data_paths_are_ignored():
     # ⚠️ ZN の json キャッシュ (data/cache/yield/*.json) は取引パス read のまま。
     # parquet 1 ファイルだけを ignore し、ディレクトリ全体は ignore しない。
     assert not any(_matches("data/cache/yield/any.json", pat) for pat in ignored)
+
+
+def test_cron_only_kb_state_paths_are_ignored():
+    """2026-09-22 (rule:R3, sprint 0922 follow-up): 残余 deploy churn 2 源を ignore する.
+
+    `auto: KB session-end save` (b53fd5cd, 06:24Z) が `knowledge-base/raw/alpha_budget/
+    2026-09.json` **1 ファイル**で web service を再デプロイした。同ファイルの読み書きは
+    cron service (tools/alpha_budget_tracker.py 月初 reset / tools/quant_gate_status.py
+    Tier A / scripts/daily_hypothesis_scan.py Tier B) だけで、web プロセス (app.py /
+    modules/) からの参照はゼロ (全数 grep 2026-09-22)。cron service は buildFilter を
+    持たないため毎 push で再デプロイされ、cron 側が古い状態を掴むことはない。
+    `knowledge-base/wiki/research/**` (研究文書) も同様に web 非参照 (読み手は手動
+    ingest の tools/qdrant_ingest_kb.py のみ)。
+
+    性質 A: 2 パス (raw/alpha_budget/**, wiki/research/**) は ignore される
+    性質 B: web プロセスに読み手が居ない — app.py / modules/ に `alpha_budget` /
+            `wiki/research` / `"wiki", "research"` 形リテラルが出現しないこと
+            (読み始めたら ignore を外す。cron が読むだけなら外さない)
+    """
+    ignored = _ignored_paths()
+    for p in [
+        "knowledge-base/raw/alpha_budget/2026-09.json",
+        "knowledge-base/raw/alpha_budget/2026-10.json",
+        "knowledge-base/wiki/research/adhoc-scan-29-step0-2026-09-22.md",
+        "knowledge-base/wiki/research/index.md",
+    ]:
+        assert any(_matches(p, pat) for pat in ignored), (
+            f"cron 専用 KB 状態 / 研究文書が ignore されていない (KB commit が取引エンジンを"
+            f" 再起動する): {p}"
+        )
+    # 性質 B — web プロセス側に読み手が居ないこと
+    readers = []
+    pat = re.compile(r'alpha_budget|wiki/research|"wiki"\s*[,/]\s*"research"')
+    for src in [ROOT / "app.py"] + sorted((ROOT / "modules").glob("*.py")):
+        if src.exists() and pat.search(src.read_text(encoding="utf-8")):
+            readers.append(str(src.relative_to(ROOT)))
+    assert not readers, (
+        "web プロセスが alpha_budget / wiki/research を読み始めている。ignoredPaths から"
+        f" 外すこと (cron 専用なら外さない): {readers}"
+    )

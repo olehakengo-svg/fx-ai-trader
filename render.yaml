@@ -100,6 +100,22 @@ services:
         - "data/external/rate_anchor/**"
         - "data/external/mof_statements/**"
         - "data/cache/yield/ZN_F_1h.parquet"
+        # 2026-09-22 (rule:R3, sprint 0922 follow-up): 残余 churn 2 源。
+        # (a) knowledge-base/raw/alpha_budget/YYYY-MM.json — `auto: KB session-end
+        #     save` (b53fd5cd 06:24Z) がこの 1 ファイルで本番を再デプロイした。
+        #     3 階層分類 = **web プロセス非参照** (取引パス read でも助言 read でも
+        #     ない): app.py / modules/ に `alpha_budget` の出現ゼロ (全数 grep)。
+        #     読み書きは cron service のみ — tools/alpha_budget_tracker.py (月初
+        #     reset) / tools/quant_gate_status.py (Tier A) / scripts/
+        #     daily_hypothesis_scan.py (Tier B)。cron service は buildFilter を
+        #     持たないので毎 push で再デプロイされ、cron 側の鮮度は落ちない。
+        # (b) knowledge-base/wiki/research/** — 研究文書 (臨時スキャン記録等)。
+        #     読み手は手動 ingest の tools/qdrant_ingest_kb.py のみ、app.py /
+        #     modules/ からの参照ゼロ。他の wiki/ 文書ディレクトリと同じ扱い。
+        # 逸脱 (web が読み始める) は tests/test_render_build_filter.py の
+        # test_cron_only_kb_state_paths_are_ignored が CI で落とす。
+        - "knowledge-base/raw/alpha_budget/**"
+        - "knowledge-base/wiki/research/**"
     disk:
       name: fx-data
       mountPath: /var/data
