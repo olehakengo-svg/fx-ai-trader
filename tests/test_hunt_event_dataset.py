@@ -533,8 +533,14 @@ def test_bar_dedup_still_flags_conflicts_within_one_bar():
 
 def test_benchmark_prepare_passes_with_bar_dedup(tmp_path):
     """documented benchmark 契約 (1 bar 1 行) が exit 5 にならないこと。"""
+    # NB: hours must be VALID.  This fixture used to emit
+    # `2026-09-01T24:00:00` .. `T39:00:00` for h >= 24, i.e. 16 unparseable
+    # timestamps that `prepare()` silently admitted as 16 independent
+    # observations — the very inflation Codex flagged (P2, PR #272 第11巡),
+    # live inside this test's own data.  Roll over into the next day instead.
     _write(tmp_path, [_row(instrument="USD_JPY", reversal=(h % 3 == 0),
-                           entry_time=f"2026-09-01T{h:02d}:00:00+00:00")
+                           entry_time=(f"2026-09-{1 + h // 24:02d}"
+                                       f"T{h % 24:02d}:00:00+00:00"))
                       for h in range(40)])
     strict = hed.prepare(tmp_path, enforce_provenance=False)      # "signal" 既定
     assert strict["ok"] is False                                  # 潰れて床割れ
@@ -746,6 +752,22 @@ def test_documented_window_table_agrees_with_the_readout():
                - float(infl_c)) < 0.01, (
         f"{basis_doc}/{distinct_c} is not {infl_c}x")
 
+    # The LOGGER docstring is the third live reader-facing surface carrying
+    # this count, and it drifted too (Codex P2, PR #272 第11巡).  Every surface
+    # that instructs a reader is pinned; the changelog / session logs are
+    # HISTORICAL records of the corrections and are deliberately NOT pinned.
+    logger = (root / "modules" / "hunt_event_logger.py").read_text(
+        encoding="utf-8")
+    ml = re.search(r"([\d,]+) distinct observations under the default 1h "
+                   r"dedup window", logger)
+    assert ml, "the logger must state the default-window observation count"
+    assert ml.group(1) == distinct_doc, (
+        f"the logger's distinct count ({ml.group(1)}) disagrees with the "
+        f"reader contract and the readout ({distinct_doc}) — a reader "
+        f"following its instruction would cite a withdrawn effective N")
+    assert f"{basis_doc} provenance-filtered" in logger, (
+        "the logger must name the basis too, not just the count")
+
 
 def test_anchored_window_is_independent_of_input_order():
     """KNOWN-NG INPUT: identical payloads delivered newest-first.
@@ -829,3 +851,40 @@ def test_mixed_aware_and_naive_timestamps_do_not_abort_the_audit():
     same = row("2026-01-01T09:00:00+09:00")
     kept3, rep3, _ = collapse_repeats([same, naive], window_sec=3600.0)
     assert len(kept3) == 1 and rep3 == 1
+
+
+def test_rows_without_a_usable_timestamp_are_excluded_not_counted(tmp_path):
+    """KNOWN-NG INPUT: 30 identical labeled repeats with entry_time="bad".
+
+    `collapse_repeats` keeps an undatable row as its own observation — correct
+    inside the collapser (never delete an observation silently) and the WRONG
+    direction for a promotion gate: without a parseable timestamp the dedup
+    window cannot be applied, so each repeat entered the population as an
+    independent event and manufactured significance (Codex P2, PR #272
+    第11巡).
+    """
+    rows = [_row(instrument="USDJPY=X", reversal=True, entry_time="bad")
+            for _ in range(30)]
+    _write(tmp_path, rows)
+
+    res = hed.prepare(tmp_path)
+    assert res["ok"] is False, (
+        "30 undatable repeats must NOT satisfy the N floor as 30 events")
+    assert any("unparseable" in r for r in res["blocked_reasons"])
+    assert res["accounting"]["quarantined_undatable"] == 30
+    assert res["events"] == []
+
+    # Counter-pin 1: datable rows are unaffected, and the same 30 repeats with
+    # a real timestamp collapse to ONE observation (the actual estimand).
+    _write(tmp_path, [_row(instrument="USDJPY=X", reversal=True,
+                           entry_time="2026-09-01T00:00:00")
+                      for _ in range(30)])
+    res2 = hed.prepare(tmp_path)
+    assert res2["accounting"]["quarantined_undatable"] == 0
+    assert res2["accounting"]["distinct_observations"] == 1
+
+    # Counter-pin 2: with the window disabled there IS no window to enforce,
+    # so undatable rows are not quarantined on that ground.
+    _write(tmp_path, rows)
+    res3 = hed.prepare(tmp_path, window_sec=None)
+    assert res3["accounting"]["quarantined_undatable"] == 0

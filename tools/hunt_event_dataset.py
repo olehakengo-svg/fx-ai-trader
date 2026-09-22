@@ -451,6 +451,22 @@ def prepare(
         collected, quarantined = split_provenance(raw)
     else:
         collected, quarantined = list(raw), []
+    # A row whose `entry_time` cannot be parsed CANNOT have the dedup window
+    # applied to it, so `collapse_repeats` keeps each one as its own
+    # observation.  That is the right call inside the collapser (never delete
+    # an observation silently) and the WRONG direction for a promotion gate:
+    # 30 identical labeled repeats with `entry_time: "bad"` would enter the
+    # population as 30 independent events and manufacture significance
+    # (Codex P2, PR #272 第11巡).  Fail closed here instead — the population
+    # must only contain rows whose independence we can actually check.
+    # Current corpus: 0 such rows, so no published figure moves.
+    if window_sec is not None:
+        undatable = [r for r in collected if _parse_entry_time(r) is None]
+        if undatable:
+            keep = {id(r) for r in collected} - {id(r) for r in undatable}
+            collected = [r for r in collected if id(r) in keep]
+    else:
+        undatable = []
     deduped, repeats, conflicts = collapse_repeats(
         collected, dedup=dedup, window_sec=window_sec)
     cell = select_cell(deduped, pair=pair, side=side)
@@ -467,6 +483,12 @@ def prepare(
     reasons: list[str] = []
     if not raw:
         reasons.append("dataset is empty")
+    if undatable:
+        reasons.append(
+            f"{len(undatable)} row(s) have a missing/unparseable `entry_time` "
+            "— 独立観測の窓を当てられないので母集団に入れない (各行を独立と "
+            "数えると N が水増しされ偽の有意が出る)"
+        )
     if cell_conflicts:
         reasons.append(
             f"{len(cell_conflicts)} signal group(s) in this cell carry "
@@ -487,6 +509,7 @@ def prepare(
         "accounting": {
             "rows_read": len(raw),
             "quarantined_provenance": len(quarantined),
+            "quarantined_undatable": len(undatable),
             "collapsed_repeats": repeats,
             "outcome_conflicts": len(cell_conflicts),
             "outcome_conflicts_all_cells": len(conflicts),

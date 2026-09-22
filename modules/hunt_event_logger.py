@@ -39,9 +39,10 @@ DATA-BLOCKED instead of a fabricated 0% win rate, and the disposition
 
 Anything reading these files must go through `tools/hunt_event_dataset.py` —
 rows are re-logged on every tick re-evaluation (70.3% of rows are repeats;
-20,642 distinct observations under the default 1h dedup window — the count is
-window-dependent, so never quote it without the window), so `len(rows)` is not
-an observation count.
+20,692 distinct observations under the default 1h dedup window, as-of
+2026-09-22 over the 69,576 provenance-filtered rows — the count is
+window-dependent AND estimator-dependent, so never quote it without both),
+so `len(rows)` is not an observation count.
 
 Test-write suppression (2026-09-18)
 -----------------------------------
