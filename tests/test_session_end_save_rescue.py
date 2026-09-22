@@ -225,3 +225,70 @@ def test_rescue_refs_do_not_collide_between_checkouts(repo):
     landed = {_git(remote, "rev-parse", r).stdout.strip() for r in rescues}
     assert landed == set(heads), (
         "both checkouts' commits must reach origin, not just the first")
+
+def _make_main_behind(repo):
+    """Advance origin/main so the work repo's push will be rejected."""
+    with open(os.path.join(repo["other"], "knowledge-base", "theirs.md"), "w") as f:
+        f.write("theirs\n")
+    _git(repo["other"], "add", "-A")
+    _git(repo["other"], "commit", "-m", "theirs")
+    _git(repo["other"], "push", "origin", "main")
+
+
+def test_a_non_kb_local_commit_is_never_published(repo):
+    """KNOWN-NG INPUT: someone committed their own work to local main.
+
+    `HEAD:refs/heads/...` publishes HEAD's whole history, so an unpublished
+    NON-KB commit sitting on the divergent local main would be published too —
+    again a publication nobody asked for (Codex P1, PR #276, 2nd round).
+    Publishing is irreversible, so a mixed history must fail closed.
+    """
+    work = repo["work"]
+    _make_main_behind(repo)
+
+    with open(os.path.join(work, "secret_analysis.py"), "w") as f:
+        f.write("# private work, not KB\n")
+    _git(work, "add", "-A")
+    _git(work, "commit", "-m", "wip: private analysis")
+    private = _git(work, "rev-parse", "HEAD").stdout.strip()
+
+    with open(os.path.join(work, "knowledge-base", "mine.md"), "w") as f:
+        f.write("mine\n")
+
+    res = _run_hook(work)
+    assert res.returncode == 0, res.stderr
+    assert _remote_branches(repo["remote"]) == {"main"}, (
+        "a mixed local history must not be published — origin gained "
+        f"{_remote_branches(repo['remote']) - {'main'}}")
+    assert "非 KB コミットが混在" in res.stderr, "the refusal must say why"
+    assert private not in _git(repo["remote"], "log", "--all",
+                               "--format=%H").stdout
+
+    # Counter-pin: with ONLY hook-created KB commits, the rescue proceeds.
+    _git(work, "reset", "--hard", "HEAD~2")      # drop private + KB commit
+    with open(os.path.join(work, "knowledge-base", "mine2.md"), "w") as f:
+        f.write("mine2\n")
+    res2 = _run_hook(work)
+    assert res2.returncode == 0, res2.stderr
+    assert [b for b in _remote_branches(repo["remote"])
+            if b.startswith("kb-rescue/")], (
+        f"a KB-only history must still be rescued; stderr={res2.stderr}")
+
+
+def test_no_rescue_when_this_run_committed_nothing(repo):
+    """A stale main with no NEW KB work must not publish its old history."""
+    work = repo["work"]
+    _make_main_behind(repo)
+
+    # A KB commit already exists locally from an earlier run...
+    with open(os.path.join(work, "knowledge-base", "old.md"), "w") as f:
+        f.write("old\n")
+    _git(work, "add", "-A")
+    _git(work, "commit", "-m", "auto: KB session-end save (2026-01-01)")
+
+    # ...and this run finds nothing to commit.
+    res = _run_hook(work)
+    assert res.returncode == 0, res.stderr
+    assert "本ランの新規 KB コミットは無い" in res.stderr
+    assert _remote_branches(repo["remote"]) == {"main"}, (
+        "with nothing committed this run there is nothing to rescue")

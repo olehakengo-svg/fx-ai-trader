@@ -27,6 +27,11 @@
   「**何を origin に足すのか**」を操作単位で列挙する。pin 3 → **5 本**、2 件とも
   counterfactual 確認済 (P1 を戻すと `origin gained {'kb-rescue/main-...'}`、
   P2 を戻すと `len({...}) == 1` で落ちる)
+- 🔴 **レビュー 2 巡目 (Codex P1、これも正しかった) — main 上でも「hook の KB コミットだけ」を証明していなかった**: 1 巡目の `BRANCH == main` ガードは feature ケースを塞いだが、**local main 自体に未公開の非 KB コミット** (誰かが main に直接コミットした作業) があれば、`HEAD:refs/heads/...` は**それも一緒に publish** する。しかも**本ランが KB を 1 件もコミットしていなくても発火**していた。⇒ 2 段のガードを追加:
+  (a) **本ランが実際にコミットしたか**を `HEAD` の前後比較で判定 (`exit 0` は commit 成功を意味しない — pre-commit の `Commit blocked` も 0)。コミットしていなければ退避しない
+  (b) **`origin/main..HEAD` の全コミットが「hook 製の KB コミット」であること**を検査 — subject が `auto: KB session-end save` で始まり、**かつ `git diff-tree` が `knowledge-base/` 以外に触っていない** (subject は自称なのでパスも見る)。混在 / 比較不能なら **publish せず理由を出して止まる**
+- 🔑 **公開は不可逆なので、ここだけは fail-closed の向きが「退避しない」** — 座礁 (回復可能) と publish (回復不可能) では安全な向きが逆になる。**「安全側」は一意でなく、何が不可逆かで決まる**
+- pin 5 → **7 本**。2 件とも counterfactual 確認済 ((b) を外すと `origin gained {'kb-rescue/...'}`、(a) を外すと新規コミット無しでも退避が走る)
 - 🔑 **教訓: 「backlog を掃除した」と「ジェネレータを止めた」は別** — 09-17 の CLOSED 判定は前者だけで出されており、5 日で再発した。**再発する欠陥は、事象ではなく発生機構に対して pin を置く**
 - ⚠️ **ローカル `main` の 0/0 復帰は、内容が origin に到達したことを確認した後に行う** — 2026-09-17 は先に `reset` して未コミットの `index.md` 編集を破壊し System State を 13 日巻き戻した ([[2026-09-21]] が記録)。本 PR がマージされてから reset する順序を厳守した
 

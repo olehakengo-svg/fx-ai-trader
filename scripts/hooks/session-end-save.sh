@@ -32,11 +32,17 @@ fi
 KB_CHANGES=$(git diff --name-only -- "$KB/" 2>/dev/null || true)
 KB_UNTRACKED=$(git ls-files --others --exclude-standard -- "$KB/" 2>/dev/null || true)
 
+KB_COMMIT_SUBJECT="auto: KB session-end save (${TODAY})"
+COMMITTED_THIS_RUN=0
 if [[ -n "$KB_CHANGES" ]] || [[ -n "$KB_UNTRACKED" ]]; then
+    HEAD_BEFORE="$(git rev-parse HEAD 2>/dev/null || echo none)"
     git add "$KB/" >/dev/null 2>/dev/null || true
-    git commit -m "auto: KB session-end save (${TODAY})
+    git commit -m "${KB_COMMIT_SUBJECT}
 
 Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>" >/dev/null 2>/dev/null || true
+    # "exit 0" は commit 成功を意味しない (pre-commit の Commit blocked も 0)
+    [[ "$(git rev-parse HEAD 2>/dev/null || echo none)" != "$HEAD_BEFORE" ]] \
+        && COMMITTED_THIS_RUN=1
 
     echo "KB changes auto-committed" >&2
 fi
@@ -65,16 +71,48 @@ else
         # 誰も頼んでいない公開になる。HEAD が main でない場合、step 2 の KB コミットは
         # その feature ブランチ上にあり、当人の PR で push されるので座礁しない。
         echo "⚠️  KB push to main failed (HEAD=${BRANCH}) — この commit は ${BRANCH} 上にあるので退避しない (PR で push される)" >&2
+    elif [[ "$COMMITTED_THIS_RUN" != "1" ]]; then
+        # このランは何もコミットしていない ⇒ 退避すべき新規 KB work は無い。
+        # 既存の local-only 履歴を勝手に publish しない (Codex P1, PR #276)。
+        echo "⚠️  KB push to main failed — 本ランの新規 KB コミットは無いので退避しない" >&2
     else
-        # ref 名に **短縮 sha** を入れる (Codex P2, PR #276)。同日に 2 つの stale な
-        # main checkout が走ると `kb-rescue/main-<date>` が衝突し、2 本目は
-        # non-fast-forward で拒否されて**ローカルに座礁したまま**になる。
-        # `-f` は使わない (他人の退避を壊すため) ので、名前を一意にする方で解く。
-        RESCUE="kb-rescue/main-${TODAY}-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-        if git push origin "HEAD:refs/heads/${RESCUE}" >/dev/null 2>/dev/null; then
-            echo "⚠️  KB push to main failed — origin/${RESCUE} へ退避した (要 PR 化)" >&2
+        # 🔴 **退避 ref に載るのが「hook が作った KB コミットだけ」であることを
+        # 確認する** (Codex P1, PR #276)。`HEAD:refs/heads/...` は HEAD の履歴を
+        # まるごと publish するので、local-only な**非 KB コミット** (誰かが main に
+        # 直接コミットした作業) が混じっていると、**それも頼まれずに公開**される。
+        # 混在していたら publish せず、理由を出して止まる (公開は不可逆なので
+        # fail-closed が正しい向き)。
+        UNPUBLISHED="$(git rev-list origin/main..HEAD 2>/dev/null || echo FAIL)"
+        MIXED=0
+        if [[ "$UNPUBLISHED" == "FAIL" ]]; then
+            MIXED=1                     # 比較できない = 検査不能 ⇒ 公開しない
         else
-            echo "⚠️  KB push failed — session log はローカル commit のみ (要手動 push)" >&2
+            for C in $UNPUBLISHED; do
+                SUBJ="$(git log -1 --format=%s "$C" 2>/dev/null || echo '')"
+                case "$SUBJ" in
+                    "auto: KB session-end save"*) ;;
+                    *) MIXED=1; break ;;
+                esac
+                # KB 以外のパスに触っていないことも確認する (subject は自称)
+                if git diff-tree --no-commit-id --name-only -r "$C" 2>/dev/null \
+                        | grep -qv '^knowledge-base/'; then
+                    MIXED=1; break
+                fi
+            done
+        fi
+        if [[ "$MIXED" == "1" ]]; then
+            echo "⚠️  KB push to main failed — local-only 履歴に非 KB コミットが混在するため退避しない (公開は手動判断: git log origin/main..HEAD)" >&2
+        else
+            # ref 名に **短縮 sha** を入れる (Codex P2, PR #276)。同日に 2 つの stale な
+            # main checkout が走ると `kb-rescue/main-<date>` が衝突し、2 本目は
+            # non-fast-forward で拒否されて**ローカルに座礁したまま**になる。
+            # `-f` は使わない (他人の退避を壊すため) ので、名前を一意にする方で解く。
+            RESCUE="kb-rescue/main-${TODAY}-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+            if git push origin "HEAD:refs/heads/${RESCUE}" >/dev/null 2>/dev/null; then
+                echo "⚠️  KB push to main failed — origin/${RESCUE} へ退避した (要 PR 化)" >&2
+            else
+                echo "⚠️  KB push failed — session log はローカル commit のみ (要手動 push)" >&2
+            fi
         fi
     fi
 fi
