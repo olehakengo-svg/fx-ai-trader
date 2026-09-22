@@ -107,6 +107,8 @@ def _write_full_parquets(d, cutoff=None, pairs=None, drop_tail_bars=0, start=Non
         minute=0, second=0, microsecond=0)
     end = cutoff + timedelta(hours=2)
     idx = pd.date_range(start, end, freq="15min", tz="UTC")
+    # 市場閉場 (NY Fri 17:00 〜 Sun 17:00) のスロットは実データ同様に存在しない
+    idx = idx[np.array([ev.is_market_open(t) for t in idx.to_pydatetime()])]
     if drop_tail_bars:
         idx = idx[idx + pd.Timedelta(seconds=900) <= pd.Timestamp(cutoff)][:-drop_tail_bars]
     os.makedirs(d, exist_ok=True)
@@ -900,6 +902,46 @@ class TestOhlcvSlice:
                      ).to_parquet(src / "EUR_GBP_15m.parquet")
         c = fx.check_ohlcv_coverage(str(src), CUTOFF1)["EUR_GBP"]
         assert not c["ok"] and "unsorted" in c["reason"]
+
+    def test_preflight_rejects_extra_off_grid_or_closed_bars(self, tmp_path, capsys):
+        """P1 (6 巡目): 欠落ゼロでも off-grid (10:07) / 閉場 (土曜) の余分な行は exit 2。
+        --ohlcv-drop-extra-bars を明示すればスライス時に落として件数を記録する。"""
+        import pandas as pd
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        src = tmp_path / "src"; dst = tmp_path / "dst"
+        full = _write_full_parquets(str(src))
+        realistic = full[np.array([ev.is_market_open(t) for t in full.to_pydatetime()])]
+        extras = pd.DatetimeIndex([pd.Timestamp("2026-10-01T10:07:00Z"),     # off-grid
+                                   pd.Timestamp("2026-09-26T12:00:00Z")])    # 土曜 (閉場)
+        assert not ev.is_market_open(extras[1].to_pydatetime())
+        with_extra = realistic.append(extras).sort_values()
+        for pair in fx.INSTRUMENTS:
+            idx = with_extra if pair == "GBP_JPY" else realistic
+            pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 1.0}, index=idx
+                         ).to_parquet(src / f"{pair}_15m.parquet")
+        c = fx.check_ohlcv_coverage(str(src), CUTOFF1)["GBP_JPY"]
+        assert not c["ok"] and c["reason"] == "extra_off_grid_or_closed_bars"
+        assert c["gap_bars"] == 0 and c["extra_bars"] == 2 and c["extra_first"] == "2026-09-26T12:00:00Z"
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api, ohlcv_src=str(src), ohlcv_dst=str(dst))
+        err = capsys.readouterr().err
+        assert rc == fx.EXIT_FAIL and api.calls == []
+        assert "GBP_JPY" in err and "extra_off_grid_or_closed_bars" in err and "extra 2" in err
+        # 明示して落とす → 通り、スライス結果は期待スロット集合と一致
+        rc, paths, out = _run(tmp_path, api, ohlcv_src=str(src), ohlcv_dst=str(dst),
+                              ohlcv_drop_extra=True)
+        assert rc == fx.EXIT_OK
+        man = json.load(open(paths["manifest"]))
+        assert man["ohlcv_drop_extra_bars"] is True
+        assert man["ohlcv_coverage"]["GBP_JPY"]["extra_dropped_at_slice"] is True
+        assert man["ohlcv_slice"]["GBP_JPY"]["rows_dropped_extra"] == 2
+        assert man["ohlcv_slice"]["USD_JPY"]["rows_dropped_extra"] == 0
+        sliced = ev.load_bars(str(dst), "GBP_JPY")
+        base = ev.load_bars(str(dst), "USD_JPY")
+        np.testing.assert_array_equal(sliced["ep"], base["ep"])
+        assert all(int(e) % 900 == 0 and ev.is_market_open(datetime.fromtimestamp(e, tz=timezone.utc))
+                   for e in sliced["ep"])
+        assert "of which extra 2" in out and not FLOAT_RE.search(out)
 
     def test_preflight_only_cli_touches_nothing(self, tmp_path, capsys, monkeypatch):
         src = tmp_path / "src"
