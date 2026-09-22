@@ -309,6 +309,8 @@ class TestRoundtrip:
         assert "REFUSED" in err and "roundtrip" in err
         assert not os.path.exists(paths["sha256"])
         assert not os.path.exists(paths["manifest"])
+        assert not os.path.exists(paths["artifact"])          # staging のまま公開されない
+        assert os.path.exists(paths["artifact_staging"])
         assert out == ""
         assert not FLOAT_RE.search(err), err
         # 値の変化 (件数同一) も digest で捕まえる
@@ -321,9 +323,18 @@ class TestRoundtrip:
                 obj = dict(obj, snapshots=rows)
             real_write(path, obj)
         monkeypatch.setattr(fx, "write_json_atomic", mutating_write)
-        rc2, paths2, _ = _run(tmp_path, api)
+        n_calls = len(api.calls)
+        rc_refused, _, _ = _run(tmp_path, api)          # 台帳に失敗試行あり → --force 必須
+        assert rc_refused == fx.EXIT_REFUSED_FROZEN
+        assert len(api.calls) == n_calls                # 本番へ再問い合わせしない
+        rc2, paths2, _ = _run(tmp_path, api, force=True)
         assert rc2 == fx.EXIT_FAIL
         assert not os.path.exists(paths2["sha256"])
+        j = json.load(open(paths2["attempts"]))
+        assert [a["status"] for a in j["attempts"]] == ["failed", "failed"]
+        assert j["attempts"][0]["reason"] == "roundtrip_mismatch"
+        assert j["attempts"][1]["force"] is True
+        assert not FLOAT_RE.search(open(paths2["attempts"]).read())
 
     def test_evaluator_refuses_real_artifact_without_verdict_run(self, tmp_path):
         """§6-2: 凍結 artifact (synthetic=false) は --verdict-run なしで判定器が拒否。"""
@@ -337,13 +348,25 @@ class TestRoundtrip:
     def test_missing_instrument_fail_loud(self, tmp_path):
         snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
         snaps = [r for r in snaps if r["instrument"] != "EUR_GBP"]
-        rc, paths, _ = _run(tmp_path, FakeApi(snaps, health))
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api)
         assert rc == fx.EXIT_FAIL
         assert not os.path.exists(paths["sha256"])
-        rc, paths, _ = _run(tmp_path, FakeApi(snaps, health), allow_missing=True)
+        # 台帳に「本番へ問い合わせ済み・失敗」が残り、--force なしの再実行は拒否 (P1 2 巡目)
+        j = json.load(open(paths["attempts"]))
+        assert len(j["attempts"]) == 1 and j["attempts"][0]["status"] == "failed"
+        assert j["attempts"][0]["reason"] == "instruments_missing"
+        assert j["attempts"][0]["api_queried"] is True
+        n_calls = len(api.calls)
+        rc_refused, _, _ = _run(tmp_path, api, allow_missing=True)
+        assert rc_refused == fx.EXIT_REFUSED_FROZEN
+        assert len(api.calls) == n_calls
+        rc, paths, _ = _run(tmp_path, api, allow_missing=True, force=True)
         assert rc == fx.EXIT_OK
         man = json.load(open(paths["manifest"]))
         assert man["snapshots_summary"]["instruments_missing"] == ["EUR_GBP"]
+        assert [a["status"] for a in man["attempts"]] == ["failed", "frozen"]
+        assert man["force_history"] == []            # marker は無かったので supersede ではない
 
 
 # ── 「1 回だけ」ガード ─────────────────────────────────────────────
@@ -381,6 +404,100 @@ class TestOnceOnlyGuard:
         assert fx.sha256_file(paths["artifact"]) == sha_before
         assert open(paths["sha256"]).read() == rec_before
         assert out2 == ""
+
+    def test_attempt_recorded_before_first_api_request(self, tmp_path):
+        """P1 (2 巡目): fetch 中の例外でも台帳に試行が残り、次回は --force 必須。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        good = FakeApi(snaps, health)
+        calls = []
+
+        def flaky(path, params):
+            calls.append(params)
+            if len(calls) == 3:
+                raise RuntimeError("HTTP 502")
+            return good(path, params)
+        paths = fx.default_paths(1, str(tmp_path))
+        with pytest.raises(RuntimeError, match="502"):
+            fx.run_freeze(flaky, 1, paths, api_base="https://fake.invalid",
+                          now=CUTOFF1 + timedelta(hours=1))
+        j = json.load(open(paths["attempts"]))
+        assert j["attempts"][0]["status"] == "failed"
+        assert j["attempts"][0]["reason"].startswith("fetch error")
+        assert not os.path.exists(paths["sha256"]) and not os.path.exists(paths["manifest"])
+        n = len(good.calls)                      # flaky は good を経由して記録する
+        rc = fx.run_freeze(good, 1, paths, api_base="https://fake.invalid",
+                           now=CUTOFF1 + timedelta(hours=1))
+        assert rc == fx.EXIT_REFUSED_FROZEN and len(good.calls) == n   # 再問い合わせなし
+        rc = fx.run_freeze(good, 1, paths, api_base="https://fake.invalid",
+                           now=CUTOFF1 + timedelta(hours=1), force=True)
+        assert rc == fx.EXIT_OK
+        man = json.load(open(paths["manifest"]))
+        assert [a["status"] for a in man["attempts"]] == ["failed", "frozen"]
+        assert man["attempts"][1]["snapshots_rows"] == 13 * 3
+
+    def test_preflight_ohlcv_missing_stops_before_api(self, tmp_path, capsys):
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        src = tmp_path / "src"; src.mkdir()            # parquet 無し
+        rc, paths, out = _run(tmp_path, api, ohlcv_src=str(src), ohlcv_dst=str(tmp_path / "dst"))
+        assert rc == fx.EXIT_FAIL
+        assert "preflight" in capsys.readouterr().err
+        assert api.calls == []                         # API 要求前に停止
+        assert not os.path.exists(paths["attempts"])   # 試行にも数えない
+        rc2, _, _ = _run(tmp_path, api)                # 台帳空 → 通常実行できる
+        assert rc2 == fx.EXIT_OK
+
+    def test_force_failure_preserves_prior_freeze(self, tmp_path, monkeypatch, capsys):
+        """P1 (2 巡目): --force 中に roundtrip / スライスで落ちても前回凍結は byte 不改変。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_OK
+        before = {k: open(paths[k], "rb").read() for k in ("artifact", "sha256", "manifest")}
+        real_write = fx.write_json_atomic
+
+        def lossy_write(path, obj):
+            if isinstance(obj, dict) and "snapshots" in obj:
+                obj = dict(obj, snapshots=obj["snapshots"][:-1])
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", lossy_write)
+        rc2, _, out2 = _run(tmp_path, api, force=True)
+        assert rc2 == fx.EXIT_FAIL and out2 == ""
+        assert {k: open(paths[k], "rb").read() for k in before} == before
+        monkeypatch.setattr(fx, "write_json_atomic", real_write)
+
+        def boom(*a, **k):
+            raise RuntimeError("parquet corrupt")
+        monkeypatch.setattr(fx, "slice_ohlcv", boom)
+        src = tmp_path / "src"; src.mkdir()
+        import pandas as pd
+        for pair in fx.INSTRUMENTS:                    # preflight を通す
+            pd.DataFrame({"Open": [1.0]}, index=pd.DatetimeIndex([CUTOFF1 - timedelta(hours=1)])
+                         ).to_parquet(src / f"{pair}_15m.parquet")
+        with pytest.raises(RuntimeError, match="parquet corrupt"):
+            _run(tmp_path, api, force=True, ohlcv_src=str(src), ohlcv_dst=str(tmp_path / "dst"))
+        assert {k: open(paths[k], "rb").read() for k in before} == before
+        j = json.load(open(paths["attempts"]))
+        assert [a["status"] for a in j["attempts"]] == ["frozen", "failed", "failed"]
+        # 前回凍結は verify OK のまま
+        assert fx.verify_record(paths["sha256"], root="/")["ok"]
+
+    def test_publish_order_manifest_before_marker(self, tmp_path, monkeypatch, capsys):
+        """P2 (2 巡目): marker だけが残る状態を作らない (manifest → marker の順)。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        real_write = fx.write_json_atomic
+
+        def fail_on_manifest(path, obj):
+            if path.endswith(".manifest.json"):
+                raise OSError("disk full")
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", fail_on_manifest)
+        with pytest.raises(OSError):
+            _run(tmp_path, api)
+        paths = fx.default_paths(1, str(tmp_path))
+        assert not os.path.exists(paths["sha256"])      # marker は manifest 無しでは存在しない
+        assert not os.path.exists(paths["manifest"])
 
     def test_force_records_previous_sha256(self, tmp_path):
         snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
@@ -500,7 +617,7 @@ class TestNoValueLeak:
     def test_manifest_and_sha_record_carry_no_values(self, tmp_path):
         snaps, health = make_world()
         rc, paths, _ = _run(tmp_path, FakeApi(snaps, health))
-        for p in (paths["manifest"], paths["sha256"]):
+        for p in (paths["manifest"], paths["sha256"], paths["attempts"]):
             text = open(p).read()
             for s in (str(SENTINEL_LONG), str(SENTINEL_PX), "avgLongPrice",
                       "pct_long_total", "longPercentage"):
@@ -594,6 +711,24 @@ class TestOhlcvSlice:
 # ── verify (§2.5-5(b) roundtrip 突合) ─────────────────────────────────
 
 class TestVerify:
+    def test_verify_fails_when_manifest_missing_or_roundtrip_not_ok(self, tmp_path):
+        """P2 (2 巡目): marker だけの凍結 (manifest 不在 / roundtrip 未記録) は FAIL。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        rc, paths, _ = _run(tmp_path, FakeApi(snaps, health))
+        assert rc == fx.EXIT_OK
+        assert fx.verify_record(paths["sha256"], root="/")["manifest"] == "OK"
+        man = json.load(open(paths["manifest"]))
+        man["roundtrip_check"]["ok"] = False
+        json.dump(man, open(paths["manifest"], "w"))
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["manifest"] == "ROUNDTRIP_FAIL"
+        os.remove(paths["manifest"])
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["manifest"] == "MISSING"
+        assert all(v == "OK" for v in res["files"].values())   # ファイルは無傷でも凍結不完全
+        rc = fx.main(["--verify", paths["sha256"]])
+        assert rc == fx.EXIT_FAIL
+
     def test_verify_detects_tamper(self, tmp_path):
         snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
         rc, paths, _ = _run(tmp_path, FakeApi(snaps, health))

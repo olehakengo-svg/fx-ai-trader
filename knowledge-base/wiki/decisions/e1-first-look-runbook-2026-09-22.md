@@ -10,7 +10,8 @@
 
 - pre-reg §2.5-6 は「verdict 用データは cutoff 直後に **1 回だけ** export → parquet + sha256 を `raw/bt-results/` に保存。以後の分析は artifact のみ参照 (本番 DB 再クエリ禁止)」を要求する。これは**手続き要件**であり、tool が無くても手作業で満たせる — **tool 不在 ≠ verdict 無効** (無効化は §6 違反時のみ)。
 - tool `tools/e1_positioning_frozen_export.py` はこの規約の**機械担保**: (i) 凍結 marker (`.sha256`) があれば `--force` なしで再実行拒否 = 「2 回目の export」を構造的に止める、(ii) stdout に値を出さない = export 作業そのものが peeking にならない、(iii) 判定器 `tools/e1_positioning_prereg_eval.py --artifact` の入力契約 (JSON dict `{"snapshots","health","synthetic":false}`) をそのまま書く、(iv) M15 parquet の cutoff スライスを判定器 `clip_bars_to_cutoff` と同一規約 (open + 900s ≤ cutoff) で作り sha256 を raw 側に残す、(v) **§2.5-5(b) API→artifact roundtrip を凍結時に実行** — artifact をディスクから再読し、1 回だけの export 応答 (メモリ) と件数・(instrument, book_type, snapshot_time) キー集合・行 canonical digest を突合、不一致なら marker を書かず exit 2 (本番へ再問い合わせしない)。結果は manifest `roundtrip_check` に永続化、ページ毎の API 返却件数内訳は `fetch_ledger`、(vi) **§2.5-3 postpone** は `--postponed` (cutoff 11-05 / verdict 11-12、別 marker、元凍結は byte 不改変)。
-- pin: `tests/test_e1_positioning_frozen_export.py` (32 tests、全てオフライン fake API) — 合成 roundtrip (書く→判定器 `load_artifact` で読む→sha256 一致) / API↔artifact roundtrip の記録と不一致時の marker 不書込 / サーバ側 limit 丸めで切詰まらない / 1 回だけガード / cutoff 前拒否 / postpone (元 marker 必須・元凍結不改変・11-05 フィルタ・別 marker・1 回だけ) / 値非表示 (stdout に `\d+\.\d+` が出ない、合成 sentinel 値が出ない) / ページング dedup / 定数が判定器・ingest・pre-reg §7 (4 週) と同値 / M15 スライス本数が判定器 clip と一致 (index 分解能 ns・us の両方)。
+- **attempt 台帳 + staging 公開 (レビュー 2 巡目 P1×2/P2)**: (vii) `{base}.attempts.json` に**最初の API 要求の前**に試行開始を書き、取得後の失敗 (0 行 instrument / roundtrip 不一致 / fetch 例外 / スライス例外) も `status=failed` + 理由で残す。**台帳に試行があれば marker 不在でも `--force` なしの再実行は exit 3** (本番への 2 回目の問い合わせを構造的に止める)。ローカルで判る失敗 (OHLCV parquet 欠落) は API 要求前の preflight で exit 2 (試行に数えない)。(viii) artifact / M15 スライスは staging (`*.staging`) に書き、全検証通過後にのみ最終パスへ移し **manifest → marker の順**で書く — `--force` 中に落ちても前回凍結は byte 不改変。(ix) `--verify` は manifest 不在 / `roundtrip_check.ok != true` を FAIL (marker だけの凍結は不完全)。
+- pin: `tests/test_e1_positioning_frozen_export.py` (37 tests、全てオフライン fake API) — 合成 roundtrip (書く→判定器 `load_artifact` で読む→sha256 一致) / API↔artifact roundtrip の記録と不一致時の marker 不書込 / サーバ側 limit 丸めで切詰まらない / 1 回だけガード (marker・attempt 台帳の両方、fetch 例外後も) / preflight が API 要求前に止まる / `--force` 失敗時の前回凍結 byte 不改変 / manifest → marker の公開順 / `--verify` が manifest 不在で FAIL / cutoff 前拒否 / postpone (元 marker 必須・元凍結不改変・11-05 フィルタ・別 marker・1 回だけ) / 値非表示 (stdout・manifest・台帳に `\d+\.\d+` が出ない、合成 sentinel 値が出ない) / ページング dedup / 定数が判定器・ingest・pre-reg §7 (4 週) と同値 / M15 スライス本数が判定器 clip と一致 (index 分解能 ns・us の両方)。
 - ⚠️ **判定器側の修復 (同 PR、rule:R3)**: `tools/e1_positioning_prereg_eval.py load_bars` の epoch 計算が ns 分解能前提 (`view("int64") // 10**9`) で、pandas 3 + pyarrow の parquet roundtrip (datetime64[us]) では epoch が 1/1000 に潰れ `clip_bars_to_cutoff` が全 bar を「完結済み」と誤判定していた (PR #286 CI 実測 `assert 26 == 32`、ローカル pandas 2.3 では潜伏)。分解能非依存に修正し `tests/test_e1_prereg_eval.py` に ns/us/ms で pin。**verdict 実行環境の pandas 版に依存しない**ことが要件 — §5 の実行前に §2 の pin を必ず同一環境で green にする。
 
 ## §1 タイムライン (固定、データ非依存)
@@ -64,19 +65,20 @@ python3 -B tools/e1_positioning_frozen_export.py --verify knowledge-base/raw/bt-
 | `knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.manifest.json` | 件数 / instrument 別 first・last snapshot_time (秒精度) / health_log 行数・id 範囲・key 数 / cutoff / `postponed` (false) / api_base / frozen_at / ohlcv スライスの rows・sha256 / `roundtrip_check` (§2.5-5(b)) / `force_history` | commit |
 | `knowledge-base/raw/bt-results/e1-first-look-postponed-freeze-2026-11-05.{sha256,manifest.json}` + `e1-first-look-postponed-freeze-2026-11-05/e1_prereg_frozen_export_look1_postponed.json` | **postpone 時のみ** (§1)。元 10-08 凍結と別 marker、`postponed: true` / `original_cutoff` / `postpone_weeks: 4` | commit (postpone 時) |
 | `knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08/e1_prereg_frozen_export_look1.json` | 判定器入力 artifact (`synthetic: false`) | サイズ次第。数十 MB なら commit せず sha256 のみ raw に残し、ファイルは隔離 worktree 内に保持 |
+| `knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.attempts.json` | **試行台帳** — 各試行の started_at / status (`in_progress`→`frozen` or `failed`) / reason / force / api_queried / 件数 (値なし)。最初の API 要求の前に書かれる | commit (失敗試行も含めて残す — 「本番へ何回問い合わせたか」の一次記録) |
 | `data/cache/e1_frozen_look1_2026-10-08/{PAIR}_15m.parquet` × 13 | cutoff スライス済み M15 | gitignored (`data/cache/`)。sha256 は上記 `.sha256` に同居 |
 
-- **tool の挙動 (pin 済み)**: marker が既存なら exit 3 で拒否 (API へ問い合わせもしない)。現在時刻 < cutoff なら exit 2 で拒否 (早期凍結が marker を占有するのを防ぐ)。0 行の instrument があれば exit 2 (`--allow-missing-instruments` で記録のみ続行 — ingest 障害を先に切り分ける)。stdout は件数・秒精度時刻・sha256・パスのみ。
+- **tool の挙動 (pin 済み)**: marker が既存なら exit 3 で拒否 (API へ問い合わせもしない)。**marker が無くても attempt 台帳に試行があれば exit 3** (前回は本番へ問い合わせ済み — 失敗の理由は台帳 `reason`)。現在時刻 < cutoff なら exit 2 で拒否 (早期凍結が marker を占有するのを防ぐ)。`--slice-ohlcv` で parquet が欠けていれば **API 要求前に** exit 2 (preflight、試行に数えない)。0 行の instrument があれば exit 2 で台帳に `failed/instruments_missing` (再実行は `--force --allow-missing-instruments` — ingest 障害を先に切り分ける)。roundtrip 不一致は exit 2、staging 残置、marker 不書込。stdout は件数・秒精度時刻・sha256・パスのみ。
 - **snapshots の範囲**: t0 (2026-07-16T06:33:31Z) 以降 cutoff 以下の **全行** (burn-in 前も含む — §3.1 の trailing rolling rank は burn-in 前の履歴を窓として使う。評価窓 08-13〜 の切り出しは判定器の仕事)。book_type は `outlook` のみ (§2.1、OANDA 旧行は型で除外)。
 - **health_log の範囲**: value ≤ cutoff の全行。本番の `positioning_health_log` は **2026-07-17T08:40:27Z から** (dry-run 実測 id 1) — それ以前の verified 証跡は artifact の行 snapshot_time を判定器が union する (§2.2、`load_artifact` docstring)。
-- **再実行が本当に必要なとき** (例: export 中の 5xx で不完全): `--force` を付ける。manifest `force_history` に前回 sha256 と時刻が残る (fail-loud)。**理由を verdict §8 に併記する**。値を見た後の再 export は §6-2 違反。
+- **再実行が本当に必要なとき** (例: export 中の 5xx、0 行 instrument、roundtrip 不一致): `--force` を付ける。台帳 `attempts` に全試行 (失敗含む)、marker があった場合は manifest `force_history` に前回 sha256 と時刻が残る (fail-loud)。`--force` 中に検証で落ちても前回凍結は不改変 (staging → 一括公開)。**試行回数と理由を verdict §8 に併記する** (台帳から転記)。値を見た後の再 export は §6-2 違反。
 
 ## §4 品質 gate spot check (§2.5-5、結果は raw/ へ)
 
 | 項目 | やり方 | 注意 |
 |---|---|---|
 | (a) content-hash 再計算 | 無作為 20 行の `buckets` を `modules.positioning_ingest.outlook_content_key` で再計算し、同 instrument の**隣接行と相異なる**こと (dedup 契約) を確認 | ⚠️ 本番 schema に hash 列は無い (`positioning_snapshots` DDL) — 「保存済み hash と一致」は検査不能。確認できるのは決定性と隣接非重複のみ。**この検査は値を読む** — verdict 期日の判定器実行と同日に、判定器の出力と同じ raw JSON に結果だけ書く (数値の目視・記録禁止) |
-| (b) roundtrip 突合 | 凍結時 (§3(b)) に tool が API 応答 ↔ artifact を件数・キー集合・行 digest で突合し manifest `roundtrip_check.ok = true` を記録 (不一致は marker 不書込)。`--verify` (§3(c)) は sha256 再計算 (改竄・破損) + その記録の再表示 | 凍結直後と判定器実行直前の 2 回 `--verify`。**判定器実行日に本番 API へ再問い合わせして突合し直すことは §2.5-6 違反** — 記録済み結果を転記する |
+| (b) roundtrip 突合 | 凍結時 (§3(b)) に tool が API 応答 ↔ artifact を件数・キー集合・行 digest で突合し manifest `roundtrip_check.ok = true` を記録 (不一致は marker 不書込)。`--verify` (§3(c)) は sha256 再計算 (改竄・破損) + その記録の検査 — **manifest 不在 / roundtrip 未記録・不成立は FAIL** (marker だけの凍結は不完全) | 凍結直後と判定器実行直前の 2 回 `--verify`。**判定器実行日に本番 API へ再問い合わせして突合し直すことは §2.5-6 違反** — 記録済み結果を転記する |
 | (c) Myfxbook web UI 突合 | 3 ペア × 1 時点の pct (±0.5pp) | rate limit 100 req/24h 内。**cutoff 後の時点**で行う (凍結 artifact の値と突合するのは判定器実行日) |
 | (d) unit tests green | §2 の pytest | 判定器 `tests/test_e1_prereg_eval.py` + export `tests/test_e1_positioning_frozen_export.py` |
 
@@ -97,7 +99,7 @@ python3 -B tools/e1_positioning_prereg_eval.py \
 
 ## §6 verdict 追記 (2026-10-15)
 
-pre-reg §8 placeholder に、判定器出力から**転記**する (解釈を足さない): 品質 gate 判定表 (stale cap モード・NA 分布・量子化粒度) / Gate 1 pooled IC 表 (6 combo、p_MBB / p_IM、BH q=0.05) / Gate 2 EV 表 (time-exit / first-touch / stress、trade N) / combo 排他分類 C1〜C5 + フラグ / ナイフエッジ 4 点 / confirmatory 符号表 / 実測 ρ̄ と N_eff / 全体 verdict と固定分岐。併記必須: 既知 debit (§2)、artifact sha256、`force_history` (空であること)、§2.5-5 spot check 結果。
+pre-reg §8 placeholder に、判定器出力から**転記**する (解釈を足さない): 品質 gate 判定表 (stale cap モード・NA 分布・量子化粒度) / Gate 1 pooled IC 表 (6 combo、p_MBB / p_IM、BH q=0.05) / Gate 2 EV 表 (time-exit / first-touch / stress、trade N) / combo 排他分類 C1〜C5 + フラグ / ナイフエッジ 4 点 / confirmatory 符号表 / 実測 ρ̄ と N_eff / 全体 verdict と固定分岐。併記必須: 既知 debit (§2)、artifact sha256、`force_history` (空であること)、`attempts` 台帳の試行数と失敗理由 (1 試行 `frozen` のみが理想)、§2.5-5 spot check 結果。
 
 **hot file (session log / index / changelog / registry) は orchestrator 経由** — 本稿の執行 PR は pre-reg §8 追記 + raw JSON + 本稿 §9 実行ログのみ。
 

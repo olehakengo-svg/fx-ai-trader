@@ -17,6 +17,14 @@
      tool/API の出所を書く。**この .sha256 が「凍結済み」marker**。
   3. 「1 回だけ」ガード: marker が既に存在すれば `--force` なしでは再実行を拒否する
      (exit 3)。--force 時は manifest の `force_history` に前回 sha256 を残す (fail-loud)。
+     **attempt 台帳** (`{base}.attempts.json`): 最初の API 要求の前に「試行開始」を書き、
+     取得後の検証失敗 (0 行 instrument / roundtrip 不一致 / 例外) も status=failed で残す。
+     台帳に試行があれば marker 不在でも `--force` なしの再実行は拒否 (本番への 2 回目の
+     問い合わせを構造的に止める)。ローカルで判る失敗条件 (OHLCV parquet 欠落) は API 要求
+     の前に preflight で弾く。
+     **staging → 一括公開**: artifact / M15 スライスは staging パスに書き、roundtrip と
+     スライスの全検証が通った後にのみ最終パスへ移し、manifest → marker の順で書く。
+     --force 中に検証で落ちても前回の凍結 (marker / artifact / manifest) は byte 不改変。
   4. **値の非表示**: stdout/stderr には件数・時刻範囲 (秒精度)・sha256・パスのみ。
      skew/ratio/avg 価格/buckets/IC/EV/PnL は一切出さない (§6-2 中間 peeking 禁止)。
      artifact ファイルの中身を人が開くことも verdict 期日まで禁止 (§6-2)。
@@ -150,12 +158,14 @@ def default_paths(look: int, out_dir: str = "", postponed: bool = False) -> Dict
     base = f"e1-{spec['slug']}-freeze-{day}"
     suffix = "_postponed" if postponed else ""
     root = out_dir or os.path.join(repo_root(), "knowledge-base", "raw", "bt-results")
+    artifact = os.path.join(root, base, f"e1_prereg_frozen_export_look{look}{suffix}.json")
     return {
         "dir": os.path.join(root, base),
-        "artifact": os.path.join(root, base,
-                                 f"e1_prereg_frozen_export_look{look}{suffix}.json"),
+        "artifact": artifact,
+        "artifact_staging": artifact + ".staging",
         "sha256": os.path.join(root, f"{base}.sha256"),      # = 凍結 marker
         "manifest": os.path.join(root, f"{base}.manifest.json"),
+        "attempts": os.path.join(root, f"{base}.attempts.json"),   # 試行台帳 (API 要求前に書く)
     }
 
 
@@ -406,17 +416,25 @@ def verify_record(sha_path: str, root: str = "") -> Dict[str, Any]:
         results[rel] = "OK" if got == want else "MISMATCH"
         ok = ok and got == want
     res: Dict[str, Any] = {"ok": ok, "files": results, "n": len(entries)}
+    # manifest は必須: marker だけが残った凍結 (manifest 書込み前のクラッシュ等) は不完全 →
+    # FAIL。manifest は marker より先に書かれる (run_freeze の公開順) ので、正常凍結では
+    # 常に存在し roundtrip_check.ok = true を持つ。
     man_path = re.sub(r"\.sha256$", ".manifest.json", sha_path)
+    rt = None
     if man_path != sha_path and os.path.exists(man_path):
         try:
             with open(man_path, encoding="utf-8") as f:
                 rt = json.load(f).get("roundtrip_check")
         except (OSError, ValueError):
             rt = None
-        if isinstance(rt, dict):
-            res["roundtrip"] = {"ok": bool(rt.get("ok")),
-                                "snapshots_rows": rt.get("snapshots", {}).get("artifact_rows"),
-                                "health_rows": rt.get("health", {}).get("artifact_rows")}
+    if isinstance(rt, dict):
+        res["roundtrip"] = {"ok": bool(rt.get("ok")),
+                            "snapshots_rows": rt.get("snapshots", {}).get("artifact_rows"),
+                            "health_rows": rt.get("health", {}).get("artifact_rows")}
+        res["manifest"] = "OK" if rt.get("ok") else "ROUNDTRIP_FAIL"
+    else:
+        res["manifest"] = "MISSING" if not os.path.exists(man_path) else "ROUNDTRIP_UNRECORDED"
+    res["ok"] = bool(ok and res["manifest"] == "OK")
     return res
 
 
@@ -493,6 +511,11 @@ def roundtrip_check(api_snapshots: Sequence[Dict[str, Any]],
 # M15 parquet cutoff スライス (§2.3「フル期間版から切詰める」)
 # ══════════════════════════════════════════════════════════════════════
 
+def missing_ohlcv(src_dir: str, pairs: Sequence[str] = INSTRUMENTS) -> List[str]:
+    """{PAIR}_15m.parquet の欠落 pair (API 要求前の preflight に使う)。"""
+    return [p for p in pairs if not os.path.exists(os.path.join(src_dir, f"{p}_15m.parquet"))]
+
+
 def slice_ohlcv(src_dir: str, dst_dir: str, cutoff: datetime,
                 pairs: Sequence[str] = INSTRUMENTS) -> Dict[str, Dict[str, Any]]:
     """{PAIR}_15m.parquet を「open + 900s ≤ cutoff」で切詰めて dst へ書く。
@@ -535,12 +558,33 @@ def slice_ohlcv(src_dir: str, dst_dir: str, cutoff: datetime,
 # 凍結本体
 # ══════════════════════════════════════════════════════════════════════
 
+def _load_json(path: str) -> Any:
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _journal_write(paths: Dict[str, str], journal: Dict[str, Any]) -> None:
+    write_json_atomic(paths["attempts"], journal)
+
+
+def _journal_load(paths: Dict[str, str], spec: Dict[str, Any]) -> Dict[str, Any]:
+    if os.path.exists(paths["attempts"]):
+        j = _load_json(paths["attempts"])
+        if isinstance(j, dict) and isinstance(j.get("attempts"), list):
+            return j
+    return {"look": spec["look"], "slug": spec["slug"], "cutoff": spec["cutoff"],
+            "postponed": spec["postponed"], "attempts": []}
+
+
 def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str,
                force: bool = False, allow_missing: bool = False,
                ohlcv_src: str = "", ohlcv_dst: str = "",
                now: Optional[datetime] = None,
                out=None, postponed: bool = False) -> int:
-    """export → artifact → roundtrip 突合 → sha256 記録。stdout には値を出さない。"""
+    """export → staging artifact → roundtrip 突合 → スライス → 一括公開 (manifest → marker)。
+
+    stdout には値を出さない。前回凍結は全検証が通るまで byte 不改変。
+    """
     out = out or sys.stdout
     spec = look_spec(look, postponed)
     cutoff = parse_utc(spec["cutoff"])
@@ -560,8 +604,9 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
                   file=sys.stderr)
             return EXIT_FAIL
 
-    # ── 「1 回だけ」ガード ────────────────────────────────────────
+    # ── 「1 回だけ」ガード (marker + attempt 台帳) ─────────────────
     force_history: List[Dict[str, Any]] = []
+    journal = _journal_load(paths, spec)
     if os.path.exists(marker):
         if not force:
             print(f"REFUSED: 凍結 marker が既に存在 ({relpath_for_record(marker, root)})。"
@@ -569,17 +614,26 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
                   f" 前回 sha256 を残す)。", file=sys.stderr)
             return EXIT_REFUSED_FROZEN
         prev = read_sha256_record(marker)
+        prev_frozen_at = None
         if os.path.exists(paths["manifest"]):
-            with open(paths["manifest"], encoding="utf-8") as f:
-                prev_manifest = json.load(f)
+            prev_manifest = _load_json(paths["manifest"])
             force_history = list(prev_manifest.get("force_history", []))
             prev_frozen_at = prev_manifest.get("frozen_at")
-        else:
-            prev_frozen_at = None
         force_history.append({"superseded_at": iso_sec(now),
                               "previous_frozen_at": prev_frozen_at,
                               "previous_sha256": prev})
         print(f"WARNING: --force により凍結 marker を上書き (前回 {len(prev)} file)。",
+              file=sys.stderr)
+    elif journal["attempts"]:
+        if not force:
+            last = journal["attempts"][-1]
+            print(f"REFUSED: marker は無いが attempt 台帳に {len(journal['attempts'])} 件の"
+                  f" 試行 (最終 {last.get('started_at')} status={last.get('status')},"
+                  f" api_queried={last.get('api_queried')}) — 本番へは既に問い合わせ済み。"
+                  f" §2.5-6「1 回だけ export」— 再実行は --force 必須 (台帳に残す)。"
+                  f" 台帳: {relpath_for_record(paths['attempts'], root)}", file=sys.stderr)
+            return EXIT_REFUSED_FROZEN
+        print(f"WARNING: --force により失敗済み試行 {len(journal['attempts'])} 件の後に再実行。",
               file=sys.stderr)
 
     if now < cutoff and not force:
@@ -589,56 +643,110 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
               f" --force (manifest に記録)。", file=sys.stderr)
         return EXIT_FAIL
 
+    # ── preflight (API 要求前にローカルで判る失敗条件) ───────────────
+    if ohlcv_src:
+        if not ohlcv_dst:
+            ohlcv_dst = os.path.join(root, "data", "cache",
+                                     f"e1_frozen_look{look}_{spec['cutoff'][:10]}")
+        miss = missing_ohlcv(ohlcv_src)
+        if miss:
+            print(f"REFUSED (preflight): OHLCV parquet 欠落 ({len(miss)}/{len(INSTRUMENTS)}):"
+                  f" {miss} in {ohlcv_src} — API 要求前に停止 (§2.5-1 fail-loud)。"
+                  f" `python3 tools/bt_data_cache.py refresh 15m` 後に再実行。", file=sys.stderr)
+            return EXIT_FAIL
+
+    # ── attempt 台帳: 最初の API 要求の前に「試行開始」を永続化 ─────────
+    attempt: Dict[str, Any] = {"started_at": iso_sec(now), "status": "in_progress",
+                               "force": bool(force), "api_queried": True,
+                               "api_base": api_base}
+    journal["attempts"].append(attempt)
+    _journal_write(paths, journal)
+
+    def _fail(reason: str, **extra: Any) -> None:
+        attempt.update({"status": "failed", "reason": reason,
+                        "finished_at": iso_sec(utc_now())}, **extra)
+        _journal_write(paths, journal)
+
     # ── 取得 ──────────────────────────────────────────────────────
     snapshots: List[Dict[str, Any]] = []
     fetch_ledger: Dict[str, Dict[str, Any]] = {}
-    for inst in INSTRUMENTS:
-        led: Dict[str, Any] = {}
-        snapshots.extend(fetch_snapshots(fetcher, inst, cutoff, ledger=led))
-        fetch_ledger[inst] = led
-    health = fetch_health_log(fetcher, cutoff)
+    try:
+        for inst in INSTRUMENTS:
+            led: Dict[str, Any] = {}
+            snapshots.extend(fetch_snapshots(fetcher, inst, cutoff, ledger=led))
+            fetch_ledger[inst] = led
+        health = fetch_health_log(fetcher, cutoff)
+    except Exception as e:                      # 台帳に残してから fail-loud
+        _fail(f"fetch error: {type(e).__name__}",
+              instruments_fetched=len(fetch_ledger))
+        raise
 
     snap_sum = summarize_snapshots(snapshots)
     if snap_sum["instruments_missing"] and not allow_missing:
+        _fail("instruments_missing", instruments_missing=snap_sum["instruments_missing"],
+              snapshots_rows=snap_sum["rows_total"], health_rows=len(health))
         print(f"REFUSED: snapshots が 0 行の instrument: {snap_sum['instruments_missing']}"
               f" (§2.5-1 fail-loud。ingest 障害を先に切り分ける。記録だけ残すなら"
-              f" --allow-missing-instruments)。", file=sys.stderr)
+              f" --force --allow-missing-instruments — 本番へは既に 1 回問い合わせたので"
+              f" 再実行は --force 必須、台帳に残る)。", file=sys.stderr)
         return EXIT_FAIL
     if not health:
         print("WARNING: health_log が 0 行 — §2.2 stale cap 主モード不成立 "
               "(判定器は --fallback-mode を要求する)。", file=sys.stderr)
 
-    # ── artifact ─────────────────────────────────────────────────
+    # ── staging: artifact ─────────────────────────────────────────
     artifact = build_artifact(snapshots, health, look, cutoff, api_base, frozen_at=now,
                               postponed=postponed)
-    write_json_atomic(paths["artifact"], artifact)
+    staging = paths["artifact_staging"]
+    write_json_atomic(staging, artifact)
 
-    # ── §2.5-5(b) API→artifact roundtrip (1 回だけの応答が手元にある今) ──
-    rt = roundtrip_check(snapshots, health, paths["artifact"], fetch_ledger)
+    # ── §2.5-5(b) API→artifact roundtrip (1 回だけの応答が手元にある今、staging で) ──
+    rt = roundtrip_check(snapshots, health, staging, fetch_ledger)
     if not rt["ok"]:
+        _fail("roundtrip_mismatch", snapshots_rows=snap_sum["rows_total"],
+              health_rows=len(health),
+              roundtrip={"snapshots": {k: rt["snapshots"][k] for k in
+                                       ("api_rows", "artifact_rows", "keys_match", "digest_match")},
+                         "health": {k: rt["health"][k] for k in
+                                    ("api_rows", "artifact_rows", "digest_match")}})
         print(f"REFUSED: API→artifact roundtrip 不一致 — snapshots api {rt['snapshots']['api_rows']}"
               f" / artifact {rt['snapshots']['artifact_rows']} (keys_match="
               f"{rt['snapshots']['keys_match']}, digest_match={rt['snapshots']['digest_match']}),"
               f" health api {rt['health']['api_rows']} / artifact {rt['health']['artifact_rows']}"
               f" (digest_match={rt['health']['digest_match']}), ledger_consistent="
-              f"{rt['fetch_ledger_consistent']}。marker は書かない (凍結不成立)。artifact は"
-              f" {relpath_for_record(paths['artifact'], root)} に残置 (調査用、開かないこと §6-2)。",
+              f"{rt['fetch_ledger_consistent']}。marker は書かず前回凍結は不改変。staging は"
+              f" {relpath_for_record(staging, root)} に残置 (調査用、開かないこと §6-2)。",
               file=sys.stderr)
         return EXIT_FAIL
+
+    # ── staging: M15 parquet スライス (任意) ──────────────────────
+    ohlcv_meta: Dict[str, Dict[str, Any]] = {}
+    ohlcv_staging = ""
+    if ohlcv_src:
+        ohlcv_staging = ohlcv_dst.rstrip(os.sep) + ".staging"
+        try:
+            ohlcv_meta = slice_ohlcv(ohlcv_src, ohlcv_staging, cutoff)
+        except Exception as e:
+            _fail(f"ohlcv slice error: {type(e).__name__}",
+                  snapshots_rows=snap_sum["rows_total"], health_rows=len(health))
+            raise
+
+    # ── 公開 (全検証通過後): artifact → parquet → manifest → marker ──
+    os.replace(staging, paths["artifact"])
     entries: Dict[str, str] = {
         relpath_for_record(paths["artifact"], root): sha256_file(paths["artifact"])}
-
-    # ── M15 parquet スライス (任意) ────────────────────────────────
-    ohlcv_meta: Dict[str, Dict[str, Any]] = {}
     if ohlcv_src:
-        if not ohlcv_dst:
-            ohlcv_dst = os.path.join(root, "data", "cache",
-                                     f"e1_frozen_look{look}_{spec['cutoff'][:10]}")
-        ohlcv_meta = slice_ohlcv(ohlcv_src, ohlcv_dst, cutoff)
+        os.makedirs(ohlcv_dst, exist_ok=True)
         for pair, m in ohlcv_meta.items():
-            entries[relpath_for_record(m["path"], root)] = m["sha256"]
+            final = os.path.join(ohlcv_dst, os.path.basename(m["path"]))
+            os.replace(m["path"], final)
+            m["path"] = final
+            entries[relpath_for_record(final, root)] = m["sha256"]
+        try:
+            os.rmdir(ohlcv_staging)
+        except OSError:
+            pass
 
-    # ── 記録 (sha256 = marker、manifest = 出所) ───────────────────
     manifest = {
         "look": look, "slug": spec["slug"], "cutoff": spec["cutoff"],
         "postponed": postponed, "original_cutoff": spec["original_cutoff"],
@@ -655,12 +763,19 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
         "sha256_record": relpath_for_record(paths["sha256"], root),
         "roundtrip_check": rt,
         "force_history": force_history,
+        "attempts": journal["attempts"],
+        "attempts_record": relpath_for_record(paths["attempts"], root),
         "peeking_note": ("§6-2: artifact の値 (skew/avg 価格/buckets) を verdict 期日前に"
                          " 開く・集計する・プロットすることは禁止。この manifest は"
                          " 件数/時刻範囲/sha256 のみ"),
     }
-    write_sha256_record(paths["sha256"], entries)
-    write_json_atomic(paths["manifest"], manifest)
+    attempt.update({"status": "frozen", "finished_at": iso_sec(utc_now()),
+                    "snapshots_rows": snap_sum["rows_total"], "health_rows": len(health),
+                    "artifact_sha256": entries[relpath_for_record(paths["artifact"], root)]})
+    manifest["attempts"] = journal["attempts"]
+    write_json_atomic(paths["manifest"], manifest)      # manifest が先
+    write_sha256_record(paths["sha256"], entries)       # marker は最後 (= 凍結成立)
+    _journal_write(paths, journal)
 
     # ── stdout 要約 (値なし) ───────────────────────────────────────
     print(f"E1 frozen export — look {look} ({spec['slug']}), cutoff {spec['cutoff']}"
@@ -684,6 +799,8 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
     for p, h in sorted(entries.items()):
         print(f"  sha256 {h}  {p}", file=out)
     print(f"  manifest: {relpath_for_record(paths['manifest'], root)}", file=out)
+    print(f"  attempts: {relpath_for_record(paths['attempts'], root)}"
+          f" ({len(journal['attempts'])} attempt)", file=out)
     print(f"  marker:   {relpath_for_record(paths['sha256'], root)}", file=out)
     return EXIT_OK
 
@@ -747,14 +864,13 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"  {st:8s} {p}")
         rt = res.get("roundtrip")
         if rt is None:
-            print("  roundtrip (§2.5-5(b)): manifest 不在または未記録")
+            print(f"  manifest: {res['manifest']} — roundtrip (§2.5-5(b)) 未記録 = 凍結不完全")
         else:
             print(f"  roundtrip (§2.5-5(b), recorded at freeze): "
                   f"{'OK' if rt['ok'] else 'FAIL'} (snapshots {rt['snapshots_rows']},"
-                  f" health {rt['health_rows']})")
-        ok = res["ok"] and (rt is None or rt["ok"])
-        print(f"verify: {'OK' if ok else 'FAIL'} ({res['n']} files)")
-        return EXIT_OK if ok else EXIT_FAIL
+                  f" health {rt['health_rows']}); manifest {res['manifest']}")
+        print(f"verify: {'OK' if res['ok'] else 'FAIL'} ({res['n']} files)")
+        return EXIT_OK if res["ok"] else EXIT_FAIL
 
     fetcher = http_fetcher(args.api_base, timeout=args.timeout)
     if args.dry_run_health:
