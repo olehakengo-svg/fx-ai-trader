@@ -6,7 +6,7 @@
 - feat(e1) 凍結 export tool `tools/e1_positioning_frozen_export.py` + first look 手順書 (PR #286) — 「1 回だけ + sha256」の機械担保、判定器 epoch 分解能バグ修復
 - fix(oanda_bridge) SL replacement storm guard 4 点、既定は検知のみ (PR #287) — `STORM_GUARD_ENFORCE=1` で有効化、判断期日 10-20
 - docs 群 (#278 再評価 / #279 統合決裁パケット v0 / #280 triage + PR 規律 / #281 wg card + R1 骨子 / #282 carry_dip 突合 14/14 / #283 rnb lane-health / #284 臨時スキャン #29 step 0)
-- registry 80 → 86 entry (新規 6 / 既存 9 追記、g0prime 期日 09-28 → 10-05) — 詳細: knowledge-base/wiki/changelog.md
+- registry 80 → 90 entry (新規 6 / 既存 9 追記、g0prime 期日 09-28 → 10-05) — 詳細: knowledge-base/wiki/changelog.md
 - render.yaml ignoredPaths += `knowledge-base/raw/alpha_budget/**` / `knowledge-base/wiki/research/**` (web プロセス非参照、cron 専用 read/write) + test pin
 
 ## 2026-09-22 — fix(fork-safety): 本番 HTTP 全盲 3h18m の根本原因修復 — gunicorn master の pre-fork 窓で DailyReview が SQLite を回していた (rule:R3)
