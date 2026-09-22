@@ -881,12 +881,21 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
         out = []
         for k in keys:
             # `locked_raw` is keyed (entry_type, instrument, direction); a v3
-            # key carries `session` in the middle, so drop it.  Attribution
-            # below is computed over the RAW rows on purpose: when every row
-            # of the group is a dedup repeat, `unique_rows` is empty and an
+            # key carries `session` in the middle, so drop it — and then
+            # FILTER BACK DOWN to that session (Codex P2, PR #273).  Using the
+            # parent cell's rows made every v3 record of a cell pick the same
+            # cell-wide primary: with a shadow lock concentrated in Tokyo and a
+            # live lock in London, at least one session reported the other
+            # session's registry_id, n_decide and n_rows_matched.
+            #
+            # Attribution is computed over the RAW rows on purpose: when every
+            # row of the group is a dedup repeat, `unique_rows` is empty and an
             # argmax over it would fall back to registry order — exactly the
             # mis-attribution this pass is fixing.
             rows = locked_raw.get((k[0], k[1], k[-1]), [])
+            if level == "v3":
+                rows = [t for t in rows
+                        if derive_session(t.get("entry_time")) == k[2]]
             unique_rows = unique_groups.get(k, [])
             covering = locks_for_cell(k[0], k[1], k[-1], cell_locks)
             # The PRIMARY lock must be the one that actually matched these
@@ -1236,25 +1245,51 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     the two open reads, so a trade that opened during the closed pass is
     present even though it never appears in the closed pages.
 
-    A row that was open BEFORE the pass and appears in neither the second open
-    read nor the closed pages closed inside the window and was served to
-    nobody.  That is a hole, not a reconcilable overlap, so the attempt is
-    discarded and re-run; if every attempt holes we raise instead of claiming
-    completeness (Codex P2, PR #273).
+    Completeness rests on TWO checks, because one of them cannot see the other
+    one's hazard (Codex P2, PR #273, two rounds):
+
+    1. A row that was open BEFORE the pass and appears in neither the second
+       open read nor the closed pages closed inside the window and was served
+       to nobody.
+    2. A trade whose ENTIRE lifecycle falls inside the bracket is in none of
+       those three reads, so (1) cannot find it.  A second closed pass can:
+       closed trades are append-only, so the confirming pass is a superset of
+       the first, and the difference is exactly what closed during the
+       bracket.  Equality PROVES nothing closed inside the window.
+
+    Either signal discards the attempt and re-runs; if every attempt moves we
+    raise instead of claiming completeness.
     """
     holes: list = []
     for attempt in range(1, max_attempts + 1):
         open_before = _http_fetch_open()
         payload = paginate_trades(_http_fetch_closed_page)
         open_after = _http_fetch_open()
+        confirm = paginate_trades(_http_fetch_closed_page)
 
         closed_keys = {_row_identity(r) for r in payload["trades"]}
+        confirm_keys = {_row_identity(r) for r in confirm["trades"]}
         after_keys = {_row_identity(r) for r in open_after}
+
+        # A trade whose WHOLE lifecycle falls inside the bracket — opened after
+        # `open_before`, closed before `open_after`, closing behind the cursor
+        # — is in none of the first three reads, so searching `open_before`
+        # cannot find it (Codex P2, PR #273).  The SECOND closed pass can:
+        # closed trades are append-only (never deleted), so
+        # `confirm_keys ⊇ closed_keys` always, and the difference is exactly
+        # the set of trades that closed during the bracket, whatever they were
+        # doing beforehand.  Equality is therefore a PROOF that nothing closed
+        # inside the window — not a heuristic.
+        closed_during = confirm_keys - closed_keys
         missed = [r for r in open_before
                   if _row_identity(r) not in after_keys
                   and _row_identity(r) not in closed_keys]
-        if missed:
-            holes.append(len(missed))
+        if missed or closed_during:
+            # Report the two signals SEPARATELY: the same trade can trip both
+            # (it was open before AND closed during), and summing them would
+            # overstate how many rows were actually unaccounted for.
+            holes.append({"open_rows_lost": len(missed),
+                          "closed_during_bracket": len(closed_during)})
             continue
 
         by_key = {_row_identity(r): r for r in open_before}
@@ -1268,10 +1303,11 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                 {"attempts": attempt, "opened_midfetch": opened_midfetch,
                  "holes_observed": holes})
     raise SystemExit(
-        f"a trade closed inside the fetch window on all {max_attempts} "
-        f"attempts (rows missed per attempt: {holes}) — it would be in neither "
-        f"the open nor the closed set, so completeness cannot be claimed. "
-        f"Re-run, or fetch from a server-side stable snapshot")
+        f"the book moved inside the fetch window on all {max_attempts} "
+        f"attempts (rows unaccounted for per attempt: {holes}) — a trade that "
+        f"closes inside the bracket can be absent from every read, so "
+        f"completeness cannot be claimed. Re-run when the book is quieter, or "
+        f"fetch from a server-side stable snapshot")
 
 
 def main(argv=None) -> int:

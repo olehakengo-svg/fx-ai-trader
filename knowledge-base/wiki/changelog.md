@@ -356,7 +356,25 @@
   決める** ([[feedback_check_the_symmetric_side_2026_09_19]])。pin は両方を主張
   (endpoint は SystemExit / local reader は list 受理を維持)
 - pin 66 → **67 本**。counterfactual 確認済 (passthrough を戻すと `DID NOT RAISE`)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**67 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第24波 (Codex P2×2) — 完全性の主張を「発見的」から「証明」に上げた**:
+  (qq) **v3 の帰属は自分の session の行だけで計算する** — v3 キーから `session` を落として
+  `locked_raw` を引いた後、**親セル全体の行**で `matched` を計算していたため、
+  **セル内の全 v3 record が同じ「セル全体の primary」を選ぶ**。shadow LOCK が Tokyo に、
+  live LOCK が London に集中していると、**少なくとも一方の session が他方の
+  registry_id / n_decide / n_rows_matched を報告する**。落とした次元で絞り直す
+  (rr) 🔵 **bracket 内で「生まれて死んだ」約定を検出可能にした** — `open_before` の後に
+  OPEN し `open_after` の前に CLOSE し、かつ closed カーソルが挿入点を通過済みだと、
+  **3 つの読み取りすべてに現れない** ⇒ open 行を起点にした穴検査では**原理的に見えない**。
+  ⇒ **確認用の 2 回目 closed pass** を追加。**CLOSED 行は append-only (削除されない)** ので
+  `confirm ⊇ closed` が常に成り立ち、**差集合はちょうど bracket 中に CLOSE した集合**になる。
+  したがって**一致は「窓の内側で何も CLOSE しなかった」ことの証明**であって発見的規則ではない。
+  🔑 **これで完全性の意味が「4 読み取りが整合した」= 検証可能な主張に変わった**
+- 🔑 **穴の 2 信号は合算せず別々に報告** (`open_rows_lost` / `closed_during_bracket`) —
+  **同一の約定が両方を立てる**ので、足すと「取り逃した行数」を過大に言うことになる。
+  pin が最初に捕まえたのはこの二重計上だった
+- pin 67 → **69 本**。2 件とも counterfactual 確認済 (v3 を親セルへ戻すと
+  `got live-london`、確認 pass を外すと `holes_observed == []`)
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**69 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

@@ -2037,8 +2037,10 @@ def test_a_trade_that_closes_inside_the_window_is_a_hole_and_forces_a_retry(monk
     m = _bracket_stub(monkeypatch, script)
     open_rows, payload, ev = m._fetch_bracketed()
 
-    assert ev["holes_observed"] == [1], (
-        "the discarded attempt must stay VISIBLE, not be silently absorbed")
+    assert ev["holes_observed"] == [
+        {"open_rows_lost": 1, "closed_during_bracket": 1}], (
+        "the discarded attempt must stay VISIBLE, with the two signals kept "
+        "APART — the same trade trips both, so summing would overstate it")
     assert ev["attempts"] == 2
     ids = sorted(r["id"] for r in payload["trades"])
     assert ids == [1, 9], "the retry must collect the row that fell in the hole"
@@ -2052,7 +2054,7 @@ def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkey
         return [{"id": 1, "status": "CLOSED", "exit_time": "2026-09-19T00:00:00"}]
 
     m = _bracket_stub(monkeypatch, script)
-    with pytest.raises(SystemExit, match="closed inside the fetch window"):
+    with pytest.raises(SystemExit, match="book moved inside the fetch window"):
         m._fetch_bracketed(max_attempts=3)
 
 
@@ -2102,3 +2104,95 @@ def test_a_bare_list_from_the_endpoint_is_not_a_valid_page(monkeypatch):
     assert "isinstance(payload, list)" in reader, (
         "the local-snapshot reader must keep accepting a bare array; only the "
         "endpoint has a documented object shape")
+
+
+def test_a_trade_living_entirely_inside_the_bracket_is_detected(monkeypatch):
+    """KNOWN-NG INPUT: opens AND closes inside the bracket, behind the cursor.
+
+    Such a trade is in none of open_before / closed pass / open_after, so the
+    open-row check cannot see it.  The confirming closed pass can: closed
+    trades are append-only, so `confirm ⊇ closed` and the difference is
+    exactly what closed during the bracket (Codex P2, PR #273).
+    """
+    state = {"closed_calls": 0}
+
+    def script(kind, n):
+        if kind == "open":
+            return []                      # never observed as open
+        state["closed_calls"] += 1
+        base = [{"id": 1, "status": "CLOSED", "exit_time": "2026-09-19T00:00:00"}]
+        # id 5 is born and dies during attempt 1's bracket: the FIRST closed
+        # pass misses it, every later pass sees it.
+        if n >= 1:
+            base.insert(0, {"id": 5, "status": "CLOSED",
+                            "exit_time": "2026-09-20T00:00:00"})
+        return base
+
+    m = _bracket_stub(monkeypatch, script)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert ev["holes_observed"] == [
+        {"open_rows_lost": 0, "closed_during_bracket": 1}], (
+        "the transient trade must be detected by the confirming pass, and the "
+        "open-row signal must correctly report ZERO — it never was open to us")
+    assert ev["attempts"] == 2
+    assert sorted(r["id"] for r in payload["trades"]) == [1, 5], (
+        "the retry must collect it")
+    assert open_rows == []
+
+
+def test_v3_attribution_uses_only_its_own_session(monkeypatch):
+    """KNOWN-NG INPUT: two locks whose populations sit in different sessions.
+
+    The v3 lookup dropped `session` to reach `locked_raw` and then used the
+    PARENT cell's rows, so every v3 record of a cell selected the same
+    cell-wide primary — at least one session reporting the other session's
+    registry_id and n_decide (Codex P2, PR #273).
+    """
+    shadow = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+              "direction": "BUY", "registry_id": "shadow-tokyo", "match": "exact",
+              "kind": "shadow", "since": "2026-08-05", "closed_only": True,
+              "dedup_violation": 0, "mode": None, "n_decide": 40,
+              "reasons_marker": None, "count_basis": None}
+    live = dict(shadow, registry_id="live-london", kind="live", n_decide=10)
+
+    def row(hour, **kw):
+        base = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+                "direction": "BUY", "outcome": "WIN", "pnl_pips": 5.0,
+                "dedup_violation": 0, "is_shadow": 1, "status": "CLOSED",
+                "oanda_trade_id": "", "mode": "daytrade",
+                "entry_time": f"2026-08-20T{hour:02d}:00:00"}
+        base.update(kw)
+        return base
+
+    from tools.cell_deepdive_audit import derive_session
+    tokyo_h = next(h for h in range(24)
+                   if derive_session(f"2026-08-20T{h:02d}:00:00") == "Tokyo")
+    london_h = next(h for h in range(24)
+                    if derive_session(f"2026-08-20T{h:02d}:00:00") == "London")
+
+    rows = ([row(tokyo_h) for _ in range(6)]                       # shadow pop
+            + [row(london_h, oanda_trade_id="77", is_shadow=0) for _ in range(9)])
+    res = run_audit(rows, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",),
+                    locked_cells=[shadow, live])
+
+    v3 = {tuple(c["cell"]): c for c in res["eligible_cells_v3"]}
+    tk = v3[("sr_anti_hunt_bounce", "EUR_JPY", "Tokyo", "BUY")]
+    ld = v3[("sr_anti_hunt_bounce", "EUR_JPY", "London", "BUY")]
+
+    assert tk["redaction_registry_id"] == "shadow-tokyo", (
+        "the Tokyo sub-cell holds only shadow rows, so its primary must be "
+        f"the shadow lock (got {tk['redaction_registry_id']})")
+    assert ld["redaction_registry_id"] == "live-london", (
+        "the London sub-cell holds only live rows, so its primary must be "
+        f"the live lock (got {ld['redaction_registry_id']})")
+    assert tk["n_decide"] == 40 and ld["n_decide"] == 10
+
+    tk_matched = {c["registry_id"]: c["n_rows_matched"]
+                  for c in tk["covering_locks"]}
+    assert tk_matched == {"shadow-tokyo": 6, "live-london": 0}, (
+        f"Tokyo must count only its own 6 rows, got {tk_matched}")
+    ld_matched = {c["registry_id"]: c["n_rows_matched"]
+                  for c in ld["covering_locks"]}
+    assert ld_matched == {"shadow-tokyo": 0, "live-london": 9}
