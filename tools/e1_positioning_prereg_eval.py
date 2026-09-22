@@ -367,10 +367,14 @@ def load_bars(ohlcv_dir: str, pair: str) -> Dict[str, np.ndarray]:
     import pandas as pd
     fp = os.path.join(ohlcv_dir, f"{pair}_15m.parquet")
     df = pd.read_parquet(fp)
-    idx = df.index
-    if getattr(idx, "tz", None) is None:
-        idx = idx.tz_localize("UTC")
-    ep = idx.view("int64").astype(np.int64) // 10 ** 9
+    idx = pd.DatetimeIndex(df.index)
+    idx = idx.tz_localize("UTC") if idx.tz is None else idx.tz_convert("UTC")
+    # 分解能非依存の epoch 秒 (rule:R3、PR #286 CI 実測): pandas 3 + pyarrow の
+    # parquet roundtrip は datetime64[us] を返し、旧 `view("int64") // 10**9`
+    # (ns 前提) は epoch を 1/1000 に潰して clip_bars_to_cutoff が全 bar を
+    # 「完結済み」と誤判定していた。Timedelta 整数除算は unit を問わない。
+    ep = ((idx - pd.Timestamp(0, tz="UTC")) // pd.Timedelta(seconds=1)).to_numpy()
+    ep = np.asarray(ep, dtype=np.int64)
     return bars_from_arrays(ep.astype(np.float64),
                             df["Open"].to_numpy(dtype=np.float64),
                             df["High"].to_numpy(dtype=np.float64),

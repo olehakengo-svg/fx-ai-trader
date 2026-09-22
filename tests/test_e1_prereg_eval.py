@@ -1578,6 +1578,25 @@ class TestMainGuards:
         err = capsys.readouterr().err
         assert "parquet 欠落" in err and "EUR_USD" in err
 
+    @pytest.mark.parametrize("unit", ["ns", "us", "ms"])
+    def test_load_bars_epoch_is_resolution_independent(self, tmp_path, unit):
+        """rule:R3 (PR #286 CI): pandas 3 + pyarrow の parquet roundtrip は
+        datetime64[us] index を返す。旧 `idx.view("int64") // 10**9` (ns 前提) は
+        epoch を 1/1000 に潰し、clip_bars_to_cutoff が全 bar を「完結済み」と誤判定した。
+        epoch 秒は index の分解能に依存しないことを pin。"""
+        pd = pytest.importorskip("pandas")
+        idx = pd.date_range("2026-10-08T00:00:00Z", periods=6, freq="15min",
+                            tz="UTC").as_unit(unit)
+        df = pd.DataFrame({"Open": 1.0, "High": 1.1, "Low": 0.9, "Close": 1.0}, index=idx)
+        df.to_parquet(tmp_path / "USD_JPY_15m.parquet")
+        bars = m.load_bars(str(tmp_path), "USD_JPY")
+        expected = np.array([t.timestamp() for t in idx.to_pydatetime()])
+        np.testing.assert_array_equal(bars["ep"], expected)
+        assert bars["ep"][1] - bars["ep"][0] == 900.0
+        cutoff = datetime(2026, 10, 8, 0, 45, tzinfo=timezone.utc)   # 3 本完結 (00:00/15/30)
+        clipped, n_clip = m.clip_bars_to_cutoff(bars, cutoff)
+        assert len(clipped["ep"]) == 3 and n_clip == 3
+
     def test_self_check_mode(self, capsys):
         rc = m.main(["--self-check"])
         assert rc == 0
