@@ -93,6 +93,8 @@ gthread は `accept()` ごとに `nr_conns += 1` し、完了しないハンド�
 
 **レビュー消化 4 巡目 (Codex P2 × 2、いずれも正しい)**: (f) 5xx を全て「origin 応答なし」に数えていた — app 由来の 500 (Flask hook の例外等) でも「停止」と報告される。⇒ `api_down` は **connection のみ**、全 5xx は `http_5xx` (応答あり、edge 502/503/504 か app 500 かは状態コードで判別不能 — app ログの traceback で裏取り)。(g) 否定判定を文全体で見ていたため「ネットワーク障害ではなく、無料 tier のスリープが原因」が否定文として素通りした。⇒ 否定は**原因語と同じ節** (、/,/; 区切り) にあるときだけ効く。🔑 4 巡で 7 件、全て estimand 境界: 「何が観測され、何が含意されるか」を 1 対 1 で書き、含意を観測の名前に混ぜない。
 
+**レビュー消化 5 巡目 (Codex P2 × 2、いずれも正しい)**: (h) 分類器は `http_error` / `http_5xx` を返すのに、watcher が両方を `api_unreachable` に畳み、通知文が「到達できない → サービス/デプロイ復旧」へ誘導していた (全 401 = 認証切れを見誤る)。⇒ 応答あり失敗は専用 event `api_http_error` (4xx は認証/パス、5xx は edge/app 判別不能と明記)。(i) 否定判定を節単位にしても「API が応答**しない**のはスリープが原因」の汎用「しない」が原因語を隠した。⇒ 否定は**原因語そのものに結び付く形** (直後窓の「ではない」等 / 英語の前置 not) だけを認める — 文単位 → 節単位 → 語束縛と 3 段で狭めた。🔑 5 巡 9 件: 分類の後段 (通知文・ガード) は分類器と**同じ粒度**を保たないと、前段で分けた情報を後段が再び畳む。
+
 **counterfactual pin** (tests): `test_daily_review_fork_safety.py` (construction で thread 起動なし / heal 冪等 / heartbeat 到達 / StatusHeal 非接触)、`test_http_blind_detector.py` (ReadTimeout 全滅 → `http_blind`、5xx → `api_unreachable`、混在 → mixed、SSOT 使用)、`test_healthz_http.py` (200 + db_ok / StatusHeal 非接触 / healthCheckPath 配線)、`test_daily_report_fetch_status.py` (失敗と空の分離 / 原因語ゼロの prompt 実捕捉 / 捏造検出→脚注)、`test_render_build_filter.py::test_nightly_ingest_data_paths_are_ignored`。
 
 ## 5. 残余リスク (修正していないもの)

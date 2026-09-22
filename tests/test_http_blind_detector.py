@@ -177,12 +177,25 @@ class TestFindInventedCauses:
     @pytest.mark.parametrize("text", [
         "ネットワーク障害ではなく、無料 tier のスリープが原因",
         "無料 tier のスリープが原因で、再起動ではない",
+        # 3 巡目 (Codex P2): 汎用否定「しない」が「応答」に付いているのに原因語を隠した
+        "APIが応答しないのは無料tierのスリープが原因",
+        "スリープしないはずの Pro plan だが、無料 tier のスリープが原因と考える",
     ])
-    def test_negation_in_another_clause_does_not_shield_the_claim(self, text):
-        """Codex P2 (2026-09-22, 2 巡目): 文全体で否定を見ると、別の節の否定が肯定的な
-        原因断定を隠した。否定は原因語と同じ節にあるときだけ効く。"""
+    def test_unbound_negation_does_not_shield_the_claim(self, text):
+        """否定は**原因語そのもの**に結び付くときだけ効く (文単位 → 節単位 → 語束縛)。"""
         hits = fp.find_invented_causes(text)
-        assert "無料 tier" in hits and "スリープ" in hits
+        assert "スリープ" in hits
+        assert "無料tier" in hits or "無料 tier" in hits
+
+    @pytest.mark.parametrize("text", [
+        "これは無料 tier のスリープではない。",
+        "スリープではなく再起動が原因。",
+        "not a free tier issue (Pro plan).",
+        "Free-tier sleep is ruled out.",
+        "cold start is excluded here.",
+    ])
+    def test_bound_negation_is_respected(self, text):
+        assert fp.find_invented_causes(text) == []
 
     def test_human_text_is_provided_and_does_not_invent_causes(self):
         """読み手 (LLM / 人) に渡す文言は「何が観測されたか」だけを述べる。
@@ -206,16 +219,23 @@ class TestHttpBlindEvent:
         assert ev[0]["attempts"] == 4 and ev[0]["waited_sec"] == 210.0
 
     def test_connection_errors_still_fire_api_unreachable(self):
-        """既存の意味は不変 — デプロイ/再起動の 502 は api_unreachable のまま。
-        outage_kind は http_5xx (応答あり、edge か app かは不明) を運ぶ。"""
-        outcomes = {p: _fail(p, H502) for p in aw.WATCHED_PATHS}
-        ev = aw.check_api_reachability(outcomes)
-        assert ev[0]["type"] == "api_unreachable"
-        assert ev[0]["outage_kind"] == fp.OUTAGE_HTTP_5XX
+        """接続拒否/リセットの全滅 = api_unreachable (api_down)。"""
         outcomes = {p: _fail(p, CE) for p in aw.WATCHED_PATHS}
         ev = aw.check_api_reachability(outcomes)
         assert ev[0]["type"] == "api_unreachable"
         assert ev[0]["outage_kind"] == fp.OUTAGE_API_DOWN
+
+    def test_all_5xx_is_api_http_error_not_unreachable(self):
+        """Codex P2 (2026-09-22, 5 巡目): 応答が返っている失敗 (5xx) を「到達できない」に
+        畳むと通知が復旧手順へ誤誘導する。専用 type + 文言 (edge/app 判別不能を明記)。"""
+        outcomes = {p: _fail(p, H502) for p in aw.WATCHED_PATHS}
+        ev = aw.check_api_reachability(outcomes)
+        assert ev[0]["type"] == "api_http_error"
+        assert ev[0]["outage_kind"] == fp.OUTAGE_HTTP_5XX
+        line = aw._event_line(ev[0])
+        assert "HTTP エラー応答" in line and "判別不能" in line and "502" in line
+        assert "到達できない" not in line
+        assert "他の全検知器は盲目である" in line
 
     def test_mixed_failures_stay_api_unreachable_with_kind_mixed(self):
         outcomes = {p: _fail(p, RT if i % 2 else CE) for i, p in enumerate(aw.WATCHED_PATHS)}
@@ -223,12 +243,19 @@ class TestHttpBlindEvent:
         assert ev[0]["type"] == "api_unreachable"
         assert ev[0]["outage_kind"] == fp.OUTAGE_MIXED
 
-    def test_all_4xx_is_reported_but_not_as_blind(self):
-        """全 401 は既存 type (api_unreachable) のまま、outage_kind で「serving 中」を運ぶ。"""
+    def test_all_4xx_is_api_http_error_pointing_at_auth(self):
+        """全 401 = サービスは応答している。「到達できない」ではなく認証/パスへ誘導する。"""
         outcomes = {p: _fail(p, "HTTPError: HTTP Error 401: Unauthorized") for p in aw.WATCHED_PATHS}
         ev = aw.check_api_reachability(outcomes)
-        assert ev[0]["type"] == "api_unreachable"
+        assert ev[0]["type"] == "api_http_error"
         assert ev[0]["outage_kind"] == fp.OUTAGE_HTTP_ERROR
+        line = aw._event_line(ev[0])
+        assert "認証" in line and "サービス停止ではない" in line
+        assert "到達できない" not in line
+
+    def test_api_http_error_notifies_hourly(self):
+        assert "api_http_error" not in aw.NOTIFY_NEVER
+        assert aw.NOTIFY_EVERY_HOURS["api_http_error"] == 1
 
     def test_partial_failure_is_unchanged(self):
         outcomes = {p: aw.FetchOutcome(p, True, {}, "") for p in aw.WATCHED_PATHS}

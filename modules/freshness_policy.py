@@ -170,12 +170,26 @@ INVENTED_CAUSE_PATTERNS: tuple[str, ...] = (
     "went to sleep", "asleep", "コールドスタート", "cold start", "cold-start",
 )
 # 否定文 (「スリープではない」「free-tier sleep is ruled out」) は原因の断定では
-# ない。同じ文にこれらがあれば捏造とは数えない (Codex P2 2026-09-22)。
-NEGATION_MARKERS: tuple[str, ...] = (
-    "ではない", "ではなく", "でない", "否定", "除外", "該当しない", "起こらない",
-    "起きない", "しない", "無い", "ない。", "ruled out", "not a ", "not the ", "no evidence",
-    "is not", "isn't", "does not", "cannot", "excluded",
+# ない。否定は **原因語そのものに結び付く形** でだけ認める (Codex P2 2026-09-22
+# ×3): 文・節単位の汎用マーカー (「しない」「無い」) は「API が応答**しない**のは
+# スリープが原因」の「しない」に当たって肯定断定を隠した。
+#   後置 (日本語): 原因語の直後 (節境界まで ≤ NEGATION_WINDOW 文字) に現れる否定
+#   後置 (英語)  : 原因語の直後の "is ruled out" / "is not" 等
+#   前置 (英語)  : 原因語の直前の "not " / "no " / "rather than " 等
+NEGATION_AFTER_JA: tuple[str, ...] = (
+    "ではない", "ではなく", "でない", "ではなかった", "ではありません", "とは言えない",
+    "は否定", "を否定", "は除外", "を除外", "は該当しない", "には該当しない",
 )
+NEGATION_AFTER_EN: tuple[str, ...] = (
+    "is ruled out", "was ruled out", "are ruled out", "is not", "isn't", "was not",
+    "is excluded", "can be excluded", "does not apply", "is unlikely", "cannot be",
+)
+NEGATION_BEFORE_EN: tuple[str, ...] = (
+    "not ", "no ", "neither ", "rather than ", "isn't ", "not a ", "not the ",
+    "unlikely to be ", "cannot be ",
+)
+NEGATION_WINDOW = 14     # 原因語の直後、節境界 (、,;。) までに見る文字数 (日本語)
+NEGATION_WINDOW_EN = 40  # 同 (英語 — "sleep is ruled out" のように語が長い)
 
 # 例外クラス名の接頭辞で分類する。reason 文字列の契約は
 # ``f"{type(e).__name__}: {e}"`` (anomaly_watcher.fetch_outcome / daily_report)。
@@ -300,31 +314,73 @@ def classify_outage(reasons: dict[str, str], n_ok: int = 0) -> dict[str, Any]:
     }
 
 
+_CLAUSE_BOUNDARY_AFTER = "、,;；。．!?！？\n"
+_CLAUSE_BOUNDARY_BEFORE = "、,;；。．.!?！？\n"
+
+
+def _cut_after_boundary(seg: str) -> str:
+    """原因語の直後窓を最初の節境界で打ち切る。"""
+    cut_at = len(seg)
+    for ch in _CLAUSE_BOUNDARY_AFTER:
+        k = seg.find(ch)
+        if 0 <= k < cut_at:
+            cut_at = k
+    return seg[:cut_at]
+
+
+def _cut_before_boundary(seg: str) -> str:
+    """原因語の直前窓を最後の節境界より後ろだけに絞る。"""
+    start = 0
+    for ch in _CLAUSE_BOUNDARY_BEFORE:
+        k = seg.rfind(ch)
+        if k >= 0 and k + 1 > start:
+            start = k + 1
+    return seg[start:]
+
+
 def find_invented_causes(text: str) -> list[str]:
     """観測から導けない原因語のうち、**肯定的に断定している**ものだけを返す.
 
-    否定の判定は **原因語を含む節** (文を 、/,/; で割った単位) に限る (Codex P2
-    2026-09-22 ×2): 文全体で見ると「ネットワーク障害ではなく、無料 tier のスリープが
-    原因」「無料 tier のスリープが原因で、再起動ではない」が**否定文扱いで素通り**
-    した。節単位なら前者は第 2 節、後者は第 1 節に否定が無いので捕まる。
-    「これは無料 tier のスリープではない」「free-tier sleep is ruled out」は同じ節に
-    否定があるので数えない。context-free な部分文字列一致より狭く、残る見逃しは
-    「原因語と否定語が別の節に離れている肯定文」だが、読み手側の脚注リスク
-    (正しい否定文に「無効」を付ける) を優先して節境界を採る。
+    否定は **一致した原因語そのもの**に結び付いているときだけ効く (Codex P2
+    2026-09-22 ×3 — 文単位 → 節単位 → 語束縛と 3 段で狭めた):
+      - 「これは無料 tier のスリープではない」: 「スリープ」直後に「ではない」→ 否定
+      - 「スリープではなく、コールドスタートが原因」: 前者は否定、後者は断定 → 後者を返す
+      - 「ネットワーク障害ではなく、無料 tier のスリープが原因」: 原因語の直後に否定が
+        無い (「ではなく」は別の語に付いている) → 断定
+      - 「API が応答しないのは無料 tier のスリープが原因」: 「しない」は「応答」に付く
+        汎用否定で原因語には結び付かない → 断定
+      - "Free-tier sleep is ruled out": 直後に "is ruled out" → 否定
+      - "not a free tier issue": 直前に "not a " → 否定
+    直後窓は節境界 (、,;。.) で打ち切る (「…が原因で、再起動ではない」の否定を
+    原因語に付けない)。残る見逃しは窓の外に置かれた否定 (「〜という説は、
+    … 以下の理由で否定される」) で、読み手側の脚注リスク (正しい否定文に「無効」
+    を付ける) を優先して狭い側に倒している。
     """
+    src = text or ""
+    low = src.lower()
     hits: list[str] = []
-    for sentence in re.split(r"(?<=[。．.!?！？])|\n", text or ""):
-        if not sentence.strip():
-            continue
-        for clause in re.split(r"[、,;；]", sentence):
-            low = clause.lower()
-            if not low.strip():
-                continue
-            if any(m.lower() in low for m in NEGATION_MARKERS):
-                continue
-            for p in INVENTED_CAUSE_PATTERNS:
-                if p.lower() in low and p not in hits:
-                    hits.append(p)
+    for p in INVENTED_CAUSE_PATTERNS:
+        pl = p.lower()
+        start = 0
+        while True:
+            i = low.find(pl, start)
+            if i < 0:
+                break
+            end = i + len(pl)
+            # 直後窓: 節境界までを見る (日本語は NEGATION_WINDOW 文字、英語は語が
+            # 長いので NEGATION_WINDOW_EN 文字)
+            after_ja = _cut_after_boundary(low[end:end + NEGATION_WINDOW])
+            after_en = _cut_after_boundary(low[end:end + NEGATION_WINDOW_EN])
+            before = _cut_before_boundary(low[max(0, i - 16):i])
+            negated = (
+                any(m in after_ja for m in NEGATION_AFTER_JA)
+                or any(m in after_en for m in NEGATION_AFTER_EN)
+                or any(before.endswith(m) or before.rstrip().endswith(m.strip())
+                       for m in NEGATION_BEFORE_EN)
+            )
+            if not negated and p not in hits:
+                hits.append(p)
+            start = end
     return hits
 
 

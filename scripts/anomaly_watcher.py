@@ -109,6 +109,8 @@ NOTIFY_EVERY_HOURS = {
     # 2026-09-22: 全滅のうち「全て read-timeout」= HTTP 層だけの死。毎時 —
     # Render の TCP チェックでは数時間放置される型なので沈黙させない
     "http_blind": 1,
+    # 全滅のうち「全て HTTP 応答あり (4xx/5xx)」= 到達はしている。毎時
+    "api_http_error": 1,
     "api_endpoint_failed": 6,
     "nav_floor": 6,
     "svk_behind_pace": 24,
@@ -255,8 +257,15 @@ def check_api_reachability(
         # 判定は modules/freshness_policy.classify_outage が SSOT (daily_report も
         # 同じ関数を読む) — 閾値の二重定義を禁じた既存方針と同じ理由。
         outage = _fp.classify_outage(reasons, n_ok=0)
-        etype = ("http_blind" if outage["kind"] == _fp.OUTAGE_HTTP_BLIND
-                 else "api_unreachable")
+        # 応答が返っている失敗 (全 4xx / 全 5xx) は「到達できない」ではない
+        # (Codex P2 2026-09-22 5 巡目): api_unreachable に畳むと通知文が
+        # 「サービス/デプロイの復旧」へ誘導し、全 401 (認証切れ) を見誤らせる。
+        if outage["kind"] == _fp.OUTAGE_HTTP_BLIND:
+            etype = "http_blind"
+        elif outage["kind"] in (_fp.OUTAGE_HTTP_ERROR, _fp.OUTAGE_HTTP_5XX):
+            etype = "api_http_error"
+        else:  # api_down / mixed / unknown
+            etype = "api_unreachable"
     return [
         {
             "type": etype,
@@ -1243,6 +1252,20 @@ def _event_line(e: dict[str, Any]) -> str:
             f"master 側エンジンが tick し続けていた)。**エンジンの生死も不明**。原因は観測から"
             f"断定できない (cause unknown)。health check が failing のまま再起動が来なければ"
             f"手動 restart。**この間、他の全検知器は盲目である**"
+        )
+    if et == "api_http_error":
+        kind = e.get("outage_kind", "?")
+        what = ("HTTP 5xx (edge の upstream unavailable 502/503/504 か origin app の 500 かは"
+                "状態コードだけでは判別不能 — app ログの traceback 有無で裏取り)"
+                if kind == _fp.OUTAGE_HTTP_5XX else
+                "HTTP 4xx = サービスは応答している。認証トークン (API_AUTH_TOKEN) / パス / "
+                "レート制限を確認 — サービス停止ではない")
+        return (
+            f"- 🛑 **本番 API が全 endpoint で HTTP エラー応答** ({kind}): 監視対象 "
+            f"{e.get('n_watched')} 本すべてが失敗 ({e.get('attempts')} 回試行 / "
+            f"{e.get('waited_sec')}s 待機)。{what}。"
+            f"理由: {json.dumps(e.get('reasons'), ensure_ascii=False)[:200]}。"
+            f"**この間、他の全検知器は盲目である** (取引停止も書込み停止も報告されない)"
         )
     if et == "api_unreachable":
         return (
