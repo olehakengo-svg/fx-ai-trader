@@ -2,9 +2,9 @@
 
 ## 2026-09-23 — docs(wg): R1 再審 DRAFT に pre-send guard 未到達の分類規則 + 候補 2d 送信適格化を追記 (PR #281 P2 消化、rule:R3)
 
-- §2 に「未到達 `PRE_SEND_GUARD(<reason>)`」行を新設 — EXEC_B decision=SEND 後に `_tick_entry` の pre-send guard で終端した pair-event は G0' event を消費しない (繰越)。亜種 (a) 早期 `_block` return / (b) slot 由来 shadow 化 (row あり・`oanda_trade_id` 空) を不成立から明示除外、識別手順・R3 レビュー起案条件・終端分類時点を事前定義 (PR #289)
-- §3 候補 2d の効果を「送信適格化のみ (fill ではない)」へ書換 — 下流の `SKIPPED_SPREAD` / daily-loss `blocked` / FOK cancel / 送信失敗が残り fill 率は forward 計測。§7 禁止事項 2 本追加、registry `review-backlog-sprint0922-p2-deferrals-0926` resolved。凍結値・OOS 不変更 — 詳細: knowledge-base/wiki/changelog.md
-- PR #289 review P1 消化: §2 未到達に亜種 (c) bridge-refused (bridge daily-loss `blocked` / pre-check `bridge_inactive`・`mode_not_allowed` / 無 audit race、latch `EXECUTED`・`sent` 無し) を追加 — event 非消費・繰越、持続型の毎週末繰越は R3 レビューが 2 回目で拾う
+- §2 に「不成立 (v) 未到達 `PRE_SEND_GUARD(<reason>)`」行を新設 — EXEC_B decision=SEND 後に OANDA 送信試行へ到達せず終端した pair-event (亜種 (a) 早期 `_block` return / (b) slot 由来 shadow 化 / (c) bridge-refused / (d) 手動停止 mode_off) は**現行契約下では不成立として G0' event を消費** (fill 経路の (i)〜(iv) と区別して記録)。非消費・繰越案は AMENDMENT 提案 A-1 (§4 row 4) へ移管、user 承認まで無効 (Codex 2 巡目 P1 で方針転換) (PR #289)
+- (a) は order-bar 予約 (5523–5531) の前後で分け、予約後 blocker は以後 `order_bar_dedup` で窓内固定 → 帰属は初出の非 dedup 理由。(c)(d) の識別は audit `blocked` / `[SHADOW_FIX]` log、latch `EXECUTED`・`sent` 無し
+- §3 候補 2d の効果を「送信適格化のみ (fill ではない)」へ書換 — 下流の `SKIPPED_SPREAD` / daily-loss `blocked` / FOK cancel / 送信失敗が残り fill 率は forward 計測。§7 禁止事項、registry `review-backlog-sprint0922-p2-deferrals-0926` resolved。凍結値・OOS・g0prime/F2 entry 不変更 — 詳細: knowledge-base/wiki/changelog.md
 
 ## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 を索引 + 期日別 sub-entry 4 / 更新 9 / 新規 6) + index/changelog/session 同期 (rule:R3)
 
