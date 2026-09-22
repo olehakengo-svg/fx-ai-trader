@@ -13680,6 +13680,18 @@ def api_demo_block_counts():
         # fail loud inside the payload: an empty table and a broken query
         # must not look alike (write-only 計装の再発防止)
         persisted = {"error": str(exc), "days": days}
+    # 2026-09-21 (rule:R3): magnitude を top-level にも出す。persisted 経由の
+    # dict 透過だけだと「読み手」がコード上のどこにも名前で現れず、
+    # estimand 宣言 (gate_block_attribution) の reader 配線検査にも掛からない
+    # = 暗黙の読み手 = write-only の再発形。gate が実測した値
+    # (spread_wide(4.2pip>3.0) の 4.2 等) の {n,min,mean,max} を
+    # cell×reason 単位で明示的に露出する。⚠️ 単位は reason ごとに違う
+    # (spread_wide=pip / cooldown=秒 / gbp_asia_flash_crash=UTC 時) ので
+    # reason を跨いで平均してはいけない。
+    # 詳細: knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md §11.6
+    _persisted_metrics = {}
+    if isinstance(persisted, dict):
+        _persisted_metrics = persisted.get("per_cell_metrics") or {}
     return jsonify({
         "counts": counts,
         "per_strategy_counts": per_strategy,
@@ -13687,6 +13699,7 @@ def api_demo_block_counts():
         "total": sum(counts.values()),
         "per_strategy_total": sum(per_strategy.values()),
         "persisted": persisted,
+        "per_cell_metrics": _persisted_metrics,
     })
 
 
