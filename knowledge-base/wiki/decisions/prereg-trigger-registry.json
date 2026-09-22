@@ -937,11 +937,13 @@
     },
     {
       "id": "e1-frozen-export-tool",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-06",
       "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
-      "message": "E1 first look (cutoff 10-08 / verdict 10-15) 用の凍結 export tool 着地期日。凍結スナップショットの機械生成 + 合成データ roundtrip テストを 10-06 までに main へ (outcome 非接触、P-10 解除は pre-reg §8 手順のみ)。TRIGGERED (10-06 に tool 未着地) は first look を手作業 export で走らせることになり、凍結の再現性が落ちる。出所: 再評価 2026-09-22 §5 項目 6。"
+      "message": "E1 first look (cutoff 10-08 / verdict 10-15) 用の凍結 export tool 着地期日。凍結スナップショットの機械生成 + 合成データ roundtrip テストを 10-06 までに main へ (outcome 非接触、P-10 解除は pre-reg §8 手順のみ)。TRIGGERED (10-06 に tool 未着地) は first look を手作業 export で走らせることになり、凍結の再現性が落ちる。出所: 再評価 2026-09-22 §5 項目 6。",
+      "resolved": "2026-09-22",
+      "resolution": "着地済み (期日 10-06 の 14 日前倒し) — PR #286 (feat/e1-positioning-frozen-export-2026-09-22、2026-09-22T14:16:56Z マージ) で tools/e1_positioning_frozen_export.py + tests/test_e1_positioning_frozen_export.py (合成 roundtrip / 1 回だけ guard / 値非表示 pin) + 手順書 knowledge-base/wiki/decisions/e1-first-look-runbook-2026-09-22.md が main へ。凍結の実行そのものは e1-first-look-freeze-due (10-08) が担う (active のまま)。残 P2 2 件 (4071019581 / 4071019591) は review-backlog-sprint0922-p2-deferrals-1006 で追跡。"
     },
     {
       "id": "storm-guard-modify-sl",
