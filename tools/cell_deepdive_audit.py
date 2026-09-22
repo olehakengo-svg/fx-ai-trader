@@ -349,7 +349,27 @@ def row_in_lock_population(t, lock, *, watcher_compat: bool = False,
     if marker and marker not in _reasons_text(t):
         return False
     if lock.get("since") and _ts(t) < str(lock["since"]):
-        return False
+        # ⚠️ ESTIMAND DIVERGENCE, deliberately not resolved here (Codex P2,
+        # PR #273).  For a LIVE lock the canonical watcher passes `date_from`
+        # to `fetch_trades_window()`, but the endpoint's OPEN branch ignores
+        # that parameter (app.py), so `count_live_matching()` DOES include an
+        # OANDA-backed trade opened before `since` that is still OPEN — while
+        # this predicate excludes it.  Neither side is obviously right: the
+        # pre-reg text bounds the population by `since`, and the watcher is
+        # what actually fires the trigger.
+        #
+        # Same shape as §9's shadow-population divergence, so the same
+        # discipline applies: do NOT silently pick a side — report it, and let
+        # the count-basis decision point settle it
+        # (`sr-anti-hunt-eurjpy-count-basis-declaration`).  `watcher_compat`
+        # callers therefore keep this row, which is what the watcher counts,
+        # and the two numbers are emitted side by side
+        # (`n_lock_population` vs `n_lock_population_watcher`) so the
+        # divergence is visible instead of averaged away.
+        if not (watcher_compat and lock.get("kind") == "live"
+                and str(t.get("status", "")).upper() == "OPEN"
+                and str(t.get("oanda_trade_id") or "")):
+            return False
     # The LOCK's `since` is its own lower bound, but the population still needs
     # the AUDIT's upper bound: re-running --run-date 2026-09-20 against a later
     # snapshot otherwise counts post-run rows and can imply n_decide was already
@@ -1245,8 +1265,14 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     the two open reads, so a trade that opened during the closed pass is
     present even though it never appears in the closed pages.
 
+    Read order is open → closed → closed(confirm) → open, and the trailing
+    open read is what bounds the snapshot: its instant IS the snapshot's
+    as-of.  A trade opening after it and never closing is outside the
+    snapshot, not missing from it (no non-atomic read sequence can include
+    it); the claim is completeness AS OF that instant.
+
     Completeness rests on TWO checks, because one of them cannot see the other
-    one's hazard (Codex P2, PR #273, two rounds):
+    one's hazard (Codex P2, PR #273, three rounds):
 
     1. A row that was open BEFORE the pass and appears in neither the second
        open read nor the closed pages closed inside the window and was served
@@ -1262,10 +1288,24 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     """
     holes: list = []
     for attempt in range(1, max_attempts + 1):
+        # Read order: open, closed, confirming closed, open.  The second open
+        # read must come LAST (Codex P2, PR #273).  With it in the middle, a
+        # trade opening during the confirming pass was in neither open read
+        # nor either closed payload — and adding yet another read in the
+        # middle just moves that window again, so the order is what fixes it,
+        # not the count of reads.
+        #
+        # SNAPSHOT BOUNDARY (stated, because it is not a defect): a trade that
+        # opens after `open_last` and never closes is not in this snapshot.
+        # No sequence of non-atomic reads can include it, and it is not
+        # "missing" — the snapshot's as-of instant is `open_last`, and the
+        # completeness claim is relative to that instant.  What WOULD be a
+        # defect is a row that existed before the as-of instant and is absent,
+        # and that is exactly what the two checks below cover.
         open_before = _http_fetch_open()
         payload = paginate_trades(_http_fetch_closed_page)
-        open_after = _http_fetch_open()
         confirm = paginate_trades(_http_fetch_closed_page)
+        open_after = _http_fetch_open()
 
         closed_keys = {_row_identity(r) for r in payload["trades"]}
         confirm_keys = {_row_identity(r) for r in confirm["trades"]}

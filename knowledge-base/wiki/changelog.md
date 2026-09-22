@@ -409,7 +409,28 @@
   **両方の集合について**明示的に決めたか、を修正の完了条件に加える
 - pin 70 → **71 本**。counterfactual 確認済 (古い pass を返すと
   `got {'is_shadow': 1, 'oanda_trade_id': ''}` で落ちる)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**71 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第27波 (Codex P2×2) — 読み取りを足すのをやめて「as-of を定義」した / 正本との乖離は片側を選ばず両方出す**:
+  (uu) **末尾の open 読み取りを最後に置き、スナップショット境界を明文化** — 第26波で
+  `open_after` の**後ろ**に confirm pass を足したため、**confirm 実行中に OPEN した約定**が
+  どの読み取りにも入らなくなっていた。🔑 **読み取りを 1 本足すと窓が 1 つ後ろへ移るだけ**で、
+  これは無限後退する形。⇒ 順序を `open → closed → closed(confirm) → open` に変え、
+  **末尾 open の瞬間を snapshot の as-of と定義**した。「as-of の後に OPEN して CLOSE しない
+  約定はこの snapshot に含まれない」は**欠陥ではなく境界**であり (非 atomic な読み取り列で
+  含める方法は存在しない)、**欠陥なのは「as-of より前に存在したのに欠けている行」**
+  — 2 つの検査はまさにそれを見ている。**完全性の主張を「as-of 相対」で述べ直した**
+  (vv) **`since` 前に OPEN した live 約定を watcher に合わせる** — live LOCK について
+  正本 watcher は `fetch_trades_window()` に `date_from` を渡すが、endpoint の **OPEN 分岐は
+  そのパラメータを無視する**ので `count_live_matching()` は**当該行を数える**。本ツールは
+  除外していた。**どちらが正しいとも言えない** (pre-reg 原文は `since` で母集団を切り、
+  watcher はトリガを実際に発火させる側) ⇒ **§9 と同じ規律で片側を選ばず両方出す**
+  (`n_lock_population` vs `n_lock_population_watcher` を並置)。決着は
+  `sr-anti-hunt-eurjpy-count-basis-declaration` に委ねる
+- 🔵 **vacuous pin を counterfactual が捕まえた** — (uu) の pin は当初 open 呼び出し回数で
+  分岐する stub を使っていたため、**修正を戻しても通ってしまった**。stub を
+  「**closed pass が 2 本終わったか**」で分岐する形に直して初めて `[] == [6]` で落ちた。
+  **「pin を書いた」と「pin が効く」は別** — 全 pin に counterfactual を回す理由がこれ
+- pin 71 → **73 本**。2 件とも counterfactual 確認済
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**73 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

@@ -2292,3 +2292,83 @@ def test_a_closed_row_that_mutates_between_passes_keeps_the_newer_values(monkeyp
     m2 = _bracket_stub(monkeypatch, calm)
     _, payload2, _ = m2._fetch_bracketed()
     assert payload2["_fetch_meta"]["closed_mutated_midfetch"] == 0
+
+
+def test_the_trailing_open_read_bounds_the_snapshot(monkeypatch):
+    """A trade opening during the CONFIRMING pass must still be collected.
+
+    With the second open read in the middle, a trade opening while `confirm`
+    ran was in neither open read nor either closed payload, yet the snapshot
+    was stamped complete (Codex P2, PR #273).  Adding another middle read only
+    moves that window, so the ORDER is the fix: the trailing open read's
+    instant is the snapshot's as-of.
+    """
+    # The stub keys off how many CLOSED passes have finished, not off how many
+    # open reads have happened — otherwise a read in the middle would see the
+    # trade too and the pin would not discriminate the ordering at all.
+    passes = {"closed": 0}
+
+    def script(kind, n):
+        if kind == "closed":
+            passes["closed"] += 1
+            return [{"id": 1, "status": "CLOSED",
+                     "exit_time": "2026-09-19T00:00:00"}]
+        # id 6 opens only once BOTH closed passes are done, and stays open.
+        return ([{"id": 6, "status": "OPEN"}]
+                if passes["closed"] >= 2 else [])
+
+    m = _bracket_stub(monkeypatch, script)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert [r["id"] for r in open_rows] == [6], (
+        "the trailing open read must pick up a trade that opened during the "
+        "confirming pass")
+    assert ev["opened_midfetch"] == 1
+    assert ev["holes_observed"] == [] and ev["attempts"] == 1
+
+
+def test_watcher_compat_keeps_a_pre_since_open_live_trade():
+    """The canonical watcher counts it, so watcher_compat must too.
+
+    For a LIVE lock the watcher passes `date_from`, but the endpoint's OPEN
+    branch ignores it, so `count_live_matching()` includes an OANDA-backed
+    trade opened before `since` that is still OPEN.  The two numbers are
+    emitted side by side rather than one side being picked silently
+    (Codex P2, PR #273).
+    """
+    from tools.cell_deepdive_audit import row_in_lock_population
+
+    lock = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+            "direction": "BUY", "registry_id": "live-lock", "match": "exact",
+            "kind": "live", "since": "2026-08-05", "closed_only": False,
+            "dedup_violation": 0, "mode": None, "n_decide": 10,
+            "reasons_marker": None, "count_basis": None}
+    pre_since_open_live = {
+        "entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+        "direction": "BUY", "status": "OPEN", "oanda_trade_id": "5150",
+        "is_shadow": 0, "dedup_violation": 0, "mode": "daytrade",
+        "entry_time": "2026-07-01T02:00:00"}
+
+    assert row_in_lock_population(pre_since_open_live, lock) is False, (
+        "the pre-reg text bounds the population by `since`")
+    assert row_in_lock_population(pre_since_open_live, lock,
+                                  watcher_compat=True) is True, (
+        "watcher_compat must mirror what actually fires the trigger")
+
+    # Counter-pin 1: a pre-`since` CLOSED live row is excluded by BOTH — the
+    # endpoint's closed branch does honour date_from, so there is no
+    # divergence to mirror there.
+    closed = dict(pre_since_open_live, status="CLOSED",
+                  exit_time="2026-07-02T02:00:00")
+    assert row_in_lock_population(closed, lock) is False
+    assert row_in_lock_population(closed, lock, watcher_compat=True) is False
+
+    # Counter-pin 2: a pre-`since` open SHADOW row is excluded by both — the
+    # divergence is specific to live locks with an OANDA id.
+    shadow = dict(pre_since_open_live, oanda_trade_id="", is_shadow=1)
+    assert row_in_lock_population(shadow, lock, watcher_compat=True) is False
+
+    # Counter-pin 3: a shadow LOCK gets no such waiver.
+    shadow_lock = dict(lock, kind="shadow", registry_id="shadow-lock")
+    assert row_in_lock_population(pre_since_open_live, shadow_lock,
+                                  watcher_compat=True) is False
