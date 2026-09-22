@@ -1492,7 +1492,10 @@ class OandaBridge:
 
         def _do():
             if st is not None and not self._storm_wait_turn(demo_trade_id, st, token):
-                self._storm_rollback(demo_trade_id, st, token)
+                # broker 未到達の drop → unreserve (要求数を戻す)。rollback (要求数保持 /
+                # failed 計数) にすると停滞 1 件の後ろに並んだ burst が未送信のまま
+                # breaker 窓を埋めて trip する (review 6 巡目 P2)
+                self._storm_unreserve(st, token)
                 logger.error(f"[OandaBridge] MODIFY SL dropped (turn timeout) #{oanda_id} "
                              f"sl={new_sl} (demo={demo_trade_id})")
                 return
@@ -1535,7 +1538,7 @@ class OandaBridge:
             return bool(sync_ret)
         st = self._storm_state.get(demo_trade_id)
         if st is not None and not self._storm_wait_turn(demo_trade_id, st, token):
-            self._storm_rollback(demo_trade_id, st, token)
+            self._storm_unreserve(st, token)   # broker 未到達 → 要求数を戻す (6 巡目 P2)
             logger.error(f"[OandaBridge] MODIFY SL (sync) dropped (turn timeout) #{oanda_id} "
                          f"sl={new_sl} (demo={demo_trade_id})")
             return False

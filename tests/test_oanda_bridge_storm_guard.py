@@ -26,6 +26,8 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
   (j) 未確認 baseline に対する reject は最終判定しない: 暫定予約 → 送信順到来時に確認済み
       値で再評価 (先行失敗なら正当な更新は生き残る)。breaker は最終 (PR #287 review 5 巡目
       P2、CF pin 付き)
+  (k) 順番待ち timeout の drop は unreserve (broker 未到達 = 要求数を戻す) — 未送信 burst が
+      breaker 窓を埋めない (PR #287 review 6 巡目 P2、CF pin 付き)
   既定 (env 未設定) = 検知のみ: 送信は止めず、カウンタ + WARN だけ動く
 """
 from __future__ import annotations
@@ -784,10 +786,50 @@ def test_serialization_turn_timeout_drops_request_and_rolls_back(monkeypatch):
     st = b.get_storm_guard_status()["trades"][DEMO]
     assert fake.calls == []                                         # 順序不明のまま送らない
     assert st["pending"] == [154.350] and st["confirmed_sl"] == 154.115
-    assert b.get_storm_guard_status()["totals"]["failed"] == 1
+    tot = b.get_storm_guard_status()["totals"]
+    # broker 未到達の drop は failed ではなく unreserve: 要求数 (sent) は A の 1 件のみ (6 巡目 P2)
+    assert tot["failed"] == 0 and tot["sent"] == 1 and tot["skipped"]["serialize"] == 1
     # sync 経路も同じ: A が決着しない限り drop → False
     assert b.modify_sl_sync(DEMO, 154.450, instrument="USD_JPY") is False
     assert fake.calls == []
+    tot = b.get_storm_guard_status()["totals"]
+    assert tot["failed"] == 0 and tot["sent"] == 1 and tot["skipped"]["serialize"] == 2
+
+
+def test_turn_timeout_drops_do_not_fill_breaker_window(monkeypatch):
+    """review 6 巡目 P2: 停滞 1 件の後ろに並んだ burst が timeout drop されても breaker 窓を
+    埋めない — A 決着後の正当な更新は通る (tripped しない)。"""
+    monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.05)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A: 停滞
+    b.modify_sl(DEMO, 154.370, instrument="USD_JPY")               # B
+    b.modify_sl(DEMO, 154.390, instrument="USD_JPY")               # C  (A,B,C で窓 3 = 上限)
+    assert len(q) == 3
+    q[1](); q[2]()                                                  # B, C は timeout drop (未送信)
+    st = b.get_storm_guard_status()
+    assert fake.calls == [] and st["totals"]["sent"] == 1 and st["trades"][DEMO]["tripped"] is False
+    q[0]()                                                          # A 決着
+    # 窓には A の 1 件しかないので正当な更新は通る
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is True
+    assert fake.calls == [(OANDA_ID, 154.350), (OANDA_ID, 154.400)]
+    assert b.get_storm_guard_status()["trades"][DEMO]["tripped"] is False
+
+
+def test_cf_turn_timeout_as_rollback_trips_breaker_with_unsent_requests(monkeypatch):
+    """CF pin: drop を rollback (要求数保持) で処理する旧形だと、未送信 B,C が窓を埋めて
+    A 決着後の正当な更新が breaker で止まる。"""
+    monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.05)
+    monkeypatch.setattr(OandaBridge, "_storm_unreserve",
+                        lambda self, st, tok: OandaBridge._storm_rollback(self, DEMO, st, tok))
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    q = _deferred_fire(b, monkeypatch)
+    for sl in (154.350, 154.370, 154.390):
+        b.modify_sl(DEMO, sl, instrument="USD_JPY")
+    q[1](); q[2](); q[0]()
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is False   # ← 未送信で trip (旧 bug の形)
+    assert b.get_storm_guard_status()["trades"][DEMO]["tripped"] is True
+    assert fake.calls == [(OANDA_ID, 154.350)]
 
 
 def test_detect_only_mode_confirms_and_pends_symmetrically(monkeypatch):

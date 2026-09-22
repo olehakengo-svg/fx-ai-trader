@@ -2,8 +2,8 @@
 
 **Status**: 実装済み・**既定は検知のみ** (rule:R3 — 構造バグ修理、live 経路 PR-1、エッジ主張/lot/tier 不変更)
 **Scope**: `modules/oanda_bridge.py` `OandaBridge.modify_sl` / `modify_sl_sync` の入口。呼び出し側 (`modules/demo_trader.py` の BE/trail/pyramid/TP-extender ロジック) は不変更。
-**Tests**: `tests/test_oanda_bridge_storm_guard.py` (55 件、うち CF pin 14 件)
-**Review 消化 (PR #287, 2026-09-22)**: 1 巡目 P1 ×2 (再起動後 seed の `id`/`trade_id` 取り違え、stale DB sl を baseline に採用) + P2 ×1 (fire-and-forget 競合) / 2 巡目 P1 ×1 (未確認予約を冪等 True で返す) + P2 ×1 (連鎖失敗で未確認値が baseline に残る) / 3 巡目 P1 ×1 (重なった A,B で B 先行確認 → pending A が baseline に残る・broker 側発行順逆転) / 4 巡目 P2 ×1 (検知のみモードでも順番待ち timeout が送信を drop していた) / 5 巡目 P2 ×1 (未確認 baseline に対する reject を最終判定していた → 先行失敗時に正当な保護更新を永久に落とす) — §2.1 / §2.2 / §2.6 / §2.7 / §4 に反映
+**Tests**: `tests/test_oanda_bridge_storm_guard.py` (57 件、うち CF pin 15 件)
+**Review 消化 (PR #287, 2026-09-22)**: 1 巡目 P1 ×2 (再起動後 seed の `id`/`trade_id` 取り違え、stale DB sl を baseline に採用) + P2 ×1 (fire-and-forget 競合) / 2 巡目 P1 ×1 (未確認予約を冪等 True で返す) + P2 ×1 (連鎖失敗で未確認値が baseline に残る) / 3 巡目 P1 ×1 (重なった A,B で B 先行確認 → pending A が baseline に残る・broker 側発行順逆転) / 4 巡目 P2 ×1 (検知のみモードでも順番待ち timeout が送信を drop していた) / 5 巡目 P2 ×1 (未確認 baseline に対する reject を最終判定していた → 先行失敗時に正当な保護更新を永久に落とす) / 6 巡目 P2 ×1 (順番待ち timeout の drop が要求数を保持し、未送信 burst が breaker 窓を埋めて trip) — §2.1 / §2.2 / §2.6 / §2.7 / §4 に反映
 **関連**: [[kalman-d7-carveout-postfill-packet-2026-09-17]] §1–3 (拡張凍結条件 = 本 guard の main 着地 + test pin) / [[kalman-d7-po-dn-flip]] 09-11/09-14/09-16 節 / [[usdjpy_carry_dip_accumulator]] §(3) storm / [[path-to-win-decision-memo-2026-09-20]] Rank 2-1 / 再評価 2026-09-22 §3 Rank 7
 
 ---
@@ -92,7 +92,7 @@ pip 単位 = `0.01` (JPY/XAU) / `0.0001` (それ以外) — demo_trader の `100
 | 成功 (`_storm_confirm`) | token を pending から外し、`seq > confirmed_seq` なら `confirmed_sl = new_sl` (worker 完了順が発行順と逆でも後発が勝つ) |
 | 失敗 (`_storm_rollback`: `ok=False` / 例外) | token を pending から外すだけ — 「戻す」操作は不要で、連鎖失敗でも baseline は自然に `confirmed_sl` へ戻る。**要求数は戻さない** (breaker は broker への要求数 = 失敗要求も tx)。`totals.failed` / `trades[*].failed_total` |
 | 冪等一致が pending (enforce, sync) | 送信せず、その token の `done` を待って `ok` を返す (§2.2) |
-| 送信直前 (`_storm_wait_turn`、3 巡目 P1) | **`pending[0]` が自分になるまで待つ** (前の要求が confirm/rollback で決着するまで次を送らない = trade ごとに同時飛行 1 件、発行順直列化)。上限 `STORM_TURN_WAIT_SEC`=20 s、timeout は rollback + drop (順序不明のまま送る方が危険; sync は False)、`skipped.serialize` に計数。**検知のみモード (既定) では待たない・落とさない** — 待つはずだった件数を `detected.serialize` に数えるだけ (4 巡目 P2: 既定契約「送信は従来通り、観測だけ」を直列化にも適用) |
+| 送信直前 (`_storm_wait_turn`、3 巡目 P1) | **`pending[0]` が自分になるまで待つ** (前の要求が confirm/rollback で決着するまで次を送らない = trade ごとに同時飛行 1 件、発行順直列化)。上限 `STORM_TURN_WAIT_SEC`=20 s、timeout は **unreserve** + drop (broker 未到達なので要求数 `sent_ts`/`sent_total` を戻す — rollback だと停滞 1 件の後ろの未送信 burst が breaker 窓を埋めて `tripped` が立つ、6 巡目 P2; 順序不明のまま送る方が危険; sync は False)、`skipped.serialize` に計数。**検知のみモード (既定) では待たない・落とさない** — 待つはずだった件数を `detected.serialize` に数えるだけ (4 巡目 P2: 既定契約「送信は従来通り、観測だけ」を直列化にも適用) |
 
 直列化の理由 (3 巡目 P1): A,B が重なって B が先に確認されると baseline は pending A を返し続け、A<X<B の BUY 要求が「A より tight」として送られて確認済み B を緩める。さらに broker 側で A が B の後に処理される発行順逆転も起きる。同時飛行を 1 件に絞ると「B 確認済み ∧ A pending」の窓そのものが存在しない (`test_serialization_no_window_where_confirmed_b_coexists_with_pending_a`)。平常 trail (0.5 s tick、HTTP ~100–300 ms) では順番待ちは実質発生しない。
 
@@ -127,6 +127,7 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 | (h) | `_storm_wait_turn` → 常に True (順番待ちなし、2 巡目の形) | B の worker が A より先に broker へ届き、「B 確認済み ∧ A pending」の窓が生じる | `test_serialization_cf_without_turnstile_b_can_confirm_before_a` |
 | (i) | enforce flag のみ反転 (順番待ち timeout fixture) | 検知のみ = 送信 1 / drop 0 / detected.serialize 1 ⇄ enforce = 送信 0 / drop 1 | `test_detect_only_cf_enforce_is_the_only_difference_for_turn_drop` |
 | (j) | 暫定化を外す (未確認 baseline でも gate で最終 reject、4 巡目までの形) | A 失敗後に正当な B (確認済み基準 +23.4 pip) が永久に失われる | `test_p2_cf_final_reject_against_pending_drops_valid_update` |
+| (k) | timeout drop を unreserve でなく rollback (要求数保持、5 巡目までの形) | 未送信 B,C が窓 3 を埋め、A 決着後の正当な更新が breaker で止まる (`tripped=True`、broker 到達 1 件のみ) | `test_cf_turn_timeout_as_rollback_trips_breaker_with_unsent_requests` |
 | (g)-1 改 | 順番待ちなし + 再評価が常に冪等 True (未確認一致を即 True、2 巡目までの形) | worker 失敗前に sync が True を返し、confirmed_sl は原値のまま | `test_p1_cf_treating_pending_as_confirmed_returns_true_before_failure` |
 | 全体 CF (手動、2026-09-22、review 前の 28 件時点) | `_storm_gate` → `(True, None)` | 28 件中 **17 件 fail / 11 pass** (pass 11 = (b) 素通り pin・pip 規約・inactive 等、guard 非依存) | 一時 conftest で実測、commit には含めない |
 
