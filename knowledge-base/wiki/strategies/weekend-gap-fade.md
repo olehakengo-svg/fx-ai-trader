@@ -124,12 +124,14 @@
 | pair | gap | 判定 | 結果 | 備考 |
 |---|---|---|---|---|
 | USD_JPY | **−50.0p ≥ 21.4p** (Fri close 153.620 → Sun open 153.120) | qualify → BUY fade 発火 **21:05:03Z**、shadow row **id 17602** | **live 放棄 = `ABANDONED_DRIFT`**: OANDA tradeable 確認時点 (quote_age **7.5s**) の fade 方向 adverse drift **+41.0p > +8.0p** (凍結境界 §4.3) → latch=`ABANDONED_DRIFT`、shadow row 記録 (分母保存)。oanda_audit `weekend_gap_exec_abandon(ABANDONED_DRIFT,drift=+41.00p)` **21:05:05Z** | ギャップの ~47p が初 15m バー内 (大半は約定不能の halt 窓 ~4 分) で消費。**改定後 qualifying 不成立 1 件目** (packet §6「2 イベント連続で fill 不成立」の第 1 件 — drift 放棄は不成立に含む、registry `weekend-gap-execution-amendment-g0prime` message)。出所: [[daily-observations-2026-09]] O-2026-09-14-1 / [[2026-09-16]] L241 |
-| EUR_USD / AUD_USD | (gap 値 未転記) | no-qualify (推定) | 不発 | oanda_audit 09-13 の行数は **1** (上記 USD_JPY 放棄行のみ、[[2026-09-16]] L242) → 他 2 ペアは送信経路に到達していない = no-qualify と整合。gap 診断ログの値は Render ログ retention (~30 日、〜10-13) 内に要確認 — **推測で埋めない** |
+| EUR_USD | **−2.2p < 20.0p** | no-qualify | 不発 (正常) | gap 診断ログ `[WEEKEND_GAP] EUR_USD gap=-2.2p < 20.0p no-qualify` **21:01:08Z** (Render ログ API 実読 2026-09-22 (service `srv-d6va1of5r7bs73en10vg`、2026-09-13T20:55–21:30Z、text=`WEEKEND_GAP` 25 行・hasMore=false)) |
+| AUD_USD | **−14.7p < 25.0p** | no-qualify | 不発 (正常) | 同 `AUD_USD gap=-14.7p < 25.0p no-qualify` **21:01:29Z**。⚠️ 09-22 初版は oanda_audit 09-13 行数 1 ([[2026-09-16]] L242) から「no-qualify (推定)」と書いていた — audit 不在は「監査経路未到達」の証明にすぎず (`_weekend_gap_tick` の非監査 return / `_tick_entry` 早期 block)、**以後は診断ログで確定するまで UNKNOWN と転記する** (DRAFT §6、PR #281 review P2) |
 
 - **本イベントの shadow outcome は意図的に記載しない** (G0'/G1/G2/G3 凍結 look の汚染防止 — O-2026-09-14-1 と同じ規律)。
 - 価格系の記述のみで観測可能な仮説: **|gap| が大きいほど tradeable 時点の drift も大きく、qualify する最大級 event ほど live 送信が構造的に不可能になる選択バイアス** (O-2026-09-14-1 の反証可能予測: 今後の qualify event で |gap| と drift は正相関、|gap|≥40p では drift>8p が常態のはず)。境界導出時の実測 (packet §5.3: qualifying・cap 通過 N=8 の +5m adverse drift mean +3.15p / 全 48 pair-weekend p90 6.7p、`bt-results/wg_gap_drift-2026-09-10.json`) に対し mean 比 ~13 倍 / p90 比 ~6 倍。
 - live fill 通算: **0/4 qualifying イベント** (07-26 インフラ障害 / 08-02・09-06 MARKET_HALTED / 09-13 ABANDONED_DRIFT)。改定後 (契約 B) = **0/1**。G1/G2/G3 の live N は依然 0。
 - ドリフト検出 (§4.3) は設計どおり作動 — 放棄は契約の欠陥ではなく契約の仕様。**+8.0p 境界の R1 再起案は packet §6 の事前コミット (不成立 2 連続) まで保留** — 本 event で 1 件消費。
+- EXEC_B 遷移 (Render ログ実読 09-22): `[WEEKEND_GAP][EXEC_B] USD_JPY decision=HOLD tradeable=False` **14 行 21:01:27–21:04:33Z** (halt 窓、quote_age ~173,000s = 金曜 quote) → `decision=ABANDONED_DRIFT tradeable=True quote_age=7.493s drift=+41.00p send_mid=153.53 sunday_open=153.12` **21:05:02.5Z** → `live execution abandoned (ABANDONED_DRIFT) → shadow record` 21:05:03.2Z → OANDA `[SKIP] weekend_gap_exec_abandon(ABANDONED_DRIFT,drift=+41.00p)` 21:05:14.3Z。09-13 の pair-event 列は **[USD_JPY ABANDONED_DRIFT] の 1 件のみ** (他 2 ペアは診断ログで no-qualify 確定 = 分母外) — G0' 不成立カウント 1/2 は一次データで確定。
 
 ### 2026-09-20 (日) — NO-QUALIFY (分母外、G0' event #2 は 09-27 へ繰越)
 

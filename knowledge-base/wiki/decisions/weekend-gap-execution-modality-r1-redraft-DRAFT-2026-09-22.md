@@ -20,8 +20,8 @@
 | 項目 | 値 | 出所 |
 |---|---|---|
 | 契約 B 発効 | 2026-09-10 (user「進めて」、rule:R1)。送信 = OANDA tradeable 確認後の最初の評価 tick / 打ち切り 初バー ts +15 分 / drift 放棄 +8.0p / halt-race 再送 1 回 | packet §4、`strategies/daytrade/weekend_gap_fade.py:89–93` |
-| event #1 (2026-09-13) | USD_JPY gap **−50.0p** (Fri close 153.620 → Sun open 153.120) ≥ 21.4p → BUY fade 発火 21:05:03Z、shadow row id 17602。tradeable 確認時 (quote_age 7.5s) の adverse drift **+41.0p > +8.0p** → `ABANDONED_DRIFT`。oanda_audit `weekend_gap_exec_abandon(ABANDONED_DRIFT,drift=+41.00p)` 21:05:05Z | [[daily-observations-2026-09]] O-2026-09-14-1 / [[2026-09-16]] L241 |
-| event #1 の他 2 ペア | oanda_audit 09-13 の行数 1 (USD_JPY 放棄行のみ) → EUR_USD / AUD_USD は送信経路に到達せず = no-qualify と整合。gap 値は未転記 (Render ログ retention ~30 日内に確認、推測で埋めない) | [[2026-09-16]] L242 |
+| event #1 (2026-09-13) | USD_JPY gap **−50.0p** (Fri close 153.620 → Sun open 153.120) ≥ 21.4p → BUY fade 発火 21:05:03Z、shadow row id 17602。tradeable 確認時 (quote_age 7.5s) の adverse drift **+41.0p > +8.0p** → `ABANDONED_DRIFT`。oanda_audit `weekend_gap_exec_abandon(ABANDONED_DRIFT,drift=+41.00p)` 21:05:05Z。EXEC_B 遷移 (Render ログ実読 09-22): `HOLD` 14 行 21:01:27–21:04:33Z (tradeable=False、halt 窓) → `ABANDONED_DRIFT` 21:05:02.5Z (tradeable=True、quote_age 7.493s、send_mid 153.53 / sunday_open 153.12) | [[daily-observations-2026-09]] O-2026-09-14-1 / [[2026-09-16]] L241 / Render ログ API 実読 2026-09-22 (service `srv-d6va1of5r7bs73en10vg`、2026-09-13T20:55–21:30Z、text=`WEEKEND_GAP` 25 行・hasMore=false) |
+| event #1 の他 2 ペア | **EUR_USD gap −2.2p < 20.0p → no-qualify** (21:01:08Z) / **AUD_USD gap −14.7p < 25.0p → no-qualify** (21:01:29Z) — gap 診断ログで**確定** (分母外、pair-event 列に現れない)。⚠️ 09-22 初版は oanda_audit 09-13 行数 1 ([[2026-09-16]] L242) から「no-qualify (推定)」と書いていたが、**audit 不在が証明するのは「監査される執行経路に到達しなかった」ことだけ** — `_weekend_gap_tick` (demo_trader.py:4117–) は weekend_key None / latch 済 / `df is None or len(df) < 10` / `det is None` で**非監査 return** し、`_tick_entry` にも `_add_oanda_audit` 前の early block があるため、qualify して上流で失敗した pair-event を audit 行数では検出できない (PR #281 review P2、2 巡目)。以後は診断ログ (または shadow row) で確定するまで **UNKNOWN と書く** (§6) | Render ログ API 実読 2026-09-22 (service `srv-d6va1of5r7bs73en10vg`、2026-09-13T20:55–21:30Z、text=`WEEKEND_GAP` 25 行・hasMore=false) / code: `modules/demo_trader.py:4136–4172` |
 | 2026-09-20 | USD_JPY **−19.0p** < 21.4p / AUD_USD **−20.5p** < 25.0p / EUR_USD **−1.9p** < 20.0p → 3 ペア NO-QUALIFY、row/latch なし | Render ログ `[WEEKEND_GAP]` gap 診断行 2026-09-20T21:01:13–21:01:29Z (2026-09-22 実読、[[2026-09-22-session]]) |
 | 不成立カウント | 改定後 qualifying イベント **1/2 消費** (drift 放棄は不成立に含む — registry `weekend-gap-execution-amendment-g0prime` message「halt >15m / drift 放棄 / 新種 cancel」)。NO-QUALIFY は分母外 | packet §6 / registry g0prime |
 | live fill 通算 | **0/4** qualifying イベント (07-26 インフラ障害 / 08-02・09-06 MARKET_HALTED / 09-13 ABANDONED_DRIFT)。G1/G2/G3 の live N = 0 | [[weekend-gap-fade]] イベントログ |
@@ -105,6 +105,7 @@
 - **事実**: 09-13 の event #1 は O-2026-09-14-1 (09-14) と trade-log 09-16 に記録されたが、戦略カード [[weekend-gap-fade]] のイベントログには **2026-09-22 (9 日後) まで転記されなかった**。G0' 手順は「週次監査で確認」としか書いておらず、card 転記の期限が無かった。
 - **規則 (提案、registry g0prime message への追記 = 別担当)**: 日曜 21:00 UTC (冬 22:00) のイベント後 **24h 以内 (月曜 daily report と同時)** に、qualify / NO-QUALIFY を問わず card イベントログへ 1 節を追記する。
 - **転記するもの (価格系・執行系のみ)**: ペア別 gap (p) と閾値、decision (SEND / HOLD 回数 / ABANDONED_* / SKIPPED_SPREAD)、tradeable・quote_age、drift (p)、send_mid、latch 値、oanda_audit id / tx id、fill 時は `oanda_trade_id` と当該 1 event の persisted slippage 値 (配管確認、集計しない)。
+- **ペア別分類の確定源は Render ログ `[WEEKEND_GAP]` gap 診断行 (`gap=… no-qualify` / `qualifying event`) または shadow row のみ**。oanda_audit の有無・行数から no-qualify を推定しない — audit 不在は「監査経路未到達」しか意味せず、`_weekend_gap_tick` の非監査 return (weekend_key None / latch 済 / データ欠損・不足 / det None) や `_tick_entry` の早期 block で qualify 後に消えた pair-event と区別できない。診断行が retention (~30 日) 内に読めなければ当該ペアは **UNKNOWN** と転記し、pair-event 列 (§2) と G0' カウントは「UNKNOWN が qualify していた場合の条件付き」で併記する (PR #281 review P2、2 巡目)。**診断行自体が無い qualify 済みペア** (データ欠損で `det is None` かつ `gap_pips` None、または `_tick_entry` 早期 block) は packet §6 の列挙 (halt / drift / 新種 cancel) の外 = 分類未定義 → 昇格時の文言確定事項 (§3 row 7) に含める。
 - **転記しないもの**: shadow row の pnl / MFE / 埋め率、G1 rolling mean、G2 累積、drift 帯別や CB 週別などの条件付き outcome (O-2026-09-14-2 の教訓 — 未登録 split の事後シードは禁止)。
 - **NO-QUALIFY 週末も転記する**: 近接値 (09-20 の −19.0p / −20.5p) は「閾値を触る根拠」ではなく「分母外イベントの記録」。閾値は凍結値 (stage-2 §8)。
 
@@ -120,6 +121,7 @@
 - 本 DRAFT を LOCK / 決裁済みとして引用すること。
 - watcher (`evaluate_live_count_decision`) の `TRIGGERED` 表示を F2 **resolved** と読むこと — resolve は registry の `active:false` + `resolved` + `resolution` 明示記録のみ (§2 row 1、PR #281 review P2)。
 - 同一週末に fill があることを理由に、時系列で隣接する 2 不成立 pair-event の packet §6 発動を抑止すること (週末単位規則は未承認、§2 末尾行、PR #281 review P2)。
+- oanda_audit の不在・行数から未観測ペアを no-qualify と分類すること — 確定源は gap 診断ログ / shadow row のみ、読めなければ UNKNOWN (§6、PR #281 review P2 2 巡目)。
 
 ---
 
