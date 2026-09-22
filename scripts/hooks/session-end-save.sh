@@ -57,11 +57,25 @@ if git push origin main >/dev/null 2>/dev/null; then
     :
 else
     BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
-    RESCUE="kb-rescue/${BRANCH}-${TODAY}"
-    if git push origin "HEAD:refs/heads/${RESCUE}" >/dev/null 2>/dev/null; then
-        echo "⚠️  KB push to ${BRANCH} failed — origin/${RESCUE} へ退避した (要 PR 化)" >&2
+    if [[ "$BRANCH" != "main" ]]; then
+        # 🔴 feature ブランチ / worktree から退避してはいけない (Codex P1, PR #276)。
+        # `git push origin main` は **ローカルの main ref** を押すので、HEAD が
+        # feature の時も (main が behind なら) 失敗しうる。そこで HEAD を退避すると
+        # **その feature の未公開 WIP コミットまで origin に publish** してしまう —
+        # 誰も頼んでいない公開になる。HEAD が main でない場合、step 2 の KB コミットは
+        # その feature ブランチ上にあり、当人の PR で push されるので座礁しない。
+        echo "⚠️  KB push to main failed (HEAD=${BRANCH}) — この commit は ${BRANCH} 上にあるので退避しない (PR で push される)" >&2
     else
-        echo "⚠️  KB push failed — session log はローカル commit のみ (要手動 push)" >&2
+        # ref 名に **短縮 sha** を入れる (Codex P2, PR #276)。同日に 2 つの stale な
+        # main checkout が走ると `kb-rescue/main-<date>` が衝突し、2 本目は
+        # non-fast-forward で拒否されて**ローカルに座礁したまま**になる。
+        # `-f` は使わない (他人の退避を壊すため) ので、名前を一意にする方で解く。
+        RESCUE="kb-rescue/main-${TODAY}-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+        if git push origin "HEAD:refs/heads/${RESCUE}" >/dev/null 2>/dev/null; then
+            echo "⚠️  KB push to main failed — origin/${RESCUE} へ退避した (要 PR 化)" >&2
+        else
+            echo "⚠️  KB push failed — session log はローカル commit のみ (要手動 push)" >&2
+        fi
     fi
 fi
 

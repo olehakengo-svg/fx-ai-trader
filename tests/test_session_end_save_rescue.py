@@ -148,3 +148,80 @@ def test_nothing_is_committed_when_the_kb_is_clean(repo):
     assert _git(repo["work"], "rev-parse", "HEAD").stdout.strip() == before
     assert not [b for b in _remote_branches(repo["remote"])
                 if b.startswith("kb-rescue/")]
+
+def test_a_feature_branch_is_never_published_by_the_fallback(repo):
+    """KNOWN-NG BEHAVIOUR: publishing unrequested WIP (Codex P1, PR #276).
+
+    `git push origin main` pushes the LOCAL main ref, so it can fail while
+    HEAD is a feature branch.  Rescuing HEAD there would push that feature's
+    unpublished WIP commits to origin — a publication nobody asked for.  The
+    KB commit is on the feature branch and reaches origin via its own PR, so
+    there is nothing stranded to rescue.
+    """
+    work = repo["work"]
+    # origin/main advances -> our local main ref is behind -> push will fail.
+    with open(os.path.join(repo["other"], "knowledge-base", "theirs.md"), "w") as f:
+        f.write("theirs\n")
+    _git(repo["other"], "add", "-A")
+    _git(repo["other"], "commit", "-m", "theirs")
+    _git(repo["other"], "push", "origin", "main")
+
+    # A feature branch carrying a secret WIP commit that must NOT be published.
+    _git(work, "checkout", "-b", "feature/secret")
+    with open(os.path.join(work, "wip.txt"), "w") as f:
+        f.write("unpublished work in progress\n")
+    _git(work, "add", "-A")
+    _git(work, "commit", "-m", "WIP: do not publish")
+    wip = _git(work, "rev-parse", "HEAD").stdout.strip()
+
+    with open(os.path.join(work, "knowledge-base", "mine.md"), "w") as f:
+        f.write("mine\n")
+
+    res = _run_hook(work)
+    assert res.returncode == 0, res.stderr
+
+    assert _remote_branches(repo["remote"]) == {"main"}, (
+        "a feature branch must never be published by the fallback — origin "
+        f"gained {_remote_branches(repo['remote']) - {'main'}}")
+    assert "退避しない" in res.stderr, "the decision must be stated"
+    # The WIP commit is still local-only, which is the whole point.
+    assert wip not in _git(repo["remote"], "log", "--all", "--format=%H").stdout
+
+
+def test_rescue_refs_do_not_collide_between_checkouts(repo):
+    """KNOWN-NG INPUT: two stale main checkouts, same date (Codex P2, PR #276).
+
+    A date-only ref name collides; the second push is rejected as a
+    non-fast-forward and that KB commit stays local.  `-f` is not an option
+    (it would destroy the first rescue), so the ref name must be unique.
+    """
+    root, remote = repo["root"], repo["remote"]
+    with open(os.path.join(repo["other"], "knowledge-base", "theirs.md"), "w") as f:
+        f.write("theirs\n")
+    _git(repo["other"], "add", "-A")
+    _git(repo["other"], "commit", "-m", "theirs")
+    _git(repo["other"], "push", "origin", "main")
+
+    heads = []
+    for i, name in enumerate(("work", "work2")):
+        w = os.path.join(root, name)
+        if not os.path.isdir(w):
+            _git(root, "clone", remote, w)
+            for k, v in (("user.email", "t@t"), ("user.name", "t")):
+                _git(w, "config", k, v)
+            # Roll this clone's main back so its push is also rejected.
+            _git(w, "reset", "--hard", "HEAD~1")
+            shutil.copytree(os.path.join(repo["work"], "scripts"),
+                            os.path.join(w, "scripts"), dirs_exist_ok=True)
+        with open(os.path.join(w, "knowledge-base", f"unique{i}.md"), "w") as f:
+            f.write(f"checkout {i}\n")
+        res = _run_hook(w)
+        assert res.returncode == 0, res.stderr
+        heads.append(_git(w, "rev-parse", "HEAD").stdout.strip())
+
+    rescues = {b for b in _remote_branches(remote) if b.startswith("kb-rescue/")}
+    assert len(rescues) == 2, (
+        f"each stranded history needs its own ref, got {rescues}")
+    landed = {_git(remote, "rev-parse", r).stdout.strip() for r in rescues}
+    assert landed == set(heads), (
+        "both checkouts' commits must reach origin, not just the first")

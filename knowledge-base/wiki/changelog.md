@@ -11,6 +11,22 @@
   - 🔵 **救済した分析の中身が今日の作業と噛み合っている**: 09-21 の review は「`tokyo_nakane_momentum` の 8 発火は 59 分以内・3 ペア・全 BUY = **独立 8 標本ではなく『JPY 売り』1 ベットの 8 重複**」「勝ち 3 本の `close_reason` が全て `SL_HIT` = ラベル破綻の 3 例目」を記録していた。**昇格審査でクラスタ性を N から割り引く前処理が必須**という論点は保存された
 - 🔴 **committed conflict marker の修復**: `wiki/sessions/2026-08-30-session.md` に **`<<<<<<< Updated upstream` / `>>>>>>> Stashed changes` が 2 箇所コミットされたまま** 3 週間 main に載っていた (解決されなかった `git stash pop` の産物)。narrative 側を採り、stub 側の unique な内容 (コミット一覧) を明示ラベル付きで併置して union 解決。**KB 全体で marker ゼロを確認**
 - 🔴🔴 **その環境変数リークは診断した直後に実害を出した (同一セッション内)**: hermetic 化**前**のテスト実行が pre-commit 経由で走った際、リークした `GIT_INDEX_FILE` 越しに**実リポジトリの index へ `git add -A` を適用**しており、直後の commit がその index を拾って **3,568 files / −1,156,926 行 (`tools/` `tests/` `reports/` `data/` ほぼ全部) を削除する commit** を作っていた。`git show --stat` の規模が異常だったため**push 前に検知**し `reset --mixed` で撤回、**ファイル名を列挙して再 stage** した (working tree は無傷 = index のみの汚染)。🔑 **(1) テストが実リポジトリを触りうる形なら CI/pre-commit 経由で実際に触る** — hermetic 化は品質ではなく**安全性**の問題。**(2) commit 後に `--stat` の規模を必ず見る** — exit 0 は「意図した範囲」を保証しない
+- 🟠 **connector レビュー (Codex P1 + P2、どちらも正しかった) — 私の修復自体が「頼まれていない公開」を作っていた**:
+  (a) 🔴 **P1: feature ブランチから退避してはいけない** — `git push origin main` は
+  **ローカルの main ref** を押すので、**HEAD が feature の時も (main が behind なら) 失敗
+  しうる**。そこで HEAD を退避すると **その feature の未公開 WIP コミットまで origin に
+  publish** してしまう = **誰も頼んでいない公開**。しかも HEAD が main でなければ step 2 の
+  KB コミットはその feature ブランチ上にあり、**当人の PR で push されるので座礁しない** ⇒
+  **退避は HEAD==main のときだけ**に限定し、それ以外は理由を stderr に出して何もしない
+  (b) **P2: 退避 ref に短縮 sha を入れる** — 同日に 2 つの stale な main checkout が走ると
+  `kb-rescue/main-<date>` が衝突し、**2 本目は non-fast-forward で拒否されてローカルに座礁
+  したまま**になる (= 修復が目的を達しない)。`-f` は他人の退避を壊すので使わず、**名前を
+  一意にする方**で解いた
+- 🔑 **「座礁を防ぐ」修復が「公開してしまう」副作用を持っていた** — 安全側に倒したつもりの
+  fallback が、**別の種類の不可逆操作**を生んでいた。⇒ fallback を書くときは
+  「**何を origin に足すのか**」を操作単位で列挙する。pin 3 → **5 本**、2 件とも
+  counterfactual 確認済 (P1 を戻すと `origin gained {'kb-rescue/main-...'}`、
+  P2 を戻すと `len({...}) == 1` で落ちる)
 - 🔑 **教訓: 「backlog を掃除した」と「ジェネレータを止めた」は別** — 09-17 の CLOSED 判定は前者だけで出されており、5 日で再発した。**再発する欠陥は、事象ではなく発生機構に対して pin を置く**
 - ⚠️ **ローカル `main` の 0/0 復帰は、内容が origin に到達したことを確認した後に行う** — 2026-09-17 は先に `reset` して未コミットの `index.md` 編集を破壊し System State を 13 日巻き戻した ([[2026-09-21]] が記録)。本 PR がマージされてから reset する順序を厳守した
 
