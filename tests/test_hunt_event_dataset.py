@@ -675,3 +675,48 @@ def test_rows_without_a_parsable_entry_time_are_never_merged():
 def test_dedup_window_default_is_pinned():
     """窓を緩める (= 潰しすぎる) 方向の変更を pin する。"""
     assert hed.DEDUP_WINDOW_SEC == 3600.0
+
+
+def test_documented_window_table_agrees_with_the_readout():
+    """The module's sensitivity table must not drift from the readout.
+
+    The table was computed with the CHAINED window implementation and never
+    recomputed when round 5 switched to anchored windows, so the shipped
+    comment described a different estimator than the shipped code (Codex P2,
+    PR #272).  `test_window_boundary_is_anchored_not_chained` pins the
+    estimator; nothing pinned the NUMBERS against the readout and registry
+    that cite them.
+
+    Both sides are static text, so this pin is stable as the dataset grows —
+    it checks mutual consistency, not a live recomputation.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    tool = (root / "tools" / "hunt_event_dataset.py").read_text(encoding="utf-8")
+    readout = (root / "knowledge-base" / "wiki" / "analyses"
+               / "hunt-events-dataset-readout-2026-09-19.md").read_text(
+                   encoding="utf-8")
+
+    # The readout states the inflation factor as basis / distinct_1h.
+    mr = re.search(r"膨張係数 = ([\d,]+) / ([\d,]+) = ([\d.]+) 倍", readout)
+    assert mr, "the readout must state 膨張係数 = <basis> / <1h distinct>"
+    basis_doc, distinct_doc = mr.group(1), mr.group(2)
+
+    mt = re.search(r"1h → ([\d,]+) \(([\d.]+)x\)", tool)
+    assert mt, "the module table must state the 1h distinct count"
+    assert mt.group(1) == distinct_doc, (
+        f"the module's 1h distinct ({mt.group(1)}) disagrees with the readout "
+        f"({distinct_doc}) — recompute the table whenever the estimator or "
+        f"the basis changes")
+
+    assert f"{basis_doc} 行" in tool, (
+        f"the module table must name the same basis as the readout "
+        f"({basis_doc} rows), so a reader can tell which population it is")
+
+    # The stated inflation must be the arithmetic of the two stated counts,
+    # not a remembered number.
+    got = int(basis_doc.replace(",", "")) / int(distinct_doc.replace(",", ""))
+    assert abs(got - float(mt.group(2))) < 0.01, (
+        f"{basis_doc}/{distinct_doc} = {got:.2f}x, table says {mt.group(2)}x")
