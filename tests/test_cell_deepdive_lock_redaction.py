@@ -2054,3 +2054,51 @@ def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkey
     m = _bracket_stub(monkeypatch, script)
     with pytest.raises(SystemExit, match="closed inside the fetch window"):
         m._fetch_bracketed(max_attempts=3)
+
+
+def test_a_bare_list_from_the_endpoint_is_not_a_valid_page(monkeypatch):
+    """KNOWN-NG INPUT: HTTP-200 `[]` from a proxy, mid-pagination.
+
+    `/api/demo/trades` always returns an object carrying `trades`, so the
+    list passthrough could only ever accept a malformed response — and
+    `_paginate_pass` would read `[]` as the short page proving end-of-data,
+    keep the pages already fetched, and stamp `complete=true` on the truncated
+    snapshot (Codex P2, PR #273).
+    """
+    import json
+    import urllib.request
+    import tools.cell_deepdive_audit as m
+
+    calls = {"n": 0}
+
+    class FakeResp:
+        def __init__(self, body):
+            self.body = body.encode()
+
+        def read(self):
+            return self.body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def urlopen(url, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:                       # a full, well-formed page
+            rows = [{"id": i} for i in range(10)]
+            return FakeResp(json.dumps({"count": len(rows), "trades": rows}))
+        return FakeResp("[]")                     # proxy noise, HTTP 200
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    with pytest.raises(SystemExit, match="no list-valued 'trades'"):
+        m.paginate_trades(m._http_fetch_closed_page, page_size=10)
+
+    # Counter-pin: the SAVED-SNAPSHOT reader still accepts a bare array, on
+    # purpose — a local file is a different population.
+    import inspect
+    reader = inspect.getsource(m.main)
+    assert "isinstance(payload, list)" in reader, (
+        "the local-snapshot reader must keep accepting a bare array; only the "
+        "endpoint has a documented object shape")

@@ -1200,8 +1200,18 @@ def _http_fetch(status: str, limit: int, offset: int) -> list:
     # that as a short page proving end-of-data, keep whatever pages already
     # succeeded, and stamp _fetch_meta.complete=true on a truncated snapshot
     # (Codex P2, PR #273).  Never fold "cannot inspect" into "no more data".
-    if isinstance(payload, list):
-        return payload
+    # The ENDPOINT always returns an object carrying `trades` (app.py), so a
+    # top-level list is not a valid page here — and accepting one re-opened the
+    # hole this check exists to close: an HTTP-200 `[]` from a proxy or a
+    # malformed backend would be read by `_paginate_pass` as the short page
+    # proving end-of-data, keeping the earlier partial pages and stamping
+    # `complete=true` on them (Codex P2, PR #273).  Require the documented
+    # shape.  NOTE: the SAVED-SNAPSHOT reader below still accepts a bare array,
+    # deliberately — a local file is a different population (a hand-made or
+    # `jq '.trades'` snapshot is legitimate there, and its completeness is
+    # gated separately by `_fetch_meta`).  Which convention is specific to
+    # which population has to be decided per population, not globally
+    # ([[feedback_check_the_symmetric_side_2026_09_19]]).
     if not isinstance(payload, dict) or not isinstance(payload.get("trades"), list):
         keys = sorted(payload)[:8] if isinstance(payload, dict) else type(payload).__name__
         raise SystemExit(

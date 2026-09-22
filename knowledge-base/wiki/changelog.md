@@ -342,7 +342,21 @@
   (nn2) の LOCK 消滅)。**この PR の欠陥族は全て「無かったことになる」方向**に倒れていた
 - pin 63 → **66 本**。4 件すべて counterfactual 確認済 (修正を戻すと当該 pin が
   実体のメッセージ付きで落ちる — 「棚卸しから消えた」「mid-pass open が入っていない」)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**66 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第23波 (Codex P2) — 契約を強めた当の関数に fail-open が残っていた**:
+  (pp) **endpoint からの top-level list を拒否** — 第18波 (gg) で「`trades` を欠く応答を
+  拒否」を入れたのに、その直前で **`isinstance(payload, list)` を無条件に通す**分岐が
+  残っていた。`/api/demo/trades` は常に `trades` を持つ**オブジェクト**を返すので
+  (app.py)、bare list は**定義上 malformed 応答しか通さない** — そして HTTP-200 の
+  `[]` (proxy ノイズ等) が来ると `_paginate_pass` がそれを**短ページ = データ終端**と
+  読み、既に取得した部分ページを保持して `complete=true` を立てる。
+  **塞いだはずの穴を、同じ関数の 3 行上が開けていた**
+- 🔑 **ただし「保存済み snapshot の reader」は bare array を受け続ける (意図的)** —
+  ローカルファイルは**別母集団**で、手作りや `jq '.trades'` の出力は正当。完全性は
+  `_fetch_meta` で別途 gate される。**どの規約がどの母集団に固有かは母集団ごとに
+  決める** ([[feedback_check_the_symmetric_side_2026_09_19]])。pin は両方を主張
+  (endpoint は SystemExit / local reader は list 受理を維持)
+- pin 66 → **67 本**。counterfactual 確認済 (passthrough を戻すと `DID NOT RAISE`)
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**67 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
