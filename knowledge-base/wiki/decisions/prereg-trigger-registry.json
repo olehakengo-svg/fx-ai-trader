@@ -975,13 +975,15 @@
     },
     {
       "id": "review-backlog-sprint0922-p2-deferrals-0926",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-09-26",
       "doc": "knowledge-base/wiki/decisions/sprint-triage-pr-discipline-2026-09-22.md",
       "message": "PR #288 レビュー (Codex P2「earlier backlog deadlines を別に追跡」) に基づく期日別 sub-entry。親 = review-backlog-sprint0922-p2-deferrals (10-17、索引)。対象 (P2 巡目上限 ≤6 到達で**未修正**、実欠陥、review-ack は繰延の明示): #281 wg R1 再審 DRAFT: comment 4070529776 (qualifying 発火後に max_open/drawdown guard で row も latch も作られなかった pair-event が G0' event を消費するかの事前定義) / 4070529787 (候補 2d drift 境界撤廃は「送信適格化」であって fill ではない)。event #2 (09-27 21:00Z; 09-20 NO-QUALIFY は分母外) 前に DRAFT へ追記。処理 = 修正 commit (対応 PR に積むか別 PR) or estimand 注記付きで期日再設定。 ／ 2026-09-23 追記 (Codex P2 3 巡目): wg G0' event #2 (09-27) = 2026-09-27 21:00Z の前に消化する必要があるため deadline は 09-26 (Tier A cron の判定は翌日 00:20Z なので 09-27 では event 後になる)。",
       "condition": "PR #281 (docs/wg R1 再審 DRAFT) の P2 2 件: comment 4070529776 / 4070529787 が修正 commit (対応 PR に積むか別 PR) または estimand 注記付きの期日再設定で消化され、当該 PR の inline thread を直読みして確認済みであること。他 PR の繰延項目は本 entry の対象外 (それぞれの sub-entry が担う)。",
-      "reachability": "Claude が deadline までに `gh api repos/olehakengo-svg/fx-ai-trader/pulls/comments/<id>` で原文を読み、対象 = PR #281 (docs/wg R1 再審 DRAFT) の P2 2 件: comment 4070529776 / 4070529787 のみを修正する PR を起票 (docs は同 doc の修正 PR、tools/modules は巡目上限宣言つき fix PR + tools/pr_review_gate.py)。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。wg G0' event #2 (09-27) = 2026-09-27 21:00Z の前に消化する必要があるため deadline は 09-26 (Tier A cron の判定は翌日 00:20Z なので 09-27 では event 後になる)"
+      "reachability": "Claude が deadline までに `gh api repos/olehakengo-svg/fx-ai-trader/pulls/comments/<id>` で原文を読み、対象 = PR #281 (docs/wg R1 再審 DRAFT) の P2 2 件: comment 4070529776 / 4070529787 のみを修正する PR を起票 (docs は同 doc の修正 PR、tools/modules は巡目上限宣言つき fix PR + tools/pr_review_gate.py)。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。wg G0' event #2 (09-27) = 2026-09-27 21:00Z の前に消化する必要があるため deadline は 09-26 (Tier A cron の判定は翌日 00:20Z なので 09-27 では event 後になる)",
+      "resolved": "2026-09-23",
+      "resolution": "PR #289 (docs/wg-r1-redraft-p2-0926-2026-09-23) で消化。4070529776 → DRAFT §2 に「未到達 PRE_SEND_GUARD(<reason>)」行を新設 (qualifying ログ後・EXEC_B decision=SEND 通過後に _tick_entry の pre-send guard で終端した pair-event = G0' event を消費しない・繰越。亜種 (a) 早期 _block return = row/latch なし、(b) slot 由来 shadow 化 = row あり oanda_trade_id 空 latch EXECUTED — 不成立から明示除外。識別手順・同一 guard 2 回で R3 レビュー起案・終端分類は entry 窓終了時点) + §6 転記項目 + §7 禁止事項 + §0/§4 row 8 整合。4070529787 → §3 候補 2d の効果セルを「送信適格化のみ (fill ではない)」へ書換 (下流 SKIPPED_SPREAD 6229–6249/6313–6326、daily-loss blocked 668–690、FOK cancel 2 回目 MARKET_HALTED / 別 reason、ok but no tradeID 880–892 / OPEN FAILED 893–909 が残り fill 率は forward 計測)、暫定評価「F2 を確実に resolve」→「resolve し得る」、表の読み方「live fill に変えられる」→「送信判定まで到達させられる」、§7 に禁止事項追加。凍結値・OOS 数値不変更 (rule:R3)。PR #281 の該当 thread 2 件へ返信済み。"
     },
     {
       "id": "review-backlog-sprint0922-p2-deferrals-1003",

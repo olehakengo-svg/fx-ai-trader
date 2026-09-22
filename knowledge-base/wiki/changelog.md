@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-23 — docs(wg): R1 再審 DRAFT に pre-send guard 未到達の分類規則 + 候補 2d 送信適格化を追記 (PR #281 P2 消化、rule:R3)
+
+- **§2 未到達行を新設** ([[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]]、PR #289): qualifying ログ後に `[WEEKEND_GAP][EXEC_B] decision=SEND` を通過し `_tick_entry` の pre-send guard で終端した pair-event (`PRE_SEND_GUARD(<reason>)`) は **G0' の event を消費しない** (分母外・繰越、cap skip と同格)。亜種 (a) 早期 `_block` return (row/latch なし、`gate_block_daily` のみ) / (b) slot 由来 shadow 化 (row あり・`oanda_trade_id` 空・latch `EXECUTED`・audit `shadow_tracking`) — (b) を不成立行から明示除外。識別手順を実装可能な形で記載 (`max_open` 亜種は専用ログ無しで消去法、確定不能は UNKNOWN)。同一 guard 理由 2 回で容量側の R3 レビュー起案、終端分類は entry 窓 (4 bars) 終了時点。行番号は main `7145a93c` 実測 (Codex 引用 5282-5286 → 5284–5299 ほか)
+- **§3 候補 2d**: 効果セル「有効 (09-13 型は fill する)」→「**送信適格化のみ (fill ではない)**」。下流に `SKIPPED_SPREAD` (demo_trader.py 6229–6249 / 6313–6326)、bridge daily-loss `blocked` (oanda_bridge.py 668–690)、FOK cancel 2 回目 `MARKET_HALTED` / 別 reason cancel / `ok but no tradeID` / `OPEN … FAILED` (751–909) が残り **fill 率は forward 計測**。暫定評価「F2 を確実に resolve」→「resolve し得る」、表の読み方「live fill に変えられる」→「送信判定まで到達させられる」
+- **§0 / §4 row 8 / §6 / §7**: サマリ・first-qualification ts との整合 1 文・転記項目に `PRE_SEND_GUARD`・禁止事項 2 本 (「未到達を不成立に数える / 未分類で置く」「2d を fill / F2 resolve と読む」)。凍結値 (+15 分 / +8.0p / 60s / 10s / 10.0p / 1000u / 4h / 150p / qualify 閾値 / G1 / G2) と OOS 数値は不変更、2a 行の fill 成立率見積りも不変
+- registry `review-backlog-sprint0922-p2-deferrals-0926` → `active:false` / `resolved: 2026-09-23` (期日 09-26、event #2 = 09-27 21:00Z 前)。PR #281 の inline thread 2 件 (4070529776 / 4070529787) へ対応内容を返信
+
 ## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 を索引 + 期日別 sub-entry 4 / 更新 9 / 新規 6) + index/changelog/session 同期 (rule:R3)
 
 - **同日マージ 11 PR (#277〜#287) の KB 統合**。code PR 4 本の要点:
