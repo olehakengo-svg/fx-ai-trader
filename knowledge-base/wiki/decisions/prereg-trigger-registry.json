@@ -947,11 +947,13 @@
     },
     {
       "id": "storm-guard-modify-sl",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-20",
       "doc": "knowledge-base/wiki/decisions/kalman-d7-carveout-postfill-packet-2026-09-17.md",
-      "message": "storm guard 4 点 (累積 tx breaker → 冪等 → 単調性アサート → dead-band 1pip) を modules/oanda_bridge.py modify_sl / modify_sl_sync に + fault-injection pin 4 本 (各 guard を kill すると storm fixture が通ってしまうテスト) + storm 検知器 (open trade あたり tx 数の読み手、Discord)。live 経路 PR-1、単独 writer 直列、市場時間外マージ (日曜 20:00–22:30Z 除外)。TRIGGERED (10-20 に未着地) = floor バッファへの storm/tail 打撃が無防備のまま 30d 枠を超過。出所: path-to-win-decision-memo-2026-09-20 §4.1 項目 2 / 再評価 2026-09-22 §3 Rank 2。"
+      "message": "storm guard 4 点 (累積 tx breaker → 冪等 → 単調性アサート → dead-band 1pip) を modules/oanda_bridge.py modify_sl / modify_sl_sync に + fault-injection pin 4 本 (各 guard を kill すると storm fixture が通ってしまうテスト) + storm 検知器 (open trade あたり tx 数の読み手、Discord)。live 経路 PR-1、単独 writer 直列、市場時間外マージ (日曜 20:00–22:30Z 除外)。TRIGGERED (10-20 に未着地) = floor バッファへの storm/tail 打撃が無防備のまま 30d 枠を超過。出所: path-to-win-decision-memo-2026-09-20 §4.1 項目 2 / 再評価 2026-09-22 §3 Rank 2。",
+      "resolved": "2026-09-22",
+      "resolution": "着地済み (期日 10-20 の 28 日前倒し) — PR #287 (fix/oanda-bridge-storm-guard-4pt-2026-09-22、2026-09-22T14:17:00Z マージ) で OandaBridge.modify_sl / modify_sl_sync に 4 点 (累積 tx breaker 50/h・200/日 → 冪等 → 単調性 → 1 pip dead-band) + tests/test_oanda_bridge_storm_guard.py (CF pin: guard 個別 kill で storm 素通り) が main へ。既定は検知のみ (STORM_GUARD_ENFORCE 未設定)。有効化判断は storm-guard-enforce-decision (10-20、active) が担う。残 P2 1 件 (4072595683) は review-backlog-sprint0922-p2-deferrals-1006 で追跡。"
     },
     {
       "id": "sprint-0922-midpoint-check",

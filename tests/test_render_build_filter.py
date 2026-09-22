@@ -317,7 +317,8 @@ def test_cron_only_kb_state_paths_are_ignored():
         )
     # 性質 B — web プロセス側に読み手が居ないこと
     readers = []
-    pat = re.compile(r'alpha_budget|wiki/research|"wiki"\s*[,/]\s*"research"')
+    # Path("wiki", "research") / Path('wiki') / 'research' / 'wiki', 'research' の両クォートに一致
+    pat = re.compile(r"alpha_budget|wiki/research|[\"']wiki[\"']\)?\s*[,/]\s*[\"']research[\"']")
     runtime_dirs = [ROOT / "modules", ROOT / "strategies"]  # web プロセスが import する全 runtime モジュール
     srcs = [ROOT / "app.py"] + sorted(
         p for d in runtime_dirs if d.exists() for p in d.rglob("*.py")
