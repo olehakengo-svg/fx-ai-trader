@@ -42,6 +42,12 @@ BUY-only (compute_rnb_signal は構造上 SELL を返さない — 12.8y 実測 
 - 棄却境界: Wilson_hi(WR) < 42.9% (gross BEV) → クローズ + auto_start=False 提案
 - 監視: registry `rnb-support-bounce-shadow-forward` (prereg_trigger_watch 日次) +
   `tools/rnb_shadow_demote_gate.py` (R2 demote gate, N≥30 から、r2-alert-scheduled 6h 毎)
+- 🔒 **AMENDMENT 2026-09-23** (rule:R3、PR branch `fix/rnb-shadow-only-downstream-relax-2026-09-23`): 母集団の gate 構成を変更 —
+  rnb_usdjpy 限定で velocity_down / mtf_strong_bias / 1h_rr_low の hard block を shadow 化
+  (`_SHADOW_ONLY_DOWNSTREAM_RELAX_MODES`)。真因分析 = [[../analyses/rnb-shadow-lane-health-precheck-2026-09-22]]
+  §6 (09-12 以降 BUY bar 6/6 がこの 3 gate で行にならず、365d ablated BT は同 gate 非適用 = BT⇄live 非同期)。
+  変更前 N = 2 (09-11)。旧/新構成は**層別** (除外しない、n_decide 41 は総数)。session_hours /
+  gate 閾値 / estimand / 採用・棄却境界は不変。修理デプロイ時刻は registry message に追記
 
 ## Live Performance
 - LIVE 発火は構造的にゼロ (shadow_only)。shadow 行の蓄積は 2026-09-10 登録

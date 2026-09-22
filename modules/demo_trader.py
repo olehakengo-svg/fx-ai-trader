@@ -788,6 +788,45 @@ def _mode_is_shadow_only(mode: str) -> bool:
     """
     return bool(MODE_CONFIG.get(mode, {}).get("shadow_only", False))
 
+
+# ── shadow_only mode 限定の下流 live 保護 gate 迂回 (rule:R3, 2026-09-23) ──
+# rnb lane-health precheck (wiki/analyses/rnb-shadow-lane-health-precheck-2026-09-22
+# §6/§8 (i)): rnb_usdjpy の shadow 行ゼロ (09-12 以降 BUY bar 6/6) の真因は
+# _tick_entry 下流の live 保護 gate (velocity_down / mtf_strong_bias / 1h_rr_low)
+# の hard block だった。shadow_only mode は OANDA 送信が構造的にゼロ
+# (_mode_is_shadow_only 3 点 block) でこれらの gate が守る資本が存在せず、
+# 365d ablated BT も同 gate を適用していない (BT⇄live 母集団の非同期)。
+# よって対象 mode ではこの 3 gate だけ hard block → shadow 化 (_is_shadow=True)
+# に振り替え、N 蓄積路を開く (4 原則 #4)。
+#
+# 意図的に狭くしている:
+#   * mode 単位の明示 allowlist — _mode_is_shadow_only() の汎用化は不可。
+#     daytrade_audjpy (shadow_only=True) は WS3 stage-2 pre-reg 🔒 の母集団定義
+#     に触るため、拡張は当該 pre-reg の amendment (Rule 1) が先。
+#   * _is_shadow_eligible_full には足さない — 同 flag は session / regime /
+#     gbp_asia / recent_emit / session_pair / spread / spike 等 9 経路で参照され、
+#     帰属していない gate まで母集団が変わる。
+#   * session_hours (UTC 7-20) は rnb でも hard block のまま (窓外行を LOCK
+#     母集団に入れない — stale bar アーティファクト対策、precheck §5/§8 (d))。
+#   * gate 閾値 (8.0pip / RR 1.2 / strength) は不変。
+# 実効条件は「allowlist ∈ ∧ MODE_CONFIG.shadow_only=True」の AND — mode が live 化
+# (shadow_only=False) されれば迂回は自動で消える (fail-closed)。
+# LOCK rnb-support-bounce-shadow-forward の母集団 gate 構成が変わるため、registry
+# message に AMENDMENT (デプロイ日 / 変更前 N=2 / 層別既定) を同 PR で事前宣言。
+# pin: tests/test_rnb_shadow_only_downstream_relax.py
+_SHADOW_ONLY_DOWNSTREAM_RELAX_MODES = frozenset({"rnb_usdjpy"})
+_SHADOW_ONLY_DOWNSTREAM_RELAX_GATES = ("velocity_down", "mtf_strong_bias", "1h_rr_low")
+
+
+def _mode_downstream_relax(mode: str) -> bool:
+    """shadow_only mode 限定の下流 live 保護 gate 迂回が有効か。
+
+    allowlist 所属 **かつ** 現に shadow_only=True の両方を要求する (「資格」ではなく
+    「実状態」で gate する — lesson: eligible と effective を区別する)。
+    """
+    return mode in _SHADOW_ONLY_DOWNSTREAM_RELAX_MODES and _mode_is_shadow_only(mode)
+
+
 # SL/TPチェック間隔（秒）— シグナル計算とは独立して高頻度実行
 # 旧2秒 → 0.5秒: スリッページ削減（本番で50%のSL_HITが0.5p超過していた）
 SLTP_CHECK_INTERVAL = 0.5
@@ -5095,6 +5134,10 @@ class DemoTrader:
         _is_shadow_eligible = _is_shadow_eligible_full  # 後方互換 (他のbypassはこれを参照)
         _is_slot_shadow_eligible = True  # v8.9: 全戦略がスロットbypass可能
         _is_shadow = False  # 実際にフィルターをバイパスした場合にTrueになる
+        # shadow_only mode 限定の下流 live 保護 gate 迂回 (rule:R3 2026-09-23、
+        # _SHADOW_ONLY_DOWNSTREAM_RELAX_MODES 参照)。参照するのは velocity_down /
+        # mtf_strong_bias / 1h_rr_low の 3 箇所のみ — 他 gate には渡さない。
+        _downstream_relax = _mode_downstream_relax(mode)
         # demoted tier (FORCE_DEMOTED 静的 + price-shock runtime / PAIR_DEMOTED
         # 静的 + watchdog runtime) は PAIR_PROMOTED より先勝ち (fail-closed)。
         # 2026-06-12 rule:R3 live-tier-exempt-leak-audit (9b16ebb5) で意図的に
@@ -6402,6 +6445,13 @@ class DemoTrader:
                             f"[SHADOW] velocity_down bypass: {entry_type} "
                             f"({_move_pips:.0f}pip vs BUY → shadow)"
                         )
+                    elif _downstream_relax:
+                        # shadow_only mode 限定 (rule:R3 2026-09-23): hard block → shadow 化
+                        _is_shadow = True
+                        self._add_log(
+                            f"[SHADOW] velocity_down relax: {entry_type} {mode} "
+                            f"({_move_pips:.0f}pip vs BUY → shadow, shadow_only downstream relax)"
+                        )
                     else:
                         _block(f"velocity_down({_move_pips:.0f}pip)_vs_BUY"); return
 
@@ -6445,7 +6495,16 @@ class DemoTrader:
                     if _bias_strength == "strong":
                         if signal != _bias_dir:
                             if entry_type != "trend_rebound":
-                                _block(f"mtf_strong_bias({_bias_dir}_vs_{signal},{entry_type})"); return
+                                if _downstream_relax:
+                                    # shadow_only mode 限定 (rule:R3 2026-09-23): hard block →
+                                    # shadow 化。TP bonus (順方向のみ) は付けない。
+                                    _is_shadow = True
+                                    self._add_log(
+                                        f"[SHADOW] mtf_strong_bias relax: {entry_type} {mode} "
+                                        f"({_bias_dir}_vs_{signal} → shadow, shadow_only downstream relax)"
+                                    )
+                                else:
+                                    _block(f"mtf_strong_bias({_bias_dir}_vs_{signal},{entry_type})"); return
                         else:
                             _mtf_tp_bonus = 1.3
 
@@ -6566,7 +6625,15 @@ class DemoTrader:
                 # 2026-06-12 hull_donchian_fade 免除: 高WR/低RR 設計 (WR78%, TP=basis 近接 /
                 # SL=4×ATR 災害遠置 → RR≈0.25)。一律 RR 床は全 trade block になり contract 違反。
                 if entry_type != "hull_donchian_fade" and tp_dist / sl_dist < 1.2:
-                    _block(f"1h_rr_low({tp_dist/sl_dist:.2f}<1.2,{entry_type})"); return
+                    if _downstream_relax:
+                        # shadow_only mode 限定 (rule:R3 2026-09-23): hard block → shadow 化
+                        _is_shadow = True
+                        self._add_log(
+                            f"[SHADOW] 1h_rr_low relax: {entry_type} {mode} "
+                            f"({tp_dist/sl_dist:.2f}<1.2 → shadow, shadow_only downstream relax)"
+                        )
+                    else:
+                        _block(f"1h_rr_low({tp_dist/sl_dist:.2f}<1.2,{entry_type})"); return
                 # SL狩り対策は適用（セッション遷移ワイドニング等）
                 # → 下の SL狩り対策②セクションに進む
             else:
