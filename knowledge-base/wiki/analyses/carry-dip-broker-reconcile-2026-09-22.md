@@ -15,7 +15,7 @@
 | 符号一致 | **13/14**。不一致は **#709598 のみ** (demo +11.6p / broker −¥141 = −14.1p、週末 `MARKET_HALTED` 経由の閉じ = 既知の halted-exit 欠陥) | §2 |
 | 合計 | demo **+103.0p** / broker **+¥793 = +79.3p** (¥10/pip @1000u、units は 14/14 で 1000 を実測)。**両方正** | §3 |
 | EV/trade | demo **+7.36p** / broker **+¥56.6 = +5.66p** | §3 |
-| R2 (N≥10 ∧ EV<0) | **両基準とも不成立** → R2 発火条件は成立しない。停止の autopilot 執行は無い | §4 |
+| R2 (N≥10 ∧ EV<0) | **両基準とも不成立** → R2 発火条件は成立しない。停止の autopilot 執行は無い。テールキャップ R3 (deduped LIVE+shadow で ≤ −150p が 2 件) も **N=21 で 0 件、未到達** | §4 |
 | 「符号逆」 | 14/14 では **成立しない** (09-22 統合 §7-9 の refute を全数で確定)。旧「突合 7 本 −41.1p」は部分集合の値であり、正の寄与は #549260 / #573986 / #681149 / #893161 の 4 本 (broker 計 +¥1,633) が担う | §3 |
 | SL 契約 | as-placed SL は **14/14 で 9.8–28.5p** (宣言 150p の 0.065–0.19×)。demo 行の `sl` 列も同じ距離 ⇒ 置換は demo_trader 内 (OANDA 送信前) | §5 |
 | TP | broker TP 距離 / demo TP 距離 = **0.841–0.867 (14/14)** = `_QUICK_HARVEST_MULT = 0.85` (`modules/demo_trader.py:10281`、適用 `:7834`) と整合 | §5 |
@@ -28,6 +28,7 @@
 
 ### 1.1 demo 簿
 - `GET /api/demo/trades?limit=10000&date_from=2026-04-01&status=closed` (2026-09-22 08:3x UTC、10,000 行)。`entry_type == 'usdjpy_carry_dip_accumulator' ∧ oanda_trade_id != ''` で **14 行** (`dedup_violation` は 14/14 で 0、`is_shadow` 0)。scratchpad の 2,002 行窓 (`trades.json`、08-18 以降) では 8 行しか見えないため全期間を再取得した。
+- 同じ 10,000 行窓 (entry 2026-06-02T07:43Z〜09-22T08:31Z、limit 到達で 06-02 より前は切れているが本セルは 06-08 登録・初 emit 07-31 のため全被覆) の本セル行は **23 行 = LIVE 14 + shadow 9** (`oanda_trade_id == ''`、`is_shadow=1`)。shadow 9 行のうち `dedup_violation=1` は 2 行 (07-31T14:16Z +8.1 / 08-07T13:04Z −19.8、[[t5-restore-eval-and-carrydip-revival-2026-08-10]] §2 表の重複ペア) で dedup 後 7 行 (合計 +17.2p、参考値)。shadow 行は §4 のテールキャップ判定 (凍結定義が LIVE+shadow) にのみ使い、R2 の N/EV には混ぜない。
 - 凍結規律 (REG `carry-dip-v3-revival-watch` message / [[t5-restore-eval-and-carrydip-revival-2026-08-10]] L95–104): dedup は `dedup_violation != 1`、勝敗は `close_reason` でなく `outcome` / `pnl_pips`、LIVE と shadow を混ぜない。本稿はこれに従う。
 
 ### 1.2 broker realized
@@ -84,7 +85,7 @@ demo = `pnl_pips` (凍結 estimand)。broker = 閉じ ORDER_FILL `pl` (JPY) と 
 - 凍結条件: deduped LIVE N≥10 ∧ EV<0 → lot↓ or LIVE 停止 (shadow 継続)。estimand = demo 簿 `outcome` / `pnl_pips`。
 - **demo 簿**: N=14 ≥ 10、EV **+7.36p > 0** ⇒ 不成立。
 - **broker realized**: N=14 ≥ 10、EV **+¥56.6 > 0** ⇒ 不成立。
-- ⇒ **R2 発火条件は成立しない** (両方負のときのみ「成立」と書く規律に対し、両方正)。停止・lot↓ の autopilot 執行は行わない。単一トレード損失 ≤ −150p は 0 件 (最大損失 #837947 −¥246 = −24.6p) でテールキャップ R3 監査条件も未到達。
+- ⇒ **R2 発火条件は成立しない** (両方負のときのみ「成立」と書く規律に対し、両方正)。停止・lot↓ の autopilot 執行は行わない。テールキャップ R3 監査条件 (凍結定義 = deduped **LIVE+shadow** で単一トレード損失 ≤ −150p が **2 件**、[[t5-restore-eval-and-carrydip-revival-2026-08-10]] §2 表) は、LIVE 14 本 (最大損失 #837947 demo −24.8p / broker −¥246 = −24.6p) に **shadow 9 行 (`is_shadow=1`・status CLOSED、dedup 後 7 行、最大損失 id 17198 2026-09-07T06:02Z −22.8p)** を加えた deduped LIVE+shadow **N=21 で 0 件** (dedup 前 23 行でも 0 件) ⇒ **未到達**。shadow 側は demo 簿 `pnl_pips` のみで数え、R2 の N/EV には混ぜない (規律 (c))。旧記述「LIVE 14 本のみで 0 件」は母集団が凍結定義と異なっていた (PR #282 レビュー 4 巡目で訂正)。
 - 乖離記録: 30d 窓 (N=5) では demo +19.0p / broker −5.4p と符号が割れる (§3)。#709598 の halted-exit 25.7p 反転 1 本で説明される。N<10 で判定対象外だが、次回判定時は broker 列を併記すること (統合 §3 Rank 3 (ii) の F3 両基準併記と同じ規律)。
 
 ## 5. 執行契約 (as-placed) — 14/14
@@ -152,6 +153,7 @@ demo = `pnl_pips` (凍結 estimand)。broker = 閉じ ORDER_FILL `pl` (JPY) と 
 - `/api/oanda/trades` のローカル同期は 08-11 で停止しており、**14/14 のうち 12 本はローカル `oanda_trades` テーブルに存在しない**。再現性は `/api/oanda/transactions` idrange (tx ID は本稿の表に固定) に依存。
 - §7 は価格キャッシュ (MASSIVE 15m → H1) による再現で、live engine の feed / RSI と一致する保証は「14 fill の 14/14 一致」のみ。台帳 count 4 と bar 2 の差は未解決。
 - 30d 窓 (N=5) の符号割れは #709598 1 本で説明され、判定には使わない。
+- テールキャップ判定の shadow 側は demo 簿 `pnl_pips` のみ (shadow 行に broker 値は存在しない)。shadow 9 行は 10,000 行窓 (06-02〜) から抽出しており、本セル登録 (06-08) 以降を全被覆する — 窓の下限が本セル初 emit (07-31) より前であることを確認済み。
 - カード上表の broker 行は同 PR で 14/14 に置換済 (§6)。broker 実測行の decided WR 40.0% (\|pl\|≤¥10 scratch 4 本除外) と demo 行の decided WR 61.5% (BE 1 本除外) は scratch 定義が異なり、行間の直接比較は不可 (カード注記に明記)。
 - `_QUICK_HARVEST_MULT` の carry_dip 免除有無 (`_QUICK_HARVEST_EXEMPT` は (entry_type, instrument) 集合) は code で本セル非所属を確認したが、demo TP 自体が宣言 80p (shift 3p 後 77p) と一致しない理由 (69.6–82.5p) は未追跡。
 
