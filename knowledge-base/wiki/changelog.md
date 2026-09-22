@@ -6,6 +6,7 @@
 - **§3 候補 2d**: 効果セル「有効 (09-13 型は fill する)」→「**送信適格化のみ (fill ではない)**」。下流に `SKIPPED_SPREAD` (demo_trader.py 6229–6249 / 6313–6326)、bridge daily-loss `blocked` (oanda_bridge.py 668–690)、FOK cancel 2 回目 `MARKET_HALTED` / 別 reason cancel / `ok but no tradeID` / `OPEN … FAILED` (751–909) が残り **fill 率は forward 計測**。暫定評価「F2 を確実に resolve」→「resolve し得る」、表の読み方「live fill に変えられる」→「送信判定まで到達させられる」
 - **§0 / §4 row 8 / §6 / §7**: サマリ・first-qualification ts との整合 1 文・転記項目に `PRE_SEND_GUARD`・禁止事項 2 本 (「未到達を不成立に数える / 未分類で置く」「2d を fill / F2 resolve と読む」)。凍結値 (+15 分 / +8.0p / 60s / 10s / 10.0p / 1000u / 4h / 150p / qualify 閾値 / G1 / G2) と OOS 数値は不変更、2a 行の fill 成立率見積りも不変
 - registry `review-backlog-sprint0922-p2-deferrals-0926` → `active:false` / `resolved: 2026-09-23` (期日 09-26、event #2 = 09-27 21:00Z 前)。PR #281 の inline thread 2 件 (4070529776 / 4070529787) へ対応内容を返信
+- **同日 PR #289 review P1 (4075088689) 消化**: §2 未到達に亜種 **(c) bridge-refused** を追加 — `_tick_entry` が row + latch `EXECUTED` を作った後に bridge が送信せず `False` を返す 3 経路 (daily-loss gate `blocked` oanda_bridge.py 668–690 / pre-check `bridge_inactive`・`mode_<mode>_not_allowed` demo_trader.py 7939–7952 / 無 audit race 649・658 → `[SHADOW_FIX] Bridge refused transmission` 7921–7938) は **G0' event を消費しない** (繰越)。`sent` 行の有無で不成立 (iv) と、audit `blocked`/無 vs `skipped` で (b) と区別。持続型 (DD breaker −100p / inactive / mode 不許可) の毎週末繰越は (iii) の R3 レビューが 2 回目で拾う
 
 ## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 を索引 + 期日別 sub-entry 4 / 更新 9 / 新規 6) + index/changelog/session 同期 (rule:R3)
 
