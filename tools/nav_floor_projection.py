@@ -220,8 +220,23 @@ def keeper_month_mismatch(keeper: dict[str, Any] | None, asof: date) -> str | No
     return None
 
 
+def keeper_disabled(keeper: dict[str, Any] | None) -> bool:
+    """telemetry が keeper の停止を明示しているか (enabled: false)。
+
+    STATUS_VOLUME_KEEPER_ENABLE=0 のとき get_worker_status は
+    {"enabled": false, "running": false, "note": ...} を返す (worker 未起動、
+    counters/month なし)。enabled キーが無い payload は「不明」= 有効扱い。
+    """
+    return isinstance(keeper, dict) and keeper.get("enabled") is False
+
+
 def keeper_rt_per_month(keeper: dict[str, Any] | None) -> tuple[int, str]:
     """月次 RT 数を telemetry から導く。(rt_per_month, basis)。
+
+    enabled: false (明示停止) / target_usd == 0 (明示ゼロ目標) は計画 RT 数 0
+    (basis="disabled" / "target_zero") — 「telemetry 不能」の default 26 を
+    当てると走らない keeper の ¥68.3/日 を burn に乗せて F4 が早く発火する
+    (PR #285 review P2 4 巡目)。
 
     volume_usd / rt_count = 1 RT の出来高 (units × 2)。target_usd をそれで割り
     **切り上げる** — keeper worker は毎 RT 前に volume_usd >= target_usd を見て
@@ -230,10 +245,14 @@ def keeper_rt_per_month(keeper: dict[str, Any] | None) -> tuple[int, str]:
     review P2 2 巡目)。telemetry 不能 (None / 0 除算) はフォールバック定数 +
     basis="default"。
     """
+    if keeper_disabled(keeper):
+        return 0, "disabled"
     try:
         target = float((keeper or {}).get("target_usd") or 0)
     except (TypeError, ValueError):
         return KEEPER_RT_PER_MONTH_DEFAULT, "default"
+    if isinstance(keeper, dict) and "target_usd" in keeper and target == 0:
+        return 0, "target_zero"
     per_rt = _keeper_per_rt_volume(keeper)
     if target > 0 and per_rt is not None:
         return max(1, math.ceil(target / per_rt - 1e-9)), "api"
@@ -304,6 +323,10 @@ def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
         rt_count = 0
     if keeper is None:
         return 0.0, f"unavailable:no_keeper_telemetry(span={span}d)"
+    if keeper_disabled(keeper):
+        # 停止中の payload は counters/month を持たない。窓の途中で止めた場合
+        # 窓内 RT が残り得るので 0 と確定できない (fail-closed)。
+        return 0.0, f"unavailable:keeper_disabled(window_rt_unknown,span={span}d)"
     month_reason = keeper_month_mismatch(keeper, asof)
     if month_reason is not None:
         # 月替わり直後は前月の rt_count が残る — 当月支出として差し引くと
@@ -359,16 +382,24 @@ def project(nav_jpy: float, burn_per_day: float,
 
 def build_row(nav_jpy: float, asof: date, rows: list[dict[str, str]],
               keeper: dict[str, Any] | None) -> dict[str, str]:
-    """当日行を組む。days_to_floor = decomposed、fit は参考列。"""
+    """当日行を組む。days_to_floor = decomposed、fit は参考列。
+
+    decomposed の両成分が未測定 (keeper 計画 0 ∧ edge unavailable) のときは
+    burn 0 → sentinel 99999 (「NAV 減っていない」) に折り畳まず、fit (行不足
+    なら audit default) を primary に使い method="fit_fallback" で露出する。
+    """
     dec = decomposed_burn_per_day(rows, nav_jpy, asof, keeper)
-    days, floor_est = project(nav_jpy, dec["burn"], asof)
     fitted = fit_burn_per_day(rows)
     fit_burn = fitted if fitted is not None else DEFAULT_BURN_PER_DAY
     days_fit, _ = project(nav_jpy, fit_burn, asof)
     fit_label = "" if fitted is not None else "(audit_default)"
+    primary_burn, method = dec["burn"], dec["method"]
+    if dec["keeper"] == 0 and dec["edge_basis"].startswith("unavailable:"):
+        primary_burn, method = fit_burn, f"fit_fallback{fit_label}"
+    days, floor_est = project(nav_jpy, primary_burn, asof)
     return {"date": asof.isoformat(), "nav_jpy": f"{nav_jpy:.0f}",
-            "burn_per_day_jpy": f"{dec['burn']:.1f}", "days_to_floor": str(days),
-            "floor_date_est": floor_est, "method": dec["method"],
+            "burn_per_day_jpy": f"{primary_burn:.1f}", "days_to_floor": str(days),
+            "floor_date_est": floor_est, "method": method,
             "burn_fit_per_day_jpy": f"{fit_burn:.1f}{fit_label}",
             "days_to_floor_fit": str(days_fit),
             "burn_keeper_per_day_jpy": f"{dec['keeper']:.1f}",

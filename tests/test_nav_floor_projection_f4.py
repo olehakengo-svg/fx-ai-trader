@@ -14,6 +14,9 @@ pin する性質 (構文でなく性質で):
 7. registry F4 message が方法変更 + 発火日シフトを記録し condition は不変。
 8. 再現値 pin: 09-22 以降 keeper のみ / drift 13.7 の 2 経路で decomposed 読み手の
    初回発火日 (2027-01-05 / 2026-12-04) — 推定器を変えたら数値が動いて落ちる。
+12. (PR #285 review P2 4 巡目) enabled:false (STATUS_VOLUME_KEEPER_ENABLE=0) /
+   target_usd==0 は計画 RT 0 (default 26 を当てない)。両成分未測定の行は burn 0 →
+   sentinel に折り畳まず fit_fallback で露出。
 11. (PR #285 review P2 3 巡目) CSV が当月内から始まる窓では last_rt_at で前後分割
    しない (回収 RT は last_rt_at を更新しない) — rt_count==0 のみ確定、他は unavailable。
 10. (PR #285 review P2 2 巡目) 月次 RT 数は worker の stop rule (volume>=target
@@ -311,6 +314,35 @@ def test_edge_unavailable_when_keeper_month_differs_from_asof():
     dec2 = nfp.decomposed_burn_per_day(rows, nav_now, asof, fresh)
     assert dec2["edge_basis"].startswith("nav_delta:") and "keeper_rt_in_window=0" in dec2["edge_basis"]
     assert dec2["edge"] == pytest.approx(0.0, abs=0.05)
+
+
+def test_disabled_keeper_projects_zero_planned_trips_not_default_26(tmp_path):
+    """(PR #285 review P2 4 巡目) STATUS_VOLUME_KEEPER_ENABLE=0 の get_worker_status payload。"""
+    disabled = {"enabled": False, "running": False, "note": "worker not started in this process"}
+    assert nfp.keeper_disabled(disabled) and not nfp.keeper_disabled(KEEPER_0922)
+    assert not nfp.keeper_disabled(None)
+    assert nfp.keeper_rt_per_month(disabled) == (0, "disabled")
+    assert nfp.keeper_rt_per_month({"enabled": True, "running": False}) == (26, "default")
+    assert nfp.keeper_rt_per_month({"month": "2026-10", "target_usd": 0.0, "volume_usd": 0.0,
+                                    "rt_count": 0}) == (0, "target_zero")
+    rows = _rows(upto="2026-09-21")
+    dec = nfp.decomposed_burn_per_day(rows, 275517.0, date(2026, 9, 21), disabled)
+    assert dec["keeper"] == 0.0 and dec["rt_basis"] == "disabled"
+    assert dec["edge_basis"].startswith("unavailable:keeper_disabled")
+    # 既知 NG 入力: 修正前は default 26 × ¥80 / 30.44 = 68.3/日 が乗っていた
+    assert dec["burn"] == 0.0 and dec["burn"] != pytest.approx(26 * 80.0 / 30.44)
+    # 両成分未測定の行は sentinel 99999 に折り畳まず fit (行不足なら audit default) へ
+    csv_path = tmp_path / "nav.csv"
+    for d, nav, *_ in REAL_ROWS_0907_0921:
+        nfp.append_row(float(nav), asof=date.fromisoformat(d), path=csv_path, keeper=disabled)
+    row = nfp.read_rows(csv_path)[-1]
+    assert row["method"] == "fit_fallback"
+    assert row["burn_per_day_jpy"] == row["burn_fit_per_day_jpy"]
+    assert int(row["days_to_floor"]) == int(row["days_to_floor_fit"]) != nfp.DAYS_SENTINEL_NO_BURN
+    assert row["burn_keeper_per_day_jpy"] == "0.0"
+    # 通常 (keeper 有効) 行は decomposed のまま
+    row2 = nfp.append_row(275517.0, asof=date(2026, 9, 22), path=csv_path, keeper=KEEPER_0922)
+    assert row2["method"] == "decomposed"
 
 
 # ── 6. 失敗の露出 (tool exit 1 + cron 側) ────────────────────────────
