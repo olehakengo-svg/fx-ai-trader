@@ -374,7 +374,25 @@
   pin が最初に捕まえたのはこの二重計上だった
 - pin 67 → **69 本**。2 件とも counterfactual 確認済 (v3 を親セルへ戻すと
   `got live-london`、確認 pass を外すと `holes_observed == []`)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**69 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第25波 (Codex P2) — 「重複の片方を選ぶ」は無害な選択ではなかった**:
+  (ss) **2 回の open 読み取りで同じ identity が両方に出たら `open_after` を採る** —
+  旧実装は `open_before` 側を残していた。open 行は**通常の live 経路で変化する**:
+  OANDA callback の `DemoDB.set_oanda_trade_id()` が**行が OPEN のまま**
+  `oanda_trade_id` を埋め `is_shadow` を反転させる。bracket は identity を
+  比較するので**この変化はどの穴検査にも掛からず**、古い copy を残すと
+  **live 約定を shadow として報告する** — 本プロジェクトが最も load-bearing と
+  扱っている区別そのもの ([[feedback_live_vs_shadow_strict_separation]] /
+  混同事故 [[project_live_fill_estimand_shadow_conflation_2026_09_03]])。
+  新しい読み取りは snapshot 時点の真実に厳密に近いので `open_after` が勝つ。
+  変化数は `open_mutated_midfetch` として meta に残す (**identity ベースの検査には
+  映らないので、記録しなければどこにも残らない**)
+- 🔑 **dedup/union を書くときは「どちらの copy を残すか」を必ず意味で決める** —
+  第21波の `merge_open_into_closed` では「CLOSED 側が exit_time を持つから勝つ」と
+  意味で決めていたのに、第22波で足した open 側の union では**先に入れた方が残る**
+  という実装の副作用に任せていた。**同じ PR の中で規律が片側にしか適用されていなかった**
+- pin 69 → **70 本**。counterfactual 確認済 (古い copy を残すと
+  `got {'is_shadow': 1, 'oanda_trade_id': ''}` で落ちる)
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**70 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

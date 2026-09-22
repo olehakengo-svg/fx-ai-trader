@@ -2196,3 +2196,49 @@ def test_v3_attribution_uses_only_its_own_session(monkeypatch):
     ld_matched = {c["registry_id"]: c["n_rows_matched"]
                   for c in ld["covering_locks"]}
     assert ld_matched == {"shadow-tokyo": 0, "live-london": 9}
+
+
+def test_an_open_row_that_mutates_midfetch_keeps_the_newer_version(monkeypatch):
+    """KNOWN-NG INPUT: shadow -> live while the trade stays open.
+
+    `DemoDB.set_oanda_trade_id()` fills `oanda_trade_id` and flips
+    `is_shadow` on a row that is still OPEN, so an open row genuinely mutates
+    between the two bracket reads.  The bracket compares identities, so the
+    mutation trips no hole check — and keeping the `open_before` copy would
+    report a LIVE trade as shadow, the one distinction this project treats as
+    load-bearing (Codex P2, PR #273).
+    """
+    shadow_row = {"id": 4, "status": "OPEN", "is_shadow": 1,
+                  "oanda_trade_id": ""}
+    live_row = {"id": 4, "status": "OPEN", "is_shadow": 0,
+                "oanda_trade_id": "88991"}
+
+    def script(kind, n):
+        if kind == "open":
+            return [dict(shadow_row)] if n == 0 else [dict(live_row)]
+        return [{"id": 1, "status": "CLOSED", "exit_time": "2026-09-19T00:00:00"}]
+
+    m = _bracket_stub(monkeypatch, script)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert ev["holes_observed"] == [], "a mutation is not a hole"
+    assert ev["attempts"] == 1 and ev["opened_midfetch"] == 0
+    assert ev["mutated_midfetch"] == 1, (
+        "the mutation must be COUNTED — it is invisible to the identity-based "
+        "hole checks, so nothing else would record it")
+
+    got = [r for r in open_rows if r["id"] == 4]
+    assert len(got) == 1, "the trade must appear exactly once"
+    assert got[0]["oanda_trade_id"] == "88991" and got[0]["is_shadow"] == 0, (
+        "the NEWER read wins: the stale copy would classify a live trade as "
+        f"shadow (got {got[0]})")
+
+    # Counter-pin: an unchanged open row is not reported as mutated.
+    def calm(kind, n):
+        if kind == "open":
+            return [dict(shadow_row)]
+        return [{"id": 1, "status": "CLOSED", "exit_time": "2026-09-19T00:00:00"}]
+
+    m2 = _bracket_stub(monkeypatch, calm)
+    _, _, ev2 = m2._fetch_bracketed()
+    assert ev2["mutated_midfetch"] == 0 and ev2["opened_midfetch"] == 0

@@ -1292,15 +1292,30 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                           "closed_during_bracket": len(closed_during)})
             continue
 
+        # `open_after` WINS for an identity present in both (Codex P2,
+        # PR #273).  Keeping the `open_before` copy is not a harmless choice of
+        # duplicate: an open row MUTATES in the normal live path, where the
+        # OANDA callback `DemoDB.set_oanda_trade_id()` fills `oanda_trade_id`
+        # and flips `is_shadow` while the row stays open.  The bracket compares
+        # identities, so that mutation is invisible to the hole checks — and
+        # the stale copy would report a LIVE trade as shadow, which is the one
+        # distinction this project treats as load-bearing
+        # ([[feedback_live_vs_shadow_strict_separation]], and the conflation
+        # incident [[project_live_fill_estimand_shadow_conflation_2026_09_03]]).
+        # The newer read is strictly closer to the truth at snapshot time.
         by_key = {_row_identity(r): r for r in open_before}
         opened_midfetch = 0
-        for r in open_after:                   # opened during the pass
+        mutated_midfetch = 0
+        for r in open_after:
             k = _row_identity(r)
             if k not in by_key:
-                by_key[k] = r
-                opened_midfetch += 1
+                opened_midfetch += 1           # opened during the pass
+            elif by_key[k] != r:
+                mutated_midfetch += 1         # e.g. shadow -> live
+            by_key[k] = r
         return (list(by_key.values()), payload,
                 {"attempts": attempt, "opened_midfetch": opened_midfetch,
+                 "mutated_midfetch": mutated_midfetch,
                  "holes_observed": holes})
     raise SystemExit(
         f"the book moved inside the fetch window on all {max_attempts} "
@@ -1341,6 +1356,8 @@ def main(argv=None) -> int:
                                        "open_attempts": brackets["attempts"],
                                        "open_opened_midfetch":
                                            brackets["opened_midfetch"],
+                                       "open_mutated_midfetch":
+                                           brackets["mutated_midfetch"],
                                        "holes_observed":
                                            brackets["holes_observed"]})
         with open(args.fetch_to, "w") as f:
