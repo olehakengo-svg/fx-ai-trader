@@ -1292,6 +1292,29 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                           "closed_during_bracket": len(closed_during)})
             continue
 
+        # The CONFIRMING closed pass also wins on VALUES, not just on keys
+        # (Codex P2, PR #273).  A closed row mutates in the normal async OANDA
+        # path too: `DemoDB.set_oanda_trade_id()` updates `oanda_trade_id` and
+        # `is_shadow` with no status predicate, so a fast-closing trade can be
+        # mutated after it entered the closed set.  Equal key sets then pass
+        # the check above while the older pass's STALE SHADOW representation
+        # is what gets written — wrong live/shadow LOCK populations under a
+        # `complete=true` stamp.  This is the exact mirror of the open-row case
+        # below, which the previous round fixed; the symmetric side has to be
+        # checked on the fix itself, not only on the original code.
+        by_id_first = {_row_identity(r): r for r in payload["trades"]}
+        closed_mutated = sum(1 for r in confirm["trades"]
+                             if by_id_first.get(_row_identity(r)) != r)
+        payload["trades"] = confirm["trades"]          # newer values win
+        payload["_fetch_meta"]["closed_mutated_midfetch"] = closed_mutated
+        # Keep BOTH passes' drift evidence; the confirming pass is part of the
+        # completeness argument, so its own retries must stay visible.
+        payload["_fetch_meta"]["confirm_pass"] = {
+            "attempts": confirm["_fetch_meta"]["attempts"],
+            "drift_observed": confirm["_fetch_meta"]["drift_observed"],
+            "rows": confirm["_fetch_meta"]["rows"],
+        }
+
         # `open_after` WINS for an identity present in both (Codex P2,
         # PR #273).  Keeping the `open_before` copy is not a harmless choice of
         # duplicate: an open row MUTATES in the normal live path, where the

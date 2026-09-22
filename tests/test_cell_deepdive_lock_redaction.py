@@ -2242,3 +2242,53 @@ def test_an_open_row_that_mutates_midfetch_keeps_the_newer_version(monkeypatch):
     m2 = _bracket_stub(monkeypatch, calm)
     _, _, ev2 = m2._fetch_bracketed()
     assert ev2["mutated_midfetch"] == 0 and ev2["opened_midfetch"] == 0
+
+
+def test_a_closed_row_that_mutates_between_passes_keeps_the_newer_values(monkeypatch):
+    """KNOWN-NG INPUT: shadow -> live on a row that is already CLOSED.
+
+    `DemoDB.set_oanda_trade_id()` updates `oanda_trade_id` / `is_shadow` with
+    no status predicate, so a fast-closing trade can be mutated after it
+    entered the closed set.  The bracket compares only identities, so equal
+    key sets pass — and returning the FIRST pass wrote the stale shadow
+    representation under `complete=true`, giving wrong live/shadow LOCK
+    populations.  Exact mirror of the open-row case (Codex P2, PR #273).
+    """
+    stale = {"id": 3, "status": "CLOSED", "exit_time": "2026-09-20T00:00:00",
+             "is_shadow": 1, "oanda_trade_id": ""}
+    fresh = {"id": 3, "status": "CLOSED", "exit_time": "2026-09-20T00:00:00",
+             "is_shadow": 0, "oanda_trade_id": "77321"}
+    calls = {"closed": 0}
+
+    def script(kind, n):
+        if kind == "open":
+            return []
+        calls["closed"] += 1
+        return [dict(stale) if calls["closed"] == 1 else dict(fresh)]
+
+    m = _bracket_stub(monkeypatch, script)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    # Same identity in both passes => no hole, so completeness still holds.
+    assert ev["holes_observed"] == [] and ev["attempts"] == 1
+    meta = payload["_fetch_meta"]
+    assert meta["closed_mutated_midfetch"] == 1, (
+        "the mutation must be COUNTED — identity comparison cannot see it")
+
+    row = [r for r in payload["trades"] if r["id"] == 3][0]
+    assert row["oanda_trade_id"] == "77321" and row["is_shadow"] == 0, (
+        "the confirming pass wins on VALUES: the stale copy would report a "
+        f"live trade as shadow (got {row})")
+
+    # The confirming pass's own evidence must survive, not be discarded.
+    assert meta["confirm_pass"]["attempts"] == 1
+    assert meta["confirm_pass"]["drift_observed"] == []
+    assert meta["confirm_pass"]["rows"] == 1
+
+    # Counter-pin: an unchanged closed row is not reported as mutated.
+    def calm(kind, n):
+        return [] if kind == "open" else [dict(stale)]
+
+    m2 = _bracket_stub(monkeypatch, calm)
+    _, payload2, _ = m2._fetch_bracketed()
+    assert payload2["_fetch_meta"]["closed_mutated_midfetch"] == 0

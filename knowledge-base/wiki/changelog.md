@@ -392,7 +392,24 @@
   という実装の副作用に任せていた。**同じ PR の中で規律が片側にしか適用されていなかった**
 - pin 69 → **70 本**。counterfactual 確認済 (古い copy を残すと
   `got {'is_shadow': 1, 'oanda_trade_id': ''}` で落ちる)
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**70 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🔴 **レビュー第26波 (Codex P2) — 第25波の修正の鏡像を、自分で確認していなかった**:
+  (tt) **確認用 closed pass は「値」でも勝つ** — 第25波で open 行について
+  「新しい読み取りが勝つ」と決めたのに、**closed 2 パスは identity しか比較せず
+  古い `payload` を返していた**。closed 行も通常の非同期 OANDA 経路で変化する:
+  `DemoDB.set_oanda_trade_id()` は **status を条件にしていない**ので、速く CLOSE した
+  約定が closed 集合に入った**後**に `oanda_trade_id` / `is_shadow` を書き換えられる。
+  キー集合が一致すると完全性チェックは通り、**古い shadow 表現が `complete=true` の
+  下で書き出される** ⇒ live/shadow の LOCK 母集団が誤る。⇒ 値でも confirm を採り
+  `closed_mutated_midfetch` を計上、confirm pass 自身の drift 証拠も
+  `confirm_pass` として保存 (完全性の論拠の一部なので捨てられない)
+- 🔴 **「対称側を確認する」は修正後の状態にも回す — これで本 PR 3 例目**
+  (第21波→第22波の鏡像 / 第25波→第26波の鏡像)。**自分が直した直後のコードが
+  次の非対称の発生源になる**というのが本 PR で最も再現性の高いパターンだった。
+  ⇒ dedup/union/2-pass を書いたら「**どちらの copy が勝つか**」を
+  **両方の集合について**明示的に決めたか、を修正の完了条件に加える
+- pin 70 → **71 本**。counterfactual 確認済 (古い pass を返すと
+  `got {'is_shadow': 1, 'oanda_trade_id': ''}` で落ちる)
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**71 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
