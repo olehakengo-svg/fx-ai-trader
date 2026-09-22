@@ -25,6 +25,10 @@
      **staging → 一括公開**: artifact / M15 スライスは staging パスに書き、roundtrip と
      スライスの全検証が通った後にのみ最終パスへ移し、manifest → marker の順で書く。
      --force 中に検証で落ちても前回の凍結 (marker / artifact / manifest) は byte 不改変。
+     公開フェーズも前回ファイルを `.bak` に退避してから差し替え、途中で失敗したら全て
+     ロールバックする (公開途中の disk-full 等でも旧凍結は無傷)。
+     **プロセス間排他**: `{base}.lock` を O_EXCL で作成してからガード状態を読み、
+     試行登録〜公開完了まで保持する (二重起動は片方が exit 3、API 要求なし)。
   4. **値の非表示**: stdout/stderr には件数・時刻範囲 (秒精度)・sha256・パスのみ。
      skew/ratio/avg 価格/buckets/IC/EV/PnL は一切出さない (§6-2 中間 peeking 禁止)。
      artifact ファイルの中身を人が開くことも verdict 期日まで禁止 (§6-2)。
@@ -166,6 +170,7 @@ def default_paths(look: int, out_dir: str = "", postponed: bool = False) -> Dict
         "sha256": os.path.join(root, f"{base}.sha256"),      # = 凍結 marker
         "manifest": os.path.join(root, f"{base}.manifest.json"),
         "attempts": os.path.join(root, f"{base}.attempts.json"),   # 試行台帳 (API 要求前に書く)
+        "lock": os.path.join(root, f"{base}.lock"),                # プロセス間排他 (O_EXCL)
     }
 
 
@@ -377,8 +382,10 @@ def write_sha256_record(sha_path: str, entries: Dict[str, str]) -> None:
     """sha256sum -c 互換 (`<hex>  <path>`、path は repo 相対)。"""
     os.makedirs(os.path.dirname(sha_path), exist_ok=True)
     lines = [f"{h}  {p}" for p, h in sorted(entries.items())]
-    with open(sha_path, "w", encoding="utf-8") as f:
+    tmp = sha_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
+    os.replace(tmp, sha_path)
 
 
 def read_sha256_record(sha_path: str) -> Dict[str, str]:
@@ -416,6 +423,14 @@ def verify_record(sha_path: str, root: str = "") -> Dict[str, Any]:
         results[rel] = "OK" if got == want else "MISMATCH"
         ok = ok and got == want
     res: Dict[str, Any] = {"ok": ok, "files": results, "n": len(entries)}
+    # marker の中身の要件: 空 (0 byte に truncate 等) は FAIL、artifact エントリ (判定器入力
+    # JSON) が必須、manifest が ohlcv_slice を持つならその parquet エントリも必須。
+    if not entries:
+        res["marker"] = "EMPTY"
+    elif not any(rel.endswith(".json") for rel in entries):
+        res["marker"] = "ARTIFACT_ENTRY_MISSING"
+    else:
+        res["marker"] = "OK"
     # manifest は必須: marker だけが残った凍結 (manifest 書込み前のクラッシュ等) は不完全 →
     # FAIL。manifest は marker より先に書かれる (run_freeze の公開順) ので、正常凍結では
     # 常に存在し roundtrip_check.ok = true を持つ。
@@ -427,6 +442,13 @@ def verify_record(sha_path: str, root: str = "") -> Dict[str, Any]:
                 rt = json.load(f).get("roundtrip_check")
         except (OSError, ValueError):
             rt = None
+    man: Dict[str, Any] = {}
+    if man_path != sha_path and os.path.exists(man_path):
+        try:
+            with open(man_path, encoding="utf-8") as f:
+                man = json.load(f)
+        except (OSError, ValueError):
+            man = {}
     if isinstance(rt, dict):
         res["roundtrip"] = {"ok": bool(rt.get("ok")),
                             "snapshots_rows": rt.get("snapshots", {}).get("artifact_rows"),
@@ -434,7 +456,14 @@ def verify_record(sha_path: str, root: str = "") -> Dict[str, Any]:
         res["manifest"] = "OK" if rt.get("ok") else "ROUNDTRIP_FAIL"
     else:
         res["manifest"] = "MISSING" if not os.path.exists(man_path) else "ROUNDTRIP_UNRECORDED"
-    res["ok"] = bool(ok and res["manifest"] == "OK")
+    if res["marker"] == "OK" and man:
+        # manifest が宣言する artifact / parquet が marker に全て載っていること
+        want_paths = [man.get("artifact")] + [m.get("path") for m in
+                                              (man.get("ohlcv_slice") or {}).values()]
+        want_paths = [w for w in want_paths if w]
+        if any(w not in entries for w in want_paths):
+            res["marker"] = "ENTRIES_MISSING_VS_MANIFEST"
+    res["ok"] = bool(ok and res["manifest"] == "OK" and res["marker"] == "OK")
     return res
 
 
@@ -584,7 +613,39 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
     """export → staging artifact → roundtrip 突合 → スライス → 一括公開 (manifest → marker)。
 
     stdout には値を出さない。前回凍結は全検証が通るまで byte 不改変。
+    プロセス間排他: `{base}.lock` を O_EXCL で取ってからガード状態を読む。
     """
+    lock = paths.get("lock") or (paths["sha256"] + ".lock")
+    os.makedirs(os.path.dirname(lock), exist_ok=True)
+    try:
+        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        held = ""
+        try:
+            with open(lock, encoding="utf-8") as f:
+                held = f.read().strip()
+        except OSError:
+            pass
+        print(f"REFUSED: 凍結 lock が存在 ({relpath_for_record(lock, repo_root())}"
+              f"{' — ' + held if held else ''})。別プロセスが同じ look を凍結中か、前回が"
+              f" 異常終了。プロセス不在を確認してから lock を手で削除する (API へは問い合わせ"
+              f"ない)。", file=sys.stderr)
+        return EXIT_REFUSED_FROZEN
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(f"pid={os.getpid()} started={iso_sec(utc_now())}\n")
+        return _run_freeze_locked(fetcher, look, paths, api_base, force, allow_missing,
+                                  ohlcv_src, ohlcv_dst, now, out, postponed)
+    finally:
+        try:
+            os.remove(lock)
+        except OSError:
+            pass
+
+
+def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str,
+                       force: bool, allow_missing: bool, ohlcv_src: str, ohlcv_dst: str,
+                       now: Optional[datetime], out, postponed: bool) -> int:
     out = out or sys.stdout
     spec = look_spec(look, postponed)
     cutoff = parse_utc(spec["cutoff"])
@@ -732,22 +793,81 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
             raise
 
     # ── 公開 (全検証通過後): artifact → parquet → manifest → marker ──
-    os.replace(staging, paths["artifact"])
-    entries: Dict[str, str] = {
-        relpath_for_record(paths["artifact"], root): sha256_file(paths["artifact"])}
-    if ohlcv_src:
-        os.makedirs(ohlcv_dst, exist_ok=True)
-        for pair, m in ohlcv_meta.items():
-            final = os.path.join(ohlcv_dst, os.path.basename(m["path"]))
-            os.replace(m["path"], final)
-            m["path"] = final
-            entries[relpath_for_record(final, root)] = m["sha256"]
-        try:
-            os.rmdir(ohlcv_staging)
-        except OSError:
-            pass
+    # 前回ファイルは `.bak` に退避してから差し替え、途中で失敗したら全てロールバック
+    # (--force 中の disk-full 等でも旧凍結は無傷)。
+    published: List[Tuple[str, Optional[str]]] = []
 
-    manifest = {
+    def _swap_in(src: str, final: str) -> None:
+        os.makedirs(os.path.dirname(final), exist_ok=True)
+        bak: Optional[str] = None
+        if os.path.exists(final):
+            bak = final + ".bak"
+            os.replace(final, bak)
+        published.append((final, bak))
+        os.replace(src, final)
+
+    def _rollback() -> None:
+        for final, bak in reversed(published):
+            try:
+                if bak is not None:
+                    os.replace(bak, final)
+                elif os.path.exists(final):
+                    os.remove(final)
+            except OSError:
+                pass
+
+    entries: Dict[str, str] = {}
+    try:
+        _swap_in(staging, paths["artifact"])
+        entries[relpath_for_record(paths["artifact"], root)] = sha256_file(paths["artifact"])
+        if ohlcv_src:
+            for pair, m in ohlcv_meta.items():
+                final = os.path.join(ohlcv_dst, os.path.basename(m["path"]))
+                _swap_in(m["path"], final)
+                m["path"] = final
+                entries[relpath_for_record(final, root)] = m["sha256"]
+            try:
+                os.rmdir(ohlcv_staging)
+            except OSError:
+                pass
+        manifest = _build_manifest(look, spec, postponed, now, api_base, paths, root,
+                                   snap_sum, health, ohlcv_meta, ohlcv_dst, rt,
+                                   force_history, journal)
+        attempt.update({"status": "frozen", "finished_at": iso_sec(utc_now()),
+                        "snapshots_rows": snap_sum["rows_total"], "health_rows": len(health),
+                        "artifact_sha256": entries[relpath_for_record(paths["artifact"], root)]})
+        manifest["attempts"] = journal["attempts"]
+        man_staging = paths["manifest"] + ".staging"
+        write_json_atomic(man_staging, manifest)
+        _swap_in(man_staging, paths["manifest"])            # manifest が先
+        sha_staging = paths["sha256"] + ".staging"
+        write_sha256_record(sha_staging, entries)
+        _swap_in(sha_staging, paths["sha256"])              # marker は最後 (= 凍結成立)
+    except BaseException as e:
+        _rollback()
+        attempt.update({"status": "failed", "reason": f"publish error: {type(e).__name__}",
+                        "finished_at": iso_sec(utc_now())})
+        for k in ("snapshots_rows", "health_rows", "artifact_sha256"):
+            attempt.pop(k, None)
+        _journal_write(paths, journal)
+        raise
+    for _final, bak in published:                            # 成功 → 退避を掃除
+        if bak is not None:
+            try:
+                os.remove(bak)
+            except OSError:
+                pass
+    _journal_write(paths, journal)
+
+    # ── stdout 要約 (値なし) ───────────────────────────────────────
+    _print_summary(out, look, spec, postponed, snap_sum, manifest, ohlcv_meta, rt, entries,
+                   paths, root, journal)
+    return EXIT_OK
+
+
+def _build_manifest(look, spec, postponed, now, api_base, paths, root, snap_sum, health,
+                    ohlcv_meta, ohlcv_dst, rt, force_history, journal) -> Dict[str, Any]:
+    return {
         "look": look, "slug": spec["slug"], "cutoff": spec["cutoff"],
         "postponed": postponed, "original_cutoff": spec["original_cutoff"],
         "postpone_weeks": POSTPONE_WEEKS if postponed else 0,
@@ -769,15 +889,10 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
                          " 開く・集計する・プロットすることは禁止。この manifest は"
                          " 件数/時刻範囲/sha256 のみ"),
     }
-    attempt.update({"status": "frozen", "finished_at": iso_sec(utc_now()),
-                    "snapshots_rows": snap_sum["rows_total"], "health_rows": len(health),
-                    "artifact_sha256": entries[relpath_for_record(paths["artifact"], root)]})
-    manifest["attempts"] = journal["attempts"]
-    write_json_atomic(paths["manifest"], manifest)      # manifest が先
-    write_sha256_record(paths["sha256"], entries)       # marker は最後 (= 凍結成立)
-    _journal_write(paths, journal)
 
-    # ── stdout 要約 (値なし) ───────────────────────────────────────
+
+def _print_summary(out, look, spec, postponed, snap_sum, manifest, ohlcv_meta, rt, entries,
+                   paths, root, journal) -> None:
     print(f"E1 frozen export — look {look} ({spec['slug']}), cutoff {spec['cutoff']}"
           + (f" [postponed +{POSTPONE_WEEKS}w from {spec['original_cutoff']}]" if postponed else ""),
           file=out)
@@ -802,7 +917,6 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
     print(f"  attempts: {relpath_for_record(paths['attempts'], root)}"
           f" ({len(journal['attempts'])} attempt)", file=out)
     print(f"  marker:   {relpath_for_record(paths['sha256'], root)}", file=out)
-    return EXIT_OK
 
 
 def run_dry_run_health(fetcher: Fetcher, limit: int, out=None) -> int:
@@ -869,6 +983,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"  roundtrip (§2.5-5(b), recorded at freeze): "
                   f"{'OK' if rt['ok'] else 'FAIL'} (snapshots {rt['snapshots_rows']},"
                   f" health {rt['health_rows']}); manifest {res['manifest']}")
+        print(f"  marker: {res['marker']}")
         print(f"verify: {'OK' if res['ok'] else 'FAIL'} ({res['n']} files)")
         return EXIT_OK if res["ok"] else EXIT_FAIL
 

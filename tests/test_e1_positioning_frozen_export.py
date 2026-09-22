@@ -489,7 +489,7 @@ class TestOnceOnlyGuard:
         real_write = fx.write_json_atomic
 
         def fail_on_manifest(path, obj):
-            if path.endswith(".manifest.json"):
+            if ".manifest.json" in path:
                 raise OSError("disk full")
             real_write(path, obj)
         monkeypatch.setattr(fx, "write_json_atomic", fail_on_manifest)
@@ -498,6 +498,76 @@ class TestOnceOnlyGuard:
         paths = fx.default_paths(1, str(tmp_path))
         assert not os.path.exists(paths["sha256"])      # marker は manifest 無しでは存在しない
         assert not os.path.exists(paths["manifest"])
+        assert not os.path.exists(paths["artifact"])    # 公開途中の失敗はロールバック
+        assert not os.path.exists(paths["lock"])        # lock は解放
+        j = json.load(open(paths["attempts"]))
+        assert j["attempts"][-1]["status"] == "failed"
+        assert j["attempts"][-1]["reason"].startswith("publish error")
+
+    def test_publish_failure_rolls_back_prior_freeze(self, tmp_path, monkeypatch):
+        """P1 (3 巡目): 公開フェーズ途中 (artifact/parquet 差し替え後、marker 書込みで失敗) でも
+        前回凍結の全ファイルが byte 単位で復元され、.bak が残らない。"""
+        import pandas as pd
+        src = tmp_path / "src"; src.mkdir(); dst = tmp_path / "dst"
+        base = CUTOFF1.replace(minute=0, second=0, microsecond=0) - timedelta(hours=3)
+        idx = pd.date_range(base, periods=16, freq="15min", tz="UTC")
+        for pair in fx.INSTRUMENTS:
+            pd.DataFrame({"Open": 1.0, "High": 1.1, "Low": 0.9, "Close": 1.0, "Volume": 1.0},
+                         index=idx).to_parquet(src / f"{pair}_15m.parquet")
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api, ohlcv_src=str(src), ohlcv_dst=str(dst))
+        assert rc == fx.EXIT_OK
+        files = [paths["artifact"], paths["sha256"], paths["manifest"]] + \
+                [str(dst / f"{p}_15m.parquet") for p in fx.INSTRUMENTS]
+        before = {f: open(f, "rb").read() for f in files}
+        listing_before = sorted(os.listdir(dst))
+
+        def boom(*a, **k):
+            raise OSError("disk full at marker")
+        monkeypatch.setattr(fx, "write_sha256_record", boom)
+        # 新しい行を 1 本足して artifact bytes が確実に変わる状態で --force
+        snaps2 = snaps + [dict(snaps[0], snapshot_time=_iso_us(CUTOFF1 - timedelta(minutes=1)))]
+        api2 = FakeApi(snaps2, health)
+        with pytest.raises(OSError, match="disk full"):
+            _run(tmp_path, api2, force=True, ohlcv_src=str(src), ohlcv_dst=str(dst))
+        assert {f: open(f, "rb").read() for f in files} == before
+        assert sorted(os.listdir(dst)) == listing_before          # .bak / .staging 残置なし
+        assert not any(n.endswith(".bak") for n in os.listdir(tmp_path))
+        assert not os.path.exists(paths["lock"])
+        assert fx.verify_record(paths["sha256"], root="/")["ok"]
+        j = json.load(open(paths["attempts"]))
+        assert [a["status"] for a in j["attempts"]] == ["frozen", "failed"]
+
+    def test_lock_serializes_concurrent_invocations(self, tmp_path, capsys):
+        """P1 (3 巡目): lock 保持中の 2 本目は API 要求も台帳登録もせず exit 3。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        paths = fx.default_paths(1, str(tmp_path))
+        # 1 本目が lock を持っている最中に 2 本目が走る状況を fetcher 内から再現
+        inner = {}
+
+        def racing(path, params):
+            if not inner:
+                inner["rc"] = fx.run_freeze(FakeApi(snaps, health), 1, paths,
+                                            api_base="https://fake.invalid",
+                                            now=CUTOFF1 + timedelta(hours=1))
+                inner["calls_at"] = len(api.calls)
+            return api(path, params)
+        rc = fx.run_freeze(racing, 1, paths, api_base="https://fake.invalid",
+                           now=CUTOFF1 + timedelta(hours=1))
+        assert rc == fx.EXIT_OK
+        assert inner["rc"] == fx.EXIT_REFUSED_FROZEN
+        assert "lock" in capsys.readouterr().err
+        j = json.load(open(paths["attempts"]))
+        assert len(j["attempts"]) == 1                    # 2 本目は試行にならない
+        assert not os.path.exists(paths["lock"])          # 終了後は解放
+        # 異常終了で残った lock も手で消すまで拒否 (自動削除しない)
+        open(paths["lock"], "w").write("pid=0 started=stale\n")
+        rc2 = fx.run_freeze(api, 1, paths, api_base="https://fake.invalid",
+                            now=CUTOFF1 + timedelta(hours=1), force=True)
+        assert rc2 == fx.EXIT_REFUSED_FROZEN
+        assert os.path.exists(paths["lock"])
 
     def test_force_records_previous_sha256(self, tmp_path):
         snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
@@ -728,6 +798,28 @@ class TestVerify:
         assert all(v == "OK" for v in res["files"].values())   # ファイルは無傷でも凍結不完全
         rc = fx.main(["--verify", paths["sha256"]])
         assert rc == fx.EXIT_FAIL
+
+    def test_verify_rejects_empty_or_incomplete_marker(self, tmp_path):
+        """P2 (3 巡目): 0 byte marker / artifact エントリ欠落 / manifest 宣言 parquet 欠落は FAIL。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        rc, paths, _ = _run(tmp_path, FakeApi(snaps, health))
+        assert rc == fx.EXIT_OK
+        good = open(paths["sha256"]).read()
+        open(paths["sha256"], "w").close()                       # truncate → 0 byte
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["marker"] == "EMPTY" and res["n"] == 0
+        assert fx.main(["--verify", paths["sha256"]]) == fx.EXIT_FAIL
+        # artifact 以外のエントリだけ → ARTIFACT_ENTRY_MISSING
+        open(paths["sha256"], "w").write("0" * 64 + "  some/other.parquet\n")
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["marker"] == "ARTIFACT_ENTRY_MISSING"
+        # manifest が parquet を宣言しているのに marker に無い → ENTRIES_MISSING_VS_MANIFEST
+        open(paths["sha256"], "w").write(good)
+        man = json.load(open(paths["manifest"]))
+        man["ohlcv_slice"] = {"USD_JPY": {"path": "data/cache/x/USD_JPY_15m.parquet"}}
+        json.dump(man, open(paths["manifest"], "w"))
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["marker"] == "ENTRIES_MISSING_VS_MANIFEST"
 
     def test_verify_detects_tamper(self, tmp_path):
         snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
