@@ -37,6 +37,8 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
   (n) 応答曖昧な失敗 (timeout/network/5xx/例外) は旧 confirmed_sl に戻さない: broker の現 SL を
       照会して合わせる / 取れなければ unresolved として単調性は保守的 baseline (BUY: max) +
       gate ごとに再照会。HTTP 4xx (broker 拒否) だけが確定失敗 (PR #287 review 10 巡目 P1、CF pin 付き)
+  (o) broker 照会の適用は版チェック付き — 照会中に別の確認 (confirmed_seq 前進) が入ったら
+      snapshot は捨てる (PR #287 review 11 巡目 P1、CF pin 付き)
   既定 (env 未設定) = 検知のみ: 送信は止めず、カウンタ + WARN だけ動く
 """
 from __future__ import annotations
@@ -1281,3 +1283,94 @@ def test_p1_cf_treating_timeout_as_definitive_loosens_applied_stop(monkeypatch):
     q[0](); q[1]()
     assert fake.calls == [(OANDA_ID, 154.400), (OANDA_ID, 154.350)]   # ← 緩めが届く (旧形)
     assert b.get_storm_guard_status()["trades"][DEMO]["confirmed_sl"] == 154.350
+
+
+# ── broker 照会の適用は版チェック付き (PR #287 review 11 巡目 P1) ────────────────
+# unresolved A の後、queued B が起きて tighter な stop を確認する一方で、並行する gate の broker
+# GET が古い stop を捕まえて B の確認後に返ると、B の新しい confirmed_sl を古い値で上書きし
+# 曖昧さも消してしまう → 古い値と B の間の BUY 更新が単調性を通って live stop を緩める。
+# → 照会開始時の confirmed_seq を記録し、変わっていれば snapshot を捨てる。
+
+def _stale_snapshot_during_query(fake, run_between, stale_sl="154.115"):
+    """get_open_trades の最中に run_between() (= 別の確認) を走らせ、古い snapshot を返す。"""
+    def _get():
+        fake.open_trades_calls += 1
+        run_between()
+        return True, {"trades": [_broker_trade("1000", stale_sl)]}
+    fake.get_open_trades = _get
+
+
+def test_p1_lazy_reconcile_discards_snapshot_when_state_advanced_during_query(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A
+    fake.fail_next = 1; fake.fail_error = "timeout"                 # 曖昧、broker 不達 → unresolved
+    q.pop(0)()
+    assert b.get_storm_guard_status()["trades"][DEMO]["unresolved_sl"] == 154.400
+    b.modify_sl(DEMO, 154.450, instrument="USD_JPY")               # B: queued (まだ走らない)
+    # 次の gate の lazy 照会中に B が確認され (154.450)、GET は古い 154.115 を返す
+    _stale_snapshot_during_query(fake, lambda: q.pop(0)(), stale_sl="154.115")
+    # X=154.300 は B (154.450) 基準で緩め → reject でなければならない
+    assert b.modify_sl_sync(DEMO, 154.300, instrument="USD_JPY") is False
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["confirmed_sl"] == 154.450            # 古い snapshot で上書きされていない
+    assert st["trades"][DEMO]["unresolved_sl"] is None              # B の確認で曖昧さは消えている
+    assert st["totals"]["reconcile_discarded"] == 1 and st["totals"]["reconciled"] == 0
+    assert fake.calls == [(OANDA_ID, 154.400), (OANDA_ID, 154.450)]
+
+
+def test_p1_cf_unversioned_reconcile_overwrites_newer_confirmation(monkeypatch):
+    """CF pin: 版チェックなしで snapshot を適用する (10 巡目の形) と B の 154.450 が 154.115 で
+    上書きされ、X=154.300 が「tightening」として送られて live stop が緩む。"""
+    def _unversioned(self, demo_trade_id, st, gen, broker_sl):
+        with self._storm_lock:
+            st["confirmed_sl"] = broker_sl
+            st["unresolved_sl"] = None
+            self._storm_totals["reconciled"] += 1
+            return True
+    monkeypatch.setattr(OandaBridge, "_storm_apply_reconcile", _unversioned)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")
+    fake.fail_next = 1; fake.fail_error = "timeout"
+    q.pop(0)()
+    b.modify_sl(DEMO, 154.450, instrument="USD_JPY")
+    _stale_snapshot_during_query(fake, lambda: q.pop(0)(), stale_sl="154.115")
+    # unresolved (154.400) は消えているが確認済みは古い 154.115 → 154.300 が通る (旧形)
+    assert b.modify_sl_sync(DEMO, 154.300, instrument="USD_JPY") is True   # ← 緩めが届く
+    assert fake.calls[-1] == (OANDA_ID, 154.300)
+
+
+def test_p1_ambiguous_rollback_discards_stale_snapshot_in_detect_only_race(monkeypatch):
+    """検知のみ (直列化なし) では A の曖昧失敗の照会中に B が確認され得る — snapshot は捨て、
+    B の確認 (A より新しい) で曖昧さも上書きされる。"""
+    b, fake = _bridge(monkeypatch, enforce=False, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A
+    b.modify_sl(DEMO, 154.450, instrument="USD_JPY")               # B
+    fake.fail_next = 1; fake.fail_error = "timeout"
+    _stale_snapshot_during_query(fake, lambda: q[1](), stale_sl="154.115")   # A の照会中に B 確認
+    q[0]()                                                          # A 曖昧失敗 → 照会 (B 確認) → snapshot 捨て
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["confirmed_sl"] == 154.450
+    assert st["trades"][DEMO]["unresolved_sl"] is None              # B (seq 2) > A (seq 1) で上書き
+    assert st["totals"]["reconcile_discarded"] == 1 and st["totals"]["unresolved"] == 0
+
+
+def test_p1_ambiguous_rollback_keeps_unresolved_if_advance_is_older_than_a(monkeypatch):
+    """検知のみで、A の照会中に進んだ確認が A より古い (seq 小) なら A の曖昧さは残る。"""
+    b, fake = _bridge(monkeypatch, enforce=False, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.300, instrument="USD_JPY")               # P (seq 1)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A (seq 2)
+    fake.fail_next = 0
+    def _fail_a(oanda_id, stop_loss=None, instrument=None, **kw):
+        fake.calls.append((oanda_id, stop_loss))
+        if stop_loss == 154.400:
+            return False, {"error": "timeout", "message": "simulated"}
+        return True, {"ok": True}
+    fake.modify_trade = _fail_a
+    _stale_snapshot_during_query(fake, lambda: q[0](), stale_sl="154.115")   # A の照会中に P (古い) 確認
+    q[1]()                                                          # A 曖昧失敗
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["confirmed_sl"] == 154.300 and st["unresolved_sl"] == 154.400  # A の曖昧さは残る

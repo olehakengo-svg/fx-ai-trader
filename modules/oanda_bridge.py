@@ -187,7 +187,7 @@ class OandaBridge:
             "skipped": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0, "serialize": 0},
             "unknown_direction": 0, "breaker_trips": 0, "failed": 0,
             # ambiguous_failures = 応答曖昧な失敗 / reconciled = broker 照会で解消 / unresolved = 未解消のまま
-            "ambiguous_failures": 0, "reconciled": 0, "unresolved": 0,
+            "ambiguous_failures": 0, "reconciled": 0, "unresolved": 0, "reconcile_discarded": 0,
             # deferred = enforce で baseline が未確認だったため送信順到来まで判定を保留した件数
             "deferred": 0,
         }
@@ -1372,9 +1372,20 @@ class OandaBridge:
             # unresolved_sl に記録し、以後の gate で再照会 + 単調性は保守的 baseline。
             with self._storm_lock:
                 self._storm_totals["ambiguous_failures"] += 1
+                gen = st["confirmed_seq"]          # 照会開始時点の版 (review 11 巡目 P1)
             broker_sl = self._storm_query_broker_sl(demo_trade_id)
             with self._storm_lock:
-                if broker_sl is not None:
+                if st["confirmed_seq"] != gen:
+                    # 照会中に別の確認が進んだ → snapshot は古い可能性があり捨てる。
+                    # その確認が A より新しければ A の曖昧さは上書きされて消える。
+                    self._storm_totals["reconcile_discarded"] += 1
+                    if st["confirmed_seq"] < token["seq"]:
+                        st["unresolved_sl"] = token["new_sl"]
+                        self._storm_totals["unresolved"] += 1
+                    logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure: broker snapshot discarded "
+                                   f"(state advanced during query) demo={demo_trade_id} sent={token['new_sl']} "
+                                   f"unresolved={st['unresolved_sl']}")
+                elif broker_sl is not None:
                     st["confirmed_sl"] = broker_sl
                     st["confirmed_seq"] = max(st["confirmed_seq"], token["seq"])
                     st["unresolved_sl"] = None
@@ -1440,19 +1451,37 @@ class OandaBridge:
         return None
 
     def _storm_try_reconcile(self, demo_trade_id: str, st: dict):
-        """unresolved_sl が残っていれば broker を再照会して解消を試みる (gate ごと、lock 外)。"""
-        if st.get("unresolved_sl") is None:
-            return
+        """unresolved_sl が残っていれば broker を再照会して解消を試みる (gate ごと、lock 外)。
+        **版チェック** (review 11 巡目 P1): 照会中に別の確認 (confirmed_seq 前進) が入ったら
+        snapshot は古い可能性があるので捨てる — 古い stop で新しい confirmed_sl を上書きすると
+        その間の BUY 更新が単調性を通って live stop を緩める。"""
+        with self._storm_lock:
+            if st.get("unresolved_sl") is None:
+                return
+            gen = st["confirmed_seq"]
         broker_sl = self._storm_query_broker_sl(demo_trade_id)
         if broker_sl is None:
             return
+        self._storm_apply_reconcile(demo_trade_id, st, gen, broker_sl)
+
+    def _storm_apply_reconcile(self, demo_trade_id: str, st: dict, gen: int, broker_sl: float) -> bool:
+        """照会結果を「照会開始時点から状態が進んでいない」場合のみ適用する。"""
         with self._storm_lock:
-            if st.get("unresolved_sl") is not None:
-                st["confirmed_sl"] = broker_sl
-                st["unresolved_sl"] = None
-                self._storm_totals["reconciled"] += 1
-                logger.warning(f"[OandaBridge][STORM_GUARD] unresolved SL reconciled from broker "
-                               f"demo={demo_trade_id} broker_sl={broker_sl}")
+            if st["confirmed_seq"] != gen:
+                # 照会中に確認が進んだ (その確認で unresolved は既に消えていることが多い)
+                self._storm_totals["reconcile_discarded"] += 1
+                logger.warning(f"[OandaBridge][STORM_GUARD] broker snapshot discarded (state advanced "
+                               f"during query) demo={demo_trade_id} snapshot={broker_sl} "
+                               f"confirmed_sl={st['confirmed_sl']}")
+                return False
+            if st.get("unresolved_sl") is None:
+                return False                   # 既に解消済み (別経路)
+            st["confirmed_sl"] = broker_sl
+            st["unresolved_sl"] = None
+            self._storm_totals["reconciled"] += 1
+            logger.warning(f"[OandaBridge][STORM_GUARD] unresolved SL reconciled from broker "
+                           f"demo={demo_trade_id} broker_sl={broker_sl}")
+            return True
 
     def _storm_conservative(self, st: dict, base: float | None) -> float | None:
         """unresolved_sl がある間の単調性 baseline: 適用済みかもしれない値と base のうち
