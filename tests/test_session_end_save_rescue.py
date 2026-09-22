@@ -300,3 +300,47 @@ def test_no_rescue_when_this_run_committed_nothing(repo):
     assert "本ランの新規 KB コミットは無い" in res.stderr
     assert _remote_branches(repo["remote"]) == {"main"}, (
         "with nothing committed this run there is nothing to rescue")
+
+def test_mixed_history_is_detected_when_the_path_list_fills_a_pipe(repo):
+    """KNOWN-NG INPUT: an EARLY-sorted non-KB path + a huge KB path list.
+
+    The check used to be `git diff-tree ... | grep -qv '^knowledge-base/'`.
+    With an early non-KB path, `grep -q` exits at once and `git` takes
+    SIGPIPE (141); under `set -o pipefail` the pipeline status is that 141, so
+    the `if` is FALSE and the mixed history is judged KB-only and PUBLISHED —
+    the guard inverts exactly in the case it exists for (Codex P1, PR #276,
+    3rd round).  This is not hypothetical: a 3,568-file mixed commit was
+    created accidentally in this very session.
+    """
+    work = repo["work"]
+    _make_main_behind(repo)
+
+    # `app.py` sorts BEFORE `knowledge-base/`, so grep matches on line 1.
+    with open(os.path.join(work, "app.py"), "w") as f:
+        f.write("# not KB\n")
+    # Enough KB paths (long names) to exceed a 64 KiB pipe buffer.
+    kb = os.path.join(work, "knowledge-base", "bulk")
+    os.makedirs(kb, exist_ok=True)
+    filler = "z" * 180
+    for i in range(600):
+        with open(os.path.join(kb, f"{i:04d}-{filler}.md"), "w") as f:
+            f.write("x\n")
+    _git(work, "add", "-A")
+    # Subject must LOOK like a hook commit so only the path scan can catch it.
+    _git(work, "commit", "-m", "auto: KB session-end save (2026-09-22)")
+    mixed = _git(work, "rev-parse", "HEAD").stdout.strip()
+
+    # Give the hook something new to commit so it reaches the rescue branch.
+    with open(os.path.join(work, "knowledge-base", "mine.md"), "w") as f:
+        f.write("mine\n")
+
+    res = _run_hook(work)
+    assert res.returncode == 0, res.stderr
+
+    assert _remote_branches(repo["remote"]) == {"main"}, (
+        "a mixed history must be refused however long the path list is — "
+        f"origin gained {_remote_branches(repo['remote']) - {'main'}}")
+    assert "非 KB コミットが混在" in res.stderr, res.stderr
+    assert mixed not in _git(repo["remote"], "log", "--all",
+                             "--format=%H").stdout, (
+        "the non-KB commit must not have been published")

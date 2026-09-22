@@ -93,11 +93,29 @@ else
                     "auto: KB session-end save"*) ;;
                     *) MIXED=1; break ;;
                 esac
-                # KB 以外のパスに触っていないことも確認する (subject は自称)
-                if git diff-tree --no-commit-id --name-only -r "$C" 2>/dev/null \
-                        | grep -qv '^knowledge-base/'; then
-                    MIXED=1; break
+                # KB 以外のパスに触っていないことも確認する (subject は自称)。
+                #
+                # 🔴 **パイプで書いてはいけない** (Codex P1, PR #276)。
+                # `git diff-tree ... | grep -qv '^knowledge-base/'` は、非 KB パスが
+                # 早い位置にあり後続 KB パスがパイプバッファを埋めるほど多いとき、
+                # `grep -q` が先に exit して `git` が **SIGPIPE (141)** を受ける。
+                # このスクリプトは `pipefail` なのでパイプライン status が 141 =
+                # 非ゼロになり、**`if` は偽** ⇒ **混在履歴を「KB だけ」と判定して
+                # publish する** = ガードが存在意義そのものの場面で反転する
+                # (本セッションで実際に作ってしまった 3,568 files の混在コミットが
+                # まさにこの形)。⇒ パイプを使わず変数に取ってシェルで走査する。
+                PATHS="$(git diff-tree --no-commit-id --name-only -r "$C" 2>/dev/null || echo '')"
+                if [[ -z "$PATHS" ]]; then
+                    MIXED=1; break          # 検査不能 ⇒ 公開しない
                 fi
+                while IFS= read -r F; do
+                    [[ -z "$F" ]] && continue
+                    case "$F" in
+                        knowledge-base/*) ;;
+                        *) MIXED=1 ;;
+                    esac
+                done <<< "$PATHS"
+                [[ "$MIXED" == "1" ]] && break
             done
         fi
         if [[ "$MIXED" == "1" ]]; then
