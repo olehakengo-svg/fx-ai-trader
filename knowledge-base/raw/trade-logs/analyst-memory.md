@@ -4716,6 +4716,16 @@ PnL合計  : データなし（API取得失敗）
 - `hedge_block` 151件: audjpy・gbpusd・eur でヘッジ判定が頻発。現在オープントレード=0にもかかわらず hedge_block が積算されているのは、当日中にポジションが建っては閉じられるサイクルを繰り返した可能性、またはヘッジ判定ロジックが保守的に作動している可能性を示す。
 - **JPY系クロス（EUR/JPY・GBP/JPY）**: ATR81%・明確な下降トレンド → DT系の方向性バイアス有利。唯一の障害は`order_bar_dedup`。
 
+### 2026-09-22 (Pre-Tokyo Briefing)
+PnL合計 N/A、トレード数 0、WR 算出不能。
+| 戦略 | N | WR | EV | ステータス |
+- 全27モードのうち25モードがON稼働にもかかわらず、Trades=0
+- Block Counts上位に`r2_shadow_demoted_cell`が計**696件**（scalp・daytrade_1h_usdchf・scalp_5m系）累積
+- `hedge_block`が`daytrade_eur`253件・`daytrade`179件・`daytrade_gbpusd`158件と主要ペアで多発
+- `order_bar_dedup`も`daytrade`107件・`daytrade_audjpy`100件
+- `r2_shadow_demoted_cell`の累積が最多の戦略（scalp系・daytrade_1h_usdchf）において、シャドウ降格セルが正当な根拠に基づいて降格されているか、またはパラメータ環境の変化により誤検知になっていないかを**確認**する
+- `hedge_block`の多発ペア（EUR・GBPUSD・AUDJPY）は同方向ポジション集中リスクを示しているが、現在オープントレード=0なので市場リスクは無い。ただし「ヘッジブロックが連続発動している＝同方向シグナルが繰り返し発生している」という点で、シグナル品質への注意が必要
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
