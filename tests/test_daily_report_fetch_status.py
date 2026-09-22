@@ -90,6 +90,43 @@ def test_flag_invented_causes_silent_on_clean_report():
     assert dr.flag_invented_causes("## 前日サマリー\nPnL +12.3p N=4\n") == []
 
 
+def test_finalize_is_the_single_exit_for_both_llm_reports():
+    """Codex P2 (2026-09-22): 当初 analyst_report だけを検査し、その本文を入力に受け取る
+    strategy planner が同じ捏造を再生産できた。両レポートが**同じ出口**を通ることを pin。
+    """
+    src = (ROOT / "scripts" / "daily_report.py").read_text(encoding="utf-8")
+    main_body = src[src.index("def main()"):]
+    assert 'finalize_llm_report(analyst_report' in main_body
+    assert 'finalize_llm_report(strategy_report' in main_body
+    # 出口は保存・送信より前にあること
+    assert main_body.index("finalize_llm_report(strategy_report") < main_body.index("save_to_kb(")
+
+
+def test_finalize_corrects_and_is_noop_when_clean():
+    dirty = "作戦: Renderのコールドスタートを避ける\n"
+    out = dr.finalize_llm_report(dirty, n_failed=1, label="strategy")
+    assert out.startswith(dirty) and "生成器注記" in out
+    clean = "作戦: NO ACTION 推奨\n"
+    assert dr.finalize_llm_report(clean, n_failed=1, label="strategy") == clean
+
+
+def test_strategy_planner_prompt_forbids_cause_invention(monkeypatch):
+    captured: dict[str, str] = {}
+
+    def fake_call(system, messages, max_tokens=2500):
+        captured["user"] = messages[0]["content"]
+        return "ok"
+
+    monkeypatch.setattr(dr, "call_claude", fake_call)
+    monkeypatch.setattr(dr, "load_agent_prompt", lambda name: "SYSTEM")
+    monkeypatch.setattr(dr, "load_planning_guardrails", lambda: "")
+    dr.run_strategy_planner("### DATA FETCH\n| status | **unreachable, cause unknown** | timeout |\n")
+    user = captured["user"]
+    assert "原因を推測・再記述しない" in user
+    for banned in fp.INVENTED_CAUSE_PATTERNS:
+        assert banned.lower() not in user.lower()
+
+
 def test_prompt_sent_to_llm_carries_fetch_table_and_no_cause_vocabulary(monkeypatch):
     """LLM へ実際に送る user メッセージを捕まえて検査する (テキスト pin ではなく実挙動).
 

@@ -53,6 +53,7 @@ LIVE 約定は 133 市場オープン時間ゼロだったのに ``trade_row`` �
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -119,23 +120,31 @@ ZN_CACHE_MAX_AGE_DAYS = 8
 #                    → プロセスは listen している / HTTP ハンドラが返ってこない
 #   FAIL_CONNECTION  接続拒否・リセット・接続段階の timeout
 #                    → プロセスが serving していない (デプロイ / 再起動 / 停止)
-#   FAIL_HTTP_STATUS 5xx/4xx が返った (Render edge の 502 を含む)
-#                    → upstream が無い / 落ちている、または endpoint 固有の異常
-#   FAIL_OTHER       JSON parse 等、輸送層以外
+#   FAIL_HTTP_5XX    5xx が返った (Render edge の 502 を含む)
+#                    → upstream が無い / 落ちている
+#   FAIL_HTTP_4XX    4xx が返った (401/403/404/429)
+#                    → **プロセスは serving している**。認証・パス・レート制限の問題で
+#                      あって停止の証拠ではない (Codex P2 2026-09-22: 4xx を down に
+#                      畳むと「全 endpoint 401」が「停止」と報告される)
+#   FAIL_OTHER       JSON parse 等、輸送層以外 — 輸送層の状態について**何も言わない**
 #
 # 全滅かつ全て FAIL_TIMEOUT = **http_blind** (HTTP 層だけが死んでいる)。
-# 全滅かつ FAIL_CONNECTION / FAIL_HTTP_STATUS のみ = **api_down**。混在 = mixed
-# (再起動の遷移中など)。**engine の生死は外部からは分からない** — 09-22 は
-# master 側エンジンが tick し続けていた。読み手には「不明」と書き、Render ログの
-# [MainLoop] を見よと導く。原因の断定 (スリープ / 無料 tier / コールドスタート)
-# は観測から導けないので **書かせない** (INVENTED_CAUSE_PATTERNS)。
+# 全滅かつ **FAIL_CONNECTION / FAIL_HTTP_5XX だけ** = **api_down**。
+# 全滅かつ全て FAIL_HTTP_4XX = **http_error** (serving 中だが拒否)。
+# それ以外の混在 (timeout+connection、connection+other、5xx+4xx …) = **mixed** —
+# どちらかに畳むと証拠に無い結論になる。**engine の生死は外部からは分からない** —
+# 09-22 は master 側エンジンが tick し続けていた。読み手には「不明」と書き、Render
+# ログの [MainLoop] を見よと導く。原因の断定 (スリープ / 無料 tier / コールド
+# スタート) は観測から導けないので **書かせない** (INVENTED_CAUSE_PATTERNS)。
 FAIL_TIMEOUT = "timeout"
 FAIL_CONNECTION = "connection"
-FAIL_HTTP_STATUS = "http_status"
+FAIL_HTTP_5XX = "http_5xx"
+FAIL_HTTP_4XX = "http_4xx"
 FAIL_OTHER = "other"
 
 OUTAGE_HTTP_BLIND = "http_blind"
 OUTAGE_API_DOWN = "api_down"
+OUTAGE_HTTP_ERROR = "http_error"
 OUTAGE_MIXED = "mixed"
 OUTAGE_UNKNOWN = "unknown"
 
@@ -156,8 +165,12 @@ _CONNECTION_MARKERS = ("ConnectionError", "ConnectionRefused", "ConnectionReset"
                        "RemoteDisconnected", "URLError", "NewConnectionError",
                        "ProtocolError", "Connection refused", "Connection reset",
                        "MaxRetryError")
-_HTTP_STATUS_MARKERS = ("HTTPError", "HTTP Error", "Server Error", "Bad Gateway",
-                        "Service Unavailable", "Gateway Time")
+# HTTP 応答があったことを示す語。状態コードは "HTTP Error 503" / "502 Server Error"
+# の形で reason に入る (urllib / requests とも)。
+_HTTP_MARKERS = ("HTTPError", "HTTP Error", "Server Error", "Client Error",
+                 "Bad Gateway", "Service Unavailable", "Gateway Time")
+_HTTP_5XX_WORDS = ("Server Error", "Bad Gateway", "Service Unavailable", "Gateway Time")
+_STATUS_CODE_RE = re.compile(r"\b([45]\d\d)\b")
 
 
 def classify_fetch_failure(reason: str) -> str:
@@ -171,8 +184,16 @@ def classify_fetch_failure(reason: str) -> str:
     head = r.split(":", 1)[0].strip()
     if any(head.startswith(m) or m in head for m in _TIMEOUT_MARKERS) or "Read timed out" in r:
         return FAIL_TIMEOUT
-    if any(m in r for m in _HTTP_STATUS_MARKERS):
-        return FAIL_HTTP_STATUS
+    if any(m in r for m in _HTTP_MARKERS):
+        # 状態コードは URL (":443/" 等) より前に出る — " for url" 以降は見ない
+        scope = r.split(" for url", 1)[0]
+        m = _STATUS_CODE_RE.search(scope)
+        code = m.group(1) if m else ""
+        if code.startswith("5") or any(w in r for w in _HTTP_5XX_WORDS):
+            return FAIL_HTTP_5XX
+        if code.startswith("4") or "Client Error" in r:
+            return FAIL_HTTP_4XX
+        return FAIL_OTHER  # HTTP エラーだがコードが読めない = 輸送層の証拠にしない
     if any(m in r for m in _CONNECTION_MARKERS):
         return FAIL_CONNECTION
     return FAIL_OTHER
@@ -181,14 +202,19 @@ def classify_fetch_failure(reason: str) -> str:
 def classify_outage(reasons: dict[str, str]) -> dict[str, Any]:
     """path→reason の失敗集合を outage 種別に分類する (SSOT).
 
-    戻り値: kind (OUTAGE_*), n_timeout / n_connection / n_http_status / n_other,
-    classes (path→FAIL_*), summary (人向け 1 行。**観測のみを述べ、原因は書かない**)。
+    戻り値: kind (OUTAGE_*), n_timeout / n_connection / n_http_5xx / n_http_4xx /
+    n_other, classes (path→FAIL_*), summary (人向け 1 行。**観測のみを述べ、
+    原因は書かない**)。
+
+    判定は「証拠が全て同じ向きを指すとき」だけ結論を出す (Codex P2 2026-09-22):
+    api_down は connection / 5xx **のみ**の集合に限る。other や 4xx が 1 本でも
+    混ざれば mixed — 「JSON が壊れていた」「401 だった」は停止の証拠ではない。
     """
     classes = {p: classify_fetch_failure(r) for p, r in (reasons or {}).items()}
     n = {k: sum(1 for v in classes.values() if v == k)
-         for k in (FAIL_TIMEOUT, FAIL_CONNECTION, FAIL_HTTP_STATUS, FAIL_OTHER)}
+         for k in (FAIL_TIMEOUT, FAIL_CONNECTION, FAIL_HTTP_5XX, FAIL_HTTP_4XX, FAIL_OTHER)}
     total = len(classes)
-    transport_down = n[FAIL_CONNECTION] + n[FAIL_HTTP_STATUS]
+    transport_down = n[FAIL_CONNECTION] + n[FAIL_HTTP_5XX]
     if total == 0 or (n[FAIL_OTHER] == total):
         kind = OUTAGE_UNKNOWN
         summary = ("到達不能 (unreachable, cause unknown) — 失敗クラスから輸送層の状態を"
@@ -198,21 +224,27 @@ def classify_outage(reasons: dict[str, str]) -> dict[str, Any]:
         summary = ("HTTP 全盲 (http_blind): TCP 接続は成立するが応答が timeout 内に来ない = "
                    "プロセスは listen 中、HTTP ハンドラが返ってこない。engine の生死は"
                    "外部からは不明 (Render ログ [MainLoop] で確認)。cause unknown")
-    elif transport_down == total or (n[FAIL_TIMEOUT] == 0):
+    elif transport_down == total:
         kind = OUTAGE_API_DOWN
-        summary = ("サービス到達不能 (api_down): 接続拒否 / リセット / edge 5xx = "
+        summary = ("サービス到達不能 (api_down): 接続拒否 / リセット / edge 5xx のみ = "
                    "プロセスが serving していない (デプロイ・再起動・停止のいずれか)。"
                    "cause unknown")
+    elif n[FAIL_HTTP_4XX] == total:
+        kind = OUTAGE_HTTP_ERROR
+        summary = ("HTTP 4xx (http_error): 応答はある = プロセスは serving 中。認証・パス・"
+                   "レート制限の問題で、停止の証拠ではない。cause unknown")
     else:
         kind = OUTAGE_MIXED
-        summary = (f"到達不能 (mixed): timeout {n[FAIL_TIMEOUT]} / 接続失敗 "
-                   f"{transport_down} が混在 = 遷移中の疑い。cause unknown")
+        summary = (f"到達不能 (mixed): timeout {n[FAIL_TIMEOUT]} / 接続失敗・5xx "
+                   f"{transport_down} / 4xx {n[FAIL_HTTP_4XX]} / その他 {n[FAIL_OTHER]} "
+                   "が混在 = 証拠が同じ向きを指していない (遷移中の疑い)。cause unknown")
     return {
         "kind": kind,
         "n_total": total,
         "n_timeout": n[FAIL_TIMEOUT],
         "n_connection": n[FAIL_CONNECTION],
-        "n_http_status": n[FAIL_HTTP_STATUS],
+        "n_http_5xx": n[FAIL_HTTP_5XX],
+        "n_http_4xx": n[FAIL_HTTP_4XX],
         "n_other": n[FAIL_OTHER],
         "classes": classes,
         "summary": summary,

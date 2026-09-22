@@ -273,6 +273,21 @@ def flag_invented_causes(report: str) -> list[str]:
     return [p for p in _fp.INVENTED_CAUSE_PATTERNS if p.lower() in low]
 
 
+def finalize_llm_report(report: str, n_failed: int, label: str) -> str:
+    """LLM 出力を保存・送信する**直前**に必ず通す出口 (2026-09-22, rule:R3).
+
+    analyst / strategy の両レポートが同じ出口を通ることで、片方だけ検査する
+    非対称 (Codex P2 2026-09-22: 当初 analyst_report だけを検査し、その本文を入力に
+    受け取る strategy planner が同じ捏造を再生産できた) を構造的に塞ぐ。
+    """
+    hits = flag_invented_causes(report)
+    if not hits:
+        return report
+    print(f"  ⚠️  [{label}] 原因の捘造を検出: {hits} "
+          f"— 生成器注記で訂正", file=sys.stderr)
+    return append_generator_correction(report, hits, n_failed)
+
+
 def append_generator_correction(report: str, hits: list[str], n_failed: int) -> str:
     """\u634f\u9020\u539f\u56e0\u3092\u691c\u51fa\u3057\u305f\u3089\u3001\u672c\u6587\u306f\u5909\u3048\u305a\u306b**\u811a\u6ce8\u3067\u8a02\u6b63**\u3059\u308b\u3002
 
@@ -975,7 +990,9 @@ def run_strategy_planner(analyst_report: str) -> str:
 
 コードは不要です。「試す価値があるか」の判断材料だけを提示してください。
 **上記ガードレールの A（棄却済みパターン）に該当する案は出さないこと。**
-B（既存shadow在庫）の消化を新規発明より優先し、C（配管バグ）が未解決なら配管修復を高優先で提案すること。"""
+B（既存shadow在庫）の消化を新規発明より優先し、C（配管バグ）が未解決なら配管修復を高優先で提案すること。
+アナリスト本文に API 取得失敗 (DATA FETCH) がある場合、その**原因を推測・再記述しない**
+（『unreachable, cause unknown』のまま扱う。hosting tier・省電力・起動遅延などの原因語は禁止）。"""
 
     return call_claude(system, [{"role": "user", "content": user_msg}])
 
@@ -1168,11 +1185,7 @@ def main() -> int:
     # \u539f\u56e0\u306e\u634f\u9020\u691c\u67fb (2026-09-22, rule:R3): \u89b3\u6e2c\u304b\u3089\u5c0e\u3051\u306a\u3044\u539f\u56e0\u8a9e\u304c\u3042\u308c\u3070\u3001\u672c\u6587\u306f
     # \u5909\u3048\u305a\u306b\u751f\u6210\u5668\u6ce8\u8a18\u3067\u8a02\u6b63\u3059\u308b\u3002\u9ed9\u3063\u3066\u901a\u3057\u305f\u7d50\u679c\u304c KB \u306b\u300c\u7121\u6599 tier \u30b9\u30ea\u30fc\u30d7\u300d
     # \u3068\u3057\u3066\u6b8b\u3063\u305f (knowledge-base/raw/trade-logs/2026-09-22-pre_tokyo.md)\u3002
-    invented = flag_invented_causes(analyst_report)
-    if invented:
-        print(f"  \u26a0\ufe0f  \u539f\u56e0\u306e\u6358\u9020\u3092\u691c\u51fa: {invented} "
-              f"\u2014 \u751f\u6210\u5668\u6ce8\u8a18\u3067\u8a02\u6b63", file=sys.stderr)
-        analyst_report = append_generator_correction(analyst_report, invented, len(failed))
+    analyst_report = finalize_llm_report(analyst_report, len(failed), "analyst")
     if failed:
         # \u53d6\u5f97\u72b6\u6cc1\u306f LLM \u306e\u6587\u7ae0\u3068\u306f\u72ec\u7acb\u306b\u3001\u6c7a\u5b9a\u7684\u306a\u7bc0\u3068\u3057\u3066\u30ec\u30dd\u30fc\u30c8\u5148\u982d\u3078\u6b8b\u3059
         analyst_report = preprocess_fetch_status(fetch_results) + "\n" + analyst_report
@@ -1183,6 +1196,9 @@ def main() -> int:
         print(f"\U0001f9e0 [3/{steps_total}] Strategy \u2014 \u4f5c\u6226\u7acb\u6848\u4e2d...")
         try:
             strategy_report = run_strategy_planner(analyst_report)
+            # planner は analyst 本文を入力に受け取るので同じ捏造を再生産しうる
+            # (Codex P2 2026-09-22) — 保存・送信前に同じ出口を通す
+            strategy_report = finalize_llm_report(strategy_report, len(failed), "strategy")
         except Exception as e:
             print(f"  \u26a0\ufe0f  Strategy \u30a8\u30e9\u30fc\uff08\u30b9\u30ad\u30c3\u30d7\uff09: {e}", file=sys.stderr)
             strategy_report = "\u26a0\ufe0f \u4f5c\u6226\u7acb\u6848\u306e\u751f\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002"

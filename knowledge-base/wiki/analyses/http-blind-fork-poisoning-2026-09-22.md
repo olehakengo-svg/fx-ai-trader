@@ -87,6 +87,8 @@ gthread は `accept()` ごとに `nr_conns += 1` し、完了しないハンド�
 
 **trade-off (F2)**: health check 由来の再起動は in-memory dedup/cooldown を消す (MEMORY `project_engine_reconstruction_live_dedup_dead`、commit `ebf4a5235`)。ただし再起動が起きるのは HTTP 層が既に死んだ状態 = 監視・OANDA 監査・edge-cell watchdog が**全て盲目**の状態であり、dedup は起動時 DB hydrate (`[startup/dedup_hydrate]`) を持つ。3 時間の全盲より安い。
 
+**レビュー消化 (Codex P2 × 2、どちらも正しかった)**: (a) `classify_outage` が「timeout ゼロ」の混在を全て api_down に畳んでいた — `connection + JSON 壊れ` や `全 endpoint 401` が「プロセス停止」と報告される。⇒ api_down は connection / 5xx **のみ**の集合に限定し、4xx は `FAIL_HTTP_4XX` / 全 4xx は `http_error` (serving 中)、それ以外は mixed。(b) 捏造ガードが analyst_report だけに掛かり、その本文を入力に受け取る strategy planner が同じ捏造を再生産できた ⇒ 両レポートを同じ出口 `finalize_llm_report` に通し、planner prompt にも原因禁止規則を追加。🔑 「片側だけ塞いだ fail-closed」の再演 (MEMORY `feedback_check_the_symmetric_side_2026_09_19`) — 同じ PR の中で 2 回目。
+
 **counterfactual pin** (tests): `test_daily_review_fork_safety.py` (construction で thread 起動なし / heal 冪等 / heartbeat 到達 / StatusHeal 非接触)、`test_http_blind_detector.py` (ReadTimeout 全滅 → `http_blind`、5xx → `api_unreachable`、混在 → mixed、SSOT 使用)、`test_healthz_http.py` (200 + db_ok / StatusHeal 非接触 / healthCheckPath 配線)、`test_daily_report_fetch_status.py` (失敗と空の分離 / 原因語ゼロの prompt 実捕捉 / 捏造検出→脚注)、`test_render_build_filter.py::test_nightly_ingest_data_paths_are_ignored`。
 
 ## 5. 残余リスク (修正していないもの)
