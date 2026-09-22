@@ -1075,7 +1075,10 @@ class OandaBridge:
             "cond": threading.Condition(self._storm_lock),
             # network (seed / 再照会) の single-flight lock (review 13 巡目 P2: 未 seed の
             # restored trade への burst が worker ごとに GET を撃たないように) + 再照会の最短間隔
-            "net_lock": threading.RLock(), "last_reconcile_ts": None,   # None = 未照会 (monotonic は 0 近傍から始まり得るので 0.0 を sentinel にしない)
+            "net_lock": threading.RLock(), "last_reconcile_ts": None,
+            # head_progress = 先頭 token が network フェーズ (seed GET / PUT / 照会 GET) を 1 つ
+            # 終えるごとに +1 — 待機側の予算はこれが進むたびにリセット (review 16 巡目 P1)
+            "head_progress": 0,   # None = 未照会 (monotonic は 0 近傍から始まり得るので 0.0 を sentinel にしない)
             "direction": None,
             # confirmed_sl = broker が受理した最後の SL (seed / open / 成功確認のみ更新)
             # pending     = 送信中 (未確認) の予約 token 列 (発行順)
@@ -1429,6 +1432,7 @@ class OandaBridge:
         if not token:
             return
         if ambiguous:
+            self._storm_progress(st)                                # PUT フェーズ完了 (照会 GET へ)
             # 応答曖昧 (review 10 巡目 P1): broker は PUT を適用済みかもしれない。旧 confirmed_sl
             # へ戻して後続を起こすと、適用済み 154.400 に対して 154.350 が「tightening」と
             # 判定され live stop を緩め得る。→ token を pending に残したまま (後続は待つ)
@@ -1617,9 +1621,16 @@ class OandaBridge:
             return min(base, unres)
         return base
 
-    # 送信順番待ちの上限 — **先頭 token 1 件あたり** (先頭が入れ替わるたびにリセット)。
-    # 先頭の決着 = PUT の HTTP timeout (10 s) + 曖昧時の broker 照会 GET (10 s) + 余裕。
+    # 送信順番待ちの上限 — **先頭 token の network フェーズ 1 つあたり** (先頭の入れ替わり、または
+    # 先頭が seed GET / PUT / 照会 GET を 1 つ終えるたびにリセット)。各フェーズは HTTP timeout 10 s
+    # が上限なので 25 s = 1 フェーズ + 余裕。停滞 (フェーズが進まない) だけが drop。
     STORM_TURN_WAIT_SEC = 25.0
+
+    def _storm_progress(self, st: dict):
+        """先頭 token が network フェーズを 1 つ終えたことを待機側に知らせる (予算リセット)。"""
+        with self._storm_lock:
+            st["head_progress"] = st.get("head_progress", 0) + 1
+            st["cond"].notify_all()
     # enforce の fire-and-forget で待機 token へ畳み込む (queue = 先頭 + 待機 1 件、thread ≤ 2/trade)
     STORM_COALESCE_ASYNC = True
 
@@ -1653,11 +1664,15 @@ class OandaBridge:
         # 進捗している限り one-shot の保護更新は落とさない。停滞 (先頭が変わらない) だけが drop。
         with self._storm_lock:
             head = st["pending"][0] if st["pending"] else None
+            progress = st.get("head_progress", 0)
             deadline = _time.monotonic() + self.STORM_TURN_WAIT_SEC
             while st["pending"] and st["pending"][0] is not token:
-                if st["pending"][0] is not head:
+                if st["pending"][0] is not head or st.get("head_progress", 0) != progress:
+                    # 先頭が入れ替わった、または先頭が network フェーズを 1 つ終えた → リセット
+                    # (16 巡目 P1: seed GET + PUT + 照会 GET の 3 フェーズが各 10 s timeout し得る)
                     head = st["pending"][0]
-                    deadline = _time.monotonic() + self.STORM_TURN_WAIT_SEC   # 進捗 → リセット
+                    progress = st.get("head_progress", 0)
+                    deadline = _time.monotonic() + self.STORM_TURN_WAIT_SEC
                 remaining = deadline - _time.monotonic()
                 if remaining <= 0:
                     self._storm_totals["skipped"]["serialize"] += 1
@@ -1782,7 +1797,18 @@ class OandaBridge:
                 if st0 is not None and len(st0["pending"]) >= 2:
                     tail = st0["pending"][-1]
                     if tail.get("async") and tail["ok"] is None and not tail.get("sending"):
-                        tail["new_sl"] = float(new_sl)
+                        # 畳み込みは「最新」ではなく「最も保護的」な値を残す (16 巡目 P1: 待機中の
+                        # 154.450 を後続の 154.300 で上書きすると正当な tightening を捨てる)。
+                        # BUY: max / SELL: min / 方向不明: 最新 (fail-open)
+                        d = st0.get("direction")
+                        cur = float(tail["new_sl"]); cand = float(new_sl)
+                        if d == "BUY":
+                            keep = max(cur, cand)
+                        elif d == "SELL":
+                            keep = min(cur, cand)
+                        else:
+                            keep = cand
+                        tail["new_sl"] = keep
                         tail["reeval"] = True
                         tail["provisional_reason"] = "coalesced"
                         self._storm_totals["coalesced"] += 1
@@ -1812,6 +1838,7 @@ class OandaBridge:
             if st is not None:
                 # 先頭になってから seed / 再照会 (single-flight、送信直前の再評価が使う)
                 self._storm_get_state(demo_trade_id, network=True)
+                self._storm_progress(st)                            # seed/再照会フェーズ完了
                 send, _ = self._storm_send_decision(demo_trade_id, st, token, sl_to_send, instrument)
                 if not send:
                     return
