@@ -1076,7 +1076,7 @@ class OandaBridge:
             "confirmed_sl": None, "confirmed_seq": 0, "pending": [], "seq": 0,
             # unresolved_sl = 送信したが応答が曖昧 (timeout/network/5xx) で broker が適用したか
             # 不明な SL。broker 照会で解消するまで単調性は保守的 baseline (BUY: max / SELL: min)
-            "unresolved_sl": None,
+            "unresolved_sl": None, "unresolved_prev": None, "unresolved_obs": None,
             "sent_ts": [], "sent_total": 0, "failed_total": 0,
             "tripped": False, "warned": False,
             "counts": {}, "seeded": False, "seed_source": None,
@@ -1231,17 +1231,20 @@ class OandaBridge:
             return "deadband"
         return None
 
-    def _storm_get_state(self, demo_trade_id: str) -> dict:
-        """state を取得/生成し、未 seed の restored trade は seed する
-        (seed は network/DB を触るので lock 外で行う; 二重 seed は None 埋めのみで無害)。"""
+    def _storm_get_state(self, demo_trade_id: str, network: bool = True) -> dict:
+        """state を取得/生成し、network=True なら未 seed の restored trade の seed と
+        unresolved の broker 再照会を行う (lock 外; 二重 seed は None 埋めのみで無害)。
+        fire-and-forget 経路の caller は network=False で呼び、network は worker 側で行う
+        (review 12 巡目 P2: broker timeout 10 s で高頻度 SL ループを塞がない)。"""
         with self._storm_lock:
             st = self._storm_state.get(demo_trade_id)
             if st is None:
                 st = self._storm_new_state()
                 self._storm_state[demo_trade_id] = st
-        if not st["seeded"] and (st["direction"] is None or st["confirmed_sl"] is None):
-            self._storm_seed_restored(demo_trade_id, st)
-        self._storm_try_reconcile(demo_trade_id, st)
+        if network:
+            if not st["seeded"] and (st["direction"] is None or st["confirmed_sl"] is None):
+                self._storm_seed_restored(demo_trade_id, st)
+            self._storm_try_reconcile(demo_trade_id, st)
         return st
 
     def _storm_evaluate(self, demo_trade_id: str, st: dict, new_sl: float,
@@ -1352,6 +1355,8 @@ class OandaBridge:
                 st["confirmed_seq"] = token["seq"]
                 st["confirmed_sl"] = token["new_sl"]
                 st["unresolved_sl"] = None      # より新しい確認済み値で曖昧さは消える
+                st["unresolved_prev"] = None
+                st["unresolved_obs"] = None
             st["cond"].notify_all()
         token["done"].set()
 
@@ -1385,19 +1390,28 @@ class OandaBridge:
                     logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure: broker snapshot discarded "
                                    f"(state advanced during query) demo={demo_trade_id} sent={token['new_sl']} "
                                    f"unresolved={st['unresolved_sl']}")
-                elif broker_sl is not None:
-                    st["confirmed_sl"] = broker_sl
-                    st["confirmed_seq"] = max(st["confirmed_seq"], token["seq"])
-                    st["unresolved_sl"] = None
-                    self._storm_totals["reconciled"] += 1
-                    logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure reconciled from broker "
-                                   f"demo={demo_trade_id} sent={token['new_sl']} broker_sl={broker_sl}")
                 else:
-                    st["unresolved_sl"] = token["new_sl"]
-                    self._storm_totals["unresolved"] += 1
-                    logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure UNRESOLVED "
-                                   f"demo={demo_trade_id} sent={token['new_sl']} — broker SL unknown; "
-                                   f"monotonic baseline is conservative until reconciled")
+                    prev = st["confirmed_sl"]
+                    st["unresolved_prev"] = prev
+                    st["unresolved_obs"] = None
+                    verdict = self._storm_reconcile_verdict(st, token["new_sl"], prev, broker_sl,
+                                                            _time.monotonic())
+                    if verdict in ("applied", "changed", "not_applied"):
+                        st["confirmed_sl"] = broker_sl
+                        st["confirmed_seq"] = max(st["confirmed_seq"], token["seq"])
+                        st["unresolved_sl"] = None
+                        st["unresolved_prev"] = None
+                        st["unresolved_obs"] = None
+                        self._storm_totals["reconciled"] += 1
+                        logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure reconciled ({verdict}) "
+                                       f"demo={demo_trade_id} sent={token['new_sl']} broker_sl={broker_sl}")
+                    else:
+                        # unknown (照会不能) / inconclusive (broker はまだ旧値 = PUT が処理中かも)
+                        st["unresolved_sl"] = token["new_sl"]
+                        self._storm_totals["unresolved"] += 1
+                        logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure UNRESOLVED ({verdict}) "
+                                       f"demo={demo_trade_id} sent={token['new_sl']} broker_sl={broker_sl} — "
+                                       f"monotonic baseline is conservative until a stable observation")
         with self._storm_lock:
             token["ok"] = False
             try:
@@ -1476,12 +1490,48 @@ class OandaBridge:
                 return False
             if st.get("unresolved_sl") is None:
                 return False                   # 既に解消済み (別経路)
+            verdict = self._storm_reconcile_verdict(st, st["unresolved_sl"], st.get("unresolved_prev"),
+                                                    broker_sl, _time.monotonic())
+            if verdict not in ("applied", "changed", "not_applied"):
+                return False                   # inconclusive: 旧値の単発観測、次の gate で再観測
             st["confirmed_sl"] = broker_sl
             st["unresolved_sl"] = None
+            st["unresolved_prev"] = None
+            st["unresolved_obs"] = None
             self._storm_totals["reconciled"] += 1
-            logger.warning(f"[OandaBridge][STORM_GUARD] unresolved SL reconciled from broker "
+            logger.warning(f"[OandaBridge][STORM_GUARD] unresolved SL reconciled ({verdict}) from broker "
                            f"demo={demo_trade_id} broker_sl={broker_sl}")
             return True
+
+    # 旧値の観測が「安定」とみなせる最短時間。timeout した PUT が broker 側でまだ処理中の窓
+    # (数秒) を超えて旧値が観測され続けたら「適用されなかった」と判定する。
+    STORM_RECONCILE_STABLE_SEC = 5.0
+
+    def _storm_reconcile_verdict(self, st: dict, sent_sl: float, prev_sl: float | None,
+                                 broker_sl: float | None, now: float) -> str:
+        """曖昧な PUT の帰結を broker 観測から判定する (review 12 巡目 P1):
+          applied      = broker が送った値を持つ (PUT 適用済み)
+          changed      = broker が送った値でも直前の値でもない (別経路で動いた; 現値が真)
+          not_applied  = broker が直前の値のまま、かつその観測が STORM_RECONCILE_STABLE_SEC 以上
+                         安定して続いた (PUT は落ちた)
+          inconclusive = broker が直前の値だが単発観測 — timeout した PUT がまだ処理中で直後に
+                         適用され得る。**1 回の旧値 snapshot を拒否の証拠にしない**
+          unknown      = 照会不能
+        caller が lock 保持。"""
+        def _eq(a, b):
+            return a is not None and b is not None and abs(float(a) - float(b)) < 1e-7
+        if broker_sl is None:
+            return "unknown"
+        if _eq(broker_sl, sent_sl):
+            return "applied"
+        if prev_sl is None or not _eq(broker_sl, prev_sl):
+            return "changed"
+        obs = st.get("unresolved_obs")
+        if obs is not None and _eq(obs[0], broker_sl) and now - obs[1] >= self.STORM_RECONCILE_STABLE_SEC:
+            return "not_applied"
+        if obs is None or not _eq(obs[0], broker_sl):
+            st["unresolved_obs"] = (float(broker_sl), now)
+        return "inconclusive"
 
     def _storm_conservative(self, st: dict, base: float | None) -> float | None:
         """unresolved_sl がある間の単調性 baseline: 適用済みかもしれない値と base のうち
@@ -1540,7 +1590,7 @@ class OandaBridge:
         return True
 
     def _storm_gate(self, demo_trade_id: str, new_sl: float,
-                    instrument: str) -> tuple[bool, object, dict | None]:
+                    instrument: str, network: bool = True) -> tuple[bool, object, dict | None]:
         """modify_sl / modify_sl_sync 共通入口。
         Returns (proceed, sync_return, reserve_token):
           proceed=True  → broker へ送信する (sync_return は無視)。送信は既に
@@ -1557,7 +1607,7 @@ class OandaBridge:
         breaker は計数ベースで baseline に依存しないので暫定にしない (最終)。
         検知のみモード (既定) では常に proceed=True で、検知はカウンタ + ログ。
         評価と予約は 1 つの lock 区間 (同時到達 N 件が同じ古い baseline を見ない)。"""
-        st = self._storm_get_state(demo_trade_id)
+        st = self._storm_get_state(demo_trade_id, network=network)
         with self._storm_lock:
             self._storm_totals["evaluated"] += 1
             reason = self._storm_evaluate(demo_trade_id, st, new_sl, instrument)
@@ -1644,12 +1694,15 @@ class OandaBridge:
             return
 
         # 予約は gate 内 (worker 起動前) — 同時到達分は更新済み baseline を見る
-        proceed, _, token = self._storm_gate(demo_trade_id, new_sl, instrument)
+        # caller (SL ループ) では network を触らない — seed / 再照会は worker で (12 巡目 P2)
+        proceed, _, token = self._storm_gate(demo_trade_id, new_sl, instrument, network=False)
         if not proceed:
             return
         st = self._storm_state.get(demo_trade_id)
 
         def _do():
+            if st is not None:
+                self._storm_get_state(demo_trade_id, network=True)   # seed / 再照会 (送信直前の再評価が使う)
             if st is not None and not self._storm_wait_turn(demo_trade_id, st, token):
                 # broker 未到達の drop → unreserve (要求数を戻す)。rollback (要求数保持 /
                 # failed 計数) にすると停滞 1 件の後ろに並んだ burst が未送信のまま
