@@ -34,6 +34,9 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
   (m) enforce では全 token を送信直前に確認済み baseline で 4 check 再評価 — gate は pre-filter、
       暫定 baseline に対して通った要求もその暫定が reject されれば送られない (PR #287 review
       9 巡目 P1、CF pin 付き)
+  (n) 応答曖昧な失敗 (timeout/network/5xx/例外) は旧 confirmed_sl に戻さない: broker の現 SL を
+      照会して合わせる / 取れなければ unresolved として単調性は保守的 baseline (BUY: max) +
+      gate ごとに再照会。HTTP 4xx (broker 拒否) だけが確定失敗 (PR #287 review 10 巡目 P1、CF pin 付き)
   既定 (env 未設定) = 検知のみ: 送信は止めず、カウンタ + WARN だけ動く
 """
 from __future__ import annotations
@@ -59,15 +62,17 @@ class _FakeClient:
         self.open_trades = open_trades        # None = broker 到達不能 (ok=False)
         self.fail_modify = False              # True = modify_trade が (False, ...) を返す
         self.fail_next = 0                    # >0 = 次の N 回だけ失敗 (thread 間の toggle 競合回避)
+        # 失敗の形: 400 = broker が拒否 (確定、未適用) / "timeout" 等 = 応答曖昧 (適用済みかも)
+        self.fail_error = 400
         self.open_trades_calls = 0
 
     def modify_trade(self, oanda_id, stop_loss=None, instrument=None, **kw):
         self.calls.append((oanda_id, stop_loss))
         if self.fail_next > 0:
             self.fail_next -= 1
-            return False, {"errorMessage": "simulated"}
+            return False, {"error": self.fail_error, "message": "simulated"}
         if self.fail_modify:
-            return False, {"errorMessage": "simulated"}
+            return False, {"error": self.fail_error, "message": "simulated"}
         return True, {"ok": True}
 
     def get_open_trades(self):
@@ -702,7 +707,7 @@ def test_p2_cf_prev_sl_rollback_leaves_unconfirmed_baseline(monkeypatch):
         tok = orig_reserve(self, st, new_sl)
         tok["prev_sl"] = prev
         return tok
-    def _old_rollback(self, demo_trade_id, st, token):
+    def _old_rollback(self, demo_trade_id, st, token, ambiguous=False):
         with self._storm_lock:
             if self._storm_baseline(st) == token["new_sl"]:
                 st["confirmed_sl"] = token["prev_sl"]
@@ -1167,3 +1172,112 @@ def test_p1_cf_breaker_only_at_send_for_non_provisional_loosens_confirmed_stop(m
         fn()
     assert fake.calls == [(OANDA_ID, 154.350), (OANDA_ID, 154.280)]           # ← 緩めが届く (旧形)
     assert b.get_storm_guard_status()["trades"][DEMO]["confirmed_sl"] == 154.280
+
+
+# ── 応答曖昧な失敗は旧 baseline に戻さない (PR #287 review 10 巡目 P1) ──────────
+# timeout / network / 5xx / 例外では OANDA が PUT を適用済みかもしれない。旧 confirmed_sl (154.115)
+# へ戻して後続を起こすと、適用済み 154.400 に対し queued 154.350 が「tightening」と判定され live
+# stop を緩める。→ broker 現 SL を照会して confirmed_sl を合わせる / 取れなければ unresolved と
+# して単調性は保守的 baseline、gate ごとに再照会。HTTP 4xx (broker 拒否) だけが確定失敗。
+
+def test_p1_ambiguous_failure_reconciles_confirmed_sl_from_broker(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # B: A 基準 monotonic → 暫定
+    fake.fail_next = 1; fake.fail_error = "timeout"                 # A: 応答曖昧
+    fake.open_trades = [_broker_trade("1000", "154.400")]           # 実は broker は適用済み
+    q[0]()
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["confirmed_sl"] == 154.400            # 旧 154.115 に戻さず broker 値へ
+    assert st["trades"][DEMO]["unresolved_sl"] is None
+    assert st["totals"]["ambiguous_failures"] == 1 and st["totals"]["reconciled"] == 1
+    q[1]()                                                          # B は確認済み 154.400 基準で reject
+    assert fake.calls == [(OANDA_ID, 154.400)]
+    assert b.get_storm_guard_status()["totals"]["skipped"]["monotonic"] == 1
+
+
+def test_p1_ambiguous_failure_unresolved_uses_conservative_monotonic_baseline(monkeypatch):
+    """broker 照会もできない場合: unresolved のまま、BUY の単調性は max(confirmed, unresolved) 基準。
+    unresolved 値と同値の再送は「再適用」なので冪等/dead-band で skip されない。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A
+    fake.fail_next = 1; fake.fail_error = "timeout"                 # 曖昧、broker 不達 (open_trades None)
+    q[0]()
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["confirmed_sl"] == 154.115 and st["unresolved_sl"] == 154.400
+    assert b.get_storm_guard_status()["totals"]["unresolved"] == 1
+    # 154.350 は confirmed 基準では +23.5 pip だが、適用済みかもしれない 154.400 基準では緩め → reject
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False
+    assert b.get_storm_guard_status()["totals"]["skipped"]["monotonic"] == 1
+    # 154.400 (同値再送) は送られる — 冪等/dead-band は confirmed 154.115 と比較
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is True
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["confirmed_sl"] == 154.400 and st["unresolved_sl"] is None   # 新しい確認で解消
+    assert fake.calls == [(OANDA_ID, 154.400), (OANDA_ID, 154.400)]
+
+
+def test_p1_unresolved_is_reconciled_lazily_at_next_gate(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")
+    fake.fail_next = 1; fake.fail_error = "network"
+    q[0]()
+    assert b.get_storm_guard_status()["trades"][DEMO]["unresolved_sl"] == 154.400
+    fake.open_trades = [_broker_trade("1000", "154.115")]           # broker 復帰: 実は未適用だった
+    # 次の gate で再照会 → confirmed 154.115 のまま解消 → 154.350 は正当 → 送られる
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["unresolved_sl"] is None and st["totals"]["reconciled"] == 1
+    assert fake.calls[-1] == (OANDA_ID, 154.350)
+
+
+def test_p1_definitive_4xx_failure_rolls_back_without_broker_query(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    fake.fail_next = 1; fake.fail_error = 400                       # broker が拒否 = 未適用が確定
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is False
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["confirmed_sl"] == 154.115 and st["trades"][DEMO]["unresolved_sl"] is None
+    assert st["totals"]["ambiguous_failures"] == 0 and fake.open_trades_calls == 0
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True   # 旧 baseline 基準で正当
+
+
+def test_p1_exception_in_modify_is_ambiguous(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    def _boom(*a, **kw):
+        fake.calls.append((OANDA_ID, kw.get("stop_loss")))
+        raise RuntimeError("socket reset")
+    monkeypatch.setattr(fake, "modify_trade", _boom)
+    fake.open_trades = [_broker_trade("1000", "154.400")]
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is False
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["confirmed_sl"] == 154.400                            # 例外 = 曖昧 → broker 照会で合わせる
+
+
+def test_failure_classification():
+    f = OandaBridge._storm_failure_is_ambiguous
+    assert f({"error": 400, "message": "x"}) is False
+    assert f({"error": 404}) is False
+    assert f({"error": 429, "message": "rate limited"}) is False    # ローカル backoff = 未送信
+    assert f({"error": "timeout"}) is True
+    assert f({"error": "network"}) is True
+    assert f({"error": "unknown"}) is True
+    assert f({"error": 502}) is True
+    assert f({}) is True and f(None) is True
+    assert f({"error": 400}, exc=RuntimeError()) is True
+
+
+def test_p1_cf_treating_timeout_as_definitive_loosens_applied_stop(monkeypatch):
+    """CF pin: timeout を確定失敗として旧 baseline に戻す (9 巡目までの形) と、broker が適用済みの
+    154.400 に対して 154.350 が送られ live stop が緩む。"""
+    monkeypatch.setattr(OandaBridge, "_storm_failure_is_ambiguous", staticmethod(lambda data, exc=None: False))
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # B (暫定)
+    fake.fail_next = 1; fake.fail_error = "timeout"
+    fake.open_trades = [_broker_trade("1000", "154.400")]           # broker は適用済み
+    q[0](); q[1]()
+    assert fake.calls == [(OANDA_ID, 154.400), (OANDA_ID, 154.350)]   # ← 緩めが届く (旧形)
+    assert b.get_storm_guard_status()["trades"][DEMO]["confirmed_sl"] == 154.350

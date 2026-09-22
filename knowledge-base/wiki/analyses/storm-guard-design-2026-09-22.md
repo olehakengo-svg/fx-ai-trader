@@ -2,8 +2,8 @@
 
 **Status**: 実装済み・**既定は検知のみ** (rule:R3 — 構造バグ修理、live 経路 PR-1、エッジ主張/lot/tier 不変更)
 **Scope**: `modules/oanda_bridge.py` `OandaBridge.modify_sl` / `modify_sl_sync` の入口。呼び出し側 (`modules/demo_trader.py` の BE/trail/pyramid/TP-extender ロジック) は不変更。
-**Tests**: `tests/test_oanda_bridge_storm_guard.py` (66 件、うち CF pin 18 件)
-**Review 消化 (PR #287, 2026-09-22)**: 1 巡目 P1 ×2 (再起動後 seed の `id`/`trade_id` 取り違え、stale DB sl を baseline に採用) + P2 ×1 (fire-and-forget 競合) / 2 巡目 P1 ×1 (未確認予約を冪等 True で返す) + P2 ×1 (連鎖失敗で未確認値が baseline に残る) / 3 巡目 P1 ×1 (重なった A,B で B 先行確認 → pending A が baseline に残る・broker 側発行順逆転) / 4 巡目 P2 ×1 (検知のみモードでも順番待ち timeout が送信を drop していた) / 5 巡目 P2 ×1 (未確認 baseline に対する reject を最終判定していた → 先行失敗時に正当な保護更新を永久に落とす) / 6 巡目 P2 ×1 (順番待ち timeout の drop が要求数を保持し、未送信 burst が breaker 窓を埋めて trip) / 7 巡目 P1 ×1 (暫定予約が breaker 窓を埋めて偽 trip、取り消し後も tripped が残る) / 8 巡目 P1 ×1 (未送信の非暫定予約が窓を埋めている間に保護更新 D を breaker で最終 reject) / 9 巡目 P1 ×1 (暫定 baseline に対して gate を通った要求が、その暫定の reject 後に確認済み stop を緩める) — §2.1 / §2.2 / §2.6 / §2.7 / §2.8 / §2.9 / §4 に反映
+**Tests**: `tests/test_oanda_bridge_storm_guard.py` (73 件、うち CF pin 19 件)
+**Review 消化 (PR #287, 2026-09-22)**: 1 巡目 P1 ×2 (再起動後 seed の `id`/`trade_id` 取り違え、stale DB sl を baseline に採用) + P2 ×1 (fire-and-forget 競合) / 2 巡目 P1 ×1 (未確認予約を冪等 True で返す) + P2 ×1 (連鎖失敗で未確認値が baseline に残る) / 3 巡目 P1 ×1 (重なった A,B で B 先行確認 → pending A が baseline に残る・broker 側発行順逆転) / 4 巡目 P2 ×1 (検知のみモードでも順番待ち timeout が送信を drop していた) / 5 巡目 P2 ×1 (未確認 baseline に対する reject を最終判定していた → 先行失敗時に正当な保護更新を永久に落とす) / 6 巡目 P2 ×1 (順番待ち timeout の drop が要求数を保持し、未送信 burst が breaker 窓を埋めて trip) / 7 巡目 P1 ×1 (暫定予約が breaker 窓を埋めて偽 trip、取り消し後も tripped が残る) / 8 巡目 P1 ×1 (未送信の非暫定予約が窓を埋めている間に保護更新 D を breaker で最終 reject) / 9 巡目 P1 ×1 (暫定 baseline に対して gate を通った要求が、その暫定の reject 後に確認済み stop を緩める) / 10 巡目 P1 ×1 (timeout/network 等の応答曖昧な失敗を確定失敗として旧 baseline に戻し、適用済みかもしれない stop を緩める) — §2.1 / §2.2 / §2.6 / §2.7 / §2.8 / §2.9 / §2.10 / §4 に反映
 **関連**: [[kalman-d7-carveout-postfill-packet-2026-09-17]] §1–3 (拡張凍結条件 = 本 guard の main 着地 + test pin) / [[kalman-d7-po-dn-flip]] 09-11/09-14/09-16 節 / [[usdjpy_carry_dip_accumulator]] §(3) storm / [[path-to-win-decision-memo-2026-09-20]] Rank 2-1 / 再評価 2026-09-22 §3 Rank 7
 
 ---
@@ -12,14 +12,14 @@
 
 | # | guard | 止める形状 | 実測根拠 | 実装 |
 |---|---|---|---|---|
-| 1 | 累積 tx breaker (窓あたり累積送信数、既定 50/h・200/日) | 継続時間で判別。storm と平常 trail は瞬間レートが同帯 (~1.5–3 cycle/s) なので**レート閾値では分離不能** | storm 4 = 16,837 replacement / 2h51m、#893161 平常 = 3 replacement ([[usdjpy_carry_dip_accumulator]] 09-14 節 (1)) | `_storm_check_breaker` `oanda_bridge.py:1160` |
-| 2 | 冪等 (直前送信 SL と同値 → skip) | family A: 同一価格 loop | #837978 4,791 回 / #847578 5,936 回 同一価格再送 (card L55, L63) | `_storm_check_idempotent` `:1181` |
-| 3 | 単調性 (BUY で SL↓ / SELL で SL↑ → reject) | storm と独立の **risk-increasing 欠陥**。振動が価格を追い越して自己約定 = storm の「終息機構」 | storm 4: 154.350→154.270 (BUY で 8 pip 下)、#893161 3 回目 154.260→154.248 (1.2 pip 下) → 同一秒自己約定 (card L31, L131, L141) | `_storm_check_monotonic` `:1192` |
-| 4 | dead-band (\|new − last\| < 1.0 pip → skip、ちょうど 1.0 pip は通す) | family B: 0.001 刻み振動。**等値では止まらない** | storm 4: 154.349⇄154.350 / 154.385⇄154.386 が秒間数回 (index 09-11 「機構は same price ではない」) | `_storm_check_deadband` `:1213` |
+| 1 | 累積 tx breaker (窓あたり累積送信数、既定 50/h・200/日) | 継続時間で判別。storm と平常 trail は瞬間レートが同帯 (~1.5–3 cycle/s) なので**レート閾値では分離不能** | storm 4 = 16,837 replacement / 2h51m、#893161 平常 = 3 replacement ([[usdjpy_carry_dip_accumulator]] 09-14 節 (1)) | `_storm_check_breaker` `oanda_bridge.py:1165` |
+| 2 | 冪等 (直前送信 SL と同値 → skip) | family A: 同一価格 loop | #837978 4,791 回 / #847578 5,936 回 同一価格再送 (card L55, L63) | `_storm_check_idempotent` `:1186` |
+| 3 | 単調性 (BUY で SL↓ / SELL で SL↑ → reject) | storm と独立の **risk-increasing 欠陥**。振動が価格を追い越して自己約定 = storm の「終息機構」 | storm 4: 154.350→154.270 (BUY で 8 pip 下)、#893161 3 回目 154.260→154.248 (1.2 pip 下) → 同一秒自己約定 (card L31, L131, L141) | `_storm_check_monotonic` `:1197` |
+| 4 | dead-band (\|new − last\| < 1.0 pip → skip、ちょうど 1.0 pip は通す) | family B: 0.001 刻み振動。**等値では止まらない** | storm 4: 154.349⇄154.350 / 154.385⇄154.386 が秒間数回 (index 09-11 「機構は same price ではない」) | `_storm_check_deadband` `:1218` |
 
-順序 = [[kalman-d7-po-dn-flip]] 09-16 訂正版の直交セット: breaker → 冪等 → 単調性 → dead-band (`_storm_evaluate` `:1241`)。
+順序 = [[kalman-d7-po-dn-flip]] 09-16 訂正版の直交セット: breaker → 冪等 → 単調性 → dead-band (`_storm_evaluate` `:1247`)。
 
-**既定 = 検知のみ**: 4 check は評価されカウンタ + 抑制付き WARN ログ (`_storm_record` `:1266`) が動くが、送信は止めない。`STORM_GUARD_ENFORCE=1` で guard 本体が有効 (`_storm_gate` `:1408`)。
+**既定 = 検知のみ**: 4 check は評価されカウンタ + 抑制付き WARN ログ (`_storm_record` `:1275`) が動くが、送信は止めない。`STORM_GUARD_ENFORCE=1` で guard 本体が有効 (`_storm_gate` `:1513`)。
 
 ---
 
@@ -79,7 +79,7 @@ DB seed もできず `direction` 不明の場合、単調性は判定不能 → 
 pip 単位 = `0.01` (JPY/XAU) / `0.0001` (それ以外) — demo_trader の `100 if JPY/XAU else 10000` 換算と同一規約 (`_storm_pip_size` `:82`)。
 
 ### 2.5 観測
-`OandaBridge.status["storm_guard"]` (`:514`) = `{enforce, allow_loosen, config, totals{evaluated, sent (=送信直前に窓入りした要求数), failed, deferred, detected{4 + serialize}, skipped{4 + serialize}, unknown_direction, breaker_trips}, trades{direction, last_sl (=baseline), confirmed_sl, pending[], sent_total, failed_total, tripped, seed_source, counts}}`。`/api/demo/status` 系の bridge status 経由で読める。ログ: `[OandaBridge][STORM_GUARD] DETECT(would_skip)|SKIP reason=... n=...` (trade × reason ごと最初の 3 件 + 100 件ごと) と `BREAKER TRIPPED` (trade ごと 1 回)。
+`OandaBridge.status["storm_guard"]` (`:514`) = `{enforce, allow_loosen, config, totals{evaluated, sent (=送信直前に窓入りした要求数), failed, ambiguous_failures, reconciled, unresolved, deferred, detected{4 + serialize}, skipped{4 + serialize}, unknown_direction, breaker_trips}, trades{direction, last_sl (=baseline), confirmed_sl, unresolved_sl, pending[], sent_total, failed_total, tripped, seed_source, counts}}`。`/api/demo/status` 系の bridge status 経由で読める。ログ: `[OandaBridge][STORM_GUARD] DETECT(would_skip)|SKIP reason=... n=...` (trade × reason ごと最初の 3 件 + 100 件ごと) と `BREAKER TRIPPED` (trade ごと 1 回)。
 
 ### 2.6 fire-and-forget 競合と予約 (PR #287 review P2 → 2 巡目 P1/P2 で確認済み/未確認を分離)
 `modify_sl` は worker thread で送信する。「成功後に baseline を更新」だと worker 完了前に到達した N 件が同じ古い baseline を見て全部通り、同一/sub-pip 要求の burst が冪等・dead-band を、大量 queue が breaker を、それぞれ素通しする。⇒ **評価と予約 (`_storm_reserve`: `pending` に token 追加 / `sent_ts` / `sent_total` 更新) を `_storm_gate` の 1 つの `RLock` 区間で行う** (sync / async 対称)。
@@ -106,6 +106,9 @@ enforce で confirmed 154.115 / pending A=154.350 のとき B=154.349 は A 基�
 
 ### 2.9 送信直前の再評価が唯一の最終判定 (PR #287 review 9 巡目 P1)
 gate 時点の評価は未確認の pending 値に対する **pre-filter** に過ぎない。「暫定でなく」gate を通った要求も、その baseline が暫定 (後で reject され得る) なら送信時に無効になり得る: 確認済み 154.115 / P=154.350 / 暫定 A=154.270 (P 基準 monotonic) / B=154.280 (A 基準 +1 pip で通過) → P 確認 → A reject → B を breaker だけ見て送ると確認済み 154.350 を 154.280 に**緩める**。⇒ enforce では **全 token を送信直前 (`_storm_send_decision`) に確認済み baseline で 4 check 再評価**する (`_storm_evaluate(before_seq=自分, observe=False)`; observe=False で unknown_direction / allow_loosen の観測カウンタを二重計数しない)。gate は早期 reject (baseline が確認済みで reason あり / breaker) と検知ログの場所、送信直前が最終判定。P が失敗した対称ケースでは A, B とも確認済み 154.115 基準で正当と再評価され順に送られる (`test_p1_request_passing_against_provisional_baseline_survives_if_predecessor_fails`)。実装上の注意: check に渡す `last` は `_UNSET` sentinel で「自分で計算せよ」を表し、`None` は「baseline なし」の実値 (`None` を sentinel に使うと再評価時に pending 末尾 = 自分自身と比較して冪等に化ける)。
+
+### 2.10 応答曖昧な失敗は旧 baseline に戻さない (PR #287 review 10 巡目 P1)
+`OandaClient._request` は timeout / network / unknown / 5xx / 例外でも `ok=False` を返すが、PUT は broker に届いて**適用済みかもしれない**。これを確定失敗として `confirmed_sl` を旧値 (154.115) のままにし後続を起こすと、適用済み 154.400 に対して queued 154.350 が「tightening」と判定されて live stop を緩める。⇒ `_storm_failure_is_ambiguous`: **HTTP 4xx (`{"error": <int 4xx>}` — broker が応答して拒否、429 のローカル backoff も未送信) だけが確定失敗**、それ以外は曖昧。曖昧な失敗の `_storm_rollback(ambiguous=True)` は token を pending に残したまま (後続は待つ) `_storm_query_broker_sl` で broker の現 SL (openTrades.stopLossOrder.price) を照会し、取れれば `confirmed_sl` をそれに合わせる (`totals.reconciled`)。取れなければ `unresolved_sl` に記録 (`totals.unresolved`) し、(a) 以後の gate ごとに `_storm_try_reconcile` で再照会、(b) 解消まで**単調性だけ保守的 baseline** `_storm_conservative` = BUY: max(confirmed, unresolved) / SELL: min (方向不明なら confirmed) — 冪等 / dead-band は confirmed (or pending) と比較するので、unresolved 値と同値の再送は「再適用」として送られる、(c) より新しい確認 (`_storm_confirm`) で unresolved は消える。status に `trades[*].unresolved_sl` と `totals.ambiguous_failures / reconciled / unresolved` を露出。
 
 ---
 
@@ -137,6 +140,7 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 | (l)-1 | 予約時点で窓に数える (`_count_at_reservation`、7 巡目までの形) | broker 到達 0 件で 4 件目が trip (`sent_total=3`, `tripped=True`) | `test_p1_cf_counting_provisional_in_window_trips_before_any_send` |
 | (l)-2 | 同上 + 停滞 A / 未送信 B,C の後ろに one-shot 保護更新 D (sync) | D が gate で最終 reject (False) — B,C が落ちても D は戻らない | `test_p1_cf_counting_at_reservation_rejects_protective_update_permanently` |
 | (m) | 非暫定 token を送信直前に breaker だけ見る (8 巡目の形) | P 確認 → A reject の後に B=154.280 が送られ、確認済み 154.350 の stop が緩む | `test_p1_cf_breaker_only_at_send_for_non_provisional_loosens_confirmed_stop` |
+| (n) | `_storm_failure_is_ambiguous` → 常に False (timeout を確定失敗扱い、9 巡目までの形) | broker が適用済みの 154.400 の後に 154.350 が送られ live stop が緩む | `test_p1_cf_treating_timeout_as_definitive_loosens_applied_stop` |
 | (g)-1 改 | 順番待ちなし + 再評価が常に冪等 True (未確認一致を即 True、2 巡目までの形) | worker 失敗前に sync が True を返し、confirmed_sl は原値のまま | `test_p1_cf_treating_pending_as_confirmed_returns_true_before_failure` |
 | 全体 CF (手動、2026-09-22、review 前の 28 件時点) | `_storm_gate` → `(True, None)` | 28 件中 **17 件 fail / 11 pass** (pass 11 = (b) 素通り pin・pip 規約・inactive 等、guard 非依存) | 一時 conftest で実測、commit には含めない |
 

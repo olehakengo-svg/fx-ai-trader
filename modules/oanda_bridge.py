@@ -186,6 +186,8 @@ class OandaBridge:
             "detected": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0, "serialize": 0},
             "skipped": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0, "serialize": 0},
             "unknown_direction": 0, "breaker_trips": 0, "failed": 0,
+            # ambiguous_failures = 応答曖昧な失敗 / reconciled = broker 照会で解消 / unresolved = 未解消のまま
+            "ambiguous_failures": 0, "reconciled": 0, "unresolved": 0,
             # deferred = enforce で baseline が未確認だったため送信順到来まで判定を保留した件数
             "deferred": 0,
         }
@@ -1072,6 +1074,9 @@ class OandaBridge:
             # pending     = 送信中 (未確認) の予約 token 列 (発行順)
             # baseline (= 各 check が比較する値) は pending[-1].new_sl or confirmed_sl
             "confirmed_sl": None, "confirmed_seq": 0, "pending": [], "seq": 0,
+            # unresolved_sl = 送信したが応答が曖昧 (timeout/network/5xx) で broker が適用したか
+            # 不明な SL。broker 照会で解消するまで単調性は保守的 baseline (BUY: max / SELL: min)
+            "unresolved_sl": None,
             "sent_ts": [], "sent_total": 0, "failed_total": 0,
             "tripped": False, "warned": False,
             "counts": {}, "seeded": False, "seed_source": None,
@@ -1236,6 +1241,7 @@ class OandaBridge:
                 self._storm_state[demo_trade_id] = st
         if not st["seeded"] and (st["direction"] is None or st["confirmed_sl"] is None):
             self._storm_seed_restored(demo_trade_id, st)
+        self._storm_try_reconcile(demo_trade_id, st)
         return st
 
     def _storm_evaluate(self, demo_trade_id: str, st: dict, new_sl: float,
@@ -1248,11 +1254,14 @@ class OandaBridge:
         pip = _storm_pip_size(instrument)
         now = _time.monotonic()
         last = self._storm_baseline(st, before_seq)
+        # 冪等 / dead-band は確認済み (or pending) の値と比較 — unresolved 値と同値の再送は
+        # 「再適用」なので skip しない。単調性だけは保守的 baseline (§2.10)。
+        last_mono = self._storm_conservative(st, last)
         reason = None if skip_breaker else self._storm_check_breaker(st, now)
         if reason is None:
             reason = self._storm_check_idempotent(st, new_sl, pip, last)
         if reason is None:
-            reason = self._storm_check_monotonic(st, new_sl, pip, last, count_unknown=observe)
+            reason = self._storm_check_monotonic(st, new_sl, pip, last_mono, count_unknown=observe)
             if reason == "monotonic" and self._storm_allow_loosen:
                 # 明示 opt-in: 検知は数えるが reject しない
                 if observe:
@@ -1342,10 +1351,12 @@ class OandaBridge:
             if token["seq"] > st["confirmed_seq"]:
                 st["confirmed_seq"] = token["seq"]
                 st["confirmed_sl"] = token["new_sl"]
+                st["unresolved_sl"] = None      # より新しい確認済み値で曖昧さは消える
             st["cond"].notify_all()
         token["done"].set()
 
-    def _storm_rollback(self, demo_trade_id: str, st: dict, token: dict | None):
+    def _storm_rollback(self, demo_trade_id: str, st: dict, token: dict | None,
+                        ambiguous: bool = False):
         """broker 失敗 (ok=False / 例外): token を pending から外すだけ。
         confirmed_sl は未確認値を一度も取り込んでいないので「戻す」操作は不要 —
         連鎖失敗 (A,B 予約 → A,B 失敗) でも baseline は自然に confirmed_sl へ戻る
@@ -1353,6 +1364,29 @@ class OandaBridge:
         残していた)。要求数は戻さない。"""
         if not token:
             return
+        if ambiguous:
+            # 応答曖昧 (review 10 巡目 P1): broker は PUT を適用済みかもしれない。旧 confirmed_sl
+            # へ戻して後続を起こすと、適用済み 154.400 に対して 154.350 が「tightening」と
+            # 判定され live stop を緩め得る。→ token を pending に残したまま (後続は待つ)
+            # broker の現 SL を照会し、取れれば confirmed_sl をそれに合わせる。取れなければ
+            # unresolved_sl に記録し、以後の gate で再照会 + 単調性は保守的 baseline。
+            with self._storm_lock:
+                self._storm_totals["ambiguous_failures"] += 1
+            broker_sl = self._storm_query_broker_sl(demo_trade_id)
+            with self._storm_lock:
+                if broker_sl is not None:
+                    st["confirmed_sl"] = broker_sl
+                    st["confirmed_seq"] = max(st["confirmed_seq"], token["seq"])
+                    st["unresolved_sl"] = None
+                    self._storm_totals["reconciled"] += 1
+                    logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure reconciled from broker "
+                                   f"demo={demo_trade_id} sent={token['new_sl']} broker_sl={broker_sl}")
+                else:
+                    st["unresolved_sl"] = token["new_sl"]
+                    self._storm_totals["unresolved"] += 1
+                    logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure UNRESOLVED "
+                                   f"demo={demo_trade_id} sent={token['new_sl']} — broker SL unknown; "
+                                   f"monotonic baseline is conservative until reconciled")
         with self._storm_lock:
             token["ok"] = False
             try:
@@ -1363,6 +1397,77 @@ class OandaBridge:
             self._storm_totals["failed"] += 1
             st["cond"].notify_all()
         token["done"].set()
+
+    @staticmethod
+    def _storm_failure_is_ambiguous(data, exc: BaseException | None = None) -> bool:
+        """失敗が「broker が拒否した (適用されていない)」と確定できるか。
+        OandaClient._request: HTTP 4xx → {"error": <int 4xx>} (broker 応答あり = 未適用、
+        429 のローカル backoff も未送信) = 確定。timeout / network / unknown / 5xx / 例外 =
+        PUT が届いて適用された可能性が残る = 曖昧。"""
+        if exc is not None:
+            return True
+        if not isinstance(data, dict):
+            return True
+        err = data.get("error")
+        if isinstance(err, bool):
+            return True
+        if isinstance(err, int) and 400 <= err < 500:
+            return False
+        return True
+
+    def _storm_query_broker_sl(self, demo_trade_id: str) -> float | None:
+        """broker の現 SL (openTrades.stopLossOrder.price)。取れなければ None。lock 外で呼ぶ。"""
+        oanda_id = self._trade_map.get(demo_trade_id)
+        if not oanda_id or self._client is None:
+            return None
+        try:
+            ok, data = self._client.get_open_trades()
+        except Exception as e:
+            ok, data = False, {"error": str(e)}
+        if not ok or not isinstance(data, dict):
+            return None
+        for ot in data.get("trades", []) or []:
+            if str(ot.get("id", "")) != str(oanda_id):
+                continue
+            sl_order = ot.get("stopLossOrder") or {}
+            price = sl_order.get("price")
+            if price in (None, "", 0):
+                return None
+            try:
+                return float(price)
+            except (TypeError, ValueError):
+                return None
+        return None
+
+    def _storm_try_reconcile(self, demo_trade_id: str, st: dict):
+        """unresolved_sl が残っていれば broker を再照会して解消を試みる (gate ごと、lock 外)。"""
+        if st.get("unresolved_sl") is None:
+            return
+        broker_sl = self._storm_query_broker_sl(demo_trade_id)
+        if broker_sl is None:
+            return
+        with self._storm_lock:
+            if st.get("unresolved_sl") is not None:
+                st["confirmed_sl"] = broker_sl
+                st["unresolved_sl"] = None
+                self._storm_totals["reconciled"] += 1
+                logger.warning(f"[OandaBridge][STORM_GUARD] unresolved SL reconciled from broker "
+                               f"demo={demo_trade_id} broker_sl={broker_sl}")
+
+    def _storm_conservative(self, st: dict, base: float | None) -> float | None:
+        """unresolved_sl がある間の単調性 baseline: 適用済みかもしれない値と base のうち
+        より保護的な方 (BUY: max / SELL: min)。方向不明なら base。"""
+        unres = st.get("unresolved_sl")
+        if unres is None:
+            return base
+        if base is None:
+            return unres
+        d = st.get("direction")
+        if d == "BUY":
+            return max(base, unres)
+        if d == "SELL":
+            return min(base, unres)
+        return base
 
     # 送信順番待ち (自分より前の予約が broker 応答を返すまで) の上限。
     # OandaClient._request の HTTP timeout (10 s) + 余裕。
@@ -1481,7 +1586,7 @@ class OandaBridge:
         with self._storm_lock:
             per_trade = {
                 k: {"direction": v.get("direction"), "last_sl": self._storm_baseline(v),
-                    "confirmed_sl": v.get("confirmed_sl"),
+                    "confirmed_sl": v.get("confirmed_sl"), "unresolved_sl": v.get("unresolved_sl"),
                     "pending": [t["new_sl"] for t in (v.get("pending") or [])],
                     "sent_total": v.get("sent_total", 0), "failed_total": v.get("failed_total", 0),
                     "tripped": v.get("tripped", False), "seed_source": v.get("seed_source"),
@@ -1531,9 +1636,9 @@ class OandaBridge:
             try:
                 ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
                                                       instrument=instrument)
-            except Exception:
+            except Exception as e:
                 if st is not None:
-                    self._storm_rollback(demo_trade_id, st, token)
+                    self._storm_rollback(demo_trade_id, st, token, ambiguous=True)
                 raise
             if ok:
                 if st is not None:
@@ -1542,7 +1647,8 @@ class OandaBridge:
                             f"OANDA #{oanda_id} (demo={demo_trade_id})")
             else:
                 if st is not None:
-                    self._storm_rollback(demo_trade_id, st, token)
+                    self._storm_rollback(demo_trade_id, st, token,
+                                         ambiguous=self._storm_failure_is_ambiguous(data))
                 logger.error(f"[OandaBridge] MODIFY SL failed #{oanda_id}: {data}")
 
         self._fire(_do)
@@ -1582,12 +1688,13 @@ class OandaBridge:
                 return True
             else:
                 if st is not None:
-                    self._storm_rollback(demo_trade_id, st, token)
+                    self._storm_rollback(demo_trade_id, st, token,
+                                         ambiguous=self._storm_failure_is_ambiguous(data))
                 logger.error(f"[OandaBridge] MODIFY SL (sync) failed #{oanda_id}: {data}")
                 return False
         except Exception as e:
             if st is not None:
-                self._storm_rollback(demo_trade_id, st, token)
+                self._storm_rollback(demo_trade_id, st, token, ambiguous=True)
             logger.error(f"[OandaBridge] MODIFY SL (sync) error: {e}")
             return False
 
