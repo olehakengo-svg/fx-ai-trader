@@ -10,7 +10,7 @@
 ## 0. 3 行サマリ
 
 1. **どこにいるか**: 執行契約 (B) 発効 (2026-09-10) 後の qualifying イベントは 1 件 (2026-09-13 USD_JPY、gap −50.0p) で、live は **`ABANDONED_DRIFT` (drift +41.0p > +8.0p)** = 改定後不成立 **1 件目**。09-20 は 3 ペアとも NO-QUALIFY (分母外)。live fill は live 化 (07-25) 以降 **0/4 qualifying イベント**、契約 B 下では 0/1。次の検証点 = **2026-09-27 (日) 21:00 UTC**。
-2. **何が起きたら発動するか**: 次の qualifying イベントが `ABANDONED_DRIFT` / `ABANDONED_HALT` / 新種 cancel なら **不成立 2 連続 = packet §6 発動** → 本 DRAFT を R1 起案 packet へ昇格 (user 承認)。fill なら F2 resolve、NO-QUALIFY なら繰越 (§2 で事前固定)。
+2. **何が起きたら発動するか**: 次の qualifying **pair-event** (時系列順) が `ABANDONED_DRIFT` / `ABANDONED_HALT` / 新種 cancel なら、直前の pair-event (= 09-13 ABANDONED_DRIFT) と合わせて **不成立 2 連続 = packet §6 発動** → 本 DRAFT を R1 起案 packet へ昇格 (user 承認)。fill なら F2 resolve (watcher は TRIGGERED を返すだけ — **registry 明示編集で resolve**、§2) + 連鎖リセット。同一週末に複数 pair-event があれば**時系列順に逐次適用** (fill があっても隣接 2 不成立なら発動、§2)。NO-QUALIFY なら繰越 (§2 で事前固定)。
 3. **候補の要点 (§3)**: 09-13 型 (gap が halt 窓 ~4 分で ~47p 消費) を救える契約変更は **drift 境界 +8.0p の変更/撤廃**か**シグナル基準の executable 化**しかなく、いずれも estimand 変更 = **fresh forward OOS のみが confirmatory** (OOS 窓再接触は禁止)。打ち切り +15 分・送信タイミング・指値化は 09-13 型に効かない。契約不変更で今すぐできるのは **放棄イベントの価格系 forward 観測 (§3-6)** のみ。
 
 ---
@@ -36,11 +36,11 @@
 
 | 結果 (pair-event 単位) | 分類 | 即時アクション (Claude、record-only / R3) | 本 DRAFT の扱い |
 |---|---|---|---|
-| **fill** (demo row `oanda_trade_id` 非空 ∧ oanda_audit sent→filled) | 成立 | F2 は registry `live_count_decision` (n_decide=1) で **自動 resolve** → resolution に「PASS→live 変換の初実証、改定後 fill 1/2」を記録。G0' 手順 (1)–(5) (registry g0prime) を実施 — (4) の slippage 突合は**当該 1 event の persisted 値の読み取りのみ、rolling 集計はしない** (G1 は code gate、N≥6 まで人手で計算しない)。card へ 24h 以内転記 (§6) | 発動せず。archive 候補 (G0' event #3 の結果まで保持) |
-| **`ABANDONED_DRIFT`** / **`ABANDONED_HALT`** / **新種 cancel** (halt-race 再送 2 回とも cancel を含む、`MARKET_HALTED` 以外の reason) | **不成立 2 件目 = packet §6 発動** | (i) 事象を card へ 24h 以内転記 (価格系のみ)、(ii) 本 DRAFT §3 の表を一次データで確定し **R1 起案 packet v1 をイベント +7 日以内** (09-27 発動なら 10-04) に起票、(iii) user へ「R1 再審起案の承認」を 1 行で依頼。**発動中の live 経路は契約 B のまま継続** (放棄は fail-closed で shadow 分母を保存する — 止める理由がない、4原則#3)。packet §6 の「family live-execution 保留」を選ぶのも user 事項 | **R1 起案へ昇格** (user 承認) |
+| **fill** (demo row `oanda_trade_id` 非空 ∧ oanda_audit sent→filled) | 成立 (連鎖リセット) | **F2 は自動では resolve されない**: `tools/prereg_trigger_watch.py::evaluate_live_count_decision` (L80–99) は clean live N≥n_decide=1 で `TRIGGERED`「再評価を実施せよ」を**返すだけ**で、`active=false` / `resolved` / `resolution` を書かず registry を一切変更しない (watcher に registry 書込み経路なし、2026-09-22 code 読み)。**resolution は明示手順** — §6 の 24h 規則内に registry 編集 PR (別担当) で `active: false` + `resolved: <YYYY-MM-DD>` + `resolution: 「PASS→live 変換の初実証 (F2 U7)、改定後 fill 1/2、demo row id / oanda_trade_id / oanda_audit id」` を記録する (既存 inactive エントリの規約: `resolved` 24/27・`resolution` 25/27、例 `vix-sell-pilot-recheck`)。**編集までは F2 は active のまま TRIGGERED 表示が続く = 未 resolve として扱う** (watcher 出力を resolve 済みの証拠にしない)。G0' 手順 (1)–(5) (registry g0prime) を実施 — (4) の slippage 突合は**当該 1 event の persisted 値の読み取りのみ、rolling 集計はしない** (G1 は code gate、N≥6 まで人手で計算しない)。card へ 24h 以内転記 (§6) | 発動せず。archive 候補 (G0' event #3 の結果まで保持) |
+| **`ABANDONED_DRIFT`** / **`ABANDONED_HALT`** / **新種 cancel** (halt-race 再送 2 回とも cancel を含む、`MARKET_HALTED` 以外の reason) | **不成立**。時系列で直前の pair-event が不成立 (現時点では 09-13 ABANDONED_DRIFT) なら **2 連続 = packet §6 発動**。直前が fill なら **1 件目として再カウント** (発動せず、次の pair-event へ) | 発動時: (i) 事象を card へ 24h 以内転記 (価格系のみ)、(ii) 本 DRAFT §3 の表を一次データで確定し **R1 起案 packet v1 をイベント +7 日以内** (09-27 発動なら 10-04) に起票、(iii) user へ「R1 再審起案の承認」を 1 行で依頼。**発動中の live 経路は契約 B のまま継続** (放棄は fail-closed で shadow 分母を保存する — 止める理由がない、4原則#3)。packet §6 の「family live-execution 保留」を選ぶのも user 事項 | **R1 起案へ昇格** (user 承認) |
 | **`SKIPPED_SPREAD`** (cap 10.0p 超) | 正当な未執行 | 分母記録のみ (`block_cause=weekend_gap_spread_cap(spread=X.XXp)`)。packet §6 row 1 の「cap skip を除く」により **G0' の 2 イベントに数えない** → 繰越 | 発動せず |
 | **NO-QUALIFY** (3 ペアとも閾値未達) | 分母外 | gap 診断ログの値を card へ転記 (near-miss を理由に閾値は触らない — stage-2 §8)。次週へ繰越 (10-04 → 10-11 → …) | 発動せず |
-| **3 ペア同時 qualify で結果が混在** (例: 1 fill + 1 abandon) | pair-event 単位で分類 | fill が 1 件でもあれば F2 resolve。「2 連続不成立」は**時系列順の pair-event で連続する 2 件が不成立のとき**のみ成立 — 同一週末に fill と放棄が混在した場合は fill が連鎖を切る (放棄は §3-6 の観測データにはなる)。⚠️ packet §6 は「イベント」の単位 (pair-event / 週末) を明示していない — **本稿の読みは pair-event。昇格時に文言を確定する** (凍結閾値には触れない文言整備) | 発動せず (fill あり) |
+| **同一週末に複数 pair-event が qualify し結果が混在** (例: fill + abandon) | pair-event 単位、**時系列順に逐次適用** | 各 pair-event を上の 4 行の規則に**時系列順** (oanda_audit の filled / abandon latch / cancel tx の ts、同秒なら Render ログ `[WEEKEND_GAP][EXEC_B]` の出力順) で 1 件ずつ当てる。「2 連続不成立」= **隣接する 2 pair-event が共に不成立** (`SKIPPED_SPREAD` は数えず連鎖も切らない — 列から除外、NO-QUALIFY は列に現れない)。**fill は F2 resolve (registry 明示編集) と連鎖リセットを同時に起こすが、週末単位で「fill があれば発動しない」とは読まない** — F2 resolve と §6 発動は独立で、同一週末に両方起きうる。worked example (09-13 = 不成立 1 件目を先頭に置く): (a) `fill → ABANDONED_DRIFT → ABANDONED_HALT` = 列 [DRIFT(09-13), fill, DRIFT, HALT] → fill でリセット後に DRIFT・HALT が隣接 → **発動** (かつ F2 resolve); (b) `ABANDONED_DRIFT → fill → ABANDONED_HALT` = [DRIFT(09-13), DRIFT, …] → 最初の pair-event で **発動** (後続 fill で F2 resolve、HALT は新連鎖の 1 件目); (c) `fill → fill → ABANDONED_DRIFT` = 発動せず、DRIFT が 1 件目。⚠️ packet §6 / registry g0prime は「イベント」の単位 (pair-event / 週末) を明示していない — **本稿の読みは pair-event 逐次。週末単位の別規則を運用に使うには packet §6 文言の user 承認が先** (未承認、本稿は使わない)。昇格時に文言を確定する (凍結閾値には触れない文言整備) | 上記の逐次判定に従う (fill の有無だけでは決めない) |
 
 **文言上の未整備 (昇格時に解消、凍結値には触れない)**: packet §6 row 1 は「fill 成立 (cap skip / **正当放棄**を除く)」、row 2 は「fill 不成立 (halt >15m / **drift 放棄** / 新種 cancel)」— drift 放棄が「正当放棄」に含まれるなら両行が矛盾する。運用上の読み (O-2026-09-14-1、registry g0prime message、[[2026-09-22-session]]) は **drift/halt 放棄 = 不成立、cap skip のみ = 正当な未執行**。本稿はこの読みで 09-13 を 1 件目とカウントしている。
 
@@ -118,6 +118,8 @@
 - 「live fill 0/7 累計」型の改定前後混在カウント ([[path-to-win-reassessment-2026-09-22]] §7-7)。改定後の連続不成立は **契約 B 下の qualifying イベントのみ**で数える。
 - 「観測して待つ」の 3 度目 (packet §6)。発動したら 7 日以内に packet v1 を出す。
 - 本 DRAFT を LOCK / 決裁済みとして引用すること。
+- watcher (`evaluate_live_count_decision`) の `TRIGGERED` 表示を F2 **resolved** と読むこと — resolve は registry の `active:false` + `resolved` + `resolution` 明示記録のみ (§2 row 1、PR #281 review P2)。
+- 同一週末に fill があることを理由に、時系列で隣接する 2 不成立 pair-event の packet §6 発動を抑止すること (週末単位規則は未承認、§2 末尾行、PR #281 review P2)。
 
 ---
 
