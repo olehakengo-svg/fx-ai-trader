@@ -151,7 +151,11 @@ class OandaBridge:
         # trail 状態に依存し、再起動で消える — 再起動後は DB 行から direction /
         # sl を lazy seed する)。
         self._storm_state: dict = {}
-        self._storm_lock = threading.Lock()
+        # RLock: gate は「評価 → 予約 (last_sl / sent_ts 更新)」を 1 つの
+        # critical section で行い、fire-and-forget 経路の同時到達で同じ古い
+        # last_sl を見て全部通る競合 (PR #287 review P2) を塞ぐ。check 内の
+        # counter 更新も同 lock を取るため再入可能が必要。
+        self._storm_lock = threading.RLock()
         self._storm_enforce = (
             os.environ.get("STORM_GUARD_ENFORCE", "").strip().lower() in _TRUTHY
         )
@@ -177,7 +181,7 @@ class OandaBridge:
             "evaluated": 0, "sent": 0,
             "detected": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0},
             "skipped": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0},
-            "unknown_direction": 0, "breaker_trips": 0,
+            "unknown_direction": 0, "breaker_trips": 0, "failed": 0,
         }
 
     # デフォルト全モード — MODE_CONFIGと同期（UI表示用）
@@ -1056,32 +1060,75 @@ class OandaBridge:
     def _storm_new_state() -> dict:
         return {
             "direction": None, "last_sl": None,
-            "sent_ts": [], "sent_total": 0,
+            "sent_ts": [], "sent_total": 0, "failed_total": 0,
             "tripped": False, "warned": False,
-            "counts": {}, "seeded_from_db": False,
+            "counts": {}, "seeded": False, "seed_source": None,
         }
 
-    def _storm_seed_from_db(self, demo_trade_id: str, st: dict):
-        """再起動後 (restore_mappings 経由) の trade は direction / sl を DB 行
-        から lazy seed する。失敗しても guard は fail-open (検知は継続)。"""
-        st["seeded_from_db"] = True
-        if self._db is None:
-            return
-        try:
-            rows = self._db.get_open_trades()
-        except Exception as e:
-            logger.warning(f"[OandaBridge][STORM_GUARD] db seed failed: {e}")
-            return
-        for row in rows or []:
-            if str(row.get("id")) == str(demo_trade_id):
-                if st["direction"] is None and row.get("direction"):
-                    st["direction"] = str(row["direction"]).upper()
-                if st["last_sl"] is None and row.get("sl") is not None:
+    def _storm_seed_restored(self, demo_trade_id: str, st: dict):
+        """再起動後 (restore_mappings 経由、open_trade を経ていない) trade の
+        baseline を lazy seed する。PR #287 review P1 ×2 の修正:
+
+        - **SL baseline は broker (OANDA openTrades の stopLossOrder.price) から
+          のみ取る。** demo_trades.sl は LIVE 経路では trail 後も更新されない
+          (demo_trader.py L3188–3199: LIVE 分岐は update_sl_tp を呼ばない) ので
+          stale — それを単調性の基準にすると「broker 154.350 / DB 154.115 で
+          154.270 を有利側と誤判定して 8 pip 緩める」= guard が守るべき形状を
+          素通しする。broker が取れなければ last_sl は None のまま
+          (最初の成功送信で baseline 確立 = fail-open)。
+        - direction は broker (currentUnits 符号) を第一、DB 行を fallback。
+          DB 行の識別子は `trade_id` (demo_trades.id は INTEGER PK で別物)。
+        失敗しても guard は fail-open (検知は継続)。"""
+        seeded_from = None
+        oanda_id = self._trade_map.get(demo_trade_id)
+        # (1) broker — authoritative for both direction and current SL
+        if oanda_id and self._client is not None:
+            try:
+                ok, data = self._client.get_open_trades()
+            except Exception as e:
+                ok, data = False, {"error": str(e)}
+            if ok and isinstance(data, dict):
+                for ot in data.get("trades", []) or []:
+                    if str(ot.get("id", "")) != str(oanda_id):
+                        continue
                     try:
-                        st["last_sl"] = float(row["sl"])
+                        units = float(ot.get("currentUnits", ot.get("initialUnits", 0)) or 0)
                     except (TypeError, ValueError):
-                        pass
-                return
+                        units = 0.0
+                    if st["direction"] is None and units != 0.0:
+                        st["direction"] = "BUY" if units > 0 else "SELL"
+                    sl_order = ot.get("stopLossOrder") or {}
+                    if st["last_sl"] is None and sl_order.get("price") not in (None, "", 0):
+                        try:
+                            st["last_sl"] = float(sl_order["price"])
+                        except (TypeError, ValueError):
+                            pass
+                    seeded_from = "broker"
+                    break
+            else:
+                logger.warning(f"[OandaBridge][STORM_GUARD] broker seed failed demo={demo_trade_id}: "
+                               f"{(data or {}).get('error', data) if isinstance(data, dict) else data}")
+        # (2) DB fallback — direction only (sl は stale なので使わない)
+        if st["direction"] is None and self._db is not None:
+            try:
+                rows = self._db.get_open_trades()
+            except Exception as e:
+                logger.warning(f"[OandaBridge][STORM_GUARD] db seed failed: {e}")
+                rows = []
+            for row in rows or []:
+                if str(row.get("trade_id")) == str(demo_trade_id):
+                    if row.get("direction"):
+                        st["direction"] = str(row["direction"]).upper()
+                        seeded_from = seeded_from or "db_direction_only"
+                    break
+        st["seed_source"] = seeded_from
+        st["seeded"] = True
+        if seeded_from != "broker":
+            logger.warning(
+                f"[OandaBridge][STORM_GUARD] restored trade demo={demo_trade_id} seeded "
+                f"from {seeded_from or 'nothing'}: direction={st['direction']} "
+                f"last_sl={st['last_sl']} (broker SL unavailable → baseline = first sent SL)"
+            )
 
     # ── 4 checks (order = KB 09-16 訂正版: breaker → 冪等 → 単調性 → dead-band)
 
@@ -1147,18 +1194,23 @@ class OandaBridge:
             return "deadband"
         return None
 
-    def _storm_evaluate(self, demo_trade_id: str, new_sl: float,
-                        instrument: str) -> tuple[str | None, dict]:
-        """4 check を順に評価し (reason|None, state) を返す。副作用: state seed。"""
-        pip = _storm_pip_size(instrument)
-        now = _time.monotonic()
+    def _storm_get_state(self, demo_trade_id: str) -> dict:
+        """state を取得/生成し、未 seed の restored trade は seed する
+        (seed は network/DB を触るので lock 外で行う; 二重 seed は None 埋めのみで無害)。"""
         with self._storm_lock:
             st = self._storm_state.get(demo_trade_id)
             if st is None:
                 st = self._storm_new_state()
                 self._storm_state[demo_trade_id] = st
-        if not st["seeded_from_db"] and (st["direction"] is None or st["last_sl"] is None):
-            self._storm_seed_from_db(demo_trade_id, st)
+        if not st["seeded"] and (st["direction"] is None or st["last_sl"] is None):
+            self._storm_seed_restored(demo_trade_id, st)
+        return st
+
+    def _storm_evaluate(self, demo_trade_id: str, st: dict, new_sl: float,
+                        instrument: str) -> str | None:
+        """4 check を順に評価し reason|None を返す。caller が _storm_lock を保持する。"""
+        pip = _storm_pip_size(instrument)
+        now = _time.monotonic()
         reason = self._storm_check_breaker(st, now)
         if reason is None:
             reason = self._storm_check_idempotent(st, new_sl, pip)
@@ -1171,7 +1223,7 @@ class OandaBridge:
                 reason = None
         if reason is None:
             reason = self._storm_check_deadband(st, new_sl, pip)
-        return reason, st
+        return reason
 
     def _storm_record(self, demo_trade_id: str, st: dict, reason: str,
                       new_sl: float, enforced: bool, note: str = ""):
@@ -1197,37 +1249,59 @@ class OandaBridge:
                 f"— SL replacement storm signature (cf. storm 4 #859468 16,837 repl)"
             )
 
-    def _storm_mark_sent(self, demo_trade_id: str, st: dict, new_sl: float):
+    def _storm_reserve(self, st: dict, new_sl: float) -> dict:
+        """送信予約 — gate 通過と同じ critical section で last_sl / sent_ts を
+        先に更新する (PR #287 review P2)。fire-and-forget 経路で worker 完了前に
+        次の modify_sl が来ても、次は更新済み baseline を見る。breaker は
+        「broker への要求数」を数える (成功数ではない — 失敗要求も tx)。
+        Returns rollback token."""
         with self._storm_lock:
+            token = {"prev_sl": st.get("last_sl"), "new_sl": float(new_sl)}
             st["sent_ts"].append(_time.monotonic())
             st["sent_total"] += 1
             st["last_sl"] = float(new_sl)
             self._storm_totals["sent"] += 1
+        return token
+
+    def _storm_rollback(self, demo_trade_id: str, st: dict, token: dict | None):
+        """broker 失敗時: broker SL は未変更なので last_sl を予約前へ戻す
+        (その後に別予約が last_sl を進めていれば触らない)。要求数は戻さない。"""
+        if not token:
+            return
+        with self._storm_lock:
+            st["failed_total"] += 1
+            self._storm_totals["failed"] += 1
+            if st.get("last_sl") == token["new_sl"]:
+                st["last_sl"] = token["prev_sl"]
 
     def _storm_gate(self, demo_trade_id: str, new_sl: float,
-                    instrument: str) -> tuple[bool, bool | None]:
+                    instrument: str) -> tuple[bool, bool | None, dict | None]:
         """modify_sl / modify_sl_sync 共通入口。
-        Returns (proceed, sync_return):
-          proceed=True  → broker へ送信する (sync_return は無視)
+        Returns (proceed, sync_return, reserve_token):
+          proceed=True  → broker へ送信する (sync_return は無視)。送信は既に
+            予約済み (last_sl / sent_ts 更新) — 失敗時は _storm_rollback(token)。
           proceed=False → 送信しない。sync_return は modify_sl_sync の戻り値
             (冪等 skip = True: broker は既にその SL / それ以外 = False: 未変更)。
-        検知のみモード (既定) では常に proceed=True で、検知はカウンタ + ログ。"""
+        検知のみモード (既定) では常に proceed=True で、検知はカウンタ + ログ。
+        評価と予約は 1 つの lock 区間 (同時到達 N 件が同じ古い baseline を見ない)。"""
+        st = self._storm_get_state(demo_trade_id)
         with self._storm_lock:
             self._storm_totals["evaluated"] += 1
-        reason, st = self._storm_evaluate(demo_trade_id, new_sl, instrument)
-        if reason is None:
-            return True, None
-        if not self._storm_enforce:
-            self._storm_record(demo_trade_id, st, reason, new_sl, enforced=False)
-            return True, None
-        self._storm_record(demo_trade_id, st, reason, new_sl, enforced=True)
-        return False, (reason == "idempotent")
+            reason = self._storm_evaluate(demo_trade_id, st, new_sl, instrument)
+            if reason is None:
+                return True, None, self._storm_reserve(st, new_sl)
+            if not self._storm_enforce:
+                self._storm_record(demo_trade_id, st, reason, new_sl, enforced=False)
+                return True, None, self._storm_reserve(st, new_sl)
+            self._storm_record(demo_trade_id, st, reason, new_sl, enforced=True)
+            return False, (reason == "idempotent"), None
 
     def get_storm_guard_status(self) -> dict:
         with self._storm_lock:
             per_trade = {
                 k: {"direction": v.get("direction"), "last_sl": v.get("last_sl"),
-                    "sent_total": v.get("sent_total", 0), "tripped": v.get("tripped", False),
+                    "sent_total": v.get("sent_total", 0), "failed_total": v.get("failed_total", 0),
+                    "tripped": v.get("tripped", False), "seed_source": v.get("seed_source"),
                     "counts": dict(v.get("counts", {}))}
                 for k, v in self._storm_state.items()
             }
@@ -1252,19 +1326,26 @@ class OandaBridge:
         if not oanda_id:
             return
 
-        proceed, _ = self._storm_gate(demo_trade_id, new_sl, instrument)
+        # 予約は gate 内 (worker 起動前) — 同時到達分は更新済み baseline を見る
+        proceed, _, token = self._storm_gate(demo_trade_id, new_sl, instrument)
         if not proceed:
             return
+        st = self._storm_state.get(demo_trade_id)
 
         def _do():
-            ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
-                                                  instrument=instrument)
+            try:
+                ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
+                                                      instrument=instrument)
+            except Exception:
+                if st is not None:
+                    self._storm_rollback(demo_trade_id, st, token)
+                raise
             if ok:
-                self._storm_mark_sent(demo_trade_id, self._storm_state.get(demo_trade_id)
-                                      or self._storm_new_state(), new_sl)
                 logger.info(f"[OandaBridge] MODIFY SL → {new_sl:.3f} "
                             f"OANDA #{oanda_id} (demo={demo_trade_id})")
             else:
+                if st is not None:
+                    self._storm_rollback(demo_trade_id, st, token)
                 logger.error(f"[OandaBridge] MODIFY SL failed #{oanda_id}: {data}")
 
         self._fire(_do)
@@ -1280,22 +1361,25 @@ class OandaBridge:
             oanda_id = self._trade_map.get(demo_trade_id)
         if not oanda_id:
             return False
-        proceed, sync_ret = self._storm_gate(demo_trade_id, new_sl, instrument)
+        proceed, sync_ret, token = self._storm_gate(demo_trade_id, new_sl, instrument)
         if not proceed:
             return bool(sync_ret)
+        st = self._storm_state.get(demo_trade_id)
         try:
             ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
                                                   instrument=instrument)
             if ok:
-                self._storm_mark_sent(demo_trade_id, self._storm_state.get(demo_trade_id)
-                                      or self._storm_new_state(), new_sl)
                 logger.info(f"[OandaBridge] MODIFY SL (sync) → {new_sl:.3f} "
                             f"OANDA #{oanda_id} (demo={demo_trade_id})")
                 return True
             else:
+                if st is not None:
+                    self._storm_rollback(demo_trade_id, st, token)
                 logger.error(f"[OandaBridge] MODIFY SL (sync) failed #{oanda_id}: {data}")
                 return False
         except Exception as e:
+            if st is not None:
+                self._storm_rollback(demo_trade_id, st, token)
             logger.error(f"[OandaBridge] MODIFY SL (sync) error: {e}")
             return False
 

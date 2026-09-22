@@ -11,6 +11,10 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
       = (a) の assertion は guard の存在に依存している
   (c) CF: 検知器 (_storm_record) を kill するとカウンタが動かない
   (d) 有利側の正当な trail (≥1 pip 単調) は全て通る — 偽陽性ゼロ
+  (e) 再起動後 seed: baseline は broker の現 SL (DB sl は stale) / DB 照合は trade_id
+      (PR #287 review P1 ×2、CF pin 付き)
+  (f) fire-and-forget 競合: 予約は gate 内 (worker 完了前の同時到達が同じ古い baseline
+      を見ない)、broker 失敗で rollback (PR #287 review P2、CF pin 付き)
   既定 (env 未設定) = 検知のみ: 送信は止めず、カウンタ + WARN だけ動く
 """
 from __future__ import annotations
@@ -28,15 +32,38 @@ N_STORM = 400  # 実 storm は 16,837 — test はスケール縮小、形状は
 
 
 class _FakeClient:
-    """modify_trade を記録して成功を返す。"""
+    """modify_trade を記録して成功を返す。open_trades を与えると broker seed に応答する。"""
 
-    def __init__(self):
+    def __init__(self, open_trades: list | None = None):
         self.calls: list[tuple[str, float]] = []
         self.configured = True
+        self.open_trades = open_trades        # None = broker 到達不能 (ok=False)
+        self.fail_modify = False              # True = modify_trade が (False, ...) を返す
+        self.open_trades_calls = 0
 
     def modify_trade(self, oanda_id, stop_loss=None, instrument=None, **kw):
         self.calls.append((oanda_id, stop_loss))
+        if self.fail_modify:
+            return False, {"errorMessage": "simulated"}
         return True, {"ok": True}
+
+    def get_open_trades(self):
+        self.open_trades_calls += 1
+        if self.open_trades is None:
+            return False, {"error": "simulated broker unavailable"}
+        return True, {"trades": list(self.open_trades)}
+
+
+def _broker_trade(units: str = "1000", sl: str = "154.350") -> dict:
+    """OANDA v20 openTrades 行の最小形 (demo_db._parse_oanda_trade と同じ key)。"""
+    return {"id": OANDA_ID, "instrument": "USD_JPY", "currentUnits": units,
+            "initialUnits": units, "stopLossOrder": {"price": sl}}
+
+
+def _db_row(direction: str = "BUY", sl: float = 154.115) -> dict:
+    """demo_trades 行の実形状: 識別子は `trade_id`、`id` は INTEGER PK (別物)。"""
+    return {"id": 17, "trade_id": DEMO, "direction": direction, "sl": sl,
+            "oanda_trade_id": OANDA_ID, "status": "OPEN"}
 
 
 def _bridge(monkeypatch, *, enforce: bool, direction: str = "BUY",
@@ -346,17 +373,161 @@ def test_unknown_direction_skips_monotonic_but_counts(monkeypatch):
     assert len(fake.calls) == 2
 
 
-def test_restore_path_seeds_direction_and_sl_from_db(monkeypatch):
+# ── 再起動後 seed (PR #287 review P1 ×2) ──────────────────────────────────
+# P1-a: demo_trades の識別子は `trade_id` (`id` は INTEGER PK) — 旧 code は `id` を
+#       見ていて永久に seed されず、単調性が全 restored trade で fail-open だった。
+# P1-b: demo_trades.sl は LIVE 経路で trail 後も更新されない (demo_trader L3188–3199
+#       LIVE 分岐は update_sl_tp を呼ばない) = stale。broker 154.350 / DB 154.115 で
+#       154.270 (BUY, broker から 8 pip 不利側) を DB 基準で「有利側」と誤判定して
+#       送る = guard が守るべき形状の素通し。baseline は broker から取る。
+
+def test_restore_path_seeds_baseline_from_broker_not_stale_db_sl(monkeypatch):
     db = MagicMock()
-    db.get_open_trades.return_value = [
-        {"id": DEMO, "direction": "BUY", "sl": 154.115, "oanda_trade_id": OANDA_ID},
-    ]
+    db.get_open_trades.return_value = [_db_row("BUY", 154.115)]   # stale (open 時の SL)
     b, fake = _bridge(monkeypatch, enforce=True, direction=None, db=db)
-    # baseline は DB から seed → 154.100 は BUY で 1.5 pip 下 = monotonic reject
-    assert b.modify_sl_sync(DEMO, 154.100, instrument="USD_JPY") is False
+    fake.open_trades = [_broker_trade("1000", "154.350")]         # broker の現 SL
+    # review の実例: 154.270 は DB 基準 +15.5 pip (有利) だが broker 基準 −8 pip (不利)
+    assert b.modify_sl_sync(DEMO, 154.270, instrument="USD_JPY") is False
     assert len(fake.calls) == 0
     st = b.get_storm_guard_status()["trades"][DEMO]
-    assert st["direction"] == "BUY" and st["last_sl"] == 154.115
+    assert st["direction"] == "BUY" and st["last_sl"] == 154.350
+    assert st["seed_source"] == "broker"
+    assert b.get_storm_guard_status()["totals"]["skipped"]["monotonic"] == 1
+    # 正当な有利側 (broker 基準 +1.5 pip) は通る
+    assert b.modify_sl_sync(DEMO, 154.365, instrument="USD_JPY") is True
+
+
+def test_restore_path_cf_seeding_stale_db_sl_lets_loosening_through(monkeypatch):
+    """CF pin: 旧挙動 (DB sl を baseline に採用) を再現すると review の 8 pip 緩めが通る
+    = 上の assertion は broker seed の存在に依存している。"""
+    def _old_seed(self, demo_trade_id, st):
+        st["direction"], st["last_sl"], st["seeded"] = "BUY", 154.115, True
+        st["seed_source"] = "db_stale"
+    monkeypatch.setattr(OandaBridge, "_storm_seed_restored", _old_seed)
+    b, fake = _bridge(monkeypatch, enforce=True, direction=None, db=MagicMock())
+    fake.open_trades = [_broker_trade("1000", "154.350")]
+    assert b.modify_sl_sync(DEMO, 154.270, instrument="USD_JPY") is True   # ← 素通し (旧 bug の形)
+    assert len(fake.calls) == 1
+
+
+def test_restore_path_broker_unavailable_uses_db_direction_only_and_matches_trade_id(monkeypatch):
+    """P1-a + P1-b fallback: broker 不達なら direction だけ DB (`trade_id` で照合) から。
+    stale な DB sl は baseline に使わず、最初の成功送信が baseline になる (fail-open)。"""
+    db = MagicMock()
+    db.get_open_trades.return_value = [_db_row("BUY", 154.115)]
+    b, fake = _bridge(monkeypatch, enforce=True, direction=None, db=db)
+    assert fake.open_trades is None                                  # broker 不達
+    # 1 本目: baseline なし → 通す (baseline 確立)。stale 154.115 とは比較しない
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["direction"] == "BUY" and st["last_sl"] == 154.350
+    assert st["seed_source"] == "db_direction_only"
+    # 2 本目: direction は分かるので単調性が効く
+    assert b.modify_sl_sync(DEMO, 154.270, instrument="USD_JPY") is False
+    assert len(fake.calls) == 1
+    assert b.get_storm_guard_status()["totals"]["unknown_direction"] == 0
+
+
+def test_restore_path_cf_db_row_keyed_only_by_id_never_seeds(monkeypatch):
+    """CF pin (P1-a): 行が `trade_id` を持たず `id` だけなら照合できず direction 不明
+    = 旧 code (`row.get("id")`) と同じ「永久 fail-open」の形が再現する。"""
+    db = MagicMock()
+    db.get_open_trades.return_value = [{"id": DEMO, "direction": "BUY", "sl": 154.115}]
+    b, fake = _bridge(monkeypatch, enforce=True, direction=None, db=db)
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True
+    assert b.modify_sl_sync(DEMO, 154.270, instrument="USD_JPY") is True   # ← 単調性が効かない
+    assert b.get_storm_guard_status()["totals"]["unknown_direction"] == 1
+    assert b.get_storm_guard_status()["trades"][DEMO]["seed_source"] is None
+
+
+def test_restore_path_broker_seed_happens_once_and_sell_direction_from_units(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, direction=None, db=None)
+    fake.open_trades = [_broker_trade("-1000", "154.900")]          # SELL
+    assert b.modify_sl_sync(DEMO, 154.950, instrument="USD_JPY") is False   # SELL で SL↑ = reject
+    assert b.modify_sl_sync(DEMO, 154.850, instrument="USD_JPY") is True    # SL↓ = 有利
+    assert fake.open_trades_calls == 1                              # seed は 1 回だけ
+    assert b.get_storm_guard_status()["trades"][DEMO]["direction"] == "SELL"
+
+
+# ── fire-and-forget 競合 (PR #287 review P2) ─────────────────────────────
+# worker 完了後に last_sl / sent_ts を更新する設計だと、worker 完了前に到達した
+# N 件が同じ古い baseline を見て全部通る。予約 (reserve) は gate 内で行う。
+
+def _deferred_fire(b, monkeypatch) -> list:
+    """_fire を「積むだけ」にして、worker 完了前の同時到達を再現する。"""
+    queue: list = []
+    monkeypatch.setattr(b, "_fire", lambda fn, *a, **kw: queue.append(lambda: fn(*a, **kw)))
+    return queue
+
+
+def test_p2_async_burst_same_sl_is_reserved_before_worker_runs(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True)
+    q = _deferred_fire(b, monkeypatch)
+    for _ in range(5):
+        b.modify_sl(DEMO, 154.350, instrument="USD_JPY")           # worker は 1 つも走っていない
+    assert len(q) == 1                                              # 2 件目以降は予約済み baseline で冪等 skip
+    for fn in q:
+        fn()
+    assert len(fake.calls) == 1
+    assert b.get_storm_guard_status()["totals"]["skipped"]["idempotent"] == 4
+
+
+def test_p2_async_burst_cannot_overshoot_breaker(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, STORM_GUARD_MAX_TX_PER_HOUR=50)
+    q = _deferred_fire(b, monkeypatch)
+    for sl in legit_trail_buy(60):                                  # 全て正当 (2 pip 有利側)
+        b.modify_sl(DEMO, sl, instrument="USD_JPY")
+    assert len(q) == 50                                             # 予約段階で 50 に capped
+    assert b.get_storm_guard_status()["totals"]["skipped"]["breaker"] == 10
+
+
+def test_p2_cf_reserve_after_success_lets_burst_through(monkeypatch):
+    """CF pin: 予約を「成功後更新」に戻す (last_sl を gate 内で触らない) と同一 SL 5 件が
+    全部飛ぶ = 上の assertion は gate 内予約の存在に依存している。"""
+    def _no_reserve(self, st, new_sl):
+        return {"prev_sl": st.get("last_sl"), "new_sl": float(new_sl)}
+    monkeypatch.setattr(OandaBridge, "_storm_reserve", _no_reserve)
+    b, fake = _bridge(monkeypatch, enforce=True)
+    q = _deferred_fire(b, monkeypatch)
+    for _ in range(5):
+        b.modify_sl(DEMO, 154.350, instrument="USD_JPY")
+    assert len(q) == 5                                              # ← 素通し (旧 bug の形)
+
+
+def test_p2_rollback_on_broker_failure_restores_baseline_sync_and_async(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    fake.fail_modify = True
+    # sync: 失敗 → False、last_sl は予約前へ戻る、要求は数える (breaker は要求数)
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["last_sl"] == 154.115
+    assert st["totals"]["failed"] == 1 and st["totals"]["sent"] == 1
+    # 復旧後の同一 SL 再送は冪等 skip されない (broker は未変更なので再送が正しい)
+    fake.fail_modify = False
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True
+    assert b.get_storm_guard_status()["trades"][DEMO]["last_sl"] == 154.350
+    # async (inline _fire): 失敗で rollback、成功で据え置き
+    fake.fail_modify = True
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")
+    assert b.get_storm_guard_status()["trades"][DEMO]["last_sl"] == 154.350
+    fake.fail_modify = False
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")
+    assert b.get_storm_guard_status()["trades"][DEMO]["last_sl"] == 154.400
+    assert b.get_storm_guard_status()["totals"]["failed"] == 2
+
+
+def test_p2_rollback_does_not_clobber_newer_reservation(monkeypatch):
+    """A (失敗) の rollback は、その後 B が baseline を進めていれば触らない。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A 予約
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # B 予約 (baseline 154.400)
+    fake.fail_modify = True
+    q[0]()                                                          # A 失敗 → rollback は no-op
+    assert b.get_storm_guard_status()["trades"][DEMO]["last_sl"] == 154.400
+    fake.fail_modify = False
+    q[1]()
+    assert b.get_storm_guard_status()["trades"][DEMO]["last_sl"] == 154.400
 
 
 def test_allow_loosen_env_opt_in_disables_monotonic_reject_but_counts(monkeypatch):
