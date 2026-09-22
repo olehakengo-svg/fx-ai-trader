@@ -14,7 +14,7 @@
 2. **配線は開いている**: 2 行とも `is_shadow=1 ∧ oanda_trade_id=''`、confidence 48 / 68 (0-100 スケール)、11 日永続集計で `conf<30` / `no_confirm` / `unknown_type` は **0 件**。conf 単位バグ再発・QUALIFIED_TYPES 落ち・shadow_only 配線落ちの 3 仮説は **全て反証**。
 3. **setup 供給も止まっていない**: 登録修理後 (09-10 16:49Z〜) の active 窓 (UTC 7–20) で BUY bar は **11 本** (forming-bar 評価)。「単に相場 setup 不在」も **反証**。
 4. **行ゼロの真因 = `_tick_entry` 下流の live 保護 gate**: 09-12 以降の BUY bar 6/6 が `mtf_strong_bias` (直近 1h 以内に USD_JPY の DT strong SELL pattern が `_15m_tactical_bias` を立てている間の BUY — D1/H4 レジームラベル `trend_down_strong` は機構ではない、§6) / `velocity_down` / `1h_rr_low` で **hard block** (shadow 迂回なし)。この 3 gate は 365d ablated BT では**適用されていない** = BT⇄live 母集団の非同期 (CLAUDE.md「フィルターは本番⇄BT 同期必須」に反する状態)。
-5. 09-11 の `session_hours` **211 件**は **stale feed アーティファクト** (fetched bars が 20:54Z〜21:54Z+ で 4403 に凍結、hour=20 の stale bar を 21 時台に再評価) で、tz バグでも配線バグでもない。実 setup の損失ゼロ。
+5. 09-11 の `session_hours` **211 件**は **stale bar アーティファクト** (hour=20 の bar が 21 時台に BUY 評価された = 最終 bar が ≥1h 古い; fetched bars が 20:54Z〜21:54Z+ で 4403 に凍結したのは補助観測で、行数一定は単独では stale の証拠にならない、§5/§8 (iii)) で、tz バグでも配線バグでもない。実 setup の損失ゼロ。
 
 ---
 
@@ -87,7 +87,7 @@
 ## 5. 09-11 `session_hours` 211 件の正体 — stale feed アーティファクト (tz バグではない)
 
 - 構造: `compute_rnb_signal` の時間 filter は **bar index の hour** (`app.py:4409-4412`)、`_tick_entry` の `session_hours` は **wall-clock UTC** (`demo_trader.py:5293-5296`)。両者は本来同じ 7–20 UTC 窓 (`_active_hours[0] <= hour <= _active_hours[1]` = 14 時間) で、bar が新鮮なら `session_hours` は到達不能。**到達した = bar index の hour と wall-clock が乖離した時間帯があった**。
-- 実測 (Render `[DemoTrader/rnb_usdjpy] fetched N bars`、09-11): 19:32Z 4398 → 19:57Z 4399 → 20:01Z 4400 → 20:26Z 4401 → **20:54Z 4403 → 20:58Z 4403 → 21:23Z 4403 → 21:26Z 4403 → 21:51Z 4403 → 21:54Z 4403**。15m 足なら 60 分で +4 本のはずが **0 本 = feed が ≥60 分 stale**。
+- 実測 (Render `[DemoTrader/rnb_usdjpy] fetched N bars`、09-11): 19:32Z 4398 → 19:57Z 4399 → 20:01Z 4400 → 20:26Z 4401 → **20:54Z 4403 → 20:58Z 4403 → 21:23Z 4403 → 21:26Z 4403 → 21:51Z 4403 → 21:54Z 4403**。15m 足なら 60 分で +4 本のはずが **0 本**。⚠️ **行数一定は単独では stale の証拠にならない** (固定 `count` の OANDA fallback でも一定、§8 (iii) — PR #283 レビュー 3 巡目 P2)。stale の**決定的証拠は機構側**: `compute_rnb_signal` が BUY を返した = 最終 bar の index hour ≤ 20 (`app.py:4409-4412`) が wall-clock 21 時台に成立 = 最終 bar が ≥1h 古い。行数凍結 (直前 90 分は +1/25 分で伸びていた) はそれと整合する**補助観測**。当夜の source (Massive / OANDA fallback) はログに無く未確認。
 - 帰結: 最終 bar (20:45 bar、hour=20 で signal 側 filter を通過、かつ BUY setup) を 21 時台に 30s ごと再評価 → wall-clock hour=21 で `session_hours(outside_active)` hard block (`_is_shadow_eligible_full` 偽)。211 tick ≈ 105 分 ≈ 21:00Z〜22:45Z 前後。同 bar の 20:54–20:59Z の評価は dedup (09-11 dedup 54 の一部)。
 - **tz 仮説 (index が London/JST) は棄却**: 乖離が 09-11 の 1 夜だけで、09-14〜09-22 の全 bar_ts (`bar_ts=...T07:00:00+00:00` 等) は UTC 表記で wall-clock と整合。恒常的 tz ズレなら毎日出る。
 - 実 setup の損失: **0** (20:45 bar は 20:4x〜20:5x に in-window で評価済み、下流 block)。ただし **「fetched bars が市場時間中に伸びない」を検知する読み手は無い** (freshness_policy の tick/candidate/trade 鮮度とは別の estimand、MEMORY `project_engine_tick_liveness_2026_08_28` の階層で言えば「データ鮮度」層) → §8 (iii)。
@@ -132,7 +132,7 @@
 
 **(ii) 修理しない場合 — 頻度前提の下方修正** (§7): checkpoint-2 の判定基準を「setup 頻度 × 通過率」型に書き換え、LOCK の 2027-01-15 stale 分岐が既定路線であることを registry message に明記。
 
-**(iii) データ鮮度の読み手 (別 R3、rnb 非固有)**: 市場時間中に `fetched N bars` が 2×tf 以上伸びないモードを検知 (engine_tick とは別 estimand)。09-11 20:54Z〜21:54Z+ の 60 分凍結は現行の読み手 (tick / candidate / trade 鮮度) では見えない。
+**(iii) データ鮮度の読み手 (別 R3、rnb 非固有)**: 検知量は **最新 bar の timestamp と wall-clock の差** (`now − last_bar_ts > k×tf`、市場オープン時間換算、source 併記; engine_tick とは別 estimand)。**行数 (`fetched N bars`、`:4329`) の伸びは検知量に使わない** (PR #283 レビュー 3 巡目 P2 で訂正): 取得経路 `fetch_ohlcv` (`modules/data.py:933`、Massive `:1018` → OANDA `:1036` → parquet cache `:1087`) のうち OANDA fallback `fetch_ohlcv_oanda` (`:585-608`) は固定 `count` (60d/15m なら `needed = int(60×96×0.6) = 3456`) を要求するため、新 bar が古い bar を置き換えても長さは一定 — 行数検知は健全な fallback feed を**常時誤検知**し、等長置換の stale を**見逃す**。Massive の rolling range も末尾 bar だけ更新されうる。09-11 20:54Z〜21:54Z+ の凍結は現行の読み手 (tick / candidate / trade 鮮度) では見えない。
 
 **(iv) 件数整合・帰属の確認 (別 R3、低優先)**: (a) 09-16 / 09-17 の `mtf_strong_bias` block を立てた `_15m_tactical_bias` の発生源 (どの USD_JPY DT strong SELL pattern か) — writer (`:4926-4933`) に log が無く block 理由も `_bias_dir` のみなので、writer に `[TACTICAL_BIAS] {instrument} {direction} {entry_type} {strength}` の 1 行 log を足す (計測層のみ、挙動不変) か、`mtf_strong_bias(...)` の理由文字列に bias の entry_type を含める; (b) 1 bar の初回評価が ~3 秒差で 2 本出る機構 (`_tick_entry` 二重呼び出し or mode スレッド二重化 — StatusHeal `Mode not running — restarting` `:2066` 起点の可能性) と、09-11 10:30 bar で dedup 予約を 2 回通過した痕跡の帰属。行の重複は無いが、block tick 件数の bar 換算 (×2) と DB 負荷 (09-22 §H HTTP 盲目の背景) に関わる。
 
@@ -148,6 +148,7 @@
 - checkpoint の **期日と自動 TRIGGERED 日を区別する**: 評価器は `today > deadline` (`tools/prereg_trigger_watch.py:73`)、Tier A cron は 00:20Z (`render.yaml:168`) なので TRIGGERED は**期日翌日 00:20Z** (checkpoint-1 09-25 / checkpoint-2 10-09)。「09-24 TRIGGERED」型の引用は誤り (本 PR 初版の誤記、レビュー 1 巡目で訂正)。同型の `deadline_info` / `conditional_info` (`:104`, `:331`) も `today > deadline` で同じ 1 日ずれを持つ。`live_count_decision` (`:95`) だけは `today >= deadline` で期日当日に発火する — 型を見ずに「期日 = 発火日」と書かない。
 - MTF ラベル `trend_down_strong` (`_get_mtf_regime`、monitor-only、D1/H4 30 分 TTL) と `mtf_strong_bias` gate (`_15m_tactical_bias`、DT strong pattern 由来、1h 有効) を**混同して引用しない** (§6)。「trend_down_strong の間は BUY が全て block」型の引用は誤り (本 PR 初版〜1 巡目の誤記、2 巡目で訂正)。cadence 射影の条件付けは tactical bias 状態で行う。
 - checkpoint-2 (10-09 00:20Z 判定) の TRIGGERED は**射影**であって確定ではない (残 4 行、§7)。両分岐を準備する。
+- データ鮮度は**最新 bar の timestamp** で測る。`fetched N bars` の行数一定 / 伸びを stale / 健全の証拠として引用しない (固定 `count` fallback で一定になる、§5 / §8 (iii))。09-11 の stale 判定の根拠は「hour=20 の bar が 21 時台に BUY 評価された」機構側の事実。
 - §8 (i) の修理は **rnb mode 限定の allowlist** — `_mode_is_shadow_only` 汎用化は `daytrade_audjpy` (LOCK 済み WS3 stage-2 shadow 実験) の母集団を変えるため不可 (2 巡目 P1)。
 - 09-05 分析の予測 1 (`direction_filter` 恒久 0) は本窓でも成立 (永続 11d にキーなし)。
 
@@ -156,5 +157,5 @@
 - 本番 API: `GET /api/demo/status` (block_counts / tick_counts / modes、2026-09-22 08:4x UTC)、`GET /api/demo/block-counts?days=1..14&strategy=rnb_support_bounce`
 - Render app ログ (workspace tea-d6va0dia214c7386glv0 / srv-d6va1of5r7bs73en10vg): text `rnb_support_bounce` 2026-09-10〜09-22 (2 ページ、hasMore=false)、text `DemoTrader/rnb_usdjpy` 2026-09-11T19:30Z〜09-12T00:30Z
 - scratchpad `trades.json` (2,002 行、2026-08-18〜09-22)、`block_counts_11d.json`
-- code: `modules/demo_trader.py` (567, 746-765, 776-789, 1263-1272, 4292-4296, 4308-4309, 4574/4583/4643, 4884, 4900-4909, 4916-4933, 5008, 5073-5078, 5289-5304, 5314, 5488, 5506-5519, 5521-5542, 5573, 5758, 5786, 5817, 5821-5872, 6082-6087, 6355-6389, 6418-6431, 6449, 6549-6552, 10960, 2066) / `app.py` (4358-4527) / `modules/block_event_logger.py` (270-330) — main 0e911f04。gate 順序は `awk 'NR>=4884 && NR<=6600 && /_block\(/' modules/demo_trader.py` の全列挙で確認 (09-22、PR #283 レビュー 1 巡目)
+- code: `modules/demo_trader.py` (567, 746-765, 776-789, 1263-1272, 4292-4296, 4308-4309, 4574/4583/4643, 4884, 4900-4909, 4916-4933, 5008, 5073-5078, 5289-5304, 5314, 5488, 5506-5519, 5521-5542, 5573, 5758, 5786, 5817, 5821-5872, 6082-6087, 6355-6389, 6418-6431, 6449, 6549-6552, 10960, 2066) / `app.py` (4358-4527) / `modules/block_event_logger.py` (270-330) / `modules/data.py` (585-608 `fetch_ohlcv_oanda` 固定 count, 933 `fetch_ohlcv`, 1018 Massive, 1036 OANDA fallback, 1087 parquet cache) / `modules/demo_trader.py:4325-4329` (fetch 呼出 + `fetched N bars` log) — main 0e911f04。gate 順序は `awk 'NR>=4884 && NR<=6600 && /_block\(/' modules/demo_trader.py` の全列挙で確認 (09-22、PR #283 レビュー 1 巡目)
 - checkpoint 評価タイミング: `tools/prereg_trigger_watch.py` (`:73` `today > deadline`、`:1442` `today = utcnow().strftime("%Y-%m-%d")`、`:648-661` shadow_count_decision の closed_only / dedup_violation / direction 契約) / `tools/quant_gate_status.py:179-187` (subprocess で watcher を呼ぶ) / `render.yaml:163-172` (Tier A cron `fx-ai-tier-a-gate-status`、`schedule: "20 0 * * *"`)
