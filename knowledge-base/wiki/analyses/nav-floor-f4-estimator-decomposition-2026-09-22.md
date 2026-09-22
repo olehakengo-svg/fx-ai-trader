@@ -27,7 +27,9 @@ related:
 burn_decomposed = burn_keeper + burn_edge                       [JPY/日]
 
 burn_keeper = rt_per_month × JPY_PER_RT / 30.44
-  rt_per_month = round(target_usd / (volume_usd / rt_count))   telemetry (09-22: 520000/(520000/26) = 26)
+  rt_per_month = ceil(target_usd / (volume_usd / rt_count))    telemetry (09-22: 520000/(520000/26) = 26)
+                 ceil = worker の stop rule (毎 RT 前に volume>=target を見て止まる、届かなければ丸ごと 1 RT) と一致。
+                 round だと 8,000u (520000/16000 = 32.5) で 32 と 1 RT 過小 (PR #285 review P2、2 巡目)
                  フォールバック 26 (telemetry 不能時、basis="default")
   JPY_PER_RT   = 80 × units / 10,000   (¥80 = 0.8p RT spread × ¥100/pip @10,000u、wiki/index.md L149 tx 709548〜709596)
                  units = volume_usd / rt_count / 2   telemetry (get_status は units を出さないが出来高/RT が運ぶ)
@@ -89,3 +91,4 @@ burn_edge = −edge_jpy / span
 |---|---|---|---|
 | 1 | P2: keeper 単価 ¥80 が 10k 固定で `SVK_UNITS` 変更に追従しない (20k で ¥1,040/月 に半減) | 実欠陥 | `keeper_units` / `keeper_jpy_per_rt` (出来高/RT ÷ 2 → 線形スケール)、edge 差し引きも同単価 |
 | 1 | P2: 月替わり直後に前月 `rt_count` を当月支出として差し引き keeper burn を打ち消す | 実欠陥 | `keeper_month_mismatch` で `month` ≠ asof 月 (または欠落) は edge unavailable (fail-closed)。RT 数 (比) は前月 telemetry でも有効なので keeper 分は落とさない |
+| 2 | P2: `round(target/per_rt)` は worker の stop rule (ceil) と不一致 — 8,000u で 32 vs 実行 33、keeper burn 過小 + young-window 分岐で「当月完了」を誤判定 | 実欠陥 | `math.ceil` に変更 (割り切れる 10k/20k は不変)。stop rule の直接シミュレーションで pin |

@@ -14,6 +14,8 @@ pin する性質 (構文でなく性質で):
 7. registry F4 message が方法変更 + 発火日シフトを記録し condition は不変。
 8. 再現値 pin: 09-22 以降 keeper のみ / drift 13.7 の 2 経路で decomposed 読み手の
    初回発火日 (2027-01-05 / 2026-12-04) — 推定器を変えたら数値が動いて落ちる。
+10. (PR #285 review P2 2 巡目) 月次 RT 数は worker の stop rule (volume>=target
+   で停止、届かなければ丸ごと 1 RT) と同じ ceil(target/per_rt)。round は 8,000u で 1 RT 過小。
 9. (PR #285 review P2 ×2) keeper ¥/RT は telemetry の units で線形スケール
    (SVK_UNITS 20k/5k で月次総額不変、RT 数×単価が反比例) / telemetry の month が
    asof と違う (UTC 月替わり 00:00 cron) 間は edge を unavailable にし、前月
@@ -132,6 +134,22 @@ def test_keeper_rt_per_month_from_telemetry_and_fallback():
     assert nfp.keeper_rt_per_month({"target_usd": 520000.0, "volume_usd": 0.0,
                                     "rt_count": 0}) == (26, "default")
     assert nfp.keeper_burn_per_day(26) == pytest.approx(2080.0 / 30.44)
+
+
+def test_keeper_rt_per_month_is_ceiling_like_the_worker_stop_rule():
+    """worker は毎 RT 前に volume>=target を見て止まる → 実行数 = ceil(target/per_rt)。
+    (PR #285 review P2 2 巡目) 8,000u: 520000/16000 = 32.5 → 33。round (銀行丸め) は 32。"""
+    k8 = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 16000.0 * 5, "rt_count": 5}
+    assert nfp.keeper_rt_per_month(k8) == (33, "api")
+    assert round(520000 / 16000) == 32  # 既知 NG 入力: 修正前の値
+    # 割り切れる場合は不変 (10k: 26 / 20k: 13)。端数 1 単位でも 1 RT 増える
+    assert nfp.keeper_rt_per_month({"target_usd": 520000.0, "volume_usd": 20000.0, "rt_count": 1}) == (26, "api")
+    assert nfp.keeper_rt_per_month({"target_usd": 520001.0, "volume_usd": 20000.0, "rt_count": 1}) == (27, "api")
+    # worker 挙動と一致することを stop rule の直接シミュレーションで確認
+    vol, n = 0.0, 0
+    while vol < 520000.0:
+        vol += 16000.0; n += 1
+    assert n == 33
 
 
 # ── 4. edge 分 (NAV Δ 残差) ────────────────────────────────────────

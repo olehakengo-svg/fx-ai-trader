@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -222,8 +223,12 @@ def keeper_month_mismatch(keeper: dict[str, Any] | None, asof: date) -> str | No
 def keeper_rt_per_month(keeper: dict[str, Any] | None) -> tuple[int, str]:
     """月次 RT 数を telemetry から導く。(rt_per_month, basis)。
 
-    volume_usd / rt_count = 1 RT の出来高 (units × 2)。target_usd をそれで割る。
-    telemetry 不能 (None / 0 除算) はフォールバック定数 + basis="default"。
+    volume_usd / rt_count = 1 RT の出来高 (units × 2)。target_usd をそれで割り
+    **切り上げる** — keeper worker は毎 RT 前に volume_usd >= target_usd を見て
+    止まり、届かなければ丸ごと 1 RT 積むので実行数は ceil(target/per_rt)
+    (例 8,000u: 520000/16000 = 32.5 → 33 RT。round なら 32 で過小、PR #285
+    review P2 2 巡目)。telemetry 不能 (None / 0 除算) はフォールバック定数 +
+    basis="default"。
     """
     try:
         target = float((keeper or {}).get("target_usd") or 0)
@@ -231,7 +236,7 @@ def keeper_rt_per_month(keeper: dict[str, Any] | None) -> tuple[int, str]:
         return KEEPER_RT_PER_MONTH_DEFAULT, "default"
     per_rt = _keeper_per_rt_volume(keeper)
     if target > 0 and per_rt is not None:
-        return max(1, round(target / per_rt)), "api"
+        return max(1, math.ceil(target / per_rt - 1e-9)), "api"
     return KEEPER_RT_PER_MONTH_DEFAULT, "default"
 
 
