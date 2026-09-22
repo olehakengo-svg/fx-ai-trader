@@ -91,6 +91,8 @@ gthread は `accept()` ごとに `nr_conns += 1` し、完了しないハンド�
 
 **レビュー消化 3 巡目 (Codex P2 × 3、いずれも正しい)**: (c) `preprocess_fetch_status` / watcher が**失敗した部分集合だけ**を `classify_outage` に渡していた — 1 本の timeout + 4 本成功で「HTTP 全盲」と要約。⇒ `classify_outage(reasons, n_ok=)` に成功数を渡し、n_ok>0 は `partial` (endpoint 固有) に限定。(d) 公開 URL (`*.onrender.com`) への read-timeout は **edge までの接続**しか証明しない — edge→origin が 502 を返さず停止しても同じ観測。⇒ `http_blind` を「観測クラス」に格下げし、summary / event 文言から「プロセスは listen 中」を除去、Render health check と app ログでの裏取りを明記 (09-22 の listen 判定は `HEAD /` 200 と `[MainLoop]` から)。(e) 捏造ガードが fetch 成功時にも掛かり、否定文 (「スリープではない」「ruled out」) も脚注していた。⇒ `finalize_llm_report` は `n_failed>0` のときだけ、判定は文単位で否定マーカーを除く `freshness_policy.find_invented_causes` (SSOT)。英語パターンは `sleep` 単語から句 (`sleep mode` 等) へ。
 
+**レビュー消化 4 巡目 (Codex P2 × 2、いずれも正しい)**: (f) 5xx を全て「origin 応答なし」に数えていた — app 由来の 500 (Flask hook の例外等) でも「停止」と報告される。⇒ `api_down` は **connection のみ**、全 5xx は `http_5xx` (応答あり、edge 502/503/504 か app 500 かは状態コードで判別不能 — app ログの traceback で裏取り)。(g) 否定判定を文全体で見ていたため「ネットワーク障害ではなく、無料 tier のスリープが原因」が否定文として素通りした。⇒ 否定は**原因語と同じ節** (、/,/; 区切り) にあるときだけ効く。🔑 4 巡で 7 件、全て estimand 境界: 「何が観測され、何が含意されるか」を 1 対 1 で書き、含意を観測の名前に混ぜない。
+
 **counterfactual pin** (tests): `test_daily_review_fork_safety.py` (construction で thread 起動なし / heal 冪等 / heartbeat 到達 / StatusHeal 非接触)、`test_http_blind_detector.py` (ReadTimeout 全滅 → `http_blind`、5xx → `api_unreachable`、混在 → mixed、SSOT 使用)、`test_healthz_http.py` (200 + db_ok / StatusHeal 非接触 / healthCheckPath 配線)、`test_daily_report_fetch_status.py` (失敗と空の分離 / 原因語ゼロの prompt 実捕捉 / 捏造検出→脚注)、`test_render_build_filter.py::test_nightly_ingest_data_paths_are_ignored`。
 
 ## 5. 残余リスク (修正していないもの)

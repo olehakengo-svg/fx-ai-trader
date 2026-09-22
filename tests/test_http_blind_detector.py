@@ -90,9 +90,22 @@ class TestClassifyOutage:
         assert out["n_timeout"] == 5 and out["n_connection"] == 0
 
     def test_all_connection_errors_is_api_down(self):
-        out = fp.classify_outage({"/a": CE, "/b": H502, "/c": CE})
+        out = fp.classify_outage({"/a": CE, "/b": CE, "/c": CE})
         assert out["kind"] == fp.OUTAGE_API_DOWN
-        assert out["n_connection"] == 2 and out["n_http_5xx"] == 1
+        assert out["n_connection"] == 3
+
+    def test_all_5xx_is_http_5xx_not_api_down(self):
+        """Codex P2 (2026-09-22): app 由来の 500 でも「origin が応答していない」と報告していた。
+        5xx は HTTP 応答であり、edge (502/503/504) か app (500) かは状態コードでは判別不能。"""
+        for reason in (H502, "HTTPError: HTTP Error 500: Internal Server Error"):
+            out = fp.classify_outage({f"/p{i}": reason for i in range(3)})
+            assert out["kind"] == fp.OUTAGE_HTTP_5XX, reason
+            assert "応答は返っている" in out["summary"]
+            assert "停止の証拠には使わない" in out["summary"]
+
+    def test_connection_plus_5xx_is_mixed(self):
+        out = fp.classify_outage({"/a": CE, "/b": H502, "/c": CE})
+        assert out["kind"] == fp.OUTAGE_MIXED
 
     def test_mixed_is_reported_as_mixed_not_collapsed(self):
         """timeout と connection error が混在 = 遷移中 (再起動直後など)。
@@ -161,6 +174,16 @@ class TestFindInventedCauses:
         text = "スリープではない。\n一方でコールドスタートが原因である。"
         assert fp.find_invented_causes(text) == ["コールドスタート"]
 
+    @pytest.mark.parametrize("text", [
+        "ネットワーク障害ではなく、無料 tier のスリープが原因",
+        "無料 tier のスリープが原因で、再起動ではない",
+    ])
+    def test_negation_in_another_clause_does_not_shield_the_claim(self, text):
+        """Codex P2 (2026-09-22, 2 巡目): 文全体で否定を見ると、別の節の否定が肯定的な
+        原因断定を隠した。否定は原因語と同じ節にあるときだけ効く。"""
+        hits = fp.find_invented_causes(text)
+        assert "無料 tier" in hits and "スリープ" in hits
+
     def test_human_text_is_provided_and_does_not_invent_causes(self):
         """読み手 (LLM / 人) に渡す文言は「何が観測されたか」だけを述べる。
         原因の断定語 (スリープ / 無料 tier / コールドスタート) を含まない。"""
@@ -183,8 +206,13 @@ class TestHttpBlindEvent:
         assert ev[0]["attempts"] == 4 and ev[0]["waited_sec"] == 210.0
 
     def test_connection_errors_still_fire_api_unreachable(self):
-        """既存の意味は不変 — デプロイ/再起動の 502 は api_unreachable のまま。"""
+        """既存の意味は不変 — デプロイ/再起動の 502 は api_unreachable のまま。
+        outage_kind は http_5xx (応答あり、edge か app かは不明) を運ぶ。"""
         outcomes = {p: _fail(p, H502) for p in aw.WATCHED_PATHS}
+        ev = aw.check_api_reachability(outcomes)
+        assert ev[0]["type"] == "api_unreachable"
+        assert ev[0]["outage_kind"] == fp.OUTAGE_HTTP_5XX
+        outcomes = {p: _fail(p, CE) for p in aw.WATCHED_PATHS}
         ev = aw.check_api_reachability(outcomes)
         assert ev[0]["type"] == "api_unreachable"
         assert ev[0]["outage_kind"] == fp.OUTAGE_API_DOWN

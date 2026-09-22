@@ -13,6 +13,7 @@
 - 🔴 **副産物 (未修正)**: エンジンが **master と worker の 2 プロセスで二重に走っている** (全盲中は master のみ前進 / StatusHeal 後は `iter=240` が 2 回)。単一エンジン化は shadow N の regime break を伴うため registry `dual-engine-master-worker-disposition` (10-06)。修復の forward 検証は `http-blind-fix-verification-hour0-boots` (10-06)
 - 🟠 **レビュー P2 × 2 消化** (Codex、どちらも正しい): `classify_outage` の api_down を connection/5xx のみに限定 (4xx = `http_error` serving 中 / other 混在 = mixed) / 捏造ガードを strategy_report にも同じ出口 (`finalize_llm_report`) で適用 + planner prompt に原因禁止規則。同 PR 内で「片側だけ塞ぐ」を 2 回踏んだ
 - 🟠 **レビュー 3 巡目 P2 × 3 消化**: `classify_outage(n_ok=)` で部分失敗を `partial` に限定 (失敗分だけ渡して 1 本の timeout を全盲と要約していた) / `http_blind` を観測クラスに格下げ (read-timeout は edge までの接続しか証明しない — origin 状態は health check と app ログで裏取り) / 捏造ガードを fetch 失敗時のみ + 否定文除外 (`find_invented_causes` SSOT)
+- 🟠 **レビュー 4 巡目 P2 × 2 消化**: `api_down` を connection のみに限定 (全 5xx は `http_5xx` = 応答あり、edge/app 判別不能) / 捏造ガードの否定判定を文→節単位へ (別節の否定が肯定断定を隠していた)
 - 導出: [[http-blind-fork-poisoning-2026-09-22]] / 教訓: [[lesson-prefork-master-must-not-touch-db-2026-09-22]]
 
 ## 2026-09-22 — fix(hooks): main 乖離の**発生源**を塞いだ + 座礁 KB の救済 + committed conflict marker の修復 (rule:R3)

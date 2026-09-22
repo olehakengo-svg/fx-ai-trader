@@ -120,22 +120,27 @@ ZN_CACHE_MAX_AGE_DAYS = 8
 #                    → プロセスは listen している / HTTP ハンドラが返ってこない
 #   FAIL_CONNECTION  接続拒否・リセット・接続段階の timeout
 #                    → プロセスが serving していない (デプロイ / 再起動 / 停止)
-#   FAIL_HTTP_5XX    5xx が返った (Render edge の 502 を含む)
-#                    → upstream が無い / 落ちている
+#   FAIL_HTTP_5XX    5xx が返った。**HTTP 応答は返っている** — Render edge の
+#                    502/503/504 (upstream unavailable) か、origin app の 500 (Flask
+#                    hook の例外等) かは**状態コードだけでは判別不能** (Codex P2
+#                    2026-09-22: 全 endpoint が app 由来 500 でも「origin が応答して
+#                    いない」と報告していた)。停止の証拠には**使わない**
 #   FAIL_HTTP_4XX    4xx が返った (401/403/404/429)
-#                    → **プロセスは serving している**。認証・パス・レート制限の問題で
-#                      あって停止の証拠ではない (Codex P2 2026-09-22: 4xx を down に
-#                      畳むと「全 endpoint 401」が「停止」と報告される)
+#                    → HTTP 応答あり。認証・パス・レート制限の問題であって停止の証拠
+#                      ではない (Codex P2 2026-09-22: 4xx を down に畳むと「全
+#                      endpoint 401」が「停止」と報告される)
 #   FAIL_OTHER       JSON parse 等、輸送層以外 — 輸送層の状態について**何も言わない**
 #
-# 全滅かつ全て FAIL_TIMEOUT = **http_blind** (HTTP 層だけが死んでいる)。
-# 全滅かつ **FAIL_CONNECTION / FAIL_HTTP_5XX だけ** = **api_down**。
-# 全滅かつ全て FAIL_HTTP_4XX = **http_error** (serving 中だが拒否)。
-# それ以外の混在 (timeout+connection、connection+other、5xx+4xx …) = **mixed** —
-# どちらかに畳むと証拠に無い結論になる。**engine の生死は外部からは分からない** —
-# 09-22 は master 側エンジンが tick し続けていた。読み手には「不明」と書き、Render
-# ログの [MainLoop] を見よと導く。原因の断定 (スリープ / 無料 tier / コールド
-# スタート) は観測から導けないので **書かせない** (INVENTED_CAUSE_PATTERNS)。
+# 全滅かつ全て FAIL_TIMEOUT    = **http_blind** (接続成立・応答なし。観測クラス)
+# 全滅かつ全て FAIL_CONNECTION = **api_down** (origin から**応答が無い**と言えるのは
+#                                 接続層の失敗だけ)
+# 全滅かつ全て FAIL_HTTP_5XX   = **http_5xx** (応答はある。edge か app かは不明)
+# 全滅かつ全て FAIL_HTTP_4XX   = **http_error** (応答はある。拒否)
+# それ以外の混在 (timeout+connection、connection+5xx、5xx+4xx、connection+other …)
+# = **mixed** — どちらかに畳むと証拠に無い結論になる。**engine の生死は外部からは
+# 分からない** — 09-22 は master 側エンジンが tick し続けていた。読み手には「不明」
+# と書き、Render ログの [MainLoop] を見よと導く。原因の断定 (スリープ / 無料 tier /
+# コールドスタート) は観測から導けないので **書かせない** (INVENTED_CAUSE_PATTERNS)。
 FAIL_TIMEOUT = "timeout"
 FAIL_CONNECTION = "connection"
 FAIL_HTTP_5XX = "http_5xx"
@@ -144,6 +149,7 @@ FAIL_OTHER = "other"
 
 OUTAGE_HTTP_BLIND = "http_blind"
 OUTAGE_API_DOWN = "api_down"
+OUTAGE_HTTP_5XX = "http_5xx"
 OUTAGE_HTTP_ERROR = "http_error"
 OUTAGE_MIXED = "mixed"
 OUTAGE_PARTIAL = "partial"
@@ -228,8 +234,9 @@ def classify_outage(reasons: dict[str, str], n_ok: int = 0) -> dict[str, Any]:
     述べ、原因は書かない**)。
 
     判定は「証拠が全て同じ向きを指すとき」だけ結論を出す (Codex P2 2026-09-22):
-    api_down は connection / 5xx **のみ**の集合に限る。other や 4xx が 1 本でも
-    混ざれば mixed — 「JSON が壊れていた」「401 だった」は停止の証拠ではない。
+    api_down は **connection のみ**の集合に限る — origin から応答が無いと言えるのは
+    接続層の失敗だけで、5xx は edge (502/503/504) か app (500) かを状態コードから
+    判別できず、4xx / other は停止の証拠にならない。混在は mixed。
     http_blind は「接続は成立したが HTTP 応答が timeout 内に来ない」という観測の
     名前で、origin プロセスの状態は**含意しない** (モジュール冒頭の注記)。
     """
@@ -238,7 +245,6 @@ def classify_outage(reasons: dict[str, str], n_ok: int = 0) -> dict[str, Any]:
          for k in (FAIL_TIMEOUT, FAIL_CONNECTION, FAIL_HTTP_5XX, FAIL_HTTP_4XX, FAIL_OTHER)}
     total = len(classes)
     n_ok = max(int(n_ok or 0), 0)
-    transport_down = n[FAIL_CONNECTION] + n[FAIL_HTTP_5XX]
     if total == 0:
         kind = OUTAGE_UNKNOWN
         summary = "失敗なし / 判定対象なし"
@@ -259,20 +265,27 @@ def classify_outage(reasons: dict[str, str], n_ok: int = 0) -> dict[str, Any]:
                    "しているか・ハンドラが詰まっているかは**この観測だけでは判定不能** "
                    "(Render の health check 結果と app ログ [MainLoop] / HEAD 200 で裏取り)。"
                    "engine の生死も外部からは不明。cause unknown")
-    elif transport_down == total:
+    elif n[FAIL_CONNECTION] == total:
         kind = OUTAGE_API_DOWN
-        summary = ("サービス到達不能 (api_down): 接続拒否 / リセット / edge 5xx のみ = "
-                   "origin が応答を返していない (デプロイ・再起動・停止のいずれか)。"
+        summary = ("サービス到達不能 (api_down): 全 endpoint が接続拒否 / リセット = "
+                   "origin から HTTP 応答が得られない (デプロイ・再起動・停止のいずれか)。"
                    "cause unknown")
+    elif n[FAIL_HTTP_5XX] == total:
+        kind = OUTAGE_HTTP_5XX
+        summary = ("HTTP 5xx (http_5xx): HTTP 応答は返っている。Render edge の upstream "
+                   "unavailable (502/503/504、デプロイ・再起動中の典型) か origin app の "
+                   "内部エラー (500) かは状態コードだけでは判別不能 — app ログの traceback "
+                   "有無で裏取り。停止の証拠には使わない。cause unknown")
     elif n[FAIL_HTTP_4XX] == total:
         kind = OUTAGE_HTTP_ERROR
         summary = ("HTTP 4xx (http_error): HTTP 応答は返っている。認証・パス・"
                    "レート制限の問題で、停止の証拠ではない。cause unknown")
     else:
         kind = OUTAGE_MIXED
-        summary = (f"到達不能 (mixed): timeout {n[FAIL_TIMEOUT]} / 接続失敗・5xx "
-                   f"{transport_down} / 4xx {n[FAIL_HTTP_4XX]} / その他 {n[FAIL_OTHER]} "
-                   "が混在 = 証拠が同じ向きを指していない (遷移中の疑い)。cause unknown")
+        summary = (f"到達不能 (mixed): timeout {n[FAIL_TIMEOUT]} / 接続失敗 "
+                   f"{n[FAIL_CONNECTION]} / 5xx {n[FAIL_HTTP_5XX]} / 4xx {n[FAIL_HTTP_4XX]} / "
+                   f"その他 {n[FAIL_OTHER]} が混在 = 証拠が同じ向きを指していない "
+                   "(遷移中の疑い)。cause unknown")
     return {
         "kind": kind,
         "n_ok": n_ok,
@@ -290,22 +303,28 @@ def classify_outage(reasons: dict[str, str], n_ok: int = 0) -> dict[str, Any]:
 def find_invented_causes(text: str) -> list[str]:
     """観測から導けない原因語のうち、**肯定的に断定している**ものだけを返す.
 
-    文 (。/./改行 区切り) 単位で見て、同じ文に NEGATION_MARKERS があれば否定文と
-    みなして数えない (Codex P2 2026-09-22: 「free-tier sleep is ruled out」を
-    捏造として脚注していた)。context-free な部分文字列一致より狭く、見逃す側に
-    倒れる — 見逃しは読み手が原因を信じるリスク、誤検出は正しい否定文に
-    「無効」の脚注を付けるリスクで、後者は文書の信頼を直接損なう。
+    否定の判定は **原因語を含む節** (文を 、/,/; で割った単位) に限る (Codex P2
+    2026-09-22 ×2): 文全体で見ると「ネットワーク障害ではなく、無料 tier のスリープが
+    原因」「無料 tier のスリープが原因で、再起動ではない」が**否定文扱いで素通り**
+    した。節単位なら前者は第 2 節、後者は第 1 節に否定が無いので捕まる。
+    「これは無料 tier のスリープではない」「free-tier sleep is ruled out」は同じ節に
+    否定があるので数えない。context-free な部分文字列一致より狭く、残る見逃しは
+    「原因語と否定語が別の節に離れている肯定文」だが、読み手側の脚注リスク
+    (正しい否定文に「無効」を付ける) を優先して節境界を採る。
     """
     hits: list[str] = []
     for sentence in re.split(r"(?<=[。．.!?！？])|\n", text or ""):
-        low = sentence.lower()
-        if not low.strip():
+        if not sentence.strip():
             continue
-        if any(m.lower() in low for m in NEGATION_MARKERS):
-            continue
-        for p in INVENTED_CAUSE_PATTERNS:
-            if p.lower() in low and p not in hits:
-                hits.append(p)
+        for clause in re.split(r"[、,;；]", sentence):
+            low = clause.lower()
+            if not low.strip():
+                continue
+            if any(m.lower() in low for m in NEGATION_MARKERS):
+                continue
+            for p in INVENTED_CAUSE_PATTERNS:
+                if p.lower() in low and p not in hits:
+                    hits.append(p)
     return hits
 
 
