@@ -188,6 +188,10 @@ class OandaBridge:
             "unknown_direction": 0, "breaker_trips": 0, "failed": 0,
             # ambiguous_failures = 応答曖昧な失敗 / reconciled = broker 照会で解消 / unresolved = 未解消のまま
             "ambiguous_failures": 0, "reconciled": 0, "unresolved": 0, "reconcile_discarded": 0,
+            # observed_changed = 曖昧中に第三の値を観測 (confirmed_sl は更新、曖昧さは維持)
+            # coalesced = enforce の fire-and-forget で queue 末尾に畳み込んだ要求数
+            # local_backoff = client のローカル 429 backoff 中で送らなかった要求数 (窓に入れない)
+            "observed_changed": 0, "coalesced": 0, "local_backoff": 0,
             # deferred = enforce で baseline が未確認だったため送信順到来まで判定を保留した件数
             "deferred": 0,
         }
@@ -1341,6 +1345,45 @@ class OandaBridge:
         st["sent_total"] += 1
         self._storm_totals["sent"] += 1
 
+    def _storm_uncount_tx(self, st: dict, token: dict):
+        """窓に入れた要求が実際には送信されなかった (client のローカル 429 backoff) 場合に外す。"""
+        with self._storm_lock:
+            if token.get("ts") is not None:
+                try:
+                    st["sent_ts"].remove(token["ts"])
+                    st["sent_total"] -= 1
+                    self._storm_totals["sent"] -= 1
+                except ValueError:
+                    pass
+                token["ts"] = None
+
+    def _storm_client_backoff_active(self) -> bool:
+        """OandaClient がローカル 429 backoff 中 (= 次の _request は HTTP を出さずに 429 を返す)。"""
+        until = getattr(self._client, "_rate_limit_until", 0.0) or 0.0
+        try:
+            return _time.time() < float(until)
+        except (TypeError, ValueError):
+            return False
+
+    @staticmethod
+    def _storm_is_local_backoff_reply(data) -> bool:
+        """_request のローカル backoff 応答の形 {"error": 429, "message": "Rate limited, retry in Ns"}。
+        HTTP を出していないので breaker 窓に数えない (15 巡目 P1)。"""
+        return (isinstance(data, dict) and data.get("error") == 429
+                and str(data.get("message", "")).startswith("Rate limited, retry in"))
+
+    def _storm_precheck_send(self, demo_trade_id: str, st: dict, token: dict) -> bool:
+        """送信直前: client がローカル backoff 中なら送らず (HTTP も出ないので) 窓から外して取り消す。"""
+        if not self._storm_client_backoff_active():
+            return True
+        with self._storm_lock:
+            self._storm_totals["local_backoff"] += 1
+        self._storm_uncount_tx(st, token)
+        self._storm_unreserve(st, token, demo_trade_id)
+        logger.warning(f"[OandaBridge][STORM_GUARD] SL replacement not sent: client in local 429 backoff "
+                       f"demo={demo_trade_id} sl={token['new_sl']} (not counted toward breaker)")
+        return False
+
     def _storm_unreserve(self, st: dict, token: dict, demo_trade_id: str = ""):
         """送信直前に reject / drop された予約を取り消す — broker には一切届いておらず
         窓にも入っていない (窓入りは送信直前のみ) ので pending から外すだけ
@@ -1410,7 +1453,18 @@ class OandaBridge:
                     prev = st["confirmed_sl"]
                     st["unresolved_prev"] = prev
                     verdict = self._storm_reconcile_verdict(st, token["new_sl"], prev, broker_sl)
-                    if verdict in ("applied", "changed"):
+                    if verdict == "changed":
+                        # 第三の値 = 別 actor が動かした現値。confirmed_sl はそれに合わせるが、
+                        # timeout した PUT がまだ着地し得る以上、曖昧さは消さない (15 巡目 P1)
+                        st["confirmed_sl"] = broker_sl
+                        st["unresolved_prev"] = broker_sl
+                        st["unresolved_sl"] = token["new_sl"]
+                        self._storm_totals["observed_changed"] += 1
+                        self._storm_totals["unresolved"] += 1
+                        logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure: third value observed "
+                                       f"(confirmed_sl={broker_sl}, sent={token['new_sl']} still unresolved) "
+                                       f"demo={demo_trade_id}")
+                    elif verdict == "applied":
                         st["confirmed_sl"] = broker_sl
                         st["confirmed_seq"] = max(st["confirmed_seq"], token["seq"])
                         st["unresolved_sl"] = None
@@ -1505,7 +1559,15 @@ class OandaBridge:
                 return False                   # 既に解消済み (別経路)
             verdict = self._storm_reconcile_verdict(st, st["unresolved_sl"], st.get("unresolved_prev"),
                                                     broker_sl)
-            if verdict not in ("applied", "changed"):
+            if verdict == "changed":
+                # 第三の値: 現値は更新するが曖昧さは維持 (15 巡目 P1)
+                st["confirmed_sl"] = broker_sl
+                st["unresolved_prev"] = broker_sl
+                self._storm_totals["observed_changed"] += 1
+                logger.warning(f"[OandaBridge][STORM_GUARD] third value observed while unresolved "
+                               f"demo={demo_trade_id} confirmed_sl={broker_sl} unresolved={st['unresolved_sl']}")
+                return False
+            if verdict != "applied":
                 return False                   # inconclusive: 旧値の観測は何度でも非決定 (次の gate で再観測)
             st["confirmed_sl"] = broker_sl
             st["unresolved_sl"] = None
@@ -1519,12 +1581,14 @@ class OandaBridge:
                                  broker_sl: float | None) -> str:
         """曖昧な PUT の帰結を broker 観測から判定する (review 12/14 巡目 P1):
           applied      = broker が送った値を持つ (PUT 適用済み) — authoritative
-          changed      = broker が送った値でも直前の値でもない (別経路で動いた; 現値が真) — authoritative
+          changed      = broker が送った値でも直前の値でもない (別 actor が動かした; 現値は真だが
+                         timeout した PUT の帰結は不明のまま → confirmed_sl は更新、unresolved は維持;
+                         15 巡目 P1)
           inconclusive = broker が直前の値のまま。timeout した PUT の server 側完了には上限が
                          ないので、**旧値を何度・何秒観測しても「未適用」の証拠にはならない**
                          (14 巡目 P1: 5 s 安定観測で not_applied にすると、最後の GET の後に A が
                          着地し B が stop を緩め得た)。unresolved は authoritative な事象
-                         (applied / changed / 自分のより新しい確認済み replacement) まで維持し、
+                         (applied / 自分のより新しい確認済み replacement) まで維持し、
                          その間は緩め得る replacement を保守的 baseline でブロックし続ける
           unknown      = 照会不能
         caller が lock 保持。"""
@@ -1556,6 +1620,8 @@ class OandaBridge:
     # 送信順番待ちの上限 — **先頭 token 1 件あたり** (先頭が入れ替わるたびにリセット)。
     # 先頭の決着 = PUT の HTTP timeout (10 s) + 曖昧時の broker 照会 GET (10 s) + 余裕。
     STORM_TURN_WAIT_SEC = 25.0
+    # enforce の fire-and-forget で待機 token へ畳み込む (queue = 先頭 + 待機 1 件、thread ≤ 2/trade)
+    STORM_COALESCE_ASYNC = True
 
     def _storm_wait_turn(self, demo_trade_id: str, st: dict, token: dict | None) -> bool:
         """trade ごとに SL replacement を**発行順に直列化**する (review 3 巡目 P1)。
@@ -1707,10 +1773,26 @@ class OandaBridge:
             return
 
         # 予約は gate 内 (worker 起動前) — 同時到達分は更新済み baseline を見る
+        # enforce の fire-and-forget: 先頭 (飛行中) + 待機 1 件で queue を有界化 (15 巡目 P1)。
+        # 待機中の async token があれば新しい値をそこへ畳み込む (trail は最新値だけが意味を持つ;
+        # 送信直前の再評価が確認済み baseline で判定する)。thread は trade ごと最大 2 本。
+        if self._storm_enforce and self.STORM_COALESCE_ASYNC:
+            with self._storm_lock:
+                st0 = self._storm_state.get(demo_trade_id)
+                if st0 is not None and len(st0["pending"]) >= 2:
+                    tail = st0["pending"][-1]
+                    if tail.get("async") and tail["ok"] is None and not tail.get("sending"):
+                        tail["new_sl"] = float(new_sl)
+                        tail["reeval"] = True
+                        tail["provisional_reason"] = "coalesced"
+                        self._storm_totals["coalesced"] += 1
+                        return
         # caller (SL ループ) では network を触らない — seed / 再照会は worker で (12 巡目 P2)
         proceed, _, token = self._storm_gate(demo_trade_id, new_sl, instrument, network=False)
         if not proceed:
             return
+        if token is not None:
+            token["async"] = True
         st = self._storm_state.get(demo_trade_id)
 
         def _do():
@@ -1720,16 +1802,23 @@ class OandaBridge:
                 # breaker 窓を埋めて trip する (review 6 巡目 P2)
                 self._storm_unreserve(st, token, demo_trade_id)
                 logger.error(f"[OandaBridge] MODIFY SL dropped (turn timeout) #{oanda_id} "
-                             f"sl={new_sl} (demo={demo_trade_id})")
+                             f"sl={token['new_sl'] if token else new_sl} (demo={demo_trade_id})")
                 return
+            # 送る値は token から (待機中に畳み込まれている可能性がある)
+            with self._storm_lock:
+                sl_to_send = float(token["new_sl"]) if token else float(new_sl)
+                if token is not None:
+                    token["sending"] = True
             if st is not None:
                 # 先頭になってから seed / 再照会 (single-flight、送信直前の再評価が使う)
                 self._storm_get_state(demo_trade_id, network=True)
-                send, _ = self._storm_send_decision(demo_trade_id, st, token, new_sl, instrument)
+                send, _ = self._storm_send_decision(demo_trade_id, st, token, sl_to_send, instrument)
                 if not send:
                     return
+                if not self._storm_precheck_send(demo_trade_id, st, token):
+                    return
             try:
-                ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
+                ok, data = self._client.modify_trade(oanda_id, stop_loss=sl_to_send,
                                                       instrument=instrument)
             except Exception as e:
                 if st is not None:
@@ -1738,10 +1827,14 @@ class OandaBridge:
             if ok:
                 if st is not None:
                     self._storm_confirm(demo_trade_id, st, token)
-                logger.info(f"[OandaBridge] MODIFY SL → {new_sl:.3f} "
+                logger.info(f"[OandaBridge] MODIFY SL → {sl_to_send:.3f} "
                             f"OANDA #{oanda_id} (demo={demo_trade_id})")
             else:
                 if st is not None:
+                    if self._storm_is_local_backoff_reply(data):
+                        self._storm_uncount_tx(st, token)       # HTTP を出していない
+                        with self._storm_lock:
+                            self._storm_totals["local_backoff"] += 1
                     self._storm_rollback(demo_trade_id, st, token,
                                          ambiguous=self._storm_failure_is_ambiguous(data))
                 logger.error(f"[OandaBridge] MODIFY SL failed #{oanda_id}: {data}")
@@ -1769,9 +1862,14 @@ class OandaBridge:
                          f"sl={new_sl} (demo={demo_trade_id})")
             return False
         if st is not None:
+            if token is not None:
+                with self._storm_lock:
+                    token["sending"] = True
             send, sync_ret2 = self._storm_send_decision(demo_trade_id, st, token, new_sl, instrument)
             if not send:
                 return bool(sync_ret2)
+            if not self._storm_precheck_send(demo_trade_id, st, token):
+                return False
         try:
             ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
                                                   instrument=instrument)
@@ -1783,6 +1881,10 @@ class OandaBridge:
                 return True
             else:
                 if st is not None:
+                    if self._storm_is_local_backoff_reply(data):
+                        self._storm_uncount_tx(st, token)       # HTTP を出していない
+                        with self._storm_lock:
+                            self._storm_totals["local_backoff"] += 1
                     self._storm_rollback(demo_trade_id, st, token,
                                          ambiguous=self._storm_failure_is_ambiguous(data))
                 logger.error(f"[OandaBridge] MODIFY SL (sync) failed #{oanda_id}: {data}")

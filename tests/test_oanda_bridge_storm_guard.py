@@ -40,9 +40,14 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
   (o) broker 照会の適用は版チェック付き — 照会中に別の確認 (confirmed_seq 前進) が入ったら
       snapshot は捨てる (PR #287 review 11 巡目 P1、CF pin 付き)
   (p) timeout した PUT の後に旧値を観測しても「未適用」と断定しない — 送った値を観測 (applied) /
-      別値 (changed) / 自分のより新しい確認済み replacement のいずれか (authoritative) まで
-      unresolved を保ち、緩め得る replacement は保守的 baseline でブロックし続ける。経過時間からの
-      推定はしない (PR #287 review 12/14 巡目 P1、CF pin 付き)
+      自分のより新しい確認済み replacement のいずれか (authoritative) まで unresolved を保ち、
+      緩め得る replacement は保守的 baseline でブロックし続ける。経過時間からの推定はしない。
+      第三の値の観測は confirmed_sl を更新するだけで曖昧さは消さない
+      (PR #287 review 12/14/15 巡目 P1、CF pin 付き)
+  (t) enforce の fire-and-forget queue は有界 (先頭 + 待機 1 件、待機 token へ最新値を畳み込む) —
+      OANDA timeout 中の storm で thread が無限増殖しない (PR #287 review 15 巡目 P1、CF pin 付き)
+  (u) client のローカル 429 backoff 中の呼び出しは HTTP を出していないので breaker 窓に数えない
+      (PR #287 review 15 巡目 P1、CF pin 付き)
   (q) fire-and-forget の caller は network を触らない (seed / 再照会は worker 側)
       (PR #287 review 12 巡目 P2)
   (r) 順番待ちの予算は先頭 token ごと (先頭が入れ替わるたびにリセット、PUT timeout + 照会 GET を
@@ -501,6 +506,7 @@ def _deferred_fire(b, monkeypatch) -> list:
 
 
 def test_p2_async_burst_same_sl_is_reserved_before_worker_runs(monkeypatch):
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     b, fake = _bridge(monkeypatch, enforce=True)
     q = _deferred_fire(b, monkeypatch)
     for _ in range(5):
@@ -515,6 +521,7 @@ def test_p2_async_burst_same_sl_is_reserved_before_worker_runs(monkeypatch):
 
 
 def test_p2_async_burst_cannot_overshoot_breaker(monkeypatch):
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     b, fake = _bridge(monkeypatch, enforce=True, STORM_GUARD_MAX_TX_PER_HOUR=50)
     q = _deferred_fire(b, monkeypatch)
     for sl in legit_trail_buy(60):                                  # 全て正当 (2 pip 有利側)
@@ -828,6 +835,7 @@ def test_serialization_turn_timeout_drops_request_and_rolls_back(monkeypatch):
 def test_turn_timeout_drops_do_not_fill_breaker_window(monkeypatch):
     """review 6 巡目 P2: 停滞 1 件の後ろに並んだ burst が timeout drop されても breaker 窓を
     埋めない — A 決着後の正当な更新は通る (tripped しない)。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.05)
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
     q = _deferred_fire(b, monkeypatch)
@@ -865,6 +873,7 @@ def _count_at_reservation(monkeypatch):
 def test_cf_turn_timeout_as_rollback_trips_breaker_with_unsent_requests(monkeypatch):
     """CF pin: drop を rollback (要求数保持) で処理し、かつ予約時点で窓に数える旧形だと、
     未送信 B,C が窓を埋めて A 決着後の正当な更新が breaker で止まる。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.05)
     _count_at_reservation(monkeypatch)
     monkeypatch.setattr(OandaBridge, "_storm_unreserve",
@@ -986,6 +995,7 @@ def test_p2_provisional_sync_returns_true_only_when_broker_accepted(monkeypatch)
 
 def test_p2_breaker_is_final_even_with_pending(monkeypatch):
     """breaker は計数ベースで baseline 非依存 → pending があっても暫定にせず最終 reject。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     b, fake = _bridge(monkeypatch, enforce=True, STORM_GUARD_MAX_TX_PER_HOUR=3)
     q = _deferred_fire(b, monkeypatch)
     for sl in legit_trail_buy(5):
@@ -1030,6 +1040,7 @@ def test_p2_cf_final_reject_against_pending_drops_valid_update(monkeypatch):
 #   (7 巡目 P1 → 8 巡目 P1 で「未送信の非暫定予約が窓を埋めて保護更新 D を最終 reject」も塞ぐ)。
 
 def test_p1_provisional_reservations_do_not_fill_breaker_window(monkeypatch):
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
     q = _deferred_fire(b, monkeypatch)
     for _ in range(4):
@@ -1049,6 +1060,7 @@ def test_p1_provisional_reservations_do_not_fill_breaker_window(monkeypatch):
 
 def test_p1_cf_counting_provisional_in_window_trips_before_any_send(monkeypatch):
     """CF pin: 予約 (暫定含む) を窓に数える (6 巡目までの形) と、broker 到達 0 件で 4 件目が trip する。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     _count_at_reservation(monkeypatch)
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
     q = _deferred_fire(b, monkeypatch)
@@ -1061,6 +1073,7 @@ def test_p1_cf_counting_provisional_in_window_trips_before_any_send(monkeypatch)
 
 def test_p1_accepted_provisional_enters_window_and_breaker_applies_at_send(monkeypatch):
     """暫定が再評価を通って送信確定する時点で窓に入り、breaker もそこで効く。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=2)
     q = _deferred_fire(b, monkeypatch)
     b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A (窓 1)
@@ -1080,6 +1093,7 @@ def test_p1_protective_update_not_rejected_while_counted_requests_unsent(monkeyp
     """review 8 巡目 P1 の形状: 停滞 A + 未送信 B,C (上限 3) の後ろに来た保護更新 D が breaker で
     最終 reject されてはいけない — 窓に入るのは実送信のみなので D は予約され、B,C の timeout
     drop 後・A 決着後に送られる。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.05)
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
     q = _deferred_fire(b, monkeypatch)
@@ -1102,6 +1116,7 @@ def test_p1_protective_update_not_rejected_while_counted_requests_unsent(monkeyp
 def test_p1_cf_counting_at_reservation_rejects_protective_update_permanently(monkeypatch):
     """CF pin: 予約時点で窓に数える旧形だと、停滞 A + 未送信 B,C で窓 3/3 → D は gate で最終
     reject (False)。B,C が後で落ちても D は既に失われている (one-shot BE/pyramiding 更新)。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.05)
     _count_at_reservation(monkeypatch)
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
@@ -1133,6 +1148,7 @@ def test_real_trip_from_submitted_requests_is_final(monkeypatch):
 # 緩める。→ enforce では全 token を送信直前に確認済み baseline で 4 check 再評価する。
 
 def test_p1_request_passing_against_provisional_baseline_is_reevaluated_at_send(monkeypatch):
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
     q = _deferred_fire(b, monkeypatch)
     b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # P
@@ -1149,6 +1165,7 @@ def test_p1_request_passing_against_provisional_baseline_is_reevaluated_at_send(
 
 def test_p1_request_passing_against_provisional_baseline_survives_if_predecessor_fails(monkeypatch):
     """対称: P が失敗すれば A (154.270) も B (154.280) も確認済み 154.115 基準で正当 → 順に送られる。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
     q = _deferred_fire(b, monkeypatch)
     b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # P
@@ -1165,6 +1182,7 @@ def test_p1_request_passing_against_provisional_baseline_survives_if_predecessor
 def test_p1_cf_breaker_only_at_send_for_non_provisional_loosens_confirmed_stop(monkeypatch):
     """CF pin: 非暫定 token を送信直前に breaker だけ見る (8 巡目の形) と B が送られ、確認済み
     154.350 の stop が 154.280 に緩む。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     orig = OandaBridge._storm_send_decision
     def _old(self, demo_trade_id, st, token, new_sl, instrument):
         if token and not token.get("reeval") and self._storm_enforce:
@@ -1424,13 +1442,15 @@ def test_p1_snapshot_showing_sent_value_resolves_as_applied(monkeypatch):
     assert st["confirmed_sl"] == 154.400 and st["unresolved_sl"] is None
 
 
-def test_p1_snapshot_showing_third_value_resolves_as_changed(monkeypatch):
+def test_p1_snapshot_showing_third_value_updates_confirmed_but_keeps_unresolved(monkeypatch):
+    """15 巡目 P1: 第三の値は「別 actor が動かした」証拠であって timeout した PUT の帰結ではない。"""
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
     fake.fail_next = 1; fake.fail_error = "timeout"
     fake.open_trades = [_broker_trade("1000", "154.500")]           # 別経路で動いた値
     assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is False
     st = b.get_storm_guard_status()["trades"][DEMO]
-    assert st["confirmed_sl"] == 154.500 and st["unresolved_sl"] is None
+    assert st["confirmed_sl"] == 154.500 and st["unresolved_sl"] == 154.400   # 現値は更新、曖昧さは維持
+    assert b.get_storm_guard_status()["totals"]["observed_changed"] == 1
 
 
 def test_p1_old_value_observations_never_resolve_by_elapsed_time(monkeypatch):
@@ -1468,9 +1488,10 @@ def test_reconcile_verdict_table(monkeypatch):
 def test_p1_cf_single_old_snapshot_treated_as_rejection_loosens_stop(monkeypatch):
     """CF pin: 旧値の単発観測を not_applied 扱いにする (11 巡目の形) と、A が実は適用される
     ケースで B=154.350 が送られ、A(154.400) 適用後の stop を緩める。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
+    # 旧形の再現: 旧値の snapshot を「確定 (適用されなかった = 現値が真)」として曖昧さを消す
     monkeypatch.setattr(OandaBridge, "_storm_reconcile_verdict",
-                        lambda self, st, sent, prev, broker: "unknown" if broker is None
-                        else ("applied" if abs(broker - sent) < 1e-7 else "changed"))
+                        lambda self, st, sent, prev, broker: "unknown" if broker is None else "applied")
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
     q = _deferred_fire(b, monkeypatch)
     b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A (broker では後で適用される)
@@ -1569,6 +1590,7 @@ def test_p1_turn_wait_budget_covers_put_timeout_plus_reconcile_get(monkeypatch):
 
 def test_p1_turn_wait_budget_resets_on_each_predecessor(monkeypatch):
     """先行 3 件が各 0.25 s で進捗する (合計 0.75 s > 0.4 s) — 先頭ごとの予算 0.4 s なら D は落ちない。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.4)
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
     q = _deferred_fire(b, monkeypatch)
@@ -1585,6 +1607,7 @@ def test_p1_turn_wait_budget_resets_on_each_predecessor(monkeypatch):
 
 def test_p1_cf_absolute_deadline_drops_protective_update_behind_progressing_chain(monkeypatch):
     """CF pin: 予算を絶対 deadline (12 巡目までの形) に戻すと、進捗している先行 3 件の後ろの D が drop。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.4)
     def _absolute_wait(self, demo_trade_id, st, token):
         if not token or not self._storm_enforce:
@@ -1675,6 +1698,7 @@ def test_p2_unresolved_reconcile_is_rate_limited(monkeypatch):
 def test_p1_cf_time_based_not_applied_lets_late_landing_put_be_loosened(monkeypatch):
     """CF pin: 旧値を 2 回 / 一定時間観測したら not_applied (13 巡目の形) にすると、最後の GET の
     後に A=154.400 が着地するケースで B=154.350 が送られ live stop を緩める。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)   # 複数 async token を並べる scenario — 畳み込み自体は (t) 群で pin
     monkeypatch.setattr(OandaBridge, "STORM_RECONCILE_MIN_INTERVAL_SEC", 0.0)
     obs = {"n": 0}
     def _time_based(self, st, sent, prev, broker):
@@ -1685,7 +1709,8 @@ def test_p1_cf_time_based_not_applied_lets_late_landing_put_be_loosened(monkeypa
         if prev is None or abs(broker - prev) >= 1e-7:
             return "changed"
         obs["n"] += 1
-        return "changed" if obs["n"] >= 3 else "inconclusive"      # 旧値を 3 回 (rollback 直後 + 2 gate) 観測で「未適用」扱い
+        # 旧値を 3 回 (rollback 直後 + 2 gate) 観測したら「未適用 = 現値が真」として曖昧さを消す (旧形)
+        return "applied" if obs["n"] >= 3 else "inconclusive"
     monkeypatch.setattr(OandaBridge, "_storm_reconcile_verdict", _time_based)
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
     fake.fail_next = 1; fake.fail_error = "timeout"
@@ -1695,3 +1720,164 @@ def test_p1_cf_time_based_not_applied_lets_late_landing_put_be_loosened(monkeypa
     assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True    # ← 観測 3 で解消扱い、B が届く (旧形)
     # 実際には A が最後の GET の後に着地 → broker の stop は 154.400 → B=154.350 で緩んだ
     assert fake.calls[-1] == (OANDA_ID, 154.350)
+
+
+# ── 第三の値は timeout した PUT の帰結を示さない (PR #287 review 15 巡目 P1) ─────────
+
+def test_p1_external_third_value_does_not_release_unresolved_bound(monkeypatch):
+    """review の形状: 直前 154.115 / timeout A=154.400 / 外部更新 154.300 → 154.350 は送ってはいけない
+    (A が GET と 154.350 の間に着地すれば緩む)。"""
+    monkeypatch.setattr(OandaBridge, "STORM_RECONCILE_MIN_INTERVAL_SEC", 0.0)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    fake.fail_next = 1; fake.fail_error = "timeout"
+    fake.open_trades = [_broker_trade("1000", "154.300")]           # 外部 actor が 154.300 に
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is False
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["confirmed_sl"] == 154.300 and st["unresolved_sl"] == 154.400
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False   # max(154.300, 154.400) 基準で緩め
+    assert fake.calls == [(OANDA_ID, 154.400)]
+    # 保守的 baseline 以上の tightening は通り、自分の新しい確認で解消
+    assert b.modify_sl_sync(DEMO, 154.420, instrument="USD_JPY") is True
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["unresolved_sl"] is None and st["confirmed_sl"] == 154.420
+
+
+def test_p1_cf_third_value_treated_as_authoritative_loosens_stop(monkeypatch):
+    """CF pin: 第三の値で曖昧さを消す (14 巡目の形) と 154.350 が送られ、A 着地後の stop が緩む。"""
+    orig = OandaBridge._storm_apply_reconcile
+    def _old_apply(self, demo_trade_id, st, gen, broker_sl):
+        with self._storm_lock:
+            if st["confirmed_seq"] != gen or st.get("unresolved_sl") is None:
+                return False
+            st["confirmed_sl"] = broker_sl
+            st["unresolved_sl"] = None
+            st["unresolved_prev"] = None
+            return True
+    monkeypatch.setattr(OandaBridge, "_storm_apply_reconcile", _old_apply)
+    monkeypatch.setattr(OandaBridge, "STORM_RECONCILE_MIN_INTERVAL_SEC", 0.0)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    fake.fail_next = 1; fake.fail_error = "timeout"                 # rollback 直後の GET は不達
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is False
+    fake.open_trades = [_broker_trade("1000", "154.300")]           # 次の gate で第三の値
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True    # ← 緩め得る値が届く (旧形)
+    assert fake.calls[-1] == (OANDA_ID, 154.350)
+
+
+# ── enforce の fire-and-forget queue は有界 (PR #287 review 15 巡目 P1) ─────────────
+
+def test_p1_async_burst_behind_stalled_head_coalesces_into_one_waiter(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.200, instrument="USD_JPY")               # A: 先頭 (停滞)
+    for sl in legit_trail_buy(30):                                  # 154.200, 154.220, ... 154.780
+        b.modify_sl(DEMO, sl, instrument="USD_JPY")
+    st = b.get_storm_guard_status()
+    assert len(q) == 2                                              # thread は先頭 + 待機 1 件だけ
+    assert st["trades"][DEMO]["pending"] == [154.200, 154.780]      # 待機 token は最新値に畳み込み
+    assert st["totals"]["coalesced"] == 29
+    q[0](); q[1]()
+    assert fake.calls == [(OANDA_ID, 154.200), (OANDA_ID, 154.780)]
+    assert b.get_storm_guard_status()["trades"][DEMO]["confirmed_sl"] == 154.780
+
+
+def test_p1_coalesced_value_is_reevaluated_against_confirmed_at_send(monkeypatch):
+    """畳み込まれた最新値が確認済み baseline に対して緩めなら送られない。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A
+    b.modify_sl(DEMO, 154.450, instrument="USD_JPY")               # B (待機)
+    b.modify_sl(DEMO, 154.300, instrument="USD_JPY")               # B に畳み込み → 154.300 (A 基準で緩め)
+    assert len(q) == 2
+    q[0](); q[1]()
+    assert fake.calls == [(OANDA_ID, 154.400)]                      # 154.300 は送信直前の再評価で reject
+    assert b.get_storm_guard_status()["totals"]["skipped"]["monotonic"] == 1
+
+
+def test_p1_coalescing_does_not_touch_sync_or_in_flight_tokens(monkeypatch):
+    """sync token (caller が待っている値) と送信中の token には畳み込まない。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A (async, 先頭)
+    t, box = _sync_in_thread(b, 154.450)                            # B (sync, 待機)
+    t.join(0.3); assert t.is_alive()
+    b.modify_sl(DEMO, 154.500, instrument="USD_JPY")               # C: B は sync なので畳み込まず新規 token
+    assert len(q) == 2 and b.get_storm_guard_status()["trades"][DEMO]["pending"] == [154.400, 154.450, 154.500]
+    q[0](); t.join(2.0); q[1]()
+    assert box["ret"] is True
+    assert fake.calls == [(OANDA_ID, 154.400), (OANDA_ID, 154.450), (OANDA_ID, 154.500)]
+
+
+def test_p1_cf_no_coalescing_spawns_one_worker_per_call(monkeypatch):
+    """CF pin: 畳み込みを外す (14 巡目の形) と停滞先頭の後ろに 30 thread が並ぶ。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.200, instrument="USD_JPY")
+    for sl in legit_trail_buy(30):
+        b.modify_sl(DEMO, sl, instrument="USD_JPY")
+    assert len(q) == 31                                             # ← worker 無限増殖の形
+
+
+def test_detect_only_mode_does_not_coalesce(monkeypatch):
+    """検知のみでは従来通り (thread/送信は変えない)。"""
+    b, fake = _bridge(monkeypatch, enforce=False, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    for sl in legit_trail_buy(5):
+        b.modify_sl(DEMO, sl, instrument="USD_JPY")
+    assert len(q) == 5 and b.get_storm_guard_status()["totals"]["coalesced"] == 0
+
+
+# ── ローカル 429 backoff 中の呼び出しは窓に数えない (PR #287 review 15 巡目 P1) ─────
+
+def test_p1_local_backoff_calls_are_not_counted_and_not_sent(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    fake._rate_limit_until = __import__("time").time() + 60        # client がローカル backoff 中
+    for sl in legit_trail_buy(5):
+        assert b.modify_sl_sync(DEMO, sl, instrument="USD_JPY") is False
+    st = b.get_storm_guard_status()
+    assert fake.calls == []                                         # HTTP は出ていない
+    assert st["trades"][DEMO]["sent_total"] == 0 and st["trades"][DEMO]["tripped"] is False
+    assert st["totals"]["local_backoff"] == 5
+    fake._rate_limit_until = 0                                      # backoff 解除 → 通常送信
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is True
+
+
+def test_p1_local_backoff_reply_shape_is_uncounted(monkeypatch):
+    """pre-check を通過した直後に backoff が始まった場合: client の応答形で判別して窓から外す。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    def _local_429(oanda_id, stop_loss=None, instrument=None, **kw):
+        fake.calls.append((oanda_id, stop_loss))
+        return False, {"error": 429, "message": "Rate limited, retry in 5s"}
+    fake.modify_trade = _local_429
+    for sl in legit_trail_buy(5):
+        assert b.modify_sl_sync(DEMO, sl, instrument="USD_JPY") is False
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["sent_total"] == 0 and st["trades"][DEMO]["tripped"] is False
+    assert st["totals"]["local_backoff"] == 5 and st["totals"]["ambiguous_failures"] == 0
+
+
+def test_real_http_429_is_counted(monkeypatch):
+    """本物の HTTP 429 (broker に届いた) は窓に数える。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    def _http_429(oanda_id, stop_loss=None, instrument=None, **kw):
+        fake.calls.append((oanda_id, stop_loss))
+        return False, {"error": 429, "message": "{\"errorMessage\":\"Too many requests\"}"}
+    fake.modify_trade = _http_429
+    for sl in legit_trail_buy(5):
+        b.modify_sl_sync(DEMO, sl, instrument="USD_JPY")
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["sent_total"] == 3 and st["trades"][DEMO]["tripped"] is True
+
+
+def test_p1_cf_counting_local_backoff_trips_breaker_without_http(monkeypatch):
+    """CF pin: ローカル backoff を数える (14 巡目の形) と HTTP ゼロで breaker が trip する。"""
+    monkeypatch.setattr(OandaBridge, "_storm_precheck_send", lambda self, d, st, tok: True)
+    monkeypatch.setattr(OandaBridge, "_storm_is_local_backoff_reply", staticmethod(lambda data: False))
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    def _local_429(oanda_id, stop_loss=None, instrument=None, **kw):
+        return False, {"error": 429, "message": "Rate limited, retry in 5s"}   # HTTP なし
+    fake.modify_trade = _local_429
+    for sl in legit_trail_buy(5):
+        b.modify_sl_sync(DEMO, sl, instrument="USD_JPY")
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["tripped"] is True and st["trades"][DEMO]["sent_total"] == 3   # ← 未送信で trip
