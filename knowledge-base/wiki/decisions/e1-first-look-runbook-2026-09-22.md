@@ -9,8 +9,9 @@
 ## §0 なぜ tool が要るのか (とその限界)
 
 - pre-reg §2.5-6 は「verdict 用データは cutoff 直後に **1 回だけ** export → parquet + sha256 を `raw/bt-results/` に保存。以後の分析は artifact のみ参照 (本番 DB 再クエリ禁止)」を要求する。これは**手続き要件**であり、tool が無くても手作業で満たせる — **tool 不在 ≠ verdict 無効** (無効化は §6 違反時のみ)。
-- tool `tools/e1_positioning_frozen_export.py` はこの規約の**機械担保**: (i) 凍結 marker (`.sha256`) があれば `--force` なしで再実行拒否 = 「2 回目の export」を構造的に止める、(ii) stdout に値を出さない = export 作業そのものが peeking にならない、(iii) 判定器 `tools/e1_positioning_prereg_eval.py --artifact` の入力契約 (JSON dict `{"snapshots","health","synthetic":false}`) をそのまま書く、(iv) M15 parquet の cutoff スライスを判定器 `clip_bars_to_cutoff` と同一規約 (open + 900s ≤ cutoff) で作り sha256 を raw 側に残す。
-- pin: `tests/test_e1_positioning_frozen_export.py` (20 tests、全てオフライン fake API) — 合成 roundtrip (書く→判定器 `load_artifact` で読む→sha256 一致) / 1 回だけガード / cutoff 前拒否 / 値非表示 (stdout に `\d+\.\d+` が出ない、合成 sentinel 値が出ない) / ページング dedup / 定数が判定器・ingest と同値。
+- tool `tools/e1_positioning_frozen_export.py` はこの規約の**機械担保**: (i) 凍結 marker (`.sha256`) があれば `--force` なしで再実行拒否 = 「2 回目の export」を構造的に止める、(ii) stdout に値を出さない = export 作業そのものが peeking にならない、(iii) 判定器 `tools/e1_positioning_prereg_eval.py --artifact` の入力契約 (JSON dict `{"snapshots","health","synthetic":false}`) をそのまま書く、(iv) M15 parquet の cutoff スライスを判定器 `clip_bars_to_cutoff` と同一規約 (open + 900s ≤ cutoff) で作り sha256 を raw 側に残す、(v) **§2.5-5(b) API→artifact roundtrip を凍結時に実行** — artifact をディスクから再読し、1 回だけの export 応答 (メモリ) と件数・(instrument, book_type, snapshot_time) キー集合・行 canonical digest を突合、不一致なら marker を書かず exit 2 (本番へ再問い合わせしない)。結果は manifest `roundtrip_check` に永続化、ページ毎の API 返却件数内訳は `fetch_ledger`、(vi) **§2.5-3 postpone** は `--postponed` (cutoff 11-05 / verdict 11-12、別 marker、元凍結は byte 不改変)。
+- pin: `tests/test_e1_positioning_frozen_export.py` (32 tests、全てオフライン fake API) — 合成 roundtrip (書く→判定器 `load_artifact` で読む→sha256 一致) / API↔artifact roundtrip の記録と不一致時の marker 不書込 / サーバ側 limit 丸めで切詰まらない / 1 回だけガード / cutoff 前拒否 / postpone (元 marker 必須・元凍結不改変・11-05 フィルタ・別 marker・1 回だけ) / 値非表示 (stdout に `\d+\.\d+` が出ない、合成 sentinel 値が出ない) / ページング dedup / 定数が判定器・ingest・pre-reg §7 (4 週) と同値 / M15 スライス本数が判定器 clip と一致 (index 分解能 ns・us の両方)。
+- ⚠️ **判定器側の修復 (同 PR、rule:R3)**: `tools/e1_positioning_prereg_eval.py load_bars` の epoch 計算が ns 分解能前提 (`view("int64") // 10**9`) で、pandas 3 + pyarrow の parquet roundtrip (datetime64[us]) では epoch が 1/1000 に潰れ `clip_bars_to_cutoff` が全 bar を「完結済み」と誤判定していた (PR #286 CI 実測 `assert 26 == 32`、ローカル pandas 2.3 では潜伏)。分解能非依存に修正し `tests/test_e1_prereg_eval.py` に ns/us/ms で pin。**verdict 実行環境の pandas 版に依存しない**ことが要件 — §5 の実行前に §2 の pin を必ず同一環境で green にする。
 
 ## §1 タイムライン (固定、データ非依存)
 
@@ -23,7 +24,7 @@
 | **2026-10-15** | §6 verdict を pre-reg §8 へ追記 + 分岐執行 (§7) | pre-reg §7 registry `e1-prereg-verdict-deadline` |
 | 2026-10-18 | scan#6 で (a-1) probe の R1 起案可否を裁定 (§8 一行定義) | [[supply-space-feasibility-2026-09-17]] §1.3 |
 
-postpone (§2.5-3 family gate 不成立) が出た場合のみ cutoff / verdict / 評価窓終端が **4 週スライド** (burn-in・窓開始は不変、1 回限り)。→ 10-08 → 11-05 / 10-15 → 11-12。第 2 回目不達は DEFERRED。
+postpone (§2.5-3 family gate 不成立) が出た場合のみ cutoff / verdict / 評価窓終端が **4 週スライド** (burn-in・窓開始は不変、1 回限り)。→ 10-08 → 11-05 / 10-15 → 11-12。第 2 回目不達は DEFERRED。tool 側: **11-05T06:33:31Z 到達後に `--look 1 --postponed --slice-ohlcv` で別 marker (`e1-first-look-postponed-freeze-2026-11-05.sha256`) を作る** — 元の 10-08 凍結 (marker / artifact / manifest) は不改変で残す (`--force` で上書きしない)。postponed artifact は t0 以降 11-05 以下の全行 (10-08 凍結の上位集合)。判定器は `--cutoff 2026-11-05T06:33:31Z --look 1 --postponed-before --verdict-run` (2 回目不達 = DEFERRED)。
 
 ## §2 準備 (〜10-06、本番の値に触れない)
 
@@ -49,16 +50,19 @@ python3 -B tools/e1_positioning_frozen_export.py --dry-run-health --limit 5
 python3 tools/bt_data_cache.py refresh 15m
 # (b) 凍結 (snapshots 13 instrument outlook + health_log、M15 スライス込み)
 python3 -B tools/e1_positioning_frozen_export.py --look 1 --slice-ohlcv
-# (c) 直後に roundtrip 突合 (§2.5-5(b))
+# (c) 直後にファイル完全性 + 凍結時 roundtrip 結果の表示 (§2.5-5(b) の API↔artifact 突合は (b) の中で実行・manifest に記録済み)
 python3 -B tools/e1_positioning_frozen_export.py --verify knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.sha256
 ```
+
+(b) は artifact 書込み直後に **API 応答 (メモリ) ↔ ディスク再読 artifact** を件数・キー集合・行 canonical digest で突合し、不一致なら marker を書かず exit 2 で止まる (本番へ再問い合わせしない)。stdout `roundtrip API->artifact: OK (snapshots N/N, health M/M, ledger consistent)` と manifest `roundtrip_check` (`ok` / `snapshots.api_rows` / `artifact_rows` / `keys_match` / `digest_match` / `fetch_ledger` = instrument 別 pages・rows_returned・rows_kept・rows_dedup・rows_beyond_cutoff) が §2.5-5(b) の記録。exit 2 なら理由 (直列化欠損 / limit 丸め) を切り分けてから `--force` で再凍結し、`force_history` に残す。
 
 成果物 (tool `default_paths`):
 
 | パス | 中身 | git |
 |---|---|---|
 | `knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.sha256` | sha256sum 互換 (`<hex>  <repo 相対 path>`)。**= 凍結 marker** | commit |
-| `knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.manifest.json` | 件数 / instrument 別 first・last snapshot_time (秒精度) / health_log 行数・id 範囲・key 数 / cutoff / api_base / frozen_at / ohlcv スライスの rows・sha256 / `force_history` | commit |
+| `knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.manifest.json` | 件数 / instrument 別 first・last snapshot_time (秒精度) / health_log 行数・id 範囲・key 数 / cutoff / `postponed` (false) / api_base / frozen_at / ohlcv スライスの rows・sha256 / `roundtrip_check` (§2.5-5(b)) / `force_history` | commit |
+| `knowledge-base/raw/bt-results/e1-first-look-postponed-freeze-2026-11-05.{sha256,manifest.json}` + `e1-first-look-postponed-freeze-2026-11-05/e1_prereg_frozen_export_look1_postponed.json` | **postpone 時のみ** (§1)。元 10-08 凍結と別 marker、`postponed: true` / `original_cutoff` / `postpone_weeks: 4` | commit (postpone 時) |
 | `knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08/e1_prereg_frozen_export_look1.json` | 判定器入力 artifact (`synthetic: false`) | サイズ次第。数十 MB なら commit せず sha256 のみ raw に残し、ファイルは隔離 worktree 内に保持 |
 | `data/cache/e1_frozen_look1_2026-10-08/{PAIR}_15m.parquet` × 13 | cutoff スライス済み M15 | gitignored (`data/cache/`)。sha256 は上記 `.sha256` に同居 |
 
@@ -72,7 +76,7 @@ python3 -B tools/e1_positioning_frozen_export.py --verify knowledge-base/raw/bt-
 | 項目 | やり方 | 注意 |
 |---|---|---|
 | (a) content-hash 再計算 | 無作為 20 行の `buckets` を `modules.positioning_ingest.outlook_content_key` で再計算し、同 instrument の**隣接行と相異なる**こと (dedup 契約) を確認 | ⚠️ 本番 schema に hash 列は無い (`positioning_snapshots` DDL) — 「保存済み hash と一致」は検査不能。確認できるのは決定性と隣接非重複のみ。**この検査は値を読む** — verdict 期日の判定器実行と同日に、判定器の出力と同じ raw JSON に結果だけ書く (数値の目視・記録禁止) |
-| (b) roundtrip 突合 | `--verify` (§3(c)) が OK | 凍結直後と判定器実行直前の 2 回 |
+| (b) roundtrip 突合 | 凍結時 (§3(b)) に tool が API 応答 ↔ artifact を件数・キー集合・行 digest で突合し manifest `roundtrip_check.ok = true` を記録 (不一致は marker 不書込)。`--verify` (§3(c)) は sha256 再計算 (改竄・破損) + その記録の再表示 | 凍結直後と判定器実行直前の 2 回 `--verify`。**判定器実行日に本番 API へ再問い合わせして突合し直すことは §2.5-6 違反** — 記録済み結果を転記する |
 | (c) Myfxbook web UI 突合 | 3 ペア × 1 時点の pct (±0.5pp) | rate limit 100 req/24h 内。**cutoff 後の時点**で行う (凍結 artifact の値と突合するのは判定器実行日) |
 | (d) unit tests green | §2 の pytest | 判定器 `tests/test_e1_prereg_eval.py` + export `tests/test_e1_positioning_frozen_export.py` |
 
@@ -89,7 +93,7 @@ python3 -B tools/e1_positioning_prereg_eval.py \
 - `--verdict-run` は (i) synthetic 宣言のない artifact の実行を許可、(ii) 13 pair parquet 完備を強制、(iii) stale cap 主モード (health verified 系列) を強制する。health 系列が欠けると fail-loud → `--fallback-mode` は §2.2 fallback 宣言の適用 (2 方向バイアスを estimand 制約として verdict に併記、閑散集中で DEFERRED 接続)。
 - 出力 JSON の `inputs` に artifact sha256 と parquet 別 sha256 が入る → §3 の `.sha256` と一致することを verdict に記録。
 - **seed は default 固定 (20261015)**。`--n-boot` default 10,000。変更禁止。
-- 判定器が `POSTPONE` を返したら §1 の 4 週スライド (look 非消費)。`DEFERRED` は user 裁定。
+- 判定器が `POSTPONE` を返したら §1 の 4 週スライド (look 非消費): 11-05T06:33:31Z 到達後に `tools/e1_positioning_frozen_export.py --look 1 --postponed --slice-ohlcv` → `--artifact knowledge-base/raw/bt-results/e1-first-look-postponed-freeze-2026-11-05/e1_prereg_frozen_export_look1_postponed.json --ohlcv-dir data/cache/e1_frozen_look1_2026-11-05 --cutoff 2026-11-05T06:33:31Z --look 1 --postponed-before --verdict-run`、verdict 期日 11-12。`DEFERRED` は user 裁定。
 
 ## §6 verdict 追記 (2026-10-15)
 

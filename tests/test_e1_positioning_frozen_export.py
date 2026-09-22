@@ -18,6 +18,7 @@ from tools import e1_positioning_frozen_export as fx
 from tools import e1_positioning_prereg_eval as ev
 
 CUTOFF1 = fx.parse_utc(fx.LOOKS[1]["cutoff"])
+CUTOFF1P = fx.parse_utc(fx.look_spec(1, postponed=True)["cutoff"])   # §2.5-3 +4 週
 # 合成データにだけ現れる「値」— stdout に漏れないことの pin に使う
 SENTINEL_LONG = 61.2345
 SENTINEL_PX = 157.6189
@@ -59,17 +60,20 @@ def _iso_us(dt):
     return dt.strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
-def make_world(n_per_inst=30, n_after_cutoff=5, step_min=20):
-    """13 instrument × n 行 (cutoff 前) + cutoff 後 n_after 行、health_log 系列。"""
+def make_world(n_per_inst=30, n_after_cutoff=5, step_min=20, n_after_postponed=0):
+    """13 instrument × n 行 (cutoff 前) + cutoff 後 n_after 行 (postponed cutoff 以下)
+    + postponed cutoff 後 n_after_postponed 行、health_log 系列。"""
     t0 = fx.parse_utc(fx.T0_ISO)
     snaps, health = [], []
     hid = 0
     for k, inst in enumerate(fx.INSTRUMENTS):
-        for i in range(n_per_inst + n_after_cutoff):
+        for i in range(n_per_inst + n_after_cutoff + n_after_postponed):
             if i < n_per_inst:
                 t = t0 + timedelta(minutes=step_min * i, seconds=k)
-            else:
+            elif i < n_per_inst + n_after_cutoff:
                 t = CUTOFF1 + timedelta(minutes=step_min * (i - n_per_inst + 1))
+            else:
+                t = CUTOFF1P + timedelta(minutes=step_min * (i - n_per_inst - n_after_cutoff + 1))
             long_pct = SENTINEL_LONG if i == 3 else 50.0 + (i % 7) - 3.0
             snaps.append({
                 "instrument": inst, "book_type": "outlook",
@@ -95,12 +99,14 @@ def make_world(n_per_inst=30, n_after_cutoff=5, step_min=20):
     return snaps, health
 
 
-def _run(tmp_path, api, **kw):
-    paths = fx.default_paths(1, str(tmp_path))
+def _run(tmp_path, api, postponed=False, now=None, **kw):
+    paths = fx.default_paths(1, str(tmp_path), postponed=postponed)
     import io
     buf = io.StringIO()
+    if now is None:
+        now = (CUTOFF1P if postponed else CUTOFF1) + timedelta(hours=2)
     rc = fx.run_freeze(api, 1, paths, api_base="https://fake.invalid", out=buf,
-                       now=CUTOFF1 + timedelta(hours=2), **kw)
+                       now=now, postponed=postponed, **kw)
     return rc, paths, buf.getvalue()
 
 
@@ -118,6 +124,35 @@ class TestConstantsPinnedToEvaluator:
     def test_cutoffs_match_evaluator(self):
         assert fx.LOOKS[1]["cutoff"] == ev.DEFAULT_CUTOFF_LOOK1
         assert fx.LOOKS[2]["cutoff"] == ev.DEFAULT_CUTOFF_LOOK2
+
+    def test_postponed_spec_is_prereg_four_week_slide(self):
+        """pre-reg §2.5-3 / §7: postpone = cutoff・verdict を同幅 4 週スライド (1 回限り)。"""
+        assert fx.POSTPONE_WEEKS == 4
+        sp = fx.look_spec(1, postponed=True)
+        assert sp["cutoff"] == "2026-11-05T06:33:31Z"
+        assert fx.parse_utc(sp["cutoff"]) - CUTOFF1 == timedelta(weeks=4)
+        assert sp["verdict"] == "2026-11-12"
+        assert sp["original_cutoff"] == fx.LOOKS[1]["cutoff"]
+        assert sp["postponed"] is True and sp["slug"] == "first-look-postponed"
+        base = fx.look_spec(1)
+        assert base["postponed"] is False and base["cutoff"] == fx.LOOKS[1]["cutoff"]
+        with pytest.raises(ValueError):
+            fx.look_spec(2, postponed=True)      # second look に postpone は無い (§4.4)
+        # 判定器は --cutoff 上書き + --postponed-before を受ける (2 回目不達 = DEFERRED)
+        import argparse
+        parser_src = open(ev.__file__, encoding="utf-8").read()
+        assert "--postponed-before" in parser_src and '"--cutoff"' in parser_src
+        assert ev.overall_verdict({}, True, False, 1) == "POSTPONE"
+        assert ev.overall_verdict({}, True, True, 1) == "DEFERRED"
+
+    def test_default_paths_postponed_is_distinct_marker(self):
+        p = fx.default_paths(1, "/x")
+        pp = fx.default_paths(1, "/x", postponed=True)
+        assert pp["sha256"] == "/x/e1-first-look-postponed-freeze-2026-11-05.sha256"
+        assert pp["manifest"] == "/x/e1-first-look-postponed-freeze-2026-11-05.manifest.json"
+        assert pp["artifact"].endswith("e1-first-look-postponed-freeze-2026-11-05/"
+                                       "e1_prereg_frozen_export_look1_postponed.json")
+        assert len({p["sha256"], pp["sha256"], fx.default_paths(2, "/x")["sha256"]}) == 3
 
     def test_default_paths_first_look(self):
         p = fx.default_paths(1, "/x")
@@ -148,6 +183,18 @@ class TestFetch:
         assert len({r["snapshot_time"] for r in rows}) == 30  # dedup
         assert all(c.get("book") == "outlook" for c in api.calls)
 
+    def test_fetch_ledger_accounts_for_every_returned_row(self):
+        """§2.5-5(b): API 返却件数 = kept + dedup + beyond_cutoff (切詰め検知の台帳)。"""
+        snaps, health = make_world(n_per_inst=30, n_after_cutoff=5)
+        api = FakeApi(snaps, health, page_limit=7)
+        led = {}
+        rows = fx.fetch_snapshots(api, "USD_JPY", CUTOFF1, page_limit=7, ledger=led)
+        assert led["rows_kept"] == len(rows) == 30
+        assert led["rows_dedup"] > 0                    # from= 境界の重複を数えている
+        assert led["rows_beyond_cutoff"] >= 1
+        assert led["rows_returned"] == led["rows_kept"] + led["rows_dedup"] + led["rows_beyond_cutoff"]
+        assert led["pages"] == len(api.calls)
+
     def test_health_pagination_and_cutoff(self):
         snaps, health = make_world(n_per_inst=4, n_after_cutoff=2)
         api = FakeApi(snaps, health, page_limit=10)
@@ -160,6 +207,16 @@ class TestFetch:
         ver, cyc = ev.extract_health_events(rows, list(fx.INSTRUMENTS))
         assert all(len(ver[i]) == 4 for i in fx.INSTRUMENTS)
         assert len(cyc) == 5
+
+    def test_server_side_limit_rounding_does_not_truncate(self):
+        """サーバが limit を要求より小さく丸めても (page_limit 未満の返却)、
+        snapshots / health とも全行を取り切る (§2.5-5(b) 切詰め封鎖)。"""
+        snaps, health = make_world(n_per_inst=30, n_after_cutoff=0)
+        api = FakeApi(snaps, health, page_limit=7)          # 要求 20000 → 7 に丸められる
+        rows = fx.fetch_snapshots(api, "USD_JPY", CUTOFF1)   # default page_limit=20000
+        assert len(rows) == 30
+        hrows = fx.fetch_health_log(api, CUTOFF1)
+        assert len(hrows) == sum(1 for r in health if fx.parse_utc(r["value"]) <= CUTOFF1)
 
     def test_pagination_guard_fail_loud(self):
         def bad(path, params):       # 常に同じ 1 ページを返す (進まない)
@@ -205,6 +262,68 @@ class TestRoundtrip:
         assert man["snapshots_summary"]["instruments_missing"] == []
         assert man["health_summary"]["rows_total"] == 13 * 30 + 5
         assert man["force_history"] == []
+
+    def test_api_to_artifact_roundtrip_recorded_in_manifest(self, tmp_path):
+        """§2.5-5(b): 凍結時に API 応答 ↔ ディスク再読 artifact を突合し manifest に永続化。"""
+        snaps, health = make_world()
+        rc, paths, out = _run(tmp_path, FakeApi(snaps, health, page_limit=50))
+        assert rc == fx.EXIT_OK
+        man = json.load(open(paths["manifest"]))
+        rt = man["roundtrip_check"]
+        assert rt["ok"] is True
+        assert rt["snapshots"]["api_rows"] == rt["snapshots"]["artifact_rows"] == 13 * 30
+        assert rt["snapshots"]["keys_match"] and rt["snapshots"]["digest_match"]
+        assert rt["snapshots"]["api_digest"] == rt["snapshots"]["artifact_digest"]
+        assert rt["health"]["api_rows"] == rt["health"]["artifact_rows"] == 13 * 30 + 5
+        assert rt["health"]["digest_match"]
+        assert rt["fetch_ledger_consistent"] is True
+        assert set(rt["fetch_ledger"]) == set(fx.INSTRUMENTS)
+        led = rt["fetch_ledger"]["USD_JPY"]
+        assert led["rows_kept"] == 30 and led["rows_beyond_cutoff"] >= 1
+        assert "roundtrip API->artifact: OK (snapshots 390/390" in out
+        # --verify は記録済み roundtrip 結果を返す
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert res["ok"] and res["roundtrip"] == {"ok": True, "snapshots_rows": 390,
+                                                  "health_rows": 395}
+        # digest は値ではなく行の canonical hash — 値を 1 つ変えると変わる
+        alt = json.loads(json.dumps(snaps))
+        alt[0]["pct_long_total"] = 12.3456
+        assert fx.rows_digest(alt) != fx.rows_digest(snaps)
+        assert fx.rows_digest(list(reversed(snaps))) == fx.rows_digest(snaps)   # 順序非依存
+
+    def test_roundtrip_mismatch_refuses_and_writes_no_marker(self, tmp_path, capsys, monkeypatch):
+        """artifact 直列化で 1 行落ちたら marker を書かず exit 2 (本番へ再問い合わせしない)。"""
+        snaps, health = make_world(n_per_inst=4, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        real_write = fx.write_json_atomic
+
+        def lossy_write(path, obj):
+            if isinstance(obj, dict) and "snapshots" in obj:
+                obj = dict(obj, snapshots=obj["snapshots"][:-1])
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", lossy_write)
+        n_calls_before = None
+        rc, paths, out = _run(tmp_path, api)
+        assert rc == fx.EXIT_FAIL
+        err = capsys.readouterr().err
+        assert "REFUSED" in err and "roundtrip" in err
+        assert not os.path.exists(paths["sha256"])
+        assert not os.path.exists(paths["manifest"])
+        assert out == ""
+        assert not FLOAT_RE.search(err), err
+        # 値の変化 (件数同一) も digest で捕まえる
+        monkeypatch.setattr(fx, "write_json_atomic", real_write)
+
+        def mutating_write(path, obj):
+            if isinstance(obj, dict) and "snapshots" in obj:
+                rows = json.loads(json.dumps(obj["snapshots"]))
+                rows[0]["pct_long_total"] = 99.0
+                obj = dict(obj, snapshots=rows)
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", mutating_write)
+        rc2, paths2, _ = _run(tmp_path, api)
+        assert rc2 == fx.EXIT_FAIL
+        assert not os.path.exists(paths2["sha256"])
 
     def test_evaluator_refuses_real_artifact_without_verdict_run(self, tmp_path):
         """§6-2: 凍結 artifact (synthetic=false) は --verdict-run なしで判定器が拒否。"""
@@ -276,6 +395,86 @@ class TestOnceOnlyGuard:
         assert man["force_history"][0]["previous_frozen_at"] is not None
 
 
+# ── postpone (§2.5-3 family gate 不成立 → 4 週スライド、元凍結は不改変) ─────
+
+class TestPostponedLook:
+    def test_postponed_requires_original_freeze(self, tmp_path, capsys):
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=2)
+        api = FakeApi(snaps, health)
+        rc, paths, out = _run(tmp_path, api, postponed=True)
+        assert rc == fx.EXIT_FAIL
+        assert "REFUSED" in capsys.readouterr().err
+        assert api.calls == []                       # API へ問い合わせもしない
+        assert not os.path.exists(paths["sha256"]) and out == ""
+
+    def test_postponed_freeze_preserves_original_and_extends_cutoff(self, tmp_path):
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=4, n_after_postponed=3)
+        api = FakeApi(snaps, health)
+        rc, p1, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_OK
+        orig_art = open(p1["artifact"], "rb").read()
+        orig_sha = open(p1["sha256"]).read()
+        orig_man = open(p1["manifest"]).read()
+
+        rc2, p1p, out = _run(tmp_path, api, postponed=True)
+        assert rc2 == fx.EXIT_OK
+        assert p1p["sha256"] != p1["sha256"] and os.path.exists(p1p["sha256"])
+        # 元凍結は byte 単位で不改変
+        assert open(p1["artifact"], "rb").read() == orig_art
+        assert open(p1["sha256"]).read() == orig_sha
+        assert open(p1["manifest"]).read() == orig_man
+        # postponed artifact: 10-08 < t ≤ 11-05 の行が入り、11-05 超は入らない
+        art = ev.load_artifact(p1p["artifact"])
+        ts = [fx.parse_utc(r["snapshot_time"]) for r in art["snapshots"]]
+        assert len(art["snapshots"]) == 13 * (3 + 4)
+        assert sum(1 for t in ts if t > CUTOFF1) == 13 * 4
+        assert all(t <= CUTOFF1P for t in ts)
+        assert art["synthetic"] is False
+        raw = json.load(open(p1p["artifact"]))
+        assert raw["meta"]["postponed"] is True
+        assert raw["meta"]["cutoff"] == "2026-11-05T06:33:31Z"
+        assert raw["meta"]["original_cutoff"] == fx.LOOKS[1]["cutoff"]
+        man = json.load(open(p1p["manifest"]))
+        assert man["postponed"] is True and man["postpone_weeks"] == 4
+        assert man["cutoff"] == "2026-11-05T06:33:31Z"
+        assert man["verdict_deadline"] == "2026-11-12"
+        assert man["force_history"] == []
+        assert man["roundtrip_check"]["ok"] is True
+        assert "postponed +4w from 2026-10-08T06:33:31Z" in out
+        assert not FLOAT_RE.search(out), out
+        # 判定器は postponed cutoff + --postponed-before を受理して (synthetic=false →) 拒否
+        rc3 = ev.main(["--artifact", p1p["artifact"], "--ohlcv-dir", str(tmp_path),
+                       "--cutoff", man["cutoff"], "--look", "1", "--postponed-before",
+                       "--n-boot", "5"])
+        assert rc3 == 2
+
+    def test_postponed_before_its_cutoff_refused(self, tmp_path, capsys):
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        rc, _, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_OK
+        rc2, p, _ = _run(tmp_path, api, postponed=True, now=CUTOFF1P - timedelta(days=1))
+        assert rc2 == fx.EXIT_FAIL
+        assert "REFUSED" in capsys.readouterr().err
+        assert not os.path.exists(p["sha256"])
+
+    def test_postponed_is_once_only_too(self, tmp_path, capsys):
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        assert _run(tmp_path, api)[0] == fx.EXIT_OK
+        assert _run(tmp_path, api, postponed=True)[0] == fx.EXIT_OK
+        rc, _, _ = _run(tmp_path, api, postponed=True)
+        assert rc == fx.EXIT_REFUSED_FROZEN
+
+    def test_cli_postponed_only_for_look1(self, tmp_path, capsys, monkeypatch):
+        monkeypatch.setattr(fx, "http_fetcher", lambda base, timeout=0: FakeApi([], []))
+        rc = fx.main(["--look", "2", "--postponed", "--out-dir", str(tmp_path),
+                      "--api-base", "https://fake.invalid"])
+        assert rc == fx.EXIT_FAIL
+        assert "--postponed" in capsys.readouterr().err
+        assert list(tmp_path.iterdir()) == []
+
+
 # ── 値の非表示 (§6-2) ─────────────────────────────────────────────────
 
 class TestNoValueLeak:
@@ -326,10 +525,15 @@ class TestNoValueLeak:
 # ── M15 parquet cutoff スライス (§2.3、判定器 clip と同一規約) ───────
 
 class TestOhlcvSlice:
-    def _write_parquets(self, d, n_after=8):
+    """合成 parquet のみ (data/cache/massive 非依存)。index の datetime 分解能を
+    ns / us で明示して書く — pandas 3 + pyarrow の roundtrip は datetime64[us] を返し、
+    旧 load_bars (`view("int64") // 10**9`) が CI で epoch を 1/1000 に潰した
+    (PR #286 CI: `assert 26 == 32`)。"""
+
+    def _write_parquets(self, d, n_after=8, unit="ns"):
         import pandas as pd
         base = CUTOFF1.replace(minute=0, second=0, microsecond=0) - timedelta(hours=6)
-        idx = pd.date_range(base, periods=24 + n_after, freq="15min", tz="UTC")
+        idx = pd.date_range(base, periods=24 + n_after, freq="15min", tz="UTC").as_unit(unit)
         for pair in fx.INSTRUMENTS:
             px = 100.0 + np.arange(len(idx)) * 0.01
             df = pd.DataFrame({"Open": px, "High": px + 0.05, "Low": px - 0.05,
@@ -337,18 +541,24 @@ class TestOhlcvSlice:
             df.to_parquet(os.path.join(d, f"{pair}_15m.parquet"))
         return idx
 
-    def test_slice_matches_evaluator_clip(self, tmp_path):
+    @pytest.mark.parametrize("unit", ["ns", "us"])
+    def test_slice_matches_evaluator_clip(self, tmp_path, unit):
         src = tmp_path / "src"; dst = tmp_path / "dst"
         src.mkdir()
-        idx = self._write_parquets(str(src))
+        idx = self._write_parquets(str(src), unit=unit)
         meta = fx.slice_ohlcv(str(src), str(dst), CUTOFF1)
         assert set(meta) == set(fx.INSTRUMENTS)
         m = meta["USD_JPY"]
-        # 判定器の clip_bars_to_cutoff と同じ本数
+        # 判定器 load_bars の epoch は index の epoch 秒に一致 (分解能非依存)
         bars = ev.load_bars(str(src), "USD_JPY")
+        expected_ep = np.array([t.timestamp() for t in idx.to_pydatetime()])
+        np.testing.assert_array_equal(bars["ep"], expected_ep)
+        # 判定器の clip_bars_to_cutoff と同じ本数、合成の期待値 (完結 bar のみ) とも一致
         clipped, n_drop = ev.clip_bars_to_cutoff(bars, CUTOFF1)
-        assert m["rows"] == len(clipped["ep"])
-        assert m["rows_dropped"] == n_drop
+        n_expected = int(sum(1 for t in idx.to_pydatetime()
+                             if t + timedelta(seconds=900) <= CUTOFF1))
+        assert m["rows"] == len(clipped["ep"]) == n_expected == 26
+        assert m["rows_dropped"] == n_drop == len(idx) - 26
         assert m["rows"] < len(idx)
         # 切詰め後は判定器で読めて、全 bar が完結 (open + 900 ≤ cutoff)
         sliced = ev.load_bars(str(dst), "USD_JPY")

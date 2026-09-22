@@ -25,6 +25,17 @@
      切詰めて `--ohlcv-dst` に書き、sha256/bytes/行数/末尾 bar 時刻を同じ .sha256/.manifest に
      追記する。data/cache/ は gitignored なので raw 側に残るのは sha256 のみ。
 
+  6. **API→artifact roundtrip 突合 (§2.5-5(b))**: artifact 書込み直後にディスクから再読し、
+     export レスポンス (メモリ上の 1 回だけの応答) と件数・(instrument, book_type,
+     snapshot_time) キー集合・行 canonical digest を突合する。不一致なら marker を書かず
+     exit 2 (本番へ再問い合わせしない)。結果は manifest `roundtrip_check` に永続化。
+     ページ毎の API 返却件数 / cutoff 超 / dedup 件数は `fetch_ledger` に残す (切詰め検知)。
+     `--verify` は記録済み sha256 の再計算 (改竄・破損検知) + manifest の roundtrip 結果表示。
+  7. **postpone (§2.5-3 family gate 不成立、1 回限り)**: `--postponed` は first look の
+     cutoff・verdict 期日を同幅 4 週スライド (10-08 → 11-05、10-15 → 11-12) した別 marker
+     (`e1-first-look-postponed-freeze-2026-11-05.sha256`) を書く。元の first look 凍結は
+     不改変 (postpone は元 artifact の gate 判定から生じるため、元 marker 不在は拒否)。
+
 本番への試走は `--dry-run-health` (table=health_log、limit 小、ファイル書込みなし) のみ。
 snapshots の limit=1 試走は生 skew 値 1 行の閲覧に当たり §6-2 許可リスト外 — 実装しない。
 
@@ -40,7 +51,7 @@ import re
 import sys
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 # ══════════════════════════════════════════════════════════════════════
@@ -63,6 +74,7 @@ LOOKS: Dict[int, Dict[str, str]] = {
     2: {"cutoff": "2026-12-30T06:33:31Z", "slug": "second-look",
         "verdict": "2027-01-06"},
 }
+POSTPONE_WEEKS = 4              # §2.5-3 / §7: cutoff・verdict・窓終端を同幅スライド (1 回限り)
 API_PAGE_LIMIT = 20000          # app.py /api/positioning/export の上限
 MAX_PAGES = 200                 # 無限ループ保険 (13 × 20000 行 ≫ 想定)
 BAR_SEC = 900                   # M15 完結 = open + 900s ≤ cutoff (判定器と同一)
@@ -109,15 +121,39 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def default_paths(look: int, out_dir: str = "") -> Dict[str, str]:
-    """成果物パス (raw/bt-results/e1-{slug}-freeze-{cutoff日}.*)。"""
-    spec = LOOKS[look]
+def look_spec(look: int, postponed: bool = False) -> Dict[str, Any]:
+    """look の cutoff / slug / verdict 期日。postponed=True は §2.5-3 の 4 週スライド。
+
+    pre-reg §7: 「発動時は cutoff・verdict 期日・評価窓終端を同幅 (4 週) スライドし、
+    burn-in と評価窓開始は不変」。first look のみ (second look に postpone は無い —
+    §4.4 second look の着地は PASS / REJECT-F / REJECT のみ)。
+    """
+    if look not in LOOKS:
+        raise ValueError(f"unknown look {look!r}")
+    spec: Dict[str, Any] = dict(LOOKS[look])
+    spec.update({"look": look, "postponed": False, "original_cutoff": spec["cutoff"]})
+    if postponed:
+        if look != 1:
+            raise ValueError("postpone (§2.5-3 family gate) は first look のみ")
+        shift = timedelta(weeks=POSTPONE_WEEKS)
+        spec["cutoff"] = iso_sec(parse_utc(spec["cutoff"]) + shift)
+        spec["verdict"] = (parse_utc(spec["verdict"] + "T00:00:00Z") + shift).strftime("%Y-%m-%d")
+        spec["slug"] = spec["slug"] + "-postponed"
+        spec["postponed"] = True
+    return spec
+
+
+def default_paths(look: int, out_dir: str = "", postponed: bool = False) -> Dict[str, str]:
+    """成果物パス (raw/bt-results/e1-{slug}-freeze-{cutoff日}.*)。postponed は別 marker。"""
+    spec = look_spec(look, postponed)
     day = spec["cutoff"][:10]
     base = f"e1-{spec['slug']}-freeze-{day}"
+    suffix = "_postponed" if postponed else ""
     root = out_dir or os.path.join(repo_root(), "knowledge-base", "raw", "bt-results")
     return {
         "dir": os.path.join(root, base),
-        "artifact": os.path.join(root, base, f"e1_prereg_frozen_export_look{look}.json"),
+        "artifact": os.path.join(root, base,
+                                 f"e1_prereg_frozen_export_look{look}{suffix}.json"),
         "sha256": os.path.join(root, f"{base}.sha256"),      # = 凍結 marker
         "manifest": os.path.join(root, f"{base}.manifest.json"),
     }
@@ -153,16 +189,23 @@ def http_fetcher(base_url: str, timeout: float = 120.0) -> Fetcher:
 # ══════════════════════════════════════════════════════════════════════
 
 def fetch_snapshots(fetcher: Fetcher, instrument: str, cutoff: datetime,
-                    page_limit: int = API_PAGE_LIMIT) -> List[Dict[str, Any]]:
+                    page_limit: int = API_PAGE_LIMIT,
+                    ledger: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """1 instrument の outlook 行を snapshot_time ≤ cutoff で全取得。
 
     API は `from=` (snapshot_time >= 下限) + `limit` のみなので、最終行の
     snapshot_time を次ページの下限にして進み、(instrument, book_type, snapshot_time)
     で dedup する。cutoff 超の行はページ内で捨て、以降のページは要求しない。
+
+    ledger (任意 dict) には API が返した件数の内訳を書く — rows_returned =
+    rows_kept + rows_dedup + rows_beyond_cutoff が成り立つ (切詰め・欠落の検知用、
+    §2.5-5(b))。値フィールドは触らない。
     """
     out: List[Dict[str, Any]] = []
     seen: set = set()
     since = ""
+    led = {"pages": 0, "rows_returned": 0, "rows_kept": 0,
+           "rows_dedup": 0, "rows_beyond_cutoff": 0}
     for _ in range(MAX_PAGES):
         params: Dict[str, Any] = {"instrument": instrument, "book": BOOK_TYPE,
                                   "limit": page_limit}
@@ -170,28 +213,37 @@ def fetch_snapshots(fetcher: Fetcher, instrument: str, cutoff: datetime,
             params["from"] = since
         data = fetcher("/api/positioning/export", params)
         rows = data.get("rows") or []
+        led["pages"] += 1
+        led["rows_returned"] += len(rows)
         new = 0
         reached_cutoff = False
         last_ts = since
-        for r in rows:
+        for i, r in enumerate(rows):
             ts = r.get("snapshot_time")
             if ts is None:
                 raise RuntimeError(f"{instrument}: row without snapshot_time")
             if parse_utc(ts) > cutoff:
                 reached_cutoff = True
+                led["rows_beyond_cutoff"] += len(rows) - i
                 break
             key = (r.get("instrument"), r.get("book_type"), str(ts))
             last_ts = str(ts)
             if key in seen:
+                led["rows_dedup"] += 1
                 continue
             seen.add(key)
             out.append(r)
             new += 1
-        if reached_cutoff or len(rows) < page_limit or new == 0:
+        led["rows_kept"] += new
+        # 終了条件は「cutoff 到達」か「新規行ゼロ」のみ — `len(rows) < page_limit` で
+        # 止めない (サーバが limit を要求より小さく丸めた場合に無言で切詰まる)。
+        if reached_cutoff or not rows or new == 0:
             break
         since = last_ts
     else:
         raise RuntimeError(f"{instrument}: pagination exceeded MAX_PAGES={MAX_PAGES}")
+    if ledger is not None:
+        ledger.update(led)
     return out
 
 
@@ -222,8 +274,7 @@ def fetch_health_log(fetcher: Fetcher, cutoff: datetime,
             except ValueError:
                 continue              # 非時刻 value は判定器側でも無視される
             out.append({"id": rid, "key": r.get("key"), "value": val})
-        if len(rows) < page_limit:
-            break
+        # since_id は単調増加 → 次ページが空になるまで続ける (limit 丸めで切詰めない)
     else:
         raise RuntimeError(f"health_log: pagination exceeded MAX_PAGES={MAX_PAGES}")
     return out
@@ -273,9 +324,11 @@ def summarize_health(health: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
 
 def build_artifact(snapshots: List[Dict[str, Any]], health: List[Dict[str, Any]],
                    look: int, cutoff: datetime, api_base: str,
-                   frozen_at: Optional[datetime] = None) -> Dict[str, Any]:
+                   frozen_at: Optional[datetime] = None,
+                   postponed: bool = False) -> Dict[str, Any]:
     """判定器 load_artifact 互換 dict。synthetic=false (実データ → --verdict-run 必須)。"""
     frozen_at = frozen_at or datetime.now(timezone.utc)
+    spec = look_spec(look, postponed)
     return {
         "snapshots": snapshots,
         "health": health,
@@ -284,6 +337,8 @@ def build_artifact(snapshots: List[Dict[str, Any]], health: List[Dict[str, Any]]
             "tool": "tools/e1_positioning_frozen_export.py",
             "prereg": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
             "look": look, "cutoff": iso_sec(cutoff), "t0": T0_ISO,
+            "postponed": postponed, "original_cutoff": spec["original_cutoff"],
+            "postpone_weeks": POSTPONE_WEEKS if postponed else 0,
             "book_type": BOOK_TYPE, "instruments": list(INSTRUMENTS),
             "api_base": api_base, "frozen_at": iso_sec(frozen_at),
             "snapshots_summary": summarize_snapshots(snapshots),
@@ -331,7 +386,12 @@ def read_sha256_record(sha_path: str) -> Dict[str, str]:
 
 
 def verify_record(sha_path: str, root: str = "") -> Dict[str, Any]:
-    """§2.5-5(b) roundtrip 突合: 記録 sha256 と現ファイルの再計算を比較。"""
+    """記録 sha256 と現ファイルの再計算を比較 (改竄・破損検知)。
+
+    これは **ファイル完全性** の検査であり、API↔artifact の突合 (§2.5-5(b)) は凍結時に
+    `roundtrip_check()` が行って manifest に永続化する (本番へ再問い合わせしない)。
+    manifest が隣にあればその結果も返す (`roundtrip` キー)。
+    """
     root = root or repo_root()
     entries = read_sha256_record(sha_path)
     results: Dict[str, str] = {}
@@ -345,7 +405,88 @@ def verify_record(sha_path: str, root: str = "") -> Dict[str, Any]:
         got = sha256_file(fp)
         results[rel] = "OK" if got == want else "MISMATCH"
         ok = ok and got == want
-    return {"ok": ok, "files": results, "n": len(entries)}
+    res: Dict[str, Any] = {"ok": ok, "files": results, "n": len(entries)}
+    man_path = re.sub(r"\.sha256$", ".manifest.json", sha_path)
+    if man_path != sha_path and os.path.exists(man_path):
+        try:
+            with open(man_path, encoding="utf-8") as f:
+                rt = json.load(f).get("roundtrip_check")
+        except (OSError, ValueError):
+            rt = None
+        if isinstance(rt, dict):
+            res["roundtrip"] = {"ok": bool(rt.get("ok")),
+                                "snapshots_rows": rt.get("snapshots", {}).get("artifact_rows"),
+                                "health_rows": rt.get("health", {}).get("artifact_rows")}
+    return res
+
+
+def canonical_row_digest(row: Dict[str, Any]) -> str:
+    """行の canonical JSON (sort_keys、区切り固定) の sha256。値は返さない。"""
+    blob = json.dumps(row, sort_keys=True, ensure_ascii=False, default=str,
+                      separators=(",", ":"))
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def rows_digest(rows: Sequence[Dict[str, Any]]) -> str:
+    """順序非依存の集合 digest (行 digest を sort して連結 → sha256)。"""
+    h = hashlib.sha256()
+    for d in sorted(canonical_row_digest(r) for r in rows):
+        h.update(d.encode("ascii"))
+        h.update(b"\n")
+    return h.hexdigest()
+
+
+def _snapshot_keys(rows: Sequence[Dict[str, Any]]) -> set:
+    return {(r.get("instrument"), r.get("book_type"), str(r.get("snapshot_time")))
+            for r in rows}
+
+
+def roundtrip_check(api_snapshots: Sequence[Dict[str, Any]],
+                    api_health: Sequence[Dict[str, Any]],
+                    artifact_path: str,
+                    fetch_ledger: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """§2.5-5(b) API→artifact roundtrip 突合 (凍結時、1 回だけの応答が手元にある間に)。
+
+    artifact をディスクから再読し、export レスポンス (メモリ) と
+      - 件数 (snapshots / health)
+      - (instrument, book_type, snapshot_time) キー集合 (欠落・重複・切詰め)
+      - 行 canonical digest の集合 digest (直列化の欠損・型変化)
+    を比較する。結果は件数・真偽値・digest のみ (値フィールドは含まない)。
+    """
+    with open(artifact_path, encoding="utf-8") as f:
+        art = json.load(f)
+    a_snap = art.get("snapshots") or []
+    a_health = art.get("health") or []
+    api_keys, art_keys = _snapshot_keys(api_snapshots), _snapshot_keys(a_snap)
+    snap = {
+        "api_rows": len(api_snapshots), "artifact_rows": len(a_snap),
+        "api_unique_keys": len(api_keys), "artifact_unique_keys": len(art_keys),
+        "keys_match": api_keys == art_keys,
+        "keys_missing_in_artifact": len(api_keys - art_keys),
+        "keys_extra_in_artifact": len(art_keys - api_keys),
+        "api_digest": rows_digest(api_snapshots), "artifact_digest": rows_digest(a_snap),
+    }
+    snap["digest_match"] = snap["api_digest"] == snap["artifact_digest"]
+    hl = {
+        "api_rows": len(api_health), "artifact_rows": len(a_health),
+        "api_digest": rows_digest(api_health), "artifact_digest": rows_digest(a_health),
+    }
+    hl["digest_match"] = hl["api_digest"] == hl["artifact_digest"]
+    ledger_ok = True
+    if fetch_ledger:
+        for inst, led in fetch_ledger.items():
+            if led.get("rows_returned") != (led.get("rows_kept", 0) + led.get("rows_dedup", 0)
+                                            + led.get("rows_beyond_cutoff", 0)):
+                ledger_ok = False
+    ok = (snap["api_rows"] == snap["artifact_rows"] and snap["keys_match"]
+          and snap["digest_match"] and hl["api_rows"] == hl["artifact_rows"]
+          and hl["digest_match"] and art.get("synthetic") is False and ledger_ok)
+    return {"ok": bool(ok), "snapshots": snap, "health": hl,
+            "synthetic_flag_false": art.get("synthetic") is False,
+            "fetch_ledger_consistent": ledger_ok,
+            "fetch_ledger": dict(fetch_ledger or {}),
+            "method": "artifact re-read from disk vs in-memory export response; "
+                      "counts + key set + canonical row digests; no second API query"}
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -398,16 +539,28 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
                force: bool = False, allow_missing: bool = False,
                ohlcv_src: str = "", ohlcv_dst: str = "",
                now: Optional[datetime] = None,
-               out=None) -> int:
-    """export → artifact → sha256 記録。stdout には値を出さない。"""
+               out=None, postponed: bool = False) -> int:
+    """export → artifact → roundtrip 突合 → sha256 記録。stdout には値を出さない。"""
     out = out or sys.stdout
-    spec = LOOKS[look]
+    spec = look_spec(look, postponed)
     cutoff = parse_utc(spec["cutoff"])
     now = now or utc_now()
     root = repo_root()
+    marker = paths["sha256"]
+
+    # ── postpone (§2.5-3): 元の first look 凍結が存在し、別 marker であること ──
+    if postponed:
+        orig = default_paths(1, os.path.dirname(marker), postponed=False)
+        if os.path.abspath(orig["sha256"]) == os.path.abspath(marker):
+            raise RuntimeError("postponed marker が元 marker と同一パス (設計違反)")
+        if not os.path.exists(orig["sha256"]):
+            print(f"REFUSED: --postponed は元の first look 凍結 marker "
+                  f"({relpath_for_record(orig['sha256'], root)}) が前提 (§2.5-3 family gate は"
+                  f" 元 artifact の判定器実行から生じる)。元凍結なしの postpone は不可。",
+                  file=sys.stderr)
+            return EXIT_FAIL
 
     # ── 「1 回だけ」ガード ────────────────────────────────────────
-    marker = paths["sha256"]
     force_history: List[Dict[str, Any]] = []
     if os.path.exists(marker):
         if not force:
@@ -438,8 +591,11 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
 
     # ── 取得 ──────────────────────────────────────────────────────
     snapshots: List[Dict[str, Any]] = []
+    fetch_ledger: Dict[str, Dict[str, Any]] = {}
     for inst in INSTRUMENTS:
-        snapshots.extend(fetch_snapshots(fetcher, inst, cutoff))
+        led: Dict[str, Any] = {}
+        snapshots.extend(fetch_snapshots(fetcher, inst, cutoff, ledger=led))
+        fetch_ledger[inst] = led
     health = fetch_health_log(fetcher, cutoff)
 
     snap_sum = summarize_snapshots(snapshots)
@@ -453,8 +609,22 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
               "(判定器は --fallback-mode を要求する)。", file=sys.stderr)
 
     # ── artifact ─────────────────────────────────────────────────
-    artifact = build_artifact(snapshots, health, look, cutoff, api_base, frozen_at=now)
+    artifact = build_artifact(snapshots, health, look, cutoff, api_base, frozen_at=now,
+                              postponed=postponed)
     write_json_atomic(paths["artifact"], artifact)
+
+    # ── §2.5-5(b) API→artifact roundtrip (1 回だけの応答が手元にある今) ──
+    rt = roundtrip_check(snapshots, health, paths["artifact"], fetch_ledger)
+    if not rt["ok"]:
+        print(f"REFUSED: API→artifact roundtrip 不一致 — snapshots api {rt['snapshots']['api_rows']}"
+              f" / artifact {rt['snapshots']['artifact_rows']} (keys_match="
+              f"{rt['snapshots']['keys_match']}, digest_match={rt['snapshots']['digest_match']}),"
+              f" health api {rt['health']['api_rows']} / artifact {rt['health']['artifact_rows']}"
+              f" (digest_match={rt['health']['digest_match']}), ledger_consistent="
+              f"{rt['fetch_ledger_consistent']}。marker は書かない (凍結不成立)。artifact は"
+              f" {relpath_for_record(paths['artifact'], root)} に残置 (調査用、開かないこと §6-2)。",
+              file=sys.stderr)
+        return EXIT_FAIL
     entries: Dict[str, str] = {
         relpath_for_record(paths["artifact"], root): sha256_file(paths["artifact"])}
 
@@ -471,6 +641,8 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
     # ── 記録 (sha256 = marker、manifest = 出所) ───────────────────
     manifest = {
         "look": look, "slug": spec["slug"], "cutoff": spec["cutoff"],
+        "postponed": postponed, "original_cutoff": spec["original_cutoff"],
+        "postpone_weeks": POSTPONE_WEEKS if postponed else 0,
         "verdict_deadline": spec["verdict"], "frozen_at": iso_sec(now),
         "api_base": api_base, "tool": "tools/e1_positioning_frozen_export.py",
         "artifact": relpath_for_record(paths["artifact"], root),
@@ -481,6 +653,7 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
                         for p, m in ohlcv_meta.items()},
         "ohlcv_dst": relpath_for_record(ohlcv_dst, root) if ohlcv_dst else None,
         "sha256_record": relpath_for_record(paths["sha256"], root),
+        "roundtrip_check": rt,
         "force_history": force_history,
         "peeking_note": ("§6-2: artifact の値 (skew/avg 価格/buckets) を verdict 期日前に"
                          " 開く・集計する・プロットすることは禁止。この manifest は"
@@ -490,7 +663,9 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
     write_json_atomic(paths["manifest"], manifest)
 
     # ── stdout 要約 (値なし) ───────────────────────────────────────
-    print(f"E1 frozen export — look {look} ({spec['slug']}), cutoff {spec['cutoff']}", file=out)
+    print(f"E1 frozen export — look {look} ({spec['slug']}), cutoff {spec['cutoff']}"
+          + (f" [postponed +{POSTPONE_WEEKS}w from {spec['original_cutoff']}]" if postponed else ""),
+          file=out)
     print(f"  snapshots: {snap_sum['rows_total']} rows, "
           f"{len(snap_sum['instruments_present'])}/{len(INSTRUMENTS)} instruments", file=out)
     for inst, d in snap_sum["per_instrument"].items():
@@ -503,6 +678,9 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
     for pair, m in ohlcv_meta.items():
         print(f"  ohlcv {pair}: {m['rows']} bars (dropped {m['rows_dropped']}), "
               f"last open {m['last_bar_open']}", file=out)
+    print(f"  roundtrip API->artifact: OK (snapshots {rt['snapshots']['artifact_rows']}/"
+          f"{rt['snapshots']['api_rows']}, health {rt['health']['artifact_rows']}/"
+          f"{rt['health']['api_rows']}, ledger consistent)", file=out)
     for p, h in sorted(entries.items()):
         print(f"  sha256 {h}  {p}", file=out)
     print(f"  manifest: {relpath_for_record(paths['manifest'], root)}", file=out)
@@ -533,6 +711,9 @@ def main(argv: Optional[List[str]] = None) -> int:
         description="E1 positioning pre-reg 凍結 export (§2.5-6 1 回だけ + sha256)")
     ap.add_argument("--look", type=int, choices=(1, 2), default=1,
                     help="1 = first look (cutoff 2026-10-08) / 2 = second look (12-30)")
+    ap.add_argument("--postponed", action="store_true",
+                    help="§2.5-3 family gate 不成立による 4 週 postpone 後の凍結 (look 1 のみ、"
+                         "cutoff 2026-11-05 / verdict 11-12、別 marker。元凍結は不改変)")
     ap.add_argument("--api-base", default=DEFAULT_API_BASE)
     ap.add_argument("--out-dir", default="",
                     help="記録先 root (default knowledge-base/raw/bt-results)")
@@ -550,28 +731,43 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="本番試走: table=health_log を limit 小で GET のみ (書込みなし)")
     ap.add_argument("--limit", type=int, default=5, help="--dry-run-health の limit")
     ap.add_argument("--verify", default="",
-                    help="既存 .sha256 記録を再計算して突合 (§2.5-5(b))")
+                    help="既存 .sha256 記録を再計算して突合 (ファイル完全性) + manifest の"
+                         " roundtrip_check (§2.5-5(b)、凍結時に記録済み) を表示")
     ap.add_argument("--timeout", type=float, default=180.0)
     args = ap.parse_args(argv)
+
+    if args.postponed and args.look != 1:
+        print("ERROR: --postponed は --look 1 のみ (§2.5-3 postpone は first look に限る)",
+              file=sys.stderr)
+        return EXIT_FAIL
 
     if args.verify:
         res = verify_record(args.verify)
         for p, st in res["files"].items():
             print(f"  {st:8s} {p}")
-        print(f"verify: {'OK' if res['ok'] else 'FAIL'} ({res['n']} files)")
-        return EXIT_OK if res["ok"] else EXIT_FAIL
+        rt = res.get("roundtrip")
+        if rt is None:
+            print("  roundtrip (§2.5-5(b)): manifest 不在または未記録")
+        else:
+            print(f"  roundtrip (§2.5-5(b), recorded at freeze): "
+                  f"{'OK' if rt['ok'] else 'FAIL'} (snapshots {rt['snapshots_rows']},"
+                  f" health {rt['health_rows']})")
+        ok = res["ok"] and (rt is None or rt["ok"])
+        print(f"verify: {'OK' if ok else 'FAIL'} ({res['n']} files)")
+        return EXIT_OK if ok else EXIT_FAIL
 
     fetcher = http_fetcher(args.api_base, timeout=args.timeout)
     if args.dry_run_health:
         return run_dry_run_health(fetcher, limit=max(1, min(args.limit, 50)))
 
-    paths = default_paths(args.look, args.out_dir)
+    paths = default_paths(args.look, args.out_dir, postponed=args.postponed)
     ohlcv_src = ""
     if args.slice_ohlcv:
         ohlcv_src = args.ohlcv_src or os.path.join(repo_root(), "data", "cache", "massive")
     return run_freeze(fetcher, args.look, paths, api_base=args.api_base,
                       force=args.force, allow_missing=args.allow_missing_instruments,
-                      ohlcv_src=ohlcv_src, ohlcv_dst=args.ohlcv_dst)
+                      ohlcv_src=ohlcv_src, ohlcv_dst=args.ohlcv_dst,
+                      postponed=args.postponed)
 
 
 if __name__ == "__main__":
