@@ -816,6 +816,10 @@ def _mode_is_shadow_only(mode: str) -> bool:
 # pin: tests/test_rnb_shadow_only_downstream_relax.py
 _SHADOW_ONLY_DOWNSTREAM_RELAX_MODES = frozenset({"rnb_usdjpy"})
 _SHADOW_ONLY_DOWNSTREAM_RELAX_GATES = ("velocity_down", "mtf_strong_bias", "1h_rr_low")
+# relax 経由で生まれた行の per-row provenance — reasons に永続する
+# ([HOURBLOCK_CLASS_EXEMPT] marker と同型)。LOCK amendment の層別キー (一次):
+# 「relax が無ければ存在しなかった行」をデプロイ時刻に依存せず識別する。
+_SHADOW_RELAX_REASON_TAG = "[SHADOW_RELAX]"
 
 
 def _mode_downstream_relax(mode: str) -> bool:
@@ -6448,6 +6452,8 @@ class DemoTrader:
                     elif _downstream_relax:
                         # shadow_only mode 限定 (rule:R3 2026-09-23): hard block → shadow 化
                         _is_shadow = True
+                        if isinstance(reasons, list):
+                            reasons.append(f"{_SHADOW_RELAX_REASON_TAG} velocity_down")
                         self._add_log(
                             f"[SHADOW] velocity_down relax: {entry_type} {mode} "
                             f"({_move_pips:.0f}pip vs BUY → shadow, shadow_only downstream relax)"
@@ -6499,6 +6505,8 @@ class DemoTrader:
                                     # shadow_only mode 限定 (rule:R3 2026-09-23): hard block →
                                     # shadow 化。TP bonus (順方向のみ) は付けない。
                                     _is_shadow = True
+                                    if isinstance(reasons, list):
+                                        reasons.append(f"{_SHADOW_RELAX_REASON_TAG} mtf_strong_bias")
                                     self._add_log(
                                         f"[SHADOW] mtf_strong_bias relax: {entry_type} {mode} "
                                         f"({_bias_dir}_vs_{signal} → shadow, shadow_only downstream relax)"
@@ -6628,6 +6636,8 @@ class DemoTrader:
                     if _downstream_relax:
                         # shadow_only mode 限定 (rule:R3 2026-09-23): hard block → shadow 化
                         _is_shadow = True
+                        if isinstance(reasons, list):
+                            reasons.append(f"{_SHADOW_RELAX_REASON_TAG} 1h_rr_low")
                         self._add_log(
                             f"[SHADOW] 1h_rr_low relax: {entry_type} {mode} "
                             f"({tp_dist/sl_dist:.2f}<1.2 → shadow, shadow_only downstream relax)"

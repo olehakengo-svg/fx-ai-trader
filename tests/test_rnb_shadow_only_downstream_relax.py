@@ -23,10 +23,14 @@ pin (precheck §8 (i) の (a)〜(d) をそのまま写す — 「NG を返す既
       session_hours(outside_active) で block (窓外行を LOCK 母集団に入れない)
   (e) 迂回は 3 gate に閉じる — spike は rnb でも hard block のまま / _tick_entry 内で
       _downstream_relax を参照する箇所は 3 gate のみ (allowlist の黙った拡張を検知)
+  (f) relax 経由で生まれた行は reasons に `[SHADOW_RELAX] <gate>` を永続する
+      (LOCK amendment の層別キー一次 — デプロイ時刻に依存せず「relax が無ければ
+      存在しなかった行」を識別) / gate を踏まない rnb 行には付かない (恒真でない)
 """
 from __future__ import annotations
 
 import inspect
+import json
 import re
 import textwrap
 import uuid
@@ -43,6 +47,7 @@ from modules.demo_trader import (
     DemoTrader,
     _SHADOW_ONLY_DOWNSTREAM_RELAX_GATES,
     _SHADOW_ONLY_DOWNSTREAM_RELAX_MODES,
+    _SHADOW_RELAX_REASON_TAG,
     _mode_downstream_relax,
     _mode_is_shadow_only,
 )
@@ -175,9 +180,18 @@ def _audjpy_sig():
 def _rows(trader):
     with trader._db._safe_conn() as conn:
         return conn.execute(
-            "SELECT trade_id, entry_type, instrument, mode, is_shadow, entry_time "
+            "SELECT trade_id, entry_type, instrument, mode, is_shadow, entry_time, reasons "
             "FROM demo_trades"
         ).fetchall()
+
+
+def _row_reasons(row) -> list:
+    raw = row["reasons"]
+    try:
+        val = json.loads(raw) if raw else []
+    except Exception:
+        val = [str(raw)]
+    return val if isinstance(val, list) else [str(val)]
 
 
 # ── counterfactual 入力 (precheck §6 の 3 gate を個別に踏ませる) ──────────
@@ -415,15 +429,35 @@ def test_spike_gate_stays_hard_block_for_rnb(tmp_path, monkeypatch):
     assert bridge.sent == []
 
 
-def test_relaxed_rows_keep_entry_hour_inside_active_window(tmp_path, monkeypatch):
-    """(d) 補助 pin: relax 経由で生まれた行の entry_time (UTC hour) は 7–20 の範囲。"""
+# ── (f) per-row provenance: LOCK amendment の層別キー ────────────────────
+
+
+@pytest.mark.parametrize("gate", list(_SHADOW_ONLY_DOWNSTREAM_RELAX_GATES))
+def test_relax_rows_carry_provenance_marker(tmp_path, monkeypatch, gate):
+    """relax 経由で生まれた行は reasons に `[SHADOW_RELAX] <gate>` を永続する
+    ([HOURBLOCK_CLASS_EXEMPT] marker と同型)。first look の層別 (旧/新 gate 構成) は
+    この marker を一次キーにする — 「修理デプロイ時刻」の後追記に依存しない。"""
     _patch_common(monkeypatch)
     trader, _bridge, _logs, _blocked = _make_trader(tmp_path, monkeypatch)
-    _seed_strong_sell_bias(trader, "USD_JPY")
+    sig = _arm(trader, gate)
 
-    _tick_rnb(trader)
+    _tick_rnb(trader, sig)
 
     rows = _rows(trader)
-    assert rows
-    hour = int(str(rows[0]["entry_time"])[11:13])
-    assert 7 <= hour <= 20, rows[0]["entry_time"]
+    assert rows and rows[0]["is_shadow"] == 1
+    reasons = _row_reasons(rows[0])
+    assert f"{_SHADOW_RELAX_REASON_TAG} {gate}" in reasons, reasons
+
+
+def test_clean_rnb_row_has_no_relax_marker(tmp_path, monkeypatch):
+    """対称側 (marker が恒真なら層別キーとして無意味): gate を一つも踏まずに
+    生まれた rnb 行には `[SHADOW_RELAX]` が付かない。"""
+    _patch_common(monkeypatch)
+    trader, _bridge, _logs, _blocked = _make_trader(tmp_path, monkeypatch)
+
+    _tick_rnb(trader)  # 既定 sig: RR 1.33 / bias なし / 価格履歴なし
+
+    rows = _rows(trader)
+    assert rows and rows[0]["is_shadow"] == 1  # shadow_only の構造保証は不変
+    reasons = _row_reasons(rows[0])
+    assert not any(_SHADOW_RELAX_REASON_TAG in str(r) for r in reasons), reasons

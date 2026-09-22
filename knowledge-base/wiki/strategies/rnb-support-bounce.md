@@ -46,7 +46,8 @@ BUY-only (compute_rnb_signal は構造上 SELL を返さない — 12.8y 実測 
   rnb_usdjpy 限定で velocity_down / mtf_strong_bias / 1h_rr_low の hard block を shadow 化
   (`_SHADOW_ONLY_DOWNSTREAM_RELAX_MODES`)。真因分析 = [[../analyses/rnb-shadow-lane-health-precheck-2026-09-22]]
   §6 (09-12 以降 BUY bar 6/6 がこの 3 gate で行にならず、365d ablated BT は同 gate 非適用 = BT⇄live 非同期)。
-  変更前 N = 2 (09-11)。旧/新構成は**層別** (除外しない、n_decide 41 は総数)。session_hours /
+  変更前 N = 2 (09-11 の 2 行、2026-09-22 18:0x UTC snapshot)。旧/新構成は**層別** (除外しない、n_decide 41 は総数) —
+  一次キー = relax 経由行の reasons marker `[SHADOW_RELAX] <gate>`、二次 = 修理デプロイ前/後。session_hours /
   gate 閾値 / estimand / 採用・棄却境界は不変。修理デプロイ時刻は registry message に追記
 
 ## Live Performance
