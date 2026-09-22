@@ -183,7 +183,7 @@ class OandaBridge:
             # skipped: enforce で順番待ち timeout により drop した件数)
             "detected": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0, "serialize": 0},
             "skipped": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0, "serialize": 0},
-            "unknown_direction": 0, "breaker_trips": 0, "failed": 0,
+            "unknown_direction": 0, "breaker_trips": 0, "breaker_trips_revoked": 0, "failed": 0,
             # deferred = enforce で baseline が未確認だったため送信順到来まで判定を保留した件数
             "deferred": 0,
         }
@@ -1282,7 +1282,7 @@ class OandaBridge:
                 f"— SL replacement storm signature (cf. storm 4 #859468 16,837 repl)"
             )
 
-    def _storm_reserve(self, st: dict, new_sl: float) -> dict:
+    def _storm_reserve(self, st: dict, new_sl: float, count_tx: bool = True) -> dict:
         """送信予約 — gate 通過と同じ critical section で pending に token を積み、
         sent_ts を更新する (PR #287 review P2-1)。fire-and-forget 経路で worker
         完了前に次の modify_sl が来ても、次は pending 末尾を baseline に見る。
@@ -1295,26 +1295,60 @@ class OandaBridge:
             token = {"seq": st["seq"], "new_sl": float(new_sl), "ts": ts,
                      "done": threading.Event(), "ok": None, "reeval": False}
             st["pending"].append(token)
-            st["sent_ts"].append(ts)
-            st["sent_total"] += 1
-            self._storm_totals["sent"] += 1
+            if count_tx:
+                self._storm_count_tx(st, token, ts)
+            else:
+                token["ts"] = None      # 暫定予約: 送信が確定するまで breaker 窓に入れない
         return token
 
-    def _storm_unreserve(self, st: dict, token: dict):
-        """送信直前の再評価で reject された暫定予約を取り消す — broker には一切届いて
-        いないので要求数 (sent_ts / sent_total) も戻す (rollback とは違う)。"""
+    def _storm_count_tx(self, st: dict, token: dict, ts: float | None = None):
+        """token を breaker 窓 (broker への要求数) に入れる。caller が lock 保持。"""
+        ts = _time.monotonic() if ts is None else ts
+        token["ts"] = ts
+        st["sent_ts"].append(ts)
+        st["sent_total"] += 1
+        self._storm_totals["sent"] += 1
+
+    def _storm_recheck_trip(self, st: dict, demo_trade_id: str = ""):
+        """未送信予約を窓から外した後、trip が実要求数で成立しなくなっていれば取り消す
+        (review 7 巡目 P1: 未送信で立った tripped が trade 消滅まで残り、正当な更新を全部
+        止める)。実送信で立った trip は窓が実要求で埋まっているので取り消されない。
+        caller が lock 保持。"""
+        if not st.get("tripped"):
+            return
+        max_h = int(self._storm_cfg.get("max_tx_per_hour") or 0)
+        max_d = int(self._storm_cfg.get("max_tx_per_day") or 0)
+        now = _time.monotonic()
+        ts = st["sent_ts"]
+        n_day = sum(1 for t in ts if t >= now - 86400.0)
+        n_hour = sum(1 for t in ts if t >= now - 3600.0)
+        still = (max_h > 0 and n_hour >= max_h) or (max_d > 0 and n_day >= max_d)
+        if not still:
+            st["tripped"] = False
+            st["warned"] = False
+            self._storm_totals["breaker_trips_revoked"] = self._storm_totals.get("breaker_trips_revoked", 0) + 1
+            logger.warning(f"[OandaBridge][STORM_GUARD] BREAKER TRIP REVOKED demo={demo_trade_id} "
+                           f"(unsent reservations removed: n_hour={n_hour}/{max_h} n_day={n_day}/{max_d})")
+
+    def _storm_unreserve(self, st: dict, token: dict, demo_trade_id: str = ""):
+        """送信直前に reject / drop された予約を取り消す — broker には一切届いて
+        いないので要求数 (sent_ts / sent_total) も戻し、未送信で立った trip は取り消す
+        (rollback とは違う)。"""
         with self._storm_lock:
             token["ok"] = False
             try:
                 st["pending"].remove(token)
             except ValueError:
                 pass
-            try:
-                st["sent_ts"].remove(token["ts"])
-                st["sent_total"] -= 1
-                self._storm_totals["sent"] -= 1
-            except ValueError:
-                pass
+            if token.get("ts") is not None:
+                try:
+                    st["sent_ts"].remove(token["ts"])
+                    st["sent_total"] -= 1
+                    self._storm_totals["sent"] -= 1
+                except ValueError:
+                    pass
+                token["ts"] = None
+            self._storm_recheck_trip(st, demo_trade_id)
             st["cond"].notify_all()
         token["done"].set()
 
@@ -1424,8 +1458,10 @@ class OandaBridge:
                 self._storm_record(demo_trade_id, st, reason, new_sl, enforced=False)
                 return True, None, self._storm_reserve(st, new_sl)
             if reason != "breaker" and st["pending"]:
-                # baseline は未確認 → 暫定予約、送信順到来時に確認済み値で再評価
-                token = self._storm_reserve(st, new_sl)
+                # baseline は未確認 → 暫定予約、送信順到来時に確認済み値で再評価。
+                # 送信が確定するまで breaker 窓には入れない (7 巡目 P1: 暫定が窓を埋めて
+                # 偽 trip を立てる)
+                token = self._storm_reserve(st, new_sl, count_tx=False)
                 token["reeval"] = True
                 token["provisional_reason"] = reason
                 self._storm_totals["deferred"] += 1
@@ -1442,14 +1478,16 @@ class OandaBridge:
         if not token or not token.get("reeval"):
             return True, False
         with self._storm_lock:
+            # 暫定は窓に入っていないので、ここで送信が確定する時に breaker も評価する
             reason = self._storm_evaluate(demo_trade_id, st, new_sl, instrument,
-                                          before_seq=token["seq"], skip_breaker=True)
+                                          before_seq=token["seq"], skip_breaker=False)
             if reason is None:
                 token["reeval"] = False
+                self._storm_count_tx(st, token)
                 return True, False
             self._storm_record(demo_trade_id, st, reason, new_sl, enforced=True,
                                note=f"reevaluated_after_settle (provisional={token.get('provisional_reason')})")
-            self._storm_unreserve(st, token)
+            self._storm_unreserve(st, token, demo_trade_id)
             return False, (reason == "idempotent")
 
     def get_storm_guard_status(self) -> dict:
@@ -1495,7 +1533,7 @@ class OandaBridge:
                 # broker 未到達の drop → unreserve (要求数を戻す)。rollback (要求数保持 /
                 # failed 計数) にすると停滞 1 件の後ろに並んだ burst が未送信のまま
                 # breaker 窓を埋めて trip する (review 6 巡目 P2)
-                self._storm_unreserve(st, token)
+                self._storm_unreserve(st, token, demo_trade_id)
                 logger.error(f"[OandaBridge] MODIFY SL dropped (turn timeout) #{oanda_id} "
                              f"sl={new_sl} (demo={demo_trade_id})")
                 return
@@ -1538,7 +1576,7 @@ class OandaBridge:
             return bool(sync_ret)
         st = self._storm_state.get(demo_trade_id)
         if st is not None and not self._storm_wait_turn(demo_trade_id, st, token):
-            self._storm_unreserve(st, token)   # broker 未到達 → 要求数を戻す (6 巡目 P2)
+            self._storm_unreserve(st, token, demo_trade_id)   # broker 未到達 → 要求数を戻す (6 巡目 P2)
             logger.error(f"[OandaBridge] MODIFY SL (sync) dropped (turn timeout) #{oanda_id} "
                          f"sl={new_sl} (demo={demo_trade_id})")
             return False

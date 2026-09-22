@@ -28,6 +28,8 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
       P2、CF pin 付き)
   (k) 順番待ち timeout の drop は unreserve (broker 未到達 = 要求数を戻す) — 未送信 burst が
       breaker 窓を埋めない (PR #287 review 6 巡目 P2、CF pin 付き)
+  (l) 暫定予約は送信確定まで breaker 窓に入れない (確定時に breaker も評価) / 未送信予約の
+      取り消し時に trip を実要求数で再計算し偽 trip は取り消す (PR #287 review 7 巡目 P1、CF pin 付き)
   既定 (env 未設定) = 検知のみ: 送信は止めず、カウンタ + WARN だけ動く
 """
 from __future__ import annotations
@@ -821,7 +823,7 @@ def test_cf_turn_timeout_as_rollback_trips_breaker_with_unsent_requests(monkeypa
     A 決着後の正当な更新が breaker で止まる。"""
     monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.05)
     monkeypatch.setattr(OandaBridge, "_storm_unreserve",
-                        lambda self, st, tok: OandaBridge._storm_rollback(self, DEMO, st, tok))
+                        lambda self, st, tok, d="": OandaBridge._storm_rollback(self, DEMO, st, tok))
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
     q = _deferred_fire(b, monkeypatch)
     for sl in (154.350, 154.370, 154.390):
@@ -968,3 +970,102 @@ def test_p2_cf_final_reject_against_pending_drops_valid_update(monkeypatch):
     fake.fail_modify = True; q[0]()
     tr = b.get_storm_guard_status()["trades"][DEMO]
     assert tr["confirmed_sl"] == 154.115 and fake.calls == [(OANDA_ID, 154.350)]   # ← B は失われた
+
+
+# ── 未送信予約は breaker 窓に入れない / 偽 trip は取り消す (PR #287 review 7 巡目 P1) ──
+# enforce で暫定予約が窓を埋めると (上限 3: A + 重複 2 → 4 件目で trip)、A 成功後に重複が
+# 冪等で取り消されても tripped が残り、以後の正当な更新が trade 消滅まで全部止まる。
+# → 暫定は送信確定 (再評価通過) まで窓に入れない + 未送信予約の取り消し時に trip を再計算。
+
+def test_p1_provisional_reservations_do_not_fill_breaker_window(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    q = _deferred_fire(b, monkeypatch)
+    for _ in range(4):
+        b.modify_sl(DEMO, 154.350, instrument="USD_JPY")           # A + 重複 3 (暫定)
+    st = b.get_storm_guard_status()
+    assert len(q) == 4 and st["totals"]["deferred"] == 3
+    assert st["trades"][DEMO]["sent_total"] == 1                    # 窓には A のみ
+    assert st["trades"][DEMO]["tripped"] is False and st["totals"]["skipped"]["breaker"] == 0
+    for fn in q:
+        fn()                                                        # A 成功、重複は冪等で取り消し
+    assert fake.calls == [(OANDA_ID, 154.350)]
+    # 以後の正当な更新は通る (偽 trip なし)
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is True
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["tripped"] is False and st["trades"][DEMO]["sent_total"] == 2
+
+
+def test_p1_cf_counting_provisional_in_window_trips_before_any_send(monkeypatch):
+    """CF pin: 暫定予約を窓に数える (6 巡目までの形) と、broker 到達 1 件で 4 件目が trip する。"""
+    orig = OandaBridge._storm_reserve
+    monkeypatch.setattr(OandaBridge, "_storm_reserve",
+                        lambda self, st, new_sl, count_tx=True: orig(self, st, new_sl, True))
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    q = _deferred_fire(b, monkeypatch)
+    for _ in range(4):
+        b.modify_sl(DEMO, 154.350, instrument="USD_JPY")
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["sent_total"] == 3 and st["trades"][DEMO]["tripped"] is True   # ← 未送信で trip
+    assert fake.calls == []
+
+
+def test_p1_accepted_provisional_enters_window_and_breaker_applies_at_send(monkeypatch):
+    """暫定が再評価を通って送信確定する時点で窓に入り、breaker もそこで効く。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=2)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A (窓 1)
+    b.modify_sl(DEMO, 154.349, instrument="USD_JPY")               # B: A 基準 monotonic → 暫定 (窓外)
+    b.modify_sl(DEMO, 154.348, instrument="USD_JPY")               # C: 暫定 (窓外)
+    assert b.get_storm_guard_status()["trades"][DEMO]["sent_total"] == 1
+    fake.fail_next = 1
+    q[0]()                                                          # A 失敗 → baseline 154.115
+    q[1]()                                                          # B 再評価: 正当 → 窓 2 → 送信
+    q[2]()                                                          # C 再評価: 窓 2/2 → breaker (最終)
+    assert fake.calls == [(OANDA_ID, 154.350), (OANDA_ID, 154.349)]
+    st = b.get_storm_guard_status()
+    assert st["totals"]["skipped"]["breaker"] == 1 and st["trades"][DEMO]["sent_total"] == 2
+
+
+def test_p1_turn_timeout_unreserve_revokes_false_trip(monkeypatch):
+    """非暫定予約が窓を埋めて trip した後、それらが timeout drop で窓から外れたら trip を取り消す。"""
+    monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.05)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A: 停滞
+    b.modify_sl(DEMO, 154.370, instrument="USD_JPY")               # B (窓 2)
+    b.modify_sl(DEMO, 154.390, instrument="USD_JPY")               # C (窓 3)
+    b.modify_sl(DEMO, 154.410, instrument="USD_JPY")               # D: breaker trip (窓 3/3)
+    st = b.get_storm_guard_status()
+    assert len(q) == 3 and st["trades"][DEMO]["tripped"] is True and st["totals"]["breaker_trips"] == 1
+    q[1](); q[2]()                                                  # B, C timeout drop → 窓 1 → trip 取り消し
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["tripped"] is False and st["totals"]["breaker_trips_revoked"] == 1
+    q[0]()                                                          # A 決着
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is True
+    assert fake.calls == [(OANDA_ID, 154.350), (OANDA_ID, 154.400)]
+
+
+def test_p1_cf_no_trip_recheck_leaves_false_trip_forever(monkeypatch):
+    """CF pin: 取り消し時の trip 再計算を外すと、未送信で立った trip が残り正当な更新が止まる。"""
+    monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.05)
+    monkeypatch.setattr(OandaBridge, "_storm_recheck_trip", lambda self, st, d="": None)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=3)
+    q = _deferred_fire(b, monkeypatch)
+    for sl in (154.350, 154.370, 154.390, 154.410):
+        b.modify_sl(DEMO, sl, instrument="USD_JPY")
+    q[1](); q[2](); q[0]()
+    assert b.get_storm_guard_status()["trades"][DEMO]["sent_total"] == 1          # 窓は実要求 1 件
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is False          # ← 偽 trip が残る (旧形)
+    assert b.get_storm_guard_status()["trades"][DEMO]["tripped"] is True
+
+
+def test_real_trip_is_not_revoked_by_unrelated_unreserve(monkeypatch):
+    """実送信で立った trip は、後から来た暫定予約の取り消しでは取り消されない。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115, STORM_GUARD_MAX_TX_PER_HOUR=2)
+    assert _run(b, legit_trail_buy(3)) == [True, True, False]       # 3 本目で trip (実送信 2)
+    assert b.get_storm_guard_status()["trades"][DEMO]["tripped"] is True
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.300, instrument="USD_JPY")               # breaker は最終 reject (暫定にならない)
+    assert len(q) == 0
+    assert b.get_storm_guard_status()["trades"][DEMO]["tripped"] is True
+    assert b.get_storm_guard_status()["totals"]["breaker_trips_revoked"] == 0
