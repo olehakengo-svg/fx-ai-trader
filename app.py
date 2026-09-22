@@ -13637,7 +13637,13 @@ def healthz_http():
     側で 24 モードのエンジンを起こす副作用) と ``request_tick()`` を呼ぶ。数十秒
     間隔の health check をそこへ繋ぐと、起動直後に worker エンジンを必ず起こす
     ことになる (master 側エンジンとの二重化を決定的にする)。プローブは
-    「HTTP が返るか / DB が開くか」だけを答え、エンジン状態には触れない。
+    「HTTP が返るか / DB が開いて**読めるか**」だけを答え、エンジン状態には触れない。
+
+    プローブ文は ``SELECT name FROM sqlite_master LIMIT 1`` — ``SELECT 1`` は定数
+    評価で **DB の読取りロックを取らない**ため、ファイルロック / 詰まった
+    トランザクションで DB ルートが全滞留していても 200 を返してしまう (Codex P2
+    2026-09-22)。sqlite_master の読取りは shared lock + page 1 の read を伴うので、
+    DB ルートが待つのと同じ資源で待つ。
 
     trade-off (再起動は in-memory dedup/cooldown を消す — MEMORY
     project_engine_reconstruction_live_dedup_dead / commit ebf4a5235): 再起動が
@@ -13653,7 +13659,8 @@ def healthz_http():
         conn = _hz_sql3.connect(_db_path, timeout=5)
         try:
             conn.execute("PRAGMA busy_timeout=3000")
-            conn.execute("SELECT 1").fetchone()
+            # 実オブジェクトを読む (shared lock + page read)。SELECT 1 では DB を触らない
+            conn.execute("SELECT name FROM sqlite_master LIMIT 1").fetchone()
             db_ok = True
         finally:
             conn.close()

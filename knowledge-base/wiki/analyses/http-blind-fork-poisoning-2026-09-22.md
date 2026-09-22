@@ -80,7 +80,7 @@ gthread は `accept()` ごとに `nr_conns += 1` し、完了しないハンド�
 | # | 変更 | 根拠 |
 |---|---|---|
 | F1 | `DailyReviewEngine.start(defer=True)` を `DemoTrader.__init__` で使用。実起動は app.py `_positioning_heartbeat` (before_request) → `DemoTrader.ensure_daily_review_running()` → `ensure_running()` | §11 と同じ「serving process で heal 起動」。request を処理するプロセス = fork 後の worker が構造的に保証される。StatusHeal (`get_status`) からは呼ばない — master 側 AutoStart/Verify も呼ぶので master に戻る |
-| F2 | `/healthz/http` (fresh `sqlite3.connect` + `SELECT 1`、StatusHeal/tick 非接触) + render.yaml `healthCheckPath: /healthz/http` | ハングした worker では connect 自体が返らない → health check timeout → 数分で再起動。/healthz を使わない理由: StatusHeal 副作用で worker エンジン起動が決定的になる (§6) |
+| F2 | `/healthz/http` (fresh `sqlite3.connect` + `SELECT name FROM sqlite_master LIMIT 1`、StatusHeal/tick 非接触) + render.yaml `healthCheckPath: /healthz/http` | ハングした worker では connect 自体が返らない → health check timeout → 数分で再起動。/healthz を使わない理由: StatusHeal 副作用で worker エンジン起動が決定的になる (§6) |
 | F3 | render.yaml ignoredPaths += `data/external/rate_anchor/**`, `data/external/mof_statements/**`, `data/cache/yield/ZN_F_1h.parquet` | 夜間 ingest 2 commit (21:15Z / 21:30Z) が**毎晩 2 回**エンジンを再起動していた。app/modules/strategies からの参照ゼロ (全数 grep、pin: `test_nightly_ingest_data_paths_are_ignored`)。`data/cache/yield/*.json` は取引パス read なので**ディレクトリごと ignore しない** |
 | F4 | `freshness_policy.classify_fetch_failure / classify_outage` (SSOT) + anomaly_watcher `http_blind` イベント | 全滅かつ全て read-timeout = 接続成立・無応答 = **プロセスは listen / HTTP 層のみ死** ↔ 接続拒否 / 5xx = api_down。**engine の生死は外部から不明**と明記し Render ログ [MainLoop] へ導く |
 | F5 | daily_report: `FetchResult` (ok/payload/error_class 分離) + DATA FETCH テーブル (決定的) + 規則 5 + 原因捏造の出力後検査 → 生成器注記で訂正 | 09-22 03:11Z レポートは「Render 無料 tier のスリープ」(Pro plan、存在しない原因) を書いた。原因は観測から導けない → 「unreachable, cause unknown (class)」のみ |
@@ -94,6 +94,8 @@ gthread は `accept()` ごとに `nr_conns += 1` し、完了しないハンド�
 **レビュー消化 4 巡目 (Codex P2 × 2、いずれも正しい)**: (f) 5xx を全て「origin 応答なし」に数えていた — app 由来の 500 (Flask hook の例外等) でも「停止」と報告される。⇒ `api_down` は **connection のみ**、全 5xx は `http_5xx` (応答あり、edge 502/503/504 か app 500 かは状態コードで判別不能 — app ログの traceback で裏取り)。(g) 否定判定を文全体で見ていたため「ネットワーク障害ではなく、無料 tier のスリープが原因」が否定文として素通りした。⇒ 否定は**原因語と同じ節** (、/,/; 区切り) にあるときだけ効く。🔑 4 巡で 7 件、全て estimand 境界: 「何が観測され、何が含意されるか」を 1 対 1 で書き、含意を観測の名前に混ぜない。
 
 **レビュー消化 5 巡目 (Codex P2 × 2、いずれも正しい)**: (h) 分類器は `http_error` / `http_5xx` を返すのに、watcher が両方を `api_unreachable` に畳み、通知文が「到達できない → サービス/デプロイ復旧」へ誘導していた (全 401 = 認証切れを見誤る)。⇒ 応答あり失敗は専用 event `api_http_error` (4xx は認証/パス、5xx は edge/app 判別不能と明記)。(i) 否定判定を節単位にしても「API が応答**しない**のはスリープが原因」の汎用「しない」が原因語を隠した。⇒ 否定は**原因語そのものに結び付く形** (直後窓の「ではない」等 / 英語の前置 not) だけを認める — 文単位 → 節単位 → 語束縛と 3 段で狭めた。🔑 5 巡 9 件: 分類の後段 (通知文・ガード) は分類器と**同じ粒度**を保たないと、前段で分けた情報を後段が再び畳む。
+
+**レビュー消化 6 巡目 (Codex P2 × 1、正しい)**: (j) プローブ文 `SELECT 1` は定数評価で **DB の読取りロックを取らない** — ファイルロック / 詰まったトランザクションで DB ルートが全滞留していても 200 を返し、Render は再起動しない。⇒ `SELECT name FROM sqlite_master LIMIT 1` (shared lock + page read = DB ルートと同じ資源で待つ)。fork 中毒の場面では connect 自体が返らないので両者に差は無いが、health check の estimand を「DB を実際に読めるか」に揃えた。
 
 **counterfactual pin** (tests): `test_daily_review_fork_safety.py` (construction で thread 起動なし / heal 冪等 / heartbeat 到達 / StatusHeal 非接触)、`test_http_blind_detector.py` (ReadTimeout 全滅 → `http_blind`、5xx → `api_unreachable`、混在 → mixed、SSOT 使用)、`test_healthz_http.py` (200 + db_ok / StatusHeal 非接触 / healthCheckPath 配線)、`test_daily_report_fetch_status.py` (失敗と空の分離 / 原因語ゼロの prompt 実捕捉 / 捏造検出→脚注)、`test_render_build_filter.py::test_nightly_ingest_data_paths_are_ignored`。
 

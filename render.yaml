@@ -10,9 +10,10 @@ services:
     # 続くため Render は異常を検知できず、2026-09-12 / 09-15 / 09-22 の 3 回とも
     # 再起動まで 3h19m〜3h31m を要した (契機は gthread の worker_connections=1000
     # 到達で accept が止まったこと)。/healthz/http は fresh な sqlite3 接続で
-    # SELECT 1 を返すだけの軽量プローブ (StatusHeal / tick を呼ばない — app.py
-    # docstring 参照)。ハングした worker ではこの connect 自体が永久に返らない
-    # ので、health check timeout → unhealthy → 数分で再起動になる。
+    # sqlite_master を 1 行読むだけの軽量プローブ (StatusHeal / tick を呼ばない —
+    # app.py docstring 参照。SELECT 1 は DB を触らないので使わない)。ハングした
+    # worker ではこの connect 自体が永久に返らないので、health check timeout →
+    # unhealthy → 数分で再起動になる。
     # trade-off: 再起動は in-memory dedup/cooldown を消す (起動時 DB hydrate あり)。
     # 導出: knowledge-base/wiki/analyses/http-blind-fork-poisoning-2026-09-22.md
     healthCheckPath: /healthz/http

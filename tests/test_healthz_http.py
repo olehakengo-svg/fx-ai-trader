@@ -8,8 +8,9 @@ Render の health check は数十秒間隔で叩くので、それを StatusHeal
 だけを答える。
 
 固定する性質:
-  A. 200 を返し、fresh な sqlite3 接続で SELECT 1 が通ったことを報告する
-     (2026-09-22 の全盲 worker では**この connect が永久ハング**する = 検出対象そのもの)
+  A. 200 を返し、fresh な sqlite3 接続で実オブジェクト (sqlite_master) が読めたことを
+     報告する (2026-09-22 の全盲 worker では**この connect が永久ハング**する = 検出対象
+     そのもの。SELECT 1 は DB を触らないので不可 — Codex P2)
   B. StatusHeal / request_tick を呼ばない (テキスト pin)
   C. render.yaml の healthCheckPath がこのルートを指す (配線 pin)
 """
@@ -40,7 +41,11 @@ def test_probe_does_not_touch_status_heal_or_tick():
     body = re.sub(r'"""[\s\S]*?"""', "", src[start:end])
     assert "get_status(" not in body, "プローブが StatusHeal 経路 (get_status) を呼んでいる"
     assert "request_tick(" not in body, "プローブが request_tick を呼んでいる"
-    assert "sqlite3" in body and "SELECT 1" in body, "fresh 接続の SELECT 1 プローブが無い"
+    assert "sqlite3" in body and "sqlite_master" in body, (
+        "fresh 接続で実オブジェクト (sqlite_master) を読むプローブが無い")
+    # Codex P2 (2026-09-22): SELECT 1 は定数評価で DB の読取りロックを取らない —
+    # ファイルロック / 詰まったトランザクションで DB ルートが滞留しても 200 を返す
+    assert 'execute("SELECT 1")' not in body, "プローブが DB を触らない SELECT 1 に戻っている"
 
 
 def test_render_health_check_path_points_at_the_probe():
