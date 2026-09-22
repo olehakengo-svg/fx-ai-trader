@@ -864,6 +864,38 @@
       "message": "🟠 **PR #272 / #273 の connector レビュー消化の継続枠 (2026-09-22 起票)**。両 PR は 2026-09-22 に **13 巡 (合計)** のレビューを消化してマージした: #272 は 7〜12 巡目、#273 は第20〜27波。**指摘は全て実在の欠陥で誤検知ゼロ**、P1 は全件修正済み、pin は #272 **77 本** / #273 **73 本** へ増加し全件 counterfactual 済み。⚠️ **レビューは『クリーン』で終わっていない** — 最終巡でも 毎回 1〜2 件の新規 P2 が出続けており、**打ち切りはマージ判断であって完了宣言ではない**。欠陥族は一貫して (a) fetch/完全性の窓、(b) 数値の陳腐化 (推定量が変わると公表値が動く)、(c) ガードの広すぎ/狭すぎ の 3 つ。⇒ 期日までに **両 PR の最終 HEAD に対し `@codex review` を 1 回走らせ、残 P1/P2 を triage** せよ (修正 or 理由付き dismiss)。🔴 **引用規律: この 2 PR のツール (`tools/cell_deepdive_audit.py` / `tools/hunt_event_dataset.py` / `tools/mof_statements_ingest.py`) が出す数値を引用する 際は、推定量と as-of と基数を必ず併記する** — 本セッション中に同じ数字が #272 で 4 巡連続で動いた (窓なし→1h / chaining→anchored / 到着順依存 / 契約節の取り残し)。読み手面の相互整合は pin で機械化済み (tool 契約節 + 感度表 + readout + logger docstring) だが、**changelog / session log は歴史記録なので pin 対象外**。🔵 併せて記録: この環境は `sys.pycache_prefix` がリポジトリ外を指し、編集した .py が import されず旧 bytecode が走る事象を実測 (119,373 個滞留) — **検証/counterfactual の前に キャッシュ purge が必要** (MEMORY `feedback_pycache_prefix_stale_bytecode_verification`)。",
       "condition": "PR #272 / #273 の最終 HEAD に対する connector レビューを 1 回走らせ、残存 P1/P2 を triage し終えること (修正 commit or 理由付き dismiss)",
       "reachability": "Claude が期日までに `gh pr view 272/273` の最終 HEAD sha を確認し、マージ後のため main に対する review 相当として `python3 tools/pr_review_gate.py` ではなく直接 inline thread を読む (ゲートは両方向に誤るので額面で受け取らない)。未消化が残る場合は fix PR を起票する"
+    },
+    {
+      "id": "hunt-events-labeler-disposition",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-20",
+      "doc": "knowledge-base/wiki/analyses/hunt-events-dataset-readout-2026-09-19.md",
+      "reachability": "artifact_presence",
+      "message": "hunt_events 観測データセット (89 ファイル / 69,577 行 / 2026-04-28〜) の disposition 決定点 (2026-09-19 rule:R3 readout)。現状 = validity gate が DATA-BLOCKED を返し続ける状態で凍結済み: `reversal` が 69,577/69,577 で None (約束された labeler tools/attribute_hunt_outcomes.py が 2026-04-28 の 'deferred' 宣言から 144 日未実装) / 相異なる観測は 20,692 のみ (重複評価 70.3%、N 膨張 3.36 倍、既定 dedup 窓 1h — 膨張率は窓依存) / 合成行 1 行残存。読み手側の防御 (tools/hunt_event_dataset.py + stage_a_audit の fail-closed + pin 30 本) は実装済みなので、この経路から誤った verdict は出ない。期日に二択を決める: (a) labeler を実装して観測系として生かす — ただし事後ラベルは価格データを 使うので sr-anti-hunt-eurjpy-buy-forward-confirm (期日 2027-02-28) の forward 窓との干渉を 先に確認すること / (b) 退役 — sr 系の判断は既に demo_trades 経路で行われており、hunt_events は 並行する未使用系で書込みコストのみを払っている。決めずに期日を roll するのは禁止 (write-only を 4 段目まで放置した本件そのものの再発)。⚠️ 引用注意: 本データセットを使った過去の N 主張は再確認が必要 (2026-04-28 決定文書 Step 1 の『81 events = 81 actual signal emissions』は合成行を 数えていた可能性が高い — readout §5 corrigendum)。",
+      "execution_command": "python3 tools/hunt_event_dataset.py --json",
+      "execution_subject": "Claude (autopilot) — 期日に disposition を決める。判定は手動",
+      "note": {
+        "resolve_when": "(a) tools/attribute_hunt_outcomes.py が存在し accounting.labeled > 0 になる = labeler 実装 → readout §4 を更新して resolve / (b) データセット退役を決定 → 書込み停止 + readout §4 を更新して resolve",
+        "current_state": "rows_read 69577 / quarantined 1 / repeats_collapsed 48884 / distinct 20692 / labeled 0 → validity gate DATA-BLOCKED (2026-09-22 再測、既定 dedup 窓 1h、identity ごとに時刻昇順へ並べてから窓を張る修正後)。⚠️ 膨張率は窓依存: 15m 27,565 (2.52x) / 1h 20,692 (3.36x) / 4h 14,953 (4.65x) / 24h 11,614 (5.99x) / 無制限 9,946 (7.00x) — 点推定で引用しないこと。旧値 (15m 27,335 / 1h 20,642) は到着順依存の過小計数であり引用禁止 (PR #272 第8巡、Codex P2)",
+        "stage_b_observation": "labeler を実装する場合の追加要件 (2026-09-19 の自主監査): tools/sr_audit.stage_b_simulation は actual_outcome 由来の event と reversal proxy 由来 (tp_pip*0.7 haircut) を同一の n に混ぜ内訳を返さない。混合比が変われば EV/PF/Kelly が動くので、labeler 実装時に内訳を出すこと。⚠️ D4 軸 (未ラベル行が分母に入る) は Stage B には無い — 未解決 outcome は `else: continue` で母集団から落ちる (確認済み)。"
+      }
+    },
+    {
+      "id": "review-backlog-253-257-digest",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-03",
+      "doc": "knowledge-base/wiki/analyses/hunt-events-dataset-readout-2026-09-19.md",
+      "reachability": "artifact_presence",
+      "execution_command": "python3 tools/pr_review_gate.py 253 && python3 tools/pr_review_gate.py 257",
+      "execution_subject": "Claude (autopilot)",
+      "note": {
+        "pr_253": "5 件 (tools/win_side_exit_decomposition.py ×4 + wiki/analyses/win-side-exit-regime-break-2026-06-03.md ×1): (a) P1 live/shadow 混在 — 分解が live 行を含むため月次/close-reason/shift-share が 交絡 (ab7a4931 が変えたのは shadow 執行のみ) / (b) P2 デプロイ境界を跨ぐ建玉を entry_time だけで pre 群に入れている / (c) P2 偶数コホートの中央値が上側中央値 / (d) P2 cutoff が commit 分で rollout 実時刻でない / (e) P1 mafe も LOSS hold time も exit 機構に依存するので 『市場機会は悪化していない』の三点確認は成立しない。⚠️ (a)(e) は MEMORY project_shadow_exit_regime_break_2026_06_03 の主張に直接効く — 消化まで当該 MEMORY の WR/R:R 数値の引用は estimand 監査付きで行うこと",
+        "pr_257": "7 件 (tools/e23_corpus_fetch.py ×4 + tools/e23_pass1_events.py ×3): P1 Fed discovery が FOMC statement 以外を混入 / P1 BoJ 英訳の公開時刻を検証せず 印字日で lookahead gate を名乗る / P1 Gate A が explore 窓でなく全期間で median を計算 = 凍結 OOS に接触していた / P2 --refetch がキャッシュを迂回しない / P2 OOS_END 越えのレコードを保存 / P2 pass-0 survivor を強制していない / P2 lexicon hash を実行時に assert していない。⚠️ Gate A の OOS 接触は E23 の『OOS 非接触』主張に直接効く — E23 は UNDERPOWERED park 済みだが、**park の根拠 (pass-1 の gate 判定) が 汚染されていた可能性**があるので、消化時は『park の再判定』ではなく 『park の根拠の estimand 監査』として扱う (救済禁止は維持)",
+        "why_deferred": "2026-09-19 セッションでは #261/#263/#264 と hunt_events 4 件を消化。本 2 群はいずれも分析の再実行 (前者) / 凍結境界の扱いの判断 (後者) を要し、同一セッションで急ぐと 09-18 に踏んだ『修正作業そのものが新しい欠陥の発生源になる』型の事故を再生産する。ack ではなく追跡エントリで next session に渡す。"
+      },
+      "message": "未消化 connector レビュー指摘の残り 12 件 (PR #253 ×5 / PR #257 ×7) の消化期日。起点 = PR #267 (2026-09-18) が『マージゲートの findings 軸は導入以来恒真だった』と確定させ、過去 10 PR の inline P1/P2 29 件中 19 件が未消化と判明した件。2026-09-19 に 7 件消化 (hunt_events 4 / GDELT 1 / KB 整合 2、PR #272/#273)、残 12 件。TRIGGERED 時の手続き: 各指摘を (i) 実データで再現確認 → (ii) 修正 commit または `review-ack: <理由>` コメント → (iii) 完了を pr_review_gate で確認。⚠️ **『ack したから解決』ではない** — 指摘が実在の欠陥である以上、dismiss するなら estimand 上なぜ影響しないかを書くこと。⚠️ 消化前の引用規律は note の各群に記載 (MEMORY feedback_audit_past_verdicts_2026_08_05)。"
     }
   ]
 }

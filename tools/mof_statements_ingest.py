@@ -83,6 +83,33 @@ FX_TITLE = re.compile(r"為替|介入|平衡操作|円相場|円安|円高|レ�
 
 # ---------------------------------------------------------------- fetch -----
 
+class TransientFetchError(RuntimeError):
+    """自己修復が見込める取得失敗 (rate limit / timeout / 接続断)。
+
+    2026-09-19 (rule:R3): soft/hard の分類は**ソース名だけでは決められない**。
+    同じ `run_gdelt` から出る例外にも (a) 429 = 翌 run で自己修復する
+    (b) `unexpected GDELT response` = 上流の恒久変更の署名 (c) 書込み失敗 が
+    あり、全部 soft にすると (b)(c) が alert に乗らず CSV が無期限に stale で
+    残る (PR #261 Codex P2)。型で分けて (a) だけを soft にする。
+    """
+
+
+# curl が返す transient の署名。**列挙に無いものは hard** (fail-closed) —
+# 上流がエラー表現を変えたら過剰 alert 側に倒れる方が、黙って stale で
+# 残るより安全。判定を文字列で行う以上この向きは崩せない。
+_TRANSIENT_CURL_PAT = re.compile(
+    r"returned error: (?:429|500|502|503|504)\b"   # curl: (22) + 一時的な HTTP
+    r"|curl: \((?:7|28|52|55|56)\)",              # connect / timeout / recv
+)
+
+
+def is_transient_fetch_error(exc: BaseException) -> bool:
+    """例外が「翌 run で自己修復が見込める」形状かを判定する。"""
+    if isinstance(exc, TransientFetchError):
+        return True
+    return bool(_TRANSIENT_CURL_PAT.search(str(exc)))
+
+
 def fetch(url: str, retries: int = 3, timeout: int = 60, backoff: float = 2.0) -> bytes:
     """curl-based fetch with UA, redirects followed, fail on non-2xx."""
     last_err = None
@@ -95,7 +122,10 @@ def fetch(url: str, retries: int = 3, timeout: int = 60, backoff: float = 2.0) -
             return proc.stdout
         last_err = proc.stderr.decode("utf-8", "replace")[:300]
         time.sleep(backoff * (attempt + 1))
-    raise RuntimeError(f"fetch failed after {retries} tries: {url}: {last_err}")
+    msg = f"fetch failed after {retries} tries: {url}: {last_err}"
+    if _TRANSIENT_CURL_PAT.search(last_err or ""):
+        raise TransientFetchError(msg)
+    raise RuntimeError(msg)
 
 
 def fetch_optional(url: str, timeout: int = 30):
@@ -477,28 +507,241 @@ def run_score() -> dict:
 
 # ---------------------------------------------------------------- gdelt -----
 
+# GDELT timelinevol の系列末尾は fetch 日に一致する — 実測 (2026-08-18〜09-13 の
+# 16 commit、`commit 日 − 系列末尾日`): median **0 日 / max 1 日**。
+# つまり「系列が進まない」= 上流が止まっているか、成功したまま古い応答を
+# 受けている、のいずれか。閾値 3 日は観測 max の 3 倍で、内在ラグでは誤発火しない。
+# ⚠️ 誤発火が出たら閾値は**上げる** (下げると何も検知しなくなる)。
+GDELT_STALE_DAYS_MAX = 3
+
+
+def gdelt_last_data_date(path: str) -> "dt.date | None":
+    """CSV の最終データ行の日付。コメント行 (`#`) とヘッダは除く。"""
+    try:
+        with open(path, encoding="utf-8") as f:
+            rows = [ln for ln in (l.strip() for l in f)
+                    if ln and not ln.startswith("#")]
+    except OSError:
+        return None
+    for ln in reversed(rows):
+        head = ln.split(",")[0].lstrip("\ufeff")
+        try:
+            return dt.date.fromisoformat(head)
+        except ValueError:
+            continue
+    return None
+
+
+def gdelt_coverage(path: str) -> dict:
+    """系列の被覆 = (データ行数, 最初のデータ日, 最後のデータ日)。
+
+    鮮度 (末尾日) は**被覆を保証しない**: 構文は正当で末尾だけ新しい部分系列は
+    鮮度検査を通り、そのまま完全な履歴ファイルを置き換えてしまう
+    (Codex P1, PR #272 第9巡)。昇格前に候補と保存系列の被覆を比較するために
+    使う。
+    """
+    out = {"rows": 0, "first": None, "last": None, "dates": set(),
+           "duplicates": 0}
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = [ln for ln in (l.strip() for l in f)
+                     if ln and not ln.startswith("#")]
+    except OSError:
+        return out
+    dates = []
+    for ln in lines:
+        head = ln.split(",")[0].lstrip("\ufeff")
+        try:
+            dates.append(dt.date.fromisoformat(head))
+        except ValueError:
+            continue                            # header row
+    if dates:
+        # The DATE SET, not just the aggregate count: a candidate can drop
+        # historical dates while adding the same number of trailing ones,
+        # keeping rows/first identical (Codex P1, PR #272 第10巡).
+        out.update({"rows": len(dates), "first": dates[0], "last": dates[-1],
+                    "dates": set(dates),
+                    "duplicates": len(dates) - len(set(dates))})
+    return out
+
+
+def gdelt_freshness(as_of: "dt.date | None" = None,
+                    paths: "dict | None" = None) -> dict:
+    """各 slug の系列末尾日と stale 日数を返す (取得の成否とは独立の観測)。
+
+    2026-09-19 (rule:R3): soft/hard の軸は**例外が出たときしか動かない**。
+    GDELT は HTTP 200 + 正当な CSV ヘッダのまま**系列が進まない**ことがあり
+    (実測: 2026-09-13 以降 3,518 行で凍結、09-18 の run は "success" で
+    同一内容を書いて diff ゼロ)、その形は例外軸からは**永久に見えない**。
+    「全範囲を毎回再取得するので自己修復する」という soft 分類の前提は、
+    上流が進まない場合には成立しない。
+    """
+    as_of = as_of or dt.datetime.now(dt.timezone.utc).date()
+    out: dict = {"as_of": as_of.isoformat(), "slugs": {}, "stale": []}
+    for slug in GDELT_QUERIES:
+        # `paths` lets the CANDIDATE files be checked before they replace the
+        # stored series (Codex P1, PR #272).  Default = the stored series.
+        path = ((paths or {}).get(slug)
+                or os.path.join(GDELT_DIR, f"{slug}.csv"))
+        last = gdelt_last_data_date(path)
+        days = None if last is None else (as_of - last).days
+        out["slugs"][slug] = {"last_data": last.isoformat() if last else None,
+                              "stale_days": days}
+        if days is None or days > GDELT_STALE_DAYS_MAX:
+            out["stale"].append(slug)
+    out["ok"] = not out["stale"]
+    return out
+
+
 def run_gdelt() -> dict:
-    """Fetch GDELT DOC timelinevol series (full range, overwrite = self-healing)."""
+    """Fetch GDELT DOC timelinevol series (full range, overwrite = self-healing).
+
+    取得成功後に系列の鮮度を検査し、`GDELT_STALE_DAYS_MAX` を超えて進んで
+    いなければ **hard** で raise する (成功したまま stale になる形を塞ぐ)。
+    """
     os.makedirs(GDELT_DIR, exist_ok=True)
     end = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d%H%M%S")
     out = {}
-    for slug, query in GDELT_QUERIES.items():
-        from urllib.parse import quote
-        url = ("https://api.gdeltproject.org/api/v2/doc/doc?query=" + quote(query)
-               + f"&mode=timelinevol&format=CSV&STARTDATETIME={GDELT_START}&ENDDATETIME={end}")
-        print(f"[gdelt] {slug}: {url}")
-        raw = fetch(url, retries=4, timeout=120, backoff=15.0)  # GDELT: 1 req / 5s min
-        text = raw.decode("utf-8", "replace")
-        if "Date" not in text.splitlines()[0]:
-            raise RuntimeError(f"unexpected GDELT response for {slug}: {text[:200]}")
-        path = os.path.join(GDELT_DIR, f"{slug}.csv")
-        with open(path, "w") as f:
-            f.write(f"# query: {query}\n# mode: timelinevol (% of monitored coverage)\n")
-            f.write(text if text.endswith("\n") else text + "\n")
-        n = max(0, len(text.strip().splitlines()) - 1)
-        print(f"[gdelt] wrote {path}: {n} datapoints")
-        out[slug] = n
-        time.sleep(SLEEP_GDELT)
+    # 🔴 VALIDATE BEFORE REPLACE (Codex P1, PR #272).  The old order opened the
+    # destination CSVs with "w" and only THEN checked freshness, so a stale or
+    # truncated-but-syntactically-valid response had already overwritten the
+    # stored series.  The raise did not undo it, and
+    # `.github/workflows/mof-statements-daily.yml` commits the whole data dir
+    # with `if: ${{ !cancelled() }}` — so the hard failure still COMMITTED the
+    # regression.  "Full-range refetch is self-healing" is a property of the
+    # UPSTREAM archive, not of this writer
+    # ([[project_mof_ingest_defect_family_2026_09_17]]).
+    # Candidates live in a SYSTEM temp dir, never in the staged tree (Codex P2,
+    # PR #272 第9巡).  A candidate written inside `GDELT_DIR` survived any
+    # later `fetch()` raising — the cleanup was after the loop, so it never
+    # ran — and `mof-statements-daily.yml` does `git add
+    # data/external/mof_statements/` even on failure, committing the temporary
+    # candidate as corpus data.  `finally` alone is not enough: put them where
+    # `git add` cannot see them in the first place.
+    import shutil
+    import tempfile
+    staging = tempfile.mkdtemp(prefix="gdelt-candidates-")
+    promoting: list = []
+    try:
+        tmp_paths = {}
+        for slug, query in GDELT_QUERIES.items():
+            from urllib.parse import quote
+            url = ("https://api.gdeltproject.org/api/v2/doc/doc?query=" + quote(query)
+                   + f"&mode=timelinevol&format=CSV&STARTDATETIME={GDELT_START}&ENDDATETIME={end}")
+            print(f"[gdelt] {slug}: {url}")
+            raw = fetch(url, retries=4, timeout=120, backoff=15.0)  # 1 req / 5s min
+            text = raw.decode("utf-8", "replace")
+            if "Date" not in text.splitlines()[0]:
+                raise RuntimeError(f"unexpected GDELT response for {slug}: {text[:200]}")
+            tmp = os.path.join(staging, f"{slug}.csv")
+            with open(tmp, "w") as f:
+                f.write(f"# query: {query}\n# mode: timelinevol (% of monitored coverage)\n")
+                f.write(text if text.endswith("\n") else text + "\n")
+            tmp_paths[slug] = tmp
+            n = max(0, len(text.strip().splitlines()) - 1)
+            print(f"[gdelt] fetched {slug}: {n} datapoints (candidate)")
+            out[slug] = n
+            time.sleep(SLEEP_GDELT)
+
+        # (1) Freshness is judged on the CANDIDATES, before anything is replaced.
+        fresh = gdelt_freshness(paths=tmp_paths)
+        out["freshness"] = fresh
+        print(f"[gdelt] freshness: {json.dumps(fresh['slugs'], ensure_ascii=False)}")
+        if not fresh["ok"]:
+            # TransientFetchError ではない = soft 分類の対象外 = hard。
+            raise RuntimeError(
+                "GDELT series did not advance: "
+                + json.dumps(fresh["slugs"], ensure_ascii=False)
+                + f" (threshold {GDELT_STALE_DAYS_MAX}d; 実測の内在ラグは median 0 / max 1 日)"
+                " — 取得は成功しているので上流停止か stale 応答。要調査"
+                " (保存済み系列は書き換えていない)"
+            )
+
+        # (2) Freshness does NOT imply coverage (Codex P1, PR #272 第9巡): a
+        # syntactically valid PARTIAL series whose last row is recent passes
+        # the freshness check and would then replace the complete history.
+        # GDELT is refetched over the full range every run, so coverage must
+        # never shrink; a shrink is evidence of a bad response, not of data.
+        cov = {}
+        regressions = []
+        for slug, tmp in tmp_paths.items():
+            stored = gdelt_coverage(os.path.join(GDELT_DIR, f"{slug}.csv"))
+            cand = gdelt_coverage(tmp)
+            cov[slug] = {
+                "stored_rows": stored["rows"], "candidate_rows": cand["rows"],
+                "stored_first": stored["first"].isoformat() if stored["first"] else None,
+                "candidate_first": cand["first"].isoformat() if cand["first"] else None,
+            }
+            # Duplicated dates are malformed regardless of what is stored.
+            if cand["duplicates"]:
+                regressions.append(
+                    f"{slug}: {cand['duplicates']} duplicated date(s) in the "
+                    f"candidate")
+            if stored["rows"] == 0:
+                continue                        # bootstrap: nothing to regress
+            # SET CONTAINMENT is the real test: equal counts and an equal
+            # first date do not mean the history survived.  Dropping three
+            # 2023 dates while appending three new ones passes both aggregate
+            # checks and commits a corpus with internal gaps.
+            dropped = sorted(stored["dates"] - cand["dates"])
+            if dropped:
+                shown = ", ".join(d.isoformat() for d in dropped[:5])
+                more = "" if len(dropped) <= 5 else f" (+{len(dropped) - 5} more)"
+                regressions.append(
+                    f"{slug}: {len(dropped)} stored date(s) missing from the "
+                    f"candidate: {shown}{more}")
+            cov[slug]["dates_dropped"] = len(dropped)
+        out["coverage"] = cov
+        print(f"[gdelt] coverage: {json.dumps(cov, ensure_ascii=False)}")
+        if regressions:
+            raise RuntimeError(
+                "GDELT candidate REGRESSES coverage: " + "; ".join(regressions)
+                + " — 末尾日が新しくても部分系列は完全な履歴を置き換えてはならない"
+                " (全範囲を毎回取り直す設計なので被覆は縮まないはず)。"
+                " 保存済み系列は書き換えていない"
+            )
+
+        # (3) Promote only after BOTH gates passed — ALL-OR-NOTHING across
+        # slugs (Codex P2, PR #272 第12巡).  `os.replace` is atomic per file
+        # but not across files: if slug 1 was replaced and slug 2 then failed,
+        # the data directory held a MIXED generation, and the workflow commits
+        # it (`if: ${{ !cancelled() }}` stages everything even after a hard
+        # failure).  So back each destination up first and roll them all back
+        # if any promotion raises.
+        backups: list = []
+        try:
+            for slug, tmp in tmp_paths.items():
+                path = os.path.join(GDELT_DIR, f"{slug}.csv")
+                if os.path.exists(path):
+                    backup = os.path.join(staging, f"{slug}.backup.csv")
+                    shutil.copyfile(path, backup)   # staging = system temp
+                    backups.append((path, backup))
+                staged = path + ".promoting"
+                promoting.append(staged)
+                shutil.copyfile(tmp, staged)    # same filesystem as `path`
+                os.replace(staged, path)        # atomic per file
+                promoting.remove(staged)
+                print(f"[gdelt] wrote {path}: {out[slug]} datapoints")
+        except BaseException:
+            for path, backup in backups:
+                restored = path + ".restoring"
+                promoting.append(restored)      # outer finally sweeps it
+                try:
+                    shutil.copyfile(backup, restored)
+                    os.replace(restored, path)
+                    promoting.remove(restored)
+                except OSError:
+                    pass                        # best effort; re-raise below
+            print(f"[gdelt] ROLLED BACK {len(backups)} promoted file(s) — "
+                  f"the data directory must not hold a mixed generation")
+            raise
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+        for leftover in promoting:              # only on a mid-promote crash
+            try:
+                os.unlink(leftover)
+            except OSError:
+                pass
     return out
 
 
