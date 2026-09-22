@@ -764,3 +764,43 @@ def test_anchored_window_is_independent_of_input_order():
 
     # Unbounded mode has no anchor, so it is order-independent by construction.
     assert len(collapse_repeats([late, early], window_sec=None)[0]) == 1
+
+
+def test_mixed_aware_and_naive_timestamps_do_not_abort_the_audit():
+    """KNOWN-NG INPUT: one event written with an explicit UTC offset.
+
+    Both the per-identity sort and the window arithmetic subtract these
+    values, and Python refuses to compare offset-naive with offset-aware
+    datetimes — so a single differently formatted row raised TypeError and
+    aborted the entire audit (Codex P2, PR #272 第9巡).
+    """
+    from tools.hunt_event_dataset import collapse_repeats, _parse_entry_time
+
+    def row(ts, level=150.0):
+        return {"instrument": "USDJPY=X", "side": "support", "level": level,
+                "entry_time": ts}
+
+    naive = row("2026-01-01T00:00:00")
+    aware = row("2026-01-01T09:00:00+09:00", level=151.0)   # == 00:00Z
+
+    # The parser normalizes, so the two forms are directly comparable...
+    assert _parse_entry_time(naive) == _parse_entry_time(aware), (
+        "+09:00 09:00 is the same instant as naive 00:00 UTC")
+    assert _parse_entry_time(aware).tzinfo is None
+
+    # ...and mixing them in one corpus must not raise.
+    kept, _, _ = collapse_repeats([aware, naive], window_sec=3600.0)
+    assert len(kept) == 2, "different levels are different observations"
+
+    # Offsets must be honoured, not truncated: +09:00 04:00 is 2026-12-31
+    # 19:00Z, i.e. MORE than 1h before naive 2026-01-01T00:00:00, so the two
+    # identical payloads stay two observations.
+    far = row("2026-01-01T04:00:00+09:00")
+    kept2, rep2, _ = collapse_repeats([far, naive], window_sec=3600.0)
+    assert len(kept2) == 2 and rep2 == 0, (
+        "the offset must be applied before the window, not ignored")
+
+    # Counter-pin: the same instant in the two forms IS one observation.
+    same = row("2026-01-01T09:00:00+09:00")
+    kept3, rep3, _ = collapse_repeats([same, naive], window_sec=3600.0)
+    assert len(kept3) == 1 and rep3 == 1

@@ -234,9 +234,12 @@ def test_fresh_gdelt_response_is_promoted_atomically(tmp_path, monkeypatch):
     import datetime as dt
 
     monkeypatch.setattr(ing, "GDELT_DIR", str(tmp_path))
+    # The stored series must be COVERED by the candidate: a full-range
+    # refetch never starts later than what is already stored, and the
+    # coverage gate rejects it if it does.
     for slug in ing.GDELT_QUERIES:
         (tmp_path / f"{slug}.csv").write_text("# old\n﻿Date,Series,Value\n"
-                                              "2026-09-01,Volume Intensity,0.1\n",
+                                              "2026-09-10,Volume Intensity,0.1\n",
                                               encoding="utf-8")
     today = dt.datetime.now(dt.timezone.utc).date().isoformat()
     _stub_gdelt_fetch(monkeypatch, today)
@@ -248,3 +251,64 @@ def test_fresh_gdelt_response_is_promoted_atomically(tmp_path, monkeypatch):
         assert today in text, "a fresh series must be promoted"
         assert text.startswith("# query: "), "the header must be rewritten"
     assert [p.name for p in tmp_path.iterdir() if p.name.endswith(".tmp.csv")] == []
+
+
+def test_fresh_but_truncated_gdelt_candidate_is_rejected(tmp_path, monkeypatch):
+    """KNOWN-NG INPUT: a partial series whose LAST row is recent.
+
+    `gdelt_freshness()` only looks at the last date, so a syntactically valid
+    partial response passed and then replaced the complete history; the
+    workflow committed the truncation (Codex P1, PR #272 第9巡).  GDELT is
+    refetched over the full range every run, so coverage must never shrink.
+    """
+    import datetime as dt
+
+    monkeypatch.setattr(ing, "GDELT_DIR", str(tmp_path))
+    full = "# query: x\n﻿Date,Series,Value\n" + "".join(
+        f"2026-08-{d:02d},Volume Intensity,0.00{d % 10}\n" for d in range(1, 29))
+    for slug in ing.GDELT_QUERIES:
+        (tmp_path / f"{slug}.csv").write_text(full, encoding="utf-8")
+
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    _stub_gdelt_fetch(monkeypatch, today, rows=2)      # 2 rows vs 28 stored
+
+    with pytest.raises(RuntimeError, match="REGRESSES coverage"):
+        ing.run_gdelt()
+
+    for slug in ing.GDELT_QUERIES:
+        assert (tmp_path / f"{slug}.csv").read_text(encoding="utf-8") == full, (
+            "a truncated candidate must not replace the stored history")
+    assert sorted(p.name for p in tmp_path.iterdir()) == sorted(
+        f"{slug}.csv" for slug in ing.GDELT_QUERIES), (
+        "no candidate or promotion artifact may be left in the data directory")
+
+
+def test_a_later_fetch_failure_leaves_nothing_in_the_data_directory(tmp_path, monkeypatch):
+    """KNOWN-NG PATH: slug 1 succeeds, slug 2 raises.
+
+    The candidate used to be written inside the data directory and the
+    cleanup was AFTER the loop, so it never ran — and the workflow does
+    `git add data/external/mof_statements/` even on failure, committing the
+    temporary candidate as corpus data (Codex P2, PR #272 第9巡).
+    """
+    monkeypatch.setattr(ing, "GDELT_DIR", str(tmp_path))
+    monkeypatch.setattr(ing, "SLEEP_GDELT", 0)
+    (tmp_path / "keep.csv").write_text("sentinel\n", encoding="utf-8")
+
+    calls = {"n": 0}
+
+    def flaky(*a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return ("﻿Date,Series,Value\n"
+                    "2026-09-20,Volume Intensity,0.1\n").encode()
+        raise RuntimeError("upstream exploded")
+
+    monkeypatch.setattr(ing, "fetch", flaky)
+
+    with pytest.raises(RuntimeError, match="upstream exploded"):
+        ing.run_gdelt()
+
+    assert [p.name for p in tmp_path.iterdir()] == ["keep.csv"], (
+        "a mid-run failure must leave NOTHING behind in the staged tree — "
+        f"found {[p.name for p in tmp_path.iterdir()]}")

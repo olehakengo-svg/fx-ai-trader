@@ -532,6 +532,33 @@ def gdelt_last_data_date(path: str) -> "dt.date | None":
     return None
 
 
+def gdelt_coverage(path: str) -> dict:
+    """系列の被覆 = (データ行数, 最初のデータ日, 最後のデータ日)。
+
+    鮮度 (末尾日) は**被覆を保証しない**: 構文は正当で末尾だけ新しい部分系列は
+    鮮度検査を通り、そのまま完全な履歴ファイルを置き換えてしまう
+    (Codex P1, PR #272 第9巡)。昇格前に候補と保存系列の被覆を比較するために
+    使う。
+    """
+    out = {"rows": 0, "first": None, "last": None}
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = [ln for ln in (l.strip() for l in f)
+                     if ln and not ln.startswith("#")]
+    except OSError:
+        return out
+    dates = []
+    for ln in lines:
+        head = ln.split(",")[0].lstrip("\ufeff")
+        try:
+            dates.append(dt.date.fromisoformat(head))
+        except ValueError:
+            continue                            # header row
+    if dates:
+        out.update({"rows": len(dates), "first": dates[0], "last": dates[-1]})
+    return out
+
+
 def gdelt_freshness(as_of: "dt.date | None" = None,
                     paths: "dict | None" = None) -> dict:
     """各 slug の系列末尾日と stale 日数を返す (取得の成否とは独立の観測)。
@@ -578,50 +605,101 @@ def run_gdelt() -> dict:
     # regression.  "Full-range refetch is self-healing" is a property of the
     # UPSTREAM archive, not of this writer
     # ([[project_mof_ingest_defect_family_2026_09_17]]).
-    tmp_paths = {}
-    for slug, query in GDELT_QUERIES.items():
-        from urllib.parse import quote
-        url = ("https://api.gdeltproject.org/api/v2/doc/doc?query=" + quote(query)
-               + f"&mode=timelinevol&format=CSV&STARTDATETIME={GDELT_START}&ENDDATETIME={end}")
-        print(f"[gdelt] {slug}: {url}")
-        raw = fetch(url, retries=4, timeout=120, backoff=15.0)  # GDELT: 1 req / 5s min
-        text = raw.decode("utf-8", "replace")
-        if "Date" not in text.splitlines()[0]:
-            raise RuntimeError(f"unexpected GDELT response for {slug}: {text[:200]}")
-        # `.tmp.csv`, not `.csv.tmp`: the workflow stages the data directory, so
-        # the candidate must not look like a series file to any reader.
-        tmp = os.path.join(GDELT_DIR, f".{slug}.tmp.csv")
-        with open(tmp, "w") as f:
-            f.write(f"# query: {query}\n# mode: timelinevol (% of monitored coverage)\n")
-            f.write(text if text.endswith("\n") else text + "\n")
-        tmp_paths[slug] = tmp
-        n = max(0, len(text.strip().splitlines()) - 1)
-        print(f"[gdelt] fetched {slug}: {n} datapoints (candidate)")
-        out[slug] = n
-        time.sleep(SLEEP_GDELT)
+    # Candidates live in a SYSTEM temp dir, never in the staged tree (Codex P2,
+    # PR #272 第9巡).  A candidate written inside `GDELT_DIR` survived any
+    # later `fetch()` raising — the cleanup was after the loop, so it never
+    # ran — and `mof-statements-daily.yml` does `git add
+    # data/external/mof_statements/` even on failure, committing the temporary
+    # candidate as corpus data.  `finally` alone is not enough: put them where
+    # `git add` cannot see them in the first place.
+    import shutil
+    import tempfile
+    staging = tempfile.mkdtemp(prefix="gdelt-candidates-")
+    promoting: list = []
+    try:
+        tmp_paths = {}
+        for slug, query in GDELT_QUERIES.items():
+            from urllib.parse import quote
+            url = ("https://api.gdeltproject.org/api/v2/doc/doc?query=" + quote(query)
+                   + f"&mode=timelinevol&format=CSV&STARTDATETIME={GDELT_START}&ENDDATETIME={end}")
+            print(f"[gdelt] {slug}: {url}")
+            raw = fetch(url, retries=4, timeout=120, backoff=15.0)  # 1 req / 5s min
+            text = raw.decode("utf-8", "replace")
+            if "Date" not in text.splitlines()[0]:
+                raise RuntimeError(f"unexpected GDELT response for {slug}: {text[:200]}")
+            tmp = os.path.join(staging, f"{slug}.csv")
+            with open(tmp, "w") as f:
+                f.write(f"# query: {query}\n# mode: timelinevol (% of monitored coverage)\n")
+                f.write(text if text.endswith("\n") else text + "\n")
+            tmp_paths[slug] = tmp
+            n = max(0, len(text.strip().splitlines()) - 1)
+            print(f"[gdelt] fetched {slug}: {n} datapoints (candidate)")
+            out[slug] = n
+            time.sleep(SLEEP_GDELT)
 
-    # Freshness is judged on the CANDIDATES, before anything is replaced.
-    fresh = gdelt_freshness(paths=tmp_paths)
-    out["freshness"] = fresh
-    print(f"[gdelt] freshness: {json.dumps(fresh['slugs'], ensure_ascii=False)}")
-    if not fresh["ok"]:
-        for tmp in tmp_paths.values():
+        # (1) Freshness is judged on the CANDIDATES, before anything is replaced.
+        fresh = gdelt_freshness(paths=tmp_paths)
+        out["freshness"] = fresh
+        print(f"[gdelt] freshness: {json.dumps(fresh['slugs'], ensure_ascii=False)}")
+        if not fresh["ok"]:
+            # TransientFetchError ではない = soft 分類の対象外 = hard。
+            raise RuntimeError(
+                "GDELT series did not advance: "
+                + json.dumps(fresh["slugs"], ensure_ascii=False)
+                + f" (threshold {GDELT_STALE_DAYS_MAX}d; 実測の内在ラグは median 0 / max 1 日)"
+                " — 取得は成功しているので上流停止か stale 応答。要調査"
+                " (保存済み系列は書き換えていない)"
+            )
+
+        # (2) Freshness does NOT imply coverage (Codex P1, PR #272 第9巡): a
+        # syntactically valid PARTIAL series whose last row is recent passes
+        # the freshness check and would then replace the complete history.
+        # GDELT is refetched over the full range every run, so coverage must
+        # never shrink; a shrink is evidence of a bad response, not of data.
+        cov = {}
+        regressions = []
+        for slug, tmp in tmp_paths.items():
+            stored = gdelt_coverage(os.path.join(GDELT_DIR, f"{slug}.csv"))
+            cand = gdelt_coverage(tmp)
+            cov[slug] = {
+                "stored_rows": stored["rows"], "candidate_rows": cand["rows"],
+                "stored_first": stored["first"].isoformat() if stored["first"] else None,
+                "candidate_first": cand["first"].isoformat() if cand["first"] else None,
+            }
+            if stored["rows"] == 0:
+                continue                        # bootstrap: nothing to regress
+            if cand["rows"] < stored["rows"]:
+                regressions.append(
+                    f"{slug}: rows {stored['rows']} -> {cand['rows']}")
+            elif cand["first"] and stored["first"] and cand["first"] > stored["first"]:
+                regressions.append(
+                    f"{slug}: first data {stored['first']} -> {cand['first']}")
+        out["coverage"] = cov
+        print(f"[gdelt] coverage: {json.dumps(cov, ensure_ascii=False)}")
+        if regressions:
+            raise RuntimeError(
+                "GDELT candidate REGRESSES coverage: " + "; ".join(regressions)
+                + " — 末尾日が新しくても部分系列は完全な履歴を置き換えてはならない"
+                " (全範囲を毎回取り直す設計なので被覆は縮まないはず)。"
+                " 保存済み系列は書き換えていない"
+            )
+
+        # (3) Promote, atomically, only after BOTH gates passed.
+        for slug, tmp in tmp_paths.items():
+            path = os.path.join(GDELT_DIR, f"{slug}.csv")
+            staged = path + ".promoting"
+            promoting.append(staged)
+            shutil.copyfile(tmp, staged)        # same filesystem as `path`
+            os.replace(staged, path)            # atomic
+            promoting.remove(staged)
+            print(f"[gdelt] wrote {path}: {out[slug]} datapoints")
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+        for leftover in promoting:              # only on a mid-promote crash
             try:
-                os.unlink(tmp)
+                os.unlink(leftover)
             except OSError:
                 pass
-        # TransientFetchError ではない = soft 分類の対象外 = hard。
-        raise RuntimeError(
-            "GDELT series did not advance: "
-            + json.dumps(fresh["slugs"], ensure_ascii=False)
-            + f" (threshold {GDELT_STALE_DAYS_MAX}d; 実測の内在ラグは median 0 / max 1 日)"
-            " — 取得は成功しているので上流停止か stale 応答。要調査"
-            " (保存済み系列は書き換えていない)"
-        )
-    for slug, tmp in tmp_paths.items():
-        path = os.path.join(GDELT_DIR, f"{slug}.csv")
-        os.replace(tmp, path)               # atomic promote
-        print(f"[gdelt] wrote {path}: {out[slug]} datapoints")
     return out
 
 

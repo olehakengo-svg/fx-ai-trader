@@ -252,14 +252,30 @@ def _dt_min():
 
 
 def _parse_entry_time(row: dict[str, Any]):
+    """Parse `entry_time` to a tz-NAIVE UTC datetime, or None.
+
+    Normalizing here rather than at each call site is deliberate: both the
+    per-identity sort and the window arithmetic `(ts - anchor)` compare these
+    values, and Python raises `TypeError: can't compare offset-naive and
+    offset-aware datetimes` when a corpus mixes the two forms.  One
+    differently formatted event would abort the whole audit (Codex P2,
+    PR #272 第9巡).
+
+    A naive timestamp is treated as UTC, which is what
+    `modules/hunt_event_logger.py` writes; an aware one is converted to UTC
+    and then made naive so the two forms are directly comparable.
+    """
     raw = row.get("entry_time")
     if not isinstance(raw, str):
         return None
     try:
         import datetime as _dt
-        return _dt.datetime.fromisoformat(raw)
+        ts = _dt.datetime.fromisoformat(raw)
     except ValueError:
         return None
+    if ts.tzinfo is not None:
+        ts = ts.astimezone(_dt.timezone.utc).replace(tzinfo=None)
+    return ts
 
 
 def collapse_repeats(
