@@ -1336,7 +1336,9 @@ class OandaBridge:
         with self._storm_lock:
             st["seq"] += 1
             token = {"seq": st["seq"], "new_sl": float(new_sl), "ts": None,
-                     "done": threading.Event(), "ok": None, "reeval": False}
+                     "done": threading.Event(), "ok": None, "reeval": False,
+                     # 畳み込まれた全候補 (方向が未 seed の間は選べないので保持、送信直前に選ぶ)
+                     "candidates": [float(new_sl)]}
             st["pending"].append(token)
         return token
 
@@ -1631,6 +1633,18 @@ class OandaBridge:
         with self._storm_lock:
             st["head_progress"] = st.get("head_progress", 0) + 1
             st["cond"].notify_all()
+
+    @staticmethod
+    def _storm_pick_candidate(st: dict, token: dict) -> float:
+        """畳み込まれた候補から方向的に最も保護的な値を選ぶ (BUY: max / SELL: min)。
+        方向不明なら最新 (候補は保持したまま — seed 後に再選択される)。"""
+        cands = token.get("candidates") or [float(token["new_sl"])]
+        d = st.get("direction")
+        if d == "BUY":
+            return max(cands)
+        if d == "SELL":
+            return min(cands)
+        return float(cands[-1])
     # enforce の fire-and-forget で待機 token へ畳み込む (queue = 先頭 + 待機 1 件、thread ≤ 2/trade)
     STORM_COALESCE_ASYNC = True
 
@@ -1799,16 +1813,10 @@ class OandaBridge:
                     if tail.get("async") and tail["ok"] is None and not tail.get("sending"):
                         # 畳み込みは「最新」ではなく「最も保護的」な値を残す (16 巡目 P1: 待機中の
                         # 154.450 を後続の 154.300 で上書きすると正当な tightening を捨てる)。
-                        # BUY: max / SELL: min / 方向不明: 最新 (fail-open)
-                        d = st0.get("direction")
-                        cur = float(tail["new_sl"]); cand = float(new_sl)
-                        if d == "BUY":
-                            keep = max(cur, cand)
-                        elif d == "SELL":
-                            keep = min(cur, cand)
-                        else:
-                            keep = cand
-                        tail["new_sl"] = keep
+                        # 方向が未 seed (restored trade の起動直後) なら選べないので**全候補を保持**し、
+                        # 送信直前 (seed 後) に `_storm_pick_candidate` で選ぶ (17 巡目 P1)
+                        tail.setdefault("candidates", [float(tail["new_sl"])]).append(float(new_sl))
+                        tail["new_sl"] = self._storm_pick_candidate(st0, tail)
                         tail["reeval"] = True
                         tail["provisional_reason"] = "coalesced"
                         self._storm_totals["coalesced"] += 1
@@ -1830,15 +1838,19 @@ class OandaBridge:
                 logger.error(f"[OandaBridge] MODIFY SL dropped (turn timeout) #{oanda_id} "
                              f"sl={token['new_sl'] if token else new_sl} (demo={demo_trade_id})")
                 return
-            # 送る値は token から (待機中に畳み込まれている可能性がある)
             with self._storm_lock:
-                sl_to_send = float(token["new_sl"]) if token else float(new_sl)
                 if token is not None:
-                    token["sending"] = True
+                    token["sending"] = True                         # 以後は畳み込まれない
             if st is not None:
                 # 先頭になってから seed / 再照会 (single-flight、送信直前の再評価が使う)
                 self._storm_get_state(demo_trade_id, network=True)
                 self._storm_progress(st)                            # seed/再照会フェーズ完了
+            # 送る値は token から — 畳み込み候補は seed 後の方向で最も保護的なものを選ぶ (17 巡目 P1)
+            with self._storm_lock:
+                if token is not None and st is not None:
+                    token["new_sl"] = self._storm_pick_candidate(st, token)
+                sl_to_send = float(token["new_sl"]) if token else float(new_sl)
+            if st is not None:
                 send, _ = self._storm_send_decision(demo_trade_id, st, token, sl_to_send, instrument)
                 if not send:
                     return

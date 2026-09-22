@@ -52,6 +52,8 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
       tightening を捨てない (PR #287 review 16 巡目 P1、CF pin 付き)
   (w) 待機予算は先頭の network フェーズ (seed GET / PUT / 照会 GET) ごとにリセット — 3 フェーズが
       各 10 s timeout しても保護更新を落とさない (PR #287 review 16 巡目 P1、CF pin 付き)
+  (x) 方向が未 seed の間の畳み込みは全候補を保持し、送信直前 (seed 後) に最も保護的な値を選ぶ —
+      restored trade 起動直後の burst でも正当な tightening を捨てない (PR #287 review 17 巡目 P1、CF pin 付き)
   (q) fire-and-forget の caller は network を触らない (seed / 再照会は worker 側)
       (PR #287 review 12 巡目 P2)
   (r) 順番待ちの予算は先頭 token ごと (先頭が入れ替わるたびにリセット、PUT timeout + 照会 GET を
@@ -1931,6 +1933,7 @@ def test_p1_cf_coalesce_latest_discards_protective_queued_value(monkeypatch):
                 tail = st0["pending"][-1]
                 if tail.get("async") and tail["ok"] is None and not tail.get("sending"):
                     tail["new_sl"] = float(new_sl); tail["reeval"] = True
+                    tail["candidates"] = [float(new_sl)]            # 旧形: 候補も保持しない
                     return
         return orig(self, demo_trade_id, new_sl, instrument)
     monkeypatch.setattr(OandaBridge, "modify_sl", _latest_coalesce)
@@ -1978,3 +1981,51 @@ def test_p1_cf_no_phase_progress_drops_update_behind_three_phase_head(monkeypatc
     ta.join(4.0); tb.join(4.0)
     assert (OANDA_ID, 154.450) not in fake.calls                    # ← B が落ちる (旧形)
     assert b.get_storm_guard_status()["totals"]["skipped"]["serialize"] == 1
+
+
+# ── 未 seed の間の畳み込みは候補を保持し seed 後に選ぶ (PR #287 review 17 巡目 P1) ────
+
+def test_p1_coalesce_before_seed_keeps_candidates_and_picks_after_seed(monkeypatch):
+    """review の形状: restored (direction None) / A=154.400, B=154.450 待機 / C=154.300 が seed 前に到達。
+    C で B を上書きすると A 確認後に 154.300 は reject され 154.450 が失われる。→ 候補 {154.450, 154.300}
+    を保持し、A の worker が seed (BUY) した後に max=154.450 を送る。"""
+    b, fake = _bridge(monkeypatch, enforce=True, direction=None, db=None)   # 未 seed
+    q = _deferred_fire(b, monkeypatch)
+    fake.open_trades = [_broker_trade("1000", "154.115")]           # seed 先: BUY / 154.115
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A (先頭)
+    b.modify_sl(DEMO, 154.450, instrument="USD_JPY")               # B (待機)
+    b.modify_sl(DEMO, 154.300, instrument="USD_JPY")               # C: 方向不明 → 候補に保持
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["direction"] is None and len(q) == 2
+    q[0]()                                                          # A: seed → BUY、送信・確認
+    q[1]()                                                          # B: 候補から max=154.450 を選んで送る
+    assert fake.calls == [(OANDA_ID, 154.400), (OANDA_ID, 154.450)]
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["direction"] == "BUY" and st["confirmed_sl"] == 154.450
+
+
+def test_p1_coalesce_before_seed_sell_direction_picks_min(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, direction=None, db=None)
+    q = _deferred_fire(b, monkeypatch)
+    fake.open_trades = [_broker_trade("-1000", "154.900")]          # seed 先: SELL / 154.900
+    b.modify_sl(DEMO, 154.800, instrument="USD_JPY")               # A
+    b.modify_sl(DEMO, 154.750, instrument="USD_JPY")               # B (待機)
+    b.modify_sl(DEMO, 154.850, instrument="USD_JPY")               # C (SELL では緩め) → 候補保持
+    q[0](); q[1]()
+    assert fake.calls == [(OANDA_ID, 154.800), (OANDA_ID, 154.750)]   # min を選ぶ
+
+
+def test_p1_cf_latest_fallback_before_seed_loses_protective_update(monkeypatch):
+    """CF pin: 方向不明時に最新値へ畳み込む (16 巡目の形) と、seed 後に 154.300 が reject され
+    154.450 は二度と送られない。"""
+    monkeypatch.setattr(OandaBridge, "_storm_pick_candidate",
+                        staticmethod(lambda st, tok: float((tok.get("candidates") or [tok["new_sl"]])[-1])))
+    b, fake = _bridge(monkeypatch, enforce=True, direction=None, db=None)
+    q = _deferred_fire(b, monkeypatch)
+    fake.open_trades = [_broker_trade("1000", "154.115")]
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")
+    b.modify_sl(DEMO, 154.450, instrument="USD_JPY")
+    b.modify_sl(DEMO, 154.300, instrument="USD_JPY")
+    q[0](); q[1]()
+    assert fake.calls == [(OANDA_ID, 154.400)]                      # ← 154.450 が失われる (旧形)
+    assert b.get_storm_guard_status()["totals"]["skipped"]["monotonic"] == 1
