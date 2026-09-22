@@ -41,8 +41,28 @@ Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>" >/dev/null
     echo "KB changes auto-committed" >&2
 fi
 
-# 3. push（リモートにKB永続化）— 失敗は握り潰さず stderr に可視化する
-#    (クラウド環境等で main 直 push が拒否されると KB 永続化が黙って抜けるため)
-git push origin main >/dev/null 2>/dev/null || echo "⚠️  KB push failed — session log はローカル commit のみ (要手動 push)" >&2
+# 3. push（リモートにKB永続化）— 失敗しても work をローカルに取り残さない
+#
+# 🔴 2026-09-22: ここが main 乖離の発生源だった。step 2 は HEAD (= 主 checkout では
+# main) に直接コミットし、この push は local main が origin より behind だと必ず失敗
+# する。失敗を stderr に出すだけだったので、**コミットは main に積まれ push は落ちる**
+# が毎日繰り返され、乖離が再生産されていた (実測 ahead 8 / behind 112)。
+# 「commit した」≠「永続化した」— origin に届くまでが保存
+# (MEMORY project_main_checkout_stranded_phase1b_rescue_2026_08_12)。
+#
+# ⇒ main への push が失敗したら、**その commit を日付つき rescue ブランチとして
+# origin へ退避する**。成功時の挙動は一切変えない。これで「ローカルにしか無い KB
+# コミット」が原理的に残らなくなる (次セッションが PR にして畳める)。
+if git push origin main >/dev/null 2>/dev/null; then
+    :
+else
+    BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo HEAD)"
+    RESCUE="kb-rescue/${BRANCH}-${TODAY}"
+    if git push origin "HEAD:refs/heads/${RESCUE}" >/dev/null 2>/dev/null; then
+        echo "⚠️  KB push to ${BRANCH} failed — origin/${RESCUE} へ退避した (要 PR 化)" >&2
+    else
+        echo "⚠️  KB push failed — session log はローカル commit のみ (要手動 push)" >&2
+    fi
+fi
 
 echo '{"systemMessage":"Session log saved to KB."}'
