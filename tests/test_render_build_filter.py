@@ -300,7 +300,7 @@ def test_cron_only_kb_state_paths_are_ignored():
     ingest の tools/qdrant_ingest_kb.py のみ)。
 
     性質 A: 2 パス (raw/alpha_budget/**, wiki/research/**) は ignore される
-    性質 B: web プロセスに読み手が居ない — app.py / modules/ に `alpha_budget` /
+    性質 B: web プロセスに読み手が居ない — app.py / modules/** / strategies/** に `alpha_budget` /
             `wiki/research` / `"wiki", "research"` 形リテラルが出現しないこと
             (読み始めたら ignore を外す。cron が読むだけなら外さない)
     """
@@ -318,7 +318,11 @@ def test_cron_only_kb_state_paths_are_ignored():
     # 性質 B — web プロセス側に読み手が居ないこと
     readers = []
     pat = re.compile(r'alpha_budget|wiki/research|"wiki"\s*[,/]\s*"research"')
-    for src in [ROOT / "app.py"] + sorted((ROOT / "modules").glob("*.py")):
+    runtime_dirs = [ROOT / "modules", ROOT / "strategies"]  # web プロセスが import する全 runtime モジュール
+    srcs = [ROOT / "app.py"] + sorted(
+        p for d in runtime_dirs if d.exists() for p in d.rglob("*.py")
+    )
+    for src in srcs:
         if src.exists() and pat.search(src.read_text(encoding="utf-8")):
             readers.append(str(src.relative_to(ROOT)))
     assert not readers, (

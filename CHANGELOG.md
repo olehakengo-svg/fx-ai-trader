@@ -1,6 +1,6 @@
 # FX AI Trader - Changelog
 
-## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 / 更新 9 / 新規 5) + index/changelog/session 同期 (rule:R3)
+## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 を索引 + 期日別 sub-entry 4 / 更新 9 / 新規 6) + index/changelog/session 同期 (rule:R3)
 
 - fix(nav_floor) F4 資金時計 burn を decomposed (keeper 確定分 + edge 30d) に分解、fit は参考列へ (PR #285) — condition 不変、発火日は幅で引用 (keeper のみ 2027-01-05 / drift 込み 2026-12-04)
 - feat(e1) 凍結 export tool `tools/e1_positioning_frozen_export.py` + first look 手順書 (PR #286) — 「1 回だけ + sha256」の機械担保、判定器 epoch 分解能バグ修復
