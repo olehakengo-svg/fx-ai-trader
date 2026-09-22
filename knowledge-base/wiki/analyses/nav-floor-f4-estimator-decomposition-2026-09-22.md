@@ -30,7 +30,8 @@ burn_keeper = rt_per_month × JPY_PER_RT / 30.44
   rt_per_month = ceil(target_usd / (volume_usd / rt_count))    telemetry (09-22: 520000/(520000/26) = 26)
                  ceil = worker の stop rule (毎 RT 前に volume>=target を見て止まる、届かなければ丸ごと 1 RT) と一致。
                  round だと 8,000u (520000/16000 = 32.5) で 32 と 1 RT 過小 (PR #285 review P2、2 巡目)
-                 フォールバック 26 (telemetry 不能時、basis="default")
+                 = ceil(target_usd / 20,000) (当月 RT ゼロで per-RT 出来高未観測、target は読める。basis="target_default_units")
+                 フォールバック 26 (target も読めない telemetry のみ、basis="default")
                  = 0 (enabled:false = STATUS_VOLUME_KEEPER_ENABLE=0 の payload、または target_usd==0 明示。basis="disabled"/"target_zero")
                  keeper 計画 0 ∧ edge unavailable の行は burn 0 → sentinel に折り畳まず fit を primary に (method="fit_fallback")
   JPY_PER_RT   = 80 × units / 10,000   (¥80 = 0.8p RT spread × ¥100/pip @10,000u、wiki/index.md L149 tx 709548〜709596)
@@ -95,6 +96,7 @@ burn_edge = −edge_jpy / span
 |---|---|---|---|
 | 1 | P2: keeper 単価 ¥80 が 10k 固定で `SVK_UNITS` 変更に追従しない (20k で ¥1,040/月 に半減) | 実欠陥 | `keeper_units` / `keeper_jpy_per_rt` (出来高/RT ÷ 2 → 線形スケール)、edge 差し引きも同単価 |
 | 1 | P2: 月替わり直後に前月 `rt_count` を当月支出として差し引き keeper burn を打ち消す | 実欠陥 | `keeper_month_mismatch` で `month` ≠ asof 月 (または欠落) は edge unavailable (fail-closed)。RT 数 (比) は前月 telemetry でも有効なので keeper 分は落とさない |
+| 5 | P2: 月初 (volume=rt_count=0) は target_usd が読めるのに固定 26 を当て、`SVK_MONTHLY_TARGET_USD` 変更 ($260k → 13 RT) に数日追従しない | 実欠陥 | target > 0 ∧ per-RT 未観測は `ceil(target / (10,000×2))` (basis target_default_units、jpy_per_rt 既定 ¥80 @10k と整合)。固定 26 は target も読めない telemetry のみ |
 | 4 | P2: `enabled:false` (keeper 停止) の payload でも default 26 RT × ¥80 = ¥68.3/日 を burn に乗せ、走らない keeper で F4 が早く発火する | 実欠陥 | `keeper_disabled` → 計画 RT 0 (basis disabled)、`target_usd==0` 明示も 0。停止中は counters/month が無いので edge は `unavailable:keeper_disabled` (窓途中の停止で窓内 RT が残り得る)。両成分未測定の行は burn 0 = sentinel 99999 (「減っていない」) に折り畳まず fit を primary に `method=fit_fallback` で露出 |
 | 3 | P2: CSV が若い窓で「last_rt_at ≤ 窓開始 ∧ 当月完了 → keeper_rt_in_window=0」は、回収 RT (`_recover_stale_trades`、last_rt_at 非更新) の損失を edge に転嫁し days_to_floor を短くする | 実欠陥 | 分岐を削除。当月 rt_count == 0 のみ 0 と確定、他は `unavailable:keeper_split_unknown` (fail-closed)。09-22 時点の実経路 (CSV 09-07 開始、10-01 以降は窓開始 < 当月 1 日) では値は動かない |
 | 2 | P2: `round(target/per_rt)` は worker の stop rule (ceil) と不一致 — 8,000u で 32 vs 実行 33、keeper burn 過小 + young-window 分岐で「当月完了」を誤判定 | 実欠陥 | `math.ceil` に変更 (割り切れる 10k/20k は不変)。stop rule の直接シミュレーションで pin |

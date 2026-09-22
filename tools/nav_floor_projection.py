@@ -72,7 +72,8 @@ FIT_WINDOW_ROWS = 60
 # units に線形 (USD_JPY 1 pip = ¥0.01 × units) — KEEPER_REF_UNITS 基準値。
 KEEPER_JPY_PER_RT = 80.0
 KEEPER_REF_UNITS = 10_000
-# telemetry 不能時のフォールバック RT 数: target $520k ÷ ($10k × 2 per RT)。
+# target も読めない telemetry のフォールバック RT 数: $520k ÷ ($10k × 2 per RT)。
+# target が読めるなら target ÷ (KEEPER_REF_UNITS × 2) を使う (basis target_default_units)。
 KEEPER_RT_PER_MONTH_DEFAULT = 26
 DAYS_PER_MONTH = 30.44
 # edge 実測窓 (暦日)。keeper 1 周期を含む長さ。
@@ -242,8 +243,11 @@ def keeper_rt_per_month(keeper: dict[str, Any] | None) -> tuple[int, str]:
     **切り上げる** — keeper worker は毎 RT 前に volume_usd >= target_usd を見て
     止まり、届かなければ丸ごと 1 RT 積むので実行数は ceil(target/per_rt)
     (例 8,000u: 520000/16000 = 32.5 → 33 RT。round なら 32 で過小、PR #285
-    review P2 2 巡目)。telemetry 不能 (None / 0 除算) はフォールバック定数 +
-    basis="default"。
+    review P2 2 巡目)。月初で当月 RT がまだ無い (volume/rt_count = 0) 間は
+    target_usd を既定 units (KEEPER_REF_UNITS × 2 /RT) で割る
+    (basis="target_default_units") — SVK_MONTHLY_TARGET_USD は可変なので
+    $260k なら 13 であって 26 ではない (PR #285 review P2 5 巡目)。固定 26 は
+    target も読めない telemetry (None / 型不正) のみ (basis="default")。
     """
     if keeper_disabled(keeper):
         return 0, "disabled"
@@ -256,6 +260,11 @@ def keeper_rt_per_month(keeper: dict[str, Any] | None) -> tuple[int, str]:
     per_rt = _keeper_per_rt_volume(keeper)
     if target > 0 and per_rt is not None:
         return max(1, math.ceil(target / per_rt - 1e-9)), "api"
+    if target > 0:
+        # 当月 RT ゼロ (月初 / 週末 / guard skip) — per-RT 出来高は未観測だが
+        # target は読める。既定 units で割る (jpy_per_rt も既定 ¥80 @10k と整合)。
+        return (max(1, math.ceil(target / (KEEPER_REF_UNITS * 2) - 1e-9)),
+                "target_default_units")
     return KEEPER_RT_PER_MONTH_DEFAULT, "default"
 
 

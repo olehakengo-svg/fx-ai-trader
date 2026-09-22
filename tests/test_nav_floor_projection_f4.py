@@ -14,6 +14,8 @@ pin する性質 (構文でなく性質で):
 7. registry F4 message が方法変更 + 発火日シフトを記録し condition は不変。
 8. 再現値 pin: 09-22 以降 keeper のみ / drift 13.7 の 2 経路で decomposed 読み手の
    初回発火日 (2027-01-05 / 2026-12-04) — 推定器を変えたら数値が動いて落ちる。
+13. (PR #285 review P2 5 巡目) 当月 RT ゼロでも target_usd が読めれば既定 units で
+   割る (target_default_units)。固定 26 は target も読めない telemetry のみ。
 12. (PR #285 review P2 4 巡目) enabled:false (STATUS_VOLUME_KEEPER_ENABLE=0) /
    target_usd==0 は計画 RT 0 (default 26 を当てない)。両成分未測定の行は burn 0 →
    sentinel に折り畳まず fit_fallback で露出。
@@ -136,8 +138,9 @@ def test_keeper_rt_per_month_from_telemetry_and_fallback():
     assert nfp.keeper_rt_per_month({"target_usd": 520000.0, "volume_usd": 60000.0,
                                     "rt_count": 3}) == (26, "api")
     assert nfp.keeper_rt_per_month(None) == (nfp.KEEPER_RT_PER_MONTH_DEFAULT, "default")
+    # 当月 RT ゼロでも target は読める → 既定 units で割る (固定 26 ではない)
     assert nfp.keeper_rt_per_month({"target_usd": 520000.0, "volume_usd": 0.0,
-                                    "rt_count": 0}) == (26, "default")
+                                    "rt_count": 0}) == (26, "target_default_units")
     assert nfp.keeper_burn_per_day(26) == pytest.approx(2080.0 / 30.44)
 
 
@@ -314,6 +317,24 @@ def test_edge_unavailable_when_keeper_month_differs_from_asof():
     dec2 = nfp.decomposed_burn_per_day(rows, nav_now, asof, fresh)
     assert dec2["edge_basis"].startswith("nav_delta:") and "keeper_rt_in_window=0" in dec2["edge_basis"]
     assert dec2["edge"] == pytest.approx(0.0, abs=0.05)
+
+
+def test_fallback_trips_follow_reported_target_before_first_trip():
+    """(PR #285 review P2 5 巡目) SVK_MONTHLY_TARGET_USD は可変。月初 (volume=rt_count=0)
+    に固定 26 を当てると $260k 設定で keeper burn が 2 倍に見える。既知 NG 入力で pin。"""
+    k260 = {"month": "2026-10", "target_usd": 260000.0, "volume_usd": 0.0, "rt_count": 0,
+            "last_rt_at": ""}
+    assert nfp.keeper_rt_per_month(k260) == (13, "target_default_units")
+    assert nfp.KEEPER_RT_PER_MONTH_DEFAULT == 26  # 修正前はこれが返っていた
+    # 端数は切り上げ (worker stop rule と同じ)
+    assert nfp.keeper_rt_per_month({"target_usd": 250000.0, "volume_usd": 0, "rt_count": 0}) == (13, "target_default_units")
+    # 固定 26 は target が読めない telemetry のみ
+    assert nfp.keeper_rt_per_month({"enabled": True, "running": False}) == (26, "default")
+    assert nfp.keeper_rt_per_month({"target_usd": "n/a"}) == (26, "default")
+    # 初 RT 後は観測 per-RT 出来高 (api) に切り替わり、10k units なら値は連続
+    assert nfp.keeper_rt_per_month(k260 | {"volume_usd": 20000.0, "rt_count": 1}) == (13, "api")
+    dec = nfp.decomposed_burn_per_day(_rows(upto="2026-09-21"), 275517.0, date(2026, 10, 1), k260)
+    assert dec["keeper"] == pytest.approx(13 * 80.0 / 30.44)
 
 
 def test_disabled_keeper_projects_zero_planned_trips_not_default_26(tmp_path):
