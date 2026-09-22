@@ -53,6 +53,7 @@ LIVE 約定は 133 市場オープン時間ゼロだったのに ``trade_row`` �
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -106,6 +107,281 @@ LIVE_FILL_STAGNATION_HOURS = 120
 # 読み手は scripts/check_zn_cache_freshness.py (weekly-audit.yml から週次実行、
 # 配線は tests/test_zn_cache_freshness_pin.py が counterfactual pin)。
 ZN_CACHE_MAX_AGE_DAYS = 8
+
+
+# ── 外部からの到達不能の分類 (rule:R3, 2026-09-22) ─────────────────────────
+# 2026-09-12 / 09-15 / 09-22 の 3 回、本番 web service は **プロセスもエンジンも
+# 生きたまま HTTP だけが 3h19m〜3h31m 応答しなかった** (fork 中の SQLite 継承で
+# worker の DB が永久ハング — analyses/http-blind-fork-poisoning-2026-09-22.md)。
+# 状態を持たない外部の読み手 (Render cron / GitHub Actions) が持てる証拠は
+# fetch の**失敗クラス**だけで、それが 2 つの estimand を分ける:
+#
+#   FAIL_TIMEOUT     TCP 接続は成立、応答が timeout 内に来ない
+#                    → プロセスは listen している / HTTP ハンドラが返ってこない
+#   FAIL_CONNECTION  接続拒否・リセット・接続段階の timeout
+#                    → プロセスが serving していない (デプロイ / 再起動 / 停止)
+#   FAIL_HTTP_5XX    5xx が返った。**HTTP 応答は返っている** — Render edge の
+#                    502/503/504 (upstream unavailable) か、origin app の 500 (Flask
+#                    hook の例外等) かは**状態コードだけでは判別不能** (Codex P2
+#                    2026-09-22: 全 endpoint が app 由来 500 でも「origin が応答して
+#                    いない」と報告していた)。停止の証拠には**使わない**
+#   FAIL_HTTP_4XX    4xx が返った (401/403/404/429)
+#                    → HTTP 応答あり。認証・パス・レート制限の問題であって停止の証拠
+#                      ではない (Codex P2 2026-09-22: 4xx を down に畳むと「全
+#                      endpoint 401」が「停止」と報告される)
+#   FAIL_OTHER       JSON parse 等、輸送層以外 — 輸送層の状態について**何も言わない**
+#
+# 全滅かつ全て FAIL_TIMEOUT    = **http_blind** (接続成立・応答なし。観測クラス)
+# 全滅かつ全て FAIL_CONNECTION = **api_down** (origin から**応答が無い**と言えるのは
+#                                 接続層の失敗だけ)
+# 全滅かつ全て FAIL_HTTP_5XX   = **http_5xx** (応答はある。edge か app かは不明)
+# 全滅かつ全て FAIL_HTTP_4XX   = **http_error** (応答はある。拒否)
+# それ以外の混在 (timeout+connection、connection+5xx、5xx+4xx、connection+other …)
+# = **mixed** — どちらかに畳むと証拠に無い結論になる。**engine の生死は外部からは
+# 分からない** — 09-22 は master 側エンジンが tick し続けていた。読み手には「不明」
+# と書き、Render ログの [MainLoop] を見よと導く。原因の断定 (スリープ / 無料 tier /
+# コールドスタート) は観測から導けないので **書かせない** (INVENTED_CAUSE_PATTERNS)。
+FAIL_TIMEOUT = "timeout"
+FAIL_CONNECTION = "connection"
+FAIL_HTTP_5XX = "http_5xx"
+FAIL_HTTP_4XX = "http_4xx"
+FAIL_OTHER = "other"
+
+OUTAGE_HTTP_BLIND = "http_blind"
+OUTAGE_API_DOWN = "api_down"
+OUTAGE_HTTP_5XX = "http_5xx"
+OUTAGE_HTTP_ERROR = "http_error"
+OUTAGE_MIXED = "mixed"
+OUTAGE_PARTIAL = "partial"
+OUTAGE_UNKNOWN = "unknown"
+
+# ⚠️ http_blind は**観測クラス**であって origin プロセスの状態の主張ではない
+# (Codex P2 2026-09-22): 公開 URL (*.onrender.com) への read-timeout は、client が
+# Render の edge まで接続できたことしか証明しない。edge→origin が 502 を返さずに
+# 停止する形でも同じ観測になる。「プロセスは listen している」は Render の
+# health check / app ログ (`HEAD /` 200, `[MainLoop]`) で裏取りしてから言う —
+# 09-22 はそれで確認した。summary / event 文言はこの限界を明記する。
+
+# 観測から導けない「原因」の語彙。生成器 (daily_report) の出力後検査と、
+# 本モジュール / watcher の文言テストの両方がこの集合を読む。英語は語単体
+# ("sleep") だと `time.sleep` 等の無関係な用法に当たるので句で持つ。
+INVENTED_CAUSE_PATTERNS: tuple[str, ...] = (
+    "無料tier", "無料 tier", "free tier", "free-tier", "スリープ", "sleep mode",
+    "went to sleep", "asleep", "コールドスタート", "cold start", "cold-start",
+)
+# 否定文 (「スリープではない」「free-tier sleep is ruled out」) は原因の断定では
+# ない。否定は **原因語そのものに結び付く形** でだけ認める (Codex P2 2026-09-22
+# ×3): 文・節単位の汎用マーカー (「しない」「無い」) は「API が応答**しない**のは
+# スリープが原因」の「しない」に当たって肯定断定を隠した。
+#   後置 (日本語): 原因語の直後 (節境界まで ≤ NEGATION_WINDOW 文字) に現れる否定
+#   後置 (英語)  : 原因語の直後の "is ruled out" / "is not" 等
+#   前置 (英語)  : 原因語の直前の "not " / "no " / "rather than " 等
+NEGATION_AFTER_JA: tuple[str, ...] = (
+    "ではない", "ではなく", "でない", "ではなかった", "ではありません", "とは言えない",
+    "は否定", "を否定", "は除外", "を除外", "は該当しない", "には該当しない",
+)
+NEGATION_AFTER_EN: tuple[str, ...] = (
+    "is ruled out", "was ruled out", "are ruled out", "is not", "isn't", "was not",
+    "is excluded", "can be excluded", "does not apply", "is unlikely", "cannot be",
+)
+NEGATION_BEFORE_EN: tuple[str, ...] = (
+    "not ", "no ", "neither ", "rather than ", "isn't ", "not a ", "not the ",
+    "unlikely to be ", "cannot be ",
+)
+NEGATION_WINDOW = 14     # 原因語の直後、節境界 (、,;。) までに見る文字数 (日本語)
+NEGATION_WINDOW_EN = 40  # 同 (英語 — "sleep is ruled out" のように語が長い)
+
+# 例外クラス名の接頭辞で分類する。reason 文字列の契約は
+# ``f"{type(e).__name__}: {e}"`` (anomaly_watcher.fetch_outcome / daily_report)。
+_TIMEOUT_MARKERS = ("ReadTimeout", "ReadTimeoutError", "TimeoutError", "timeout",
+                    "socket.timeout", "Read timed out")
+_CONNECT_TIMEOUT_MARKERS = ("ConnectTimeout", "ConnectTimeoutError",
+                            "Connection to host timed out")
+_CONNECTION_MARKERS = ("ConnectionError", "ConnectionRefused", "ConnectionReset",
+                       "RemoteDisconnected", "URLError", "NewConnectionError",
+                       "ProtocolError", "Connection refused", "Connection reset",
+                       "MaxRetryError")
+# HTTP 応答があったことを示す語。状態コードは "HTTP Error 503" / "502 Server Error"
+# の形で reason に入る (urllib / requests とも)。
+_HTTP_MARKERS = ("HTTPError", "HTTP Error", "Server Error", "Client Error",
+                 "Bad Gateway", "Service Unavailable", "Gateway Time")
+_HTTP_5XX_WORDS = ("Server Error", "Bad Gateway", "Service Unavailable", "Gateway Time")
+_STATUS_CODE_RE = re.compile(r"\b([45]\d\d)\b")
+
+
+def classify_fetch_failure(reason: str) -> str:
+    """fetch 失敗の reason 文字列を FAIL_* に分類する (SSOT)."""
+    r = str(reason or "")
+    if not r:
+        return FAIL_OTHER
+    # 接続段階の timeout は「listen していない」側 — 読み取り timeout より先に見る
+    if any(m in r for m in _CONNECT_TIMEOUT_MARKERS):
+        return FAIL_CONNECTION
+    head = r.split(":", 1)[0].strip()
+    if any(head.startswith(m) or m in head for m in _TIMEOUT_MARKERS) or "Read timed out" in r:
+        return FAIL_TIMEOUT
+    if any(m in r for m in _HTTP_MARKERS):
+        # 状態コードは URL (":443/" 等) より前に出る — " for url" 以降は見ない
+        scope = r.split(" for url", 1)[0]
+        m = _STATUS_CODE_RE.search(scope)
+        code = m.group(1) if m else ""
+        if code.startswith("5") or any(w in r for w in _HTTP_5XX_WORDS):
+            return FAIL_HTTP_5XX
+        if code.startswith("4") or "Client Error" in r:
+            return FAIL_HTTP_4XX
+        return FAIL_OTHER  # HTTP エラーだがコードが読めない = 輸送層の証拠にしない
+    if any(m in r for m in _CONNECTION_MARKERS):
+        return FAIL_CONNECTION
+    return FAIL_OTHER
+
+
+def classify_outage(reasons: dict[str, str], n_ok: int = 0) -> dict[str, Any]:
+    """path→reason の失敗集合を outage 種別に分類する (SSOT).
+
+    ``n_ok`` = 同じ観測で**成功した** endpoint 数。1 本でも成功していれば母集団は
+    「失敗した部分集合」ではなくサービス全体であり、結論は partial (endpoint 固有)
+    に限る (Codex P2 2026-09-22: 失敗分だけを渡すと 1 本の timeout が「HTTP 全盲」
+    と要約された)。呼び手は失敗 dict と一緒に成功数を必ず渡すこと。
+
+    戻り値: kind (OUTAGE_*), n_ok / n_total / n_timeout / n_connection / n_http_5xx /
+    n_http_4xx / n_other, classes (path→FAIL_*), summary (人向け 1 行。**観測のみを
+    述べ、原因は書かない**)。
+
+    判定は「証拠が全て同じ向きを指すとき」だけ結論を出す (Codex P2 2026-09-22):
+    api_down は **connection のみ**の集合に限る — origin から応答が無いと言えるのは
+    接続層の失敗だけで、5xx は edge (502/503/504) か app (500) かを状態コードから
+    判別できず、4xx / other は停止の証拠にならない。混在は mixed。
+    http_blind は「接続は成立したが HTTP 応答が timeout 内に来ない」という観測の
+    名前で、origin プロセスの状態は**含意しない** (モジュール冒頭の注記)。
+    """
+    classes = {p: classify_fetch_failure(r) for p, r in (reasons or {}).items()}
+    n = {k: sum(1 for v in classes.values() if v == k)
+         for k in (FAIL_TIMEOUT, FAIL_CONNECTION, FAIL_HTTP_5XX, FAIL_HTTP_4XX, FAIL_OTHER)}
+    total = len(classes)
+    n_ok = max(int(n_ok or 0), 0)
+    if total == 0:
+        kind = OUTAGE_UNKNOWN
+        summary = "失敗なし / 判定対象なし"
+    elif n_ok > 0:
+        kind = OUTAGE_PARTIAL
+        summary = (f"部分失敗 (partial): {total}/{total + n_ok} 本が失敗、{n_ok} 本は応答した = "
+                   "サービスは応答している。失敗は endpoint 固有の異常として扱う "
+                   f"(失敗クラス: {', '.join(f'{p}={c}' for p, c in classes.items())})。"
+                   "cause unknown")
+    elif n[FAIL_OTHER] == total:
+        kind = OUTAGE_UNKNOWN
+        summary = ("到達不能 (unreachable, cause unknown) — 失敗クラスから輸送層の状態を"
+                   "判定できない")
+    elif n[FAIL_TIMEOUT] == total:
+        kind = OUTAGE_HTTP_BLIND
+        summary = ("HTTP 全盲 (http_blind): 接続は成立したが、全 endpoint で HTTP 応答が "
+                   "timeout 内に来ない。公開 URL への観測なので origin プロセスが listen "
+                   "しているか・ハンドラが詰まっているかは**この観測だけでは判定不能** "
+                   "(Render の health check 結果と app ログ [MainLoop] / HEAD 200 で裏取り)。"
+                   "engine の生死も外部からは不明。cause unknown")
+    elif n[FAIL_CONNECTION] == total:
+        kind = OUTAGE_API_DOWN
+        summary = ("サービス到達不能 (api_down): 全 endpoint が接続拒否 / リセット = "
+                   "origin から HTTP 応答が得られない (デプロイ・再起動・停止のいずれか)。"
+                   "cause unknown")
+    elif n[FAIL_HTTP_5XX] == total:
+        kind = OUTAGE_HTTP_5XX
+        summary = ("HTTP 5xx (http_5xx): HTTP 応答は返っている。Render edge の upstream "
+                   "unavailable (502/503/504、デプロイ・再起動中の典型) か origin app の "
+                   "内部エラー (500) かは状態コードだけでは判別不能 — app ログの traceback "
+                   "有無で裏取り。停止の証拠には使わない。cause unknown")
+    elif n[FAIL_HTTP_4XX] == total:
+        kind = OUTAGE_HTTP_ERROR
+        summary = ("HTTP 4xx (http_error): HTTP 応答は返っている。認証・パス・"
+                   "レート制限の問題で、停止の証拠ではない。cause unknown")
+    else:
+        kind = OUTAGE_MIXED
+        summary = (f"到達不能 (mixed): timeout {n[FAIL_TIMEOUT]} / 接続失敗 "
+                   f"{n[FAIL_CONNECTION]} / 5xx {n[FAIL_HTTP_5XX]} / 4xx {n[FAIL_HTTP_4XX]} / "
+                   f"その他 {n[FAIL_OTHER]} が混在 = 証拠が同じ向きを指していない "
+                   "(遷移中の疑い)。cause unknown")
+    return {
+        "kind": kind,
+        "n_ok": n_ok,
+        "n_total": total,
+        "n_timeout": n[FAIL_TIMEOUT],
+        "n_connection": n[FAIL_CONNECTION],
+        "n_http_5xx": n[FAIL_HTTP_5XX],
+        "n_http_4xx": n[FAIL_HTTP_4XX],
+        "n_other": n[FAIL_OTHER],
+        "classes": classes,
+        "summary": summary,
+    }
+
+
+_CLAUSE_BOUNDARY_AFTER = "、,;；。．!?！？\n"
+_CLAUSE_BOUNDARY_BEFORE = "、,;；。．.!?！？\n"
+
+
+def _cut_after_boundary(seg: str) -> str:
+    """原因語の直後窓を最初の節境界で打ち切る。"""
+    cut_at = len(seg)
+    for ch in _CLAUSE_BOUNDARY_AFTER:
+        k = seg.find(ch)
+        if 0 <= k < cut_at:
+            cut_at = k
+    return seg[:cut_at]
+
+
+def _cut_before_boundary(seg: str) -> str:
+    """原因語の直前窓を最後の節境界より後ろだけに絞る。"""
+    start = 0
+    for ch in _CLAUSE_BOUNDARY_BEFORE:
+        k = seg.rfind(ch)
+        if k >= 0 and k + 1 > start:
+            start = k + 1
+    return seg[start:]
+
+
+def find_invented_causes(text: str) -> list[str]:
+    """観測から導けない原因語のうち、**肯定的に断定している**ものだけを返す.
+
+    否定は **一致した原因語そのもの**に結び付いているときだけ効く (Codex P2
+    2026-09-22 ×3 — 文単位 → 節単位 → 語束縛と 3 段で狭めた):
+      - 「これは無料 tier のスリープではない」: 「スリープ」直後に「ではない」→ 否定
+      - 「スリープではなく、コールドスタートが原因」: 前者は否定、後者は断定 → 後者を返す
+      - 「ネットワーク障害ではなく、無料 tier のスリープが原因」: 原因語の直後に否定が
+        無い (「ではなく」は別の語に付いている) → 断定
+      - 「API が応答しないのは無料 tier のスリープが原因」: 「しない」は「応答」に付く
+        汎用否定で原因語には結び付かない → 断定
+      - "Free-tier sleep is ruled out": 直後に "is ruled out" → 否定
+      - "not a free tier issue": 直前に "not a " → 否定
+    直後窓は節境界 (、,;。.) で打ち切る (「…が原因で、再起動ではない」の否定を
+    原因語に付けない)。残る見逃しは窓の外に置かれた否定 (「〜という説は、
+    … 以下の理由で否定される」) で、読み手側の脚注リスク (正しい否定文に「無効」
+    を付ける) を優先して狭い側に倒している。
+    """
+    src = text or ""
+    low = src.lower()
+    hits: list[str] = []
+    for p in INVENTED_CAUSE_PATTERNS:
+        pl = p.lower()
+        start = 0
+        while True:
+            i = low.find(pl, start)
+            if i < 0:
+                break
+            end = i + len(pl)
+            # 直後窓: 節境界までを見る (日本語は NEGATION_WINDOW 文字、英語は語が
+            # 長いので NEGATION_WINDOW_EN 文字)
+            after_ja = _cut_after_boundary(low[end:end + NEGATION_WINDOW])
+            after_en = _cut_after_boundary(low[end:end + NEGATION_WINDOW_EN])
+            before = _cut_before_boundary(low[max(0, i - 16):i])
+            negated = (
+                any(m in after_ja for m in NEGATION_AFTER_JA)
+                or any(m in after_en for m in NEGATION_AFTER_EN)
+                or any(before.endswith(m) or before.rstrip().endswith(m.strip())
+                       for m in NEGATION_BEFORE_EN)
+            )
+            if not negated and p not in hits:
+                hits.append(p)
+            start = end
+    return hits
 
 
 def market_open_hours(start: datetime, end: datetime) -> float:

@@ -850,8 +850,14 @@ class DemoTrader:
             )
             self._hmm_fit_thread.start()
 
-        # デイリーレビューエンジンを自動起動
-        self._daily_review.start()
+        # デイリーレビューエンジン — **defer 起動** (rule:R3, 2026-09-22)。
+        # ここは gunicorn master の import 時に走る。旧 `start()` は UTC 0 時台の
+        # 起動で即レビュー + 204MB backup を master で回し、その最中に fork された
+        # worker の SQLite が永久ハングした (HTTP 全盲 3h19m〜3h31m × 3 回:
+        # 09-12 / 09-15 / 09-22)。スレッド実起動は serving process の heartbeat
+        # (app.py `_positioning_heartbeat` → `ensure_daily_review_running`) に一本化。
+        # 詳細: knowledge-base/wiki/analyses/http-blind-fork-poisoning-2026-09-22.md
+        self._daily_review.start(defer=True)
 
         # OANDA trade mappings をDBから復元（デプロイ後のリスタート対策）
         try:
@@ -2404,6 +2410,17 @@ class DemoTrader:
         if applied:
             self._add_log(f"⚙️ パラメータ更新: {applied}")
         return {"applied": applied, "params": self._params.copy()}
+
+    def ensure_daily_review_running(self) -> dict:
+        """DailyReview スケジューラの heal (serving process 専用の呼び手).
+
+        呼び手は app.py の before_request heartbeat **だけ** — request を処理する
+        プロセス = fork 後の worker であることが構造的に保証される。StatusHeal
+        (``get_status``) からは呼ばない: それは master 側 (AutoStart/Verify) からも
+        呼ばれるので、DailyReview が master に戻ってしまう (pin:
+        tests/test_daily_review_fork_safety.py)。
+        """
+        return self._daily_review.ensure_running()
 
     def run_daily_review(self, target_date: str = None) -> dict:
         """手動でデイリーレビューを実行"""

@@ -5,6 +5,18 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 120 --workers 1 --threads 8 --worker-class gthread
     plan: pro
+    # ── HTTP health check (2026-09-22, rule:R3) ──────────────────────────
+    # 未設定 (= TCP 疎通のみ) だと、worker の HTTP 層がハングしても listen は
+    # 続くため Render は異常を検知できず、2026-09-12 / 09-15 / 09-22 の 3 回とも
+    # 再起動まで 3h19m〜3h31m を要した (契機は gthread の worker_connections=1000
+    # 到達で accept が止まったこと)。/healthz/http は fresh な sqlite3 接続で
+    # sqlite_master を 1 行読むだけの軽量プローブ (StatusHeal / tick を呼ばない —
+    # app.py docstring 参照。SELECT 1 は DB を触らないので使わない)。ハングした
+    # worker ではこの connect 自体が永久に返らないので、health check timeout →
+    # unhealthy → 数分で再起動になる。
+    # trade-off: 再起動は in-memory dedup/cooldown を消す (起動時 DB hydrate あり)。
+    # 導出: knowledge-base/wiki/analyses/http-blind-fork-poisoning-2026-09-22.md
+    healthCheckPath: /healthz/http
     # ── デプロイ churn 抑制 (2026-08-21, rule:R3) ────────────────────────────
     # 問題: main への全 commit が web service を再デプロイし、取引エンジン
     #   (per-mode background threads) を再起動する。実測 18.8 deploy/日、うち
@@ -75,6 +87,19 @@ services:
         # からの参照はゼロ (全数 grep)。~350 文書の一括コミットで取引エンジンを
         # 再起動させない (deploy churn 対策の既存方針をそのまま適用)。
         - "data/external/cb_statements/**"
+        # 2026-09-22 (rule:R3): 夜間 ingest 2 本 — `auto: rate anchor daily ingest`
+        # (rate-anchor-daily.yml 21:15Z 平日) と `data(mof-statements): daily collect`
+        # (mof-statements-daily.yml 21:30Z 毎日) が**毎晩 2 回**取引エンジンを
+        # 再デプロイしていた (Render deploy 一覧と 1:1 で一致)。読み手は
+        # tools/rate_anchor_ingest.py / tools/mof_statements_*.py / 週次 audit の
+        # scripts/check_zn_cache_freshness.py のみで、app.py / modules / strategies
+        # からの参照はゼロ (全数 grep、tests/test_render_build_filter.py が pin)。
+        # ⚠️ data/cache/yield/ は **parquet 1 ファイルだけ**を ignore する —
+        #   同ディレクトリの json キャッシュは取引パス read (yield_data.py) のため。
+        # 2026-09-22 の HTTP 全盲は 2 本目 (00:12:50) のデプロイ直後に起きた。
+        - "data/external/rate_anchor/**"
+        - "data/external/mof_statements/**"
+        - "data/cache/yield/ZN_F_1h.parquet"
     disk:
       name: fx-data
       mountPath: /var/data

@@ -1,5 +1,23 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-22 — fix(fork-safety): 本番 HTTP 全盲 3h18m の根本原因 — gunicorn master の pre-fork 窓で DailyReview が SQLite を回していた (rule:R3)
+
+- **事故**: 00:12:50 デプロイ直後〜03:33Z、全 API が 499 (client timeout)。`[MainLoop]` は連続、`[API-SLOW]` 0 / `WORKER TIMEOUT` 0 / memory 562MB。Render が 03:33:27 に SIGTERM → 復旧。**同型が 09-12 (3h31m) / 09-15 (3h22m) にも発生** (本調査で発見)。3 件とも UTC 0 時台デプロイ直後、0 時台起動 7 件中 3 件が盲目、0 時台以外は 0 件
+- 🔑 **根本原因**: Render の gunicorn は app.py を **master (PID 39) で import** し直後に worker を fork。`DemoTrader.__init__` が import 時に起動する DailyReviewEngine は 0 時台起動で即座に全件スキャン + 204MB backup を master で走らせ、fork がその最中に落ちる → worker は SQLite のプロセス共有 mutex を locked のまま継承 → **DB を触る全ルートが永久ハング** (`HEAD /` は 200)。gthread の `--timeout` は main thread 生存しか見ず、Render は TCP 疎通しか見ない
+- ✅ **F1** `DailyReviewEngine.start(defer=True)` + app.py heartbeat → `DemoTrader.ensure_daily_review_running()` (positioning §11 と同型。StatusHeal からは呼ばない — master 側 AutoStart/Verify も呼ぶため)
+- ✅ **F2** `/healthz/http` (fresh `sqlite3.connect` + `sqlite_master` 1 行 read、StatusHeal/tick 非接触) + render.yaml `healthCheckPath: /healthz/http` — ハングした worker では connect が返らず数分で再起動。trade-off (in-memory dedup 消失、DB hydrate あり) は analyses に明記
+- ✅ **F3** render.yaml ignoredPaths += `data/external/rate_anchor/**` / `data/external/mof_statements/**` / `data/cache/yield/ZN_F_1h.parquet` — 夜間 ingest 2 commit が**毎晩 2 回**エンジンを再デプロイしていた (runtime 参照ゼロ、pin 付き)
+- ✅ **F4** `modules/freshness_policy.classify_fetch_failure / classify_outage` (SSOT) + `scripts/anomaly_watcher.py` に **`http_blind`** イベント (read-timeout 全滅 = listen 中・HTTP 無応答・engine 生死は外部から不明 ↔ 接続拒否/5xx = `api_unreachable`)
+- ✅ **F5** `scripts/daily_report.py`: `FetchResult` で失敗と空を分離、DATA FETCH テーブルを prompt 先頭に、規則 5 (原因を書かない)、出力後に原因捏造語を検出したら**生成器注記で訂正** (09-22 03:11Z レポートの「Render 無料 tier スリープ」は捏造 — Pro plan)
+- **pin**: `tests/test_daily_review_fork_safety.py` / `test_http_blind_detector.py` / `test_healthz_http.py` / `test_daily_report_fetch_status.py` / `test_render_build_filter.py::test_nightly_ingest_data_paths_are_ignored` — counterfactual 5 本実測
+- 🔴 **副産物 (未修正)**: エンジンが **master と worker の 2 プロセスで二重に走っている** (全盲中は master のみ前進 / StatusHeal 後は `iter=240` が 2 回)。単一エンジン化は shadow N の regime break を伴うため registry `dual-engine-master-worker-disposition` (10-06)。修復の forward 検証は `http-blind-fix-verification-hour0-boots` (10-06)
+- 🟠 **レビュー P2 × 2 消化** (Codex、どちらも正しい): `classify_outage` の api_down を connection/5xx のみに限定 (4xx = `http_error` serving 中 / other 混在 = mixed) / 捏造ガードを strategy_report にも同じ出口 (`finalize_llm_report`) で適用 + planner prompt に原因禁止規則。同 PR 内で「片側だけ塞ぐ」を 2 回踏んだ
+- 🟠 **レビュー 3 巡目 P2 × 3 消化**: `classify_outage(n_ok=)` で部分失敗を `partial` に限定 (失敗分だけ渡して 1 本の timeout を全盲と要約していた) / `http_blind` を観測クラスに格下げ (read-timeout は edge までの接続しか証明しない — origin 状態は health check と app ログで裏取り) / 捏造ガードを fetch 失敗時のみ + 否定文除外 (`find_invented_causes` SSOT)
+- 🟠 **レビュー 4 巡目 P2 × 2 消化**: `api_down` を connection のみに限定 (全 5xx は `http_5xx` = 応答あり、edge/app 判別不能) / 捏造ガードの否定判定を文→節単位へ (別節の否定が肯定断定を隠していた)
+- 🟠 **レビュー 5 巡目 P2 × 2 消化**: 応答あり失敗 (全 4xx / 全 5xx) を `api_unreachable` に畳まず専用 event `api_http_error` へ (4xx=認証/パス、5xx=edge/app 判別不能) / 捏造ガードの否定を原因語束縛へ (「応答しない」の汎用否定が断定を隠していた)
+- 🟠 **レビュー 6 巡目 P2 × 1 消化**: health check プローブを `SELECT 1` (DB を触らない定数評価) から `sqlite_master` の実 read へ
+- 導出: [[http-blind-fork-poisoning-2026-09-22]] / 教訓: [[lesson-prefork-master-must-not-touch-db-2026-09-22]]
+
 ## 2026-09-22 — fix(hooks): main 乖離の**発生源**を塞いだ + 座礁 KB の救済 + committed conflict marker の修復 (rule:R3)
 
 - **背景**: autopilot 起動時、作業が **3 箇所で座礁**していた — ローカル `main` が origin に対し **ahead 8 / behind 112**、PR #272 に未 push commit 1 本、PR #273 worktree に未コミット実装 (pin が赤のまま)。前 2 者は本日 #272/#273 として着地済み

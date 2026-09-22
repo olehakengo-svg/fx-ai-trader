@@ -18,6 +18,8 @@ Protocol: knowledge-base/wiki/analyses/daily-tierB-protocol.md §6
     7. シグナル評価の停止 (候補行の鮮度、市場オープン6h) — 2026-08-27 追加
     8. エンジン停止 (tick 前進の実時刻、15分) — 2026-08-28 追加
     9. API 到達不能 (本番 web service そのものの死) — 2026-08-30 追加
+       9b. HTTP 全盲 (接続は成立するが全 endpoint が read-timeout = プロセスは
+           listen / HTTP 層だけ死亡、engine 生死は外部から不明) — 2026-09-22 追加
     10. E1 positioning ingest の認証失敗 / 鮮度劣化 — 2026-09-10 追加
 
 **禁止事項**:
@@ -104,6 +106,11 @@ NOTIFY_EVERY_HOURS = {
     "engine_tick_stall": 1,
     "engine_tick_never": 1,
     "api_unreachable": 1,
+    # 2026-09-22: 全滅のうち「全て read-timeout」= HTTP 層だけの死。毎時 —
+    # Render の TCP チェックでは数時間放置される型なので沈黙させない
+    "http_blind": 1,
+    # 全滅のうち「全て HTTP 応答あり (4xx/5xx)」= 到達はしている。毎時
+    "api_http_error": 1,
     "api_endpoint_failed": 6,
     "nav_floor": 6,
     "svk_behind_pace": 24,
@@ -235,17 +242,41 @@ def check_api_reachability(
         return []
 
     total = len(outcomes)
+    reasons = {o.path: o.reason for o in failed}
+    # 全滅は「サービスが死んだ」、部分失敗は「そのendpointが壊れた」。
+    # 同じ type に畳むと原因の切り分けが通知から消えるので分ける。
+    if len(failed) < total:
+        etype = "api_endpoint_failed"
+        # 成功数を渡す — 失敗分だけを分類すると 1 本の timeout が「全盲」になる
+        outage = _fp.classify_outage(reasons, n_ok=total - len(failed))
+    else:
+        # 2026-09-22 (rule:R3): 全滅をさらに 2 つに割る。**全て read-timeout** なら
+        # プロセスは listen していて HTTP 層だけが返ってこない (http_blind)。
+        # 09-12 / 09-15 / 09-22 はこの形で、engine は master で tick し続けていた。
+        # 接続拒否 / 5xx は従来どおり api_unreachable (デプロイ / 再起動 / 停止)。
+        # 判定は modules/freshness_policy.classify_outage が SSOT (daily_report も
+        # 同じ関数を読む) — 閾値の二重定義を禁じた既存方針と同じ理由。
+        outage = _fp.classify_outage(reasons, n_ok=0)
+        # 応答が返っている失敗 (全 4xx / 全 5xx) は「到達できない」ではない
+        # (Codex P2 2026-09-22 5 巡目): api_unreachable に畳むと通知文が
+        # 「サービス/デプロイの復旧」へ誘導し、全 401 (認証切れ) を見誤らせる。
+        if outage["kind"] == _fp.OUTAGE_HTTP_BLIND:
+            etype = "http_blind"
+        elif outage["kind"] in (_fp.OUTAGE_HTTP_ERROR, _fp.OUTAGE_HTTP_5XX):
+            etype = "api_http_error"
+        else:  # api_down / mixed / unknown
+            etype = "api_unreachable"
     return [
         {
-            # 全滅は「サービスが死んだ」、部分失敗は「そのendpointが壊れた」。
-            # 同じ type に畳むと原因の切り分けが通知から消えるので分ける。
-            "type": "api_unreachable" if len(failed) == total else "api_endpoint_failed",
+            "type": etype,
             "failed": [o.path for o in failed],
             "n_failed": len(failed),
             "n_watched": total,
             "attempts": attempts,
             "waited_sec": round(waited_sec, 1),
-            "reasons": {o.path: o.reason for o in failed},
+            "reasons": reasons,
+            "outage_kind": outage["kind"],
+            "failure_classes": outage["classes"],
         }
     ]
 
@@ -1210,10 +1241,37 @@ def _event_line(e: dict[str, Any]) -> str:
         )
     if et == "engine_tick_missing":
         return f"- {et}: {e.get('detail')} — engine 生存計装の契約が破れている"
+    if et == "http_blind":
+        return (
+            f"- 🛑 **HTTP 全盲 (http_blind)**: 監視対象 {e.get('n_watched')} 本すべてが "
+            f"**接続成立後の read-timeout** ({e.get('attempts')} 回試行 / "
+            f"{e.get('waited_sec')}s 待機)。= HTTP 応答が timeout 内に来ない。公開 URL への"
+            f"観測なので **origin プロセスが listen しているか・ハンドラが詰まっているかは"
+            f"この観測だけでは不明** — Render の health check (/healthz/http) 結果と app ログ"
+            f"の [MainLoop] tick / `HEAD /` 200 で裏取り (09-22 実例では origin は listen し、"
+            f"master 側エンジンが tick し続けていた)。**エンジンの生死も不明**。原因は観測から"
+            f"断定できない (cause unknown)。health check が failing のまま再起動が来なければ"
+            f"手動 restart。**この間、他の全検知器は盲目である**"
+        )
+    if et == "api_http_error":
+        kind = e.get("outage_kind", "?")
+        what = ("HTTP 5xx (edge の upstream unavailable 502/503/504 か origin app の 500 かは"
+                "状態コードだけでは判別不能 — app ログの traceback 有無で裏取り)"
+                if kind == _fp.OUTAGE_HTTP_5XX else
+                "HTTP 4xx = サービスは応答している。認証トークン (API_AUTH_TOKEN) / パス / "
+                "レート制限を確認 — サービス停止ではない")
+        return (
+            f"- 🛑 **本番 API が全 endpoint で HTTP エラー応答** ({kind}): 監視対象 "
+            f"{e.get('n_watched')} 本すべてが失敗 ({e.get('attempts')} 回試行 / "
+            f"{e.get('waited_sec')}s 待機)。{what}。"
+            f"理由: {json.dumps(e.get('reasons'), ensure_ascii=False)[:200]}。"
+            f"**この間、他の全検知器は盲目である** (取引停止も書込み停止も報告されない)"
+        )
     if et == "api_unreachable":
         return (
             f"- 🛑 **本番 API に到達できない**: 監視対象 {e.get('n_watched')} 本すべてが失敗 "
-            f"({e.get('attempts')} 回試行 / {e.get('waited_sec')}s 待機)。"
+            f"({e.get('attempts')} 回試行 / {e.get('waited_sec')}s 待機、"
+            f"種別 {e.get('outage_kind', '?')})。"
             f"理由: {json.dumps(e.get('reasons'), ensure_ascii=False)[:200]}。"
             f"**この間、他の全検知器は盲目である** (取引停止も書込み停止も報告されない)。"
             f"Render の web service ステータスとデプロイログを確認"

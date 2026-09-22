@@ -45,8 +45,29 @@ def _get_mode_config() -> dict:
         }
 
 
+THREAD_NAME = "DailyReviewEngine"
+
+
 class DailyReviewEngine:
-    """デイリー自動レビューエンジン"""
+    """デイリー自動レビューエンジン
+
+    fork-safety (rule:R3, 2026-09-22 — knowledge-base/wiki/analyses/
+    http-blind-fork-poisoning-2026-09-22.md):
+    Render の gunicorn は app.py を **master プロセスで import** し、その直後
+    (実測 20〜300 ms) に HTTP worker を fork する。本エンジンのスレッドを
+    import 時 (= ``DemoTrader.__init__``) に起動すると、UTC 0 時台の起動では
+    ``_scheduler_loop`` が**即座に**前日レビュー (24 モード × 全件スキャン) +
+    C1 prune + 204 MB backup を master 側で走らせ、fork がその最中に落ちる。
+    子 (= worker) は SQLite のプロセス共有 mutex を locked のまま継承し、
+    **DB を触る全 HTTP ルートが永久ハング**する (2026-09-12 / 09-15 / 09-22 の
+    3 回、各 3h19m〜3h31m の HTTP 全盲。engine は master で生存していた)。
+
+    根治は positioning_ingest §11 と同じ **defer_thread**: import 時は
+    ``start(defer=True)`` で「起動要求」だけを arm し、スレッドの実起動は
+    serving process の request 経路 (app.py の before_request heartbeat →
+    ``DemoTrader.ensure_daily_review_running`` → ``ensure_running``) に一本化
+    する。master は request を処理しないので、master で走る SQLite は消える。
+    """
 
     def __init__(self, db: DemoDB, learning_engine: LearningEngine):
         self._db = db
@@ -54,24 +75,76 @@ class DailyReviewEngine:
         self._running = False
         self._thread = None
         self._last_review_date = None
+        # defer_thread 状態 (positioning_ingest.PositioningIngestWorker と同じ契約):
+        #   _started_at is None  → 未 start (heal は起こさない)
+        #   _started_at set / _thread None → arm 済み・未起動 (heal が起こす)
+        #   _stopped                       → 明示 stop 後 (heal は起こさない)
+        self._started_at: str | None = None
+        self._stopped = False
+        self._heal_lock = threading.Lock()
+        self._restarts = 0
 
     # ── Public API ────────────────────────────────────
 
-    def start(self):
-        """バックグラウンドスケジューラーを起動"""
+    def start(self, defer: bool = False):
+        """バックグラウンドスケジューラーを起動する。
+
+        ``defer=True``: **このプロセスではスレッドを起動しない**。起動要求のみ
+        arm し、実起動は ``ensure_running`` (serving process の heal) に委ねる。
+        gunicorn master (import 時) から呼ぶときは必ず defer=True にすること —
+        fork 中の SQLite 実行が子プロセスの DB を永久ハングさせる (class docstring)。
+        """
         if self._running:
             return {"status": "already_running"}
+        self._stopped = False
+        self._started_at = datetime.now(timezone.utc).isoformat()
+        if defer:
+            return {"status": "deferred"}
+        self._spawn_thread()
+        return {"status": "started"}
+
+    def _spawn_thread(self) -> None:
         self._running = True
         self._thread = threading.Thread(
             target=self._scheduler_loop, daemon=True,
-            name="DailyReviewEngine"
+            name=THREAD_NAME,
         )
         self._thread.start()
-        return {"status": "started"}
+
+    def is_deferred(self) -> bool:
+        """arm 済みだがこのプロセスではまだスレッドが無い状態か。"""
+        return (self._started_at is not None and not self._stopped
+                and not (self._thread is not None and self._thread.is_alive()))
+
+    def ensure_running(self) -> dict:
+        """スレッド死 / defer 未起動を検知して起動する (serving process の heal 経路)。
+
+        契約は positioning_ingest.PositioningIngestWorker.ensure_running と同じ:
+        - 未 start (``_started_at`` None) は起こさない (テスト / 明示的に使わない構成)
+        - 明示 ``stop()`` 後は起こさない
+        - 生きていれば no-op
+        fork コピーでは ``_thread`` が None (defer) か is_alive()=False (master で
+        起動済みだった旧設計) のどちらかなので、どちらも同じ分岐で起こせる。
+        """
+        if self._stopped:
+            return {"healed": False, "reason": "stopped"}
+        if self._started_at is None:
+            return {"healed": False, "reason": "never started"}
+        if self._thread is not None and self._thread.is_alive():
+            return {"healed": False, "reason": "alive"}
+        with self._heal_lock:
+            if self._thread is not None and self._thread.is_alive():
+                return {"healed": False, "reason": "alive"}
+            self._restarts += 1
+            print(f"[DailyReview] starting scheduler in serving process "
+                  f"(deferred from import; restarts={self._restarts})", flush=True)
+            self._spawn_thread()
+        return {"healed": True, "restarts": self._restarts}
 
     def stop(self):
         """スケジューラーを停止"""
         self._running = False
+        self._stopped = True
         return {"status": "stopped"}
 
     def is_running(self) -> bool:
