@@ -1056,9 +1056,11 @@ class OandaBridge:
         with self._storm_lock:
             self._storm_state.pop(demo_trade_id, None)
 
-    @staticmethod
-    def _storm_new_state() -> dict:
+    def _storm_new_state(self) -> dict:
         return {
+            # 送信直列化 (review 3 巡目 P1): pending[0] の token だけが broker へ送れる。
+            # confirm/rollback が pending から外して notify_all する。
+            "cond": threading.Condition(self._storm_lock),
             "direction": None,
             # confirmed_sl = broker が受理した最後の SL (seed / open / 成功確認のみ更新)
             # pending     = 送信中 (未確認) の予約 token 列 (発行順)
@@ -1295,6 +1297,7 @@ class OandaBridge:
             if token["seq"] > st["confirmed_seq"]:
                 st["confirmed_seq"] = token["seq"]
                 st["confirmed_sl"] = token["new_sl"]
+            st["cond"].notify_all()
         token["done"].set()
 
     def _storm_rollback(self, demo_trade_id: str, st: dict, token: dict | None):
@@ -1313,11 +1316,34 @@ class OandaBridge:
                 pass
             st["failed_total"] += 1
             self._storm_totals["failed"] += 1
+            st["cond"].notify_all()
         token["done"].set()
 
     # modify_sl_sync が「同値の予約が飛行中」のとき、その結果を待つ上限。
     # OandaClient._request の HTTP timeout (10 s) + 余裕。
     STORM_PENDING_WAIT_SEC = 15.0
+    # 送信順番待ち (自分より前の予約が broker 応答を返すまで) の上限。
+    STORM_TURN_WAIT_SEC = 20.0
+
+    def _storm_wait_turn(self, demo_trade_id: str, st: dict, token: dict | None) -> bool:
+        """trade ごとに SL replacement を**発行順に直列化**する (review 3 巡目 P1)。
+        pending[0] が自分になるまで待つ = 前の要求が broker 応答 (confirm/rollback) を
+        返すまで次を送らない。これで (a) 「B 確認済みなのに pending A が baseline」が
+        起きない (A は B 送信前に決着する)、(b) broker 側で A が B の後に処理される
+        発行順逆転も起きない (同時飛行が 1 件)。timeout = 前の worker 不応答 →
+        False (caller は token を rollback して送らない: 順序不明のまま送る方が危険)。"""
+        if not token:
+            return True
+        deadline = _time.monotonic() + self.STORM_TURN_WAIT_SEC
+        with self._storm_lock:
+            while st["pending"] and st["pending"][0] is not token:
+                remaining = deadline - _time.monotonic()
+                if remaining <= 0:
+                    logger.warning(f"[OandaBridge][STORM_GUARD] turn wait timeout demo={demo_trade_id} "
+                                   f"sl={token['new_sl']} ahead={len(st['pending']) - 1} → drop")
+                    return False
+                st["cond"].wait(remaining)
+        return True
 
     def _storm_gate(self, demo_trade_id: str, new_sl: float,
                     instrument: str) -> tuple[bool, object, dict | None]:
@@ -1402,6 +1428,11 @@ class OandaBridge:
         st = self._storm_state.get(demo_trade_id)
 
         def _do():
+            if st is not None and not self._storm_wait_turn(demo_trade_id, st, token):
+                self._storm_rollback(demo_trade_id, st, token)
+                logger.error(f"[OandaBridge] MODIFY SL dropped (turn timeout) #{oanda_id} "
+                             f"sl={new_sl} (demo={demo_trade_id})")
+                return
             try:
                 ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
                                                       instrument=instrument)
@@ -1436,6 +1467,11 @@ class OandaBridge:
         if not proceed:
             return self._storm_sync_result(demo_trade_id, sync_ret)
         st = self._storm_state.get(demo_trade_id)
+        if st is not None and not self._storm_wait_turn(demo_trade_id, st, token):
+            self._storm_rollback(demo_trade_id, st, token)
+            logger.error(f"[OandaBridge] MODIFY SL (sync) dropped (turn timeout) #{oanda_id} "
+                         f"sl={new_sl} (demo={demo_trade_id})")
+            return False
         try:
             ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
                                                   instrument=instrument)

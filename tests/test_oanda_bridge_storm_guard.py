@@ -18,6 +18,9 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
   (g) 未確認予約 ≠ 確認済み: confirmed_sl (broker 受理) と pending (飛行中) を分離。
       同値一致が pending なら modify_sl_sync は worker の結果を待つ / 連鎖失敗後の
       baseline は確認済み値へ戻る (PR #287 review 2 巡目 P1/P2、CF pin 付き)
+  (h) 送信直列化: trade ごとに pending[0] だけが broker へ送れる (前の要求が決着するまで
+      次を送らない) — 「B 確認済み ∧ A pending」の窓も broker 側の発行順逆転も生じない
+      (PR #287 review 3 巡目 P1、CF pin 付き)
   既定 (env 未設定) = 検知のみ: 送信は止めず、カウンタ + WARN だけ動く
 """
 from __future__ import annotations
@@ -688,15 +691,79 @@ def test_p2_cf_prev_sl_rollback_leaves_unconfirmed_baseline(monkeypatch):
     assert len(fake.calls) == 2                                                     # broker には届いていない (旧 bug の形)
 
 
-def test_out_of_order_confirmation_keeps_latest_issued_sl(monkeypatch):
-    """A, B を予約し B → A の順で成功しても confirmed_sl は後発 B (発行順が真)。"""
+# ── 送信直列化 (PR #287 review 3 巡目 P1) ────────────────────────────────
+# A, B が重なって B が先に broker 確認されると、baseline は pending A を返し続け
+# (A < X < B の BUY 要求が「A より tight」として送られ、確認済み B を緩める)、さらに
+# broker 側で A が B の後に処理される発行順逆転も起きる。→ trade ごとに pending[0]
+# だけが送れる (前の要求が決着するまで次を送らない)。
+
+def _run_in_thread(fn):
+    t = _threading.Thread(target=fn, daemon=True)
+    t.start()
+    return t
+
+
+def test_serialization_b_worker_waits_until_a_settles(monkeypatch):
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
     q = _deferred_fire(b, monkeypatch)
     b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A (seq 1)
     b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # B (seq 2)
-    q[1](); q[0]()                                                  # B 完了 → A 完了
+    tb = _run_in_thread(q[1])                                       # B の worker が先に走り出す
+    tb.join(0.3)
+    assert tb.is_alive() and fake.calls == []                       # B は A の決着を待っている
+    q[0]()                                                          # A 決着 (成功)
+    tb.join(2.0)
+    assert not tb.is_alive()
+    assert fake.calls == [(OANDA_ID, 154.350), (OANDA_ID, 154.400)]  # broker への到達順 = 発行順
     st = b.get_storm_guard_status()["trades"][DEMO]
     assert st["confirmed_sl"] == 154.400 and st["pending"] == []
+
+
+def test_serialization_no_window_where_confirmed_b_coexists_with_pending_a(monkeypatch):
+    """review の形状: 「B 確認済み ∧ A pending」の窓で A<X<B の BUY 要求が通る。
+    直列化下ではその窓が存在しない — X (154.380) は B 確認後に評価され monotonic reject。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # B
+    tb = _run_in_thread(q[1]); tb.join(0.2)
+    # この時点 (A 未決着) の X は baseline=B(pending) 基準で monotonic reject — 送信されない
+    assert b.modify_sl_sync(DEMO, 154.380, instrument="USD_JPY") is False
+    q[0](); tb.join(2.0)
+    # A, B 決着後も X は確認済み B 基準で reject
+    assert b.modify_sl_sync(DEMO, 154.380, instrument="USD_JPY") is False
+    assert fake.calls == [(OANDA_ID, 154.350), (OANDA_ID, 154.400)]
+    assert b.get_storm_guard_status()["totals"]["skipped"]["monotonic"] == 2
+
+
+def test_serialization_cf_without_turnstile_b_can_confirm_before_a(monkeypatch):
+    """CF pin: 順番待ちを外す (旧形) と B が A より先に broker に届き、A pending のまま
+    B 確認済みという窓が生じる (= 上の assertion は直列化の存在に依存)。"""
+    monkeypatch.setattr(OandaBridge, "_storm_wait_turn", lambda self, *a, **kw: True)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # B
+    q[1]()                                                          # B が先に届く (旧形)
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert fake.calls == [(OANDA_ID, 154.400)]
+    assert st["confirmed_sl"] == 154.400 and st["pending"] == [154.350]   # ← review の窓
+
+
+def test_serialization_turn_timeout_drops_request_and_rolls_back(monkeypatch):
+    monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.1)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A: worker が決着しない (走らせない)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # B
+    q[1]()                                                          # B は順番待ち timeout → drop
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert fake.calls == []                                         # 順序不明のまま送らない
+    assert st["pending"] == [154.350] and st["confirmed_sl"] == 154.115
+    assert b.get_storm_guard_status()["totals"]["failed"] == 1
+    # sync 経路も同じ: A が決着しない限り drop → False
+    assert b.modify_sl_sync(DEMO, 154.450, instrument="USD_JPY") is False
+    assert fake.calls == []
 
 
 def test_detect_only_mode_confirms_and_pends_symmetrically(monkeypatch):
