@@ -14,6 +14,10 @@ pin する性質 (構文でなく性質で):
 7. registry F4 message が方法変更 + 発火日シフトを記録し condition は不変。
 8. 再現値 pin: 09-22 以降 keeper のみ / drift 13.7 の 2 経路で decomposed 読み手の
    初回発火日 (2027-01-05 / 2026-12-04) — 推定器を変えたら数値が動いて落ちる。
+9. (PR #285 review P2 ×2) keeper ¥/RT は telemetry の units で線形スケール
+   (SVK_UNITS 20k/5k で月次総額不変、RT 数×単価が反比例) / telemetry の month が
+   asof と違う (UTC 月替わり 00:00 cron) 間は edge を unavailable にし、前月
+   rt_count で keeper burn を打ち消さない。既知 NG 入力で pin。
 """
 
 from __future__ import annotations
@@ -44,8 +48,8 @@ REAL_ROWS_0907_0921 = [
     ("2026-09-21", 275517, 40.4, 334, "fit"),
 ]
 # /api/demo/status.status_volume_keeper 2026-09-22 08:40Z 実測
-KEEPER_0922 = {"target_usd": 520000.0, "volume_usd": 520000.0, "rt_count": 26,
-               "last_rt_at": "2026-09-14T01:01:07.662843+00:00"}
+KEEPER_0922 = {"month": "2026-09", "target_usd": 520000.0, "volume_usd": 520000.0,
+               "rt_count": 26, "last_rt_at": "2026-09-14T01:01:07.662843+00:00"}
 NAV_0922 = 275516.8319
 
 
@@ -148,8 +152,8 @@ def test_edge_burn_recovers_drift_after_keeper_deduction():
     drops[date(2026, 10, 9)] = 2 * 80.0
     rows, nav_now = _synthetic_rows(date(2026, 9, 15), 45, 280_000.0, 13.7, drops)
     asof = date(2026, 10, 30)
-    keeper = {"target_usd": 520000.0, "volume_usd": 520000.0, "rt_count": 26,
-              "last_rt_at": "2026-10-09T01:00:00+00:00"}
+    keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
+              "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
     burn, basis = nfp.edge_burn_per_day(rows[:-1], nav_now, asof, keeper, 26)
     assert burn == pytest.approx(13.7, abs=0.6), basis  # 整数丸めの分だけ許容
     assert basis.startswith("nav_delta:") and "keeper_rt_in_window=26" in basis
@@ -164,8 +168,8 @@ def test_edge_window_never_cuts_previous_month_burst():
     drops = {date(2026, 9, d): 3 * 80.0 for d in range(1, 10)}
     rows, nav_now = _synthetic_rows(date(2026, 8, 20), 46, 280_000.0, 0.0, drops)
     asof = date(2026, 10, 5)
-    keeper = {"target_usd": 520000.0, "volume_usd": 240000.0, "rt_count": 12,
-              "last_rt_at": "2026-10-04T01:00:00+00:00"}
+    keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 240000.0,
+              "rt_count": 12, "last_rt_at": "2026-10-04T01:00:00+00:00"}
     # 当月 12 RT 分 (¥960) を 10-01〜10-04 に落とす
     nav_now -= 960.0
     rows.append({"date": "2026-10-04", "nav_jpy": f"{nav_now:.0f}"})
@@ -178,8 +182,8 @@ def test_edge_window_never_cuts_previous_month_burst():
 def test_edge_window_on_31st_still_covers_whole_current_month():
     rows, nav_now = _synthetic_rows(date(2026, 9, 15), 47, 280_000.0, 10.0, {})
     asof = date(2026, 10, 31)
-    keeper = {"target_usd": 520000.0, "volume_usd": 520000.0, "rt_count": 26,
-              "last_rt_at": "2026-10-09T01:00:00+00:00"}
+    keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
+              "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
     burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper, 26)
     assert not basis.startswith("unavailable"), basis
     assert "nav_delta:2026-09-30->2026-10-31:31d" in basis
@@ -192,10 +196,81 @@ def test_edge_unavailable_when_no_keeper_telemetry_or_young_csv():
     assert burn == 0.0 and basis.startswith("unavailable:no_keeper_telemetry")
     # CSV が当月内から始まり、当月 RT の前後分割が telemetry で確定できない
     young = [r for r in rows if r["date"] >= "2026-10-03"]
-    keeper = {"target_usd": 520000.0, "volume_usd": 520000.0, "rt_count": 26,
-              "last_rt_at": "2026-10-09T01:00:00+00:00"}
+    keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
+              "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
     burn, basis = nfp.edge_burn_per_day(young, nav_now, asof, keeper, 26)
     assert burn == 0.0 and basis.startswith("unavailable:keeper_split_unknown")
+
+
+# ── 5. PR #285 review P2 ×2: units スケール / 月不一致 ────────────────
+
+def test_keeper_jpy_per_rt_scales_with_configured_units_total_invariant():
+    """SVK_UNITS を変えても月次 keeper 総額 (target 固定) は不変 — 単価 × RT 数。"""
+    k20 = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
+           "rt_count": 13}  # 20k units → 40k/RT → 13 RT
+    k5 = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
+          "rt_count": 52}   # 5k units → 10k/RT → 52 RT
+    assert nfp.keeper_units(k20) == (20000, "api")
+    assert nfp.keeper_units(k5) == (5000, "api")
+    assert nfp.keeper_units(None) == (nfp.KEEPER_REF_UNITS, "default")
+    assert nfp.keeper_jpy_per_rt(k20) == (pytest.approx(160.0), "api")
+    assert nfp.keeper_jpy_per_rt(k5) == (pytest.approx(40.0), "api")
+    assert nfp.keeper_jpy_per_rt(KEEPER_0922) == (pytest.approx(80.0), "api")
+    assert nfp.keeper_jpy_per_rt(None) == (80.0, "default")
+    rows = _rows(upto="2026-09-21")
+    d10 = nfp.decomposed_burn_per_day(rows, 275517.0, date(2026, 10, 21), KEEPER_0922 | {"month": "2026-10"})
+    d20 = nfp.decomposed_burn_per_day(rows, 275517.0, date(2026, 10, 21), k20)
+    d5 = nfp.decomposed_burn_per_day(rows, 275517.0, date(2026, 10, 21), k5)
+    assert (d20["rt_per_month"], d20["jpy_per_rt"]) == (13, pytest.approx(160.0))
+    assert (d5["rt_per_month"], d5["jpy_per_rt"]) == (52, pytest.approx(40.0))
+    # 既知 NG 入力: 単価固定 ¥80 だと 20k で 13×80 = ¥1,040/月 に半減する (review 指摘値)
+    assert d20["keeper"] == pytest.approx(2080.0 / 30.44)
+    assert d5["keeper"] == pytest.approx(2080.0 / 30.44)
+    assert d10["keeper"] == pytest.approx(2080.0 / 30.44)
+    assert nfp.keeper_burn_per_day(13, 80.0) == pytest.approx(1040.0 / 30.44)  # 修正前の値
+
+
+def test_edge_deduction_uses_scaled_jpy_per_rt():
+    # 20k units、10-01〜10-05 に 13 RT × ¥160 = ¥2,080、drift 10/日
+    drops = {date(2026, 10, d): 3 * 160.0 for d in range(1, 5)}
+    drops[date(2026, 10, 5)] = 160.0
+    rows, nav_now = _synthetic_rows(date(2026, 9, 15), 45, 280_000.0, 10.0, drops)
+    keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
+              "rt_count": 13, "last_rt_at": "2026-10-05T01:00:00+00:00"}
+    dec = nfp.decomposed_burn_per_day(rows[:-1], nav_now, date(2026, 10, 30), keeper)
+    assert dec["edge_basis"].startswith("nav_delta:") and "keeper_rt_in_window=13" in dec["edge_basis"]
+    assert dec["edge"] == pytest.approx(10.0, abs=0.6), dec
+    # 単価を ¥80 固定にすると keeper 差し引きが半分になり drift が ¥1,040/窓 分過大に見える
+    wrong = nfp.decomposed_burn_per_day(rows[:-1], nav_now, date(2026, 10, 30), keeper,
+                                        jpy_per_rt=80.0)
+    assert wrong["edge"] > dec["edge"] + 20
+
+
+def test_edge_unavailable_when_keeper_month_differs_from_asof():
+    """UTC 月替わり 00:00 cron: keeper loop が _roll_counters を呼ぶ前は前月 telemetry。"""
+    rows, nav_now = _synthetic_rows(date(2026, 9, 15), 47, 280_000.0, 0.0, {})
+    asof = date(2026, 11, 1)
+    stale = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
+             "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
+    assert nfp.keeper_month_mismatch(stale, asof) == "keeper_month_mismatch(2026-10!=2026-11)"
+    assert nfp.keeper_month_mismatch(stale, date(2026, 10, 31)) is None
+    assert nfp.keeper_month_mismatch({"target_usd": 520000.0}, asof).startswith("keeper_month_unknown")
+    dec = nfp.decomposed_burn_per_day(rows, nav_now, asof, stale)
+    assert dec["edge"] == 0.0
+    assert dec["edge_basis"].startswith("unavailable:keeper_month_mismatch(2026-10!=2026-11)")
+    assert dec["burn"] == pytest.approx(dec["keeper"])  # keeper burn は打ち消されない
+    # RT 数 (比) は前月 telemetry でも有効 — keeper 分は default に落ちない
+    assert (dec["rt_per_month"], dec["rt_basis"]) == (26, "api")
+    # 既知 NG 入力: month を見ずに前月 rt_count 26 を当月支出とすると
+    # edge = −(0 + 26×80)/span < 0 で keeper 分 (+68.3) を打ち消す
+    e_wrong, _ = nfp.edge_burn_per_day(rows, nav_now, asof, stale | {"month": "2026-11"}, 26)
+    assert e_wrong < 0 and abs(e_wrong) > 0.9 * dec["keeper"]
+    # 当月 telemetry (roll 後、rt_count 0) が来れば edge は測れる
+    fresh = {"month": "2026-11", "target_usd": 520000.0, "volume_usd": 0.0,
+             "rt_count": 0, "last_rt_at": ""}
+    dec2 = nfp.decomposed_burn_per_day(rows, nav_now, asof, fresh)
+    assert dec2["edge_basis"].startswith("nav_delta:") and "keeper_rt_in_window=0" in dec2["edge_basis"]
+    assert dec2["edge"] == pytest.approx(0.0, abs=0.05)
 
 
 # ── 6. 失敗の露出 (tool exit 1 + cron 側) ────────────────────────────
@@ -264,8 +339,8 @@ def _simulate_first_fire(drift: float) -> tuple[str, str]:
                 rt += n
                 last_rt = d.isoformat()
         nav -= drift
-        keeper = {"target_usd": 520000.0, "volume_usd": rt * 20000.0,
-                  "rt_count": rt, "last_rt_at": last_rt}
+        keeper = {"month": d.strftime("%Y-%m"), "target_usd": 520000.0,
+                  "volume_usd": rt * 20000.0, "rt_count": rt, "last_rt_at": last_rt}
         row = nfp.build_row(nav, d, rows, keeper)
         rows.append(row)
         if first is None and int(row["days_to_floor"]) <= 90:

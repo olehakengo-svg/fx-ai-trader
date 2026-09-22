@@ -23,13 +23,20 @@ burn 推定器 (2026-09-22 方法変更、rule:R3):
   * keeper 分 = (月次 RT 数 × ¥/RT) ÷ 30.44 [JPY/日]。RT 数は telemetry
     (target_usd ÷ (volume_usd/rt_count)) から、¥/RT は broker tx 実測
     (0.8p RT spread × ¥100/pip @10,000u = ¥80、wiki/index.md L149 tx
-    709548〜709596) から取る。月初に集中して支出されるので日割りにする —
-    月内位相に依存しない決定論成分。
+    709548〜709596) を **telemetry から導いた units (volume_usd/rt_count/2)
+    で線形スケール**する (SVK_UNITS は 20k まで変えられ、get_status は units
+    を出さないが出来高/RT がそれを運ぶ。PR #285 review P2)。月初に集中して
+    支出されるので日割りにする — 月内位相に依存しない決定論成分。
   * edge 分 = −(trailing 窓の broker NAV Δ − keeper 支出) ÷ 窓日数。窓は
     直前月の keeper burst を跨がないよう開始日を切り上げ (位相カット回避)、
     窓内 keeper 支出は当月 rt_count (telemetry) で正確に差し引く。窓が
     EDGE_MIN_SPAN_DAYS 未満なら 0 + ``edge_basis`` に unavailable を明示
     (「測れなかった」を「0 だった」と折り畳まない — 列で見える)。
+  * telemetry の ``month`` が asof の月と一致しない間は edge を unavailable
+    にする — UTC 月替わり直後 (00:00 cron) は keeper loop が
+    ``_roll_counters`` を呼ぶ前で、前月の rt_count (26) が当月支出として
+    差し引かれ keeper burn を丸ごと打ち消す (PR #285 review P2)。同日の
+    06:00 run が当月 telemetry で上書きする (同日行は冪等)。
 - reference = ``fit`` (旧 primary)。直近 FIT_WINDOW_ROWS 行の線形回帰。
   keeper が月初 burst で支出されるため、窓が 1 周期未満の間は月内位相で
   振動する (2026-09-16〜09-21 実測: 6 日で burn が半分近くに動いた)。
@@ -61,7 +68,9 @@ FIT_WINDOW_ROWS = 60
 # ── decomposed 推定器の定数 ─────────────────────────────────────────
 # keeper 1 RT の実測コスト: 0.8p RT spread × ¥100/pip @10,000u。
 # 出所: wiki/index.md L149 (tx 709548〜709596) / ground_capital_clock L18。
+# units に線形 (USD_JPY 1 pip = ¥0.01 × units) — KEEPER_REF_UNITS 基準値。
 KEEPER_JPY_PER_RT = 80.0
+KEEPER_REF_UNITS = 10_000
 # telemetry 不能時のフォールバック RT 数: target $520k ÷ ($10k × 2 per RT)。
 KEEPER_RT_PER_MONTH_DEFAULT = 26
 DAYS_PER_MONTH = 30.44
@@ -157,6 +166,59 @@ def fit_burn_per_day(rows: list[dict[str, str]]) -> float | None:
 
 # ── decomposed 推定器 ──────────────────────────────────────────────
 
+def _keeper_per_rt_volume(keeper: dict[str, Any] | None) -> float | None:
+    """1 RT の出来高 [USD] = volume_usd / rt_count (= units × 2)。不能は None。
+
+    比なので telemetry の月が asof と違っても有効 (前月の RT でも units は同じ)。
+    """
+    try:
+        volume = float((keeper or {}).get("volume_usd") or 0)
+        rt_count = int((keeper or {}).get("rt_count") or 0)
+    except (TypeError, ValueError):
+        return None
+    if volume > 0 and rt_count > 0 and volume / rt_count > 0:
+        return volume / rt_count
+    return None
+
+
+def keeper_units(keeper: dict[str, Any] | None) -> tuple[int, str]:
+    """keeper の 1 RT units を telemetry から導く。(units, basis)。
+
+    get_status は units を出さないが、volume_usd は units × 2 / RT で積むので
+    出来高/RT ÷ 2 が units。不能はフォールバック KEEPER_REF_UNITS + "default"。
+    """
+    per_rt = _keeper_per_rt_volume(keeper)
+    if per_rt is None:
+        return KEEPER_REF_UNITS, "default"
+    return max(1, round(per_rt / 2)), "api"
+
+
+def keeper_jpy_per_rt(keeper: dict[str, Any] | None) -> tuple[float, str]:
+    """1 RT の JPY コストを units で線形スケール。(jpy_per_rt, basis)。
+
+    ¥80 は @10,000u の実測 (USD_JPY 1 pip = ¥0.01 × units なので線形)。
+    SVK_UNITS=20000 なら ¥160、5000 なら ¥40 — 月次総額 (target 固定) は
+    不変で、RT 数と単価が反比例する。
+    """
+    units, basis = keeper_units(keeper)
+    return KEEPER_JPY_PER_RT * units / KEEPER_REF_UNITS, basis
+
+
+def keeper_month_mismatch(keeper: dict[str, Any] | None, asof: date) -> str | None:
+    """telemetry の month が asof の月と一致しなければ理由文字列、一致なら None。
+
+    month が無い payload も「一致が確認できない」として不一致扱い (fail-closed)。
+    本番 get_status は必ず month を出す (modules/status_volume_keeper.py)。
+    """
+    month = (keeper or {}).get("month")
+    want = asof.strftime("%Y-%m")
+    if not month:
+        return f"keeper_month_unknown(asof={want})"
+    if str(month) != want:
+        return f"keeper_month_mismatch({month}!={want})"
+    return None
+
+
 def keeper_rt_per_month(keeper: dict[str, Any] | None) -> tuple[int, str]:
     """月次 RT 数を telemetry から導く。(rt_per_month, basis)。
 
@@ -165,14 +227,11 @@ def keeper_rt_per_month(keeper: dict[str, Any] | None) -> tuple[int, str]:
     """
     try:
         target = float((keeper or {}).get("target_usd") or 0)
-        volume = float((keeper or {}).get("volume_usd") or 0)
-        rt_count = int((keeper or {}).get("rt_count") or 0)
     except (TypeError, ValueError):
         return KEEPER_RT_PER_MONTH_DEFAULT, "default"
-    if target > 0 and volume > 0 and rt_count > 0:
-        per_rt = volume / rt_count
-        if per_rt > 0:
-            return max(1, round(target / per_rt)), "api"
+    per_rt = _keeper_per_rt_volume(keeper)
+    if target > 0 and per_rt is not None:
+        return max(1, round(target / per_rt)), "api"
     return KEEPER_RT_PER_MONTH_DEFAULT, "default"
 
 
@@ -205,6 +264,7 @@ def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
     窓開始 = max(asof − EDGE_WINDOW_DAYS, 直前月 burst 終了日 + 1) — 直前月の
     keeper burst を跨ぐと窓内 keeper 支出が telemetry で確定できないため。
     窓内 keeper 支出は当月 rt_count で確定する (RT は全て月初以降に起きる)。
+    telemetry の month が asof と違えば rt_count は前月分なので unavailable。
     測れない場合は (0.0, "unavailable:<理由>") — 列に理由が残る。
     """
     month_start = asof.replace(day=1)
@@ -236,6 +296,11 @@ def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
         rt_count = 0
     if keeper is None:
         return 0.0, f"unavailable:no_keeper_telemetry(span={span}d)"
+    month_reason = keeper_month_mismatch(keeper, asof)
+    if month_reason is not None:
+        # 月替わり直後は前月の rt_count が残る — 当月支出として差し引くと
+        # keeper burn を丸ごと打ち消す。当月 telemetry が来るまで測定不能。
+        return 0.0, f"unavailable:{month_reason}(span={span}d)"
     if start_date < month_start:
         keeper_rt_in_window = rt_count  # 当月 RT は全て start_date より後
     else:
@@ -255,15 +320,23 @@ def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
 
 def decomposed_burn_per_day(rows: list[dict[str, str]], nav_now: float,
                             asof: date, keeper: dict[str, Any] | None,
-                            jpy_per_rt: float = KEEPER_JPY_PER_RT
+                            jpy_per_rt: float | None = None
                             ) -> dict[str, Any]:
-    """primary 推定器。keeper 確定分 + edge 実測分を分解して返す。"""
+    """primary 推定器。keeper 確定分 + edge 実測分を分解して返す。
+
+    jpy_per_rt を省略すると telemetry の units でスケールした値を使う
+    (SVK_UNITS 変更で F4 トリガが動かない)。明示指定はテスト/監査用。
+    """
     rt_per_month, rt_basis = keeper_rt_per_month(keeper)
+    units, _ = keeper_units(keeper)
+    if jpy_per_rt is None:
+        jpy_per_rt, _ = keeper_jpy_per_rt(keeper)
     k_burn = keeper_burn_per_day(rt_per_month, jpy_per_rt)
     e_burn, e_basis = edge_burn_per_day(rows, nav_now, asof, keeper,
                                         rt_per_month, jpy_per_rt)
     return {"burn": k_burn + e_burn, "keeper": k_burn, "edge": e_burn,
             "rt_per_month": rt_per_month, "rt_basis": rt_basis,
+            "units": units, "jpy_per_rt": jpy_per_rt,
             "edge_basis": e_basis, "method": "decomposed"}
 
 
