@@ -13,7 +13,7 @@
 1. **closed shadow N = 2** (09-11 10:42Z / 11:31Z)。checkpoint-1 (期日 09-24) は **09-25 00:20Z の Tier A 評価で TRIGGERED 見込み** (09-24 当日の評価は `today > deadline` 偽で WATCHING)。判定までの残 active 窓 ≈ 40h (09-22 残 ~12h + 09-23・09-24 各 14h) ≈ 2.9 active 日、09-12 以降 12 日間で行ゼロ。closed 行のみ計上 (`closed_only: true`) のため 09-24 遅い時間の entry が 00:20Z に open なら数えない。
 2. **配線は開いている**: 2 行とも `is_shadow=1 ∧ oanda_trade_id=''`、confidence 48 / 68 (0-100 スケール)、11 日永続集計で `conf<30` / `no_confirm` / `unknown_type` は **0 件**。conf 単位バグ再発・QUALIFIED_TYPES 落ち・shadow_only 配線落ちの 3 仮説は **全て反証**。
 3. **setup 供給も止まっていない**: 登録修理後 (09-10 16:49Z〜) の active 窓 (UTC 7–20) で BUY bar は **11 本** (forming-bar 評価)。「単に相場 setup 不在」も **反証**。
-4. **行ゼロの真因 = `_tick_entry` 下流の live 保護 gate**: 09-12 以降の BUY bar 6/6 が `mtf_strong_bias` (trend_down_strong 下の BUY) / `velocity_down` / `1h_rr_low` で **hard block** (shadow 迂回なし)。この 3 gate は 365d ablated BT では**適用されていない** = BT⇄live 母集団の非同期 (CLAUDE.md「フィルターは本番⇄BT 同期必須」に反する状態)。
+4. **行ゼロの真因 = `_tick_entry` 下流の live 保護 gate**: 09-12 以降の BUY bar 6/6 が `mtf_strong_bias` (直近 1h 以内に USD_JPY の DT strong SELL pattern が `_15m_tactical_bias` を立てている間の BUY — D1/H4 レジームラベル `trend_down_strong` は機構ではない、§6) / `velocity_down` / `1h_rr_low` で **hard block** (shadow 迂回なし)。この 3 gate は 365d ablated BT では**適用されていない** = BT⇄live 母集団の非同期 (CLAUDE.md「フィルターは本番⇄BT 同期必須」に反する状態)。
 5. 09-11 の `session_hours` **211 件**は **stale feed アーティファクト** (fetched bars が 20:54Z〜21:54Z+ で 4403 に凍結、hour=20 の stale bar を 21 時台に再評価) で、tz バグでも配線バグでもない。実 setup の損失ゼロ。
 
 ---
@@ -27,7 +27,7 @@
 | 厳格 shadow 判定 | 2/2 が `is_shadow=1`、`oanda_trade_id=''`、ログ `🔗 OANDA: [SKIP] rnb_support_bounce — Reason: shadow_tracking` | 同上 |
 | confidence | 48 / 68 (0-100) | 同上 — conf gate (threshold 30) 通過を実測で確認 |
 | checkpoint-1 (期日 09-24, n_floor 3) | N=2 < 3 → **TRIGGERED 見込み — 最早の自動判定 = 2026-09-25 00:20Z** (Tier A cron; 評価器は `today > deadline` なので期日当日は WATCHING) | registry / `tools/prereg_trigger_watch.py:73,1442` / `render.yaml:168` |
-| checkpoint-2 (期日 10-08 → 自動判定 10-09 00:20Z, n_floor 6) | 現ペース (09-12 以降 0 行/日) では **TRIGGERED 見込み** | registry (同じ評価器・同じ 1 日ずれ) |
+| checkpoint-2 (期日 10-08 → 自動判定 10-09 00:20Z, n_floor 6) | 残 4 行。現ペースの**射影**では TRIGGERED (全窓 1.35 行/週 → ≈3.2 行 / 09-12 以降 0 行/週 → 0 行、§7) — **確定ではなく両分岐を保持** | registry (同じ評価器・同じ 1 日ずれ) |
 | first look (N≥41 or 2027-01-15) | 残 39 行 / 16.4 週 = **2.4 行/週** が必要 | §7 |
 
 ⚠️ 統計的な「異常」ではない点は据え置き (final_assessment: P(N≤2) ≈ 0.11)。本稿の結論は統計ではなく**機構の帰属**による。
@@ -78,7 +78,7 @@
 | 09-22 (〜08:4x) | なし | 0 | — | 0 | 0 |
 | **計** | **11 bar** | **2** | **16 tick** | 106 | 211 |
 
-- **全 11 bar の MTF_MONITOR 行が `mtf=trend_down_strong d1=-2 h4=-1 vol=expansion`** (09-11 09:03Z 〜 09-17 07:13Z、一貫)。
+- **全 11 bar の MTF_MONITOR 行が `mtf=trend_down_strong d1=-2 h4=-1 vol=expansion`** (09-11 09:03Z 〜 09-17 07:13Z、一貫)。この `mtf=` は `_get_mtf_regime()` (`:6082-6087`、D1/H4 7 分類、30 分 TTL、monitor-only で block しない) の**ラベル**であり、`mtf_strong_bias` gate の入力 (`_15m_tactical_bias`) ではない (§6)。同じラベル下で 2 bar が行になった事実がそれを示す — ラベルは文脈、機構ではない。
 - ログ上、1 bar の初回評価が **~3 秒差で 2 本** (例: 09-16 12:03:44 / 12:03:47、09-11 10:42:07 / 10:42:44) 出る → 下流 block 16 tick ≈ block された 9 bar × ~2 評価と整合。`_tick_entry` の複数呼び出し経路 (`:4574` limit fill / `:4643` live_promote_emit) は rnb に該当しないため **二重評価の機構は未帰属** (§8 (iv))。件数を bar に換算するときは **×2 を割り戻す**。
 - 09-11 10:30 bar は 10:42:07 評価 (MTF_MONITOR、下流 block) → 10:42:40 dedup → **10:42:44 に行生成** — 同一 bar で dedup 予約を 2 回通過した痕跡。DB の行重複は無い (bar ごとに 1 行) が、dedup 予約の key 一致性は別途確認対象 (§8 (iv))。
 
@@ -98,7 +98,7 @@
 
 | gate | コード | rnb との衝突 | 09-11〜22 実測 |
 |---|---|---|---|
-| `mtf_strong_bias` | `:6421-6431` — 15m tactical bias `strength=="strong"` ∧ signal≠bias 方向 → block。免除 `trend_rebound` のみ、shadow 迂回なし | RNB = 下落後の支持線反発 BUY。USD/JPY が `trend_down_strong` (D1 −2 / H4 −1、全 11 bar で一貫) の間は **BUY setup が出るたび block** — gate 条件と entry 条件が同じレジームで同時成立する | 09-11 2 / 09-16 5 / 09-17 2 (tick)。09-16・09-17 の 4 bar は全てこれ |
+| `mtf_strong_bias` | `:6418-6431` — 入力は **`_15m_tactical_bias[instrument]`** (`:4916-4933` で **base_mode daytrade / daytrade_1h の非 WAIT signal** だけが書く; `strength="strong"` は hs_neckbreak / ihs_neckbreak / dual_sr_bounce / dual_sr_breakout / sr_fib_confluence の 5 pattern のみ、有効期限 `_bias_age < 3600` = **1h**)。`strong` ∧ signal≠bias 方向 → block、免除 `trend_rebound` のみ、shadow 迂回なし。**D1/H4 レジームラベル `trend_down_strong` (`_get_mtf_regime`、`:6082-6087` / `:10960`、docstring どおり monitor-only) は gate の入力ではない** (PR #283 レビュー 2 巡目 P2 で訂正) | RNB = 下落後の支持線反発 BUY。USD/JPY の DT 系 strong SELL pattern が直近 1h に出た直後は、RNB の dip-buy setup と時間的に重なりやすい (下落局面で両者が同時成立) → block。ただし **レジームが `trend_down_strong` でも bias が立っていない時間帯は通る** — 09-11 の 2 行は同ラベル下で行になった。bias の元 entry_type は writer に log が無く (`:4926-4933`)、block 理由文字列も `_bias_dir` のみを持つため、09-16 / 09-17 の bias 発生源 (どの DT pattern か) は **未帰属** (§8 (iv)) | 09-11 2 / 09-16 5 / 09-17 2 (tick)。09-16・09-17 の 4 bar は全てこれ |
 | `velocity_down` | `:6355-6389` — 直近 10 分 (base_mode "rnb" は窓辞書外 → 既定 10 分) の下落 ≥ **8.0 pip** (閾値辞書外 → 既定) ∧ BUY → block、shadow 迂回は `_is_shadow_eligible_full` のみ | RNB の entry 条件 = 5 本 (75 分) で ≥0.5×ATR 下落 + 支持線到達。速い dip は 10 分 8p を容易に超える → **「dip を買う」戦略を「落ちている最中は買うな」gate が殺す** | 09-11 2 / 09-14 1 |
 | `1h_rr_low` | `:6549-6552` — `_1H_PRESERVE_SLTP` (rnb 含む) で TP/SL を signal 値のまま保存し、`tp_dist/sl_dist < 1.2` → block。免除 `hull_donchian_fade` のみ | 設計 RR = 20/15 = **1.33**、床 1.2 との差は **1 pip 分の余裕** (current_price が signal close より +1.0p 上なら 19/16 = 1.19 → block)。`current_price` は OANDA bid/ask (`:4900-4909`) で bar close と数 pip ズレうる = ナイフエッジ | 09-11 1 / 09-14 2 |
 | `same_price_3pip` | `:5573` | 同値近傍の再エントリー抑止 (副次) | 09-11 1 |
@@ -112,9 +112,10 @@
 
 - 修理デプロイ後の active 窓被覆: 09-10 4h + 営業日 7 日 (09-11, 14–18, 21) × 14h + 09-22 ~1.7h ≈ **103.7 active-h ≈ 1.48 週** (5 営業日 × 14h = 70h/週)。
 - setup 供給 (forming-bar、in-window BUY bar): **11 / 1.48 週 = 7.4 bar/週** vs 確定足 BT 2.99/週 — forming-bar 評価の一時的 BUY を含むため上振れは想定内 (MEMORY `project_ps_capture_estimand_disjoint_2026_09_09` と同型、bar 数を BT setup 数と同一視しない)。**供給側は枯れていない**。
-- 変換 (bar → 行): **2/11**、09-12 以降 **0/6**。全て `trend_down_strong` 下。
-- first look 到達条件: 残 39 行 / 16.4 週 = **2.4 行/週**。現在の変換率 (0/6、直近 7 営業日) が続けば **2027-01-15 の stale 分岐 (N≪41) が既定路線**。レジームが `strong` を外れれば `mtf_strong_bias` は消えるが、`velocity_down` / `1h_rr_low` の構造衝突はレジーム非依存で残る。
-- **下方修正案 (修理しない場合)**: checkpoint-2 (10-08) の n_floor 6 は現ペースで TRIGGERED 確定。「期待 2.99/週の半分」基準は setup 頻度を行頻度に流用した前提の誤りなので、**cadence 期待値を「setup 頻度 × gate 通過率 (レジーム条件付き)」に書き換え**、通過率は本稿の日別 funnel を初期値 (2/11) として checkpoint-2 の判定時 (期日 10-08、自動 TRIGGERED は 10-09 00:20Z) に再計測する。これは outcome 非接触の件数指標のまま維持できる。
+- 変換 (bar → 行): **2/11**、09-12 以降 **0/6**。全て MTF ラベル `trend_down_strong` 下 (ラベルは文脈であって block 機構ではない、§6)。
+- first look 到達条件: 残 39 行 / 16.4 週 = **2.4 行/週**。現在の変換率 (0/6、直近 7 営業日) が続けば **2027-01-15 の stale 分岐 (N≪41) が既定路線**。`mtf_strong_bias` は USD_JPY の DT strong SELL pattern が直近 1h に出ていない時間帯では消える (D1/H4 レジームとは独立、§6) が、`velocity_down` / `1h_rr_low` の構造衝突は tactical bias 状態にもレジームにも依存せず残る。
+- **checkpoint-2 の射影 (確定ではない — PR #283 レビュー 2 巡目 P2 で訂正)**: 期日 10-08 (自動判定 10-09 00:20Z) の n_floor 6 に必要な追加 closed 行は **4**。残 active 窓 = 09-23〜10-08 の 12 営業日 × 14h ≈ 168h ≈ 2.4 週。観測行頻度で射影すると、全窓ベース 2 行 / 1.48 週 = 1.35 行/週 → **≈ 3.2 行 (< 4、僅差)**、09-12 以降ベース 0 行/週 → **0 行**。どちらも 4 未満なので**現ペースの射影は TRIGGERED** だが、tactical bias が立たない時間帯が数日続けば 4 行は到達可能な距離にある。∴ 10-09 の disposition は **両分岐を事前に書く**: TRIGGERED (N<6) → §8 (i)/(ii) / 通過 (N≥6) → resolved クローズ、以後は demote gate (`tools/rnb_shadow_demote_gate.py`) と LOCK の stale 期日 2027-01-15 に委任 (registry message どおり)。「確定」と書いて片方の分岐だけ準備しない。
+- **下方修正案 (修理しない場合)**: 「期待 2.99/週の半分」基準は setup 頻度を行頻度に流用した前提の誤りなので、**cadence 期待値を「setup 頻度 × gate 通過率 (tactical bias 状態条件付き — レジーム条件付きではない、§6)」に書き換え**、通過率は本稿の日別 funnel を初期値 (2/11) として checkpoint-2 の判定時 (10-09 00:20Z) に再計測する。これは outcome 非接触の件数指標のまま維持できる。
 
 ---
 
@@ -123,17 +124,17 @@
 前提: 09-24 は期日 (最終日) で判定日ではない。09-24 中に N≥3 に達すれば 09-25 00:20Z の評価は WATCHING → 期日通過 ∧ N≥3 = checkpoint 通過として resolve (registry message どおり)。以下は N<3 で TRIGGERED した場合の案。人手で先行判断する場合も「TRIGGERED」を名乗らず本稿と同じ「到達前調査」の位置づけに留める。
 
 **(i) R3 修理候補 — `shadow_only` mode の live 保護 gate を shadow 迂回に振り替える (推奨)**
-- 変更点 (最小): `demo_trader.py:5073-5077` `_is_shadow_eligible_full` に `or _mode_is_shadow_only(mode)` を加える。これで `session_hours` (`:5297-5303`) / `velocity_down` (`:6382-6389`) の既存 shadow 迂回が rnb に効く。`mtf_strong_bias` (`:6431`) と `1h_rr_low` (`:6552`) は迂回分岐を持たないため、`shadow_only` mode では `_is_shadow=True` に落として続行する分岐を追加する (hard block → shadow 化)。
-- 根拠: `shadow_only` は OANDA 送信を 3 点 block で構造保証 (`test_rnb_shadow_only_registration.py`) しており、live 保護 gate が守るべき資本が存在しない。BT⇄live 母集団を揃える方向 (CLAUDE.md 同期原則) でもある。
+- 変更点 (最小、**rnb mode 限定**): `_is_shadow_eligible_full` (`demo_trader.py:5072-5077`) に **mode 単位の明示 allowlist** (例 `_SHADOW_ONLY_GATE_BYPASS_MODES = {"rnb_usdjpy"}`、判定 `mode in _SHADOW_ONLY_GATE_BYPASS_MODES`) を加える。**`_mode_is_shadow_only(mode)` (`:776-789`) をそのまま足してはいけない** (PR #283 レビュー 2 巡目 P1 で訂正): `shadow_only=True` は `daytrade_audjpy` (`:567`、WS3 stage-2 shadow parity 検証 + AUD_JPY 摩擦実測、pre-reg 🔒 `ws3-stage2-barrier-ev-prereg-2026-07-09`) にも立っており、`_is_shadow_eligible(_full)` は session (`:5298`) / regime (`:5421`, `:5448`) / gbp_asia (`:5478`) / recent_emit (`:5535`) / session_pair (`:5916-5949`) / spread (`:6258`, `:6282`) / spike (`:6340`) / velocity (`:6373`, `:6382`) の 9 経路で参照されるため、汎用化すると AUD/JPY shadow 実験の母集団を**黙って**変える。allowlist で rnb に閉じ、`daytrade_audjpy` は不変を pin する (下記 (b'))。これで `session_hours` (`:5297-5303`) / `velocity_down` (`:6382-6389`) の既存 shadow 迂回が rnb に効く。`mtf_strong_bias` (`:6431`) と `1h_rr_low` (`:6552`) は迂回分岐を持たないため、allowlist mode では `_is_shadow=True` に落として続行する分岐を追加する (hard block → shadow 化)。
+- 根拠: `shadow_only` は OANDA 送信を 3 点 block で構造保証 (`test_rnb_shadow_only_registration.py`) しており、live 保護 gate が守るべき資本が存在しない。BT⇄live 母集団を揃える方向 (CLAUDE.md 同期原則) でもある。同じ論理は `daytrade_audjpy` にも当てはまるが、そちらは LOCK 済み pre-reg の母集団定義に触るため**本稿の範囲外** — 拡張するなら当該 pre-reg の amendment (Rule 1) を先に書く。
 - **やらないこと**: `_UNIVERSAL_SENTINEL` への追加 (minlot live 経路が開く、packet §4)。gate 閾値 (8.0pip / RR 1.2 / strength) の変更 (他戦略に波及)。`compute_rnb_signal` のパラメータ変更 (カーブフィッティング禁止)。
-- **pin (同 commit 必須)**: (a) rnb BUY が `strength=strong` 逆方向 / 10 分 −8pip / RR 1.19 の各 counterfactual で **shadow 行になる**こと、(b) 同じ入力で非 shadow_only mode は従来どおり block されること (対称側、MEMORY `feedback_check_the_symmetric_side_2026_09_19`)、(c) OANDA 送信ゼロが不変 (既存 8 本)、(d) stale bar (hour=20 bar を 21 時台に評価) が **行にならない**こと — `session_hours` 迂回を rnb に開くと §5 型の stale bar が shadow 行になり得るため、迂回条件に「bar 鮮度 (bar_ts と now の差 ≤ 2×tf)」を要求する。
+- **pin (同 commit 必須)**: (a) rnb BUY が `strength=strong` 逆方向 / 10 分 −8pip / RR 1.19 の各 counterfactual で **shadow 行になる**こと、(b) 同じ入力で非 shadow_only mode は従来どおり block されること (対称側、MEMORY `feedback_check_the_symmetric_side_2026_09_19`)、(b') **`daytrade_audjpy` (shadow_only=True だが allowlist 外) が同じ counterfactual 入力で変更前と同一に block されること** (第 2 の対称側 — `tests/test_daytrade_audjpy_shadow_only_mode.py` に隣接して追加; これが落ちる実装 = 汎用化してしまった実装)、(c) OANDA 送信ゼロが不変 (既存 8 本)、(d) stale bar (hour=20 bar を 21 時台に評価) が **行にならない**こと — `session_hours` 迂回を rnb に開くと §5 型の stale bar が shadow 行になり得るため、迂回条件に「bar 鮮度 (bar_ts と now の差 ≤ 2×tf)」を要求する。
 - **LOCK への影響**: estimand (forward shadow rows) は不変だが母集団の gate 構成が変わるため、**registry `rnb-support-bounce-shadow-forward` の message に amendment 追記** (修理デプロイ日、変更前 N=2、変更内容) が必要 — S7 経由。first look 時は N=2 (旧 gate 構成) を除外するか層別する判断を **事前に**書く (中間再計算は行わない)。
 
 **(ii) 修理しない場合 — 頻度前提の下方修正** (§7): checkpoint-2 の判定基準を「setup 頻度 × 通過率」型に書き換え、LOCK の 2027-01-15 stale 分岐が既定路線であることを registry message に明記。
 
 **(iii) データ鮮度の読み手 (別 R3、rnb 非固有)**: 市場時間中に `fetched N bars` が 2×tf 以上伸びないモードを検知 (engine_tick とは別 estimand)。09-11 20:54Z〜21:54Z+ の 60 分凍結は現行の読み手 (tick / candidate / trade 鮮度) では見えない。
 
-**(iv) 件数整合の確認 (別 R3、低優先)**: 1 bar の初回評価が ~3 秒差で 2 本出る機構 (`_tick_entry` 二重呼び出し or mode スレッド二重化 — StatusHeal `Mode not running — restarting` `:2066` 起点の可能性) と、09-11 10:30 bar で dedup 予約を 2 回通過した痕跡の帰属。行の重複は無いが、block tick 件数の bar 換算 (×2) と DB 負荷 (09-22 §H HTTP 盲目の背景) に関わる。
+**(iv) 件数整合・帰属の確認 (別 R3、低優先)**: (a) 09-16 / 09-17 の `mtf_strong_bias` block を立てた `_15m_tactical_bias` の発生源 (どの USD_JPY DT strong SELL pattern か) — writer (`:4926-4933`) に log が無く block 理由も `_bias_dir` のみなので、writer に `[TACTICAL_BIAS] {instrument} {direction} {entry_type} {strength}` の 1 行 log を足す (計測層のみ、挙動不変) か、`mtf_strong_bias(...)` の理由文字列に bias の entry_type を含める; (b) 1 bar の初回評価が ~3 秒差で 2 本出る機構 (`_tick_entry` 二重呼び出し or mode スレッド二重化 — StatusHeal `Mode not running — restarting` `:2066` 起点の可能性) と、09-11 10:30 bar で dedup 予約を 2 回通過した痕跡の帰属。行の重複は無いが、block tick 件数の bar 換算 (×2) と DB 負荷 (09-22 §H HTTP 盲目の背景) に関わる。
 
 ---
 
@@ -145,6 +146,9 @@
 - block カウンタは **first-blocking-gate** (候補 1 件 = 最初に落ちた gate 1 つ、§3)。上流 gate (`session_hours` / dedup / `same_price`) で止まった候補について、下流カウンタ (`conf<30` / `no_confirm` / `unknown_type`) の 0 を「到達・通過」の証拠として引用しない。到達の証拠は「より下流の gate で block された」または「行になった」事実のみ。
 - `session_hours` 211 件は「時間 filter が shadow を削った」証拠として引用しない (stale feed アーティファクト、§5)。
 - checkpoint の **期日と自動 TRIGGERED 日を区別する**: 評価器は `today > deadline` (`tools/prereg_trigger_watch.py:73`)、Tier A cron は 00:20Z (`render.yaml:168`) なので TRIGGERED は**期日翌日 00:20Z** (checkpoint-1 09-25 / checkpoint-2 10-09)。「09-24 TRIGGERED」型の引用は誤り (本 PR 初版の誤記、レビュー 1 巡目で訂正)。同型の `deadline_info` / `conditional_info` (`:104`, `:331`) も `today > deadline` で同じ 1 日ずれを持つ。`live_count_decision` (`:95`) だけは `today >= deadline` で期日当日に発火する — 型を見ずに「期日 = 発火日」と書かない。
+- MTF ラベル `trend_down_strong` (`_get_mtf_regime`、monitor-only、D1/H4 30 分 TTL) と `mtf_strong_bias` gate (`_15m_tactical_bias`、DT strong pattern 由来、1h 有効) を**混同して引用しない** (§6)。「trend_down_strong の間は BUY が全て block」型の引用は誤り (本 PR 初版〜1 巡目の誤記、2 巡目で訂正)。cadence 射影の条件付けは tactical bias 状態で行う。
+- checkpoint-2 (10-09 00:20Z 判定) の TRIGGERED は**射影**であって確定ではない (残 4 行、§7)。両分岐を準備する。
+- §8 (i) の修理は **rnb mode 限定の allowlist** — `_mode_is_shadow_only` 汎用化は `daytrade_audjpy` (LOCK 済み WS3 stage-2 shadow 実験) の母集団を変えるため不可 (2 巡目 P1)。
 - 09-05 分析の予測 1 (`direction_filter` 恒久 0) は本窓でも成立 (永続 11d にキーなし)。
 
 ## 10. 出所
@@ -152,5 +156,5 @@
 - 本番 API: `GET /api/demo/status` (block_counts / tick_counts / modes、2026-09-22 08:4x UTC)、`GET /api/demo/block-counts?days=1..14&strategy=rnb_support_bounce`
 - Render app ログ (workspace tea-d6va0dia214c7386glv0 / srv-d6va1of5r7bs73en10vg): text `rnb_support_bounce` 2026-09-10〜09-22 (2 ページ、hasMore=false)、text `DemoTrader/rnb_usdjpy` 2026-09-11T19:30Z〜09-12T00:30Z
 - scratchpad `trades.json` (2,002 行、2026-08-18〜09-22)、`block_counts_11d.json`
-- code: `modules/demo_trader.py` (746-765, 1263-1272, 4292-4296, 4308-4309, 4574/4583/4643, 4884, 4900-4909, 5008, 5073-5078, 5289-5304, 5314, 5488, 5506-5519, 5521-5542, 5573, 5758, 5786, 5817, 5821-5872, 6355-6389, 6421-6431, 6449, 6549-6552, 2066) / `app.py` (4358-4527) / `modules/block_event_logger.py` (270-330) — main 0e911f04。gate 順序は `awk 'NR>=4884 && NR<=6600 && /_block\(/' modules/demo_trader.py` の全列挙で確認 (09-22、PR #283 レビュー 1 巡目)
+- code: `modules/demo_trader.py` (567, 746-765, 776-789, 1263-1272, 4292-4296, 4308-4309, 4574/4583/4643, 4884, 4900-4909, 4916-4933, 5008, 5073-5078, 5289-5304, 5314, 5488, 5506-5519, 5521-5542, 5573, 5758, 5786, 5817, 5821-5872, 6082-6087, 6355-6389, 6418-6431, 6449, 6549-6552, 10960, 2066) / `app.py` (4358-4527) / `modules/block_event_logger.py` (270-330) — main 0e911f04。gate 順序は `awk 'NR>=4884 && NR<=6600 && /_block\(/' modules/demo_trader.py` の全列挙で確認 (09-22、PR #283 レビュー 1 巡目)
 - checkpoint 評価タイミング: `tools/prereg_trigger_watch.py` (`:73` `today > deadline`、`:1442` `today = utcnow().strftime("%Y-%m-%d")`、`:648-661` shadow_count_decision の closed_only / dedup_violation / direction 契約) / `tools/quant_gate_status.py:179-187` (subprocess で watcher を呼ぶ) / `render.yaml:163-172` (Tier A cron `fx-ai-tier-a-gate-status`、`schedule: "20 0 * * *"`)
