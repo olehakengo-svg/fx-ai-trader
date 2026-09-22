@@ -39,9 +39,10 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
       gate ごとに再照会。HTTP 4xx (broker 拒否) だけが確定失敗 (PR #287 review 10 巡目 P1、CF pin 付き)
   (o) broker 照会の適用は版チェック付き — 照会中に別の確認 (confirmed_seq 前進) が入ったら
       snapshot は捨てる (PR #287 review 11 巡目 P1、CF pin 付き)
-  (p) timeout した PUT の直後に旧値を 1 回観測しただけでは「未適用」と断定しない — 送った値を観測
-      (applied) / 別値 (changed) / 旧値が安定窓 (STORM_RECONCILE_STABLE_SEC) 以上続く (not_applied)
-      のいずれかまで unresolved を保つ (PR #287 review 12 巡目 P1、CF pin 付き)
+  (p) timeout した PUT の後に旧値を観測しても「未適用」と断定しない — 送った値を観測 (applied) /
+      別値 (changed) / 自分のより新しい確認済み replacement のいずれか (authoritative) まで
+      unresolved を保ち、緩め得る replacement は保守的 baseline でブロックし続ける。経過時間からの
+      推定はしない (PR #287 review 12/14 巡目 P1、CF pin 付き)
   (q) fire-and-forget の caller は network を触らない (seed / 再照会は worker 側)
       (PR #287 review 12 巡目 P2)
   (r) 順番待ちの予算は先頭 token ごと (先頭が入れ替わるたびにリセット、PUT timeout + 照会 GET を
@@ -1237,17 +1238,18 @@ def test_p1_unresolved_is_reconciled_lazily_at_next_gate(monkeypatch):
     q[0]()
     assert b.get_storm_guard_status()["trades"][DEMO]["unresolved_sl"] == 154.400
     fake.open_trades = [_broker_trade("1000", "154.115")]           # broker 復帰: 旧値を返す
-    monkeypatch.setattr(OandaBridge, "STORM_RECONCILE_STABLE_SEC", 0.2)
     monkeypatch.setattr(OandaBridge, "STORM_RECONCILE_MIN_INTERVAL_SEC", 0.0)   # 再照会間隔を無効化
-    # 1 回目の旧値観測は inconclusive (PUT が処理中かも) → 154.350 はまだ保守的 baseline で reject
-    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False
+    # 旧値の観測は何度でも inconclusive → 154.350 は保守的 baseline で reject され続ける
+    for _ in range(3):
+        assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False
     assert b.get_storm_guard_status()["trades"][DEMO]["unresolved_sl"] == 154.400
-    __import__("time").sleep(0.25)
-    # 旧値が安定窓を超えて続いた → not_applied として解消 → 154.350 は正当 → 送られる
-    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True
+    # broker が送った値を見せた (PUT が遅れて着地) → applied として解消
+    fake.open_trades = [_broker_trade("1000", "154.400")]
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False    # 154.400 基準で緩め = reject (正しい)
     st = b.get_storm_guard_status()
-    assert st["trades"][DEMO]["unresolved_sl"] is None and st["totals"]["reconciled"] == 1
-    assert fake.calls[-1] == (OANDA_ID, 154.350)
+    assert st["trades"][DEMO]["unresolved_sl"] is None and st["trades"][DEMO]["confirmed_sl"] == 154.400
+    assert st["totals"]["reconciled"] == 1
+    assert b.modify_sl_sync(DEMO, 154.450, instrument="USD_JPY") is True
 
 
 def test_p1_definitive_4xx_failure_rolls_back_without_broker_query(monkeypatch):
@@ -1431,41 +1433,44 @@ def test_p1_snapshot_showing_third_value_resolves_as_changed(monkeypatch):
     assert st["confirmed_sl"] == 154.500 and st["unresolved_sl"] is None
 
 
-def test_p1_stable_old_value_resolves_as_not_applied(monkeypatch):
-    monkeypatch.setattr(OandaBridge, "STORM_RECONCILE_STABLE_SEC", 0.2)
+def test_p1_old_value_observations_never_resolve_by_elapsed_time(monkeypatch):
+    """14 巡目 P1: timeout した PUT の server 側完了に上限はない — 旧値を何度観測しても、時間が
+    経っても「未適用」にはしない。解消は authoritative (applied / changed / 自分の新しい確認) のみ。"""
     monkeypatch.setattr(OandaBridge, "STORM_RECONCILE_MIN_INTERVAL_SEC", 0.0)
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
     fake.fail_next = 1; fake.fail_error = "timeout"
     fake.open_trades = [_broker_trade("1000", "154.115")]
     assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is False   # inconclusive → unresolved
     assert b.get_storm_guard_status()["trades"][DEMO]["unresolved_sl"] == 154.400
-    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False   # 再観測 (まだ窓内) → reject
-    __import__("time").sleep(0.25)
-    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True    # 安定 → not_applied → 送る
-    st = b.get_storm_guard_status()
-    assert st["trades"][DEMO]["unresolved_sl"] is None and st["totals"]["reconciled"] == 1
+    __import__("time").sleep(0.3)
+    for _ in range(4):
+        assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False   # 緩め得る値はブロック継続
+    assert b.get_storm_guard_status()["trades"][DEMO]["unresolved_sl"] == 154.400
+    assert b.get_storm_guard_status()["totals"]["reconciled"] == 0
+    # 保守的 baseline 以上 (≥ 154.400) の tightening は通る → 自分の新しい確認が authoritative に解消
+    assert b.modify_sl_sync(DEMO, 154.420, instrument="USD_JPY") is True
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["unresolved_sl"] is None and st["confirmed_sl"] == 154.420
 
 
 def test_reconcile_verdict_table(monkeypatch):
-    monkeypatch.setattr(OandaBridge, "STORM_RECONCILE_STABLE_SEC", 5.0)
     b, _ = _bridge(monkeypatch, enforce=True)
     st = b._storm_new_state()
     v = b._storm_reconcile_verdict
-    assert v(st, 154.400, 154.115, None, 0.0) == "unknown"
-    assert v(st, 154.400, 154.115, 154.400, 0.0) == "applied"
-    assert v(st, 154.400, 154.115, 154.500, 0.0) == "changed"
-    assert v(st, 154.400, None, 154.115, 0.0) == "changed"          # 直前値不明なら現値が真
-    assert v(st, 154.400, 154.115, 154.115, 0.0) == "inconclusive"  # 旧値の初回観測
-    assert v(st, 154.400, 154.115, 154.115, 4.9) == "inconclusive"  # 窓内
-    assert v(st, 154.400, 154.115, 154.115, 5.0) == "not_applied"   # 窓を超えて安定
+    assert v(st, 154.400, 154.115, None) == "unknown"
+    assert v(st, 154.400, 154.115, 154.400) == "applied"
+    assert v(st, 154.400, 154.115, 154.500) == "changed"
+    assert v(st, 154.400, None, 154.115) == "changed"               # 直前値不明なら現値が真
+    for _ in range(5):
+        assert v(st, 154.400, 154.115, 154.115) == "inconclusive"   # 旧値は何度観測しても非決定
 
 
 def test_p1_cf_single_old_snapshot_treated_as_rejection_loosens_stop(monkeypatch):
     """CF pin: 旧値の単発観測を not_applied 扱いにする (11 巡目の形) と、A が実は適用される
     ケースで B=154.350 が送られ、A(154.400) 適用後の stop を緩める。"""
     monkeypatch.setattr(OandaBridge, "_storm_reconcile_verdict",
-                        lambda self, st, sent, prev, broker, now: "unknown" if broker is None
-                        else ("applied" if abs(broker - sent) < 1e-7 else "not_applied"))
+                        lambda self, st, sent, prev, broker: "unknown" if broker is None
+                        else ("applied" if abs(broker - sent) < 1e-7 else "changed"))
     b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
     q = _deferred_fire(b, monkeypatch)
     b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # A (broker では後で適用される)
@@ -1663,3 +1668,30 @@ def test_p2_unresolved_reconcile_is_rate_limited(monkeypatch):
     for _ in range(5):
         b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY")       # 保守的 baseline で reject、再照会は間隔内
     assert fake.open_trades_calls == n0 + 1                         # 直後の 1 回のみ (以後は間隔待ち)
+
+
+# ── 経過時間から「未適用」を推定しない (PR #287 review 14 巡目 P1) ─────────────────
+
+def test_p1_cf_time_based_not_applied_lets_late_landing_put_be_loosened(monkeypatch):
+    """CF pin: 旧値を 2 回 / 一定時間観測したら not_applied (13 巡目の形) にすると、最後の GET の
+    後に A=154.400 が着地するケースで B=154.350 が送られ live stop を緩める。"""
+    monkeypatch.setattr(OandaBridge, "STORM_RECONCILE_MIN_INTERVAL_SEC", 0.0)
+    obs = {"n": 0}
+    def _time_based(self, st, sent, prev, broker):
+        if broker is None:
+            return "unknown"
+        if abs(broker - sent) < 1e-7:
+            return "applied"
+        if prev is None or abs(broker - prev) >= 1e-7:
+            return "changed"
+        obs["n"] += 1
+        return "changed" if obs["n"] >= 3 else "inconclusive"      # 旧値を 3 回 (rollback 直後 + 2 gate) 観測で「未適用」扱い
+    monkeypatch.setattr(OandaBridge, "_storm_reconcile_verdict", _time_based)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    fake.fail_next = 1; fake.fail_error = "timeout"
+    fake.open_trades = [_broker_trade("1000", "154.115")]           # A はまだ着地していない
+    assert b.modify_sl_sync(DEMO, 154.400, instrument="USD_JPY") is False   # 観測 1 (rollback 直後)
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False   # 観測 2: inconclusive
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True    # ← 観測 3 で解消扱い、B が届く (旧形)
+    # 実際には A が最後の GET の後に着地 → broker の stop は 154.400 → B=154.350 で緩んだ
+    assert fake.calls[-1] == (OANDA_ID, 154.350)

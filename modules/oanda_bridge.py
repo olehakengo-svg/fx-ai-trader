@@ -1079,7 +1079,7 @@ class OandaBridge:
             "confirmed_sl": None, "confirmed_seq": 0, "pending": [], "seq": 0,
             # unresolved_sl = 送信したが応答が曖昧 (timeout/network/5xx) で broker が適用したか
             # 不明な SL。broker 照会で解消するまで単調性は保守的 baseline (BUY: max / SELL: min)
-            "unresolved_sl": None, "unresolved_prev": None, "unresolved_obs": None,
+            "unresolved_sl": None, "unresolved_prev": None,
             "sent_ts": [], "sent_total": 0, "failed_total": 0,
             "tripped": False, "warned": False,
             "counts": {}, "seeded": False, "seed_source": None,
@@ -1371,9 +1371,8 @@ class OandaBridge:
             if token["seq"] > st["confirmed_seq"]:
                 st["confirmed_seq"] = token["seq"]
                 st["confirmed_sl"] = token["new_sl"]
-                st["unresolved_sl"] = None      # より新しい確認済み値で曖昧さは消える
+                st["unresolved_sl"] = None      # より新しい確認済み値で曖昧さは消える (authoritative)
                 st["unresolved_prev"] = None
-                st["unresolved_obs"] = None
             st["cond"].notify_all()
         token["done"].set()
 
@@ -1410,15 +1409,12 @@ class OandaBridge:
                 else:
                     prev = st["confirmed_sl"]
                     st["unresolved_prev"] = prev
-                    st["unresolved_obs"] = None
-                    verdict = self._storm_reconcile_verdict(st, token["new_sl"], prev, broker_sl,
-                                                            _time.monotonic())
-                    if verdict in ("applied", "changed", "not_applied"):
+                    verdict = self._storm_reconcile_verdict(st, token["new_sl"], prev, broker_sl)
+                    if verdict in ("applied", "changed"):
                         st["confirmed_sl"] = broker_sl
                         st["confirmed_seq"] = max(st["confirmed_seq"], token["seq"])
                         st["unresolved_sl"] = None
                         st["unresolved_prev"] = None
-                        st["unresolved_obs"] = None
                         self._storm_totals["reconciled"] += 1
                         logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure reconciled ({verdict}) "
                                        f"demo={demo_trade_id} sent={token['new_sl']} broker_sl={broker_sl}")
@@ -1428,7 +1424,7 @@ class OandaBridge:
                         self._storm_totals["unresolved"] += 1
                         logger.warning(f"[OandaBridge][STORM_GUARD] ambiguous failure UNRESOLVED ({verdict}) "
                                        f"demo={demo_trade_id} sent={token['new_sl']} broker_sl={broker_sl} — "
-                                       f"monotonic baseline is conservative until a stable observation")
+                                       f"monotonic baseline stays conservative until authoritative")
         with self._storm_lock:
             token["ok"] = False
             try:
@@ -1508,31 +1504,28 @@ class OandaBridge:
             if st.get("unresolved_sl") is None:
                 return False                   # 既に解消済み (別経路)
             verdict = self._storm_reconcile_verdict(st, st["unresolved_sl"], st.get("unresolved_prev"),
-                                                    broker_sl, _time.monotonic())
-            if verdict not in ("applied", "changed", "not_applied"):
-                return False                   # inconclusive: 旧値の単発観測、次の gate で再観測
+                                                    broker_sl)
+            if verdict not in ("applied", "changed"):
+                return False                   # inconclusive: 旧値の観測は何度でも非決定 (次の gate で再観測)
             st["confirmed_sl"] = broker_sl
             st["unresolved_sl"] = None
             st["unresolved_prev"] = None
-            st["unresolved_obs"] = None
             self._storm_totals["reconciled"] += 1
             logger.warning(f"[OandaBridge][STORM_GUARD] unresolved SL reconciled ({verdict}) from broker "
                            f"demo={demo_trade_id} broker_sl={broker_sl}")
             return True
 
-    # 旧値の観測が「安定」とみなせる最短時間。timeout した PUT が broker 側でまだ処理中の窓
-    # (数秒) を超えて旧値が観測され続けたら「適用されなかった」と判定する。
-    STORM_RECONCILE_STABLE_SEC = 5.0
-
     def _storm_reconcile_verdict(self, st: dict, sent_sl: float, prev_sl: float | None,
-                                 broker_sl: float | None, now: float) -> str:
-        """曖昧な PUT の帰結を broker 観測から判定する (review 12 巡目 P1):
-          applied      = broker が送った値を持つ (PUT 適用済み)
-          changed      = broker が送った値でも直前の値でもない (別経路で動いた; 現値が真)
-          not_applied  = broker が直前の値のまま、かつその観測が STORM_RECONCILE_STABLE_SEC 以上
-                         安定して続いた (PUT は落ちた)
-          inconclusive = broker が直前の値だが単発観測 — timeout した PUT がまだ処理中で直後に
-                         適用され得る。**1 回の旧値 snapshot を拒否の証拠にしない**
+                                 broker_sl: float | None) -> str:
+        """曖昧な PUT の帰結を broker 観測から判定する (review 12/14 巡目 P1):
+          applied      = broker が送った値を持つ (PUT 適用済み) — authoritative
+          changed      = broker が送った値でも直前の値でもない (別経路で動いた; 現値が真) — authoritative
+          inconclusive = broker が直前の値のまま。timeout した PUT の server 側完了には上限が
+                         ないので、**旧値を何度・何秒観測しても「未適用」の証拠にはならない**
+                         (14 巡目 P1: 5 s 安定観測で not_applied にすると、最後の GET の後に A が
+                         着地し B が stop を緩め得た)。unresolved は authoritative な事象
+                         (applied / changed / 自分のより新しい確認済み replacement) まで維持し、
+                         その間は緩め得る replacement を保守的 baseline でブロックし続ける
           unknown      = 照会不能
         caller が lock 保持。"""
         def _eq(a, b):
@@ -1543,11 +1536,6 @@ class OandaBridge:
             return "applied"
         if prev_sl is None or not _eq(broker_sl, prev_sl):
             return "changed"
-        obs = st.get("unresolved_obs")
-        if obs is not None and _eq(obs[0], broker_sl) and now - obs[1] >= self.STORM_RECONCILE_STABLE_SEC:
-            return "not_applied"
-        if obs is None or not _eq(obs[0], broker_sl):
-            st["unresolved_obs"] = (float(broker_sl), now)
         return "inconclusive"
 
     def _storm_conservative(self, st: dict, base: float | None) -> float | None:
