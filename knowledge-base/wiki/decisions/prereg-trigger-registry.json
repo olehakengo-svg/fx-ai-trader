@@ -908,6 +908,26 @@
       "reachability": "Claude が期日までに scripts/hooks/git-post-commit.sh と scripts/hooks/git-pre-commit.sh を読み、追記タイミングを移せるか (pre-commit で今日の session log を更新して stage できるか) を判定する。移せない場合は (c) を採り CLAUDE.md の自走原則節に手順を 1 行追記する"
     },
     {
+      "id": "http-blind-fix-verification-hour0-boots",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/analyses/http-blind-fork-poisoning-2026-09-22.md",
+      "message": "🟠 **HTTP 全盲修復 (PR 2026-09-22、DailyReview を serving process へ defer) の forward 検証**。事故 3 件 (09-12 / 09-15 / 09-22) は全て **UTC 0 時台デプロイ直後**に fork 窓で DailyReview の SQLite が走った結果で、0 時台起動 7 件中 3 件 (43%) が盲目、0 時台以外は 0 件。修復後の 0 時台デプロイ ≥3 件で (a) Render app ログに `[DailyReview] starting scheduler in serving process` が出る (b) 起動 ≤10 分で request log に 200 が返る (c) `[Backup] Created` が `Booting worker` より**後**、を確認する。1 件でも盲目なら §3.3 の帰属を再検討 (他の import 時 SQLite 経路: block_event_logger / migrate_seed / dedup_backfill / HMM warm-start 等を疑う)。併せて `/healthz/http` health check が deploy 完了時刻を遅らせていないか (従来 ~2 分) を確認。",
+      "condition": "0 時台デプロイ 3 件以上で上記 (a)(b)(c) を Render ログで確認し、結果を analyses/http-blind-fork-poisoning-2026-09-22.md §8 に追記すること",
+      "reachability": "Claude が期日までに Render MCP (list_logs / list_deploys) で 0 時台デプロイの app/request ログを読み、§8 へ結果を追記する。0 時台デプロイが 3 件に達しない場合は期日を 2 週間延長して再評価"
+    },
+    {
+      "id": "dual-engine-master-worker-disposition",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/analyses/http-blind-fork-poisoning-2026-09-22.md",
+      "message": "🔴 **取引エンジンが gunicorn master と worker の 2 プロセスで二重に走っている (2026-09-22 確定、§6)**。証拠: (A) HTTP 全盲中 (worker で 1 本も request 完了なし = StatusHeal 未実行) に `[MainLoop] iter=` が前進 = master のエンジン (B) 03:35:56 StatusHeal 後に `[MainLoop] iter=240` が 03:45:27 と 03:46:15 の 2 回 (別カウンタ)。含意: 同一シグナルを 2 プロセスが評価・emit する。in-memory dedup はプロセス内のみ、DB write-time `dedup_violation` はクロスプロセス dup を**フラグするが防がない**。LIVE 送信の二重化リスクは**未評価**。`/api/demo/status` は worker 側エンジンしか見えない。⚠️ 修正 (単一エンジン化 = master は import のみ、worker の `post_worker_init` で起動) は shadow N の生成率を変える **regime break** を伴い pre-reg 群の窓設計に触るため、本 PR では触らなかった。期日までに (1) `dedup_violation=1` の過去 30 日出現率と bar_ts 一致ペアの実測で dup 率を出す (2) 単一エンジン化の設計 (gunicorn conf の hook / master 側 autostart の停止 / StatusHeal の位置) と regime break の記録方法を決める (3) user へ decision packet (Rule 3 構造バグだが N 会計に触るため報告)。",
+      "condition": "dup 率の実測と単一エンジン化の設計メモを analyses/http-blind-fork-poisoning-2026-09-22.md §6 追補または新規 analyses/ に置き、user 決裁の要否を明記すること",
+      "reachability": "Claude が期日までに本番 DB (API `/api/demo/trades` の dedup_violation 列) と Render ログ (`[MainLoop] iter=` の二重ストリーム) を読み、設計メモを書く。再 fork 事象 (`Booting worker` が起動時以外に出る) を観測したら期日を待たず着手"
+    },
+    {
       "id": "integrated-decision-packet-d1-d12",
       "active": true,
       "type": "deadline_info",

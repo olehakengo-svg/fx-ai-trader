@@ -1,5 +1,14 @@
 # FX AI Trader - Changelog
 
+## 2026-09-22 — fix(fork-safety): 本番 HTTP 全盲 3h18m の根本原因修復 — gunicorn master の pre-fork 窓で DailyReview が SQLite を回していた (rule:R3)
+
+- DailyReviewEngine を import 時起動から serving process の heartbeat 起動へ (defer_thread、positioning §11 と同型)
+- `/healthz/http` (fresh sqlite connect プローブ) + render.yaml `healthCheckPath`
+- render.yaml ignoredPaths に夜間 ingest 3 パス (rate_anchor / mof_statements / ZN_F_1h.parquet)
+- anomaly_watcher `http_blind` (read-timeout 全滅 ↔ 接続拒否/5xx) — 判定は `modules/freshness_policy.classify_outage` が SSOT
+- daily_report: fetch 失敗を「unreachable, cause unknown (class)」として決定的に記録、原因捏造の出力後検査
+- 詳細: knowledge-base/wiki/analyses/http-blind-fork-poisoning-2026-09-22.md
+
 ## 2026-09-16 — fix(gate): P-S1(a) 執行トリガの estimand 不一致を修復 — gross/net 符号割れで自動 live 昇格を停止 (rule:R3)
 
 - **契機**: 2026-09-14T21:16Z の 10 本目到達で `tools/ps1a_execution_check.py` が

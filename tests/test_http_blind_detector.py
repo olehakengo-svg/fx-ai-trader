@@ -1,0 +1,294 @@
+"""「HTTP 全盲」と「サービス停止」を外部から分離する検知器 (rule:R3, 2026-09-22).
+
+2026-09-22 00:15〜03:33Z、本番 web service は **プロセスもエンジンも生きたまま**
+HTTP だけが 3h18m 応答しなかった (knowledge-base/wiki/analyses/
+http-blind-fork-poisoning-2026-09-22.md)。既存の ``api_unreachable`` は 4 本全滅を
+「サービスの死」として通知し、読み手 (daily report の LLM) はそれを
+「Render 無料 tier のスリープ」と**捏造**した。
+
+外部 (状態を持たない cron) が持てる証拠は fetch の**失敗クラス**だけである:
+
+  - ``ReadTimeout`` = TCP 接続は成立し、応答が timeout 内に来ない
+    → **プロセスは listen している。HTTP 層が返ってこない** (= http_blind)
+  - ``ConnectionError`` / 5xx = 接続拒否・リセット・edge 502
+    → **プロセスが serving していない** (= api_down: デプロイ / 再起動 / 停止)
+
+判定は modules/freshness_policy.classify_outage が SSOT で、watcher と
+daily_report が同じ関数を読む (閾値の二重定義禁止の既存方針と同じ)。
+
+counterfactual (実測済): watcher の ``check_api_reachability`` から
+``classify_outage`` の分岐を消すと ``test_all_read_timeouts_is_http_blind`` が
+``api_unreachable`` を返して落ちる。
+"""
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+
+import pytest
+
+from modules import freshness_policy as fp
+
+ROOT = Path(__file__).resolve().parents[1]
+_spec = importlib.util.spec_from_file_location(
+    "anomaly_watcher_blind", ROOT / "scripts" / "anomaly_watcher.py"
+)
+aw = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(aw)
+
+RT = ("ReadTimeout: HTTPSConnectionPool(host='fx-ai-trader.onrender.com', port=443): "
+      "Read timed out. (read timeout=15)")
+CE = ("ConnectionError: HTTPSConnectionPool(host='fx-ai-trader.onrender.com', port=443): "
+      "Max retries exceeded")
+H502 = "HTTPError: 502 Server Error: Bad Gateway for url: https://fx-ai-trader.onrender.com/x"
+
+
+def _fail(path: str, reason: str) -> "aw.FetchOutcome":
+    return aw.FetchOutcome(path, False, {}, reason)
+
+
+# ── SSOT 側 (freshness_policy) ──────────────────────────────────────────
+class TestClassifyFetchFailure:
+    @pytest.mark.parametrize("reason, expected", [
+        (RT, fp.FAIL_TIMEOUT),
+        ("ReadTimeoutError: ...", fp.FAIL_TIMEOUT),
+        ("timeout: timed out", fp.FAIL_TIMEOUT),          # urllib (daily_report)
+        ("TimeoutError: The read operation timed out", fp.FAIL_TIMEOUT),
+        (CE, fp.FAIL_CONNECTION),
+        ("URLError: <urlopen error [Errno 111] Connection refused>", fp.FAIL_CONNECTION),
+        ("ConnectionResetError: [Errno 104]", fp.FAIL_CONNECTION),
+        ("RemoteDisconnected: Remote end closed connection", fp.FAIL_CONNECTION),
+        (H502, fp.FAIL_HTTP_5XX),
+        ("HTTPError: HTTP Error 503: Service Unavailable", fp.FAIL_HTTP_5XX),
+        # 4xx = 応答はある = serving 中 (Codex P2: down に畳まない)
+        ("HTTPError: HTTP Error 401: Unauthorized", fp.FAIL_HTTP_4XX),
+        ("HTTPError: 404 Client Error: Not Found for url: https://h:443/x", fp.FAIL_HTTP_4XX),
+        ("HTTPError: HTTP Error 429: Too Many Requests", fp.FAIL_HTTP_4XX),
+        ("JSONDecodeError: Expecting value", fp.FAIL_OTHER),
+        ("", fp.FAIL_OTHER),
+    ])
+    def test_classes(self, reason, expected):
+        assert fp.classify_fetch_failure(reason) == expected
+
+    def test_port_in_url_is_not_read_as_a_status_code(self):
+        """':443' や ':500' を状態コードと誤読しない — " for url" 以降は見ない。"""
+        assert fp.classify_fetch_failure(
+            "HTTPError: 401 Client Error: Unauthorized for url: https://h:500/x"
+        ) == fp.FAIL_HTTP_4XX
+
+    def test_connect_timeout_is_not_blind(self):
+        """接続段階の timeout は「listen していない」側 — blind と混ぜない。"""
+        assert fp.classify_fetch_failure(
+            "ConnectTimeout: HTTPSConnectionPool(...) Connection to host timed out"
+        ) == fp.FAIL_CONNECTION
+
+
+class TestClassifyOutage:
+    def test_all_read_timeouts_is_http_blind(self):
+        out = fp.classify_outage({f"/p{i}": RT for i in range(5)})
+        assert out["kind"] == fp.OUTAGE_HTTP_BLIND
+        assert out["n_timeout"] == 5 and out["n_connection"] == 0
+
+    def test_all_connection_errors_is_api_down(self):
+        out = fp.classify_outage({"/a": CE, "/b": CE, "/c": CE})
+        assert out["kind"] == fp.OUTAGE_API_DOWN
+        assert out["n_connection"] == 3
+
+    def test_all_5xx_is_http_5xx_not_api_down(self):
+        """Codex P2 (2026-09-22): app 由来の 500 でも「origin が応答していない」と報告していた。
+        5xx は HTTP 応答であり、edge (502/503/504) か app (500) かは状態コードでは判別不能。"""
+        for reason in (H502, "HTTPError: HTTP Error 500: Internal Server Error"):
+            out = fp.classify_outage({f"/p{i}": reason for i in range(3)})
+            assert out["kind"] == fp.OUTAGE_HTTP_5XX, reason
+            assert "応答は返っている" in out["summary"]
+            assert "停止の証拠には使わない" in out["summary"]
+
+    def test_connection_plus_5xx_is_mixed(self):
+        out = fp.classify_outage({"/a": CE, "/b": H502, "/c": CE})
+        assert out["kind"] == fp.OUTAGE_MIXED
+
+    def test_mixed_is_reported_as_mixed_not_collapsed(self):
+        """timeout と connection error が混在 = 遷移中 (再起動直後など)。
+        どちらかに畳むと切り分けが消える。"""
+        out = fp.classify_outage({"/a": RT, "/b": CE})
+        assert out["kind"] == fp.OUTAGE_MIXED
+
+    def test_connection_plus_other_is_not_api_down(self):
+        """Codex P2 (2026-09-22): 「接続失敗 1 + JSON 壊れ 1」を api_down にしていた。
+        other は輸送層について何も言わないので、停止の結論は出せない。"""
+        out = fp.classify_outage({"/a": CE, "/b": "JSONDecodeError: Expecting value"})
+        assert out["kind"] == fp.OUTAGE_MIXED
+
+    def test_all_4xx_is_http_error_not_api_down(self):
+        """全 endpoint 401 = プロセスは serving 中 (認証の問題)。「停止」と報告してはならない。"""
+        out = fp.classify_outage({f"/p{i}": "HTTPError: HTTP Error 401: Unauthorized"
+                                  for i in range(3)})
+        assert out["kind"] == fp.OUTAGE_HTTP_ERROR
+        assert "応答は返っている" in out["summary"]
+        assert "停止の証拠ではない" in out["summary"]
+
+    def test_5xx_plus_4xx_is_mixed(self):
+        out = fp.classify_outage({"/a": H502, "/b": "HTTPError: HTTP Error 404: Not Found"})
+        assert out["kind"] == fp.OUTAGE_MIXED
+
+    def test_other_only_is_unknown(self):
+        out = fp.classify_outage({"/a": "JSONDecodeError: x"})
+        assert out["kind"] == fp.OUTAGE_UNKNOWN
+
+    def test_empty_is_unknown(self):
+        assert fp.classify_outage({})["kind"] == fp.OUTAGE_UNKNOWN
+
+    def test_partial_failure_is_partial_even_if_all_failures_are_timeouts(self):
+        """Codex P2 (2026-09-22): 失敗分だけを分類すると 1 本の timeout が「HTTP 全盲」に
+        なった。成功が 1 本でもあれば母集団はサービス全体で、結論は endpoint 固有。"""
+        out = fp.classify_outage({"/a": RT}, n_ok=4)
+        assert out["kind"] == fp.OUTAGE_PARTIAL
+        assert out["n_ok"] == 4
+        assert "全盲" not in out["summary"] and "応答している" in out["summary"]
+
+    def test_http_blind_summary_does_not_claim_origin_is_listening(self):
+        """Codex P2 (2026-09-22): 公開 URL への read-timeout は edge までの接続しか証明しない。
+        「プロセスは listen 中」を観測の要約として書かない。"""
+        s = fp.classify_outage({f"/p{i}": RT for i in range(3)})["summary"]
+        assert "判定不能" in s and "裏取り" in s
+        # 断定形 (「プロセスは listen 中」「= listen している」) を書かない。
+        # 「listen しているか…判定不能」という疑問形は許す。
+        assert "プロセスは listen 中" not in s and "= プロセスは listen" not in s
+        assert "listen している。" not in s
+
+
+class TestFindInventedCauses:
+    def test_affirmative_claim_is_flagged(self):
+        assert fp.find_invented_causes("Render側のコールドスタート（無料tier特有のスリープ）が原因。") \
+            == ["無料tier", "スリープ", "コールドスタート"]
+
+    def test_negation_is_not_flagged(self):
+        """Codex P2 (2026-09-22): 「free-tier sleep is ruled out」を捏造として脚注していた。"""
+        assert fp.find_invented_causes("Free-tier sleep is ruled out (Pro plan).") == []
+        assert fp.find_invented_causes("これは無料 tier のスリープではない。") == []
+
+    def test_unrelated_english_word_is_not_flagged(self):
+        assert fp.find_invented_causes("time.sleep(60) の間隔でポーリングする。") == []
+
+    def test_mixed_sentences_flag_only_the_affirmative_one(self):
+        text = "スリープではない。\n一方でコールドスタートが原因である。"
+        assert fp.find_invented_causes(text) == ["コールドスタート"]
+
+    @pytest.mark.parametrize("text", [
+        "ネットワーク障害ではなく、無料 tier のスリープが原因",
+        "無料 tier のスリープが原因で、再起動ではない",
+        # 3 巡目 (Codex P2): 汎用否定「しない」が「応答」に付いているのに原因語を隠した
+        "APIが応答しないのは無料tierのスリープが原因",
+        "スリープしないはずの Pro plan だが、無料 tier のスリープが原因と考える",
+    ])
+    def test_unbound_negation_does_not_shield_the_claim(self, text):
+        """否定は**原因語そのもの**に結び付くときだけ効く (文単位 → 節単位 → 語束縛)。"""
+        hits = fp.find_invented_causes(text)
+        assert "スリープ" in hits
+        assert "無料tier" in hits or "無料 tier" in hits
+
+    @pytest.mark.parametrize("text", [
+        "これは無料 tier のスリープではない。",
+        "スリープではなく再起動が原因。",
+        "not a free tier issue (Pro plan).",
+        "Free-tier sleep is ruled out.",
+        "cold start is excluded here.",
+    ])
+    def test_bound_negation_is_respected(self, text):
+        assert fp.find_invented_causes(text) == []
+
+    def test_human_text_is_provided_and_does_not_invent_causes(self):
+        """読み手 (LLM / 人) に渡す文言は「何が観測されたか」だけを述べる。
+        原因の断定語 (スリープ / 無料 tier / コールドスタート) を含まない。"""
+        for reasons in ({"/a": RT}, {"/a": CE}, {"/a": RT, "/b": CE}, {}):
+            text = fp.classify_outage(reasons)["summary"]
+            assert text
+            for banned in fp.INVENTED_CAUSE_PATTERNS:
+                assert banned not in text, (reasons, banned)
+
+
+# ── 検知器側 (anomaly_watcher) ───────────────────────────────────────────
+class TestHttpBlindEvent:
+    def test_all_read_timeouts_fire_http_blind_not_api_unreachable(self):
+        outcomes = {p: _fail(p, RT) for p in aw.WATCHED_PATHS}
+        ev = aw.check_api_reachability(outcomes, attempts=4, waited_sec=210.0)
+        assert len(ev) == 1
+        assert ev[0]["type"] == "http_blind"
+        assert ev[0]["outage_kind"] == fp.OUTAGE_HTTP_BLIND
+        assert ev[0]["n_failed"] == len(aw.WATCHED_PATHS)
+        assert ev[0]["attempts"] == 4 and ev[0]["waited_sec"] == 210.0
+
+    def test_connection_errors_still_fire_api_unreachable(self):
+        """接続拒否/リセットの全滅 = api_unreachable (api_down)。"""
+        outcomes = {p: _fail(p, CE) for p in aw.WATCHED_PATHS}
+        ev = aw.check_api_reachability(outcomes)
+        assert ev[0]["type"] == "api_unreachable"
+        assert ev[0]["outage_kind"] == fp.OUTAGE_API_DOWN
+
+    def test_all_5xx_is_api_http_error_not_unreachable(self):
+        """Codex P2 (2026-09-22, 5 巡目): 応答が返っている失敗 (5xx) を「到達できない」に
+        畳むと通知が復旧手順へ誤誘導する。専用 type + 文言 (edge/app 判別不能を明記)。"""
+        outcomes = {p: _fail(p, H502) for p in aw.WATCHED_PATHS}
+        ev = aw.check_api_reachability(outcomes)
+        assert ev[0]["type"] == "api_http_error"
+        assert ev[0]["outage_kind"] == fp.OUTAGE_HTTP_5XX
+        line = aw._event_line(ev[0])
+        assert "HTTP エラー応答" in line and "判別不能" in line and "502" in line
+        assert "到達できない" not in line
+        assert "他の全検知器は盲目である" in line
+
+    def test_mixed_failures_stay_api_unreachable_with_kind_mixed(self):
+        outcomes = {p: _fail(p, RT if i % 2 else CE) for i, p in enumerate(aw.WATCHED_PATHS)}
+        ev = aw.check_api_reachability(outcomes)
+        assert ev[0]["type"] == "api_unreachable"
+        assert ev[0]["outage_kind"] == fp.OUTAGE_MIXED
+
+    def test_all_4xx_is_api_http_error_pointing_at_auth(self):
+        """全 401 = サービスは応答している。「到達できない」ではなく認証/パスへ誘導する。"""
+        outcomes = {p: _fail(p, "HTTPError: HTTP Error 401: Unauthorized") for p in aw.WATCHED_PATHS}
+        ev = aw.check_api_reachability(outcomes)
+        assert ev[0]["type"] == "api_http_error"
+        assert ev[0]["outage_kind"] == fp.OUTAGE_HTTP_ERROR
+        line = aw._event_line(ev[0])
+        assert "認証" in line and "サービス停止ではない" in line
+        assert "到達できない" not in line
+
+    def test_api_http_error_notifies_hourly(self):
+        assert "api_http_error" not in aw.NOTIFY_NEVER
+        assert aw.NOTIFY_EVERY_HOURS["api_http_error"] == 1
+
+    def test_partial_failure_is_unchanged(self):
+        outcomes = {p: aw.FetchOutcome(p, True, {}, "") for p in aw.WATCHED_PATHS}
+        outcomes["/api/demo/status"] = _fail("/api/demo/status", RT)
+        ev = aw.check_api_reachability(outcomes)
+        assert ev[0]["type"] == "api_endpoint_failed"
+        # payload の種別も「部分」であって「全盲」ではない (成功数を渡している)
+        assert ev[0]["outage_kind"] == fp.OUTAGE_PARTIAL
+
+    def test_http_blind_notifies_hourly_and_is_not_silenced(self):
+        assert "http_blind" not in aw.NOTIFY_NEVER
+        assert aw.NOTIFY_EVERY_HOURS["http_blind"] == 1
+
+    def test_http_blind_line_says_engine_state_is_unknown_from_outside(self):
+        """行文言: 「プロセスは listen / HTTP 無応答 / engine 生死は外部から不明 /
+        Render ログ [MainLoop] を見よ」。汎用 fallback に落ちていないこと。
+        原因の断定 (スリープ等) を含まないこと。"""
+        outcomes = {p: _fail(p, RT) for p in aw.WATCHED_PATHS}
+        line = aw._event_line(aw.check_api_reachability(outcomes)[0])
+        assert line.startswith("- ")
+        assert "HTTP" in line and "MainLoop" in line
+        assert "engine" in line.lower() or "エンジン" in line
+        assert "不明" in line
+        # origin の状態を観測から断定しない (Codex P2)
+        assert "= プロセスは listen" not in line
+        for banned in fp.INVENTED_CAUSE_PATTERNS:
+            assert banned not in line
+        assert not line.startswith("- http_blind: {")
+
+    def test_watcher_uses_the_shared_classifier(self):
+        """SSOT pin: watcher が判定を再実装していないこと (閾値二重定義の教訓)。"""
+        src = (ROOT / "scripts" / "anomaly_watcher.py").read_text(encoding="utf-8")
+        assert "classify_outage(" in src
+        assert "OUTAGE_HTTP_BLIND" in src
+        # watcher 側で ReadTimeout を直に文字列比較していない
+        assert 'startswith("ReadTimeout' not in src

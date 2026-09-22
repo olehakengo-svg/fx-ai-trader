@@ -33,8 +33,16 @@ import sys
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# 到達不能の分類は modules/freshness_policy が SSOT (anomaly_watcher と同じ関数)。
+# 2026-09-22 (rule:R3): 本番 HTTP 全盲の最中に生成されたレポートが、失敗クラスも
+# 渡されないまま「Render 無料 tier のスリープ」という存在しない原因を書いた。
+from modules import freshness_policy as _fp  # noqa: E402
 
 FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"
 CLAUDE_MODEL = "claude-sonnet-4-6"
@@ -186,14 +194,127 @@ NYセッション（UTC 16:00-22:00）を総括し、1日の最終総括を行�
 
 # ── API ────────────────────────────────────────────────
 
-def fetch_json(url: str, timeout: int = 15) -> dict:
+class FetchResult(NamedTuple):
+    """1 API \u306e\u53d6\u5f97\u7d50\u679c\u3002``ok`` \u3068 ``payload`` \u3092\u5206\u3051\u3066\u6301\u3064 (anomaly_watcher.FetchOutcome \u3068\u540c\u578b).
+
+    \u65e7 ``fetch_json`` \u306f\u5931\u6557\u3092 ``{}`` \u306b\u6f70\u3057\u3066\u304a\u308a\u3001\u300c\u53d6\u308c\u306a\u304b\u3063\u305f\u300d\u3068\u300c\u7a7a\u3060\u3063\u305f\u300d\u3082\u3001
+    **\u306a\u305c\u53d6\u308c\u306a\u304b\u3063\u305f\u304b (\u5931\u6557\u30af\u30e9\u30b9)** \u3082 LLM \u306b\u6e21\u3063\u3066\u3044\u306a\u304b\u3063\u305f\u3002\u539f\u56e0\u3092\u66f8\u304f\u6750\u6599\u304c
+    \u7121\u3044\u307e\u307e\u300c\u539f\u56e0\u300d\u6b04\u3092\u57cb\u3081\u3055\u305b\u305f\u306e\u304c 2026-09-22 \u306e\u634f\u9020 (\u300c\u7121\u6599 tier \u306e\u30b9\u30ea\u30fc\u30d7\u300d)\u3002
+    """
+
+    url: str
+    ok: bool
+    payload: dict
+    error_class: str  # freshness_policy.FAIL_* / ok \u306e\u3068\u304d ""
+    error: str        # f"{type(e).__name__}: {e}" / ok \u306e\u3068\u304d ""
+
+
+def fetch_outcome(url: str, timeout: int = 15) -> FetchResult:
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "FX-DailyReport/1.0"})
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read().decode())
+            return FetchResult(url, True, json.loads(r.read().decode()), "", "")
     except Exception as e:
-        print(f"  \u26a0\ufe0f  fetch failed: {url} \u2014 {e}", file=sys.stderr)
-        return {}
+        reason = f"{type(e).__name__}: {e}"
+        print(f"  \u26a0\ufe0f  fetch failed: {url} \u2014 {reason}", file=sys.stderr)
+        return FetchResult(url, False, {}, _fp.classify_fetch_failure(reason), reason)
+
+
+def fetch_json(url: str, timeout: int = 15) -> dict:
+    """\u5f8c\u65b9\u4e92\u63db\u306e\u8584\u3044\u30e9\u30c3\u30d1\u3002\u65b0\u898f\u306e\u547c\u3073\u51fa\u3057\u306f fetch_outcome \u3092\u4f7f\u3046\u3053\u3068 \u2014
+    \u3053\u3053\u3067 ``{}`` \u306b\u6f70\u3059\u3068\u300c\u5931\u6557\u300d\u3068\u300c\u7a7a\u300d\u306e\u6298\u308a\u7573\u307f\u3092\u518d\u5c0e\u5165\u3059\u308b\u3002"""
+    return fetch_outcome(url, timeout=timeout).payload
+
+
+def preprocess_fetch_status(results: dict[str, FetchResult]) -> str:
+    """API \u53d6\u5f97\u72b6\u6cc1\u3092**\u6c7a\u5b9a\u7684\u306b**\u30c6\u30fc\u30d6\u30eb\u5316\u3057\u3066 LLM \u306b\u6e21\u3059 (2026-09-22, rule:R3).
+
+    \u5931\u6557\u306f\u300cunreachable, cause unknown (\u5931\u6557\u30af\u30e9\u30b9)\u300d\u3068\u3060\u3051\u66f8\u304f\u3002\u539f\u56e0\u306e\u63a8\u6e2c
+    (\u30b9\u30ea\u30fc\u30d7 / \u7121\u6599 tier / \u30b3\u30fc\u30eb\u30c9\u30b9\u30bf\u30fc\u30c8\u7b49) \u306f\u89b3\u6e2c\u304b\u3089\u5c0e\u3051\u306a\u3044\u306e\u3067\u3001
+    \u30c6\u30fc\u30d6\u30eb\u81ea\u8eab\u304c\u7981\u6b62\u898f\u5247\u3092\u540c\u68b1\u3059\u308b\u3002\u672c\u756a\u306f Render **Pro plan** \u3067\u5e38\u6642\u7a3c\u50cd
+    (sleep \u3057\u306a\u3044) \u2014 \u4e8b\u5b9f\u3068\u3057\u3066\u660e\u8a18\u3057\u3001LLM \u304c\u4ed6\u306e hosting \u306e\u5e38\u8b58\u3092\u6301\u3061\u8fbc\u307e\u306a\u3044
+    \u3088\u3046\u306b\u3059\u308b\u3002
+    """
+    if not results:
+        return "### DATA FETCH\n\u53d6\u5f97\u5bfe\u8c61\u306a\u3057\n"
+    n_total = len(results)
+    failed = {k: r for k, r in results.items() if not r.ok}
+    n_ok = n_total - len(failed)
+    rows = []
+    for key, r in results.items():
+        if r.ok:
+            rows.append(f"| {key} | ok | - |")
+        else:
+            rows.append(f"| {key} | **unreachable, cause unknown** | {r.error_class} |")
+    lines = [
+        "### DATA FETCH\uff08\u751f\u6210\u5668\u304c\u6c7a\u5b9a\u7684\u306b\u8a18\u9332\u3002\u6570\u5024\u306f\u518d\u8a08\u7b97\u4e0d\u8981\uff09",
+        f"\u53d6\u5f97 {n_ok}/{n_total} \u672c\u6210\u529f (\u5931\u6557 {len(failed)}/{n_total})\u3002",
+        "| Source | Status | Failure class |",
+        "|---|---|---|",
+        *rows,
+    ]
+    if failed:
+        # 成功数を渡す — 失敗分だけを分類すると 1 本の timeout が「全盲」と要約される
+        # (Codex P2 2026-09-22)。部分失敗は「サービスは応答している」と書く。
+        outage = _fp.classify_outage({k: r.error for k, r in failed.items()}, n_ok=n_ok)
+        lines.append("")
+        lines.append(f"\u89b3\u6e2c\u306e\u8981\u7d04: {outage['summary']}")
+        lines.append("")
+        lines.append(
+            "**\u898f\u5247**: \u53d6\u5f97\u5931\u6557\u306e**\u539f\u56e0\u3092\u63a8\u6e2c\u3057\u3066\u306f\u3044\u3051\u306a\u3044**\u3002\u30ec\u30dd\u30fc\u30c8\u3067\u306f"
+            " \u300eunreachable, cause unknown\uff08\u5931\u6557\u30af\u30e9\u30b9: ...\uff09\u300f\u3068\u3060\u3051\u66f8\u304f\u3002"
+            " \u672c\u756a\u306f Render Pro plan \u306e\u5e38\u6642\u7a3c\u50cd\u30b5\u30fc\u30d3\u30b9\u3067\u3001tier \u7531\u6765\u306e\u505c\u6b62\u306f\u8d77\u3053\u3089\u306a\u3044\u3002"
+            " \u5931\u6557\u4e2d\u306b\u53d6\u308c\u306a\u304b\u3063\u305f\u6307\u6a19\u306f\u300e\u30c7\u30fc\u30bf\u306a\u3057\u300f\u3068\u660e\u8a18\u3057\u3001\u5024\u3092\u88dc\u5b8c\u30fb\u63a8\u5b9a\u3057\u306a\u3044\u3002"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def flag_invented_causes(report: str) -> list[str]:
+    """LLM 出力に「観測から導けない原因」の**肯定的な断定**が含まれるかを検査する。
+
+    否定文 (「スリープではない」「ruled out」) は数えない — 判定は
+    freshness_policy.find_invented_causes (SSOT)。
+    """
+    return _fp.find_invented_causes(report or "")
+
+
+def finalize_llm_report(report: str, n_failed: int, label: str) -> str:
+    """LLM 出力を保存・送信する**直前**に必ず通す出口 (2026-09-22, rule:R3).
+
+    analyst / strategy の両レポートが同じ出口を通ることで、片方だけ検査する
+    非対称 (Codex P2 2026-09-22: 当初 analyst_report だけを検査し、その本文を入力に
+    受け取る strategy planner が同じ捏造を再生産できた) を構造的に塞ぐ。
+    """
+    # ガードは **fetch 失敗があったときだけ**掛ける (Codex P2 2026-09-22): 失敗ゼロの
+    # レポートに原因語があっても「0 本の失敗を unreachable と書け」という脚注は
+    # 意味を持たない。守る対象は「取得失敗の原因」の記述であって語彙一般ではない。
+    if n_failed <= 0:
+        return report
+    hits = flag_invented_causes(report)
+    if not hits:
+        return report
+    print(f"  ⚠️  [{label}] 原因の捏造を検出: {hits} "
+          f"— 生成器注記で訂正", file=sys.stderr)
+    return append_generator_correction(report, hits, n_failed)
+
+
+def append_generator_correction(report: str, hits: list[str], n_failed: int) -> str:
+    """\u634f\u9020\u539f\u56e0\u3092\u691c\u51fa\u3057\u305f\u3089\u3001\u672c\u6587\u306f\u5909\u3048\u305a\u306b**\u811a\u6ce8\u3067\u8a02\u6b63**\u3059\u308b\u3002
+
+    \u9ed9\u3063\u3066\u66f8\u304d\u63db\u3048\u308b\u3068\u300cLLM \u304c\u305d\u3046\u66f8\u3044\u305f\u300d\u4e8b\u5b9f\u304c\u6d88\u3048\u3001\u9ed9\u3063\u3066\u901a\u3059\u3068\u8aad\u307f\u624b\u304c
+    \u539f\u56e0\u3092\u4fe1\u3058\u308b\u3002\u3069\u3061\u3089\u3082\u3057\u306a\u3044 \u2014 \u751f\u6210\u5668\u306e\u6ce8\u8a18\u3068\u3057\u3066\u660e\u793a\u7684\u306b\u6b8b\u3059\u3002
+    """
+    if not hits:
+        return report
+    note = (
+        "\n\n---\n"
+        "\u26a0\ufe0f **\u751f\u6210\u5668\u6ce8\u8a18 (\u81ea\u52d5)**: \u4e0a\u8a18\u672c\u6587\u306b\u89b3\u6e2c\u304b\u3089\u5c0e\u3051\u306a\u3044\u539f\u56e0\u8a9e "
+        f"({', '.join(repr(h) for h in hits)}) \u304c\u542b\u307e\u308c\u3066\u3044\u307e\u3059\u3002"
+        f"API \u53d6\u5f97\u5931\u6557 {n_failed} \u672c\u306e\u6b63\u3057\u3044\u8a18\u8ff0\u306f **unreachable, cause unknown** \u3067\u3059\u3002"
+        " \u672c\u756a\u306f Render Pro plan (\u5e38\u6642\u7a3c\u50cd) \u3067\u3001tier \u7531\u6765\u306e\u505c\u6b62\u306f\u8d77\u3053\u308a\u307e\u305b\u3093\u3002"
+        " \u539f\u56e0\u306f\u30ec\u30dd\u30fc\u30c8\u751f\u6210\u6642\u70b9\u3067\u306f\u5224\u5b9a\u3067\u304d\u306a\u3044\u305f\u3081\u3001\u4e0a\u8a18\u306e\u539f\u56e0\u8a18\u8ff0\u306f\u7121\u52b9\u3068\u3057\u3066\u8aad\u3093\u3067\u304f\u3060\u3055\u3044\u3002\n"
+    )
+    return report + note
 
 
 def call_claude(system: str, messages: list[dict], max_tokens: int = 2500) -> str:
@@ -784,8 +905,11 @@ def check_kb_pipeline_health() -> list[str]:
 # ── Analyst レポート ───────────────────────────────────
 
 def run_analyst(data: dict, session: str = "pre_tokyo",
-                health_warnings: list[str] | None = None) -> str:
+                health_warnings: list[str] | None = None,
+                fetch_results: dict[str, FetchResult] | None = None) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    # 取得状況は最初に置く — 何が取れていないかを知らずに数値を語らせない
+    fetch_table = preprocess_fetch_status(fetch_results) if fetch_results else ""
     kb_ctx = load_kb_context()
     kb_section = f"\n\n### KB蓄積知見（Tier分類・教訓・未解決事項）\n{kb_ctx}" if kb_ctx else ""
 
@@ -811,6 +935,7 @@ def run_analyst(data: dict, session: str = "pre_tokyo",
 Fidelity Cutoff: {FIDELITY_CUTOFF}
 ※テーブルはPython側でis_shadow=0 & XAU別枠で集計済み。数値はそのまま使用可能。
 
+{fetch_table}
 {status_table}
 {trades_table}
 {bt_div_table}
@@ -823,6 +948,9 @@ Fidelity Cutoff: {FIDELITY_CUTOFF}
 2. テーブルにない洞察（課題分析・レジーム影響・推奨アクション）に注力すること
 3. OANDAのBlock ReasonsとBridge Statusからデモ/本番の乖離を分析すること
 4. 学術文献の引用は不要 — 実データに基づく判断のみ
+5. API 取得失敗があれば DATA FETCH テーブルの失敗クラスを引用し、原因は書かない
+   （『unreachable, cause unknown』のみ）。hosting tier・省電力・起動遅延など、
+   観測にない原因の推測は禁止
 {session_prompt}"""
 
     return call_claude(load_agent_prompt("analyst"), [{"role": "user", "content": user_msg}])
@@ -872,7 +1000,9 @@ def run_strategy_planner(analyst_report: str) -> str:
 
 コードは不要です。「試す価値があるか」の判断材料だけを提示してください。
 **上記ガードレールの A（棄却済みパターン）に該当する案は出さないこと。**
-B（既存shadow在庫）の消化を新規発明より優先し、C（配管バグ）が未解決なら配管修復を高優先で提案すること。"""
+B（既存shadow在庫）の消化を新規発明より優先し、C（配管バグ）が未解決なら配管修復を高優先で提案すること。
+アナリスト本文に API 取得失敗 (DATA FETCH) がある場合、その**原因を推測・再記述しない**
+（『unreachable, cause unknown』のまま扱う。hosting tier・省電力・起動遅延などの原因語は禁止）。"""
 
     return call_claude(system, [{"role": "user", "content": user_msg}])
 
@@ -1035,10 +1165,14 @@ def main() -> int:
 
     # Step 1: データ取得
     print(f"\U0001f50d [1/{steps_total}] \u672c\u756aAPI\u304b\u3089\u30c7\u30fc\u30bf\u53d6\u5f97\u4e2d...")
-    data = {k: fetch_json(url) for k, url in PRODUCTION_APIS.items()}
-    failed = [k for k, v in data.items() if not v]
+    fetch_results = {k: fetch_outcome(url) for k, url in PRODUCTION_APIS.items()}
+    data = {k: r.payload for k, r in fetch_results.items()}
+    failed = [k for k, r in fetch_results.items() if not r.ok]
     if failed:
-        print(f"  \u26a0\ufe0f  \u53d6\u5f97\u5931\u6557: {', '.join(failed)}")
+        outage = _fp.classify_outage({k: fetch_results[k].error for k in failed},
+                                     n_ok=len(fetch_results) - len(failed))
+        print(f"  \u26a0\ufe0f  \u53d6\u5f97\u5931\u6557: {', '.join(failed)} "
+              f"(outage_kind={outage['kind']}) \u2014 {outage['summary']}")
 
     # Step 1.5: KBパイプライン自己診断
     health_warnings = check_kb_pipeline_health()
@@ -1054,10 +1188,18 @@ def main() -> int:
     # Step 2: アナリストレポート（セッション別）
     print(f"\U0001f4ca [2/{steps_total}] {config['label']} \u2014 \u30ec\u30dd\u30fc\u30c8\u751f\u6210\u4e2d...")
     try:
-        analyst_report = run_analyst(data, session, health_warnings)
+        analyst_report = run_analyst(data, session, health_warnings,
+                                     fetch_results=fetch_results)
     except Exception as e:
         print(f"  \u274c Analyst \u30a8\u30e9\u30fc: {e}", file=sys.stderr)
         return 1
+    # \u539f\u56e0\u306e\u634f\u9020\u691c\u67fb (2026-09-22, rule:R3): \u89b3\u6e2c\u304b\u3089\u5c0e\u3051\u306a\u3044\u539f\u56e0\u8a9e\u304c\u3042\u308c\u3070\u3001\u672c\u6587\u306f
+    # \u5909\u3048\u305a\u306b\u751f\u6210\u5668\u6ce8\u8a18\u3067\u8a02\u6b63\u3059\u308b\u3002\u9ed9\u3063\u3066\u901a\u3057\u305f\u7d50\u679c\u304c KB \u306b\u300c\u7121\u6599 tier \u30b9\u30ea\u30fc\u30d7\u300d
+    # \u3068\u3057\u3066\u6b8b\u3063\u305f (knowledge-base/raw/trade-logs/2026-09-22-pre_tokyo.md)\u3002
+    analyst_report = finalize_llm_report(analyst_report, len(failed), "analyst")
+    if failed:
+        # \u53d6\u5f97\u72b6\u6cc1\u306f LLM \u306e\u6587\u7ae0\u3068\u306f\u72ec\u7acb\u306b\u3001\u6c7a\u5b9a\u7684\u306a\u7bc0\u3068\u3057\u3066\u30ec\u30dd\u30fc\u30c8\u5148\u982d\u3078\u6b8b\u3059
+        analyst_report = preprocess_fetch_status(fetch_results) + "\n" + analyst_report
 
     # Step 3: 作戦立案（pre_tokyoのみ）
     strategy_report = None
@@ -1065,6 +1207,9 @@ def main() -> int:
         print(f"\U0001f9e0 [3/{steps_total}] Strategy \u2014 \u4f5c\u6226\u7acb\u6848\u4e2d...")
         try:
             strategy_report = run_strategy_planner(analyst_report)
+            # planner は analyst 本文を入力に受け取るので同じ捏造を再生産しうる
+            # (Codex P2 2026-09-22) — 保存・送信前に同じ出口を通す
+            strategy_report = finalize_llm_report(strategy_report, len(failed), "strategy")
         except Exception as e:
             print(f"  \u26a0\ufe0f  Strategy \u30a8\u30e9\u30fc\uff08\u30b9\u30ad\u30c3\u30d7\uff09: {e}", file=sys.stderr)
             strategy_report = "\u26a0\ufe0f \u4f5c\u6226\u7acb\u6848\u306e\u751f\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f\u3002"

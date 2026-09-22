@@ -493,11 +493,20 @@ class TestApiReachability:
         assert aw.check_api_reachability(outcomes) == []
 
     def test_total_outage_fires_with_the_real_reason(self):
-        """502 は 502 として報告される。旧経路は 502 を「契約破綻」と誤診した。"""
+        """502 は 502 として報告される。旧経路は 502 を「契約破綻」と誤診した。
+
+        2026-09-22 (rule:R3、Codex P2 5 巡目): 全 5xx は **HTTP 応答が返っている**
+        失敗なので type は ``api_http_error`` (edge の 502 か app の 500 かは状態コード
+        で判別不能と明記)。「到達できない」(``api_unreachable``) は接続層の失敗だけ。
+        """
         outcomes = {p: _fail(p) for p in aw.WATCHED_PATHS}
         ev = aw.check_api_reachability(outcomes, attempts=4, waited_sec=210.0)
         assert len(ev) == 1
-        assert ev[0]["type"] == "api_unreachable"
+        assert ev[0]["type"] == "api_http_error"
+        assert ev[0]["outage_kind"] == "http_5xx"
+        # 接続層の全滅 (接続拒否) は従来どおり api_unreachable
+        conn = {p: _fail(p, "ConnectionError: Max retries exceeded") for p in aw.WATCHED_PATHS}
+        assert aw.check_api_reachability(conn)[0]["type"] == "api_unreachable"
         assert ev[0]["n_failed"] == ev[0]["n_watched"] == len(aw.WATCHED_PATHS)
         assert "502" in ev[0]["reasons"]["/api/demo/status"]
         # ramp を跨いだのか 1 回で諦めたのかが読み手に見えること
@@ -740,11 +749,16 @@ class TestIncidentReplay20260829:
         assert aw.main() == 0
 
         types = [e["type"] for e in seen]
-        assert "api_unreachable" in types, "本番の死が報告されていない"
+        # 2026-09-22 (rule:R3、Codex P2 5 巡目): 全 502 は「HTTP 応答あり (5xx)」の
+        # 全滅 = api_http_error。「到達できない」(api_unreachable) は接続層の失敗だけ。
+        # どちらであっても「本番の停止/全盲を報告する」性質は同じ。
+        assert "api_http_error" in types, "本番の全滅が報告されていない"
+        assert "api_unreachable" not in types, "502 (応答あり) を「到達できない」と畳んでいる"
         assert "stagnation_check_broken" not in types, "502 を契約破綻と誤診している"
         # ramp を跨ぐまで粘ったことが記録に残る
-        outage = next(e for e in seen if e["type"] == "api_unreachable")
+        outage = next(e for e in seen if e["type"] == "api_http_error")
         assert outage["attempts"] == 1 + len(aw.API_RETRY_BACKOFF_SEC)
+        assert outage["outage_kind"] == "http_5xx"
 
     def test_healthy_production_stays_quiet(self, monkeypatch):
         """健全時に api_unreachable が出るなら、この検知器は使い物にならない。"""
