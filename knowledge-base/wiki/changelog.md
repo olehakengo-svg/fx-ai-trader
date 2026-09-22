@@ -1,5 +1,46 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-22 — fix(hooks): main 乖離の**発生源**を塞いだ + 座礁 KB の救済 + committed conflict marker の修復 (rule:R3)
+
+- **背景**: autopilot 起動時、作業が **3 箇所で座礁**していた — ローカル `main` が origin に対し **ahead 8 / behind 112**、PR #272 に未 push commit 1 本、PR #273 worktree に未コミット実装 (pin が赤のまま)。前 2 者は本日 #272/#273 として着地済み
+- 🔴 **発生源の特定と修復 (本エントリの主題)**: `scripts/hooks/session-end-save.sh` は step 2 で KB 変更を **HEAD (主 checkout では `main`) へ直接コミット**し、step 3 の `git push origin main` は **local main が behind だと必ず失敗**する。失敗は stderr に出すだけだったので「**コミットは main に積まれ、push は落ちる**」が毎日繰り返され、**乖離が再生産**されていた。2026-09-17 に PR #264 で*backlog* は掃除したが*ジェネレータ*は残っており、5 日で ahead 8 まで再蓄積した (09-21 の daily review が同じ機構を独立に特定していた — [[2026-09-21]])
+  - ✅ **修復**: main への push が失敗したら、**その commit を `kb-rescue/<branch>-<date>` として origin へ退避**する。**成功時の挙動は一切変えない**。これで「ローカルにしか無い KB コミット」が原理的に残らず、次セッションが PR に畳める。`--force` は使わず origin/main は不変
+  - 🔵 **pre-commit が私のテストの欠陥を捕まえた**: 初版は `GIT_DIR` / `GIT_INDEX_FILE` の**環境変数リーク**を考慮しておらず、**pre-commit 経由 (= `git commit` の中から pytest が走る) では temp repo でなく実リポジトリを操作**して実 pre-commit を temp ディレクトリに対して発火させていた (単体実行では通るので気づけない)。`GIT_*` を除去し `core.hooksPath=/dev/null` を当てて hermetic 化し、**リーク環境を再現した状態でも通ることを実測**。🔑 テストを足したら「**CI/pre-commit が呼ぶ経路でも同じ結論か**」を確認する
+  - **pin** `tests/test_session_end_save_rescue.py` (**3 本**) — **grep pin ではなく実 git repo + bare remote に対して実スクリプトを走らせる** (「正しいメッセージを出しつつ commit を座礁させる」実装は grep では通ってしまう)。NG 状態 (behind main) で rescue ブランチに**当の commit sha** が届くことを assert + counter-pin 2 本 (happy path で rescue ブランチを作らない / KB が clean なら空コミットを作らない)。counterfactual 確認済 (fallback を外すと `origin has only {'main'}` で落ちる)
+- ✅ **座礁 KB の救済**: local-only 8 commit のうち、**main 側が既に上位互換だったもの (session log 4 本 / cell_deepdive summary 2 本) は main を採用**し、**実質的に失われていた 4 ファイルのみ**を救済 — `raw/trade-logs/2026-09-21.md` (362 行) / `wiki/index.md` の 09-21 System State (LIVE fill 10.03 日停止 / learner 6.02 日 stale / `tokyo_nakane_momentum` のクラスタ分析 / **main 乖離再発の診断**) / `wiki/log.md` / `wiki/strategies/tokyo-nakane-momentum.md`
+  - 🔵 **救済した分析の中身が今日の作業と噛み合っている**: 09-21 の review は「`tokyo_nakane_momentum` の 8 発火は 59 分以内・3 ペア・全 BUY = **独立 8 標本ではなく『JPY 売り』1 ベットの 8 重複**」「勝ち 3 本の `close_reason` が全て `SL_HIT` = ラベル破綻の 3 例目」を記録していた。**昇格審査でクラスタ性を N から割り引く前処理が必須**という論点は保存された
+- 🔴 **committed conflict marker の修復**: `wiki/sessions/2026-08-30-session.md` に **`<<<<<<< Updated upstream` / `>>>>>>> Stashed changes` が 2 箇所コミットされたまま** 3 週間 main に載っていた (解決されなかった `git stash pop` の産物)。narrative 側を採り、stub 側の unique な内容 (コミット一覧) を明示ラベル付きで併置して union 解決。**KB 全体で marker ゼロを確認**
+- 🔴🔴 **その環境変数リークは診断した直後に実害を出した (同一セッション内)**: hermetic 化**前**のテスト実行が pre-commit 経由で走った際、リークした `GIT_INDEX_FILE` 越しに**実リポジトリの index へ `git add -A` を適用**しており、直後の commit がその index を拾って **3,568 files / −1,156,926 行 (`tools/` `tests/` `reports/` `data/` ほぼ全部) を削除する commit** を作っていた。`git show --stat` の規模が異常だったため**push 前に検知**し `reset --mixed` で撤回、**ファイル名を列挙して再 stage** した (working tree は無傷 = index のみの汚染)。🔑 **(1) テストが実リポジトリを触りうる形なら CI/pre-commit 経由で実際に触る** — hermetic 化は品質ではなく**安全性**の問題。**(2) commit 後に `--stat` の規模を必ず見る** — exit 0 は「意図した範囲」を保証しない
+- 🟠 **connector レビュー (Codex P1 + P2、どちらも正しかった) — 私の修復自体が「頼まれていない公開」を作っていた**:
+  (a) 🔴 **P1: feature ブランチから退避してはいけない** — `git push origin main` は
+  **ローカルの main ref** を押すので、**HEAD が feature の時も (main が behind なら) 失敗
+  しうる**。そこで HEAD を退避すると **その feature の未公開 WIP コミットまで origin に
+  publish** してしまう = **誰も頼んでいない公開**。しかも HEAD が main でなければ step 2 の
+  KB コミットはその feature ブランチ上にあり、**当人の PR で push されるので座礁しない** ⇒
+  **退避は HEAD==main のときだけ**に限定し、それ以外は理由を stderr に出して何もしない
+  (b) **P2: 退避 ref に短縮 sha を入れる** — 同日に 2 つの stale な main checkout が走ると
+  `kb-rescue/main-<date>` が衝突し、**2 本目は non-fast-forward で拒否されてローカルに座礁
+  したまま**になる (= 修復が目的を達しない)。`-f` は他人の退避を壊すので使わず、**名前を
+  一意にする方**で解いた
+- 🔑 **「座礁を防ぐ」修復が「公開してしまう」副作用を持っていた** — 安全側に倒したつもりの
+  fallback が、**別の種類の不可逆操作**を生んでいた。⇒ fallback を書くときは
+  「**何を origin に足すのか**」を操作単位で列挙する。pin 3 → **5 本**、2 件とも
+  counterfactual 確認済 (P1 を戻すと `origin gained {'kb-rescue/main-...'}`、
+  P2 を戻すと `len({...}) == 1` で落ちる)
+- 🔴 **レビュー 2 巡目 (Codex P1、これも正しかった) — main 上でも「hook の KB コミットだけ」を証明していなかった**: 1 巡目の `BRANCH == main` ガードは feature ケースを塞いだが、**local main 自体に未公開の非 KB コミット** (誰かが main に直接コミットした作業) があれば、`HEAD:refs/heads/...` は**それも一緒に publish** する。しかも**本ランが KB を 1 件もコミットしていなくても発火**していた。⇒ 2 段のガードを追加:
+  (a) **本ランが実際にコミットしたか**を `HEAD` の前後比較で判定 (`exit 0` は commit 成功を意味しない — pre-commit の `Commit blocked` も 0)。コミットしていなければ退避しない
+  (b) **`origin/main..HEAD` の全コミットが「hook 製の KB コミット」であること**を検査 — subject が `auto: KB session-end save` で始まり、**かつ `git diff-tree` が `knowledge-base/` 以外に触っていない** (subject は自称なのでパスも見る)。混在 / 比較不能なら **publish せず理由を出して止まる**
+- 🔑 **公開は不可逆なので、ここだけは fail-closed の向きが「退避しない」** — 座礁 (回復可能) と publish (回復不可能) では安全な向きが逆になる。**「安全側」は一意でなく、何が不可逆かで決まる**
+- pin 5 → **7 本**。2 件とも counterfactual 確認済 ((b) を外すと `origin gained {'kb-rescue/...'}`、(a) を外すと新規コミット無しでも退避が走る)
+- 🟠 **レビュー 3 巡目 (Codex P2) — 一意性が目的なら省略形を使ってはいけない**: 退避 ref の sha を `git rev-parse --short` で作っていたが、**`--short` は `core.abbrev` に従う**ので 4 桁まで縮みうる ⇒ 前置が衝突して**2 巡目で直したはずの non-fast-forward 座礁が再発**する。完全 sha (40 桁) に変更し、**pin も「ref が 40 桁 sha を含む」ことを assert** する形へ (counterfactual: `--short=4` に戻すと `got 'f269'` で落ちる)。pin 7 本のまま
+- 🔴 **レビュー 4 巡目 (Codex P1、これも正しかった) — ガードが「存在意義そのものの場面」で反転していた**: 混在検査を `git diff-tree ... | grep -qv '^knowledge-base/'` と**パイプで**書いていたため、**非 KB パスが早い位置にあり後続 KB パスがパイプバッファ (64KiB) を埋めるほど多い**とき、`grep -q` が先に exit して `git` が **SIGPIPE (141)** を受ける。本スクリプトは `pipefail` なのでパイプライン status が 141 = 非ゼロになり **`if` は偽** ⇒ **混在履歴を「KB だけ」と判定して publish** する。⚠️ **仮想的な話ではない** — 本セッションで実際に作ってしまった **3,568 files の混在コミットがまさにこの形**。⇒ パイプを廃し変数に取ってシェルで走査。**pin は 600 個の長名 KB ファイル + 早くソートされる `app.py`** で当該条件を再現し、counterfactual で**パイプ版が実際に publish してしまうことを実測**した (pin 7 → **8 本**)
+- 🔴 **レビュー 5 巡目 (Codex P1 + P2) — 検査した sha を押す / 残り 1 件は明示的に繰延**: (a) **P1: refspec の source を固定 sha に** — `HEAD` は symbolic なので、収集〜検査の間に**別エージェントがこの共有 checkout へコミット**すると、検査は旧履歴に対して行われたのに `HEAD:refs/heads/...` は**新しい HEAD を publish** する。この repo は並行エージェント前提なので実在のリスク ⇒ `VALIDATED` を検査**前**に固定し、push もそれを明示的に押す
+  🔵 **この pin は「機構 pin」だと明示した** — 当該 race には**決定的な注入点が無い** (rev-list 完了と push 開始の間に git hook は無く、それより早く注入すると混在ガードが先に捕まえる)。実際 `HEAD:` に戻しても behavioural pin は緑のままだったので、**恒真な pin を『検証済み』と偽らずに機構 assertion (refspec source が `HEAD` でない ∧ sha が検査前に固定されている) へ書き換え、限界を docstring に明記した**
+  (b) **P2 は意図的に繰延** — post-commit が**コミット作成後**に session log へ追記するため **末尾差分が必ず 1 本ローカルに残る** (本セッションで merge を 2 回ブロックした実害)。ただしこれは **PR #276 が作った欠陥ではなく post-commit hook の既存設計**なので同 PR では直さず、registry `kb-session-log-postcommit-trailing-edit` (**期日 2026-10-13**) に (a) pre-commit へ移す / (b) 生成物扱い / (c) 仕様として文書化 の三択で繰延した
+- 🔑 **pin 8 → 10 本**。「振る舞いで確かめられないものを振る舞い pin のふりで置かない」— 恒真 pin は**検知していないことを検知したと錯覚させる**ので、[[project_review_gate_vacuous_2026_09_11]] と同じ害になる
+- 🔑 **教訓: 「backlog を掃除した」と「ジェネレータを止めた」は別** — 09-17 の CLOSED 判定は前者だけで出されており、5 日で再発した。**再発する欠陥は、事象ではなく発生機構に対して pin を置く**
+- ⚠️ **ローカル `main` の 0/0 復帰は、内容が origin に到達したことを確認した後に行う** — 2026-09-17 は先に `reset` して未コミットの `index.md` 編集を破壊し System State を 13 日巻き戻した ([[2026-09-21]] が記録)。本 PR がマージされてから reset する順序を厳守した
+
 ## 2026-09-21 — readout(ps 席): 帰属完了 = **下流 100%、3 席は `spread_wide` で 6/6 全滅** + gate block の magnitude 計装 (rule:R3、live 挙動不変)
 
 - **registry `ps-seat-supply-hourly-c1-coverage` を期日 09-25 の 4 日前倒しで resolve**。3 点すべて判定、roll なし。09-11 の REJECT verdict が残した「未帰属残余 ~100%」が**帰属済み**になった。詳細: [[ps-seat-supply-remeasure-2026-09-10]] §11
