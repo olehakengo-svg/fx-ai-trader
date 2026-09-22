@@ -15,6 +15,9 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
       (PR #287 review P1 ×2、CF pin 付き)
   (f) fire-and-forget 競合: 予約は gate 内 (worker 完了前の同時到達が同じ古い baseline
       を見ない)、broker 失敗で rollback (PR #287 review P2、CF pin 付き)
+  (g) 未確認予約 ≠ 確認済み: confirmed_sl (broker 受理) と pending (飛行中) を分離。
+      同値一致が pending なら modify_sl_sync は worker の結果を待つ / 連鎖失敗後の
+      baseline は確認済み値へ戻る (PR #287 review 2 巡目 P1/P2、CF pin 付き)
   既定 (env 未設定) = 検知のみ: 送信は止めず、カウンタ + WARN だけ動く
 """
 from __future__ import annotations
@@ -484,8 +487,10 @@ def test_p2_async_burst_cannot_overshoot_breaker(monkeypatch):
 def test_p2_cf_reserve_after_success_lets_burst_through(monkeypatch):
     """CF pin: 予約を「成功後更新」に戻す (last_sl を gate 内で触らない) と同一 SL 5 件が
     全部飛ぶ = 上の assertion は gate 内予約の存在に依存している。"""
-    def _no_reserve(self, st, new_sl):
-        return {"prev_sl": st.get("last_sl"), "new_sl": float(new_sl)}
+    import threading as _th
+    def _no_reserve(self, st, new_sl):                                # pending に積まない = baseline 不変
+        st["seq"] += 1
+        return {"seq": st["seq"], "new_sl": float(new_sl), "done": _th.Event(), "ok": None}
     monkeypatch.setattr(OandaBridge, "_storm_reserve", _no_reserve)
     b, fake = _bridge(monkeypatch, enforce=True)
     q = _deferred_fire(b, monkeypatch)
@@ -554,3 +559,156 @@ def test_inactive_bridge_returns_false_without_touching_guard(monkeypatch):
     b = OandaBridge(db=None)
     assert b.modify_sl_sync(DEMO, 154.0) is False
     assert b.get_storm_guard_status()["totals"]["evaluated"] == 0
+
+
+# ── 未確認予約 ≠ 確認済み (PR #287 review 2 巡目 P1 / P2) ───────────────
+# P1-3: 飛行中 (未確認) の同値予約に対して modify_sl_sync が冪等 True を返すと、
+#       pyramiding 経路が「元建玉は保護済み」と誤認して追加 exposure を開く。
+#       → confirmed_sl (broker 受理済み) と pending (飛行中) を分離、同値一致が pending
+#         なら worker の結果を待って返す。
+# P2-2: A,B を予約して両方失敗すると、prev_sl 復元型 rollback は B の rollback で
+#       未確認の A を baseline に残す。→ rollback は pending から外すだけで、baseline は
+#       確認済み値に自然に戻る。
+
+import threading as _threading
+
+
+def _sync_in_thread(b, sl):
+    box = {}
+    def _run():
+        box["ret"] = b.modify_sl_sync(DEMO, sl, instrument="USD_JPY")
+    t = _threading.Thread(target=_run, daemon=True)
+    t.start()
+    return t, box
+
+
+def test_p1_sync_idempotent_against_pending_waits_and_returns_worker_outcome(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # 飛行中 (未確認)
+    assert b.get_storm_guard_status()["trades"][DEMO]["pending"] == [154.350]
+    assert b.get_storm_guard_status()["trades"][DEMO]["confirmed_sl"] == 154.115
+    # (1) worker が失敗する場合: sync は True を返してはいけない
+    t, box = _sync_in_thread(b, 154.350)
+    t.join(0.3)
+    assert t.is_alive() and "ret" not in box                        # 待っている (即 True ではない)
+    fake.fail_modify = True
+    q.pop(0)()                                                      # A 失敗
+    t.join(2.0)
+    assert box["ret"] is False
+    assert len(fake.calls) == 1                                     # sync 側は broker を叩かない
+    # (2) worker が成功する場合: True
+    fake.fail_modify = False
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # 再予約 (baseline は 154.115 に戻っている)
+    assert len(q) == 1
+    t2, box2 = _sync_in_thread(b, 154.350)
+    t2.join(0.3)
+    assert t2.is_alive()
+    q.pop(0)()
+    t2.join(2.0)
+    assert box2["ret"] is True
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["confirmed_sl"] == 154.350 and st["pending"] == []
+    assert b.get_storm_guard_status()["totals"]["skipped"]["idempotent"] == 2
+
+
+def test_p1_sync_idempotent_against_confirmed_returns_true_immediately(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True)
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True   # 確認済み
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True   # 冪等 (確認済みに一致) → 即 True
+    assert len(fake.calls) == 1
+
+
+def test_p1_sync_pending_wait_timeout_returns_false(monkeypatch):
+    monkeypatch.setattr(OandaBridge, "STORM_PENDING_WAIT_SEC", 0.1)
+    b, fake = _bridge(monkeypatch, enforce=True)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is False  # worker 不応答 = 未確認
+    assert len(q) == 1 and len(fake.calls) == 0
+
+
+def test_p1_cf_treating_pending_as_confirmed_returns_true_before_failure(monkeypatch):
+    """CF pin: 旧挙動 (`bool(sync_ret)` で即返し) だと worker 失敗前に True が返る。"""
+    monkeypatch.setattr(OandaBridge, "_storm_sync_result",
+                        lambda self, d, r: True if isinstance(r, dict) else bool(r))
+    b, fake = _bridge(monkeypatch, enforce=True)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True   # ← 未確認を True (旧 bug の形)
+    fake.fail_modify = True
+    q.pop(0)()
+    assert b.get_storm_guard_status()["trades"][DEMO]["confirmed_sl"] == 154.115  # 実際は未保護
+
+
+def test_p2_cascading_failures_restore_confirmed_baseline(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # B
+    fake.fail_modify = True
+    q.pop(0)()                                                      # A 失敗
+    q.pop(0)()                                                      # B 失敗
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["pending"] == [] and st["confirmed_sl"] == 154.115 and st["last_sl"] == 154.115
+    # 以後の正当な要求は誤って冪等/dead-band/単調性に分類されない
+    fake.fail_modify = False
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True
+    assert fake.calls[-1] == (OANDA_ID, 154.350)
+    assert b.get_storm_guard_status()["totals"]["failed"] == 2
+
+
+def test_p2_cf_prev_sl_rollback_leaves_unconfirmed_baseline(monkeypatch):
+    """CF pin: 旧挙動 (予約時 prev_sl を記録し rollback で復元) を再現すると、A,B 連鎖失敗後に
+    未確認の A (154.350) が baseline に残り、正当な 154.350 が冪等 skip される。"""
+    orig_reserve = OandaBridge._storm_reserve
+    def _old_reserve(self, st, new_sl):
+        prev = self._storm_baseline(st)
+        tok = orig_reserve(self, st, new_sl)
+        tok["prev_sl"] = prev
+        return tok
+    def _old_rollback(self, demo_trade_id, st, token):
+        with self._storm_lock:
+            if self._storm_baseline(st) == token["new_sl"]:
+                st["confirmed_sl"] = token["prev_sl"]
+            st["pending"].remove(token)
+        token["ok"] = False
+        token["done"].set()
+    monkeypatch.setattr(OandaBridge, "_storm_reserve", _old_reserve)
+    monkeypatch.setattr(OandaBridge, "_storm_rollback", _old_rollback)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")
+    fake.fail_modify = True
+    q.pop(0)(); q.pop(0)()
+    assert b.get_storm_guard_status()["trades"][DEMO]["confirmed_sl"] == 154.350   # ← 未確認値が残る
+    fake.fail_modify = False
+    assert b.modify_sl_sync(DEMO, 154.350, instrument="USD_JPY") is True           # 冪等 "成功" だが
+    assert len(fake.calls) == 2                                                     # broker には届いていない (旧 bug の形)
+
+
+def test_out_of_order_confirmation_keeps_latest_issued_sl(monkeypatch):
+    """A, B を予約し B → A の順で成功しても confirmed_sl は後発 B (発行順が真)。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A (seq 1)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # B (seq 2)
+    q[1](); q[0]()                                                  # B 完了 → A 完了
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["confirmed_sl"] == 154.400 and st["pending"] == []
+
+
+def test_detect_only_mode_confirms_and_pends_symmetrically(monkeypatch):
+    """既定 (検知のみ) でも予約/確認は同じ機構で動く — 送信は止めない。"""
+    b, fake = _bridge(monkeypatch, enforce=False)
+    q = _deferred_fire(b, monkeypatch)
+    for _ in range(3):
+        b.modify_sl(DEMO, 154.350, instrument="USD_JPY")
+    assert len(q) == 3                                              # 検知のみ = 全部飛ぶ
+    assert b.get_storm_guard_status()["trades"][DEMO]["pending"] == [154.350] * 3
+    for fn in q:
+        fn()
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["pending"] == [] and st["confirmed_sl"] == 154.350
+    assert b.get_storm_guard_status()["totals"]["detected"]["idempotent"] == 2
