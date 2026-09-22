@@ -14,6 +14,8 @@ pin する性質 (構文でなく性質で):
 7. registry F4 message が方法変更 + 発火日シフトを記録し condition は不変。
 8. 再現値 pin: 09-22 以降 keeper のみ / drift 13.7 の 2 経路で decomposed 読み手の
    初回発火日 (2027-01-05 / 2026-12-04) — 推定器を変えたら数値が動いて落ちる。
+11. (PR #285 review P2 3 巡目) CSV が当月内から始まる窓では last_rt_at で前後分割
+   しない (回収 RT は last_rt_at を更新しない) — rt_count==0 のみ確定、他は unavailable。
 10. (PR #285 review P2 2 巡目) 月次 RT 数は worker の stop rule (volume>=target
    で停止、届かなければ丸ごと 1 RT) と同じ ceil(target/per_rt)。round は 8,000u で 1 RT 過小。
 9. (PR #285 review P2 ×2) keeper ¥/RT は telemetry の units で線形スケール
@@ -172,7 +174,7 @@ def test_edge_burn_recovers_drift_after_keeper_deduction():
     asof = date(2026, 10, 30)
     keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
               "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
-    burn, basis = nfp.edge_burn_per_day(rows[:-1], nav_now, asof, keeper, 26)
+    burn, basis = nfp.edge_burn_per_day(rows[:-1], nav_now, asof, keeper)
     assert burn == pytest.approx(13.7, abs=0.6), basis  # 整数丸めの分だけ許容
     assert basis.startswith("nav_delta:") and "keeper_rt_in_window=26" in basis
     # keeper を差し引かないと drift が 3 倍以上に見える — 差し引きが効いている証拠
@@ -191,7 +193,7 @@ def test_edge_window_never_cuts_previous_month_burst():
     # 当月 12 RT 分 (¥960) を 10-01〜10-04 に落とす
     nav_now -= 960.0
     rows.append({"date": "2026-10-04", "nav_jpy": f"{nav_now:.0f}"})
-    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper, 26)
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper)
     assert "nav_delta:2026-09-15->2026-10-05:20d" in basis
     assert "keeper_rt_in_window=12" in basis
     assert burn == pytest.approx(0.0, abs=0.05)
@@ -202,7 +204,7 @@ def test_edge_window_on_31st_still_covers_whole_current_month():
     asof = date(2026, 10, 31)
     keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
               "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
-    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper, 26)
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper)
     assert not basis.startswith("unavailable"), basis
     assert "nav_delta:2026-09-30->2026-10-31:31d" in basis
 
@@ -210,14 +212,34 @@ def test_edge_window_on_31st_still_covers_whole_current_month():
 def test_edge_unavailable_when_no_keeper_telemetry_or_young_csv():
     rows, nav_now = _synthetic_rows(date(2026, 9, 15), 40, 280_000.0, 10.0, {})
     asof = date(2026, 10, 25)
-    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, None, 26)
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, None)
     assert burn == 0.0 and basis.startswith("unavailable:no_keeper_telemetry")
     # CSV が当月内から始まり、当月 RT の前後分割が telemetry で確定できない
     young = [r for r in rows if r["date"] >= "2026-10-03"]
     keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
               "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
-    burn, basis = nfp.edge_burn_per_day(young, nav_now, asof, keeper, 26)
+    burn, basis = nfp.edge_burn_per_day(young, nav_now, asof, keeper)
     assert burn == 0.0 and basis.startswith("unavailable:keeper_split_unknown")
+
+
+def test_young_window_completed_month_with_old_last_rt_is_still_unknown():
+    """(PR #285 review P2 3 巡目) 回収 RT (_recover_stale_trades) は rt_count を増やすが
+    last_rt_at を更新しない → 「last_rt_at ≤ 窓開始 ∧ 当月完了」は窓内 RT 不在の証明でない。
+    既知 NG 入力: 修正前は keeper_rt_in_window=0 で回収 RT の損失が edge に転嫁されていた。"""
+    rows, nav_now = _synthetic_rows(date(2026, 10, 12), 14, 280_000.0, 0.0, {})
+    nav_now -= 160.0  # 10-20 に回収 RT 1 本 (spread 損 ¥80 + 逆行 ¥80) が窓内に落ちた
+    rows.append({"date": "2026-10-25", "nav_jpy": f"{nav_now:.0f}"})
+    asof = date(2026, 10, 26)
+    keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
+              "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}  # 回収分は時刻なし
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper)
+    assert burn == 0.0 and basis.startswith("unavailable:keeper_split_unknown"), basis
+    # 当月 RT ゼロ (rt_count 0) なら窓内 keeper 支出 0 と確定できる
+    fresh = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 0.0,
+             "rt_count": 0, "last_rt_at": ""}
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, fresh)
+    assert basis.startswith("nav_delta:") and "keeper_rt_in_window=0" in basis
+    assert burn == pytest.approx(160.0 / 14, abs=0.05)
 
 
 # ── 5. PR #285 review P2 ×2: units スケール / 月不一致 ────────────────
@@ -281,7 +303,7 @@ def test_edge_unavailable_when_keeper_month_differs_from_asof():
     assert (dec["rt_per_month"], dec["rt_basis"]) == (26, "api")
     # 既知 NG 入力: month を見ずに前月 rt_count 26 を当月支出とすると
     # edge = −(0 + 26×80)/span < 0 で keeper 分 (+68.3) を打ち消す
-    e_wrong, _ = nfp.edge_burn_per_day(rows, nav_now, asof, stale | {"month": "2026-11"}, 26)
+    e_wrong, _ = nfp.edge_burn_per_day(rows, nav_now, asof, stale | {"month": "2026-11"})
     assert e_wrong < 0 and abs(e_wrong) > 0.9 * dec["keeper"]
     # 当月 telemetry (roll 後、rt_count 0) が来れば edge は測れる
     fresh = {"month": "2026-11", "target_usd": 520000.0, "volume_usd": 0.0,

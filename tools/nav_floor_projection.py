@@ -261,7 +261,6 @@ def _parse_date(s: Any) -> date | None:
 
 def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
                       keeper: dict[str, Any] | None,
-                      rt_per_month: int,
                       jpy_per_rt: float = KEEPER_JPY_PER_RT) -> tuple[float, str]:
     """edge 30d 実現 PnL を broker NAV Δ の残差で測る。(burn_per_day, basis)。
 
@@ -270,7 +269,11 @@ def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
     keeper burst を跨ぐと窓内 keeper 支出が telemetry で確定できないため。
     窓内 keeper 支出は当月 rt_count で確定する (RT は全て月初以降に起きる)。
     telemetry の month が asof と違えば rt_count は前月分なので unavailable。
-    測れない場合は (0.0, "unavailable:<理由>") — 列に理由が残る。
+    窓開始が当月内 (CSV が若い) のときは rt_count == 0 のみ確定 (当月 RT なし)。
+    last_rt_at で前後分割はしない — ``_recover_stale_trades`` は rt_count を
+    増やしても last_rt_at を更新しない (status_volume_keeper.py L321-322) ので
+    「last_rt_at ≤ 窓開始 ∧ 当月完了」でも窓内に回収 RT の損失が残り得る
+    (PR #285 review P2 3 巡目)。測れない場合は (0.0, "unavailable:<理由>")。
     """
     month_start = asof.replace(day=1)
     # 窓開始は当月 1 日より前に置く (当月 RT が全て窓内に入り rt_count で
@@ -308,14 +311,13 @@ def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
         return 0.0, f"unavailable:{month_reason}(span={span}d)"
     if start_date < month_start:
         keeper_rt_in_window = rt_count  # 当月 RT は全て start_date より後
+    elif rt_count == 0:
+        keeper_rt_in_window = 0  # 当月 RT なし (回収分も rt_count に乗る)
     else:
-        # 窓開始が当月内 (CSV が若い) — 当月 RT の前後分割は telemetry で
-        # last_rt_at が start_date 以前なら 0 と確定、それ以外は不能。
-        last_rt = _parse_date((keeper or {}).get("last_rt_at"))
-        if last_rt is not None and last_rt <= start_date and rt_count >= rt_per_month:
-            keeper_rt_in_window = 0
-        else:
-            return 0.0, f"unavailable:keeper_split_unknown(span={span}d)"
+        # 窓開始が当月内 (CSV が若い) — 当月 RT の前後分割は telemetry では
+        # 確定できない。last_rt_at は回収 (_recover_stale_trades) で更新され
+        # ないため「≤ start_date」でも窓内 RT の不在を証明しない。
+        return 0.0, f"unavailable:keeper_split_unknown(span={span}d)"
     edge_jpy = (nav_now - nav_start) + keeper_rt_in_window * jpy_per_rt
     burn = -edge_jpy / span
     basis = (f"nav_delta:{start_date.isoformat()}->{asof.isoformat()}:{span}d,"
@@ -337,8 +339,7 @@ def decomposed_burn_per_day(rows: list[dict[str, str]], nav_now: float,
     if jpy_per_rt is None:
         jpy_per_rt, _ = keeper_jpy_per_rt(keeper)
     k_burn = keeper_burn_per_day(rt_per_month, jpy_per_rt)
-    e_burn, e_basis = edge_burn_per_day(rows, nav_now, asof, keeper,
-                                        rt_per_month, jpy_per_rt)
+    e_burn, e_basis = edge_burn_per_day(rows, nav_now, asof, keeper, jpy_per_rt)
     return {"burn": k_burn + e_burn, "keeper": k_burn, "edge": e_burn,
             "rt_per_month": rt_per_month, "rt_basis": rt_basis,
             "units": units, "jpy_per_rt": jpy_per_rt,

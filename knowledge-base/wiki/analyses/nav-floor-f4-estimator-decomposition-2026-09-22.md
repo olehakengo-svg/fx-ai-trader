@@ -41,8 +41,10 @@ burn_edge = −edge_jpy / span
   start_row    = window_start 以降で最も古い CSV 行、span = asof − start_row.date  (span < 14d は unavailable)
   edge_jpy     = (NAV_now − NAV_start) + keeper_rt_in_window × JPY_PER_RT
   keeper_rt_in_window = 当月 rt_count (telemetry)   — start_row が当月 1 日より前なら当月 RT は全て窓内
-                        = 0                          — CSV が当月内から始まり last_rt_at ≤ start_row.date ∧ 当月完了
+                        = 0                          — CSV が当月内から始まり当月 rt_count == 0 (回収 RT も rt_count に乗る)
                         それ以外 (当月 RT の前後分割が telemetry で確定できない) → unavailable
+                        ※ last_rt_at ≤ start_row.date では分割しない — _recover_stale_trades は rt_count を増やしても
+                          last_rt_at を更新しない (status_volume_keeper.py L321-322)。PR #285 review P2、3 巡目
   前提: telemetry.month == asof の月。違えば (UTC 月替わり 00:00 cron、keeper loop の _roll_counters 前)
         rt_count は前月分なので unavailable:keeper_month_mismatch — 同日 06:00 run が当月 telemetry で上書き
 ```
@@ -91,4 +93,5 @@ burn_edge = −edge_jpy / span
 |---|---|---|---|
 | 1 | P2: keeper 単価 ¥80 が 10k 固定で `SVK_UNITS` 変更に追従しない (20k で ¥1,040/月 に半減) | 実欠陥 | `keeper_units` / `keeper_jpy_per_rt` (出来高/RT ÷ 2 → 線形スケール)、edge 差し引きも同単価 |
 | 1 | P2: 月替わり直後に前月 `rt_count` を当月支出として差し引き keeper burn を打ち消す | 実欠陥 | `keeper_month_mismatch` で `month` ≠ asof 月 (または欠落) は edge unavailable (fail-closed)。RT 数 (比) は前月 telemetry でも有効なので keeper 分は落とさない |
+| 3 | P2: CSV が若い窓で「last_rt_at ≤ 窓開始 ∧ 当月完了 → keeper_rt_in_window=0」は、回収 RT (`_recover_stale_trades`、last_rt_at 非更新) の損失を edge に転嫁し days_to_floor を短くする | 実欠陥 | 分岐を削除。当月 rt_count == 0 のみ 0 と確定、他は `unavailable:keeper_split_unknown` (fail-closed)。09-22 時点の実経路 (CSV 09-07 開始、10-01 以降は窓開始 < 当月 1 日) では値は動かない |
 | 2 | P2: `round(target/per_rt)` は worker の stop rule (ceil) と不一致 — 8,000u で 32 vs 実行 33、keeper burn 過小 + young-window 分岐で「当月完了」を誤判定 | 実欠陥 | `math.ceil` に変更 (割り切れる 10k/20k は不変)。stop rule の直接シミュレーションで pin |
