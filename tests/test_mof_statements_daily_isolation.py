@@ -176,3 +176,75 @@ def test_gdelt_freshness_treats_a_missing_file_as_stale(tmp_path, monkeypatch):
 def test_gdelt_stale_threshold_is_pinned():
     """閾値の緩め (= 検知しなくなる方向) を pin する。"""
     assert ing.GDELT_STALE_DAYS_MAX == 3
+
+
+def _stub_gdelt_fetch(monkeypatch, last_date, rows=3):
+    """Make run_gdelt see a syntactically valid CSV ending at `last_date`."""
+    body = "﻿Date,Series,Value\n" + "".join(
+        f"2026-09-{10 + i:02d},Volume Intensity,0.00{i}\n" for i in range(rows - 1))
+    body += f"{last_date},Volume Intensity,0.005\n"
+    monkeypatch.setattr(ing, "fetch", lambda *a, **k: body.encode())
+    monkeypatch.setattr(ing, "SLEEP_GDELT", 0)
+    return body
+
+
+def test_stale_gdelt_response_does_not_replace_the_stored_series(tmp_path, monkeypatch):
+    """KNOWN-NG INPUT: valid CSV whose last date is too old.
+
+    The destination CSVs used to be opened with "w" BEFORE the freshness
+    check, so a stale response had already overwritten the stored series; the
+    raise did not undo it, and the daily workflow commits the whole data dir
+    with `if: ${{ !cancelled() }}`, so the hard failure still committed the
+    regression (Codex P1, PR #272).
+    """
+    import datetime as dt
+
+    monkeypatch.setattr(ing, "GDELT_DIR", str(tmp_path))
+    good = ("# query: x\n﻿Date,Series,Value\n"
+            "2026-09-18,Volume Intensity,0.009\n")
+    for slug in ing.GDELT_QUERIES:
+        (tmp_path / f"{slug}.csv").write_text(good, encoding="utf-8")
+
+    _stub_gdelt_fetch(monkeypatch, "2026-09-01")       # stale by 18 days
+    monkeypatch.setattr(ing, "gdelt_freshness",
+                        lambda as_of=None, paths=None: ing.__dict__[
+                            "gdelt_freshness"].__wrapped__(as_of, paths)
+                        if False else _real_freshness(as_of, paths))
+
+    with pytest.raises(RuntimeError, match="did not advance"):
+        ing.run_gdelt()
+
+    for slug in ing.GDELT_QUERIES:
+        assert (tmp_path / f"{slug}.csv").read_text(encoding="utf-8") == good, (
+            "a rejected GDELT response must leave the stored series untouched")
+    leftovers = [p.name for p in tmp_path.iterdir()
+                 if p.name.endswith(".tmp.csv")]
+    assert leftovers == [], f"candidate files must be cleaned up: {leftovers}"
+
+
+def _real_freshness(as_of, paths):
+    return _ORIG_FRESHNESS(as_of=as_of, paths=paths)
+
+
+_ORIG_FRESHNESS = ing.gdelt_freshness
+
+
+def test_fresh_gdelt_response_is_promoted_atomically(tmp_path, monkeypatch):
+    """Counter-pin: a FRESH response must still replace the series."""
+    import datetime as dt
+
+    monkeypatch.setattr(ing, "GDELT_DIR", str(tmp_path))
+    for slug in ing.GDELT_QUERIES:
+        (tmp_path / f"{slug}.csv").write_text("# old\n﻿Date,Series,Value\n"
+                                              "2026-09-01,Volume Intensity,0.1\n",
+                                              encoding="utf-8")
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    _stub_gdelt_fetch(monkeypatch, today)
+
+    res = ing.run_gdelt()
+    assert res["freshness"]["ok"] is True
+    for slug in ing.GDELT_QUERIES:
+        text = (tmp_path / f"{slug}.csv").read_text(encoding="utf-8")
+        assert today in text, "a fresh series must be promoted"
+        assert text.startswith("# query: "), "the header must be rewritten"
+    assert [p.name for p in tmp_path.iterdir() if p.name.endswith(".tmp.csv")] == []

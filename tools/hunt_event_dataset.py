@@ -98,7 +98,7 @@ DEDUP_MODES = {
 # ⚠️ **distinct 数は窓に強く依存する。**
 # 実測 (as-of 2026-09-19、**provenance フィルタ後 69,576 行** = collected 69,577 −
 # 合成行 1、**下の anchored 実装で再計算**):
-#     15m → 27,335 (2.55x) / 1h → 20,642 (3.37x) /
+#     15m → 27,565 (2.52x) / 1h → 20,692 (3.36x) /
 #     4h → 14,953 (4.65x) / 24h → 11,614 (5.99x) / 無制限 → 9,946 (7.00x)
 #   ⇒ **単一の点推定として引用してはいけない。** 窓と基数を併記すること。
 #
@@ -108,7 +108,7 @@ DEDUP_MODES = {
 # 来る限り窓を延長する」ので**より多く潰す** ⇒ distinct が小さく出る。
 # **数値は estimator が変わった瞬間に陳腐化する** — 無制限 (9,946) だけが
 # 一致していたのは、その列が窓に依存しない唯一の列だったから。
-# 🔑 読み手への含意: 1h 基準の膨張係数 3.37 倍 (= 69,576/20,642) は
+# 🔑 読み手への含意: 1h 基準の膨張係数 3.36 倍 (= 69,576/20,692) は
 # [[hunt-events-dataset-readout-2026-09-19]] と registry の値と一致する。
 DEDUP_WINDOW_SEC = 3600.0
 
@@ -241,6 +241,16 @@ def merge_outcomes(
     return merged, disagreements
 
 
+def _dt_min():
+    """Sort sentinel: rows whose entry_time cannot be parsed sort LAST.
+
+    They are kept as separate observations either way (see below), so their
+    position only needs to be deterministic.
+    """
+    import datetime as _dt
+    return _dt.datetime.min
+
+
 def _parse_entry_time(row: dict[str, Any]):
     raw = row.get("entry_time")
     if not isinstance(raw, str):
@@ -272,6 +282,23 @@ def collapse_repeats(
     """
     # identity だけでなく **時間窓** でも区切る (anchored)。窓を跨いだ同一 payload は
     # 別観測として残す — payload 一致は「同じ bar の再評価」の十分条件ではない。
+    #
+    # ⚠️ anchored な窓は**行の到着順に依存する**。古い timestamp が後から来ると
+    # `(ts - anchor)` が負になり、どれだけ離れていても必ず現在の窓に入る
+    # (24 時間離れた 2 観測が Jan2 → Jan1 の順なら 1 件に潰れる)。`load_rows()` は
+    # 入力順を保つので、**identity ごとに時刻昇順へ並べてから**窓を張る
+    # (Codex P2、PR #272 第8巡)。実測: committed データセットで
+    # **9,946 identity のうち 205 件が逆順ペアを含む** (計 429 箇所) ため、
+    # これは理論上の懸念ではなく現に N を過小計数していた。
+    # 並びは stable sort なので同時刻の行の相対順序 (= 代表行の選択) は変わらない。
+    rows = list(rows)
+    if window_sec is not None:
+        decorated = []
+        for i, r in enumerate(rows):
+            ts = _parse_entry_time(r)
+            decorated.append(((ts is None, ts or _dt_min(), i), r))
+        decorated.sort(key=lambda pair: pair[0])
+        rows = [r for _, r in decorated]
     order: list[tuple] = []
     groups: dict[tuple, list[dict[str, Any]]] = {}
     anchors: dict[tuple, Any] = {}     # identity -> 現在の窓の起点

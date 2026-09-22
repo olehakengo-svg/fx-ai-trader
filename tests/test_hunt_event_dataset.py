@@ -720,3 +720,47 @@ def test_documented_window_table_agrees_with_the_readout():
     got = int(basis_doc.replace(",", "")) / int(distinct_doc.replace(",", ""))
     assert abs(got - float(mt.group(2))) < 0.01, (
         f"{basis_doc}/{distinct_doc} = {got:.2f}x, table says {mt.group(2)}x")
+
+
+def test_anchored_window_is_independent_of_input_order():
+    """KNOWN-NG INPUT: identical payloads delivered newest-first.
+
+    An anchored window compares `(ts - anchor)`, so an OLDER row arriving
+    later yields a negative delta and always joins the current window — two
+    observations 24h apart collapsed into one if ordered Jan 2 then Jan 1.
+    `load_rows()` preserves input order, and the committed dataset really is
+    partly out of order (205 of 9,946 identities, 429 inversions), so this
+    silently undercounted N (Codex P2, PR #272).
+    """
+    from tools.hunt_event_dataset import collapse_repeats
+
+    def row(ts):
+        return {"instrument": "USDJPY=X", "side": "support", "level": 150.0,
+                "entry_time": ts}
+
+    early, late = row("2026-01-01T00:00:00"), row("2026-01-02T00:00:00")
+
+    kept_fwd, rep_fwd, _ = collapse_repeats([early, late], window_sec=3600.0)
+    kept_rev, rep_rev, _ = collapse_repeats([late, early], window_sec=3600.0)
+
+    assert len(kept_fwd) == 2, "24h apart must be two observations"
+    assert len(kept_rev) == 2, (
+        "reversing the input must not merge two observations 24h apart — "
+        "the anchored window has to be applied in chronological order")
+    assert rep_fwd == rep_rev == 0
+
+    # The representative is the CHRONOLOGICALLY earliest either way, which is
+    # what the docstring promises.
+    assert kept_rev[0]["entry_time"] == "2026-01-01T00:00:00"
+
+    # Counter-pin: genuinely inside one window still collapses, in both
+    # orders — the fix is ordering, not "never collapse".
+    a, b = row("2026-01-01T00:00:00"), row("2026-01-01T00:10:00")
+    for pair in ([a, b], [b, a]):
+        kept, rep, _ = collapse_repeats(pair, window_sec=3600.0)
+        assert len(kept) == 1 and rep == 1, (
+            "two evaluations 10 minutes apart are one observation at a 1h "
+            f"window regardless of arrival order (got {len(kept)})")
+
+    # Unbounded mode has no anchor, so it is order-independent by construction.
+    assert len(collapse_repeats([late, early], window_sec=None)[0]) == 1

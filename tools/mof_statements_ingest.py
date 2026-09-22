@@ -532,7 +532,8 @@ def gdelt_last_data_date(path: str) -> "dt.date | None":
     return None
 
 
-def gdelt_freshness(as_of: "dt.date | None" = None) -> dict:
+def gdelt_freshness(as_of: "dt.date | None" = None,
+                    paths: "dict | None" = None) -> dict:
     """各 slug の系列末尾日と stale 日数を返す (取得の成否とは独立の観測)。
 
     2026-09-19 (rule:R3): soft/hard の軸は**例外が出たときしか動かない**。
@@ -545,7 +546,10 @@ def gdelt_freshness(as_of: "dt.date | None" = None) -> dict:
     as_of = as_of or dt.datetime.now(dt.timezone.utc).date()
     out: dict = {"as_of": as_of.isoformat(), "slugs": {}, "stale": []}
     for slug in GDELT_QUERIES:
-        path = os.path.join(GDELT_DIR, f"{slug}.csv")
+        # `paths` lets the CANDIDATE files be checked before they replace the
+        # stored series (Codex P1, PR #272).  Default = the stored series.
+        path = ((paths or {}).get(slug)
+                or os.path.join(GDELT_DIR, f"{slug}.csv"))
         last = gdelt_last_data_date(path)
         days = None if last is None else (as_of - last).days
         out["slugs"][slug] = {"last_data": last.isoformat() if last else None,
@@ -565,6 +569,16 @@ def run_gdelt() -> dict:
     os.makedirs(GDELT_DIR, exist_ok=True)
     end = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d%H%M%S")
     out = {}
+    # 🔴 VALIDATE BEFORE REPLACE (Codex P1, PR #272).  The old order opened the
+    # destination CSVs with "w" and only THEN checked freshness, so a stale or
+    # truncated-but-syntactically-valid response had already overwritten the
+    # stored series.  The raise did not undo it, and
+    # `.github/workflows/mof-statements-daily.yml` commits the whole data dir
+    # with `if: ${{ !cancelled() }}` — so the hard failure still COMMITTED the
+    # regression.  "Full-range refetch is self-healing" is a property of the
+    # UPSTREAM archive, not of this writer
+    # ([[project_mof_ingest_defect_family_2026_09_17]]).
+    tmp_paths = {}
     for slug, query in GDELT_QUERIES.items():
         from urllib.parse import quote
         url = ("https://api.gdeltproject.org/api/v2/doc/doc?query=" + quote(query)
@@ -574,26 +588,40 @@ def run_gdelt() -> dict:
         text = raw.decode("utf-8", "replace")
         if "Date" not in text.splitlines()[0]:
             raise RuntimeError(f"unexpected GDELT response for {slug}: {text[:200]}")
-        path = os.path.join(GDELT_DIR, f"{slug}.csv")
-        with open(path, "w") as f:
+        # `.tmp.csv`, not `.csv.tmp`: the workflow stages the data directory, so
+        # the candidate must not look like a series file to any reader.
+        tmp = os.path.join(GDELT_DIR, f".{slug}.tmp.csv")
+        with open(tmp, "w") as f:
             f.write(f"# query: {query}\n# mode: timelinevol (% of monitored coverage)\n")
             f.write(text if text.endswith("\n") else text + "\n")
+        tmp_paths[slug] = tmp
         n = max(0, len(text.strip().splitlines()) - 1)
-        print(f"[gdelt] wrote {path}: {n} datapoints")
+        print(f"[gdelt] fetched {slug}: {n} datapoints (candidate)")
         out[slug] = n
         time.sleep(SLEEP_GDELT)
 
-    fresh = gdelt_freshness()
+    # Freshness is judged on the CANDIDATES, before anything is replaced.
+    fresh = gdelt_freshness(paths=tmp_paths)
     out["freshness"] = fresh
     print(f"[gdelt] freshness: {json.dumps(fresh['slugs'], ensure_ascii=False)}")
     if not fresh["ok"]:
+        for tmp in tmp_paths.values():
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
         # TransientFetchError ではない = soft 分類の対象外 = hard。
         raise RuntimeError(
             "GDELT series did not advance: "
             + json.dumps(fresh["slugs"], ensure_ascii=False)
             + f" (threshold {GDELT_STALE_DAYS_MAX}d; 実測の内在ラグは median 0 / max 1 日)"
             " — 取得は成功しているので上流停止か stale 応答。要調査"
+            " (保存済み系列は書き換えていない)"
         )
+    for slug, tmp in tmp_paths.items():
+        path = os.path.join(GDELT_DIR, f"{slug}.csv")
+        os.replace(tmp, path)               # atomic promote
+        print(f"[gdelt] wrote {path}: {out[slug]} datapoints")
     return out
 
 
