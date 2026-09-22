@@ -1732,3 +1732,164 @@ def test_min_rows_override_actually_reaches_the_50_row_signature(tmp_path):
     with pytest.raises(SystemExit, match="_fetch_meta"):
         m.main([str(bare), "--run-date", "2026-09-20", "--no-write",
                 "--min-rows", "0"])
+
+
+def test_redacted_group_names_the_lock_that_actually_matched():
+    """KNOWN-NG INPUT: overlapping locks where only the SECOND holds the rows.
+
+    Routing retires a row when ANY covering lock's population holds it, so the
+    first-by-registry-order lock can own NONE of them.  Reporting `covering[0]`
+    as the primary published that lock's registry_id, threshold and zero
+    population as the cause of the redaction — and the compact
+    `prereg_lock_redaction.redacted_cells` view drops `covering_locks`, so the
+    wrong gate is all a reader sees, misstating trigger progress
+    (Codex P2, PR #273).
+    """
+    shadow = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+              "direction": "BUY", "registry_id": "shadow-lock", "match": "exact",
+              "kind": "shadow", "since": "2026-08-05", "closed_only": True,
+              "dedup_violation": 0, "mode": None, "n_decide": 40,
+              "reasons_marker": None, "count_basis": None}
+    live = dict(shadow, registry_id="live-lock", kind="live", n_decide=10)
+
+    def row(**kw):
+        base = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+                "direction": "BUY", "outcome": "WIN", "pnl_pips": 5.0,
+                "dedup_violation": 0, "is_shadow": 1, "status": "CLOSED",
+                "oanda_trade_id": "", "mode": "daytrade",
+                "entry_time": "2026-08-20T02:00:00"}
+        base.update(kw)
+        return base
+
+    # EVERY row is live, so the shadow lock (listed first) matches none of them.
+    live_only = [row(oanda_trade_id="77", is_shadow=0) for _ in range(9)]
+    res = run_audit(live_only, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",),
+                    locked_cells=[shadow, live])
+
+    rec = [c for c in res["eligible_cells_v2"]
+           if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec["redacted"] is True
+    assert rec["redaction_registry_id"] == "live-lock", (
+        "the primary must be the lock whose population actually holds the "
+        "rows, not the first one in registry order")
+    assert rec["n_decide"] == 10, "the reported gate must be the live lock's"
+    assert rec["n_lock_population"] == 9
+
+    by_id = {c["registry_id"]: c for c in rec["covering_locks"]}
+    assert by_id["shadow-lock"]["n_rows_matched"] == 0
+    assert by_id["live-lock"]["n_rows_matched"] == 9
+    assert by_id["live-lock"]["primary"] is True
+    assert by_id["shadow-lock"]["primary"] is False
+    # The shadow lock is still REPORTED — attribution must not hide a gate.
+    assert by_id["shadow-lock"]["n_lock_population"] == 0
+
+    # Counter-pin: when the FIRST lock holds the rows it stays primary, so the
+    # fix is attribution, not "always pick the last one".
+    shadow_only = [row() for _ in range(6)]
+    res2 = run_audit(shadow_only, run_date="2026-09-20",
+                     targets=("sr_anti_hunt_bounce",),
+                     locked_cells=[shadow, live])
+    rec2 = [c for c in res2["eligible_cells_v2"]
+            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec2["redaction_registry_id"] == "shadow-lock"
+    assert rec2["n_decide"] == 40
+
+
+def test_open_rows_are_fetched_before_the_closed_pages(monkeypatch):
+    """KNOWN-NG ORDERING: a trade that closes between the two requests.
+
+    With closed-pages-then-open, a trade closing after the closed pass ended
+    but before the open request was absent from BOTH sets — still open when the
+    closed pages were read, no longer open when the open request ran — while
+    `_fetch_meta.complete=true` vouched for the snapshot.  Open-first turns
+    that hole into an overlap, which merge_open_into_closed can reconcile
+    (Codex P2, PR #273).
+    """
+    import json
+    import urllib.request
+    import tools.cell_deepdive_audit as m
+
+    order = []
+
+    class FakeResp:
+        def __init__(self, body):
+            self.body = body.encode()
+
+        def read(self):
+            return self.body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    # Trade id=9 closes at ONE fixed instant between request #1 and #2: the
+    # first request still sees it OPEN, every later request sees it CLOSED.
+    # That single stub exposes the difference between the two orders:
+    #   open-first   -> open=[9], closed=[9,8]  => overlap, reconciled to {8,9}
+    #   closed-first -> closed=[8], open=[]     => id 9 in NEITHER set
+    def urlopen(url, timeout=None):
+        first = not order
+        if "status=open" in url:
+            order.append("open")
+            rows = [{"id": 9, "status": "OPEN"}] if first else []
+        else:
+            order.append("closed")
+            offset = int(url.split("offset=")[1].split("&")[0])
+            closed = [{"id": 8, "status": "CLOSED",
+                       "exit_time": "2026-09-19T00:00:00"}]
+            if not first:                      # id 9 has closed by now
+                closed.insert(0, {"id": 9, "status": "CLOSED",
+                                  "exit_time": "2026-09-20T00:00:00"})
+            rows = closed[offset:offset + 10]
+        return FakeResp(json.dumps({"count": len(rows), "trades": rows}))
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    out = []
+    monkeypatch.setattr(json, "dump", lambda payload, f: out.append(payload))
+    monkeypatch.setattr("builtins.open", lambda *a, **k: FakeResp(""))
+
+    assert m.main(["--fetch-to", "snap.json", "--run-date", "2026-09-20"]) == 0
+
+    # Assert the SUBSTANCE (no row lost) before the mechanism (call order), so
+    # a regression reports the data loss rather than just a reordering.
+    payload = out[0]
+    ids = [r["id"] for r in payload["trades"]]
+    assert sorted(ids) == [8, 9], (
+        "the mid-fetch close must survive exactly once — under the old order "
+        "it was in neither set while complete=true vouched for the snapshot")
+    assert len(ids) == len(set(ids)) == payload["count"]
+    assert payload["_fetch_meta"]["open_closed_midfetch"] == 1, (
+        "the reconciliation must be COUNTED, not silently absorbed")
+    assert payload["_fetch_meta"]["open"] == 0
+    assert [r for r in payload["trades"] if r["id"] == 9][0]["status"] == "CLOSED"
+    assert order[0] == "open", (
+        "open rows must be requested BEFORE the closed pages, or a mid-fetch "
+        "close falls into a hole that no later request can reveal")
+
+
+def test_no_doc_hands_out_a_curl_workflow_for_this_tool():
+    """The CLI rejects bare-curl snapshots, so no doc may prescribe one.
+
+    Wave 18 fixed `--help`; the same contradiction survived in the as-run
+    weekly report, which future operators are explicitly told to follow
+    (Codex P2, PR #273).  Scope is deliberately narrow: only docs that
+    mention THIS tool are checked, because a curl to /api/demo/trades for any
+    other purpose is still perfectly valid and the historical records that
+    contain them must not be rewritten.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parent.parent / "knowledge-base"
+    curl = re.compile(r"curl[^\n]*api/demo/trades")
+    offenders = []
+    for md in root.rglob("*.md"):
+        text = md.read_text(encoding="utf-8", errors="replace")
+        if "cell_deepdive_audit.py" in text and curl.search(text):
+            offenders.append(str(md.relative_to(root)))
+    assert offenders == [], (
+        "these docs prescribe a snapshot the CLI refuses — point them at "
+        f"--fetch-to instead: {offenders}")

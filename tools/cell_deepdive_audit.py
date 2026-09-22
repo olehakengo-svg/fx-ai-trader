@@ -865,7 +865,20 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
         out = []
         for k, rows in groups.items():
             covering = locks_for_cell(k[0], k[1], k[-1], cell_locks)
-            lock = covering[0]
+            # The PRIMARY lock must be the one that actually matched these
+            # rows, not `covering[0]` (Codex P2, PR #273).  Routing above
+            # retires a row when ANY covering lock's population holds it, so
+            # with overlapping locks the first-by-registry-order lock can own
+            # zero of them — and the compact `redacted_cells` view drops
+            # `covering_locks`, so it would publish that lock's registry_id,
+            # threshold and (possibly zero) population as the cause.  That
+            # misstates trigger progress for the lock that did the redacting.
+            matched = [sum(1 for t in rows
+                           if row_in_lock_population(t, lk,
+                                                     as_of_exclusive=win_hi))
+                       for lk in covering]
+            # argmax, ties broken by registry order = stable output.
+            lock = covering[matched.index(max(matched))] if covering else None
             rec = count_only_record(
                 level, k, len(rows), lock,
                 lock_population_n=lock_population_count(
@@ -876,13 +889,16 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             if len(covering) > 1:
                 # Overlapping LOCKs: report EACH lock's population separately.
                 # Collapsing them into one number would misrepresent the other
-                # lock's gate.
+                # lock's gate.  `n_rows_matched` makes the primary's selection
+                # auditable instead of implicit.
                 rec["covering_locks"] = [
                     {"registry_id": lk.get("registry_id"),
                      "n_lock_population": lock_population_count(
                          trades, lk, as_of_exclusive=win_hi),
-                     "n_decide": lk.get("n_decide")}
-                    for lk in covering]
+                     "n_decide": lk.get("n_decide"),
+                     "n_rows_matched": mt,
+                     "primary": lk is lock}
+                    for lk, mt in zip(covering, matched)]
             out.append(rec)
         return out
 
@@ -1180,10 +1196,17 @@ def _http_fetch_open(limit: int = 100000) -> list:
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     if args.fetch_to:
-        # Closed rows are paginated (status=closed so offsets are stable);
-        # open rows are fetched exactly ONCE and appended.
-        payload = paginate_trades(_http_fetch_closed_page)
+        # OPEN rows are fetched FIRST, then the closed pages (Codex P2,
+        # PR #273).  With the old order a trade that closed AFTER the closed
+        # pass finished but BEFORE the open request was absent from BOTH sets
+        # — still open when the closed pages were read, no longer open when the
+        # open request ran — while `complete=true` vouched for the snapshot.
+        # Fetching open first turns that window into an OVERLAP instead of a
+        # hole: the trade is in the open list AND in the later closed pages,
+        # and merge_open_into_closed reconciles it by identity, keeping the
+        # closed copy.  An overlap is repairable; a hole is not detectable.
         open_rows = _http_fetch_open()
+        payload = paginate_trades(_http_fetch_closed_page)
         merged, open_dropped = merge_open_into_closed(open_rows,
                                                       payload["trades"])
         payload["trades"] = merged

@@ -293,7 +293,28 @@
   [[feedback_commit_exit0_lies_autosaver_bypasses_precommit]] の「suite green は
   測ったツリー状態でのみ有効」と [[feedback_check_the_symmetric_side_2026_09_19]] の
   2 例目。**レビューが片側を指摘したら対称側は自分で測る**
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**59 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第21波 (Codex P2×3) — 3 件とも妥当、うち 1 件は第20波の穴の「隣」だった**:
+  (ll) **open 行を closed ページング の前に取る** — 旧順序では closed pass 終了後・open
+  要求前に CLOSE した約定が**両方の集合から欠落**する (closed を読んだ時点では open、
+  open を要求した時点では既に closed) のに `complete=true` が保証していた。
+  🔴 **第20波の retry はこの窓を塞がない** — retry が見るのは closed pass 内部の drift だけ。
+  open を先に取ると同じ窓が**穴から重複へ**変わり `merge_open_into_closed` が identity で
+  解消できる (**重複は修復可能、穴は検出さえできない**)
+  (mm) **redact されたセルの primary を「実際に一致した LOCK」に** — routing は「いずれかの
+  覆う LOCK の母集団に入れば退避」なので、**registry 順で先頭の LOCK が 1 行も持たない**
+  ことがある。`covering[0]` を primary にしていたため compact な `redacted_cells`
+  (`covering_locks` を落とす) が**無関係な LOCK の registry_id / 閾値 / 母集団 0** を
+  redaction の原因として公表し、トリガ進捗を誤って伝えていた。matched 数の argmax
+  (同数は registry 順) を primary にし `n_rows_matched` / `primary` を併記
+  (nn) **as-run レポートの手順も bare curl のままだった** — 第18波で `--help` を直したのに
+  **週次オペレータが従えと明記されている当のレポート**が残っていた (同型の 2 例目)
+- 🔑 **pin は「性質」で、しかもスコープを絞って書いた**: 「**このツールに言及する doc は
+  `/api/demo/trades` への runnable curl を含まない**」を全 KB に対して assert。
+  他用途の curl と歴史記録は対象外 (書き換えてはいけない) — [[lesson_validity_check_pins_proxy_2026_09_02]]
+- ✅ **3 件とも counterfactual で確認** (修正を戻すと当該 pin が落ちる): 順序 pin は
+  **機構 (呼び出し順) より先に実体 (`[8] == [8, 9]` = 約定 9 の消失)** を assert するよう
+  並べ替え — 回帰時に「並べ替えた」ではなく「データを失った」と報告される
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**62 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

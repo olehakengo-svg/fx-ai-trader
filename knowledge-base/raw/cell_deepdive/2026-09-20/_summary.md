@@ -171,6 +171,13 @@ outcome 到達前に確定すべき問題として user 決裁へ
 **2026-09-20 に解消**。以後は in-repo ツールを使うこと:
 
 ```bash
-curl -sS "https://fx-ai-trader.onrender.com/api/demo/trades?limit=100000" -o /tmp/prod_trades.json
+# 2 段手順。bare curl は使えない (CLI が REJECT する) — `?limit=` を大きくしても
+# 応答に `_fetch_meta` が無く、完全性を証明できないため (PR #273 第16/18/20波)。
+python3 tools/cell_deepdive_audit.py --fetch-to /tmp/prod_trades.json
 python3 tools/cell_deepdive_audit.py /tmp/prod_trades.json --run-date $(date -u +%F)
 ```
+
+⚠️ **`--fetch-to` は open 行 → closed 行ページング の順で取得し、短ページで終端を
+証明する**。drift (フェッチ中の約定 CLOSE) を検出した pass は破棄して再走し、
+全試行 drift なら失敗する — **完全性は「行数が足りた」ではなく「drift-free な
+短ページ」で定義されている**
