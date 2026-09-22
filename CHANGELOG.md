@@ -1,5 +1,13 @@
 # FX AI Trader - Changelog
 
+## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
+
+- `_SHADOW_ONLY_DOWNSTREAM_RELAX_MODES = {rnb_usdjpy}` + `_mode_downstream_relax()` (allowlist ∧ shadow_only=True) — velocity_down / mtf_strong_bias / 1h_rr_low の hard block を shadow 化。他 gate・閾値・session_hours・daytrade_audjpy は不変
+- pin: `tests/test_rnb_shadow_only_downstream_relax.py` (20 本、control / fail-closed / 対称側 2 系 / OANDA 送信ゼロ / スコープ pin / `[SHADOW_RELAX]` marker)
+- relax 行は reasons に `[SHADOW_RELAX] <gate>` を永続 (LOCK 層別の一次キー、デプロイ時刻は二次)
+- registry: LOCK `rnb-support-bounce-shadow-forward` AMENDMENT (変更前 N=2 snapshot、旧/新層別既定、marker 一次キー) / checkpoint-1・-2 注記 / 新規 `rnb-relax-deploy-stamp-record` (09-24) / sub-entry -1003 resolved
+- 詳細: knowledge-base/wiki/analyses/rnb-shadow-lane-health-precheck-2026-09-22.md §11
+
 ## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 を索引 + 期日別 sub-entry 4 / 更新 9 / 新規 6) + index/changelog/session 同期 (rule:R3)
 
 - fix(nav_floor) F4 資金時計 burn を decomposed (keeper 確定分 + edge 30d) に分解、fit は参考列へ (PR #285) — condition 不変、発火日は幅で引用 (keeper のみ 2027-01-05 / drift 込み 2026-12-04)

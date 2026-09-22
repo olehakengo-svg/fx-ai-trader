@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
+
+- **背景**: [[rnb-shadow-lane-health-precheck-2026-09-22]] §6 — 09-12 以降の rnb BUY bar 6/6 が `_tick_entry` 下流の velocity_down / mtf_strong_bias / 1h_rr_low で hard block、closed shadow N=2 のまま (checkpoint-1 09-24 n_floor 3 は 09-25 00:20Z 判定で TRIGGERED 見込み)。shadow_only mode は OANDA 送信が構造的にゼロで、これらの gate が守る資本は無い。365d ablated BT は同 gate を適用していない (BT⇄live 母集団の非同期 = 構造欠陥、R3)
+- **変更** (`modules/demo_trader.py`): `_SHADOW_ONLY_DOWNSTREAM_RELAX_MODES = frozenset({"rnb_usdjpy"})` + `_mode_downstream_relax()` (allowlist ∧ 実状態 shadow_only=True の AND = fail-closed)。参照は 3 gate のみ、`_block(); return` → `_is_shadow=True` + `[SHADOW] <gate> relax:` ログ。`_is_shadow_eligible_full` (9 経路) / `_mode_is_shadow_only` 汎用化 (daytrade_audjpy の WS3 stage-2 母集団に触る) / session_hours / 閾値 / `_UNIVERSAL_SENTINEL` は不変
+- **pin**: `tests/test_rnb_shadow_only_downstream_relax.py` 20 本 — 3 gate の shadow 化 (a) / allowlist 空で従来 block (control) / shadow_only=False で迂回消滅 (fail-closed) / daytrade_audjpy 不変 (第 2 の対称側) / OANDA 送信ゼロ / 21 時台は session_hours で block / spike は hard block のまま / `_downstream_relax` 参照数 = 4 のスコープ pin / relax 行の `[SHADOW_RELAX] <gate>` marker (+ 恒真でない対称側)
+- **per-row provenance**: relax 分岐は reasons に `[SHADOW_RELAX] <gate>` を永続 (`[HOURBLOCK_CLASS_EXEMPT]` と同型) — LOCK 層別の一次キー。二次 (デプロイ前/後) の追記義務は新 registry `rnb-relax-deploy-stamp-record` (09-24) が読む。敵対的 3 レンズレビュー (Codex は指摘ゼロ) で一致した P2「層別キーが後追記の deploy 時刻だけに依存」への対応
+- **registry**: LOCK `rnb-support-bounce-shadow-forward` に 🔒 AMENDMENT 事前宣言 (変更前 N=2 snapshot、旧/新 gate 構成は**層別既定**・除外しない、n_decide 41 は総数、一次キー marker / 二次キー デプロイ時刻) / checkpoint-1・-2 に混合読み注記 + 新構成行で『通過』した場合の引用制限 (n_floor・期日不変) / 新規 `rnb-relax-deploy-stamp-record` (09-24) / `review-backlog-sprint0922-p2-deferrals-1003` resolved (β 分岐不採用で PR #283 comment 4070561551 は moot)
+- **判断の位置づけ**: checkpoint-1 の自動判定 (09-25) を待たずに執行 — 真因は機構帰属済み・判定主体は Claude (R3 自走可)・user 委任「推奨で進めて」。「TRIGGERED」は名乗らず、自動判定の resolution に旧/新層別 N を記す (precheck §11)
+- 残置 (範囲外): precheck §8 (iii) データ鮮度読み手 / (iv) TACTICAL_BIAS writer ログ / (v) watcher 厳格 shadow 選択子
+
 ## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 を索引 + 期日別 sub-entry 4 / 更新 9 / 新規 6) + index/changelog/session 同期 (rule:R3)
 
 - **同日マージ 11 PR (#277〜#287) の KB 統合**。code PR 4 本の要点:
