@@ -467,6 +467,16 @@ def prepare(
             collected = [r for r in collected if id(r) in keep]
     else:
         undatable = []
+    # The EXCLUSION is global (such a row cannot be deduped anywhere), but the
+    # BLOCKING REASON must be scoped to the requested cell (Codex P2, PR #272
+    # 第12巡).  Otherwise one malformed EUR_JPY/resistance row rejects 30
+    # perfectly good USD_JPY/support observations it cannot influence — the
+    # same shape as the 4th-round conflict-scoping defect, recurring on the
+    # guard I had just added.  Keep the global count for the readout.
+    undatable_in_cell = [
+        r for r in undatable
+        if select_cell([r], pair=pair, side=side)
+    ] if undatable else []
     deduped, repeats, conflicts = collapse_repeats(
         collected, dedup=dedup, window_sec=window_sec)
     cell = select_cell(deduped, pair=pair, side=side)
@@ -483,11 +493,11 @@ def prepare(
     reasons: list[str] = []
     if not raw:
         reasons.append("dataset is empty")
-    if undatable:
+    if undatable_in_cell:
         reasons.append(
-            f"{len(undatable)} row(s) have a missing/unparseable `entry_time` "
-            "— 独立観測の窓を当てられないので母集団に入れない (各行を独立と "
-            "数えると N が水増しされ偽の有意が出る)"
+            f"{len(undatable_in_cell)} row(s) in this cell have a "
+            "missing/unparseable `entry_time` — 独立観測の窓を当てられないので "
+            "母集団に入れない (各行を独立と数えると N が水増しされ偽の有意が出る)"
         )
     if cell_conflicts:
         reasons.append(
@@ -510,6 +520,7 @@ def prepare(
             "rows_read": len(raw),
             "quarantined_provenance": len(quarantined),
             "quarantined_undatable": len(undatable),
+            "quarantined_undatable_in_cell": len(undatable_in_cell),
             "collapsed_repeats": repeats,
             "outcome_conflicts": len(cell_conflicts),
             "outcome_conflicts_all_cells": len(conflicts),

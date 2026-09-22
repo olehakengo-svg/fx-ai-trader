@@ -372,3 +372,52 @@ def test_a_candidate_with_duplicated_dates_is_rejected(tmp_path, monkeypatch):
         ing.run_gdelt()
     for slug in ing.GDELT_QUERIES:
         assert (tmp_path / f"{slug}.csv").read_text(encoding="utf-8") == full
+
+
+def test_a_failed_promotion_rolls_back_the_earlier_slugs(tmp_path, monkeypatch):
+    """KNOWN-NG PATH: slug 1 promoted, slug 2's replace raises.
+
+    `os.replace` is atomic per file but not across files, so the data
+    directory held a MIXED generation — and the workflow stages everything
+    even after a hard failure (`if: ${{ !cancelled() }}`), committing it
+    (Codex P2, PR #272 第12巡).
+    """
+    import os as _os
+    import datetime as dt
+
+    monkeypatch.setattr(ing, "GDELT_DIR", str(tmp_path))
+    monkeypatch.setattr(ing, "SLEEP_GDELT", 0)
+    monkeypatch.setattr(ing, "GDELT_STALE_DAYS_MAX", 10_000)
+
+    slugs = list(ing.GDELT_QUERIES)
+    assert len(slugs) >= 2, "this pin needs at least two slugs"
+    old = ("# query: x\n﻿Date,Series,Value\n"
+           "2026-08-01,Volume Intensity,0.1\n")
+    for slug in slugs:
+        (tmp_path / f"{slug}.csv").write_text(old, encoding="utf-8")
+
+    body = ("﻿Date,Series,Value\n2026-08-01,Volume Intensity,0.9\n"
+            "2026-08-02,Volume Intensity,0.9\n")
+    monkeypatch.setattr(ing, "fetch", lambda *a, **k: body.encode())
+
+    real_replace = _os.replace
+    calls = {"n": 0}
+
+    def flaky_replace(src, dst):
+        if str(dst).endswith(f"{slugs[1]}.csv"):
+            raise OSError("disk went away mid-promotion")
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(_os, "replace", flaky_replace)
+
+    with pytest.raises(OSError, match="disk went away"):
+        ing.run_gdelt()
+
+    for slug in slugs:
+        assert (tmp_path / f"{slug}.csv").read_text(encoding="utf-8") == old, (
+            f"{slug}.csv must be rolled back to the previous generation — a "
+            f"mixed data directory gets committed by the daily workflow")
+    leftovers = sorted(p.name for p in tmp_path.iterdir()
+                       if not p.name.endswith(".csv")
+                       or ".promoting" in p.name or ".restoring" in p.name)
+    assert leftovers == [], f"no promotion artifacts may survive: {leftovers}"

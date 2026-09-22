@@ -888,3 +888,42 @@ def test_rows_without_a_usable_timestamp_are_excluded_not_counted(tmp_path):
     _write(tmp_path, rows)
     res3 = hed.prepare(tmp_path, window_sec=None)
     assert res3["accounting"]["quarantined_undatable"] == 0
+
+
+def test_an_undatable_row_in_another_cell_does_not_block_this_one(tmp_path):
+    """KNOWN-NG INPUT: one malformed EUR_JPY row beside 30 good USD_JPY ones.
+
+    The exclusion is global (an undatable row cannot be deduped anywhere) but
+    the BLOCKING REASON must be scoped to the requested cell, or one bad row
+    in a pair that cannot influence the statistics rejects a clean audit —
+    the same shape as the 4th-round conflict-scoping defect, recurring on the
+    guard added one round earlier (Codex P2, PR #272 第12巡).
+    """
+    # Distinct `level` per row so these are 30 genuinely distinct identities
+    # (identical payloads would collapse into windows and trip the conflict
+    # gate instead, which is not what this pin is about).
+    good = [_row(instrument="USDJPY=X", side="support", level=150.0 + i,
+                 reversal=(i % 3 == 0),
+                 entry_time=f"2026-09-{1 + i // 24:02d}T{i % 24:02d}:00:00")
+            for i in range(30)]
+    bad_other_cell = [_row(instrument="EURJPY=X", side="resistance",
+                           reversal=True, entry_time="bad")]
+    _write(tmp_path, good + bad_other_cell)
+
+    res = hed.prepare(tmp_path, pair="USD_JPY", side="support")
+    assert res["ok"] is True, (
+        "a malformed row in another pair/side must not block this cell: "
+        f"{res['blocked_reasons']}")
+    assert len(res["events"]) == 30
+    # Both counts are reported: the global exclusion AND the in-cell zero.
+    assert res["accounting"]["quarantined_undatable"] == 1
+    assert res["accounting"]["quarantined_undatable_in_cell"] == 0
+
+    # Counter-pin: a malformed row IN this cell still blocks it.
+    _write(tmp_path, good + [_row(instrument="USDJPY=X", side="support",
+                                  level=999.0, reversal=True,
+                                  entry_time="bad")])
+    res2 = hed.prepare(tmp_path, pair="USD_JPY", side="support")
+    assert res2["ok"] is False
+    assert res2["accounting"]["quarantined_undatable_in_cell"] == 1
+    assert any("in this cell" in r for r in res2["blocked_reasons"])

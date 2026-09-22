@@ -701,15 +701,40 @@ def run_gdelt() -> dict:
                 " 保存済み系列は書き換えていない"
             )
 
-        # (3) Promote, atomically, only after BOTH gates passed.
-        for slug, tmp in tmp_paths.items():
-            path = os.path.join(GDELT_DIR, f"{slug}.csv")
-            staged = path + ".promoting"
-            promoting.append(staged)
-            shutil.copyfile(tmp, staged)        # same filesystem as `path`
-            os.replace(staged, path)            # atomic
-            promoting.remove(staged)
-            print(f"[gdelt] wrote {path}: {out[slug]} datapoints")
+        # (3) Promote only after BOTH gates passed — ALL-OR-NOTHING across
+        # slugs (Codex P2, PR #272 第12巡).  `os.replace` is atomic per file
+        # but not across files: if slug 1 was replaced and slug 2 then failed,
+        # the data directory held a MIXED generation, and the workflow commits
+        # it (`if: ${{ !cancelled() }}` stages everything even after a hard
+        # failure).  So back each destination up first and roll them all back
+        # if any promotion raises.
+        backups: list = []
+        try:
+            for slug, tmp in tmp_paths.items():
+                path = os.path.join(GDELT_DIR, f"{slug}.csv")
+                if os.path.exists(path):
+                    backup = os.path.join(staging, f"{slug}.backup.csv")
+                    shutil.copyfile(path, backup)   # staging = system temp
+                    backups.append((path, backup))
+                staged = path + ".promoting"
+                promoting.append(staged)
+                shutil.copyfile(tmp, staged)    # same filesystem as `path`
+                os.replace(staged, path)        # atomic per file
+                promoting.remove(staged)
+                print(f"[gdelt] wrote {path}: {out[slug]} datapoints")
+        except BaseException:
+            for path, backup in backups:
+                restored = path + ".restoring"
+                promoting.append(restored)      # outer finally sweeps it
+                try:
+                    shutil.copyfile(backup, restored)
+                    os.replace(restored, path)
+                    promoting.remove(restored)
+                except OSError:
+                    pass                        # best effort; re-raise below
+            print(f"[gdelt] ROLLED BACK {len(backups)} promoted file(s) — "
+                  f"the data directory must not hold a mixed generation")
+            raise
     finally:
         shutil.rmtree(staging, ignore_errors=True)
         for leftover in promoting:              # only on a mid-promote crash
