@@ -471,3 +471,11 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 - 症状: 違反 104 行を検出し、字義どおりなら研究中止だった (実際は再構成が正しく、チェックが誤り)
 - 修正: 読み出し経路のコード同一性で直接検証 + 違反行の時系列分解 (2026-08 で 0/12)
 - 再発: PR #209 の「構造 pin は性質を書け」と同型 = **通算 2 領域目** (今度は統計の妥当性チェック側)
+
+### `[[lesson-prefork-master-must-not-touch-db-2026-09-22]]`
+**発見日**: 2026-09-22 | **修正**: DailyReview を serving process へ defer + `/healthz/http` health check (rule:R3)
+- 問題: Render の gunicorn は app.py を master で import し直後に fork する。import 時に起動した DailyReview スレッドが 0 時台起動で SQLite を回している最中に fork → worker が SQLite mutex を locked のまま継承 → DB を触る全 HTTP ルートが永久ハング
+- 症状: HTTP 全盲 3h19m〜3h31m × 3 回 (09-12 / 09-15 / 09-22)。engine は master で生存 = 「engine 生存」と「HTTP 生存」は別プロセスの別 estimand
+- 修正: import 時スレッド起動を廃し heartbeat 経路で起動 (§11 と同型) / HTTP health check で数分検知 / 検知器を read-timeout と接続失敗で分離 / 生成器は原因を書かない
+- 再発: [[e1-positioning-ingest-2026-07-14]] §11 (network thread、2026-07-16) と**同じ fork 問題の DB 側** = 「対称に処置せよ」の 3 例目
+- 教訓: **pre-fork サーバの master では import 時スレッドを一切起動しない (network も DB も)。HTTP 層の生死はプロセス・エンジンと別に測り、外部には失敗クラスだけを渡す**

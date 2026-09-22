@@ -13622,6 +13622,54 @@ def healthz():
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
 
+@app.route("/healthz/http")
+def healthz_http():
+    """Render health check 用の軽量プローブ — HTTP 層が生きて DB を**開ける**か (rule:R3, 2026-09-22).
+
+    2026-09-12 / 09-15 / 09-22 の HTTP 全盲では、worker プロセスは listen し
+    続け (Render の TCP チェックは通る)、DB を触る全ルートだけが永久ハングした。
+    Render は healthCheckPath 未設定だと port の疎通しか見ないため、再起動まで
+    3h19m〜3h31m を要した (契機は worker_connections=1000 到達で accept が止まった
+    ことと整合)。ここを healthCheckPath に据えると、**fresh な sqlite3 接続の
+    SELECT 1** が timeout → unhealthy → Render が数分で再起動する。
+
+    意図的に **/healthz を使わない**: そちらは ``get_status()`` (StatusHeal = worker
+    側で 24 モードのエンジンを起こす副作用) と ``request_tick()`` を呼ぶ。数十秒
+    間隔の health check をそこへ繋ぐと、起動直後に worker エンジンを必ず起こす
+    ことになる (master 側エンジンとの二重化を決定的にする)。プローブは
+    「HTTP が返るか / DB が開くか」だけを答え、エンジン状態には触れない。
+
+    trade-off (再起動は in-memory dedup/cooldown を消す — MEMORY
+    project_engine_reconstruction_live_dedup_dead / commit ebf4a5235): 再起動が
+    起きるのは HTTP 層が既に死んでいる状態 = 監視も OANDA 監査も盲目の状態であり、
+    dedup は起動時に DB から hydrate される (``[startup/dedup_hydrate]``) ため、
+    3 時間の全盲より安い。
+    """
+    import sqlite3 as _hz_sql3
+    t0 = _time_mod.perf_counter()
+    db_ok = False
+    err = ""
+    try:
+        conn = _hz_sql3.connect(_db_path, timeout=5)
+        try:
+            conn.execute("PRAGMA busy_timeout=3000")
+            conn.execute("SELECT 1").fetchone()
+            db_ok = True
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001 - probe は落とさず内容を返す
+        err = f"{type(e).__name__}: {e}"
+    body = {
+        "status": "ok" if db_ok else "degraded",
+        "db_ok": db_ok,
+        "db_probe_ms": round((_time_mod.perf_counter() - t0) * 1000, 1),
+        "serving_pid": os.getpid(),
+    }
+    if err:
+        body["db_error"] = err
+    return jsonify(body), (200 if db_ok else 503)
+
+
 @app.route("/api/demo/status")
 def api_demo_status():
     try:
@@ -13889,6 +13937,14 @@ def _positioning_heartbeat():
         _svk_ensure_running()
     except Exception as e:
         print(f"[svk] heartbeat self-heal failed: "
+              f"{type(e).__name__}: {e}", flush=True)
+    # DailyReview (2026-09-22 rule:R3): import 時は defer され、ここが唯一の起動経路。
+    # master の pre-fork 窓で SQLite を回さないための構造対策 — 詳細は
+    # knowledge-base/wiki/analyses/http-blind-fork-poisoning-2026-09-22.md
+    try:
+        _demo_trader.ensure_daily_review_running()
+    except Exception as e:
+        print(f"[DailyReview] heartbeat self-heal failed: "
               f"{type(e).__name__}: {e}", flush=True)
 
 

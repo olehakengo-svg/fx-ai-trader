@@ -239,3 +239,49 @@ def test_decisions_markdown_ignored_but_registry_json_still_deploys():
         "prereg-trigger-registry.json が ignoredPaths に巻き込まれた。"
         " cron が読む load-bearing な状態なのでデプロイを起こさせること"
     )
+
+
+def test_nightly_ingest_data_paths_are_ignored():
+    """2026-09-22 (rule:R3): 夜間 ingest の commit が取引エンジンを毎晩再起動していた.
+
+    `auto: rate anchor daily ingest` (21:15Z 平日) と `data(mof-statements): daily
+    collect` (21:30Z 毎日) は研究用データのみを触る (app.py / modules/ からの参照
+    ゼロ、全数 grep 2026-09-22)。ignoredPaths に無かったため、この 2 commit が
+    **毎晩 2 回**の web service 再デプロイ = 無 tick ~60s + ramp 2.5-3 分を払わせ、
+    しかも 2026-09-22 は 2 回目のデプロイ (00:12:50) の直後に HTTP 全盲事故が起きた
+    (knowledge-base/wiki/analyses/http-blind-fork-poisoning-2026-09-22.md)。
+
+    性質 A: 3 パス (rate_anchor/**, mof_statements/**, ZN_F_1h.parquet) は ignore される
+    性質 B: 取引パスは今もそれらを読まない — `fetch_zn_intraday` の呼び手が
+            app.py / modules/ / strategies/ に存在しないこと (読み始めたら ignore を外す)
+    """
+    ignored = _ignored_paths()
+    nightly = [
+        "data/external/rate_anchor/manifest.json",
+        "data/external/rate_anchor/zn_f_daily.csv",
+        "data/external/mof_statements/gdelt/yen_intervention.csv",
+        "data/external/mof_statements/conferences/202609.jsonl",
+        "data/cache/yield/ZN_F_1h.parquet",
+    ]
+    for p in nightly:
+        assert any(_matches(p, pat) for pat in ignored), (
+            f"夜間 ingest パスが ignore されていない (毎晩の取引エンジン再起動): {p}"
+        )
+    # 性質 B — runtime 側に読み手が居ないこと
+    callers = []
+    for src in [ROOT / "app.py"] + sorted((ROOT / "modules").glob("*.py")) \
+            + sorted((ROOT / "strategies").rglob("*.py")):
+        if not src.exists():
+            continue
+        text = src.read_text(encoding="utf-8")
+        if src.name == "yield_data.py":
+            continue  # 定義元 (docstring の使用例のみ)
+        if "fetch_zn_intraday(" in text or "rate_anchor" in text or "mof_statements" in text:
+            callers.append(str(src.relative_to(ROOT)))
+    assert not callers, (
+        "取引パスが夜間 ingest データを読み始めている。ignoredPaths から外すこと: "
+        f"{callers}"
+    )
+    # ⚠️ ZN の json キャッシュ (data/cache/yield/*.json) は取引パス read のまま。
+    # parquet 1 ファイルだけを ignore し、ディレクトリ全体は ignore しない。
+    assert not any(_matches("data/cache/yield/any.json", pat) for pat in ignored)

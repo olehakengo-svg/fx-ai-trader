@@ -108,6 +108,117 @@ LIVE_FILL_STAGNATION_HOURS = 120
 ZN_CACHE_MAX_AGE_DAYS = 8
 
 
+# ── 外部からの到達不能の分類 (rule:R3, 2026-09-22) ─────────────────────────
+# 2026-09-12 / 09-15 / 09-22 の 3 回、本番 web service は **プロセスもエンジンも
+# 生きたまま HTTP だけが 3h19m〜3h31m 応答しなかった** (fork 中の SQLite 継承で
+# worker の DB が永久ハング — analyses/http-blind-fork-poisoning-2026-09-22.md)。
+# 状態を持たない外部の読み手 (Render cron / GitHub Actions) が持てる証拠は
+# fetch の**失敗クラス**だけで、それが 2 つの estimand を分ける:
+#
+#   FAIL_TIMEOUT     TCP 接続は成立、応答が timeout 内に来ない
+#                    → プロセスは listen している / HTTP ハンドラが返ってこない
+#   FAIL_CONNECTION  接続拒否・リセット・接続段階の timeout
+#                    → プロセスが serving していない (デプロイ / 再起動 / 停止)
+#   FAIL_HTTP_STATUS 5xx/4xx が返った (Render edge の 502 を含む)
+#                    → upstream が無い / 落ちている、または endpoint 固有の異常
+#   FAIL_OTHER       JSON parse 等、輸送層以外
+#
+# 全滅かつ全て FAIL_TIMEOUT = **http_blind** (HTTP 層だけが死んでいる)。
+# 全滅かつ FAIL_CONNECTION / FAIL_HTTP_STATUS のみ = **api_down**。混在 = mixed
+# (再起動の遷移中など)。**engine の生死は外部からは分からない** — 09-22 は
+# master 側エンジンが tick し続けていた。読み手には「不明」と書き、Render ログの
+# [MainLoop] を見よと導く。原因の断定 (スリープ / 無料 tier / コールドスタート)
+# は観測から導けないので **書かせない** (INVENTED_CAUSE_PATTERNS)。
+FAIL_TIMEOUT = "timeout"
+FAIL_CONNECTION = "connection"
+FAIL_HTTP_STATUS = "http_status"
+FAIL_OTHER = "other"
+
+OUTAGE_HTTP_BLIND = "http_blind"
+OUTAGE_API_DOWN = "api_down"
+OUTAGE_MIXED = "mixed"
+OUTAGE_UNKNOWN = "unknown"
+
+# 観測から導けない「原因」の語彙。生成器 (daily_report) の出力後検査と、
+# 本モジュール / watcher の文言テストの両方がこの集合を読む。
+INVENTED_CAUSE_PATTERNS: tuple[str, ...] = (
+    "無料tier", "無料 tier", "free tier", "スリープ", "sleep", "コールドスタート",
+    "cold start",
+)
+
+# 例外クラス名の接頭辞で分類する。reason 文字列の契約は
+# ``f"{type(e).__name__}: {e}"`` (anomaly_watcher.fetch_outcome / daily_report)。
+_TIMEOUT_MARKERS = ("ReadTimeout", "ReadTimeoutError", "TimeoutError", "timeout",
+                    "socket.timeout", "Read timed out")
+_CONNECT_TIMEOUT_MARKERS = ("ConnectTimeout", "ConnectTimeoutError",
+                            "Connection to host timed out")
+_CONNECTION_MARKERS = ("ConnectionError", "ConnectionRefused", "ConnectionReset",
+                       "RemoteDisconnected", "URLError", "NewConnectionError",
+                       "ProtocolError", "Connection refused", "Connection reset",
+                       "MaxRetryError")
+_HTTP_STATUS_MARKERS = ("HTTPError", "HTTP Error", "Server Error", "Bad Gateway",
+                        "Service Unavailable", "Gateway Time")
+
+
+def classify_fetch_failure(reason: str) -> str:
+    """fetch 失敗の reason 文字列を FAIL_* に分類する (SSOT)."""
+    r = str(reason or "")
+    if not r:
+        return FAIL_OTHER
+    # 接続段階の timeout は「listen していない」側 — 読み取り timeout より先に見る
+    if any(m in r for m in _CONNECT_TIMEOUT_MARKERS):
+        return FAIL_CONNECTION
+    head = r.split(":", 1)[0].strip()
+    if any(head.startswith(m) or m in head for m in _TIMEOUT_MARKERS) or "Read timed out" in r:
+        return FAIL_TIMEOUT
+    if any(m in r for m in _HTTP_STATUS_MARKERS):
+        return FAIL_HTTP_STATUS
+    if any(m in r for m in _CONNECTION_MARKERS):
+        return FAIL_CONNECTION
+    return FAIL_OTHER
+
+
+def classify_outage(reasons: dict[str, str]) -> dict[str, Any]:
+    """path→reason の失敗集合を outage 種別に分類する (SSOT).
+
+    戻り値: kind (OUTAGE_*), n_timeout / n_connection / n_http_status / n_other,
+    classes (path→FAIL_*), summary (人向け 1 行。**観測のみを述べ、原因は書かない**)。
+    """
+    classes = {p: classify_fetch_failure(r) for p, r in (reasons or {}).items()}
+    n = {k: sum(1 for v in classes.values() if v == k)
+         for k in (FAIL_TIMEOUT, FAIL_CONNECTION, FAIL_HTTP_STATUS, FAIL_OTHER)}
+    total = len(classes)
+    transport_down = n[FAIL_CONNECTION] + n[FAIL_HTTP_STATUS]
+    if total == 0 or (n[FAIL_OTHER] == total):
+        kind = OUTAGE_UNKNOWN
+        summary = ("到達不能 (unreachable, cause unknown) — 失敗クラスから輸送層の状態を"
+                   "判定できない")
+    elif n[FAIL_TIMEOUT] == total:
+        kind = OUTAGE_HTTP_BLIND
+        summary = ("HTTP 全盲 (http_blind): TCP 接続は成立するが応答が timeout 内に来ない = "
+                   "プロセスは listen 中、HTTP ハンドラが返ってこない。engine の生死は"
+                   "外部からは不明 (Render ログ [MainLoop] で確認)。cause unknown")
+    elif transport_down == total or (n[FAIL_TIMEOUT] == 0):
+        kind = OUTAGE_API_DOWN
+        summary = ("サービス到達不能 (api_down): 接続拒否 / リセット / edge 5xx = "
+                   "プロセスが serving していない (デプロイ・再起動・停止のいずれか)。"
+                   "cause unknown")
+    else:
+        kind = OUTAGE_MIXED
+        summary = (f"到達不能 (mixed): timeout {n[FAIL_TIMEOUT]} / 接続失敗 "
+                   f"{transport_down} が混在 = 遷移中の疑い。cause unknown")
+    return {
+        "kind": kind,
+        "n_total": total,
+        "n_timeout": n[FAIL_TIMEOUT],
+        "n_connection": n[FAIL_CONNECTION],
+        "n_http_status": n[FAIL_HTTP_STATUS],
+        "n_other": n[FAIL_OTHER],
+        "classes": classes,
+        "summary": summary,
+    }
+
+
 def market_open_hours(start: datetime, end: datetime) -> float:
     """[start, end] の実時間から FX 週末閉場 (金 21:00 → 日 21:00 UTC) を除く.
 
