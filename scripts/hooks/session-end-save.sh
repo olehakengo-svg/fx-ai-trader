@@ -103,11 +103,13 @@ else
         if [[ "$MIXED" == "1" ]]; then
             echo "⚠️  KB push to main failed — local-only 履歴に非 KB コミットが混在するため退避しない (公開は手動判断: git log origin/main..HEAD)" >&2
         else
-            # ref 名に **短縮 sha** を入れる (Codex P2, PR #276)。同日に 2 つの stale な
-            # main checkout が走ると `kb-rescue/main-<date>` が衝突し、2 本目は
-            # non-fast-forward で拒否されて**ローカルに座礁したまま**になる。
+            # ref 名に **完全な sha** を入れる (Codex P2, PR #276、2 巡)。同日に
+            # 2 つの stale な main checkout が走ると `kb-rescue/main-<date>` が衝突し、
+            # 2 本目は non-fast-forward で拒否されて**ローカルに座礁したまま**になる。
             # `-f` は使わない (他人の退避を壊すため) ので、名前を一意にする方で解く。
-            RESCUE="kb-rescue/main-${TODAY}-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+            # ⚠️ `--short` は **`core.abbrev` に従う**ので 4 桁まで縮みうる = 前置が
+            # 衝突して同じ問題が再発する。一意性が目的なら省略形を使ってはいけない。
+            RESCUE="kb-rescue/main-${TODAY}-$(git rev-parse HEAD 2>/dev/null || echo unknown)"
             if git push origin "HEAD:refs/heads/${RESCUE}" >/dev/null 2>/dev/null; then
                 echo "⚠️  KB push to main failed — origin/${RESCUE} へ退避した (要 PR 化)" >&2
             else

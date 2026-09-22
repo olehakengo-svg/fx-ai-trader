@@ -32,6 +32,7 @@
   (b) **`origin/main..HEAD` の全コミットが「hook 製の KB コミット」であること**を検査 — subject が `auto: KB session-end save` で始まり、**かつ `git diff-tree` が `knowledge-base/` 以外に触っていない** (subject は自称なのでパスも見る)。混在 / 比較不能なら **publish せず理由を出して止まる**
 - 🔑 **公開は不可逆なので、ここだけは fail-closed の向きが「退避しない」** — 座礁 (回復可能) と publish (回復不可能) では安全な向きが逆になる。**「安全側」は一意でなく、何が不可逆かで決まる**
 - pin 5 → **7 本**。2 件とも counterfactual 確認済 ((b) を外すと `origin gained {'kb-rescue/...'}`、(a) を外すと新規コミット無しでも退避が走る)
+- 🟠 **レビュー 3 巡目 (Codex P2) — 一意性が目的なら省略形を使ってはいけない**: 退避 ref の sha を `git rev-parse --short` で作っていたが、**`--short` は `core.abbrev` に従う**ので 4 桁まで縮みうる ⇒ 前置が衝突して**2 巡目で直したはずの non-fast-forward 座礁が再発**する。完全 sha (40 桁) に変更し、**pin も「ref が 40 桁 sha を含む」ことを assert** する形へ (counterfactual: `--short=4` に戻すと `got 'f269'` で落ちる)。pin 7 本のまま
 - 🔑 **教訓: 「backlog を掃除した」と「ジェネレータを止めた」は別** — 09-17 の CLOSED 判定は前者だけで出されており、5 日で再発した。**再発する欠陥は、事象ではなく発生機構に対して pin を置く**
 - ⚠️ **ローカル `main` の 0/0 復帰は、内容が origin に到達したことを確認した後に行う** — 2026-09-17 は先に `reset` して未コミットの `index.md` 編集を破壊し System State を 13 日巻き戻した ([[2026-09-21]] が記録)。本 PR がマージされてから reset する順序を厳守した
 

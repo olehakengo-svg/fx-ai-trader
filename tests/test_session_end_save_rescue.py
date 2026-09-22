@@ -225,6 +225,14 @@ def test_rescue_refs_do_not_collide_between_checkouts(repo):
     landed = {_git(remote, "rev-parse", r).stdout.strip() for r in rescues}
     assert landed == set(heads), (
         "both checkouts' commits must reach origin, not just the first")
+    # The ref must carry the FULL sha: `--short` honours `core.abbrev` and can
+    # shrink to 4 hex chars, so an abbreviation re-opens the very collision
+    # this name is meant to prevent (Codex P2, PR #276, 2nd round).
+    for ref in rescues:
+        sha = ref.rsplit("-", 1)[-1]
+        assert len(sha) == 40, (
+            f"rescue ref must embed the full 40-char sha, got {sha!r} in {ref}")
+        assert sha in landed
 
 def _make_main_behind(repo):
     """Advance origin/main so the work repo's push will be rejected."""
