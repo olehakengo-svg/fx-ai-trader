@@ -25,6 +25,415 @@
 - `python3 -m pytest tests/ -q` **3,416 passed / 17 skipped / 1 xfailed** / `python3 scripts/check.py` **全10チェック通過** (prereg registry lint OK)
 - queue タスク `20260911-0200-ps-seat-hourly-c1-coverage-readout` を **done へ移動** (`## Claude Review` 付き、SLA 10 日滞留を解消)
 
+## 2026-09-20 — fix(tools): weekly deepdive を in-repo 化 — **dedup 除外率の estimand 訂正** + **pre-reg LOCK セルの毎週再計算を停止** (rule:R3)
+
+- **背景**: `tools/cell_deepdive_audit.py` は repo に存在せず、weekly scheduled run が **10 週連続** (2026-07-02〜09-20) で ad-hoc スクリプト (`knowledge-base/raw/cell_deepdive/_run_deepdive_<date>.py`) を打ち直して実行していた。テストが無いまま 2 欠陥が生存
+- 🔴 **欠陥 A — pre-reg LOCK 下のセルの outcome 統計を毎週公表していた (P-10 違反)**: `sr_anti_hunt_bounce × EUR_JPY × BUY` (本体セル、LOCK `sr-anti-hunt-eurjpy-buy-forward-confirm`) / その Tokyo sub-cell / `× USD_JPY × BUY` (LOCK `ws3-t11-anti-hunt-usdjpy-recheck`) の WR/EV/PF/Wilson/p を印刷。**露出は今週分ではなく 2026-08-23 / 08-30 / 09-06 / 09-13 / 09-20 の 5 週分が既に main にある** (LOCK 発効 2026-08-05) ⇒ **「fresh N≥40 到達時に 1 回限り判定」という前提は本 PR 以前に実質崩れていた**。危険の向きは**偽陽性** (optional stopping で α が成立しない)。⚠️ レポート自身が「ツール自体が LOCK と構造的に衝突」と散文で認識しながら数値は出し続けていた = **検知ではなく作文**
+- ✅ **修正**: `tools/cell_deepdive_audit.py` を新設し registry から active な `*_count_decision` の LOCK セル `(entry_type, instrument, direction)` を読む (`None` = ワイルドカード)。一致セル**およびその refinement (sub-cell)** の `wr/wilson_lo/ev_net/pf/p_raw/p_bonf/kelly/wf_stable/promoted/wins` を出力から除去し **`n` のみ残す** (トリガが数えるのは N なので運用は止まらない)。strict な super-set (戦略集計) は別 estimand につき対象外、`*_count_info` (頻度監視) も対象外。実測で **3 セル redact / `candidates` 1 → 0**。meta 計数 (raw 834 / dedup 427 / non-WL 22 / clean 385 / m_v2 7 / m_v3 1) は ad-hoc 版と完全一致 = 移植は忠実
+- 🔴 **欠陥 B — 「N 枯渇の真因は発火数でなく dedup 除外率」は falsified**: `dedup_violation=1` は「直前の**採用**行から TF 窓以内」にのみ付き各窓の先頭は必ず残る (`modules/demo_db.py` write-time L1114-1145 / boot backfill L701-766)。実測でも flag 行は直前の採用行から **中央値 14-25 秒 / p90 ≤ 50 秒** (窓 900 秒、対象は全 tf=15m) = 同一バー内の tick 重複、かつ**採用行どうしの間隔は 1 件も窓を下回らない** (過剰抑制なし) ⇒ **独立観測を 1 件も取り除かず unique N の蓄積速度に影響しない**。`dedup_excluded / raw` を枯渇の指標に使ったのは分母の取り違え
+- 🔵 **`mqe_gbpusd_fix` の 93.2% の正体**: 88 行中 **86 行が dedup ゲート導入 (commit 6a45bb2、2026-04-30T02:42Z) 以前**の凍結アーティファクトで **post-fix 除外率 0.0%** (post-fix raw = 2 行)。月次 `2026-04:87 / 2026-08:1` = **2026-05 以降 4.7 ヶ月で発火 2 本**。真因はレポートが否定した側の**発火枯渇そのもの** (unique 90d = 1 本 = **0.08 本/週**、最終 unique 発火 2026-08-28T15:31)。引用されていた「outcome は WIN 42 / LOSS 46 と拮抗」も大半が 4 月バースト由来で現状記述に使えない。`rsk_gbpjpy_reversion` の 68.4% は post-fix でも高いが月次で 90% → 22% へ減衰済み
+- ✅ **正しい指標を出力**: `unique_accrual` (unique/週 90d: sr_anti_hunt 13.22 / rsk 2.57 / vsg 2.49 / vdr 1.48 / **mqe 0.08**) と `dedup_era_breakdown` (pre/post ゲート導入の分割) を新設し、除外率単独の提示をやめた。**M3 のスループット律速は「dedup 構造の是正」ではなく引き続きシグナル供給** — 本行のボトルネック帰属 (摩擦調整 EV 不在の帰結) は不変
+- 🟠 **付随発見 — LOCK トリガの計数基準が読み手間で不一致 (未解決)**: `prereg_trigger_watch` は **36** (registry `closed_only: true` = CLOSED 全件)、weekly deepdive は **35** (`outcome ∈ {WIN,LOSS}`)。差 1 行は `outcome=BREAKEVEN`。pre-reg 原文は BREAKEVEN の扱いを規定していない (`closed_only` 自体 registry 側の補間)。判定式 ② `Wilson_lo(95%) > 38.7%` は WIN/LOSS の二値分母を要するため **トリガが N=40 で発火しても ② の実 N は ≤39** = 「宣言した N で判定した」前提が崩れる
+- 🔴 **開示 (P-10 抵触)**: 上記の計数照合中に Claude が本セル fresh 行の WIN/LOSS 内訳を **1 回観測**。これにより計数基準の確定は Claude 単独では中立でない ⇒ **user 決裁へ**。ただし**重大なのは本観測ではなく 5 週の systematic exposure の方**
+- **user 決裁点 2 件を registry へ追加 (いずれも期日 2026-10-12 = 本体トリガ ETA 2026-10 中旬の手前)**: `sr-anti-hunt-eurjpy-count-basis-declaration` (BREAKEVEN の扱い — **決め方は ② の分母定義との整合のみで行い outcome から優劣を判断しない**) / `sr-anti-hunt-eurjpy-lock-validity-disposition` (5 週露出を受けて凍結 α のまま判定してよいか)。**期日を超過して N≥40 が先に来た場合、判定は確定まで保留**
+- ⚠️ **引用規律**: 本セルの今後の verdict を引用する際は 5 週の optional stopping 露出を必ず併記する。露出を伏せた「Bonferroni 通過」型の引用は禁止
+- 🟠 **connector レビュー対応 (Codex P1×2 / P2×1、PR #273) — 3 件とも妥当につき修正**:
+  (a) **LOCK 判定を統計計算の前に**移動 — 禁じられているのは「**再計算**」であって印字ではない。
+  該当セルは `cell_stats`/`wf_stable`/Bonferroni を一切呼ばず `n` だけの record を作る
+  (b) **registry 読み込み失敗を fail-closed 化** (`LockRegistryUnavailable`) — 旧実装は `[]` を
+  返し**全 LOCK を黙って無効化**していた
+  (c) **365d 窓を実際に適用** — 旧実装は `run_date` と比較せず「365d 監査」を名乗っていた
+- 🔵 **(a) の pin (spy) が自分では見つけていなかった leak を 1 件露出**: **戦略レベル集計**が
+  落ちた。「strict な super-set は別 estimand」の免除は**他ペアに行があるときだけ**成立し、
+  ある戦略の行が全て LOCK セルに属すれば「集計」は **LOCK セルそのもの**になる
+  (**leak 条件がデータ依存** = 静かに壊れる型)。⇒ 集計前に LOCK 行を除外し
+  `locked_rows_excluded` を併記。`sr_anti_hunt_bounce` の集計 clean_N 247 → **135**。
+  meta 計数は不変 (窓 filter は現データで no-op) で移植の忠実性の主張は維持
+- 🟠 **レビュー第2波 (Codex P2×2) — 「N の estimand」が本 PR 自身にもあった**:
+  (d) **LOCK の N を LOCK 自身の母集団で数える** — count-only record が `n=74`
+  (セルの 365d Live+Shadow 行数) を**判定閾値 N=40 の隣**に出しており、
+  **既に gate を通過したかのように読めた**。LOCK 母集団 (`since`=2026-08-05 以降の
+  CLOSED shadow・`dedup_violation=0`) の実数は **36**。registry の母集団述語を保持・適用し
+  `n_lock_population` / `n_decide` / `n_rows_in_window` に分離、曖昧な `n` は廃止
+  (e) **inclusive 窓が 366 日だったのを 365 日に** (`window_days − 1`)
+- ✅ **独立クロスバリデーション**: `lock_population_count` が `prereg_trigger_watch` と
+  一致 (EUR_JPY **36/40** / ws3-t11 **22/30**) — 別実装の読み手が同じ数を出した
+- 🔴 **本 PR だけで「隣に置いた閾値と estimand が合わない計数」が 3 例**
+  (35 vs 36 / dedup 除外率の分母 / `n=74` vs 36)。**同じ病は、それを指摘している
+  当の PR にも出る**
+- 🔴 **レビュー第3波 (Codex P1 + P2) — fail-open の「対称な反対側」を塞いでいなかった**:
+  (f) **構造的に不正な registry も拒否**: 第1波の fail-closed は「読めない」しか塞いでおらず、
+  `{"triggers": "oops"}` / `[42]` は **JSON として妥当**なので通過し全 LOCK が消えていた。
+  root / `triggers` の list 性と要素の object 性を検証し違反は `LockRegistryUnavailable`
+  (g) **prefix LOCK を尊重**: registry の `match: "prefix"` (`prereg_trigger_watch` が実使用) を
+  無視しており `kalman_d7_variant_a` 等が LOCK を素通りしていた。`_entry_type_matches` を新設し
+  `lock_for_cell` と `lock_population_count` の**両方**に適用
+- 🔴 **[[feedback_check_the_symmetric_side_2026_09_19]] の 3 度目の実例** — 自分で書いた教訓を、
+  その教訓を引用している PR の中で踏んだ。✅ prefix 指摘は額面で受けず registry を実査して確認
+- 🔴 **レビュー第4波 (Codex P1 + P2×2) — 欠陥の主系統は正本 `prereg_trigger_watch` との契約ズレ**
+  (registry と正本ハーネスを実査して 3 件とも事実確認後に修正):
+  (h) **marker 定義 LOCK を落としていた** — `hourblock-class-exempt-r2-rollback` は active で
+  `entry_type` が空・`reasons_marker` で母集団を定義し正本も対応済みだが、本ツールは
+  `entry_type` 空で `continue` して **active な decision LOCK を丸ごと無視**。marker LOCK は
+  行集合なので `clean` を組む前に該当行を除去する方式に
+  (i) **live LOCK の計数から重複行を無条件除外** — `count_live_matching` は無条件除外するのに
+  本ツールは registry 明示時のみ。重複 live 行が `n_lock_population` を正本より大きくし
+  **n_decide 到達に見せうる**。shadow 側も `count_basis == "unique"` を honor
+  (j) **`active` 省略 = active** — 正本は `.get("active", True)`、本ツールは省略を非 active 扱い
+  (現 registry に省略 0 件で実害は未発生、潜在的 fail-open)
+- ✅ **3 度目の独立クロスバリデーション**: marker LOCK の `n_lock_population` = **2** が
+  watcher の `live N=2/10` と一致。EUR_JPY **36/40** / ws3-t11 **22/30** と合わせ 3 本とも一致
+- 🔴 **教訓: 同じ registry を読む 2 つ目の実装を書くときは、フィールド一覧ではなく
+  正本の読み取りコードを仕様として読む**
+- 🔴 **レビュー第5波 (Codex P1 + P2×2) — 「検査不能を異常なしに畳まない」の徹底**:
+  (k) **`triggers` の欠落/空を拒否** — 正本 `load_registry_raw` は root 非 dict / キー欠落 /
+  非 list / **空** の 4 つを全て拒否するのに、本ツールは `.get("triggers", [])` のままで
+  `{"trigers": []}` も `{"triggers": []}` も空台帳に畳んで全 LOCK を消していた。
+  正本契約を 1:1 移植 (綴り違いヒント込み)。🔴 **第3波で書いた pin「空 registry は正当」は
+  誤りにつき撤回** — 正本契約に反し fail-open 自体を pin していた
+  (l) **marker 除外にも LOCK の述語を適用** — reasons 文字列一致のみで `kind`/`since`/
+  instrument/direction を見ておらず、live 限定・`since` 後の hourblock LOCK に対し
+  **LOCK 外の shadow 行や `since` 前の行まで監査から削除**していた。
+  `row_in_lock_population()` を単一の真実として抽出し N と除外の両方で共用
+  (m) **`trades` を欠く API 応答を拒否** — エラーオブジェクトを空データセットに畳み、
+  「0 行・候補なし」の**もっともらしい週次レポートで上書き**していた (実測 exit 1)
+- 🔴 **over-exclusion は leak の鏡像** — P-10 的には安全側でも、実在する観測を黙って
+  レポートから消すという別の嘘。片側だけ見ているともう片側を見落とす
+- 🔴 **fail-open クラスはこれで 3 度目** (読めない → 構造不正 → キー欠落/空)。
+  **「検査不能を異常なしに畳まない」は 1 つの不変条件で、入力形状ごとの個別対応ではない**
+- 🔴 **レビュー第6波 (Codex P1×2) — 計数自体が outcome の関数だった**:
+  (n) **LOCK 行を outcome を読む前に分岐** — LOCK セルの行も先に WIN/LOSS フィルタを通って
+  いたため **出力される計数そのものが `outcome` の関数**だった (BREAKEVEN 1 本で計数も
+  セルの出現可否も変わる)。**これは本 PR が §4 で指摘している 35 vs 36 そのもので、
+  それを直すためのツールの中で再現していた**。raw 段階で分岐し `outcome`/`pnl_pips` を
+  一度も読まず count-only record を作る。計数は `n_unique_rows_in_window` に改名
+  (o) **selector 無しの active decision を拒否** — 綴り違い/削除された selector が
+  構造検査を通って黙って捨てられ、**LOCK を消したまま監査は当該母集団を公表**していた
+- 🔵 **実測の裏付け**: 修正後 `sr_anti_hunt_bounce × EUR_JPY × BUY` の計数が **74 → 75**、
+  **増えた 1 本がまさに BREAKEVEN 行** = §4 の「35 vs 36」の差分と同一行。
+  `× USD_JPY × BUY` も 28 → 35
+- ⚠️ **「移植は忠実」の主張を更新**: 本修正で `clean_N` **385 → 273** (LOCK 行 215 を
+  routing 除外)。**「ad-hoc 版と同一」はもはや成立しない** — 同一なのは非 LOCK セルの統計
+  (`sr_anti_hunt_bounce` 集計 clean_N 135 / WR 0.519 / EV −4.27 / PF 0.37) と
+  `m_v2`=7 / `m_v3`=1 / `candidates`=0。多重度は保守側を取り LOCK セルも `m` に数え続ける
+  (外すと `m` が縮み他セルの `p_bonf` が通りやすくなる)
+- 🔴 **レビュー第7波 (Codex P1×1) — meta 診断値にも outcome が漏れていた**:
+  (p) `meta.non_winloss_excluded` が `target_all` (LOCK 行込み) で `outcome` を読んでおり、
+  LOCK 行 1 本を WIN→BREAKEVEN にすると **count-only record は不変なのにメタデータが 0→1**
+  に動いていた。`open_raw` から計算するよう変更 (実測 **22 → 13**)。
+  `dedup_violation_excluded` は outcome 非依存につき全行対象のまま
+- 🔑 **不変条件を「性質」として pin し直した** — フィールドを列挙せず
+  **「LOCK 行の outcome を反転させてもレポート JSON 全体が 1 バイトも変わらない」**を
+  直接 assert。本 PR が主張する性質そのもので、フィールドが増えても自動で守られる
+  ([[lesson_validity_check_pins_proxy_2026_09_02]] の適用)
+- 🔴 **レビュー第8波 (Codex P1 + P2) — 多重度族の分割 = 本 PR で最も statistically 重い欠陥**:
+  (q) **v2 と v3 を 1 つの多重度族で補正** — 別々の `m` を当てて結果を merge していたため
+  **単独の v3 sub-cell が多重度ペナルティをほぼ受けずに通る** (`m_v3=1` ⇒ `p_bonf=p_raw`)。
+  🔴 **これが Tokyo sub-cell が 4 週連続「候補」に出ていた機構**で、しかも
+  **レポート本文は「v2∪v3 (m=8) なら p_bonf=0.0720 → FAIL」と正しく書いていた**。
+  `m_family = m_v2 + m_v3` を単一族として適用 (実測 m_family = **8** = 本文と一致)
+  (r) **accrual 窓を名乗った長さに** — `>= as_of − d 日` が両端込みで d+1 日を数え、
+  signal 枯渇の診断に使う accrual rate を過大に出していた
+- ⚠️ **引用値の訂正** (行アンカー完全一致 + `--word-diff` 全数照合):
+  `sr_anti_hunt_bounce` 13.46→**13.22 本/週**、`vdr_jpy` 1.56→**1.48**。
+  **`mqe_gbpusd_fix` の 0.08 は不変**で §1.4 の結論に影響なし
+- 🔴 **「文章では正しく、コードでは違う」の 3 例目** (LOCK 衝突の認識 / 正本契約 / 多重度族)
+- 🟠 **レビュー第9波 (Codex P2) — 正本の方が pre-reg から外れていた例**:
+  (s) shadow LOCK の母集団が pre-reg 原文 (**shadow rows のみ**) と正本
+  `count_matching` (**`oanda_trade_id` で絞らない**) で食い違う。現データは
+  **両者 36 で一致**しており潜在だが、本セルが live fill を取れば
+  **watcher が先に発火したのに監査は未達と表示する**事故になる。
+  **どちらも採らず両方を出力** (`n_lock_population` / `n_lock_population_watcher` /
+  `watcher_divergence` / `watcher_divergent_locks`) し、決裁点
+  `sr-anti-hunt-eurjpy-count-basis-declaration` に第 2 の論点として追記
+  (BREAKEVEN の扱いと **1 回で決める**)
+- 🔑 **「正本の読み取りコードを仕様として読め」(第4波) は「正本が常に正しい」ではない** —
+  正本と凍結文書が食い違ったら、勝手にどちらかへ寄せず**両方出して決裁に上げる**
+- 🟠 **レビュー第10波 (Codex P2×2) — 厳格 shadow の定義と as-of 上界**:
+  (t) **厳格 shadow は `is_shadow` も要る** — `rnb-support-bounce-shadow-forward` の LOCK 文が
+  逐語で「厳格 shadow = is_shadow=1 ∧ oanda_trade_id 空」と定義しているのに OANDA id しか
+  見ておらず、**flag-drift 行 (id 空 ∧ is_shadow=0) を shadow として数えて**いた。
+  **PROD に該当行が実際に 47 本存在**。faithful 側に `is_shadow` を追加、
+  `watcher_compat` は正本の広い挙動を維持
+  (u) **LOCK 計数に監査の as-of 上界** — payload 全体を数えており、過去日付の `--run-date` を
+  現スナップショットで再実行すると run 後の行まで数えていた。`since` は下界として独立維持
+- 実測: PROD の LOCK 計数は **36/36・22/22・marker 2 のまま不変** — 修正は将来の事故を
+  塞ぐもので今回の数値解釈には影響しない
+- 🔑 **指摘を仮説として受け取らず PROD を数えた**ことで、理論上の穴ではなく
+  「いつ踏んでもおかしくない穴」と確定できた
+- 🟠 **レビュー第11波 (Codex P2×2) — 過剰 redaction と過少報告 (いずれも leak の鏡像)**:
+  (v) **redaction を本物の outcome LOCK に限定** — 全 `*_count_decision` を redact していたが
+  **3 件は件数監視のみで凍結 outcome look を持たない** (lane-health checkpoint ×2 /
+  weekend_gap 転換監視)。**正当な監査結果と昇格候補まで握り潰していた**。
+  registry に `outcome_lock` フラグを新設し 3 件に `false` を明示、**既定は redact** で保守側。
+  `prereg_trigger_watch` の key allowlist にも登録
+  (w) **min_n 未満の LOCK セルも報告** — 在庫が `min_n=20` 以上に限られ、自分の閾値が
+  min_n 未満の LOCK (kalman `n_decide=10`) は宣言 look 到達でも**何も表示されなかった**。
+  在庫は全非空 LOCK 群から作り `min_n` は多重度資格にのみ使う (redacted 3 → **15** セル)
+- 🔴 **文面推測の実装は実際に誤分類した** — 「count のみ」で grep すると
+  **`rnb-support-bounce-shadow-forward` (本物の outcome LOCK) を件数のみと誤判定**
+  (その文言は同エントリが併設する checkpoint の説明だった) ⇒ **明示フラグで表明する**
+- ✅ registry lint が新キーを正しく弾いた (reject-by-default が設計どおり機能)
+- 🟠 **レビュー第12波 (Codex P2) — 新フラグに型検査が無かった**: 第11波で足した
+  `outcome_lock` を `META_FIELDS` にだけ登録したため lint が `"false"` / `0` / `null` を
+  素通りさせ、`is False` 判定の opt-out が効かず**件数モニタが黙って outcome lock 扱いに
+  戻る**状態だった。`BOOL_FIELDS` へ追加 (3 形状すべて lint 拒否を実測、真 bool と
+  キー未記載は通る)
+- 🔑 **ガードを足したら、そのガード自身の入力も検査する** — `closed_only: "false"` の穴は
+  registry lint が既に塞いでいたのに、**同じ穴を新フラグで作り直した**
+- 🟠 **レビュー第13波 (Codex P2) — まだ始まっていない LOCK が過去を消していた**:
+  (x) LOCK の `since` より前で終わる窓を再実行しても セル一致だけで routing しており、
+  **未発効の LOCK が過去の監査結果を redact** していた (実測 `--run-date 2026-07-01` で
+  **14 セル redact / 全て `n_lock_population: 0`**)。`since >= 窓の上界` の LOCK を
+  routing 前に除外し、除外分を `locks_not_yet_started` に列挙して省略を可視化。
+  検証: 07-01 は redact **0** / clean_N 173、09-20 は redact **15** / clean_N 273 で不変
+- 🔑 **over-redaction は本 PR で 3 度出た** (件数モニタ / min_n 未満 / 未発効 LOCK) —
+  **leak を塞ぐガードは塞ぎすぎる方向にも同じ数だけ穴を開ける**。「redact する条件」を
+  足すたびに「redact してはいけない条件」を対で確認する
+- 🟠 **レビュー第14波 (Codex P2×2) — routing が母集団でなくセルで切っていた**:
+  (y) **LOCK 母集団の行だけを routing** — `(entry_type, instrument, direction)` だけで
+  退避しており、**LOCK の `kind`/`since`/`closed_only`/dedup を満たさない同一セル行まで
+  巻き込んで**いた。⚠️ **指摘は本 PR が公開した出力を証拠にしている**
+  (「in-window unique **75** を退避、LOCK 母集団は **36**」)。`row_in_lock_population` を
+  routing に適用し、母集団外は **unlocked complement** として評価継続 +
+  `lock_complement_only` で部分ビューと明示
+  (z) **完全なスナップショットを要求** — `/api/demo/trades` は **default limit=50** で、
+  help どおり素朴に curl すると truncate された監査が週次サマリを上書きしていた。
+  50 行ちょうど / `--min-rows` (既定 1000) 未満 / `count != len(trades)` を fail-loud に
+- **実測**: `locked_rows_routed_out` **215 → 58** / `clean_N` **273 → 335** /
+  EUR_JPY BUY の redacted 記録は **uniq 75 → 36** で `n_lock_population` と一致
+- 🔑 **「LOCK が覆う範囲」と「LOCK セルの全行」は別物** — over-redaction の 4 度目。
+  母集団述語を 1 箇所に集約してあったので routing 側 1 行で整合した
+- 🔴 **レビュー第15波 (Codex P1 + P2×2) — 最小値は完全性の証明ではない**:
+  (aa) **壊れた `match` 選択子で fail closed** — `"prefx"` 等が黙って exact に落ち、
+  prefix LOCK が variant を覆わず**凍結統計を公表**しうる状態だった
+  (bb) **最小行数は完全性の証明でない** — `?limit=1000` は 1000 行ちょうどを返し
+  `count` も page 長なので `--min-rows 1000` を素通りする。**short page でのみ完全性を
+  証明**する `--fetch-limit` を導入 (`paginate_closed_trades` と同じ idiom)
+  (cc) **訂正文が機械可読側と食い違っていた** — 週次レポートの訂正節が `clean_N=273 /
+  routed 215` のままで `_summary.json` は **335 / 58**。§2.3o の routing narrowing で
+  陳腐化。**335 / 58 へ更新 + prose ↔ JSON 一致の pin を追加**
+- 🔴 **「文章では正しく、コードでは違う」の 4 度目 — 今回は自分の KB 記述**。
+  同じ病を 3 回コード側で指摘しておきながら訂正文が数値ドリフトした ⇒
+  散文の数値主張を **JSON から機械検査**する pin を置いた
+- 🔑 **「閾値を超えた」は「正しい」ではない** — full page はいつでも閾値を超える。
+  完全性は「短いページ」でしか証明できない
+- 🔴 **レビュー第16波 (Codex P1 + P2) — 自前ガードは正本を追い越せない / 表明は証拠でない**:
+  (dd) **綴り違いの selector キーも拒否** — 第15波で `match` の「値」を検証したが
+  `"mtach": "prefix"` は「キー不在」枝で **exact lock** になっていた。
+  **自前検証をやめ正本 `lint_registry` に委譲** (unknown key の reject-by-default を継承)
+  (ee) **完全性は snapshot が運ぶ** — `--fetch-limit` はファイルに記録されない値についての
+  caller の表明にすぎず、`?limit=1000` 取得を CLI 既定で監査すると通ってしまう。
+  `paginate_trades()` で **short page を実見してから** `_fetch_meta.complete=true` を書き、
+  監査側はそれのみを証拠として受理 (`--fetch-to` / `--allow-unverified-snapshot`)
+- 🔑 **個別の穴を塞ぎ続ける限り常に 1 歩後ろ** — 正本 linter を呼べば将来の規則も自動で効く
+- 🔑 **表明は証拠ではない** — 完全性のような性質は**生成時に確立して成果物に埋め込む**
+- 🔴 **レビュー第17波 (Codex P2) — 自分で足した pagination が行を落としていた**:
+  (ff) 第16波の `paginate_trades` が既定 `status=all` で叩いており、`app.py` は
+  `status=all` で **`open_t + closed_t`** を返す (= 全 open 行を毎ページ先頭に付ける)。
+  offset を累積長で進めるため **closed を K 行スキップ**し open は重複、
+  それでも short page で `complete=true` が立つ ⇒ **「完全性を証明した」スナップショットが
+  outcome を欠落**。closed は `status=closed` でページング、open は一度だけ取得して結合
+- 🔑 **完全性の「証明」はページング意味論の正しさを前提にしている** — 第16波で
+  「表明でなく証拠を」と正した直後に**その証拠の作り方が壊れていた**。
+  証拠を生成する経路も検証対象
+- 🟠 **レビュー第18波 (Codex P2×2) — fetch 経路と help が契約に追いついていなかった**:
+  (gg) **壊れたページで abort** — `payload.get("trades", [])` が HTTP-200 のエラー
+  オブジェクトを `[]` にし、`paginate_trades` がそれを**データ終端**と読んで
+  成功済みページだけで `complete=true` を立てていた ⇒ truncate された snapshot が
+  「証明済み」になる。list 値の `trades` を検証し無ければ `SystemExit`
+  (hh) **help の例が契約を満たしていない** — bare curl を案内したままで CLI はそれを拒否、
+  手順どおり実行すると必ず落ちる。`--fetch-to` → 監査 の 2 段手順へ
+- 🔑 **契約を強めたら、その契約を語る文書も同じコミットで更新する** — 第16波で導入した
+  完全性契約に help を合わせず、**公式手順が常に失敗する**状態を 2 波放置していた
+  (§2.3n の「文章が正しくコードが違う」と**向きが逆の同型**)
+- 🔵 **pin が自分のバグを即座に捕捉**: help の `$(date -u +%F)` が argparse の
+  %-formatting で `TypeError` → `format_help()` を呼ぶ pin が落ちた (`%%F` へ修正)
+- 🔴 **レビュー第19波 (Codex P1) — 「最初に一致した LOCK」しか見ていなかった**:
+  (ii) 同一セルを**異なる母集団の 2 つの active LOCK** が覆う場合、live 行が先頭の
+  shadow LOCK の母集団検査に落ちて **complement に回り WR/EV が公表**されていた
+  (実際には 2 つ目の live LOCK に属する)。正本 linter は selector 重複を禁じていない。
+  `locks_for_cell()` を新設し「**いずれかの LOCK の母集団に入るなら退避**」へ変更、
+  複数が覆うセルは `covering_locks` に LOCK ごとの母集団と n_decide を個別出力
+- ⚠️ **現 registry では実害ゼロ** (active outcome LOCK 7 件に selector 重複 **0 件**を実測)
+  — 潜在的欠陥で、修正は将来の重複登録への予防
+- 🔑 **over-routing を直すと under-routing が生まれる** — §2.3o で「母集団で切れ」と
+  直した際、**その母集団検査をどの LOCK に対して行うかを 1 つに固定**したままだった
+- 🟠 **レビュー第20波 (Codex P2 + P3) — そして指摘の「残り半分」を自分の pin が反証した**:
+  (jj) **page drift の de-dup + カーソルを「配信済み行数」に** — `get_closed_trades` は
+  keyset も snapshot も無い素の `ORDER BY exit_time DESC LIMIT ? OFFSET ?` なので、
+  フェッチ中に約定が CLOSE すると先頭に挿入され、通過済みの行が 1 offset ずれて
+  **境界行が再読される**。未 de-dup では N / 多重度族 / LOCK 母集団計数が膨らむのに
+  `complete=true` が保証していた。カーソルは**サーバが配信した行数**でなければならない
+  (採用行数で進めると同じ offset を無限に再要求する)
+  (kk) **P3: 広告された `--min-rows 0` を実際に到達可能に** — 50 行ちょうどの truncation
+  署名検査が `--min-rows` 検査より前で**無条件**に走っていたため、エラー文が名指しする
+  脱出口が原理的に効かなかった。`--min-rows` の default を `None` にし
+  「呼び手が何も言っていない」と「意図的に下げた」を区別
+- 🔴 **指摘は欠陥の半分しか述べていなかった (本波で最も重い所見)**: Codex P2 は drift を
+  「**重複する**」としか書かず、こちらもそれを受けて docstring に
+  「*drift duplicates, it never skips … de-dup すれば union は exact*」と**書いてしまった**。
+  **これは偽**。前方挿入された当の行は**カーソルが既に通過した offset に着地する**ので
+  **一度も配信されない = SKIP される**。de-dup は膨張を直すが**欠落は直さない** ⇒
+  drift した pass の union は exact ではなく、**最新の CLOSE 済み約定を欠いたまま**
+  短ページが終端を「証明」する。🔴 **残差の向きは UNDER-count** = 「取引が無かった」と
+  読める方向 ([[project_hunt_events_dataset_readout_2026_09_19]] と同じ偽陰性の向き)
+- ✅ **修正 = 「de-dup して complete と名乗る」から「drift-free な pass を要求する」へ**:
+  重複を 1 件でも落とした pass は**証拠つきで破棄して再実行** (その時点で挿入行は安定
+  offset に居るので再走が拾う)、全試行が drift したら `SystemExit`。成功時の meta に
+  `attempts` と破棄した pass の `drift_observed` を残し、**黙って吸収しない**。
+  実測 pin: drift 1 回 → `attempts=2` / `drift_observed=[1]` / 挿入行 99 も収集
+- 🔵 **副次効果**: `status=all` ページング形状 (open 行が全ページに前置される) は
+  毎試行 drift 証拠を出すため、**第16波で「危険だがそのまま complete=true を返す」と
+  pin していた経路が fail-loud になった** — pin を新挙動へ更新
+- 🔑 **教訓: 指摘された欠陥の「対称な残り半分」を自分で確認する** — 当の pin
+  (`test_pagination_dedups_drift_and_uses_a_served_row_cursor`) は
+  「99 も 1 度だけ収集される」と assert しており**最初から落ちていた**。つまり
+  **前回セッションは自分の pin が赤のまま作業を置いていた** ⇒
+  [[feedback_commit_exit0_lies_autosaver_bypasses_precommit]] の「suite green は
+  測ったツリー状態でのみ有効」と [[feedback_check_the_symmetric_side_2026_09_19]] の
+  2 例目。**レビューが片側を指摘したら対称側は自分で測る**
+- 🟠 **レビュー第21波 (Codex P2×3) — 3 件とも妥当、うち 1 件は第20波の穴の「隣」だった**:
+  (ll) **open 行を closed ページング の前に取る** — 旧順序では closed pass 終了後・open
+  要求前に CLOSE した約定が**両方の集合から欠落**する (closed を読んだ時点では open、
+  open を要求した時点では既に closed) のに `complete=true` が保証していた。
+  🔴 **第20波の retry はこの窓を塞がない** — retry が見るのは closed pass 内部の drift だけ。
+  open を先に取ると同じ窓が**穴から重複へ**変わり `merge_open_into_closed` が identity で
+  解消できる (**重複は修復可能、穴は検出さえできない**)
+  (mm) **redact されたセルの primary を「実際に一致した LOCK」に** — routing は「いずれかの
+  覆う LOCK の母集団に入れば退避」なので、**registry 順で先頭の LOCK が 1 行も持たない**
+  ことがある。`covering[0]` を primary にしていたため compact な `redacted_cells`
+  (`covering_locks` を落とす) が**無関係な LOCK の registry_id / 閾値 / 母集団 0** を
+  redaction の原因として公表し、トリガ進捗を誤って伝えていた。matched 数の argmax
+  (同数は registry 順) を primary にし `n_rows_matched` / `primary` を併記
+  (nn) **as-run レポートの手順も bare curl のままだった** — 第18波で `--help` を直したのに
+  **週次オペレータが従えと明記されている当のレポート**が残っていた (同型の 2 例目)
+- 🔑 **pin は「性質」で、しかもスコープを絞って書いた**: 「**このツールに言及する doc は
+  `/api/demo/trades` への runnable curl を含まない**」を全 KB に対して assert。
+  他用途の curl と歴史記録は対象外 (書き換えてはいけない) — [[lesson_validity_check_pins_proxy_2026_09_02]]
+- ✅ **3 件とも counterfactual で確認** (修正を戻すと当該 pin が落ちる): 順序 pin は
+  **機構 (呼び出し順) より先に実体 (`[8] == [8, 9]` = 約定 9 の消失)** を assert するよう
+  並べ替え — 回帰時に「並べ替えた」ではなく「データを失った」と報告される
+- 🟠 **レビュー第22波 (Codex P2×2) — 第21波の修正が生んだ鏡像と、第11波の取りこぼし**:
+  (oo) **fetch を「open → closed → open」の bracket に** — 🔴 **第21波 (ll) で
+  closed→open の穴を塞いだら、open→closed の鏡像の穴が開いていた**: パス中に
+  **新規 OPEN した**約定は open 要求時点では未存在、CLOSE しないので closed ページにも
+  現れず、**どちらの集合にも入らない**まま `complete=true` が保証していた。
+  ⇒ closed パスを **2 回の open 読み取りで挟む**。`open_before ∪ open_after` が
+  mid-pass open を捕まえ、かつ **open_before に居て open_after にも closed にも
+  居ない行 = 窓の内側で CLOSE して誰にも配信されなかった行 = 穴**として検出可能になる。
+  穴は証拠なので attempt を破棄して再走、全試行で穴なら `SystemExit` (第20波 drift と
+  同じ規律)。meta に `open_attempts` / `open_opened_midfetch` / `holes_observed`
+  (nn2) **全行が dedup repeat の LOCK が棚卸しから消えていた** — 棚卸しの**キー集合**を
+  dedup 後の行から作っていたため、`dedup_violation=1` の行しか持たない LOCK は
+  `redacted_cells` から**丸ごと消滅**し `n_lock_population` の record が 1 件も出なかった。
+  `ws3-*` shadow decision は unique/dedup 述語を宣言しないので**正本 watcher はその行を
+  数える** ⇒ **LOCK が `n_decide` に到達しているのに監査が何も報告しない**状態になりうる。
+  キー集合は raw 行から、計数は dedup 後から (**別の問い**) に分離し、
+  `n_unique_rows_in_window=0` を正直に出す。帰属 (第21波 mm) も raw 行で計算する
+  (unique が空だと argmax が registry 順に退化するため)
+- 🔴 **教訓の 3 例目: 片側の穴を塞ぐと鏡像が開く** — 第21波 (ll) は Codex の指摘どおり
+  「closed→open の穴」を直したが、**順序を入れ替えるという形の修正は窓を消さず移動させる**
+  だけだった。窓そのものを消すには**両端を測る (bracket)** しかない。
+  [[feedback_check_the_symmetric_side_2026_09_19]] の 3 例目で、今回は
+  **自分の修正が生んだ**鏡像 — 「対称側を確認する」は修正前の状態だけでなく
+  **修正後の状態に対しても**回す必要がある
+- 🔴 **危険の向きは一貫して UNDER-count** (第20波 skip / 第21波 hole / 第22波 mirror hole /
+  (nn2) の LOCK 消滅)。**この PR の欠陥族は全て「無かったことになる」方向**に倒れていた
+- pin 63 → **66 本**。4 件すべて counterfactual 確認済 (修正を戻すと当該 pin が
+  実体のメッセージ付きで落ちる — 「棚卸しから消えた」「mid-pass open が入っていない」)
+- 🟠 **レビュー第23波 (Codex P2) — 契約を強めた当の関数に fail-open が残っていた**:
+  (pp) **endpoint からの top-level list を拒否** — 第18波 (gg) で「`trades` を欠く応答を
+  拒否」を入れたのに、その直前で **`isinstance(payload, list)` を無条件に通す**分岐が
+  残っていた。`/api/demo/trades` は常に `trades` を持つ**オブジェクト**を返すので
+  (app.py)、bare list は**定義上 malformed 応答しか通さない** — そして HTTP-200 の
+  `[]` (proxy ノイズ等) が来ると `_paginate_pass` がそれを**短ページ = データ終端**と
+  読み、既に取得した部分ページを保持して `complete=true` を立てる。
+  **塞いだはずの穴を、同じ関数の 3 行上が開けていた**
+- 🔑 **ただし「保存済み snapshot の reader」は bare array を受け続ける (意図的)** —
+  ローカルファイルは**別母集団**で、手作りや `jq '.trades'` の出力は正当。完全性は
+  `_fetch_meta` で別途 gate される。**どの規約がどの母集団に固有かは母集団ごとに
+  決める** ([[feedback_check_the_symmetric_side_2026_09_19]])。pin は両方を主張
+  (endpoint は SystemExit / local reader は list 受理を維持)
+- pin 66 → **67 本**。counterfactual 確認済 (passthrough を戻すと `DID NOT RAISE`)
+- 🟠 **レビュー第24波 (Codex P2×2) — 完全性の主張を「発見的」から「証明」に上げた**:
+  (qq) **v3 の帰属は自分の session の行だけで計算する** — v3 キーから `session` を落として
+  `locked_raw` を引いた後、**親セル全体の行**で `matched` を計算していたため、
+  **セル内の全 v3 record が同じ「セル全体の primary」を選ぶ**。shadow LOCK が Tokyo に、
+  live LOCK が London に集中していると、**少なくとも一方の session が他方の
+  registry_id / n_decide / n_rows_matched を報告する**。落とした次元で絞り直す
+  (rr) 🔵 **bracket 内で「生まれて死んだ」約定を検出可能にした** — `open_before` の後に
+  OPEN し `open_after` の前に CLOSE し、かつ closed カーソルが挿入点を通過済みだと、
+  **3 つの読み取りすべてに現れない** ⇒ open 行を起点にした穴検査では**原理的に見えない**。
+  ⇒ **確認用の 2 回目 closed pass** を追加。**CLOSED 行は append-only (削除されない)** ので
+  `confirm ⊇ closed` が常に成り立ち、**差集合はちょうど bracket 中に CLOSE した集合**になる。
+  したがって**一致は「窓の内側で何も CLOSE しなかった」ことの証明**であって発見的規則ではない。
+  🔑 **これで完全性の意味が「4 読み取りが整合した」= 検証可能な主張に変わった**
+- 🔑 **穴の 2 信号は合算せず別々に報告** (`open_rows_lost` / `closed_during_bracket`) —
+  **同一の約定が両方を立てる**ので、足すと「取り逃した行数」を過大に言うことになる。
+  pin が最初に捕まえたのはこの二重計上だった
+- pin 67 → **69 本**。2 件とも counterfactual 確認済 (v3 を親セルへ戻すと
+  `got live-london`、確認 pass を外すと `holes_observed == []`)
+- 🔴 **レビュー第25波 (Codex P2) — 「重複の片方を選ぶ」は無害な選択ではなかった**:
+  (ss) **2 回の open 読み取りで同じ identity が両方に出たら `open_after` を採る** —
+  旧実装は `open_before` 側を残していた。open 行は**通常の live 経路で変化する**:
+  OANDA callback の `DemoDB.set_oanda_trade_id()` が**行が OPEN のまま**
+  `oanda_trade_id` を埋め `is_shadow` を反転させる。bracket は identity を
+  比較するので**この変化はどの穴検査にも掛からず**、古い copy を残すと
+  **live 約定を shadow として報告する** — 本プロジェクトが最も load-bearing と
+  扱っている区別そのもの ([[feedback_live_vs_shadow_strict_separation]] /
+  混同事故 [[project_live_fill_estimand_shadow_conflation_2026_09_03]])。
+  新しい読み取りは snapshot 時点の真実に厳密に近いので `open_after` が勝つ。
+  変化数は `open_mutated_midfetch` として meta に残す (**identity ベースの検査には
+  映らないので、記録しなければどこにも残らない**)
+- 🔑 **dedup/union を書くときは「どちらの copy を残すか」を必ず意味で決める** —
+  第21波の `merge_open_into_closed` では「CLOSED 側が exit_time を持つから勝つ」と
+  意味で決めていたのに、第22波で足した open 側の union では**先に入れた方が残る**
+  という実装の副作用に任せていた。**同じ PR の中で規律が片側にしか適用されていなかった**
+- pin 69 → **70 本**。counterfactual 確認済 (古い copy を残すと
+  `got {'is_shadow': 1, 'oanda_trade_id': ''}` で落ちる)
+- 🔴 **レビュー第26波 (Codex P2) — 第25波の修正の鏡像を、自分で確認していなかった**:
+  (tt) **確認用 closed pass は「値」でも勝つ** — 第25波で open 行について
+  「新しい読み取りが勝つ」と決めたのに、**closed 2 パスは identity しか比較せず
+  古い `payload` を返していた**。closed 行も通常の非同期 OANDA 経路で変化する:
+  `DemoDB.set_oanda_trade_id()` は **status を条件にしていない**ので、速く CLOSE した
+  約定が closed 集合に入った**後**に `oanda_trade_id` / `is_shadow` を書き換えられる。
+  キー集合が一致すると完全性チェックは通り、**古い shadow 表現が `complete=true` の
+  下で書き出される** ⇒ live/shadow の LOCK 母集団が誤る。⇒ 値でも confirm を採り
+  `closed_mutated_midfetch` を計上、confirm pass 自身の drift 証拠も
+  `confirm_pass` として保存 (完全性の論拠の一部なので捨てられない)
+- 🔴 **「対称側を確認する」は修正後の状態にも回す — これで本 PR 3 例目**
+  (第21波→第22波の鏡像 / 第25波→第26波の鏡像)。**自分が直した直後のコードが
+  次の非対称の発生源になる**というのが本 PR で最も再現性の高いパターンだった。
+  ⇒ dedup/union/2-pass を書いたら「**どちらの copy が勝つか**」を
+  **両方の集合について**明示的に決めたか、を修正の完了条件に加える
+- pin 70 → **71 本**。counterfactual 確認済 (古い pass を返すと
+  `got {'is_shadow': 1, 'oanda_trade_id': ''}` で落ちる)
+- 🟠 **レビュー第27波 (Codex P2×2) — 読み取りを足すのをやめて「as-of を定義」した / 正本との乖離は片側を選ばず両方出す**:
+  (uu) **末尾の open 読み取りを最後に置き、スナップショット境界を明文化** — 第26波で
+  `open_after` の**後ろ**に confirm pass を足したため、**confirm 実行中に OPEN した約定**が
+  どの読み取りにも入らなくなっていた。🔑 **読み取りを 1 本足すと窓が 1 つ後ろへ移るだけ**で、
+  これは無限後退する形。⇒ 順序を `open → closed → closed(confirm) → open` に変え、
+  **末尾 open の瞬間を snapshot の as-of と定義**した。「as-of の後に OPEN して CLOSE しない
+  約定はこの snapshot に含まれない」は**欠陥ではなく境界**であり (非 atomic な読み取り列で
+  含める方法は存在しない)、**欠陥なのは「as-of より前に存在したのに欠けている行」**
+  — 2 つの検査はまさにそれを見ている。**完全性の主張を「as-of 相対」で述べ直した**
+  (vv) **`since` 前に OPEN した live 約定を watcher に合わせる** — live LOCK について
+  正本 watcher は `fetch_trades_window()` に `date_from` を渡すが、endpoint の **OPEN 分岐は
+  そのパラメータを無視する**ので `count_live_matching()` は**当該行を数える**。本ツールは
+  除外していた。**どちらが正しいとも言えない** (pre-reg 原文は `since` で母集団を切り、
+  watcher はトリガを実際に発火させる側) ⇒ **§9 と同じ規律で片側を選ばず両方出す**
+  (`n_lock_population` vs `n_lock_population_watcher` を並置)。決着は
+  `sr-anti-hunt-eurjpy-count-basis-declaration` に委ねる
+- 🔵 **vacuous pin を counterfactual が捕まえた** — (uu) の pin は当初 open 呼び出し回数で
+  分岐する stub を使っていたため、**修正を戻しても通ってしまった**。stub を
+  「**closed pass が 2 本終わったか**」で分岐する形に直して初めて `[] == [6]` で落ちた。
+  **「pin を書いた」と「pin が効く」は別** — 全 pin に counterfactual を回す理由がこれ
+- pin 71 → **73 本**。2 件とも counterfactual 確認済
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**73 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
+- 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
+
 ## 2026-09-19 — fix(monitoring/KB): 未消化レビュー指摘の消化 ② — GDELT の soft 分類が全例外を飲んでいた + 撤回済み主張が見出しに残っていた (rule:R3)
 
 **PR #261 / #263 / #264 の未消化 P1/P2 指摘 6 件の消化。** (① = hunt_events readout、別 PR)

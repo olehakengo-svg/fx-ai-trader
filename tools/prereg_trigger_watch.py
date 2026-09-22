@@ -890,7 +890,11 @@ SENTINEL_OK_TYPES = frozenset({"info", "conditional_info"})
 # 評価器が bool として消費するフィールド。`closed_only: "false"` は
 # `bool(trig.get("closed_only"))` で **true** になり、監視母集団を黙って
 # 変える (PR #227 Codex P2 8 巡目)。
-BOOL_FIELDS = frozenset({"closed_only"})
+# `outcome_lock` (2026-09-20): 評価器は読まないが tools/cell_deepdive_audit.py の
+# P-10 redaction が `is False` で opt-out を判定する。`"false"` / `0` / `null` は
+# `is False` にならないため、**件数のみのモニタが黙って outcome lock 扱いになり
+# 正当な監査結果と昇格候補が握り潰される**。bool 型を強制して authoring 時に落とす。
+BOOL_FIELDS = frozenset({"closed_only", "outcome_lock"})
 
 # 評価器が `== 0` 等の値一致で消費するフィールド (文字列 "0" は一致しない)。
 EXACT_INT_FIELDS = frozenset({"dedup_violation"})
@@ -998,6 +1002,13 @@ META_FIELDS = frozenset({
     # ad-hoc な日付付きキー (診断スナップショット等) はここに足さず
     # `note` の下に入れ子で置くこと — reject-by-default を保つ。
     "harness", "execution_command", "execution_subject",
+    # 2026-09-20: 本評価器は読まないが **別の読み手** が読む宣言。
+    # `outcome_lock: false` = このエントリは件数監視のみで凍結された outcome
+    # look を持たない、の明示。tools/cell_deepdive_audit.py の P-10 redaction が
+    # 既定で全 `*_count_decision` を対象にする (保守側) ため、件数のみのモニタは
+    # これで opt-out する。**既定は redact** なので、キーを書き忘れても安全側に
+    # 倒れる (未記載 = outcome lock 扱い)。
+    "outcome_lock",
 })
 
 # type ごとに評価器が実際に読む selector。ここに無いキーは**綴り違い**として
