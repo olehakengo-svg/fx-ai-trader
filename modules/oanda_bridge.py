@@ -179,8 +179,10 @@ class OandaBridge:
         # もの) / skipped = enforce で実際に止めたもの
         self._storm_totals: dict = {
             "evaluated": 0, "sent": 0,
-            "detected": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0},
-            "skipped": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0},
+            # serialize = 送信直列化 (detected: 検知のみモードで「待つはずだった」件数 /
+            # skipped: enforce で順番待ち timeout により drop した件数)
+            "detected": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0, "serialize": 0},
+            "skipped": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0, "serialize": 0},
             "unknown_direction": 0, "breaker_trips": 0, "failed": 0,
         }
 
@@ -1331,16 +1333,33 @@ class OandaBridge:
         返すまで次を送らない。これで (a) 「B 確認済みなのに pending A が baseline」が
         起きない (A は B 送信前に決着する)、(b) broker 側で A が B の後に処理される
         発行順逆転も起きない (同時飛行が 1 件)。timeout = 前の worker 不応答 →
-        False (caller は token を rollback して送らない: 順序不明のまま送る方が危険)。"""
+        False (caller は token を rollback して送らない: 順序不明のまま送る方が危険)。
+
+        **検知のみモード (既定) では待たない・落とさない** (review 4 巡目 P2): 直列化も
+        guard 本体の一部で、既定の契約は「送信は従来通り、観測だけ」。待つはずだった
+        件数を `detected.serialize` に数えるのみ。"""
         if not token:
+            return True
+        if not self._storm_enforce:
+            with self._storm_lock:
+                if st["pending"] and st["pending"][0] is not token:
+                    self._storm_totals["detected"]["serialize"] += 1
+                    n = st["counts"].get("serialize", 0) + 1
+                    st["counts"]["serialize"] = n
+                    if n <= STORM_GUARD_LOG_FIRST_N or n % STORM_GUARD_LOG_EVERY_M == 0:
+                        logger.warning(
+                            f"[OandaBridge][STORM_GUARD] DETECT(would_wait) reason=serialize "
+                            f"demo={demo_trade_id} sl={token['new_sl']} ahead={len(st['pending']) - 1} n={n}")
             return True
         deadline = _time.monotonic() + self.STORM_TURN_WAIT_SEC
         with self._storm_lock:
             while st["pending"] and st["pending"][0] is not token:
                 remaining = deadline - _time.monotonic()
                 if remaining <= 0:
-                    logger.warning(f"[OandaBridge][STORM_GUARD] turn wait timeout demo={demo_trade_id} "
-                                   f"sl={token['new_sl']} ahead={len(st['pending']) - 1} → drop")
+                    self._storm_totals["skipped"]["serialize"] += 1
+                    st["counts"]["serialize"] = st["counts"].get("serialize", 0) + 1
+                    logger.warning(f"[OandaBridge][STORM_GUARD] SKIP reason=serialize (turn wait timeout) "
+                                   f"demo={demo_trade_id} sl={token['new_sl']} ahead={len(st['pending']) - 1} → drop")
                     return False
                 st["cond"].wait(remaining)
         return True

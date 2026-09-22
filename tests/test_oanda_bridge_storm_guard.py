@@ -21,6 +21,8 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
   (h) 送信直列化: trade ごとに pending[0] だけが broker へ送れる (前の要求が決着するまで
       次を送らない) — 「B 確認済み ∧ A pending」の窓も broker 側の発行順逆転も生じない
       (PR #287 review 3 巡目 P1、CF pin 付き)
+  (i) 直列化の順番待ち・timeout drop は enforce のみ — 検知のみでは待たず落とさず
+      detected.serialize に数えるだけ (PR #287 review 4 巡目 P2、CF pin 付き)
   既定 (env 未設定) = 検知のみ: 送信は止めず、カウンタ + WARN だけ動く
 """
 from __future__ import annotations
@@ -779,3 +781,39 @@ def test_detect_only_mode_confirms_and_pends_symmetrically(monkeypatch):
     st = b.get_storm_guard_status()["trades"][DEMO]
     assert st["pending"] == [] and st["confirmed_sl"] == 154.350
     assert b.get_storm_guard_status()["totals"]["detected"]["idempotent"] == 2
+
+
+# ── 検知のみモードは直列化でも待たない・落とさない (PR #287 review 4 巡目 P2) ──
+# 既定の契約 = 「送信は従来通り、観測だけ」。順番待ち timeout で drop するのは enforce のみ。
+
+def test_detect_only_turn_wait_never_drops_or_delays_but_counts(monkeypatch):
+    monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.1)
+    b, fake = _bridge(monkeypatch, enforce=False, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # A: 決着しない (走らせない)
+    b.modify_sl(DEMO, 154.400, instrument="USD_JPY")               # B
+    t0 = __import__("time").monotonic()
+    q[1]()                                                          # B は待たずに送る
+    assert __import__("time").monotonic() - t0 < 0.1
+    assert fake.calls == [(OANDA_ID, 154.400)]                      # 送信は止めない
+    t = b.get_storm_guard_status()["totals"]
+    assert t["detected"]["serialize"] == 1 and t["skipped"]["serialize"] == 0
+    assert t["failed"] == 0                                         # drop されていない
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["confirmed_sl"] == 154.400 and st["pending"] == [154.350]
+    assert st["counts"]["serialize"] == 1
+
+
+def test_detect_only_cf_enforce_is_the_only_difference_for_turn_drop(monkeypatch):
+    """同一 fixture で enforce のみ反転: 検知のみ = 送信 / enforce = drop。"""
+    monkeypatch.setattr(OandaBridge, "STORM_TURN_WAIT_SEC", 0.1)
+    outcomes = {}
+    for enforce in (False, True):
+        b, fake = _bridge(monkeypatch, enforce=enforce, open_sl=154.115)
+        q = _deferred_fire(b, monkeypatch)
+        b.modify_sl(DEMO, 154.350, instrument="USD_JPY")
+        b.modify_sl(DEMO, 154.400, instrument="USD_JPY")
+        q[1]()
+        t = b.get_storm_guard_status()["totals"]
+        outcomes[enforce] = (len(fake.calls), t["skipped"]["serialize"], t["detected"]["serialize"])
+    assert outcomes == {False: (1, 0, 1), True: (0, 1, 0)}
