@@ -1,7 +1,8 @@
 # rnb_support_bounce shadow レーン lane-health 事前調査 (2026-09-22)
 
 **rule**: R3 (件数・配線・頻度のみ — WR/EV/PnL は計算も閲覧もしていない、P-10 非抵触)
-**対象**: registry `rnb-shadow-lane-health-checkpoint-1` (期日 2026-09-24、closed shadow N<3 で TRIGGERED) の到達前調査。sprint 2026-09-22 S4 (final_assessment §3 Rank 8 (i))。
+**対象**: registry `rnb-shadow-lane-health-checkpoint-1` (期日 2026-09-24 = closed shadow N≥3 到達の最終日) の到達前調査。sprint 2026-09-22 S4 (final_assessment §3 Rank 8 (i))。
+**判定タイミング (PR #283 レビュー 1 巡目で訂正)**: 評価器 `tools/prereg_trigger_watch.py:73` は `today > deadline ∧ N < n_floor` で TRIGGERED (`today` = UTC 日付 `:1442`)。評価主体は Tier A cron `fx-ai-tier-a-gate-status` (`render.yaml:168` `schedule: "20 0 * * *"` → `quant_gate_status.py:179-187` → watcher subprocess)。∴ **09-24 00:20Z の評価は WATCHING のまま、最早の自動 TRIGGERED = 2026-09-25 00:20Z** (09-24 の active 窓全体を含む closed 行を数える)。本稿の「TRIGGERED 見込み」はこの 09-25 00:20Z 判定を指し、09-24 は期日 (= 最終日) であって判定日ではない。cron の稼働自体は本稿では未確認 (09-25 00:20Z 以降の Tier A Discord レポートに TRIGGERED 行が出ることで確認)。
 **一次資料**: [[rnb-support-bounce-r1-packet-2026-09-10]] §2/§6/§9 / [[rnb-dead-mode-and-block-estimand-2026-09-05]] / [[blocker-refutation-2026-09-10]] §2 (rnb-shadow-forward 行 = cadence 穴、kb-06 = conf 単位バグ) / 本番 `/api/demo/status`・`/api/demo/block-counts` (2026-09-22 08:4x UTC pull) / Render app ログ (srv-d6va1of5r7bs73en10vg、2026-09-10〜09-22) / `modules/demo_trader.py`・`app.py` (main 0e911f04)。
 **凍結 look 非接触**: LOCK `rnb-support-bounce-shadow-forward` の outcome (WR / net EV) は本稿で一切計算していない。trades 行からは id / 時刻 / is_shadow / oanda_trade_id / confidence のみ読んだ (close_reason・pnl 列は読んでいない)。
 
@@ -9,7 +10,7 @@
 
 ## 0. 要約 (5 行)
 
-1. **closed shadow N = 2** (09-11 10:42Z / 11:31Z)。09-24 checkpoint-1 は **TRIGGERED 確定見込み** (期日まで 1.5 営業日、09-12 以降 12 日間で行ゼロ)。
+1. **closed shadow N = 2** (09-11 10:42Z / 11:31Z)。checkpoint-1 (期日 09-24) は **09-25 00:20Z の Tier A 評価で TRIGGERED 見込み** (09-24 当日の評価は `today > deadline` 偽で WATCHING)。判定までの残 active 窓 ≈ 40h (09-22 残 ~12h + 09-23・09-24 各 14h) ≈ 2.9 active 日、09-12 以降 12 日間で行ゼロ。closed 行のみ計上 (`closed_only: true`) のため 09-24 遅い時間の entry が 00:20Z に open なら数えない。
 2. **配線は開いている**: 2 行とも `is_shadow=1 ∧ oanda_trade_id=''`、confidence 48 / 68 (0-100 スケール)、11 日永続集計で `conf<30` / `no_confirm` / `unknown_type` は **0 件**。conf 単位バグ再発・QUALIFIED_TYPES 落ち・shadow_only 配線落ちの 3 仮説は **全て反証**。
 3. **setup 供給も止まっていない**: 登録修理後 (09-10 16:49Z〜) の active 窓 (UTC 7–20) で BUY bar は **11 本** (forming-bar 評価)。「単に相場 setup 不在」も **反証**。
 4. **行ゼロの真因 = `_tick_entry` 下流の live 保護 gate**: 09-12 以降の BUY bar 6/6 が `mtf_strong_bias` (trend_down_strong 下の BUY) / `velocity_down` / `1h_rr_low` で **hard block** (shadow 迂回なし)。この 3 gate は 365d ablated BT では**適用されていない** = BT⇄live 母集団の非同期 (CLAUDE.md「フィルターは本番⇄BT 同期必須」に反する状態)。
@@ -25,8 +26,8 @@
 | **closed shadow N** | **2** — id 17559 (entry 2026-09-11T10:42:42Z) / id 17565 (entry 2026-09-11T11:31:28Z) | scratchpad `trades.json` (2,002 行、08-18〜09-22 を被覆 = since 以降を完全被覆)、Render ログ `📥 IN [RNB USD/JPY (shadow)]` 10:42:44Z / 11:31:28Z |
 | 厳格 shadow 判定 | 2/2 が `is_shadow=1`、`oanda_trade_id=''`、ログ `🔗 OANDA: [SKIP] rnb_support_bounce — Reason: shadow_tracking` | 同上 |
 | confidence | 48 / 68 (0-100) | 同上 — conf gate (threshold 30) 通過を実測で確認 |
-| checkpoint-1 (09-24, n_floor 3) | N=2 < 3 → **TRIGGERED 見込み** | registry |
-| checkpoint-2 (10-08, n_floor 6) | 現ペース (09-12 以降 0 行/日) では **TRIGGERED 見込み** | registry |
+| checkpoint-1 (期日 09-24, n_floor 3) | N=2 < 3 → **TRIGGERED 見込み — 最早の自動判定 = 2026-09-25 00:20Z** (Tier A cron; 評価器は `today > deadline` なので期日当日は WATCHING) | registry / `tools/prereg_trigger_watch.py:73,1442` / `render.yaml:168` |
+| checkpoint-2 (期日 10-08 → 自動判定 10-09 00:20Z, n_floor 6) | 現ペース (09-12 以降 0 行/日) では **TRIGGERED 見込み** | registry (同じ評価器・同じ 1 日ずれ) |
 | first look (N≥41 or 2027-01-15) | 残 39 行 / 16.4 週 = **2.4 行/週** が必要 | §7 |
 
 ⚠️ 統計的な「異常」ではない点は据え置き (final_assessment: P(N≤2) ≈ 0.11)。本稿の結論は統計ではなく**機構の帰属**による。
@@ -37,9 +38,9 @@
 
 | # | 仮説 | 証拠 | 判定 |
 |---|---|---|---|
-| A | **conf 単位バグ再発** (0-1 スケール → `conf<30` 全滅、09-10 kb-06 型) | `app.py:4525` `int(round(min(_score/2.5,1.0)*100))` (0-100)。実行 2 行の confidence 48 / 68。永続集計 11d (`/api/demo/block-counts?days=11`) の `rnb_usdjpy:conf<30` = **キーなし (0)**。`tests/test_rnb_confidence_scale.py` が pin | **反証** |
-| A' | **`no_confirm` (✅ marker 欠落) 再発** | `app.py:4487-4491` で `✅ RNB support` / `✅ wick` / `✅ engulfing` 付与。ログの IN 行 `理由: ✅ RNB support 154.00 / ✅ wick 50%`。永続 11d に `no_confirm:rnb_support_bounce` **なし** | **反証** |
-| B | **QUALIFIED_TYPES 落ち** (`unknown_type`) | `demo_trader.py:5758` に `"rnb_support_bounce"` 現存。永続 11d に `rnb_usdjpy:unknown_type:*` **なし**。`tests/test_rnb_block_reason_estimand.py` (登録ドリフト完全一致 pin) / `tests/test_rnb_shadow_only_registration.py::test_rnb_support_bounce_is_qualified` | **反証** |
+| A | **conf 単位バグ再発** (0-1 スケール → `conf<30` 全滅、09-10 kb-06 型) | `app.py:4525` `int(round(min(_score/2.5,1.0)*100))` (0-100)。実行 2 行の confidence 48 / 68。09-12 以降の 6 bar は `conf<30` (`:5488`) より**下流**の gate (`:6389`/`:6431`/`:6552`) で block = conf gate 到達・通過済み。永続集計 11d (`/api/demo/block-counts?days=11`) の `rnb_usdjpy:conf<30` = **キーなし (0)** は補助証拠 (first-blocking-gate、§3 — `session_hours`/dedup で止まった候補には効かない)。`tests/test_rnb_confidence_scale.py` が pin | **反証** |
+| A' | **`no_confirm` (✅ marker 欠落) 再発** | `app.py:4487-4491` で `✅ RNB support` / `✅ wick` / `✅ engulfing` 付与。ログの IN 行 `理由: ✅ RNB support 154.00 / ✅ wick 50%`。6 bar が `no_confirm` (`:5786`) より下流で block = 通過済み。永続 11d に `no_confirm:rnb_support_bounce` **なし** (補助証拠、§3) | **反証** |
+| B | **QUALIFIED_TYPES 落ち** (`unknown_type`) | `demo_trader.py:5758` に `"rnb_support_bounce"` 現存 (会員判定は `:5817`)。6 bar が `:5817` より下流で block = 通過済み。永続 11d に `rnb_usdjpy:unknown_type:*` **なし** (補助証拠、§3)。`tests/test_rnb_block_reason_estimand.py` (登録ドリフト完全一致 pin) / `tests/test_rnb_shadow_only_registration.py::test_rnb_support_bounce_is_qualified` | **反証** |
 | C | **shadow_only 配線落ち** (行が live 化 or write-path で落ちる) | `demo_trader.py:764` `"shadow_only": True`。2 行とも厳格 shadow。ログ `[SHADOW] Phase0 tier gate: rnb_support_bounce USD_JPY → shadow` → `OANDA: [SKIP] shadow_tracking` → `📥 IN`。`test_rnb_shadow_only_registration.py` 8 本が 3 点 block を pin | **反証** |
 | D | **単に相場 setup 不在** | 修理後 active 窓で BUY bar **11 本** (§4)、うち 09-12 以降 **6 本** | **反証** — setup は出ている、行にならない |
 | E | **エンジン/mode 停止** | `engine_tick_status ok`、`tick_counts["rnb_usdjpy"]=231` (06:01Z 再起動以降、他 30s モードと同水準)、`modes.rnb_usdjpy.running=true`、Render `[MainLoop/rnb_usdjpy] tick ## ok` 継続 | **反証** |
@@ -50,9 +51,10 @@
 
 ## 3. 配線の読み (コード参照、main 0e911f04)
 
-- 発火経路: `rnb_usdjpy` (`demo_trader.py:746-765`、interval 30s、tf 15m、`active_hours_utc (7,20)`、`direction_filter BUY`、`shadow_only True`) → `_get_base_mode`="rnb" → `app.compute_rnb_signal` (`demo_trader.py:4308-4309`) → `_tick_entry` (`:4583`)。
+- 発火経路: `rnb_usdjpy` (`demo_trader.py:746-765`、interval 30s、tf 15m、`active_hours_utc (7,20)`、`direction_filter BUY`、`shadow_only True`) → `_get_base_mode`="rnb" → `app.compute_rnb_signal` (`demo_trader.py:4308-4309`) → `_tick_entry` (呼出 `:4583`、定義 `:4884`)。
 - `compute_rnb_signal` の WAIT 経路 (`app.py:4401-4475`): bar 数不足 / **UTC 7–20 外 (bar index の hour、`:4407-4421`)** / range・ATR 0 / zone 外 / 上から接近でない / momentum 不足 / overshoot / rejection なし。BUY 時は `entry_type=rnb_support_bounce`、TP +20p / SL −15p (`:4393-4394`)。
-- `_tick_entry` 内の rnb に効く gate (上流→下流順): `no_signal` (WAIT、`:5001-5003`) → `QUALIFIED_TYPES` (`:5758`) → conf gate → confirm gate → **`session_hours(outside_active)` (`:5289-5304`、wall-clock UTC; `_is_shadow_eligible_full` が偽なら hard block)** → **dedup 予約 `_maybe_reserve_order_bar_emit` (`:5506`、bar key = 形成中 bar の index、`:1263-1272`)** → `same_price_Npip` (`:5573`) → **`velocity_down` (`:6389`、base_mode "rnb" は辞書外 → 既定 8.0pip / 10 分、`:6355-6361`)** → **`mtf_strong_bias` (`:6421-6431`、15m tactical bias strength="strong" ∧ 方向逆 → block、免除は `trend_rebound` のみ)** → `_1H_PRESERVE_SLTP` (`:6449`) → **`1h_rr_low` (`:6552`、`tp_dist/sl_dist < 1.2`、免除は `hull_donchian_fade` のみ)** → order/shadow write。
+- `_tick_entry` 内の rnb に効く gate (**実コード順** — `_block(...)` 呼び出し行を `awk` で全列挙して確認、PR #283 レビュー 1 巡目で訂正): `no_signal` (WAIT、`:5008`) → **`session_hours(outside_active)` (`:5289-5304`、wall-clock UTC; `_is_shadow_eligible` (= `_is_shadow_eligible_full` の別名 `:5078`) が偽なら hard block)** → `market_close_30min` (`:5314`) → **`conf<30` (`:5488`、`confidence_threshold`)** → **per-bar dedup `_maybe_reserve_order_bar_emit` (`:5506-5519`、bar key = 形成中 bar の index、`:1263-1272`; block は `_block` を通らず `[ORDER_BAR_DEDUP]` ログ + return のみ)** → `recent_emit` (`:5521-5542`、shadow 迂回は `_is_shadow_eligible_full` のみ) → `same_price_Npip` (`:5573`) → **`no_confirm` (QUALIFIED_TYPES の ✅ confirm gate、`:5786`)** → **`unknown_type` (QUALIFIED_TYPES 会員判定 `:5817`、集合定義で `"rnb_support_bounce"` は `:5758`)** → blacklist / cooldown / consec_loss / circuit_breaker / cascade_cd (`:5821-5872`) → session_pair / alpha_scan / regime_guardrail / spread / spike (`:5923-6347`、本稿の永続 11d 集計に rnb のキーは無し) → **`velocity_down` (`:6389`、base_mode "rnb" は辞書外 → 既定 8.0pip / 10 分、`:6355-6361`)** → **`mtf_strong_bias` (`:6421-6431`、15m tactical bias strength="strong" ∧ 方向逆 → block、免除は `trend_rebound` のみ)** → `_1H_PRESERVE_SLTP` (`:6449`) → **`1h_rr_low` (`:6552`、`tp_dist/sl_dist < 1.2`、免除は `hull_donchian_fade` のみ)** → order/shadow write。
+- **first-blocking-gate 意味論**: 各 gate は `_block(...); return` で、候補 1 件につき**最初に落ちた gate だけ**がカウンタに残る。∴ `session_hours` (211 tick) / per-bar dedup (106) / `same_price` (1) で止まった候補について、それより**下流**の `conf<30` (`:5488`) / `no_confirm` (`:5786`) / `unknown_type` (`:5817`) のカウンタが 0 でも「その gate に到達して通過した」証拠にはならない。§2 A / A' / B の反証が成立するのは、(a) 実行 2 行が全 gate を通過した実測、(b) 09-12 以降の 6 bar が上記 3 gate より下流の `velocity_down` (`:6389`) / `mtf_strong_bias` (`:6431`) / `1h_rr_low` (`:6552`) で block された = 上流 3 gate は到達・通過済み、(c) コード実読 + test pin、の 3 点による — **永続カウンタ 0 単独では成立しない**。今後の checkpoint 診断もこの順序で「最初に落ちた gate」から読む。
 - **`_is_shadow_eligible_full` (`:5073-5078`) は force_demoted / SCALP_SENTINEL / UNIVERSAL_SENTINEL / trendline_sweep_v2 のみ** — `shadow_only` mode は含まれない。∴ rnb は「shadow 迂回」経路を一つも持たず、上記 gate は全て **hard block** になる。packet §4 が `_UNIVERSAL_SENTINEL` 非追加を選んだ (minlot live 経路を開けないため) 副作用として、sentinel 型に付随する shadow 迂回も失っている。
 
 ---
@@ -112,11 +114,13 @@
 - setup 供給 (forming-bar、in-window BUY bar): **11 / 1.48 週 = 7.4 bar/週** vs 確定足 BT 2.99/週 — forming-bar 評価の一時的 BUY を含むため上振れは想定内 (MEMORY `project_ps_capture_estimand_disjoint_2026_09_09` と同型、bar 数を BT setup 数と同一視しない)。**供給側は枯れていない**。
 - 変換 (bar → 行): **2/11**、09-12 以降 **0/6**。全て `trend_down_strong` 下。
 - first look 到達条件: 残 39 行 / 16.4 週 = **2.4 行/週**。現在の変換率 (0/6、直近 7 営業日) が続けば **2027-01-15 の stale 分岐 (N≪41) が既定路線**。レジームが `strong` を外れれば `mtf_strong_bias` は消えるが、`velocity_down` / `1h_rr_low` の構造衝突はレジーム非依存で残る。
-- **下方修正案 (修理しない場合)**: checkpoint-2 (10-08) の n_floor 6 は現ペースで TRIGGERED 確定。「期待 2.99/週の半分」基準は setup 頻度を行頻度に流用した前提の誤りなので、**cadence 期待値を「setup 頻度 × gate 通過率 (レジーム条件付き)」に書き換え**、通過率は本稿の日別 funnel を初期値 (2/11) として 10-08 に再計測する。これは outcome 非接触の件数指標のまま維持できる。
+- **下方修正案 (修理しない場合)**: checkpoint-2 (10-08) の n_floor 6 は現ペースで TRIGGERED 確定。「期待 2.99/週の半分」基準は setup 頻度を行頻度に流用した前提の誤りなので、**cadence 期待値を「setup 頻度 × gate 通過率 (レジーム条件付き)」に書き換え**、通過率は本稿の日別 funnel を初期値 (2/11) として checkpoint-2 の判定時 (期日 10-08、自動 TRIGGERED は 10-09 00:20Z) に再計測する。これは outcome 非接触の件数指標のまま維持できる。
 
 ---
 
-## 8. 09-24 TRIGGERED 時の disposition 案 (本 PR は docs のみ、code は触らない)
+## 8. checkpoint-1 TRIGGERED 時 (最早 2026-09-25 00:20Z の Tier A 評価) の disposition 案 (本 PR は docs のみ、code は触らない)
+
+前提: 09-24 は期日 (最終日) で判定日ではない。09-24 中に N≥3 に達すれば 09-25 00:20Z の評価は WATCHING → 期日通過 ∧ N≥3 = checkpoint 通過として resolve (registry message どおり)。以下は N<3 で TRIGGERED した場合の案。人手で先行判断する場合も「TRIGGERED」を名乗らず本稿と同じ「到達前調査」の位置づけに留める。
 
 **(i) R3 修理候補 — `shadow_only` mode の live 保護 gate を shadow 迂回に振り替える (推奨)**
 - 変更点 (最小): `demo_trader.py:5073-5077` `_is_shadow_eligible_full` に `or _mode_is_shadow_only(mode)` を加える。これで `session_hours` (`:5297-5303`) / `velocity_down` (`:6382-6389`) の既存 shadow 迂回が rnb に効く。`mtf_strong_bias` (`:6431`) と `1h_rr_low` (`:6552`) は迂回分岐を持たないため、`shadow_only` mode では `_is_shadow=True` に落として続行する分岐を追加する (hard block → shadow 化)。
@@ -138,7 +142,9 @@
 - 本稿の N (2) は LOCK と同一母集団の件数で、outcome は一切含まない。WR / EV / PnL / close_reason は計算も閲覧もしていない。
 - 「2.99/週」は確定足 setup 頻度であり行頻度ではない。「7.4 bar/週」は forming-bar 評価の BUY bar 数であり setup 数でも行数でもない。両者を混ぜて引用しない。
 - block 件数は tick 単位 (30s poll、~2 評価/周期の痕跡あり)。bar 数・setup 数として引用しない。
+- block カウンタは **first-blocking-gate** (候補 1 件 = 最初に落ちた gate 1 つ、§3)。上流 gate (`session_hours` / dedup / `same_price`) で止まった候補について、下流カウンタ (`conf<30` / `no_confirm` / `unknown_type`) の 0 を「到達・通過」の証拠として引用しない。到達の証拠は「より下流の gate で block された」または「行になった」事実のみ。
 - `session_hours` 211 件は「時間 filter が shadow を削った」証拠として引用しない (stale feed アーティファクト、§5)。
+- checkpoint の **期日と自動 TRIGGERED 日を区別する**: 評価器は `today > deadline` (`tools/prereg_trigger_watch.py:73`)、Tier A cron は 00:20Z (`render.yaml:168`) なので TRIGGERED は**期日翌日 00:20Z** (checkpoint-1 09-25 / checkpoint-2 10-09)。「09-24 TRIGGERED」型の引用は誤り (本 PR 初版の誤記、レビュー 1 巡目で訂正)。同型の `deadline_info` / `conditional_info` (`:104`, `:331`) も `today > deadline` で同じ 1 日ずれを持つ。`live_count_decision` (`:95`) だけは `today >= deadline` で期日当日に発火する — 型を見ずに「期日 = 発火日」と書かない。
 - 09-05 分析の予測 1 (`direction_filter` 恒久 0) は本窓でも成立 (永続 11d にキーなし)。
 
 ## 10. 出所
@@ -146,4 +152,5 @@
 - 本番 API: `GET /api/demo/status` (block_counts / tick_counts / modes、2026-09-22 08:4x UTC)、`GET /api/demo/block-counts?days=1..14&strategy=rnb_support_bounce`
 - Render app ログ (workspace tea-d6va0dia214c7386glv0 / srv-d6va1of5r7bs73en10vg): text `rnb_support_bounce` 2026-09-10〜09-22 (2 ページ、hasMore=false)、text `DemoTrader/rnb_usdjpy` 2026-09-11T19:30Z〜09-12T00:30Z
 - scratchpad `trades.json` (2,002 行、2026-08-18〜09-22)、`block_counts_11d.json`
-- code: `modules/demo_trader.py` (746-765, 1263-1272, 4292-4296, 4308-4309, 4574/4583/4643, 4900-4909, 5001-5003, 5073-5078, 5289-5304, 5506, 5573, 5758, 6355-6389, 6421-6431, 6449, 6549-6552, 2066) / `app.py` (4358-4527) / `modules/block_event_logger.py` (270-330) — main 0e911f04
+- code: `modules/demo_trader.py` (746-765, 1263-1272, 4292-4296, 4308-4309, 4574/4583/4643, 4884, 4900-4909, 5008, 5073-5078, 5289-5304, 5314, 5488, 5506-5519, 5521-5542, 5573, 5758, 5786, 5817, 5821-5872, 6355-6389, 6421-6431, 6449, 6549-6552, 2066) / `app.py` (4358-4527) / `modules/block_event_logger.py` (270-330) — main 0e911f04。gate 順序は `awk 'NR>=4884 && NR<=6600 && /_block\(/' modules/demo_trader.py` の全列挙で確認 (09-22、PR #283 レビュー 1 巡目)
+- checkpoint 評価タイミング: `tools/prereg_trigger_watch.py` (`:73` `today > deadline`、`:1442` `today = utcnow().strftime("%Y-%m-%d")`、`:648-661` shadow_count_decision の closed_only / dedup_violation / direction 契約) / `tools/quant_gate_status.py:179-187` (subprocess で watcher を呼ぶ) / `render.yaml:163-172` (Tier A cron `fx-ai-tier-a-gate-status`、`schedule: "20 0 * * *"`)
