@@ -69,6 +69,18 @@ def test_fetch_status_table_reports_unknown_cause_only():
     assert "推測" in table and "Pro" in table
 
 
+def test_fetch_status_table_partial_failure_is_not_summarised_as_blind():
+    """Codex P2 (2026-09-22): 失敗分だけを分類し、1 本の timeout を「HTTP 全盲」と要約していた。"""
+    results = {
+        "status": dr.FetchResult("u1", False, {}, fp.FAIL_TIMEOUT, "timeout: timed out"),
+        "trades": dr.FetchResult("u2", True, {"trades": []}, "", ""),
+        "oanda": dr.FetchResult("u3", True, {"active": True}, "", ""),
+    }
+    table = dr.preprocess_fetch_status(results)
+    assert "全盲" not in table and "http_blind" not in table
+    assert "partial" in table and "応答している" in table
+
+
 def test_fetch_status_table_all_ok_is_short():
     results = {"status": dr.FetchResult("u", True, {"a": 1}, "", "")}
     table = dr.preprocess_fetch_status(results)
@@ -108,6 +120,19 @@ def test_finalize_corrects_and_is_noop_when_clean():
     assert out.startswith(dirty) and "生成器注記" in out
     clean = "作戦: NO ACTION 推奨\n"
     assert dr.finalize_llm_report(clean, n_failed=1, label="strategy") == clean
+
+
+def test_finalize_is_scoped_to_runs_with_fetch_failures():
+    """Codex P2 (2026-09-22): 失敗ゼロの run でも脚注が付き「0 本の失敗を unreachable と
+    書け」という意味不明な訂正になっていた。守る対象は取得失敗の原因記述だけ。"""
+    text = "背景: 無料 tier のスリープが話題になったが本番は Pro plan。\n"
+    assert dr.finalize_llm_report(text, n_failed=0, label="analyst") == text
+
+
+def test_finalize_does_not_footnote_negations():
+    """「スリープではない」「ruled out」は原因の断定ではない。"""
+    text = "API 取得失敗の原因はスリープではない (Pro plan)。cause unknown として扱う。\n"
+    assert dr.finalize_llm_report(text, n_failed=2, label="analyst") == text
 
 
 def test_strategy_planner_prompt_forbids_cause_invention(monkeypatch):

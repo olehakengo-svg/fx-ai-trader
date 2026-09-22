@@ -146,13 +146,29 @@ OUTAGE_HTTP_BLIND = "http_blind"
 OUTAGE_API_DOWN = "api_down"
 OUTAGE_HTTP_ERROR = "http_error"
 OUTAGE_MIXED = "mixed"
+OUTAGE_PARTIAL = "partial"
 OUTAGE_UNKNOWN = "unknown"
 
+# ⚠️ http_blind は**観測クラス**であって origin プロセスの状態の主張ではない
+# (Codex P2 2026-09-22): 公開 URL (*.onrender.com) への read-timeout は、client が
+# Render の edge まで接続できたことしか証明しない。edge→origin が 502 を返さずに
+# 停止する形でも同じ観測になる。「プロセスは listen している」は Render の
+# health check / app ログ (`HEAD /` 200, `[MainLoop]`) で裏取りしてから言う —
+# 09-22 はそれで確認した。summary / event 文言はこの限界を明記する。
+
 # 観測から導けない「原因」の語彙。生成器 (daily_report) の出力後検査と、
-# 本モジュール / watcher の文言テストの両方がこの集合を読む。
+# 本モジュール / watcher の文言テストの両方がこの集合を読む。英語は語単体
+# ("sleep") だと `time.sleep` 等の無関係な用法に当たるので句で持つ。
 INVENTED_CAUSE_PATTERNS: tuple[str, ...] = (
-    "無料tier", "無料 tier", "free tier", "スリープ", "sleep", "コールドスタート",
-    "cold start",
+    "無料tier", "無料 tier", "free tier", "free-tier", "スリープ", "sleep mode",
+    "went to sleep", "asleep", "コールドスタート", "cold start", "cold-start",
+)
+# 否定文 (「スリープではない」「free-tier sleep is ruled out」) は原因の断定では
+# ない。同じ文にこれらがあれば捏造とは数えない (Codex P2 2026-09-22)。
+NEGATION_MARKERS: tuple[str, ...] = (
+    "ではない", "ではなく", "でない", "否定", "除外", "該当しない", "起こらない",
+    "起きない", "しない", "無い", "ない。", "ruled out", "not a ", "not the ", "no evidence",
+    "is not", "isn't", "does not", "cannot", "excluded",
 )
 
 # 例外クラス名の接頭辞で分類する。reason 文字列の契約は
@@ -199,39 +215,58 @@ def classify_fetch_failure(reason: str) -> str:
     return FAIL_OTHER
 
 
-def classify_outage(reasons: dict[str, str]) -> dict[str, Any]:
+def classify_outage(reasons: dict[str, str], n_ok: int = 0) -> dict[str, Any]:
     """path→reason の失敗集合を outage 種別に分類する (SSOT).
 
-    戻り値: kind (OUTAGE_*), n_timeout / n_connection / n_http_5xx / n_http_4xx /
-    n_other, classes (path→FAIL_*), summary (人向け 1 行。**観測のみを述べ、
-    原因は書かない**)。
+    ``n_ok`` = 同じ観測で**成功した** endpoint 数。1 本でも成功していれば母集団は
+    「失敗した部分集合」ではなくサービス全体であり、結論は partial (endpoint 固有)
+    に限る (Codex P2 2026-09-22: 失敗分だけを渡すと 1 本の timeout が「HTTP 全盲」
+    と要約された)。呼び手は失敗 dict と一緒に成功数を必ず渡すこと。
+
+    戻り値: kind (OUTAGE_*), n_ok / n_total / n_timeout / n_connection / n_http_5xx /
+    n_http_4xx / n_other, classes (path→FAIL_*), summary (人向け 1 行。**観測のみを
+    述べ、原因は書かない**)。
 
     判定は「証拠が全て同じ向きを指すとき」だけ結論を出す (Codex P2 2026-09-22):
     api_down は connection / 5xx **のみ**の集合に限る。other や 4xx が 1 本でも
     混ざれば mixed — 「JSON が壊れていた」「401 だった」は停止の証拠ではない。
+    http_blind は「接続は成立したが HTTP 応答が timeout 内に来ない」という観測の
+    名前で、origin プロセスの状態は**含意しない** (モジュール冒頭の注記)。
     """
     classes = {p: classify_fetch_failure(r) for p, r in (reasons or {}).items()}
     n = {k: sum(1 for v in classes.values() if v == k)
          for k in (FAIL_TIMEOUT, FAIL_CONNECTION, FAIL_HTTP_5XX, FAIL_HTTP_4XX, FAIL_OTHER)}
     total = len(classes)
+    n_ok = max(int(n_ok or 0), 0)
     transport_down = n[FAIL_CONNECTION] + n[FAIL_HTTP_5XX]
-    if total == 0 or (n[FAIL_OTHER] == total):
+    if total == 0:
+        kind = OUTAGE_UNKNOWN
+        summary = "失敗なし / 判定対象なし"
+    elif n_ok > 0:
+        kind = OUTAGE_PARTIAL
+        summary = (f"部分失敗 (partial): {total}/{total + n_ok} 本が失敗、{n_ok} 本は応答した = "
+                   "サービスは応答している。失敗は endpoint 固有の異常として扱う "
+                   f"(失敗クラス: {', '.join(f'{p}={c}' for p, c in classes.items())})。"
+                   "cause unknown")
+    elif n[FAIL_OTHER] == total:
         kind = OUTAGE_UNKNOWN
         summary = ("到達不能 (unreachable, cause unknown) — 失敗クラスから輸送層の状態を"
                    "判定できない")
     elif n[FAIL_TIMEOUT] == total:
         kind = OUTAGE_HTTP_BLIND
-        summary = ("HTTP 全盲 (http_blind): TCP 接続は成立するが応答が timeout 内に来ない = "
-                   "プロセスは listen 中、HTTP ハンドラが返ってこない。engine の生死は"
-                   "外部からは不明 (Render ログ [MainLoop] で確認)。cause unknown")
+        summary = ("HTTP 全盲 (http_blind): 接続は成立したが、全 endpoint で HTTP 応答が "
+                   "timeout 内に来ない。公開 URL への観測なので origin プロセスが listen "
+                   "しているか・ハンドラが詰まっているかは**この観測だけでは判定不能** "
+                   "(Render の health check 結果と app ログ [MainLoop] / HEAD 200 で裏取り)。"
+                   "engine の生死も外部からは不明。cause unknown")
     elif transport_down == total:
         kind = OUTAGE_API_DOWN
         summary = ("サービス到達不能 (api_down): 接続拒否 / リセット / edge 5xx のみ = "
-                   "プロセスが serving していない (デプロイ・再起動・停止のいずれか)。"
+                   "origin が応答を返していない (デプロイ・再起動・停止のいずれか)。"
                    "cause unknown")
     elif n[FAIL_HTTP_4XX] == total:
         kind = OUTAGE_HTTP_ERROR
-        summary = ("HTTP 4xx (http_error): 応答はある = プロセスは serving 中。認証・パス・"
+        summary = ("HTTP 4xx (http_error): HTTP 応答は返っている。認証・パス・"
                    "レート制限の問題で、停止の証拠ではない。cause unknown")
     else:
         kind = OUTAGE_MIXED
@@ -240,6 +275,7 @@ def classify_outage(reasons: dict[str, str]) -> dict[str, Any]:
                    "が混在 = 証拠が同じ向きを指していない (遷移中の疑い)。cause unknown")
     return {
         "kind": kind,
+        "n_ok": n_ok,
         "n_total": total,
         "n_timeout": n[FAIL_TIMEOUT],
         "n_connection": n[FAIL_CONNECTION],
@@ -249,6 +285,28 @@ def classify_outage(reasons: dict[str, str]) -> dict[str, Any]:
         "classes": classes,
         "summary": summary,
     }
+
+
+def find_invented_causes(text: str) -> list[str]:
+    """観測から導けない原因語のうち、**肯定的に断定している**ものだけを返す.
+
+    文 (。/./改行 区切り) 単位で見て、同じ文に NEGATION_MARKERS があれば否定文と
+    みなして数えない (Codex P2 2026-09-22: 「free-tier sleep is ruled out」を
+    捏造として脚注していた)。context-free な部分文字列一致より狭く、見逃す側に
+    倒れる — 見逃しは読み手が原因を信じるリスク、誤検出は正しい否定文に
+    「無効」の脚注を付けるリスクで、後者は文書の信頼を直接損なう。
+    """
+    hits: list[str] = []
+    for sentence in re.split(r"(?<=[。．.!?！？])|\n", text or ""):
+        low = sentence.lower()
+        if not low.strip():
+            continue
+        if any(m.lower() in low for m in NEGATION_MARKERS):
+            continue
+        for p in INVENTED_CAUSE_PATTERNS:
+            if p.lower() in low and p not in hits:
+                hits.append(p)
+    return hits
 
 
 def market_open_hours(start: datetime, end: datetime) -> float:

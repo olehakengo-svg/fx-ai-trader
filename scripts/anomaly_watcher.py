@@ -245,7 +245,8 @@ def check_api_reachability(
     # 同じ type に畳むと原因の切り分けが通知から消えるので分ける。
     if len(failed) < total:
         etype = "api_endpoint_failed"
-        outage = _fp.classify_outage(reasons)
+        # 成功数を渡す — 失敗分だけを分類すると 1 本の timeout が「全盲」になる
+        outage = _fp.classify_outage(reasons, n_ok=total - len(failed))
     else:
         # 2026-09-22 (rule:R3): 全滅をさらに 2 つに割る。**全て read-timeout** なら
         # プロセスは listen していて HTTP 層だけが返ってこない (http_blind)。
@@ -253,7 +254,7 @@ def check_api_reachability(
         # 接続拒否 / 5xx は従来どおり api_unreachable (デプロイ / 再起動 / 停止)。
         # 判定は modules/freshness_policy.classify_outage が SSOT (daily_report も
         # 同じ関数を読む) — 閾値の二重定義を禁じた既存方針と同じ理由。
-        outage = _fp.classify_outage(reasons)
+        outage = _fp.classify_outage(reasons, n_ok=0)
         etype = ("http_blind" if outage["kind"] == _fp.OUTAGE_HTTP_BLIND
                  else "api_unreachable")
     return [
@@ -1235,12 +1236,13 @@ def _event_line(e: dict[str, Any]) -> str:
         return (
             f"- 🛑 **HTTP 全盲 (http_blind)**: 監視対象 {e.get('n_watched')} 本すべてが "
             f"**接続成立後の read-timeout** ({e.get('attempts')} 回試行 / "
-            f"{e.get('waited_sec')}s 待機)。= プロセスは listen しているが HTTP ハンドラが"
-            f"返ってこない。**エンジンの生死はこの観測からは不明** (09-22 実例では master 側"
-            f"エンジンが tick し続けていた) — Render ログの [MainLoop] tick を確認。"
-            f"原因は観測から断定できない (cause unknown)。Render は TCP 疎通しか見ないと"
-            f"数時間放置される — healthCheckPath /healthz/http の failing を確認し、"
-            f"継続なら手動 restart。**この間、他の全検知器は盲目である**"
+            f"{e.get('waited_sec')}s 待機)。= HTTP 応答が timeout 内に来ない。公開 URL への"
+            f"観測なので **origin プロセスが listen しているか・ハンドラが詰まっているかは"
+            f"この観測だけでは不明** — Render の health check (/healthz/http) 結果と app ログ"
+            f"の [MainLoop] tick / `HEAD /` 200 で裏取り (09-22 実例では origin は listen し、"
+            f"master 側エンジンが tick し続けていた)。**エンジンの生死も不明**。原因は観測から"
+            f"断定できない (cause unknown)。health check が failing のまま再起動が来なければ"
+            f"手動 restart。**この間、他の全検知器は盲目である**"
         )
     if et == "api_unreachable":
         return (

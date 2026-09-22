@@ -111,7 +111,8 @@ class TestClassifyOutage:
         out = fp.classify_outage({f"/p{i}": "HTTPError: HTTP Error 401: Unauthorized"
                                   for i in range(3)})
         assert out["kind"] == fp.OUTAGE_HTTP_ERROR
-        assert "serving" in out["summary"]
+        assert "応答は返っている" in out["summary"]
+        assert "停止の証拠ではない" in out["summary"]
 
     def test_5xx_plus_4xx_is_mixed(self):
         out = fp.classify_outage({"/a": H502, "/b": "HTTPError: HTTP Error 404: Not Found"})
@@ -123,6 +124,42 @@ class TestClassifyOutage:
 
     def test_empty_is_unknown(self):
         assert fp.classify_outage({})["kind"] == fp.OUTAGE_UNKNOWN
+
+    def test_partial_failure_is_partial_even_if_all_failures_are_timeouts(self):
+        """Codex P2 (2026-09-22): 失敗分だけを分類すると 1 本の timeout が「HTTP 全盲」に
+        なった。成功が 1 本でもあれば母集団はサービス全体で、結論は endpoint 固有。"""
+        out = fp.classify_outage({"/a": RT}, n_ok=4)
+        assert out["kind"] == fp.OUTAGE_PARTIAL
+        assert out["n_ok"] == 4
+        assert "全盲" not in out["summary"] and "応答している" in out["summary"]
+
+    def test_http_blind_summary_does_not_claim_origin_is_listening(self):
+        """Codex P2 (2026-09-22): 公開 URL への read-timeout は edge までの接続しか証明しない。
+        「プロセスは listen 中」を観測の要約として書かない。"""
+        s = fp.classify_outage({f"/p{i}": RT for i in range(3)})["summary"]
+        assert "判定不能" in s and "裏取り" in s
+        # 断定形 (「プロセスは listen 中」「= listen している」) を書かない。
+        # 「listen しているか…判定不能」という疑問形は許す。
+        assert "プロセスは listen 中" not in s and "= プロセスは listen" not in s
+        assert "listen している。" not in s
+
+
+class TestFindInventedCauses:
+    def test_affirmative_claim_is_flagged(self):
+        assert fp.find_invented_causes("Render側のコールドスタート（無料tier特有のスリープ）が原因。") \
+            == ["無料tier", "スリープ", "コールドスタート"]
+
+    def test_negation_is_not_flagged(self):
+        """Codex P2 (2026-09-22): 「free-tier sleep is ruled out」を捏造として脚注していた。"""
+        assert fp.find_invented_causes("Free-tier sleep is ruled out (Pro plan).") == []
+        assert fp.find_invented_causes("これは無料 tier のスリープではない。") == []
+
+    def test_unrelated_english_word_is_not_flagged(self):
+        assert fp.find_invented_causes("time.sleep(60) の間隔でポーリングする。") == []
+
+    def test_mixed_sentences_flag_only_the_affirmative_one(self):
+        text = "スリープではない。\n一方でコールドスタートが原因である。"
+        assert fp.find_invented_causes(text) == ["コールドスタート"]
 
     def test_human_text_is_provided_and_does_not_invent_causes(self):
         """読み手 (LLM / 人) に渡す文言は「何が観測されたか」だけを述べる。
@@ -170,6 +207,8 @@ class TestHttpBlindEvent:
         outcomes["/api/demo/status"] = _fail("/api/demo/status", RT)
         ev = aw.check_api_reachability(outcomes)
         assert ev[0]["type"] == "api_endpoint_failed"
+        # payload の種別も「部分」であって「全盲」ではない (成功数を渡している)
+        assert ev[0]["outage_kind"] == fp.OUTAGE_PARTIAL
 
     def test_http_blind_notifies_hourly_and_is_not_silenced(self):
         assert "http_blind" not in aw.NOTIFY_NEVER
@@ -185,6 +224,8 @@ class TestHttpBlindEvent:
         assert "HTTP" in line and "MainLoop" in line
         assert "engine" in line.lower() or "エンジン" in line
         assert "不明" in line
+        # origin の状態を観測から断定しない (Codex P2)
+        assert "= プロセスは listen" not in line
         for banned in fp.INVENTED_CAUSE_PATTERNS:
             assert banned not in line
         assert not line.startswith("- http_blind: {")

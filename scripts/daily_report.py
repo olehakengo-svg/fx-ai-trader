@@ -254,7 +254,9 @@ def preprocess_fetch_status(results: dict[str, FetchResult]) -> str:
         *rows,
     ]
     if failed:
-        outage = _fp.classify_outage({k: r.error for k, r in failed.items()})
+        # 成功数を渡す — 失敗分だけを分類すると 1 本の timeout が「全盲」と要約される
+        # (Codex P2 2026-09-22)。部分失敗は「サービスは応答している」と書く。
+        outage = _fp.classify_outage({k: r.error for k, r in failed.items()}, n_ok=n_ok)
         lines.append("")
         lines.append(f"\u89b3\u6e2c\u306e\u8981\u7d04: {outage['summary']}")
         lines.append("")
@@ -268,9 +270,12 @@ def preprocess_fetch_status(results: dict[str, FetchResult]) -> str:
 
 
 def flag_invented_causes(report: str) -> list[str]:
-    """LLM \u51fa\u529b\u306b\u300c\u89b3\u6e2c\u304b\u3089\u5c0e\u3051\u306a\u3044\u539f\u56e0\u300d\u306e\u8a9e\u304c\u542b\u307e\u308c\u308b\u304b\u3092\u691c\u67fb\u3059\u308b\u3002"""
-    low = (report or "").lower()
-    return [p for p in _fp.INVENTED_CAUSE_PATTERNS if p.lower() in low]
+    """LLM 出力に「観測から導けない原因」の**肯定的な断定**が含まれるかを検査する。
+
+    否定文 (「スリープではない」「ruled out」) は数えない — 判定は
+    freshness_policy.find_invented_causes (SSOT)。
+    """
+    return _fp.find_invented_causes(report or "")
 
 
 def finalize_llm_report(report: str, n_failed: int, label: str) -> str:
@@ -280,10 +285,15 @@ def finalize_llm_report(report: str, n_failed: int, label: str) -> str:
     非対称 (Codex P2 2026-09-22: 当初 analyst_report だけを検査し、その本文を入力に
     受け取る strategy planner が同じ捏造を再生産できた) を構造的に塞ぐ。
     """
+    # ガードは **fetch 失敗があったときだけ**掛ける (Codex P2 2026-09-22): 失敗ゼロの
+    # レポートに原因語があっても「0 本の失敗を unreachable と書け」という脚注は
+    # 意味を持たない。守る対象は「取得失敗の原因」の記述であって語彙一般ではない。
+    if n_failed <= 0:
+        return report
     hits = flag_invented_causes(report)
     if not hits:
         return report
-    print(f"  ⚠️  [{label}] 原因の捘造を検出: {hits} "
+    print(f"  ⚠️  [{label}] 原因の捏造を検出: {hits} "
           f"— 生成器注記で訂正", file=sys.stderr)
     return append_generator_correction(report, hits, n_failed)
 
@@ -1159,7 +1169,8 @@ def main() -> int:
     data = {k: r.payload for k, r in fetch_results.items()}
     failed = [k for k, r in fetch_results.items() if not r.ok]
     if failed:
-        outage = _fp.classify_outage({k: fetch_results[k].error for k in failed})
+        outage = _fp.classify_outage({k: fetch_results[k].error for k in failed},
+                                     n_ok=len(fetch_results) - len(failed))
         print(f"  \u26a0\ufe0f  \u53d6\u5f97\u5931\u6557: {', '.join(failed)} "
               f"(outage_kind={outage['kind']}) \u2014 {outage['summary']}")
 
