@@ -484,7 +484,33 @@ def verify_record(sha_path: str, root: str = "") -> Dict[str, Any]:
                            for rel in entries}
             if os.path.abspath(man_path) not in abs_entries:
                 res["marker"] = "MANIFEST_ENTRY_MISSING"
-    res["ok"] = bool(ok and res["manifest"] == "OK" and res["marker"] == "OK")
+    # attempts 台帳: chain が有効で、manifest の snapshot (= marker で認証) がその prefix であること
+    att_path = re.sub(r"\.sha256$", ".attempts.json", sha_path)
+    man_attempts = man.get("attempts") if isinstance(man.get("attempts"), list) else None
+    res["attempts_after_freeze"] = 0
+    if not man:
+        res["attempts"] = "UNANCHORED"          # manifest 不在 (上で FAIL 済み)
+    elif man_attempts is None:
+        res["attempts"] = "UNANCHORED"
+    elif not os.path.exists(att_path):
+        res["attempts"] = "MISSING"
+    else:
+        try:
+            with open(att_path, encoding="utf-8") as f:
+                ledger = json.load(f).get("attempts") or []
+        except (OSError, ValueError):
+            ledger = None
+        if ledger is None or not verify_attempts_chain(ledger):
+            res["attempts"] = "CHAIN_BROKEN"
+        elif (len(ledger) < len(man_attempts)
+              or any(a.get("entry_hash") != b.get("entry_hash")
+                     for a, b in zip(ledger, man_attempts))):
+            res["attempts"] = "PREFIX_MISMATCH"
+        else:
+            res["attempts"] = "OK"
+            res["attempts_after_freeze"] = len(ledger) - len(man_attempts)
+    res["ok"] = bool(ok and res["manifest"] == "OK" and res["marker"] == "OK"
+                     and res["attempts"] == "OK")
     return res
 
 
@@ -637,9 +663,23 @@ def check_ohlcv_coverage(src_dir: str, cutoff: datetime,
         if not os.path.exists(fp):
             out[pair] = {"ok": False, "reason": "missing"}
             continue
-        idx = pd.DatetimeIndex(pd.read_parquet(fp, columns=[]).index)
-        idx = idx.tz_localize("UTC") if idx.tz is None else idx.tz_convert("UTC")
-        complete = idx[(idx + pd.Timedelta(seconds=BAR_SEC)) <= cutoff_ts]
+        idx_all = pd.DatetimeIndex(pd.read_parquet(fp, columns=[]).index)
+        idx_all = idx_all.tz_localize("UTC") if idx_all.tz is None else idx_all.tz_convert("UTC")
+        complete_all = idx_all[(idx_all + pd.Timedelta(seconds=BAR_SEC)) <= cutoff_ts]
+        ep_complete = [int(t) for t in ((complete_all - pd.Timestamp(0, tz="UTC"))
+                                        // pd.Timedelta(seconds=1)).tolist()]
+        grid_ok = _on_grid_market_mask(ep_complete)
+        extra = sorted(t for t, ok_ in zip(ep_complete, grid_ok) if not ok_)
+        if drop_extra:
+            # スライスで落とす行を除いた「実効 index」で端点・欠落を測る (末尾の余分な行で
+            # lag が負になって bar_after_expected_last に化けないように)
+            import numpy as _np
+            idx = idx_all[_np.asarray(_on_grid_market_mask(
+                [int(t) for t in ((idx_all - pd.Timestamp(0, tz="UTC"))
+                                  // pd.Timedelta(seconds=1)).tolist()]), dtype=bool)]
+            complete = complete_all[_np.asarray(grid_ok, dtype=bool)]
+        else:
+            idx, complete = idx_all, complete_all
         first = idx.min().to_pydatetime() if len(idx) else None
         last_c = complete.max().to_pydatetime() if len(complete) else None
         lag = None if last_c is None else int(round((exp_last - last_c).total_seconds() / BAR_SEC))
@@ -650,10 +690,10 @@ def check_ohlcv_coverage(src_dir: str, cutoff: datetime,
             reasons.append("stale_tail")
         if lag is not None and lag < 0:
             reasons.append("bar_after_expected_last")   # cutoff 後 open の bar が「完結」扱い = 規約違反
-        n_dup = int(idx.duplicated().sum())
+        n_dup = int(idx_all.duplicated().sum())
         if n_dup:
             reasons.append("duplicate_timestamps")
-        if len(idx) > 1 and not idx.is_monotonic_increasing:
+        if len(idx_all) > 1 and not idx_all.is_monotonic_increasing:
             reasons.append("unsorted")
         have = set(((idx - pd.Timestamp(0, tz="UTC")) // pd.Timedelta(seconds=1)).tolist())
         tail_ep = int(last_c.timestamp()) if last_c is not None else None
@@ -669,15 +709,13 @@ def check_ohlcv_coverage(src_dir: str, cutoff: datetime,
             prev = t
         if len(missing) > max_gap_bars:
             reasons.append("interior_gaps")
-        in_range = sorted(t for t in have if tail_ep is None or t <= tail_ep)
-        extra = [t for t, ok_ in zip(in_range, _on_grid_market_mask(in_range)) if not ok_]
         if extra and not drop_extra:
             reasons.append("extra_off_grid_or_closed_bars")
         out[pair] = {"ok": not reasons, "reason": ",".join(reasons) if reasons else None,
                      "first_bar_open": iso_sec(first) if first else None,
                      "last_complete_bar_open": iso_sec(last_c) if last_c else None,
                      "expected_last_bar_open": iso_sec(exp_last), "lag_bars": lag,
-                     "rows": int(len(idx)), "duplicates": n_dup,
+                     "rows": int(len(idx_all)), "duplicates": n_dup,
                      "expected_market_slots": len(slots), "gap_bars": len(missing),
                      "gap_runs": runs, "gap_max_run_bars": max_run,
                      "gap_first": iso_sec(datetime.fromtimestamp(missing[0], tz=timezone.utc))
@@ -777,7 +815,49 @@ def _load_json(path: str) -> Any:
         return json.load(f)
 
 
+_CHAIN_GENESIS = "0" * 64
+
+
+def _attempt_hash(entry: Dict[str, Any], prev_hash: str) -> str:
+    body = {k: v for k, v in entry.items() if k not in ("entry_hash", "prev_hash")}
+    blob = json.dumps(body, sort_keys=True, ensure_ascii=False, default=str,
+                      separators=(",", ":"))
+    return hashlib.sha256((prev_hash + "\n" + blob).encode("utf-8")).hexdigest()
+
+
+def chain_attempts(attempts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """attempt 台帳を append-only hash chain にする (entry_hash = H(prev_hash ‖ canonical(entry)))。
+
+    最後のエントリ以外は不変 — 既に hash を持つ先行エントリが再計算と一致しなければ raise
+    (台帳の改変を書込み時点で fail-loud)。最後のエントリは in_progress → failed/frozen と
+    更新されるので毎回再計算する。manifest には凍結時点の chain (entry_hash 込み) を snapshot
+    し、manifest は marker の sha256 に載る = chain の anchor。凍結後の試行 (--force 失敗等) は
+    anchor に連なるので、改変は `--verify` で CHAIN_BROKEN / PREFIX_MISMATCH として検出される。
+    末尾エントリの丸ごと削除だけは hash では検出できない — 台帳は raw/bt-results に commit し
+    git 履歴を外部 anchor とする (手順書 §3)。
+    """
+    prev = _CHAIN_GENESIS
+    for i, e in enumerate(attempts):
+        h = _attempt_hash(e, prev)
+        if i < len(attempts) - 1 and e.get("entry_hash") and e["entry_hash"] != h:
+            raise RuntimeError(f"attempt 台帳の先行エントリ {i} が改変されている (hash 不一致)")
+        e["prev_hash"] = prev
+        e["entry_hash"] = h
+        prev = h
+    return attempts
+
+
+def verify_attempts_chain(attempts: List[Dict[str, Any]]) -> bool:
+    prev = _CHAIN_GENESIS
+    for e in attempts:
+        if e.get("prev_hash") != prev or e.get("entry_hash") != _attempt_hash(e, prev):
+            return False
+        prev = e["entry_hash"]
+    return True
+
+
 def _journal_write(paths: Dict[str, str], journal: Dict[str, Any]) -> None:
+    chain_attempts(journal["attempts"])
     write_json_atomic(paths["attempts"], journal)
 
 
@@ -1053,7 +1133,8 @@ def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_b
         attempt.update({"status": "frozen", "finished_at": iso_sec(utc_now()),
                         "snapshots_rows": snap_sum["rows_total"], "health_rows": len(health),
                         "artifact_sha256": entries[relpath_for_record(paths["artifact"], root)]})
-        manifest["attempts"] = journal["attempts"]
+        manifest["attempts"] = json.loads(json.dumps(chain_attempts(journal["attempts"]),
+                                                     default=str))   # 凍結時点の chain snapshot
         man_staging = paths["manifest"] + ".staging"
         write_json_atomic(man_staging, manifest)
         _swap_in(man_staging, paths["manifest"])            # manifest が先
@@ -1222,6 +1303,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                   f"{'OK' if rt['ok'] else 'FAIL'} (snapshots {rt['snapshots_rows']},"
                   f" health {rt['health_rows']}); manifest {res['manifest']}")
         print(f"  marker: {res['marker']}")
+        print(f"  attempts ledger: {res.get('attempts')} (attempts after freeze:"
+              f" {res.get('attempts_after_freeze')} — 0 でなければ verdict に理由を併記)")
         print(f"verify: {'OK' if res['ok'] else 'FAIL'} ({res['n']} files)")
         return EXIT_OK if res["ok"] else EXIT_FAIL
 

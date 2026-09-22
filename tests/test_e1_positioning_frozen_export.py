@@ -943,6 +943,28 @@ class TestOhlcvSlice:
                    for e in sliced["ep"])
         assert "of which extra 2" in out and not FLOAT_RE.search(out)
 
+    def test_drop_extra_derives_tail_from_filtered_index(self, tmp_path):
+        """P2 (7 巡目): 期待末尾 06:15 が在り、off-grid 06:16 (cutoff 前に完結) が余分にある parquet —
+        drop なしは extra + bar_after_expected_last で FAIL、drop 明示なら lag 0 で OK。"""
+        import pandas as pd
+        src = tmp_path / "src"
+        full = _write_full_parquets(str(src))
+        extra = pd.DatetimeIndex([pd.Timestamp("2026-10-08T06:16:00Z")])
+        assert extra[0] + pd.Timedelta(seconds=900) <= pd.Timestamp(CUTOFF1)
+        pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 1.0},
+                     index=full.append(extra).sort_values()).to_parquet(src / "USD_JPY_15m.parquet")
+        c = fx.check_ohlcv_coverage(str(src), CUTOFF1)["USD_JPY"]
+        assert not c["ok"] and "extra_off_grid_or_closed_bars" in c["reason"]
+        # drop なしでは末尾が余分な 06:16 行から導かれる (15m 丸めで lag は 0 に見える)
+        assert c["last_complete_bar_open"] == "2026-10-08T06:16:00Z"
+        c2 = fx.check_ohlcv_coverage(str(src), CUTOFF1, drop_extra=True)["USD_JPY"]
+        assert c2["ok"] and c2["lag_bars"] == 0 and c2["extra_bars"] == 1
+        assert c2["last_complete_bar_open"] == "2026-10-08T06:15:00Z"
+        assert c2["extra_first"] == "2026-10-08T06:16:00Z" and c2["gap_bars"] == 0
+        meta = fx.slice_ohlcv(str(src), str(tmp_path / "dst"), CUTOFF1, drop_extra=True)
+        assert meta["USD_JPY"]["rows_dropped_extra"] == 1
+        assert meta["USD_JPY"]["last_bar_open"] == "2026-10-08T06:15:00Z"
+
     def test_preflight_only_cli_touches_nothing(self, tmp_path, capsys, monkeypatch):
         src = tmp_path / "src"
         _write_full_parquets(str(src))
@@ -1040,6 +1062,60 @@ class TestVerify:
         fx.write_sha256_record(paths["sha256"], rec)
         res = fx.verify_record(paths["sha256"], root="/")
         assert not res["ok"] and res["marker"] == "MANIFEST_ENTRY_MISSING"
+
+    def test_attempts_ledger_is_hash_chained_and_anchored_by_manifest(self, tmp_path, monkeypatch):
+        """P2 (7 巡目): 台帳は append-only hash chain、manifest (marker で認証) がその prefix。
+        凍結後の --force 失敗試行は verify で attempts_after_freeze として見え、改変は FAIL。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_OK
+        j = json.load(open(paths["attempts"]))
+        assert fx.verify_attempts_chain(j["attempts"]) and len(j["attempts"]) == 1
+        assert j["attempts"][0]["prev_hash"] == "0" * 64
+        man = json.load(open(paths["manifest"]))
+        assert man["attempts"][0]["entry_hash"] == j["attempts"][0]["entry_hash"]
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert res["ok"] and res["attempts"] == "OK" and res["attempts_after_freeze"] == 0
+        # 凍結後に --force で本番へ問い合わせ、roundtrip で失敗 → 台帳だけ伸びる
+        real_write = fx.write_json_atomic
+
+        def lossy_write(path, obj):
+            if isinstance(obj, dict) and "snapshots" in obj:
+                obj = dict(obj, snapshots=obj["snapshots"][:-1])
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", lossy_write)
+        rc2, _, _ = _run(tmp_path, api, force=True)
+        monkeypatch.setattr(fx, "write_json_atomic", real_write)
+        assert rc2 == fx.EXIT_FAIL
+        j = json.load(open(paths["attempts"]))
+        assert [a["status"] for a in j["attempts"]] == ["frozen", "failed"]
+        assert fx.verify_attempts_chain(j["attempts"])
+        assert j["attempts"][1]["prev_hash"] == j["attempts"][0]["entry_hash"]
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert res["ok"] and res["attempts"] == "OK" and res["attempts_after_freeze"] == 1
+        # 台帳の後続エントリを改変 (api_queried を偽装) → CHAIN_BROKEN
+        j2 = json.loads(json.dumps(j))
+        j2["attempts"][1]["api_queried"] = False
+        json.dump(j2, open(paths["attempts"], "w"))
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["attempts"] == "CHAIN_BROKEN"
+        assert fx.main(["--verify", paths["sha256"]]) == fx.EXIT_FAIL
+        # 台帳を manifest snapshot と別内容の 1 件に差し替え → PREFIX_MISMATCH
+        fake = {"attempts": fx.chain_attempts([dict(j["attempts"][0], started_at="1999-01-01T00:00:00Z",
+                                                   entry_hash=None, prev_hash=None)])}
+        json.dump(fake, open(paths["attempts"], "w"))
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["attempts"] == "PREFIX_MISMATCH"
+        # 台帳消失 → MISSING
+        os.remove(paths["attempts"])
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["attempts"] == "MISSING"
+        # 書込み時の不変性ガード: 先行エントリを書き換えた journal は _journal_write が拒否
+        bad = json.loads(json.dumps(j))
+        bad["attempts"][0]["force"] = True
+        with pytest.raises(RuntimeError, match="改変"):
+            fx._journal_write(paths, bad)
 
     def test_verify_rejects_empty_or_incomplete_marker(self, tmp_path):
         """P2 (3 巡目): 0 byte marker / artifact エントリ欠落 / manifest 宣言 parquet 欠落は FAIL。"""
