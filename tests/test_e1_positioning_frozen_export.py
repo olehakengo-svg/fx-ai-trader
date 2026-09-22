@@ -226,6 +226,28 @@ class TestFetch:
         assert all(len(ver[i]) == 4 for i in fx.INSTRUMENTS)
         assert len(cyc) == 5
 
+    def test_export_starts_at_prereg_t0_and_drops_pre_t0_rows(self):
+        """P2 (5 巡目): 初回ページの from= は t0 (秒精度 prefix)、pre-t0 の outlook 行は panel に入れない。"""
+        snaps, health = make_world(n_per_inst=5, n_after_cutoff=0)
+        t0 = fx.parse_utc(fx.T0_ISO)
+        pre = [dict(snaps[0], snapshot_time=_iso_us(t0 - timedelta(minutes=20 * k)))
+               for k in range(1, 4)]                     # 歴史 outlook 行 (t0 前)
+        api = FakeApi(pre + snaps, health)
+        led = {}
+        rows = fx.fetch_snapshots(api, "USD_JPY", CUTOFF1, ledger=led)
+        assert api.calls[0]["from"] == "2026-07-16T06:33:31"          # Z なし prefix
+        assert len(rows) == 5 and all(fx.parse_utc(r["snapshot_time"]) >= t0 for r in rows)
+        assert any(fx.parse_utc(r["snapshot_time"]) == t0 for r in rows)  # t0 の行そのものは入る
+        assert led["from_first"] == "2026-07-16T06:33:31"
+        # サーバが from= を無視しても行単位で落ちる
+        ignoring = lambda path, params: api(path, {k: v for k, v in params.items() if k != "from"})
+        led2 = {}
+        rows2 = fx.fetch_snapshots(ignoring, "USD_JPY", CUTOFF1, ledger=led2)
+        assert len(rows2) == 5 and led2["rows_before_t0"] >= 3     # ページ毎に再カウント (恒等式が主張)
+        assert all(fx.parse_utc(r["snapshot_time"]) >= t0 for r in rows2)
+        assert led2["rows_returned"] == led2["rows_kept"] + led2["rows_dedup"] + \
+            led2["rows_beyond_cutoff"] + led2["rows_before_t0"]
+
     def test_server_side_limit_rounding_does_not_truncate(self):
         """サーバが limit を要求より小さく丸めても (page_limit 未満の返却)、
         snapshots / health とも全行を取り切る (§2.5-5(b) 切詰め封鎖)。"""
@@ -823,6 +845,100 @@ class TestOhlcvSlice:
         rc2, _, _ = _run(tmp_path / "o2", api2, ohlcv_src=str(src2), ohlcv_dst=str(tmp_path / "d2"))
         assert rc2 == fx.EXIT_FAIL and api2.calls == []
         assert "start_too_late" in capsys.readouterr().err
+
+    def test_preflight_rejects_interior_gaps_duplicates_unsorted(self, tmp_path, capsys):
+        """P1 (5 巡目): 端点が正しくても内部の市場時間欠落 / 重複 / 非単調は API 要求前に exit 2。
+        週末 (市場閉場) の不在は欠落に数えない。"""
+        import pandas as pd
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        src = tmp_path / "src"; dst = tmp_path / "dst"
+        full = _write_full_parquets(str(src))
+        # 市場閉場スロットを落とした「現実的」parquet → gap 0
+        open_mask = np.array([ev.is_market_open(t) for t in full.to_pydatetime()])
+        realistic = full[open_mask]
+        px = 100.0 + np.arange(len(realistic)) * 0.001
+        for pair in fx.INSTRUMENTS:
+            pd.DataFrame({"Open": px, "High": px, "Low": px, "Close": px}, index=realistic
+                         ).to_parquet(src / f"{pair}_15m.parquet")
+        cov = fx.check_ohlcv_coverage(str(src), CUTOFF1)
+        assert all(c["ok"] for c in cov.values())
+        assert cov["USD_JPY"]["gap_bars"] == 0 and cov["USD_JPY"]["expected_market_slots"] > 5000
+        t0_floor = datetime.fromtimestamp(int(fx.parse_utc(fx.T0_ISO).timestamp()) // 900 * 900,
+                                          tz=timezone.utc)                     # 06:30:00Z
+        assert cov["USD_JPY"]["expected_market_slots"] == len(
+            [t for t in realistic.to_pydatetime()
+             if t0_floor <= t <= fx.expected_last_bar_open(CUTOFF1)])
+        # 内部 2 本 (市場時間、10-01 火曜 10:00/10:15) を抜く → interior_gaps
+        gap_at = [pd.Timestamp("2026-10-01T10:00:00Z"), pd.Timestamp("2026-10-01T10:15:00Z")]
+        gapped = realistic[~realistic.isin(gap_at)]
+        assert len(gapped) == len(realistic) - 2
+        pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 1.0}, index=gapped
+                     ).to_parquet(src / "EUR_GBP_15m.parquet")
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api, ohlcv_src=str(src), ohlcv_dst=str(dst))
+        err = capsys.readouterr().err
+        assert rc == fx.EXIT_FAIL and api.calls == []
+        assert "EUR_GBP" in err and "interior_gaps" in err and "gaps 2 bars" in err
+        assert fx.OHLCV_REFRESH_CMD in err
+        c = fx.check_ohlcv_coverage(str(src), CUTOFF1)["EUR_GBP"]
+        assert (c["gap_bars"], c["gap_runs"], c["gap_max_run_bars"]) == (2, 1, 2)
+        assert c["gap_first"] == "2026-10-01T10:00:00Z"
+        # 明示許容で通り、manifest に閾値と欠落統計が残る
+        rc, paths, _ = _run(tmp_path, api, ohlcv_src=str(src), ohlcv_dst=str(dst),
+                            ohlcv_max_gap_bars=2)
+        assert rc == fx.EXIT_OK
+        man = json.load(open(paths["manifest"]))
+        assert man["ohlcv_max_gap_bars"] == 2 and man["ohlcv_coverage"]["EUR_GBP"]["gap_bars"] == 2
+        # 重複 / 非単調
+        dup = realistic.append(realistic[100:101])
+        pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 1.0}, index=dup
+                     ).to_parquet(src / "EUR_GBP_15m.parquet")
+        c = fx.check_ohlcv_coverage(str(src), CUTOFF1)["EUR_GBP"]
+        assert not c["ok"] and "duplicate_timestamps" in c["reason"] and c["duplicates"] == 1
+        shuffled = realistic[list(range(1, len(realistic))) + [0]]
+        pd.DataFrame({"Open": 1.0, "High": 1.0, "Low": 1.0, "Close": 1.0}, index=shuffled
+                     ).to_parquet(src / "EUR_GBP_15m.parquet")
+        c = fx.check_ohlcv_coverage(str(src), CUTOFF1)["EUR_GBP"]
+        assert not c["ok"] and "unsorted" in c["reason"]
+
+    def test_preflight_only_cli_touches_nothing(self, tmp_path, capsys, monkeypatch):
+        src = tmp_path / "src"
+        _write_full_parquets(str(src))
+        monkeypatch.setattr(fx, "http_fetcher", lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("API fetcher must not be constructed")))
+        rc = fx.main(["--preflight-only", "--ohlcv-src", str(src), "--out-dir", str(tmp_path / "o")])
+        cap = capsys.readouterr()
+        assert rc == fx.EXIT_OK
+        assert "13/13 pair OK" in cap.out and "expected last bar 2026-10-08T06:15:00Z" in cap.out
+        assert not FLOAT_RE.search(cap.out + cap.err), cap.out
+        assert not (tmp_path / "o").exists()
+        assert sorted(os.listdir(tmp_path)) == ["src"]
+        # postponed cutoff (11-05) に対しては 10-08 までの parquet は全 pair stale_tail
+        rc = fx.main(["--preflight-only", "--ohlcv-src", str(src), "--look", "1", "--postponed"])
+        cap = capsys.readouterr()
+        assert rc == fx.EXIT_FAIL and "0/13 pair OK" in cap.out
+        assert "expected last bar 2026-11-05T06:15:00Z" in cap.out    # postponed cutoff
+        assert cap.out.count("stale_tail") == 13
+        # 1 pair 欠落 → 12/13、missing と表示
+        os.remove(src / "NZD_JPY_15m.parquet")
+        rc = fx.main(["--preflight-only", "--ohlcv-src", str(src)])
+        cap = capsys.readouterr()
+        assert rc == fx.EXIT_FAIL and "12/13 pair OK (missing 1)" in cap.out
+        assert "FAIL NZD_JPY" in cap.out and "<- missing" in cap.out
+
+    def test_runbook_refresh_command_lists_all_13_pairs(self):
+        """P1 (5 巡目、docs): bt_data_cache.py の既定 PAIRS は 6 pair — 手順書の refresh コマンドは
+        tool の OHLCV_REFRESH_CMD と同一文字列 (13 pair 明示) であること。"""
+        from tools import bt_data_cache as bdc
+        assert len(bdc.PAIRS) < len(fx.INSTRUMENTS)          # 既定では足りない (前提の pin)
+        assert set(bdc.PAIRS) <= set(fx.INSTRUMENTS)
+        assert all(p in fx.OHLCV_REFRESH_CMD for p in fx.INSTRUMENTS)
+        rb = os.path.join(fx.repo_root(), "knowledge-base", "wiki", "decisions",
+                          "e1-first-look-runbook-2026-09-22.md")
+        text = open(rb, encoding="utf-8").read()
+        assert fx.OHLCV_REFRESH_CMD in text
+        assert "python3 tools/bt_data_cache.py refresh 15m\n" not in text   # 6 pair 版の残置なし
+        assert "refresh 15m`" not in text
 
     def test_expected_last_bar_open_for_fixed_cutoffs(self):
         """3 つの固定 cutoff (10-08 / 11-05 / 12-30、06:33:31Z、平日場中) の期待末尾 bar = 06:15。"""

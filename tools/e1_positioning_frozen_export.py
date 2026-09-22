@@ -97,6 +97,9 @@ API_PAGE_LIMIT = 20000          # app.py /api/positioning/export の上限
 MAX_PAGES = 200                 # 無限ループ保険 (13 × 20000 行 ≫ 想定)
 BAR_SEC = 900                   # M15 完結 = open + 900s ≤ cutoff (判定器と同一)
 OHLCV_REQUIRED_START_ISO = T0_ISO   # parquet は t0 以前から始まること (§2.5-4 当日レンジ sanity 等)
+# 13 pair を明示した refresh コマンド (bt_data_cache.py の既定 PAIRS は 6 pair のみ — 手順書と
+# preflight メッセージはこの 1 行を使う。tests が手順書の同一性を pin)
+OHLCV_REFRESH_CMD = ("python3 tools/bt_data_cache.py refresh 15m " + ",".join(INSTRUMENTS))
 
 EXIT_OK, EXIT_FAIL, EXIT_REFUSED_FROZEN = 0, 2, 3
 
@@ -225,14 +228,16 @@ def fetch_snapshots(fetcher: Fetcher, instrument: str, cutoff: datetime,
     """
     out: List[Dict[str, Any]] = []
     seen: set = set()
-    since = ""
+    t0 = parse_utc(T0_ISO)
+    # 下限 = pre-reg t0 (付録 A)。API は文字列比較 (`snapshot_time >= ?`、RFC3339 prefix 可) なので
+    # 秒精度 prefix ("…06:33:31"、Z なし) を渡す — 保存形式が "…31Z" でも "…31.000Z" でも t0 の
+    # 行を落とさない。pre-t0 行は行単位でも防御的に落とす (rows_before_t0)。
+    since = T0_ISO.rstrip("Z")
     led = {"pages": 0, "rows_returned": 0, "rows_kept": 0,
-           "rows_dedup": 0, "rows_beyond_cutoff": 0}
+           "rows_dedup": 0, "rows_beyond_cutoff": 0, "rows_before_t0": 0, "from_first": since}
     for _ in range(MAX_PAGES):
         params: Dict[str, Any] = {"instrument": instrument, "book": BOOK_TYPE,
-                                  "limit": page_limit}
-        if since:
-            params["from"] = since
+                                  "limit": page_limit, "from": since}
         data = fetcher("/api/positioning/export", params)
         rows = data.get("rows") or []
         led["pages"] += 1
@@ -244,10 +249,14 @@ def fetch_snapshots(fetcher: Fetcher, instrument: str, cutoff: datetime,
             ts = r.get("snapshot_time")
             if ts is None:
                 raise RuntimeError(f"{instrument}: row without snapshot_time")
-            if parse_utc(ts) > cutoff:
+            t = parse_utc(ts)
+            if t > cutoff:
                 reached_cutoff = True
                 led["rows_beyond_cutoff"] += len(rows) - i
                 break
+            if t < t0:                  # サーバが from= を無視しても防御的に落とす
+                led["rows_before_t0"] += 1
+                continue
             key = (r.get("instrument"), r.get("book_type"), str(ts))
             last_ts = str(ts)
             if key in seen:
@@ -535,7 +544,8 @@ def roundtrip_check(api_snapshots: Sequence[Dict[str, Any]],
     if fetch_ledger:
         for inst, led in fetch_ledger.items():
             if led.get("rows_returned") != (led.get("rows_kept", 0) + led.get("rows_dedup", 0)
-                                            + led.get("rows_beyond_cutoff", 0)):
+                                            + led.get("rows_beyond_cutoff", 0)
+                                            + led.get("rows_before_t0", 0)):
                 ledger_ok = False
     ok = (snap["api_rows"] == snap["artifact_rows"] and snap["keys_match"]
           and snap["digest_match"] and hl["api_rows"] == hl["artifact_rows"]
@@ -583,19 +593,34 @@ def expected_last_bar_open(cutoff: datetime) -> datetime:
     raise RuntimeError("expected_last_bar_open: 市場時間の bar が見つからない")
 
 
+def expected_market_slots(start: datetime, end: datetime) -> List[int]:
+    """[start, end] の 15m 境界 open (epoch 秒) のうち市場時間内のもの (判定器 is_market_open)。"""
+    t0 = int(start.timestamp()) // BAR_SEC * BAR_SEC
+    t1 = int(end.timestamp()) // BAR_SEC * BAR_SEC
+    return [t for t in range(t0, t1 + 1, BAR_SEC)
+            if _is_market_open(datetime.fromtimestamp(t, tz=timezone.utc))]
+
+
 def check_ohlcv_coverage(src_dir: str, cutoff: datetime,
                          required_start: Optional[datetime] = None,
-                         max_lag_bars: int = 0,
+                         max_lag_bars: int = 0, max_gap_bars: int = 0,
                          pairs: Sequence[str] = INSTRUMENTS) -> Dict[str, Dict[str, Any]]:
     """全 pair の parquet index (値は読まない) が要求範囲を覆うか (API 要求前 preflight)。
 
-    ok ⇔ first bar open ≤ required_start ∧ (expected_last − last_complete) / 900 ≤ max_lag_bars。
-    stale / 部分取得の parquet が sha256 付き凍結に化ける経路を塞ぐ (§2.5-1 fail-loud)。
+    ok ⇔ first bar open ≤ required_start
+        ∧ (expected_last − last_complete) / 900 ≤ max_lag_bars
+        ∧ index が一意・単調増加
+        ∧ [required_start, min(expected_last, last_complete)] の市場時間 15m スロットの
+          内部欠落本数 ≤ max_gap_bars (末尾の遅れは lag として別計上)。
+    判定器は horizon を配列位置で進める (h_bars 番目の bar) ため内部の欠落は forward return /
+    ATR を静かに変える — stale / 部分取得 / 欠落 parquet が sha256 付き凍結に化ける経路を塞ぐ
+    (§2.5-1 fail-loud)。欠落を許容するなら明示閾値を manifest に残す。
     """
     import pandas as pd
     required_start = required_start or parse_utc(OHLCV_REQUIRED_START_ISO)
     exp_last = expected_last_bar_open(cutoff)
     cutoff_ts = pd.Timestamp(cutoff)
+    slots_all = expected_market_slots(required_start, exp_last)
     out: Dict[str, Dict[str, Any]] = {}
     for pair in pairs:
         fp = os.path.join(src_dir, f"{pair}_15m.parquet")
@@ -615,12 +640,63 @@ def check_ohlcv_coverage(src_dir: str, cutoff: datetime,
             reasons.append("stale_tail")
         if lag is not None and lag < 0:
             reasons.append("bar_after_expected_last")   # cutoff 後 open の bar が「完結」扱い = 規約違反
+        n_dup = int(idx.duplicated().sum())
+        if n_dup:
+            reasons.append("duplicate_timestamps")
+        if len(idx) > 1 and not idx.is_monotonic_increasing:
+            reasons.append("unsorted")
+        have = set(((idx - pd.Timestamp(0, tz="UTC")) // pd.Timedelta(seconds=1)).tolist())
+        tail_ep = int(last_c.timestamp()) if last_c is not None else None
+        slots = [t for t in slots_all if tail_ep is None or t <= tail_ep]   # 内部 = 末尾まで
+        missing = [t for t in slots if t not in have]
+        runs = 0
+        max_run = run = 0
+        prev = None
+        for t in missing:
+            run = run + 1 if prev is not None and t - prev == BAR_SEC else 1
+            runs += 1 if run == 1 else 0
+            max_run = max(max_run, run)
+            prev = t
+        if len(missing) > max_gap_bars:
+            reasons.append("interior_gaps")
         out[pair] = {"ok": not reasons, "reason": ",".join(reasons) if reasons else None,
                      "first_bar_open": iso_sec(first) if first else None,
                      "last_complete_bar_open": iso_sec(last_c) if last_c else None,
                      "expected_last_bar_open": iso_sec(exp_last), "lag_bars": lag,
-                     "rows": int(len(idx))}
+                     "rows": int(len(idx)), "duplicates": n_dup,
+                     "expected_market_slots": len(slots), "gap_bars": len(missing),
+                     "gap_runs": runs, "gap_max_run_bars": max_run,
+                     "gap_first": iso_sec(datetime.fromtimestamp(missing[0], tz=timezone.utc))
+                     if missing else None}
     return out
+
+
+def preflight_report(src_dir: str, cutoff: datetime, max_lag_bars: int = 0,
+                     max_gap_bars: int = 0, out=None) -> int:
+    """`--preflight-only`: OHLCV の範囲検査だけ行い表を出す (API・lock・台帳・書込みなし)。
+
+    価格データは E1 の凍結対象 (signal×return) ではないので cutoff 前でも実行可 (手順書 §2)。
+    """
+    out = out or sys.stdout
+    miss = missing_ohlcv(src_dir)
+    cov = check_ohlcv_coverage(src_dir, cutoff, max_lag_bars=max_lag_bars,
+                               max_gap_bars=max_gap_bars)
+    print(f"OHLCV preflight — cutoff {iso_sec(cutoff)}, src {src_dir}, "
+          f"expected last bar {cov[next(iter(cov))]['expected_last_bar_open'] if cov and 'expected_last_bar_open' in cov[next(iter(cov))] else '-'}",
+          file=out)
+    n_ok = 0
+    for pair in INSTRUMENTS:
+        c = cov.get(pair, {"ok": False, "reason": "missing"})
+        st = "OK  " if c["ok"] else "FAIL"
+        n_ok += int(c["ok"])
+        print(f"  {st} {pair}: rows {c.get('rows', 0)}, first {c.get('first_bar_open')}, "
+              f"last complete {c.get('last_complete_bar_open')}, lag {c.get('lag_bars')}, "
+              f"gaps {c.get('gap_bars')} (runs {c.get('gap_runs')}, max run "
+              f"{c.get('gap_max_run_bars')}, first {c.get('gap_first')}), dup {c.get('duplicates')}"
+              f"{'  <- ' + c['reason'] if c.get('reason') else ''}", file=out)
+    print(f"  {n_ok}/{len(INSTRUMENTS)} pair OK (missing {len(miss)}). "
+          f"不足時: {OHLCV_REFRESH_CMD}", file=out)
+    return EXIT_OK if n_ok == len(INSTRUMENTS) else EXIT_FAIL
 
 
 def slice_ohlcv(src_dir: str, dst_dir: str, cutoff: datetime,
@@ -688,7 +764,7 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
                ohlcv_src: str = "", ohlcv_dst: str = "",
                now: Optional[datetime] = None,
                out=None, postponed: bool = False,
-               ohlcv_max_lag_bars: int = 0) -> int:
+               ohlcv_max_lag_bars: int = 0, ohlcv_max_gap_bars: int = 0) -> int:
     """export → staging artifact → roundtrip 突合 → スライス → 一括公開 (manifest → marker)。
 
     stdout には値を出さない。前回凍結は全検証が通るまで byte 不改変。
@@ -715,7 +791,7 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
             f.write(f"pid={os.getpid()} started={iso_sec(utc_now())}\n")
         return _run_freeze_locked(fetcher, look, paths, api_base, force, allow_missing,
                                   ohlcv_src, ohlcv_dst, now, out, postponed,
-                                  ohlcv_max_lag_bars)
+                                  ohlcv_max_lag_bars, ohlcv_max_gap_bars)
     finally:
         try:
             os.remove(lock)
@@ -726,7 +802,7 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
 def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str,
                        force: bool, allow_missing: bool, ohlcv_src: str, ohlcv_dst: str,
                        now: Optional[datetime], out, postponed: bool,
-                       ohlcv_max_lag_bars: int = 0) -> int:
+                       ohlcv_max_lag_bars: int = 0, ohlcv_max_gap_bars: int = 0) -> int:
     out = out or sys.stdout
     spec = look_spec(look, postponed)
     cutoff = parse_utc(spec["cutoff"])
@@ -794,20 +870,25 @@ def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_b
         if miss:
             print(f"REFUSED (preflight): OHLCV parquet 欠落 ({len(miss)}/{len(INSTRUMENTS)}):"
                   f" {miss} in {ohlcv_src} — API 要求前に停止 (§2.5-1 fail-loud)。"
-                  f" `python3 tools/bt_data_cache.py refresh 15m` 後に再実行。", file=sys.stderr)
+                  f" 13 pair を明示して更新: `{OHLCV_REFRESH_CMD}` 後に再実行。", file=sys.stderr)
             return EXIT_FAIL
-        ohlcv_coverage = check_ohlcv_coverage(ohlcv_src, cutoff, max_lag_bars=ohlcv_max_lag_bars)
+        ohlcv_coverage = check_ohlcv_coverage(ohlcv_src, cutoff, max_lag_bars=ohlcv_max_lag_bars,
+                                              max_gap_bars=ohlcv_max_gap_bars)
         bad = {p: c for p, c in ohlcv_coverage.items() if not c["ok"]}
         if bad:
             detail = "; ".join(f"{p}: {c['reason']} (first {c.get('first_bar_open')},"
                                f" last complete {c.get('last_complete_bar_open')},"
                                f" expected {c.get('expected_last_bar_open')}, lag"
-                               f" {c.get('lag_bars')} bars)" for p, c in sorted(bad.items()))
-            print(f"REFUSED (preflight): OHLCV parquet の範囲不足 ({len(bad)}/{len(INSTRUMENTS)})"
+                               f" {c.get('lag_bars')} bars, gaps {c.get('gap_bars')} bars"
+                               f" (max run {c.get('gap_max_run_bars')}, first {c.get('gap_first')}),"
+                               f" dup {c.get('duplicates')})" for p, c in sorted(bad.items()))
+            print(f"REFUSED (preflight): OHLCV parquet の範囲/整合不足 ({len(bad)}/{len(INSTRUMENTS)})"
                   f" — {detail}。要求: first ≤ {OHLCV_REQUIRED_START_ISO} ∧ 末尾 = cutoff 直前の"
-                  f" 完結 bar (許容 lag {ohlcv_max_lag_bars} bar)。stale / 部分取得の parquet を"
-                  f" 凍結しない (§2.5-1)。`bt_data_cache.py refresh 15m` 後に再実行。",
-                  file=sys.stderr)
+                  f" 完結 bar (許容 lag {ohlcv_max_lag_bars} bar) ∧ 一意・単調 ∧ 市場時間の内部欠落"
+                  f" ≤ {ohlcv_max_gap_bars} bar。stale / 部分取得 / 欠落 parquet を凍結しない"
+                  f" (§2.5-1、判定器は horizon を配列位置で進める)。`{OHLCV_REFRESH_CMD}` 後に"
+                  f" `--preflight-only` で再確認。欠落を受容するなら --ohlcv-max-gap-bars N を明示"
+                  f" (manifest に記録、verdict に併記)。", file=sys.stderr)
             return EXIT_FAIL
     else:
         ohlcv_coverage = {}
@@ -931,6 +1012,7 @@ def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_b
                                    force_history, journal)
         manifest["ohlcv_coverage"] = ohlcv_coverage
         manifest["ohlcv_max_lag_bars"] = ohlcv_max_lag_bars if ohlcv_src else None
+        manifest["ohlcv_max_gap_bars"] = ohlcv_max_gap_bars if ohlcv_src else None
         attempt.update({"status": "frozen", "finished_at": iso_sec(utc_now()),
                         "snapshots_rows": snap_sum["rows_total"], "health_rows": len(health),
                         "artifact_sha256": entries[relpath_for_record(paths["artifact"], root)]})
@@ -1061,6 +1143,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--ohlcv-max-lag-bars", type=int, default=0,
                     help="preflight: 末尾 bar が cutoff 直前の完結 bar から遅れてよい本数"
                          " (既定 0 = 完全一致。例外は manifest に記録される)")
+    ap.add_argument("--ohlcv-max-gap-bars", type=int, default=0,
+                    help="preflight: [t0, 末尾] の市場時間 15m スロットの内部欠落を許容する本数"
+                         " (既定 0。判定器は horizon を配列位置で進めるため欠落は estimand に触る)")
+    ap.add_argument("--preflight-only", action="store_true",
+                    help="OHLCV 範囲/整合の検査だけ行い表を出す (API・lock・台帳・書込みなし。"
+                         " 価格データは凍結対象外なので cutoff 前でも可)")
     ap.add_argument("--dry-run-health", action="store_true",
                     help="本番試走: table=health_log を limit 小で GET のみ (書込みなし)")
     ap.add_argument("--limit", type=int, default=5, help="--dry-run-health の limit")
@@ -1074,6 +1162,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("ERROR: --postponed は --look 1 のみ (§2.5-3 postpone は first look に限る)",
               file=sys.stderr)
         return EXIT_FAIL
+
+    if args.preflight_only:
+        src = args.ohlcv_src or os.path.join(repo_root(), "data", "cache", "massive")
+        cutoff = parse_utc(look_spec(args.look, args.postponed)["cutoff"])
+        return preflight_report(src, cutoff, max_lag_bars=max(0, args.ohlcv_max_lag_bars),
+                                max_gap_bars=max(0, args.ohlcv_max_gap_bars))
 
     if args.verify:
         res = verify_record(args.verify)
@@ -1102,7 +1196,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                       force=args.force, allow_missing=args.allow_missing_instruments,
                       ohlcv_src=ohlcv_src, ohlcv_dst=args.ohlcv_dst,
                       postponed=args.postponed,
-                      ohlcv_max_lag_bars=max(0, args.ohlcv_max_lag_bars))
+                      ohlcv_max_lag_bars=max(0, args.ohlcv_max_lag_bars),
+                      ohlcv_max_gap_bars=max(0, args.ohlcv_max_gap_bars))
 
 
 if __name__ == "__main__":
