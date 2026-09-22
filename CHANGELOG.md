@@ -5,6 +5,7 @@
 - §2 に「不成立 (v) 未到達 `PRE_SEND_GUARD(<reason>)`」行を新設 — EXEC_B decision=SEND 後に OANDA 送信試行へ到達せず終端した pair-event (亜種 (a) 早期 `_block` return / (b) slot 由来 shadow 化 / (c) bridge-refused / (d) 手動停止 mode_off) は**現行契約下では不成立として G0' event を消費** (fill 経路の (i)〜(iv) と区別して記録)。非消費・繰越案は AMENDMENT 提案 A-1 (§4 row 4) へ移管、user 承認まで無効 (Codex 2 巡目 P1 で方針転換) (PR #289)
 - (a) は order-bar 予約 (5523–5531) の前後で分け、予約後 blocker は以後 `order_bar_dedup` で窓内固定 → 帰属は初出の非 dedup 理由。(c)(d) の識別は audit `blocked` / `[SHADOW_FIX]` log、latch `EXECUTED`・`sent` 無し
 - §3 候補 2d の効果を「送信適格化のみ (fill ではない)」へ書換 — 下流の `SKIPPED_SPREAD` / daily-loss `blocked` / FOK cancel / 送信失敗が残り fill 率は forward 計測。§7 禁止事項、registry `review-backlog-sprint0922-p2-deferrals-0926` resolved。凍結値・OOS・g0prime/F2 entry 不変更 — 詳細: knowledge-base/wiki/changelog.md
+- 3 巡目 + 敵対的レビュー所見: (b) を上流 shadow bypass へ一般化 (wg は `_UNIVERSAL_SENTINEL`、帰属は `[SHADOW] <gate>` ログ) / (d) は event 時点記録のみ (現在 mode からの推定禁止) / ABANDONED 後 pre-row block = 不成立 (i) / `drawdown` guard は dead code (CB は (c2) として現れる) / SEND→guard→ABANDONED は (v) 主で併記 / SENTINEL_BLOCK_DIAG 一次ソース / 旧行番号を 7145a93c 実測に統一
 
 ## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 を索引 + 期日別 sub-entry 4 / 更新 9 / 新規 6) + index/changelog/session 同期 (rule:R3)
 
