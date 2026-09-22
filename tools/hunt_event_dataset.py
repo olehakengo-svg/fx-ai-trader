@@ -29,11 +29,24 @@ D2. **provenance = feed-symbol 不変条件** — 実収集行の `instrument` �
 
 D3. **独立観測の単位** — engine は同じ bar を tick ごとに再評価し、logger は
     評価成功ごとに 1 行書く (`project_engine_reconstruction_live_dedup_dead`)。
-    そのため `entry_time` 以外が完全一致する行が実測 **57,656 / 69,577
-    (82.9%)** ある。`sr_audit.stage_a_audit` は `n = len(events)` を
-    Wilson / 二項検定の分母に直接使うので、素通しすると N が約 5.8 倍に
-    膨らむ。identity = `entry_time` を除く全フィールドの完全一致、
-    代表行は最初の `entry_time` を持つ行。
+    そのため `entry_time` 以外が完全一致する行が大量にある。
+    `sr_audit.stage_a_audit` は `n = len(events)` を Wilson / 二項検定の
+    分母に直接使うので、素通しすると N が膨らむ。
+    identity = `entry_time` を除く全フィールドの完全一致 + **時間窓**
+    (`DEDUP_WINDOW_SEC`、下記)、代表行は窓内で**最も早い** `entry_time` の行。
+
+    実測 (as-of 2026-09-22、**provenance フィルタ後 69,576 行**、
+    identity ごとに時刻昇順へ並べた anchored 窓):
+      - **既定 1h**: collapse **48,884 行 (70.3%)** → 相異なる観測 **20,692**
+        = **3.36 倍**
+      - 窓なし (最も攻撃的な端): collapse 59,630 行 (85.7%) → 9,946 = 7.00 倍
+    ⚠️ **膨張率は窓に依存するので単一の点推定として引用してはいけない** —
+    窓と基数を必ず併記する。
+    🔴 **旧値 (57,656 / 82.9% / 5.8 倍) は撤回** (Codex P2、PR #272 第10巡)。
+    あれは identity に post-hoc の outcome 列が残っていた頃の推定量の出力で、
+    **現行のどのモードにも一致しない**。数値は estimator が変わった瞬間に
+    陳腐化する ⇒ **この契約節の数字は §D3 の感度表と同じ estimator で
+    再計算したものだけを書く**。
 
 D4. **ラベル付き行のみが母集団** — `reversal` が None の行は
     「反転しなかった観測」ではなく「**まだ観測されていない**」。

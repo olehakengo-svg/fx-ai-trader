@@ -721,6 +721,31 @@ def test_documented_window_table_agrees_with_the_readout():
     assert abs(got - float(mt.group(2))) < 0.01, (
         f"{basis_doc}/{distinct_doc} = {got:.2f}x, table says {mt.group(2)}x")
 
+    # The D3 CONTRACT paragraph carries the same numbers and drifted
+    # independently of the table below it — the table was corrected in 第7巡
+    # while the contract still quoted a pre-round-3 estimator (Codex P2,
+    # PR #272 第10巡).  That paragraph is what defines the frozen observation
+    # unit, so a reader citing it cites an effective N.  Pin them TOGETHER.
+    mc = re.search(r"\*\*既定 1h\*\*: collapse \*\*([\d,]+) 行 \(([\d.]+)%\)\*\* "
+                   r"→ 相異なる観測 \*\*([\d,]+)\*\*\s*\n?\s*= \*\*([\d.]+) 倍\*\*",
+                   tool)
+    assert mc, "the D3 contract must state collapse / distinct / inflation for 1h"
+    collapsed_c, pct_c, distinct_c, infl_c = mc.groups()
+    assert distinct_c == distinct_doc, (
+        f"the D3 contract's 1h distinct ({distinct_c}) disagrees with the "
+        f"sensitivity table and the readout ({distinct_doc})")
+    basis_n = int(basis_doc.replace(",", ""))
+    assert int(collapsed_c.replace(",", "")) == basis_n - int(
+        distinct_c.replace(",", "")), (
+        f"collapse must be basis - distinct: {basis_doc} - {distinct_c} "
+        f"!= {collapsed_c}")
+    assert abs(int(collapsed_c.replace(",", "")) / basis_n * 100
+               - float(pct_c)) < 0.1, (
+        f"{collapsed_c}/{basis_doc} is not {pct_c}%")
+    assert abs(basis_n / int(distinct_c.replace(",", ""))
+               - float(infl_c)) < 0.01, (
+        f"{basis_doc}/{distinct_c} is not {infl_c}x")
+
 
 def test_anchored_window_is_independent_of_input_order():
     """KNOWN-NG INPUT: identical payloads delivered newest-first.

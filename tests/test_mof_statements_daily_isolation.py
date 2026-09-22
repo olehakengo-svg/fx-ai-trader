@@ -312,3 +312,63 @@ def test_a_later_fetch_failure_leaves_nothing_in_the_data_directory(tmp_path, mo
     assert [p.name for p in tmp_path.iterdir()] == ["keep.csv"], (
         "a mid-run failure must leave NOTHING behind in the staged tree — "
         f"found {[p.name for p in tmp_path.iterdir()]}")
+
+
+def test_a_candidate_that_drops_historical_dates_is_rejected(tmp_path, monkeypatch):
+    """KNOWN-NG INPUT: same row count, same first date, missing middle dates.
+
+    The aggregate gate (rows + first date) passes this: the candidate drops
+    three historical dates and appends three new trailing ones, so
+    `candidate_rows >= stored_rows` and `candidate_first == stored_first`
+    both hold — and the complete series is replaced by one with internal gaps
+    (Codex P1, PR #272 第10巡).
+    """
+    monkeypatch.setattr(ing, "GDELT_DIR", str(tmp_path))
+    monkeypatch.setattr(ing, "SLEEP_GDELT", 0)
+
+    stored_dates = [f"2026-08-{d:02d}" for d in range(1, 11)]        # 01..10
+    full = "# query: x\n﻿Date,Series,Value\n" + "".join(
+        f"{d},Volume Intensity,0.1\n" for d in stored_dates)
+    for slug in ing.GDELT_QUERIES:
+        (tmp_path / f"{slug}.csv").write_text(full, encoding="utf-8")
+
+    # Drop 04/05/06, append 11/12/13 -> 10 rows, first still 2026-08-01.
+    cand_dates = ([f"2026-08-{d:02d}" for d in (1, 2, 3, 7, 8, 9, 10)]
+                  + ["2026-08-11", "2026-08-12", "2026-08-13"])
+    body = "﻿Date,Series,Value\n" + "".join(
+        f"{d},Volume Intensity,0.2\n" for d in cand_dates)
+    monkeypatch.setattr(ing, "fetch", lambda *a, **k: body.encode())
+
+    # The aggregate checks really do pass — that is the point of this pin.
+    stored_cov = ing.gdelt_coverage(str(tmp_path / f"{list(ing.GDELT_QUERIES)[0]}.csv"))
+    assert len(cand_dates) == stored_cov["rows"]
+    assert cand_dates[0] == stored_cov["first"].isoformat()
+
+    monkeypatch.setattr(ing, "GDELT_STALE_DAYS_MAX", 10_000)   # isolate coverage
+    with pytest.raises(RuntimeError, match="stored date\\(s\\) missing"):
+        ing.run_gdelt()
+
+    for slug in ing.GDELT_QUERIES:
+        assert (tmp_path / f"{slug}.csv").read_text(encoding="utf-8") == full, (
+            "the gapped candidate must not replace the stored history")
+
+
+def test_a_candidate_with_duplicated_dates_is_rejected(tmp_path, monkeypatch):
+    """A duplicated date inflates the row count, faking non-regression."""
+    monkeypatch.setattr(ing, "GDELT_DIR", str(tmp_path))
+    monkeypatch.setattr(ing, "SLEEP_GDELT", 0)
+    monkeypatch.setattr(ing, "GDELT_STALE_DAYS_MAX", 10_000)
+
+    full = ("# query: x\n﻿Date,Series,Value\n"
+            "2026-08-01,Volume Intensity,0.1\n2026-08-02,Volume Intensity,0.1\n")
+    for slug in ing.GDELT_QUERIES:
+        (tmp_path / f"{slug}.csv").write_text(full, encoding="utf-8")
+
+    body = ("﻿Date,Series,Value\n2026-08-01,Volume Intensity,0.2\n"
+            "2026-08-01,Volume Intensity,0.2\n2026-08-02,Volume Intensity,0.2\n")
+    monkeypatch.setattr(ing, "fetch", lambda *a, **k: body.encode())
+
+    with pytest.raises(RuntimeError, match="duplicated date"):
+        ing.run_gdelt()
+    for slug in ing.GDELT_QUERIES:
+        assert (tmp_path / f"{slug}.csv").read_text(encoding="utf-8") == full

@@ -540,7 +540,8 @@ def gdelt_coverage(path: str) -> dict:
     (Codex P1, PR #272 第9巡)。昇格前に候補と保存系列の被覆を比較するために
     使う。
     """
-    out = {"rows": 0, "first": None, "last": None}
+    out = {"rows": 0, "first": None, "last": None, "dates": set(),
+           "duplicates": 0}
     try:
         with open(path, encoding="utf-8") as f:
             lines = [ln for ln in (l.strip() for l in f)
@@ -555,7 +556,12 @@ def gdelt_coverage(path: str) -> dict:
         except ValueError:
             continue                            # header row
     if dates:
-        out.update({"rows": len(dates), "first": dates[0], "last": dates[-1]})
+        # The DATE SET, not just the aggregate count: a candidate can drop
+        # historical dates while adding the same number of trailing ones,
+        # keeping rows/first identical (Codex P1, PR #272 第10巡).
+        out.update({"rows": len(dates), "first": dates[0], "last": dates[-1],
+                    "dates": set(dates),
+                    "duplicates": len(dates) - len(set(dates))})
     return out
 
 
@@ -666,14 +672,25 @@ def run_gdelt() -> dict:
                 "stored_first": stored["first"].isoformat() if stored["first"] else None,
                 "candidate_first": cand["first"].isoformat() if cand["first"] else None,
             }
+            # Duplicated dates are malformed regardless of what is stored.
+            if cand["duplicates"]:
+                regressions.append(
+                    f"{slug}: {cand['duplicates']} duplicated date(s) in the "
+                    f"candidate")
             if stored["rows"] == 0:
                 continue                        # bootstrap: nothing to regress
-            if cand["rows"] < stored["rows"]:
+            # SET CONTAINMENT is the real test: equal counts and an equal
+            # first date do not mean the history survived.  Dropping three
+            # 2023 dates while appending three new ones passes both aggregate
+            # checks and commits a corpus with internal gaps.
+            dropped = sorted(stored["dates"] - cand["dates"])
+            if dropped:
+                shown = ", ".join(d.isoformat() for d in dropped[:5])
+                more = "" if len(dropped) <= 5 else f" (+{len(dropped) - 5} more)"
                 regressions.append(
-                    f"{slug}: rows {stored['rows']} -> {cand['rows']}")
-            elif cand["first"] and stored["first"] and cand["first"] > stored["first"]:
-                regressions.append(
-                    f"{slug}: first data {stored['first']} -> {cand['first']}")
+                    f"{slug}: {len(dropped)} stored date(s) missing from the "
+                    f"candidate: {shown}{more}")
+            cov[slug]["dates_dropped"] = len(dropped)
         out["coverage"] = cov
         print(f"[gdelt] coverage: {json.dumps(cov, ensure_ascii=False)}")
         if regressions:
