@@ -46,7 +46,11 @@ jobs:
 
       # F4 資金時計 (process-meta-audit-2026-09-07 §6) — 書き手。読み手は
       # registry project-falsification-f4-nav-floor-clock (csv_row_match)。
+      # continue-on-error は「daily report の commit を巻き添えにしない」ため。
+      # 失敗は握り潰さず step outcome を下の Notify で Discord に露出する
+      # (2026-09-22 03:13Z HTTP 全断で 1 行欠落した際、cron 側は緑だった)。
       - name: NAV floor projection (F4)
+        id: nav-floor
         continue-on-error: true
         run: python3 tools/nav_floor_projection.py --append
 
@@ -80,6 +84,9 @@ jobs:
             MSG="✅ **KB Commit** daily-report $(date -u +%Y-%m-%d) — git push 成功"
           else
             MSG="❌ **KB Commit FAILED** daily-report $(date -u +%Y-%m-%d) — git push 失敗。手動確認が必要"
+          fi
+          if [ "${{ steps.nav-floor.outcome }}" != "success" ]; then
+            MSG="$MSG / ❌ **F4 nav_floor writer FAILED** (NAV 取得不能 = 行欠落。API 全断か? registry F4 は今日の行を読めない)"
           fi
           curl -s -X POST "$DISCORD_ERROR_WEBHOOK_URL" \
             -H "Content-Type: application/json" \

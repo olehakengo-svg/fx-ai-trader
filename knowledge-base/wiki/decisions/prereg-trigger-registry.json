@@ -742,7 +742,7 @@
       "deadline": "2027-03-31",
       "reachability": "tools/m1_clean_live_monitor.py の強定義 readout (2026-09-10 実装 PR) を Tier A cron が日次実行 — セル単位 N/EV/Wilson が毎日記録される。本エントリは期日で escalation。",
       "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
-      "message": "プロジェクト falsification 条件 F3 (U7、user 承認 2026-09-10)。TRIGGERED 時 (2027-03-31 に M1_STRONG 該当セル 0): M1→M2→M3 の段階設計自体を再導出する (KPI の存置ではなく設計の再検証)。達成セルが立てば resolve。"
+      "message": "プロジェクト falsification 条件 F3 (U7、user 承認 2026-09-10)。TRIGGERED 時 (2027-03-31 に M1_STRONG 該当セル 0): M1→M2→M3 の段階設計自体を再導出する (KPI の存置ではなく設計の再検証)。達成セルが立てば resolve。 ／ 2026-09-22 追記: D11 (統合決裁パケット) 決裁まで PnL>0 の母集団は demo pnl_pips / broker realized の両基準を併記し、N>=30 到達後の基準選択 (後出しの estimand 選択) は禁止。"
     },
     {
       "id": "project-falsification-f4-nav-floor-clock",
@@ -772,7 +772,7 @@
         ]
       },
       "doc": "knowledge-base/wiki/decisions/process-meta-audit-2026-09-07.md",
-      "message": "プロジェクト falsification 条件 F4 = NAV floor 資金時計 (U3/U7、user 承認 2026-09-10)。書き手 = daily-report.yml が tools/nav_floor_projection.py --append を日次実行 (floor ¥262,000 = OANDA JP API 存続の残高 25 万 + バッファ)。TRIGGERED (floor 到達まで 90 日以内、現行推定では 2026-11〜12 に発火見込み) 時: 入金 / 縮退 / 停止 の user 決裁を強制起票する — floor 到達で OANDA API 停止 = 目標系は物理停止するため、到達前に決めるのが本エントリの目的。⚠️ CSV が 7 日以上未更新なら『安全』でなく『書き手死亡』(monitoring-blind 教訓) — daily-report.yml を疑う。"
+      "message": "プロジェクト falsification 条件 F4 = NAV floor 資金時計 (U3/U7、user 承認 2026-09-10)。書き手 = daily-report.yml が tools/nav_floor_projection.py --append を日次実行 (floor ¥262,000 = OANDA JP API 存続の残高 25 万 + バッファ)。TRIGGERED (floor 到達まで 90 日以内、現行推定では 2026-11〜12 に発火見込み) 時: 入金 / 縮退 / 停止 の user 決裁を強制起票する — floor 到達で OANDA API 停止 = 目標系は物理停止するため、到達前に決めるのが本エントリの目的。⚠️ CSV が 7 日以上未更新なら『安全』でなく『書き手死亡』(monitoring-blind 教訓) — daily-report.yml を疑う。 ／ 2026-09-22 方法変更 (rule:R3、PR fix/nav-floor-f4-estimator-decomposition-2026-09-22): days_to_floor 列の推定器を fit (60 行線形回帰、月内位相で振動 — 09-16〜09-21 の 6 日で burn が半分近くに動いた) から **decomposed** (keeper 確定分 = telemetry RT 数 × ¥80/RT ÷ 30.44 + edge 30d 実測 = broker NAV Δ − 当月 keeper 支出) へ切替、fit は参考列 burn_fit_per_day_jpy / days_to_floor_fit に併記。condition (days_to_floor <= 90) は不変 (U7 トリガ)。発火日シフト (09-22 時点シミュレーション、keeper 月初 1〜9 日 3 RT/日・writer 毎日成功を仮定、幅で引用): fit 読み手 = keeper のみ 2027-01-08 / drift 込み 2026-12-04〜07 → decomposed 読み手 = keeper のみ **2027-01-05** (burn 68.3/日、floor 到達 2027-04-05) / drift 13.7/日 込み **2026-12-04** (burn 82.0/日、floor 到達 2027-03-04)。tests/test_nav_floor_projection_f4.py が再現値と安定性 (実 CSV 09-15〜09-21 で ±10% 内) を pin。writer 失敗 (09-22 03:13Z HTTP 全断で 1 行欠落) は daily-report.yml の Notify が step outcome で Discord に露出する。詳細: knowledge-base/wiki/analyses/nav-floor-f4-estimator-decomposition-2026-09-22.md"
     },
     {
       "id": "project-global-stop-quarterly",
@@ -906,6 +906,38 @@
       "message": "🟠 **繰延: post-commit の session-log 追記が必ず「ローカル未コミットの差分」を 1 本残す (Codex P2、PR #276 5 巡目で指摘、意図的に PR 範囲外へ繰延)**。`scripts/hooks/git-post-commit.sh` は**コミット作成後**に当該コミットを今日の session log へ追記するので、その編集は**そのコミットには入らない**。次回 run が それをコミットすると post-commit がまた 1 行追記する ⇒ **末尾差分が永久に 1 本残り続ける**。本セッション中、`git commit` のたびに session log が再 dirty 化し merge を 2 回ブロックしたのはこれが原因 (実観測)。⚠️ **PR #276 が作った欠陥ではなく、post-commit hook の既存の設計性質**なので 同 PR では直さなかった (直すには追記を pre-commit 側へ移して同一コミットに含める等の設計変更が必要 = 別 PR 相当)。⇒ 期日までに **(a) 追記を pre-commit へ移す / (b) 追記を廃して session log を 生成物として扱う / (c) 現状を仕様として文書化し merge 手順に「session log の 末尾差分は先にコミットする」を明記** のいずれかを選ぶ。🔴 **放置の実害は「merge 直前に必ず 1 ファイル dirty」で、`git merge` が `local changes would be overwritten` で止まること** — 今日は手で退避したが、自動化が同じ所で止まる",
       "condition": "post-commit の session-log 追記が残す末尾差分について (a)/(b)/(c) のいずれかを選び実装または文書化すること",
       "reachability": "Claude が期日までに scripts/hooks/git-post-commit.sh と scripts/hooks/git-pre-commit.sh を読み、追記タイミングを移せるか (pre-commit で今日の session log を更新して stage できるか) を判定する。移せない場合は (c) を採り CLAUDE.md の自走原則節に手順を 1 行追記する"
+    },
+    {
+      "id": "integrated-decision-packet-d1-d12",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-08",
+      "doc": "knowledge-base/wiki/decisions/integrated-decision-packet-d1-d12-2026-09-22.md",
+      "message": "統合決裁パケット (D1–D12: U3 入金/縮退/停止・U2 資本上限・M2 会計 A/B・M2 定義不整合 2 点・carry_dip disposition・ps_aud_jpy 再上程・kalman DRAFT) の Claude 起票期日 (v0 2026-09-29 → 確定版 10-08 = E1 cutoff)。user 返答期限は 2026-11-30 (E1 verdict 10-15 後の返答を推奨)。既定挙動 (無回答) = 何も起きず余裕を消費、F4 発火は decomposed 読み手で 2026-12-04〜2027-01-05 の幅、Claude は 12-03 に record として再上程 (執行はしない)。TRIGGERED (10-08 に doc 未作成 or DRAFT のまま) は stale = T5 型の起票ギャップ。出所: path-to-win-decision-memo-2026-09-20 §4.1 Rank 1 / 再評価 2026-09-22 §3 Rank 1・§4 UD5。"
+    },
+    {
+      "id": "e1-frozen-export-tool",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
+      "message": "E1 first look (cutoff 10-08 / verdict 10-15) 用の凍結 export tool 着地期日。凍結スナップショットの機械生成 + 合成データ roundtrip テストを 10-06 までに main へ (outcome 非接触、P-10 解除は pre-reg §8 手順のみ)。TRIGGERED (10-06 に tool 未着地) は first look を手作業 export で走らせることになり、凍結の再現性が落ちる。出所: 再評価 2026-09-22 §5 項目 6。"
+    },
+    {
+      "id": "storm-guard-modify-sl",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-20",
+      "doc": "knowledge-base/wiki/decisions/kalman-d7-carveout-postfill-packet-2026-09-17.md",
+      "message": "storm guard 4 点 (累積 tx breaker → 冪等 → 単調性アサート → dead-band 1pip) を modules/oanda_bridge.py modify_sl / modify_sl_sync に + fault-injection pin 4 本 (各 guard を kill すると storm fixture が通ってしまうテスト) + storm 検知器 (open trade あたり tx 数の読み手、Discord)。live 経路 PR-1、単独 writer 直列、市場時間外マージ (日曜 20:00–22:30Z 除外)。TRIGGERED (10-20 に未着地) = floor バッファへの storm/tail 打撃が無防備のまま 30d 枠を超過。出所: path-to-win-decision-memo-2026-09-20 §4.1 項目 2 / 再評価 2026-09-22 §3 Rank 2。"
+    },
+    {
+      "id": "sprint-0922-midpoint-check",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/decisions/path-to-win-decision-memo-2026-09-20.md",
+      "message": "user 決裁 2026-09-22「推奨で任せるから進めて…ペースアップ」に基づく 30d sprint (〜10-20) の中間チェック。確認項目: (i) 統合決裁パケット v0 (09-29) 起票済みか、(ii) storm guard PR-1 の巡目 (P2 上限 6、P1 例外なし)、(iii) F4 decomposed 行が CSV に毎日書かれ edge_basis が unavailable から nav_delta へ移ったか (CSV 30 日充填は 10-07 以降)、(iv) E1 export tool 着地、(v) render.yaml ignoredPaths (data/external, data/monitoring) 着地と夜間 deploy 回数、(vi) 引用禁止値ゼロ (fit 現況値 / L1 5000u M2 寄与 / keeper 控除前算数 / P5 40–50%)。未達項目は 90 日側へ triage し理由を記録 (黙って延長しない)。出所: 再評価 2026-09-22 §3 Rank 4・§5。"
     }
   ]
 }

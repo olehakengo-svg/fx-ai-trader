@@ -64,7 +64,10 @@ def test_append_row_same_day_idempotent(tmp_path):
     rows = nfp.read_rows(csv_path)
     assert len(rows) == 1
     assert rows[0]["nav_jpy"] == "275100"
-    assert rows[0]["method"] == "audit_default"  # 行不足時のフォールバック明示
+    # 2026-09-22 以降 primary は decomposed (keeper 確定分 + edge)。fit の
+    # 行不足フォールバックは参考列 burn_fit_per_day_jpy 側に "(audit_default)" で残る
+    assert rows[0]["method"] == "decomposed"
+    assert rows[0]["burn_fit_per_day_jpy"].endswith("(audit_default)")
 
 
 def test_reader_wiring_daily_report_calls_tool_and_commits_csv():
