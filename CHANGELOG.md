@@ -1,5 +1,12 @@
 # FX AI Trader - Changelog
 
+## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
+
+- `_SHADOW_ONLY_DOWNSTREAM_RELAX_MODES = {rnb_usdjpy}` + `_mode_downstream_relax()` (allowlist ∧ shadow_only=True) — velocity_down / mtf_strong_bias / 1h_rr_low の hard block を shadow 化。他 gate・閾値・session_hours・daytrade_audjpy は不変
+- pin: `tests/test_rnb_shadow_only_downstream_relax.py` (20 本、control / fail-closed / 対称側 2 系 / OANDA 送信ゼロ / スコープ pin / `[SHADOW_RELAX]` marker)
+- relax 行は reasons に `[SHADOW_RELAX] <gate>` を永続 (LOCK 層別の一次キー、デプロイ時刻は二次)
+- registry: LOCK `rnb-support-bounce-shadow-forward` AMENDMENT (変更前 N=2 snapshot、旧/新層別既定、marker 一次キー) / checkpoint-1・-2 注記 / 新規 `rnb-relax-deploy-stamp-record` (09-24) / sub-entry -1003 resolved
+- 詳細: knowledge-base/wiki/analyses/rnb-shadow-lane-health-precheck-2026-09-22.md §11
 ## 2026-09-23 — docs(wg): R1 再審 DRAFT に pre-send guard 未到達の分類規則 + 候補 2d 送信適格化を追記 (PR #281 P2 消化、rule:R3)
 
 - §2 に「不成立 (v) 未到達 `PRE_SEND_GUARD(<reason>)`」行を新設 — EXEC_B decision=SEND 後に OANDA 送信試行へ到達せず終端した pair-event (亜種 (a) 早期 `_block` return / (b) slot 由来 shadow 化 / (c) bridge-refused / (d) 手動停止 mode_off) は**現行契約下では不成立として G0' event を消費** (fill 経路の (i)〜(iv) と区別して記録)。非消費・繰越案は AMENDMENT 提案 A-1 (§4 row 4) へ移管、user 承認まで無効 (Codex 2 巡目 P1 で方針転換) (PR #289)
