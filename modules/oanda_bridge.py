@@ -1069,6 +1069,9 @@ class OandaBridge:
             # 送信直列化 (review 3 巡目 P1): pending[0] の token だけが broker へ送れる。
             # confirm/rollback が pending から外して notify_all する。
             "cond": threading.Condition(self._storm_lock),
+            # network (seed / 再照会) の single-flight lock (review 13 巡目 P2: 未 seed の
+            # restored trade への burst が worker ごとに GET を撃たないように) + 再照会の最短間隔
+            "net_lock": threading.RLock(), "last_reconcile_ts": None,   # None = 未照会 (monotonic は 0 近傍から始まり得るので 0.0 を sentinel にしない)
             "direction": None,
             # confirmed_sl = broker が受理した最後の SL (seed / open / 成功確認のみ更新)
             # pending     = 送信中 (未確認) の予約 token 列 (発行順)
@@ -1242,10 +1245,24 @@ class OandaBridge:
                 st = self._storm_new_state()
                 self._storm_state[demo_trade_id] = st
         if network:
+            self._storm_network_refresh(demo_trade_id, st)
+        return st
+
+    # unresolved の再照会を打つ最短間隔 (burst 中に gate ごとに GET を撃たない)
+    STORM_RECONCILE_MIN_INTERVAL_SEC = 1.0
+
+    def _storm_network_refresh(self, demo_trade_id: str, st: dict):
+        """seed / 再照会を trade ごとに single-flight で行う (review 13 巡目 P2)。
+        後続は lock 取得後に seeded / unresolved を見て不要なら何もしない。"""
+        with st["net_lock"]:
             if not st["seeded"] and (st["direction"] is None or st["confirmed_sl"] is None):
                 self._storm_seed_restored(demo_trade_id, st)
-            self._storm_try_reconcile(demo_trade_id, st)
-        return st
+            if st.get("unresolved_sl") is not None:
+                now = _time.monotonic()
+                last = st.get("last_reconcile_ts")
+                if last is None or now - last >= self.STORM_RECONCILE_MIN_INTERVAL_SEC:
+                    st["last_reconcile_ts"] = now
+                    self._storm_try_reconcile(demo_trade_id, st)
 
     def _storm_evaluate(self, demo_trade_id: str, st: dict, new_sl: float,
                         instrument: str, before_seq: int | None = None,
@@ -1548,9 +1565,9 @@ class OandaBridge:
             return min(base, unres)
         return base
 
-    # 送信順番待ち (自分より前の予約が broker 応答を返すまで) の上限。
-    # OandaClient._request の HTTP timeout (10 s) + 余裕。
-    STORM_TURN_WAIT_SEC = 20.0
+    # 送信順番待ちの上限 — **先頭 token 1 件あたり** (先頭が入れ替わるたびにリセット)。
+    # 先頭の決着 = PUT の HTTP timeout (10 s) + 曖昧時の broker 照会 GET (10 s) + 余裕。
+    STORM_TURN_WAIT_SEC = 25.0
 
     def _storm_wait_turn(self, demo_trade_id: str, st: dict, token: dict | None) -> bool:
         """trade ごとに SL replacement を**発行順に直列化**する (review 3 巡目 P1)。
@@ -1576,9 +1593,17 @@ class OandaBridge:
                             f"[OandaBridge][STORM_GUARD] DETECT(would_wait) reason=serialize "
                             f"demo={demo_trade_id} sl={token['new_sl']} ahead={len(st['pending']) - 1} n={n}")
             return True
-        deadline = _time.monotonic() + self.STORM_TURN_WAIT_SEC
+        # 予算は「先頭 token ごと」(review 13 巡目 P1): 先頭が入れ替わる (= 前が決着した) たびに
+        # リセットする。先頭 1 件の決着には PUT timeout (10 s) + 曖昧時の照会 GET (10 s) が
+        # かかり得るので STORM_TURN_WAIT_SEC はその合計 + 余裕。複数の先行がいても、各先行が
+        # 進捗している限り one-shot の保護更新は落とさない。停滞 (先頭が変わらない) だけが drop。
         with self._storm_lock:
+            head = st["pending"][0] if st["pending"] else None
+            deadline = _time.monotonic() + self.STORM_TURN_WAIT_SEC
             while st["pending"] and st["pending"][0] is not token:
+                if st["pending"][0] is not head:
+                    head = st["pending"][0]
+                    deadline = _time.monotonic() + self.STORM_TURN_WAIT_SEC   # 進捗 → リセット
                 remaining = deadline - _time.monotonic()
                 if remaining <= 0:
                     self._storm_totals["skipped"]["serialize"] += 1
@@ -1701,8 +1726,6 @@ class OandaBridge:
         st = self._storm_state.get(demo_trade_id)
 
         def _do():
-            if st is not None:
-                self._storm_get_state(demo_trade_id, network=True)   # seed / 再照会 (送信直前の再評価が使う)
             if st is not None and not self._storm_wait_turn(demo_trade_id, st, token):
                 # broker 未到達の drop → unreserve (要求数を戻す)。rollback (要求数保持 /
                 # failed 計数) にすると停滞 1 件の後ろに並んだ burst が未送信のまま
@@ -1712,6 +1735,8 @@ class OandaBridge:
                              f"sl={new_sl} (demo={demo_trade_id})")
                 return
             if st is not None:
+                # 先頭になってから seed / 再照会 (single-flight、送信直前の再評価が使う)
+                self._storm_get_state(demo_trade_id, network=True)
                 send, _ = self._storm_send_decision(demo_trade_id, st, token, new_sl, instrument)
                 if not send:
                     return
