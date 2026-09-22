@@ -31,6 +31,9 @@ Fixture = storm 4 (#859468 kalman_d7, 2026-09-11) の実測形状:
   (l) breaker 窓に入るのは送信直前 (_storm_send_decision → _storm_count_tx) の実要求のみ。
       予約 (暫定・非暫定) は窓外 — 未送信予約が原因の偽 trip / 偽 breaker reject は構造的に
       起きない (PR #287 review 7/8 巡目 P1、CF pin 付き)
+  (m) enforce では全 token を送信直前に確認済み baseline で 4 check 再評価 — gate は pre-filter、
+      暫定 baseline に対して通った要求もその暫定が reject されれば送られない (PR #287 review
+      9 巡目 P1、CF pin 付き)
   既定 (env 未設定) = 検知のみ: 送信は止めず、カウンタ + WARN だけ動く
 """
 from __future__ import annotations
@@ -1105,3 +1108,62 @@ def test_real_trip_from_submitted_requests_is_final(monkeypatch):
     assert len(q) == 0
     assert b.get_storm_guard_status()["trades"][DEMO]["tripped"] is True
     assert b.get_storm_guard_status()["totals"]["breaker_trips"] == 1
+
+
+# ── 暫定 baseline に対して gate を通った要求も送信直前に確認済み値で再評価 (PR #287 review 9 巡目 P1) ──
+# 確認済み 154.115 / P=154.350 (queued) / 暫定 A=154.270 (P 基準 monotonic) / B=154.280 (A 基準 +1 pip で
+# gate 通過)。P 成功 → A は reject されるが、B を breaker だけ見て送ると確認済み 154.350 を 154.280 に
+# 緩める。→ enforce では全 token を送信直前に確認済み baseline で 4 check 再評価する。
+
+def test_p1_request_passing_against_provisional_baseline_is_reevaluated_at_send(monkeypatch):
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # P
+    b.modify_sl(DEMO, 154.270, instrument="USD_JPY")               # A: P 基準 monotonic → 暫定
+    b.modify_sl(DEMO, 154.280, instrument="USD_JPY")               # B: A 基準 +1 pip → gate 通過 (非暫定)
+    assert len(q) == 3 and b.get_storm_guard_status()["totals"]["deferred"] == 1
+    for fn in q:
+        fn()                                                        # P 成功 → A reject → B も確認済み P 基準で reject
+    assert fake.calls == [(OANDA_ID, 154.350)]                      # B (緩め) は送られない
+    st = b.get_storm_guard_status()
+    assert st["trades"][DEMO]["confirmed_sl"] == 154.350 and st["trades"][DEMO]["pending"] == []
+    assert st["totals"]["skipped"]["monotonic"] == 2
+
+
+def test_p1_request_passing_against_provisional_baseline_survives_if_predecessor_fails(monkeypatch):
+    """対称: P が失敗すれば A (154.270) も B (154.280) も確認済み 154.115 基準で正当 → 順に送られる。"""
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    b.modify_sl(DEMO, 154.350, instrument="USD_JPY")               # P
+    b.modify_sl(DEMO, 154.270, instrument="USD_JPY")               # A (暫定)
+    b.modify_sl(DEMO, 154.280, instrument="USD_JPY")               # B
+    fake.fail_next = 1
+    for fn in q:
+        fn()
+    assert fake.calls == [(OANDA_ID, 154.350), (OANDA_ID, 154.270), (OANDA_ID, 154.280)]
+    assert b.get_storm_guard_status()["trades"][DEMO]["confirmed_sl"] == 154.280
+    assert sum(b.get_storm_guard_status()["totals"]["skipped"].values()) == 0
+
+
+def test_p1_cf_breaker_only_at_send_for_non_provisional_loosens_confirmed_stop(monkeypatch):
+    """CF pin: 非暫定 token を送信直前に breaker だけ見る (8 巡目の形) と B が送られ、確認済み
+    154.350 の stop が 154.280 に緩む。"""
+    orig = OandaBridge._storm_send_decision
+    def _old(self, demo_trade_id, st, token, new_sl, instrument):
+        if token and not token.get("reeval") and self._storm_enforce:
+            with self._storm_lock:
+                if self._storm_check_breaker(st, __import__("time").monotonic()) is None:
+                    self._storm_count_tx(st, token)
+                    return True, False
+                self._storm_unreserve(st, token, demo_trade_id)
+                return False, False
+        return orig(self, demo_trade_id, st, token, new_sl, instrument)
+    monkeypatch.setattr(OandaBridge, "_storm_send_decision", _old)
+    b, fake = _bridge(monkeypatch, enforce=True, open_sl=154.115)
+    q = _deferred_fire(b, monkeypatch)
+    for sl in (154.350, 154.270, 154.280):
+        b.modify_sl(DEMO, sl, instrument="USD_JPY")
+    for fn in q:
+        fn()
+    assert fake.calls == [(OANDA_ID, 154.350), (OANDA_ID, 154.280)]           # ← 緩めが届く (旧形)
+    assert b.get_storm_guard_status()["trades"][DEMO]["confirmed_sl"] == 154.280

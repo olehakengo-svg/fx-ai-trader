@@ -77,6 +77,8 @@ STORM_GUARD_DEFAULTS = {
 STORM_GUARD_LOG_FIRST_N = 3
 STORM_GUARD_LOG_EVERY_M = 100
 _TRUTHY = ("1", "true", "yes", "on")
+# check に「baseline を自分で計算せよ」を伝える sentinel (None は「baseline なし」の実値)
+_UNSET = object()
 
 
 def _storm_pip_size(instrument: str) -> float:
@@ -1177,9 +1179,9 @@ class OandaBridge:
         return None
 
     def _storm_check_idempotent(self, st: dict, new_sl: float, pip: float,
-                                last: float | None = None) -> str | None:
+                                last=_UNSET) -> str | None:
         """(2) 冪等 — 直前に送った SL と同値なら skip (family A: same-price loop)。"""
-        if last is None:
+        if last is _UNSET:
             last = self._storm_baseline(st)
         if last is None:
             return None
@@ -1188,17 +1190,18 @@ class OandaBridge:
         return None
 
     def _storm_check_monotonic(self, st: dict, new_sl: float, pip: float,
-                               last: float | None = None) -> str | None:
+                               last=_UNSET, count_unknown: bool = True) -> str | None:
         """(3) 単調性 — BUY で SL↓ / SELL で SL↑ は契約違反 (risk-increasing)。
-        方向不明なら判定不能 (検知カウンタのみ)。"""
-        if last is None:
+        方向不明なら判定不能 (検知カウンタのみ; 送信直前の再評価では二重計数しない)。"""
+        if last is _UNSET:
             last = self._storm_baseline(st)
         direction = st.get("direction")
         if last is None:
             return None
         if direction not in ("BUY", "SELL"):
-            with self._storm_lock:
-                self._storm_totals["unknown_direction"] += 1
+            if count_unknown:
+                with self._storm_lock:
+                    self._storm_totals["unknown_direction"] += 1
             return None
         delta_pips = round((float(new_sl) - float(last)) / pip, 3)
         if direction == "BUY" and delta_pips < 0:
@@ -1208,10 +1211,10 @@ class OandaBridge:
         return None
 
     def _storm_check_deadband(self, st: dict, new_sl: float, pip: float,
-                              last: float | None = None) -> str | None:
+                              last=_UNSET) -> str | None:
         """(4) dead-band — |new − last| < deadband_pips (既定 1.0 pip) は skip
         (family B: 0.001 刻み振動。等値では止まらない)。ちょうど 1.0 pip は通す。"""
-        if last is None:
+        if last is _UNSET:
             last = self._storm_baseline(st)
         if last is None:
             return None
@@ -1237,9 +1240,11 @@ class OandaBridge:
 
     def _storm_evaluate(self, demo_trade_id: str, st: dict, new_sl: float,
                         instrument: str, before_seq: int | None = None,
-                        skip_breaker: bool = False) -> str | None:
+                        skip_breaker: bool = False, observe: bool = True) -> str | None:
         """4 check を順に評価し reason|None を返す。caller が _storm_lock を保持する。
-        before_seq / skip_breaker は送信直前の再評価用 (breaker は予約時に既に数えた)。"""
+        before_seq は送信直前の再評価用 (先行予約を除いた baseline = confirmed_sl)。
+        observe=False (送信直前の再評価) では観測カウンタ (unknown_direction / allow_loosen
+        の detected) を二重計数しない。"""
         pip = _storm_pip_size(instrument)
         now = _time.monotonic()
         last = self._storm_baseline(st, before_seq)
@@ -1247,11 +1252,12 @@ class OandaBridge:
         if reason is None:
             reason = self._storm_check_idempotent(st, new_sl, pip, last)
         if reason is None:
-            reason = self._storm_check_monotonic(st, new_sl, pip, last)
+            reason = self._storm_check_monotonic(st, new_sl, pip, last, count_unknown=observe)
             if reason == "monotonic" and self._storm_allow_loosen:
                 # 明示 opt-in: 検知は数えるが reject しない
-                self._storm_record(demo_trade_id, st, "monotonic", new_sl,
-                                   enforced=False, note="allow_loosen")
+                if observe:
+                    self._storm_record(demo_trade_id, st, "monotonic", new_sl,
+                                       enforced=False, note="allow_loosen")
                 reason = None
         if reason is None:
             reason = self._storm_check_deadband(st, new_sl, pip, last)
@@ -1441,11 +1447,15 @@ class OandaBridge:
         """送信順到来後 (先行予約は全て決着済み) の最終判定 + **breaker 窓入り**。
         Returns (send, sync_return_if_not_send)。
         - 検知のみモード: 判定せず窓に入れて送る (検知は gate で済んでいる)。
-        - enforce / 暫定 token: 確認済み baseline で 4 check を再評価 (breaker 含む)。
-        - enforce / 非暫定 token: breaker のみ再評価 — 窓に入るのは**実際に送信した要求**
-          だけなので、予約時点の breaker 判定は「既に送信済みの要求」しか見ておらず、
-          未送信予約が原因の偽 reject は起きない (review 8 巡目 P1: 停滞 A + 未送信 B,C
-          で保護更新 D を最終 reject していた)。
+        - enforce: **全 token を確認済み baseline で 4 check 再評価する** (breaker 含む)。
+          gate 時点の評価は未確認の pending 値に対する pre-filter でしかない — gate を
+          「暫定でなく」通った要求も、その baseline が暫定 (後で reject され得る) なら
+          送信時に無効になり得る (review 9 巡目 P1: 確認済み 154.115 / P=154.350 /
+          暫定 A=154.270 / B=154.280 は A 基準で通るが、P 確認 → A reject の後 B を
+          送ると確認済み 154.350 を 154.280 に緩める)。送信直前の再評価が唯一の
+          最終判定で、そこでの baseline は先行が全て決着済み = `confirmed_sl`。
+          breaker も同じ場所で評価 — 窓に入るのは**実際に送信した要求**だけなので
+          未送信予約が原因の偽 reject は起きない (review 8 巡目 P1)。
         通れば `_storm_count_tx` で窓に入れて送る。reject なら予約を取り消し (窓には
         入っていない) skipped に計数、sync は冪等なら True。"""
         if not token:
@@ -1454,13 +1464,11 @@ class OandaBridge:
             if not self._storm_enforce:
                 self._storm_count_tx(st, token)
                 return True, False
-            if token.get("reeval"):
-                reason = self._storm_evaluate(demo_trade_id, st, new_sl, instrument,
-                                              before_seq=token["seq"], skip_breaker=False)
-                note = f"reevaluated_after_settle (provisional={token.get('provisional_reason')})"
-            else:
-                reason = self._storm_check_breaker(st, _time.monotonic())
-                note = "breaker_at_send"
+            reason = self._storm_evaluate(demo_trade_id, st, new_sl, instrument,
+                                          before_seq=token["seq"], skip_breaker=False,
+                                          observe=False)
+            note = ("reevaluated_at_send"
+                    + (f" (provisional={token.get('provisional_reason')})" if token.get("reeval") else ""))
             if reason is None:
                 token["reeval"] = False
                 self._storm_count_tx(st, token)
