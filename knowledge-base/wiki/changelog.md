@@ -9,6 +9,7 @@
 - **registry**: LOCK `rnb-support-bounce-shadow-forward` に 🔒 AMENDMENT 事前宣言 (変更前 N=2 snapshot、旧/新 gate 構成は**層別既定**・除外しない、n_decide 41 は総数、一次キー marker / 二次キー デプロイ時刻) / checkpoint-1・-2 に混合読み注記 + 新構成行で『通過』した場合の引用制限 (n_floor・期日不変) / 新規 `rnb-relax-deploy-stamp-record` (09-24) / `review-backlog-sprint0922-p2-deferrals-1003` resolved (β 分岐不採用で PR #283 comment 4070561551 は moot)
 - **判断の位置づけ**: checkpoint-1 の自動判定 (09-25) を待たずに執行 — 真因は機構帰属済み・判定主体は Claude (R3 自走可)・user 委任「推奨で進めて」。「TRIGGERED」は名乗らず、自動判定の resolution に旧/新層別 N を記す (precheck §11)
 - 残置 (範囲外): precheck §8 (iii) データ鮮度読み手 / (iv) TACTICAL_BIAS writer ログ / (v) watcher 厳格 shadow 選択子
+- **デプロイ記録 (follow-up docs PR)**: merge `0033a883` 2026-09-22T20:04:54Z → Render `dep-dapduq2jnfac73caav30` live **2026-09-22T20:06:42Z** を LOCK message に追記、`rnb-relax-deploy-stamp-record` resolved。Codex 2 巡 (171c5ab / 863eb21f) とも指摘ゼロ、敵対的 3 レンズ workflow の P2 (per-row provenance) は marker で消化
 
 ## 2026-09-22 — docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 を索引 + 期日別 sub-entry 4 / 更新 9 / 新規 6) + index/changelog/session 同期 (rule:R3)
 
