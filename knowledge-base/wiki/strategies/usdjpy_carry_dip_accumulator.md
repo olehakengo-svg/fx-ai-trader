@@ -1,6 +1,6 @@
 # usdjpy_carry_dip_accumulator
 
-- **Status**: **LIVE 稼働中** (1000u MIN lot、Rule-1 意図的例外) — 2026-08-14 以降 fill 実績あり (直近の**決済済み** = 🆕 **#893161 / 2026-09-11T12:30:04Z 決済、N=14**)。⚠️ **2026-09-11 以降 5.03 日間 live fill 0 本** (`agg_kelly=-0.327<0` でゲート block、市場オープン換算 **72.8h / 閾値 120h = 61% 消費**)、OANDA `openTradeCount` **0**。2026-06-08 登録
+- **Status**: **LIVE 稼働中** (1000u MIN lot、Rule-1 意図的例外) — **初 LIVE fill #549260 = 2026-08-05T04:17:52Z、以降 14 本 (08-05〜09-11)** (直近の**決済済み** = **#893161 / 2026-09-11T12:30:04Z 決済、N=14**)。⚠️ **2026-09-11 以降 live fill 0 本 (09-22T08:47Z 時点で 10.9 日)**。fill 0 の第一候補は `_tick_entry` 下流の **velocity_down ガード** (永続 block 台帳 11d: `velocity_down` 4 / `same_price_3pip` 1 / **AGG_KELLY 0**、価格キャッシュ再現で qualifying H1 bar 2 本とも 38–57p 急落中 — 帰属確定ではない)。OANDA `openTradeCount` **0**。2026-06-08 登録。⬛ **2026-09-22 訂正、旧記述は誤り**: 旧「2026-08-14 以降 fill 実績あり」は #549260 (08-05) / #573986 (08-09) / #677396 (08-12) の 3 本を落としていた。旧「`agg_kelly=-0.327<0` でゲート block」は誤帰属 — 本セルは `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` (`modules/demo_trader.py:10560–10586`) 所属で 1000u では gate を bypass し、台帳に AGG_KELLY block は 0 件。broker 14/14 突合 (demo +103.0p / broker +¥793 = +79.3p、両方正、R2 不成立) は [[carry-dip-broker-reconcile-2026-09-22]]。
 - **Mode**: hourly (H1) / **Pair**: USD_JPY only / **Direction**: LONG only
 
 > ✅ **2026-08-20 更新 — zero-fire 解消 (外生要因)**: 07-02 診断の dormancy は **市場が thesis レンジに戻ったことで自然解消**。USD_JPY が ~159.47-159.62 まで下げ、`close < 159.50` ゲートが再武装 (`raw/trade-logs/2026-08-19-monitor.md`)。ceiling の再設定・retire は**不要になった** — 159.5 は結果的に妥当な壁位置だった。**本戦略は現在システム唯一の live 発火セル**。
