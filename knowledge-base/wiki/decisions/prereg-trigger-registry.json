@@ -854,6 +854,16 @@
       "message": "🔴 **user 決裁点 (R1) — LOCK `sr-anti-hunt-eurjpy-buy-forward-confirm` の optional stopping 露出**。weekly deepdive が本セルの outcome 統計 (WR/EV/PF/Wilson/p) を **2026-08-23 / 08-30 / 09-06 / 09-13 / 09-20 の 5 回**印刷し、いずれも main にコミット済み (LOCK 発効 2026-08-05、`knowledge-base/raw/cell_deepdive/*/_summary.md` を grep で確認)。さらに 09-20 に Claude が fresh 行の WIN/LOSS 内訳を 1 回観測 (doc §3 に開示)。⇒ **『fresh N≥40 到達時に 1 回限り判定』という前提は本 PR 以前に実質崩れており、凍結時の α をそのまま使えるかは自明でない**。2026-09-20 の PR で redaction 層を入れて **追加の露出は停止**したが、既発生分は取り消せない。選択肢: (a) そのまま判定し verdict に『optional stopping 露出あり』を明記して結論の強度を下げる (b) LOCK 失効扱いとし redaction 済みハーネス下で fresh OOS 窓を切り直す (N 蓄積やり直し = 時間コスト大) (c) 判定は行うが昇格の必要条件を引き上げる。⚠️ **引用規律: 本セルの今後の verdict を 引用する際はこの露出を必ず併記すること。露出を伏せた『Bonferroni 通過』型の引用は禁止。** 本件は計数基準 (`sr-anti-hunt-eurjpy-count-basis-declaration`) とは別問題 — 混同しないこと。",
       "condition": "5 週の optional stopping 露出を受けて LOCK sr-anti-hunt-eurjpy-buy-forward-confirm の 判定を凍結時の α のまま行ってよいかを user が確定すること",
       "reachability": "user 決裁待ち (R1)。到達経路 = user が (a)/(b)/(c) を選び、pre-reg doc sr-anti-hunt-eurjpy-r1-verdict-2026-08-05 と本エントリを同一コミットで更新。追加露出の停止は執行済み (tools/cell_deepdive_audit.py の redaction 層 + tests/test_cell_deepdive_lock_redaction.py の 8 pins、2026-09-20)。期日 2026-10-12 は本体トリガ ETA (2026-10 中旬) の手前。超過して N≥40 が先に来た場合、判定は disposition 確定まで保留すること。"
+    },
+    {
+      "id": "review-backlog-272-273-continuation",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-06",
+      "doc": "knowledge-base/wiki/changelog.md",
+      "message": "🟠 **PR #272 / #273 の connector レビュー消化の継続枠 (2026-09-22 起票)**。両 PR は 2026-09-22 に **13 巡 (合計)** のレビューを消化してマージした: #272 は 7〜12 巡目、#273 は第20〜27波。**指摘は全て実在の欠陥で誤検知ゼロ**、P1 は全件修正済み、pin は #272 **77 本** / #273 **73 本** へ増加し全件 counterfactual 済み。⚠️ **レビューは『クリーン』で終わっていない** — 最終巡でも 毎回 1〜2 件の新規 P2 が出続けており、**打ち切りはマージ判断であって完了宣言ではない**。欠陥族は一貫して (a) fetch/完全性の窓、(b) 数値の陳腐化 (推定量が変わると公表値が動く)、(c) ガードの広すぎ/狭すぎ の 3 つ。⇒ 期日までに **両 PR の最終 HEAD に対し `@codex review` を 1 回走らせ、残 P1/P2 を triage** せよ (修正 or 理由付き dismiss)。🔴 **引用規律: この 2 PR のツール (`tools/cell_deepdive_audit.py` / `tools/hunt_event_dataset.py` / `tools/mof_statements_ingest.py`) が出す数値を引用する 際は、推定量と as-of と基数を必ず併記する** — 本セッション中に同じ数字が #272 で 4 巡連続で動いた (窓なし→1h / chaining→anchored / 到着順依存 / 契約節の取り残し)。読み手面の相互整合は pin で機械化済み (tool 契約節 + 感度表 + readout + logger docstring) だが、**changelog / session log は歴史記録なので pin 対象外**。🔵 併せて記録: この環境は `sys.pycache_prefix` がリポジトリ外を指し、編集した .py が import されず旧 bytecode が走る事象を実測 (119,373 個滞留) — **検証/counterfactual の前に キャッシュ purge が必要** (MEMORY `feedback_pycache_prefix_stale_bytecode_verification`)。",
+      "condition": "PR #272 / #273 の最終 HEAD に対する connector レビューを 1 回走らせ、残存 P1/P2 を triage し終えること (修正 commit or 理由付き dismiss)",
+      "reachability": "Claude が期日までに `gh pr view 272/273` の最終 HEAD sha を確認し、マージ後のため main に対する review 相当として `python3 tools/pr_review_gate.py` ではなく直接 inline thread を読む (ゲートは両方向に誤るので額面で受け取らない)。未消化が残る場合は fix PR を起票する"
     }
   ]
 }
