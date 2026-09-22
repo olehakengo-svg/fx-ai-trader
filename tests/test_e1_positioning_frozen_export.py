@@ -99,6 +99,24 @@ def make_world(n_per_inst=30, n_after_cutoff=5, step_min=20, n_after_postponed=0
     return snaps, health
 
 
+def _write_full_parquets(d, cutoff=None, pairs=None, drop_tail_bars=0, start=None):
+    """t0 − 1 日 〜 cutoff + 2h の M15 合成 parquet (preflight 範囲要件を満たす)。"""
+    import pandas as pd
+    cutoff = cutoff or CUTOFF1
+    start = start or (fx.parse_utc(fx.T0_ISO) - timedelta(days=1)).replace(
+        minute=0, second=0, microsecond=0)
+    end = cutoff + timedelta(hours=2)
+    idx = pd.date_range(start, end, freq="15min", tz="UTC")
+    if drop_tail_bars:
+        idx = idx[idx + pd.Timedelta(seconds=900) <= pd.Timestamp(cutoff)][:-drop_tail_bars]
+    os.makedirs(d, exist_ok=True)
+    px = 100.0 + np.arange(len(idx)) * 0.001
+    for pair in (pairs or fx.INSTRUMENTS):
+        pd.DataFrame({"Open": px, "High": px + 0.05, "Low": px - 0.05, "Close": px + 0.01,
+                      "Volume": 1.0}, index=idx).to_parquet(os.path.join(d, f"{pair}_15m.parquet"))
+    return idx
+
+
 def _run(tmp_path, api, postponed=False, now=None, **kw):
     paths = fx.default_paths(1, str(tmp_path), postponed=postponed)
     import io
@@ -240,9 +258,11 @@ class TestRoundtrip:
         assert os.path.exists(paths["manifest"])
 
         rec = fx.read_sha256_record(paths["sha256"])
-        assert len(rec) == 1
-        (rel, want), = rec.items()
+        assert len(rec) == 2                      # artifact + manifest
+        art_entries = {k: v for k, v in rec.items() if k.endswith("look1.json")}
+        (rel, want), = art_entries.items()
         assert want == fx.sha256_file(paths["artifact"])
+        assert fx.sha256_file(paths["manifest"]) in rec.values()
         assert fx.verify_record(paths["sha256"], root=str(tmp_path))["ok"] or \
             fx.verify_record(paths["sha256"], root=fx.repo_root())["ok"]
 
@@ -469,11 +489,8 @@ class TestOnceOnlyGuard:
         def boom(*a, **k):
             raise RuntimeError("parquet corrupt")
         monkeypatch.setattr(fx, "slice_ohlcv", boom)
-        src = tmp_path / "src"; src.mkdir()
-        import pandas as pd
-        for pair in fx.INSTRUMENTS:                    # preflight を通す
-            pd.DataFrame({"Open": [1.0]}, index=pd.DatetimeIndex([CUTOFF1 - timedelta(hours=1)])
-                         ).to_parquet(src / f"{pair}_15m.parquet")
+        src = tmp_path / "src"
+        _write_full_parquets(str(src))                 # preflight を通す
         with pytest.raises(RuntimeError, match="parquet corrupt"):
             _run(tmp_path, api, force=True, ohlcv_src=str(src), ohlcv_dst=str(tmp_path / "dst"))
         assert {k: open(paths[k], "rb").read() for k in before} == before
@@ -507,13 +524,8 @@ class TestOnceOnlyGuard:
     def test_publish_failure_rolls_back_prior_freeze(self, tmp_path, monkeypatch):
         """P1 (3 巡目): 公開フェーズ途中 (artifact/parquet 差し替え後、marker 書込みで失敗) でも
         前回凍結の全ファイルが byte 単位で復元され、.bak が残らない。"""
-        import pandas as pd
-        src = tmp_path / "src"; src.mkdir(); dst = tmp_path / "dst"
-        base = CUTOFF1.replace(minute=0, second=0, microsecond=0) - timedelta(hours=3)
-        idx = pd.date_range(base, periods=16, freq="15min", tz="UTC")
-        for pair in fx.INSTRUMENTS:
-            pd.DataFrame({"Open": 1.0, "High": 1.1, "Low": 0.9, "Close": 1.0, "Volume": 1.0},
-                         index=idx).to_parquet(src / f"{pair}_15m.parquet")
+        src = tmp_path / "src"; dst = tmp_path / "dst"
+        _write_full_parquets(str(src))
         snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
         api = FakeApi(snaps, health)
         rc, paths, _ = _run(tmp_path, api, ohlcv_src=str(src), ohlcv_dst=str(dst))
@@ -763,19 +775,67 @@ class TestOhlcvSlice:
 
     def test_freeze_with_slice_records_parquet_sha(self, tmp_path):
         src = tmp_path / "src"; dst = tmp_path / "dst"
-        src.mkdir()
-        self._write_parquets(str(src))
+        _write_full_parquets(str(src))
         snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
         rc, paths, out = _run(tmp_path, FakeApi(snaps, health),
                               ohlcv_src=str(src), ohlcv_dst=str(dst))
         assert rc == fx.EXIT_OK
         rec = fx.read_sha256_record(paths["sha256"])
-        assert len(rec) == 1 + 13
+        assert len(rec) == 2 + 13                 # artifact + manifest + 13 parquet
         assert not FLOAT_RE.search(out), out
         man = json.load(open(paths["manifest"]))
         assert set(man["ohlcv_slice"]) == set(fx.INSTRUMENTS)
+        assert all(c["ok"] for c in man["ohlcv_coverage"].values())
+        assert man["ohlcv_coverage"]["USD_JPY"]["last_complete_bar_open"] == "2026-10-08T06:15:00Z"
+        assert man["ohlcv_coverage"]["USD_JPY"]["lag_bars"] == 0
+        assert man["ohlcv_max_lag_bars"] == 0
+        # スライス後の末尾 = 完結 bar の最後
+        assert man["ohlcv_slice"]["USD_JPY"]["last_bar_open"] == "2026-10-08T06:15:00Z"
         res = fx.verify_record(paths["sha256"], root="/")
         assert res["ok"], res
+
+    def test_preflight_rejects_stale_or_short_ohlcv(self, tmp_path, capsys):
+        """P1 (4 巡目): 末尾が欠けた / 開始が遅い parquet は API 要求前に exit 2。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        src = tmp_path / "src"; dst = tmp_path / "dst"
+        _write_full_parquets(str(src))
+        _write_full_parquets(str(src), pairs=["EUR_GBP"], drop_tail_bars=3)   # stale tail
+        rc, paths, out = _run(tmp_path, api, ohlcv_src=str(src), ohlcv_dst=str(dst))
+        err = capsys.readouterr().err
+        assert rc == fx.EXIT_FAIL and api.calls == [] and out == ""
+        assert "preflight" in err and "EUR_GBP" in err and "stale_tail" in err
+        assert "lag 3 bars" in err
+        assert not os.path.exists(paths["attempts"])
+        # lag 許容を 3 に上げれば通り、manifest に記録される
+        rc, paths, _ = _run(tmp_path, api, ohlcv_src=str(src), ohlcv_dst=str(dst),
+                            ohlcv_max_lag_bars=3)
+        assert rc == fx.EXIT_OK
+        man = json.load(open(paths["manifest"]))
+        assert man["ohlcv_coverage"]["EUR_GBP"]["lag_bars"] == 3
+        assert man["ohlcv_max_lag_bars"] == 3
+        # 開始が t0 より後 → start_too_late
+        src2 = tmp_path / "src2"
+        _write_full_parquets(str(src2))
+        _write_full_parquets(str(src2), pairs=["USD_JPY"],
+                             start=fx.parse_utc(fx.T0_ISO) + timedelta(hours=1))
+        api2 = FakeApi(snaps, health)
+        rc2, _, _ = _run(tmp_path / "o2", api2, ohlcv_src=str(src2), ohlcv_dst=str(tmp_path / "d2"))
+        assert rc2 == fx.EXIT_FAIL and api2.calls == []
+        assert "start_too_late" in capsys.readouterr().err
+
+    def test_expected_last_bar_open_for_fixed_cutoffs(self):
+        """3 つの固定 cutoff (10-08 / 11-05 / 12-30、06:33:31Z、平日場中) の期待末尾 bar = 06:15。"""
+        for look, pp in ((1, False), (1, True), (2, False)):
+            c = fx.parse_utc(fx.look_spec(look, pp)["cutoff"])
+            e = fx.expected_last_bar_open(c)
+            assert e.strftime("%H:%M:%S") == "06:15:00" and e.date() == c.date()
+            assert ev.is_market_open(c)
+        # 週末に跨る cutoff は直前の金曜 close 前の bar まで遡る
+        sat = datetime(2026, 10, 10, 12, 0, tzinfo=timezone.utc)
+        e = fx.expected_last_bar_open(sat)
+        assert not ev.is_market_open(sat) and ev.is_market_open(e)
+        assert e < sat
 
 
 # ── verify (§2.5-5(b) roundtrip 突合) ─────────────────────────────────
@@ -795,9 +855,33 @@ class TestVerify:
         os.remove(paths["manifest"])
         res = fx.verify_record(paths["sha256"], root="/")
         assert not res["ok"] and res["manifest"] == "MISSING"
-        assert all(v == "OK" for v in res["files"].values())   # ファイルは無傷でも凍結不完全
+        # artifact は無傷 (OK)、manifest エントリは MISSING → 凍結不完全
+        assert {v for k, v in res["files"].items() if k.endswith("look1.json")} == {"OK"}
+        assert {v for k, v in res["files"].items() if k.endswith(".manifest.json")} == {"MISSING"}
         rc = fx.main(["--verify", paths["sha256"]])
         assert rc == fx.EXIT_FAIL
+
+    def test_verify_detects_manifest_tamper_or_missing_manifest_entry(self, tmp_path):
+        """P2 (4 巡目): manifest は marker に載る — 編集 (roundtrip ok 偽装等) は MISMATCH、
+        marker から manifest エントリを抜いた記録は MANIFEST_ENTRY_MISSING。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        rc, paths, _ = _run(tmp_path, FakeApi(snaps, health))
+        assert rc == fx.EXIT_OK
+        assert fx.verify_record(paths["sha256"], root="/")["ok"]
+        man_text = open(paths["manifest"]).read()
+        man = json.loads(man_text)
+        man["api_base"] = "https://elsewhere.invalid"     # 出所の書き換え
+        json.dump(man, open(paths["manifest"], "w"), sort_keys=True)
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"]
+        assert any(k.endswith(".manifest.json") and v == "MISMATCH" for k, v in res["files"].items())
+        open(paths["manifest"], "w").write(man_text)
+        assert fx.verify_record(paths["sha256"], root="/")["ok"]
+        rec = fx.read_sha256_record(paths["sha256"])
+        rec = {k: v for k, v in rec.items() if not k.endswith(".manifest.json")}
+        fx.write_sha256_record(paths["sha256"], rec)
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["marker"] == "MANIFEST_ENTRY_MISSING"
 
     def test_verify_rejects_empty_or_incomplete_marker(self, tmp_path):
         """P2 (3 巡目): 0 byte marker / artifact エントリ欠落 / manifest 宣言 parquet 欠落は FAIL。"""

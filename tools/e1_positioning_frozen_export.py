@@ -36,6 +36,12 @@
      を「open + 900s ≤ cutoff (完結 bar のみ、判定器 clip_bars_to_cutoff と同一規約)」で
      切詰めて `--ohlcv-dst` に書き、sha256/bytes/行数/末尾 bar 時刻を同じ .sha256/.manifest に
      追記する。data/cache/ は gitignored なので raw 側に残るのは sha256 のみ。
+     **範囲 preflight (API 要求前)**: 全 13 pair の index だけ読み、first bar open ≤ t0 かつ
+     last 完結 bar open == cutoff 直前の完結 bar (市場時間内の最終 15m 境界、
+     `--ohlcv-max-lag-bars` 既定 0) を要求。refresh の失敗・部分取得で末尾が欠けた parquet
+     が「有効な sha256 付き凍結」になる経路を塞ぐ。結果は manifest `ohlcv_coverage`。
+     **manifest 自身も marker の sha256 エントリに載せる** (roundtrip 結果・出所・台帳の
+     改変を `--verify` が検出する)。
 
   6. **API→artifact roundtrip 突合 (§2.5-5(b))**: artifact 書込み直後にディスクから再読し、
      export レスポンス (メモリ上の 1 回だけの応答) と件数・(instrument, book_type,
@@ -90,6 +96,7 @@ POSTPONE_WEEKS = 4              # §2.5-3 / §7: cutoff・verdict・窓終端を
 API_PAGE_LIMIT = 20000          # app.py /api/positioning/export の上限
 MAX_PAGES = 200                 # 無限ループ保険 (13 × 20000 行 ≫ 想定)
 BAR_SEC = 900                   # M15 完結 = open + 900s ≤ cutoff (判定器と同一)
+OHLCV_REQUIRED_START_ISO = T0_ISO   # parquet は t0 以前から始まること (§2.5-4 当日レンジ sanity 等)
 
 EXIT_OK, EXIT_FAIL, EXIT_REFUSED_FROZEN = 0, 2, 3
 
@@ -457,12 +464,17 @@ def verify_record(sha_path: str, root: str = "") -> Dict[str, Any]:
     else:
         res["manifest"] = "MISSING" if not os.path.exists(man_path) else "ROUNDTRIP_UNRECORDED"
     if res["marker"] == "OK" and man:
-        # manifest が宣言する artifact / parquet が marker に全て載っていること
+        # manifest が宣言する artifact / parquet と manifest 自身が marker に全て載っていること
         want_paths = [man.get("artifact")] + [m.get("path") for m in
                                               (man.get("ohlcv_slice") or {}).values()]
         want_paths = [w for w in want_paths if w]
         if any(w not in entries for w in want_paths):
             res["marker"] = "ENTRIES_MISSING_VS_MANIFEST"
+        else:
+            abs_entries = {os.path.abspath(rel if os.path.isabs(rel) else os.path.join(root, rel))
+                           for rel in entries}
+            if os.path.abspath(man_path) not in abs_entries:
+                res["marker"] = "MANIFEST_ENTRY_MISSING"
     res["ok"] = bool(ok and res["manifest"] == "OK" and res["marker"] == "OK")
     return res
 
@@ -545,6 +557,72 @@ def missing_ohlcv(src_dir: str, pairs: Sequence[str] = INSTRUMENTS) -> List[str]
     return [p for p in pairs if not os.path.exists(os.path.join(src_dir, f"{p}_15m.parquet"))]
 
 
+def _is_market_open(ts: datetime) -> bool:
+    """判定器 is_market_open (NY Sun 17:00 open 〜 Fri 17:00 close、DST 追随) を lazy import。"""
+    root = repo_root()
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from tools.e1_positioning_prereg_eval import is_market_open  # noqa: E402
+    return is_market_open(ts)
+
+
+def expected_last_bar_open(cutoff: datetime) -> datetime:
+    """cutoff までに完結した最後の M15 bar の open (市場時間内)。
+
+    open = floor((cutoff − 900s) / 900s) × 900s。その bar の全期間が市場閉場なら
+    15 分ずつ遡る (週末に跨る cutoff の保険 — 3 つの固定 cutoff は全て平日場中)。
+    """
+    ep = int(cutoff.timestamp())
+    t = (ep - BAR_SEC) // BAR_SEC * BAR_SEC
+    for _ in range(4 * 24 * 3):                     # 最長 3 日遡る (週末)
+        open_dt = datetime.fromtimestamp(t, tz=timezone.utc)
+        close_dt = datetime.fromtimestamp(t + BAR_SEC - 1, tz=timezone.utc)
+        if _is_market_open(open_dt) or _is_market_open(close_dt):
+            return open_dt
+        t -= BAR_SEC
+    raise RuntimeError("expected_last_bar_open: 市場時間の bar が見つからない")
+
+
+def check_ohlcv_coverage(src_dir: str, cutoff: datetime,
+                         required_start: Optional[datetime] = None,
+                         max_lag_bars: int = 0,
+                         pairs: Sequence[str] = INSTRUMENTS) -> Dict[str, Dict[str, Any]]:
+    """全 pair の parquet index (値は読まない) が要求範囲を覆うか (API 要求前 preflight)。
+
+    ok ⇔ first bar open ≤ required_start ∧ (expected_last − last_complete) / 900 ≤ max_lag_bars。
+    stale / 部分取得の parquet が sha256 付き凍結に化ける経路を塞ぐ (§2.5-1 fail-loud)。
+    """
+    import pandas as pd
+    required_start = required_start or parse_utc(OHLCV_REQUIRED_START_ISO)
+    exp_last = expected_last_bar_open(cutoff)
+    cutoff_ts = pd.Timestamp(cutoff)
+    out: Dict[str, Dict[str, Any]] = {}
+    for pair in pairs:
+        fp = os.path.join(src_dir, f"{pair}_15m.parquet")
+        if not os.path.exists(fp):
+            out[pair] = {"ok": False, "reason": "missing"}
+            continue
+        idx = pd.DatetimeIndex(pd.read_parquet(fp, columns=[]).index)
+        idx = idx.tz_localize("UTC") if idx.tz is None else idx.tz_convert("UTC")
+        complete = idx[(idx + pd.Timedelta(seconds=BAR_SEC)) <= cutoff_ts]
+        first = idx.min().to_pydatetime() if len(idx) else None
+        last_c = complete.max().to_pydatetime() if len(complete) else None
+        lag = None if last_c is None else int(round((exp_last - last_c).total_seconds() / BAR_SEC))
+        reasons = []
+        if first is None or first > required_start:
+            reasons.append("start_too_late")
+        if last_c is None or lag is None or lag > max_lag_bars:
+            reasons.append("stale_tail")
+        if lag is not None and lag < 0:
+            reasons.append("bar_after_expected_last")   # cutoff 後 open の bar が「完結」扱い = 規約違反
+        out[pair] = {"ok": not reasons, "reason": ",".join(reasons) if reasons else None,
+                     "first_bar_open": iso_sec(first) if first else None,
+                     "last_complete_bar_open": iso_sec(last_c) if last_c else None,
+                     "expected_last_bar_open": iso_sec(exp_last), "lag_bars": lag,
+                     "rows": int(len(idx))}
+    return out
+
+
 def slice_ohlcv(src_dir: str, dst_dir: str, cutoff: datetime,
                 pairs: Sequence[str] = INSTRUMENTS) -> Dict[str, Dict[str, Any]]:
     """{PAIR}_15m.parquet を「open + 900s ≤ cutoff」で切詰めて dst へ書く。
@@ -609,7 +687,8 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
                force: bool = False, allow_missing: bool = False,
                ohlcv_src: str = "", ohlcv_dst: str = "",
                now: Optional[datetime] = None,
-               out=None, postponed: bool = False) -> int:
+               out=None, postponed: bool = False,
+               ohlcv_max_lag_bars: int = 0) -> int:
     """export → staging artifact → roundtrip 突合 → スライス → 一括公開 (manifest → marker)。
 
     stdout には値を出さない。前回凍結は全検証が通るまで byte 不改変。
@@ -635,7 +714,8 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(f"pid={os.getpid()} started={iso_sec(utc_now())}\n")
         return _run_freeze_locked(fetcher, look, paths, api_base, force, allow_missing,
-                                  ohlcv_src, ohlcv_dst, now, out, postponed)
+                                  ohlcv_src, ohlcv_dst, now, out, postponed,
+                                  ohlcv_max_lag_bars)
     finally:
         try:
             os.remove(lock)
@@ -645,7 +725,8 @@ def run_freeze(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str
 
 def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_base: str,
                        force: bool, allow_missing: bool, ohlcv_src: str, ohlcv_dst: str,
-                       now: Optional[datetime], out, postponed: bool) -> int:
+                       now: Optional[datetime], out, postponed: bool,
+                       ohlcv_max_lag_bars: int = 0) -> int:
     out = out or sys.stdout
     spec = look_spec(look, postponed)
     cutoff = parse_utc(spec["cutoff"])
@@ -715,6 +796,21 @@ def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_b
                   f" {miss} in {ohlcv_src} — API 要求前に停止 (§2.5-1 fail-loud)。"
                   f" `python3 tools/bt_data_cache.py refresh 15m` 後に再実行。", file=sys.stderr)
             return EXIT_FAIL
+        ohlcv_coverage = check_ohlcv_coverage(ohlcv_src, cutoff, max_lag_bars=ohlcv_max_lag_bars)
+        bad = {p: c for p, c in ohlcv_coverage.items() if not c["ok"]}
+        if bad:
+            detail = "; ".join(f"{p}: {c['reason']} (first {c.get('first_bar_open')},"
+                               f" last complete {c.get('last_complete_bar_open')},"
+                               f" expected {c.get('expected_last_bar_open')}, lag"
+                               f" {c.get('lag_bars')} bars)" for p, c in sorted(bad.items()))
+            print(f"REFUSED (preflight): OHLCV parquet の範囲不足 ({len(bad)}/{len(INSTRUMENTS)})"
+                  f" — {detail}。要求: first ≤ {OHLCV_REQUIRED_START_ISO} ∧ 末尾 = cutoff 直前の"
+                  f" 完結 bar (許容 lag {ohlcv_max_lag_bars} bar)。stale / 部分取得の parquet を"
+                  f" 凍結しない (§2.5-1)。`bt_data_cache.py refresh 15m` 後に再実行。",
+                  file=sys.stderr)
+            return EXIT_FAIL
+    else:
+        ohlcv_coverage = {}
 
     # ── attempt 台帳: 最初の API 要求の前に「試行開始」を永続化 ─────────
     attempt: Dict[str, Any] = {"started_at": iso_sec(now), "status": "in_progress",
@@ -833,6 +929,8 @@ def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_b
         manifest = _build_manifest(look, spec, postponed, now, api_base, paths, root,
                                    snap_sum, health, ohlcv_meta, ohlcv_dst, rt,
                                    force_history, journal)
+        manifest["ohlcv_coverage"] = ohlcv_coverage
+        manifest["ohlcv_max_lag_bars"] = ohlcv_max_lag_bars if ohlcv_src else None
         attempt.update({"status": "frozen", "finished_at": iso_sec(utc_now()),
                         "snapshots_rows": snap_sum["rows_total"], "health_rows": len(health),
                         "artifact_sha256": entries[relpath_for_record(paths["artifact"], root)]})
@@ -840,6 +938,8 @@ def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_b
         man_staging = paths["manifest"] + ".staging"
         write_json_atomic(man_staging, manifest)
         _swap_in(man_staging, paths["manifest"])            # manifest が先
+        # manifest 自身も marker に載せる (roundtrip 結果 / 出所 / 台帳の改変検出)
+        entries[relpath_for_record(paths["manifest"], root)] = sha256_file(paths["manifest"])
         sha_staging = paths["sha256"] + ".staging"
         write_sha256_record(sha_staging, entries)
         _swap_in(sha_staging, paths["sha256"])              # marker は最後 (= 凍結成立)
@@ -958,6 +1058,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="フル期間 parquet dir (default data/cache/massive)")
     ap.add_argument("--ohlcv-dst", default="",
                     help="切詰め parquet dir (default data/cache/e1_frozen_look{N}_{cutoff日})")
+    ap.add_argument("--ohlcv-max-lag-bars", type=int, default=0,
+                    help="preflight: 末尾 bar が cutoff 直前の完結 bar から遅れてよい本数"
+                         " (既定 0 = 完全一致。例外は manifest に記録される)")
     ap.add_argument("--dry-run-health", action="store_true",
                     help="本番試走: table=health_log を limit 小で GET のみ (書込みなし)")
     ap.add_argument("--limit", type=int, default=5, help="--dry-run-health の limit")
@@ -998,7 +1101,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     return run_freeze(fetcher, args.look, paths, api_base=args.api_base,
                       force=args.force, allow_missing=args.allow_missing_instruments,
                       ohlcv_src=ohlcv_src, ohlcv_dst=args.ohlcv_dst,
-                      postponed=args.postponed)
+                      postponed=args.postponed,
+                      ohlcv_max_lag_bars=max(0, args.ohlcv_max_lag_bars))
 
 
 if __name__ == "__main__":
