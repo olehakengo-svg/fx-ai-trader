@@ -184,6 +184,8 @@ class OandaBridge:
             "detected": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0, "serialize": 0},
             "skipped": {"breaker": 0, "idempotent": 0, "monotonic": 0, "deadband": 0, "serialize": 0},
             "unknown_direction": 0, "breaker_trips": 0, "failed": 0,
+            # deferred = enforce で baseline が未確認だったため送信順到来まで判定を保留した件数
+            "deferred": 0,
         }
 
     # デフォルト全モード — MODE_CONFIGと同期（UI表示用）
@@ -1074,10 +1076,14 @@ class OandaBridge:
         }
 
     @staticmethod
-    def _storm_baseline(st: dict) -> float | None:
+    def _storm_baseline(st: dict, before_seq: int | None = None) -> float | None:
         """check が比較する SL — 直近の未確認予約があればそれ (burst 抑止、review P2-1)、
-        なければ broker 確認済み値。未確認値を確認済みとは**扱わない** (review P1-3)。"""
+        なければ broker 確認済み値。未確認値を確認済みとは**扱わない** (review P1-3)。
+        before_seq を与えると、その seq より前の予約だけを見る (送信直前の再評価: 自分が
+        pending[0] なら先行予約はゼロ = 確認済み値そのもの、review 5 巡目 P2)。"""
         pend = st.get("pending") or []
+        if before_seq is not None:
+            pend = [t for t in pend if t["seq"] < before_seq]
         if pend:
             return pend[-1]["new_sl"]
         return st.get("confirmed_sl")
@@ -1170,19 +1176,23 @@ class OandaBridge:
             return "breaker"
         return None
 
-    def _storm_check_idempotent(self, st: dict, new_sl: float, pip: float) -> str | None:
+    def _storm_check_idempotent(self, st: dict, new_sl: float, pip: float,
+                                last: float | None = None) -> str | None:
         """(2) 冪等 — 直前に送った SL と同値なら skip (family A: same-price loop)。"""
-        last = self._storm_baseline(st)
+        if last is None:
+            last = self._storm_baseline(st)
         if last is None:
             return None
         if round(abs(float(new_sl) - float(last)) / pip, 3) == 0.0:
             return "idempotent"
         return None
 
-    def _storm_check_monotonic(self, st: dict, new_sl: float, pip: float) -> str | None:
+    def _storm_check_monotonic(self, st: dict, new_sl: float, pip: float,
+                               last: float | None = None) -> str | None:
         """(3) 単調性 — BUY で SL↓ / SELL で SL↑ は契約違反 (risk-increasing)。
         方向不明なら判定不能 (検知カウンタのみ)。"""
-        last = self._storm_baseline(st)
+        if last is None:
+            last = self._storm_baseline(st)
         direction = st.get("direction")
         if last is None:
             return None
@@ -1197,10 +1207,12 @@ class OandaBridge:
             return "monotonic"
         return None
 
-    def _storm_check_deadband(self, st: dict, new_sl: float, pip: float) -> str | None:
+    def _storm_check_deadband(self, st: dict, new_sl: float, pip: float,
+                              last: float | None = None) -> str | None:
         """(4) dead-band — |new − last| < deadband_pips (既定 1.0 pip) は skip
         (family B: 0.001 刻み振動。等値では止まらない)。ちょうど 1.0 pip は通す。"""
-        last = self._storm_baseline(st)
+        if last is None:
+            last = self._storm_baseline(st)
         if last is None:
             return None
         band = float(self._storm_cfg.get("deadband_pips") or 0.0)
@@ -1224,22 +1236,25 @@ class OandaBridge:
         return st
 
     def _storm_evaluate(self, demo_trade_id: str, st: dict, new_sl: float,
-                        instrument: str) -> str | None:
-        """4 check を順に評価し reason|None を返す。caller が _storm_lock を保持する。"""
+                        instrument: str, before_seq: int | None = None,
+                        skip_breaker: bool = False) -> str | None:
+        """4 check を順に評価し reason|None を返す。caller が _storm_lock を保持する。
+        before_seq / skip_breaker は送信直前の再評価用 (breaker は予約時に既に数えた)。"""
         pip = _storm_pip_size(instrument)
         now = _time.monotonic()
-        reason = self._storm_check_breaker(st, now)
+        last = self._storm_baseline(st, before_seq)
+        reason = None if skip_breaker else self._storm_check_breaker(st, now)
         if reason is None:
-            reason = self._storm_check_idempotent(st, new_sl, pip)
+            reason = self._storm_check_idempotent(st, new_sl, pip, last)
         if reason is None:
-            reason = self._storm_check_monotonic(st, new_sl, pip)
+            reason = self._storm_check_monotonic(st, new_sl, pip, last)
             if reason == "monotonic" and self._storm_allow_loosen:
                 # 明示 opt-in: 検知は数えるが reject しない
                 self._storm_record(demo_trade_id, st, "monotonic", new_sl,
                                    enforced=False, note="allow_loosen")
                 reason = None
         if reason is None:
-            reason = self._storm_check_deadband(st, new_sl, pip)
+            reason = self._storm_check_deadband(st, new_sl, pip, last)
         return reason
 
     def _storm_record(self, demo_trade_id: str, st: dict, reason: str,
@@ -1276,13 +1291,32 @@ class OandaBridge:
         Returns token {seq, new_sl, done: Event, ok: None|bool}."""
         with self._storm_lock:
             st["seq"] += 1
-            token = {"seq": st["seq"], "new_sl": float(new_sl),
-                     "done": threading.Event(), "ok": None}
+            ts = _time.monotonic()
+            token = {"seq": st["seq"], "new_sl": float(new_sl), "ts": ts,
+                     "done": threading.Event(), "ok": None, "reeval": False}
             st["pending"].append(token)
-            st["sent_ts"].append(_time.monotonic())
+            st["sent_ts"].append(ts)
             st["sent_total"] += 1
             self._storm_totals["sent"] += 1
         return token
+
+    def _storm_unreserve(self, st: dict, token: dict):
+        """送信直前の再評価で reject された暫定予約を取り消す — broker には一切届いて
+        いないので要求数 (sent_ts / sent_total) も戻す (rollback とは違う)。"""
+        with self._storm_lock:
+            token["ok"] = False
+            try:
+                st["pending"].remove(token)
+            except ValueError:
+                pass
+            try:
+                st["sent_ts"].remove(token["ts"])
+                st["sent_total"] -= 1
+                self._storm_totals["sent"] -= 1
+            except ValueError:
+                pass
+            st["cond"].notify_all()
+        token["done"].set()
 
     def _storm_confirm(self, demo_trade_id: str, st: dict, token: dict | None):
         """broker 成功: token を pending から外し confirmed_sl を更新する。
@@ -1321,10 +1355,8 @@ class OandaBridge:
             st["cond"].notify_all()
         token["done"].set()
 
-    # modify_sl_sync が「同値の予約が飛行中」のとき、その結果を待つ上限。
-    # OandaClient._request の HTTP timeout (10 s) + 余裕。
-    STORM_PENDING_WAIT_SEC = 15.0
     # 送信順番待ち (自分より前の予約が broker 応答を返すまで) の上限。
+    # OandaClient._request の HTTP timeout (10 s) + 余裕。
     STORM_TURN_WAIT_SEC = 20.0
 
     def _storm_wait_turn(self, demo_trade_id: str, st: dict, token: dict | None) -> bool:
@@ -1373,10 +1405,13 @@ class OandaBridge:
             失敗で _storm_rollback(token)。
           proceed=False → 送信しない。sync_return は modify_sl_sync の戻り値:
             True  = 冪等 skip で broker が**確認済み**にその SL を持つ
-            token = 冪等 skip だが一致したのは**飛行中の予約** (未確認)。caller は
-                    token["done"] を待って token["ok"] を返す (review P1-3: 未確認を
-                    成功として pyramiding 等に返さない)
             False = それ以外 (dead-band / 単調性 / breaker: broker SL 未変更)
+          **暫定 (token["reeval"]=True)**: enforce で reject 理由が出たが baseline が
+            **未確認の飛行中予約**だった場合、その場で最終判定しない (review 2 巡目 P1 /
+            5 巡目 P2: 未確認値に対する最終 reject は、先行が失敗すると正当な保護更新を
+            永久に落とす)。暫定予約として pending に積み、送信順が来た時 (先行が全て
+            決着 = baseline が確認済み値) に `_storm_send_decision` で再評価する。
+        breaker は計数ベースで baseline に依存しないので暫定にしない (最終)。
         検知のみモード (既定) では常に proceed=True で、検知はカウンタ + ログ。
         評価と予約は 1 つの lock 区間 (同時到達 N 件が同じ古い baseline を見ない)。"""
         st = self._storm_get_state(demo_trade_id)
@@ -1388,25 +1423,34 @@ class OandaBridge:
             if not self._storm_enforce:
                 self._storm_record(demo_trade_id, st, reason, new_sl, enforced=False)
                 return True, None, self._storm_reserve(st, new_sl)
-            if reason == "idempotent" and st["pending"]:
-                # 一致相手は未確認の飛行中予約 → その結果に coalesce
-                pend = st["pending"][-1]
-                self._storm_record(demo_trade_id, st, reason, new_sl, enforced=True,
-                                   note="coalesced_with_pending")
-                return False, pend, None
+            if reason != "breaker" and st["pending"]:
+                # baseline は未確認 → 暫定予約、送信順到来時に確認済み値で再評価
+                token = self._storm_reserve(st, new_sl)
+                token["reeval"] = True
+                token["provisional_reason"] = reason
+                self._storm_totals["deferred"] += 1
+                return True, None, token
             self._storm_record(demo_trade_id, st, reason, new_sl, enforced=True)
             return False, (reason == "idempotent"), None
 
-    def _storm_sync_result(self, demo_trade_id: str, sync_ret: object) -> bool:
-        """modify_sl_sync の skip 時戻り値を解決する。token なら飛行中予約の結果を待つ。
-        timeout (worker 不応答) は False (未確認 = 保護未確認、caller は原 SL に戻す)。"""
-        if isinstance(sync_ret, dict) and "done" in sync_ret:
-            if not sync_ret["done"].wait(self.STORM_PENDING_WAIT_SEC):
-                logger.warning(f"[OandaBridge][STORM_GUARD] pending SL confirmation timeout "
-                               f"demo={demo_trade_id} sl={sync_ret['new_sl']} → False")
-                return False
-            return sync_ret["ok"] is True
-        return bool(sync_ret)
+    def _storm_send_decision(self, demo_trade_id: str, st: dict, token: dict | None,
+                             new_sl: float, instrument: str) -> tuple[bool, bool]:
+        """送信順到来後 (先行予約は全て決着済み) の最終判定。
+        Returns (send, sync_return_if_not_send)。暫定でない token は常に送る。
+        暫定 token は確認済み baseline で再評価: 通れば送る、reject なら予約を取り消し
+        (broker 未到達なので要求数も戻す) skipped に計数、sync は冪等なら True。"""
+        if not token or not token.get("reeval"):
+            return True, False
+        with self._storm_lock:
+            reason = self._storm_evaluate(demo_trade_id, st, new_sl, instrument,
+                                          before_seq=token["seq"], skip_breaker=True)
+            if reason is None:
+                token["reeval"] = False
+                return True, False
+            self._storm_record(demo_trade_id, st, reason, new_sl, enforced=True,
+                               note=f"reevaluated_after_settle (provisional={token.get('provisional_reason')})")
+            self._storm_unreserve(st, token)
+            return False, (reason == "idempotent")
 
     def get_storm_guard_status(self) -> dict:
         with self._storm_lock:
@@ -1452,6 +1496,10 @@ class OandaBridge:
                 logger.error(f"[OandaBridge] MODIFY SL dropped (turn timeout) #{oanda_id} "
                              f"sl={new_sl} (demo={demo_trade_id})")
                 return
+            if st is not None:
+                send, _ = self._storm_send_decision(demo_trade_id, st, token, new_sl, instrument)
+                if not send:
+                    return
             try:
                 ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
                                                       instrument=instrument)
@@ -1484,13 +1532,17 @@ class OandaBridge:
             return False
         proceed, sync_ret, token = self._storm_gate(demo_trade_id, new_sl, instrument)
         if not proceed:
-            return self._storm_sync_result(demo_trade_id, sync_ret)
+            return bool(sync_ret)
         st = self._storm_state.get(demo_trade_id)
         if st is not None and not self._storm_wait_turn(demo_trade_id, st, token):
             self._storm_rollback(demo_trade_id, st, token)
             logger.error(f"[OandaBridge] MODIFY SL (sync) dropped (turn timeout) #{oanda_id} "
                          f"sl={new_sl} (demo={demo_trade_id})")
             return False
+        if st is not None:
+            send, sync_ret2 = self._storm_send_decision(demo_trade_id, st, token, new_sl, instrument)
+            if not send:
+                return bool(sync_ret2)
         try:
             ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
                                                   instrument=instrument)
