@@ -1893,3 +1893,164 @@ def test_no_doc_hands_out_a_curl_workflow_for_this_tool():
     assert offenders == [], (
         "these docs prescribe a snapshot the CLI refuses — point them at "
         f"--fetch-to instead: {offenders}")
+
+
+def test_lock_with_only_dedup_repeats_still_gets_a_population_record():
+    """KNOWN-NG INPUT: every matching row carries dedup_violation=1.
+
+    The inventory key set used to come from the DEDUPLICATED rows, so such a
+    LOCK vanished from `redacted_cells` entirely — no `n_lock_population`
+    record at all — while the canonical watcher, which the `ws3-*` shadow
+    decisions give no unique/dedup predicate, still counted those rows and the
+    LOCK could reach `n_decide`.  Under-reporting a LOCK that is AT its gate
+    is the same false-negative direction as this file's other defects
+    (Codex P2, PR #273).
+    """
+    lock = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+            "direction": "BUY", "registry_id": "ws3-style-lock",
+            "match": "exact", "kind": "shadow", "since": "2026-08-05",
+            "closed_only": True, "dedup_violation": None, "mode": None,
+            "n_decide": 40, "reasons_marker": None, "count_basis": None}
+
+    def row(**kw):
+        base = {"entry_type": "sr_anti_hunt_bounce", "instrument": "EUR_JPY",
+                "direction": "BUY", "outcome": "WIN", "pnl_pips": 5.0,
+                "dedup_violation": 1, "is_shadow": 1, "status": "CLOSED",
+                "oanda_trade_id": "", "mode": "daytrade",
+                "entry_time": "2026-08-20T02:00:00"}
+        base.update(kw)
+        return base
+
+    all_repeats = [row() for _ in range(12)]
+    res = run_audit(all_repeats, run_date="2026-09-20",
+                    targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
+
+    recs = [c for c in res["eligible_cells_v2"]
+            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]]
+    assert recs, ("a LOCK whose rows are all dedup repeats must STILL appear "
+                  "in the inventory — vanishing hides a gate that may be met")
+    rec = recs[0]
+    assert rec["redacted"] is True
+    assert rec["n_lock_population"] == 12, (
+        "the LOCK population is counted by the LOCK's own predicate, which "
+        "here does not exclude dedup repeats")
+    assert rec["n_unique_rows_in_window"] == 0, (
+        "the unique count is a DIFFERENT question and must report 0 honestly")
+    assert rec["redaction_registry_id"] == "ws3-style-lock"
+    # No outcome statistic may leak even on this path.
+    assert "wr" not in rec and "ev_net" not in rec
+
+    # Counter-pin: with unique rows present both counts are reported, so the
+    # fix is "key set from raw rows", not "always report the raw count".
+    mixed = [row(dedup_violation=0) for _ in range(5)] + [row() for _ in range(7)]
+    res2 = run_audit(mixed, run_date="2026-09-20",
+                     targets=("sr_anti_hunt_bounce",), locked_cells=[lock])
+    rec2 = [c for c in res2["eligible_cells_v2"]
+            if c["cell"] == ["sr_anti_hunt_bounce", "EUR_JPY", "BUY"]][0]
+    assert rec2["n_unique_rows_in_window"] == 5
+    assert rec2["n_lock_population"] == 12
+
+
+def _bracket_stub(monkeypatch, script):
+    """Drive _fetch_bracketed with a per-request script of row lists."""
+    import json
+    import urllib.request
+    import tools.cell_deepdive_audit as m
+
+    calls = {"open": 0, "closed": 0}
+
+    class FakeResp:
+        def __init__(self, body):
+            self.body = body.encode()
+
+        def read(self):
+            return self.body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def urlopen(url, timeout=None):
+        if "status=open" in url:
+            rows = script("open", calls["open"])
+            calls["open"] += 1
+        else:
+            offset = int(url.split("offset=")[1].split("&")[0])
+            rows = script("closed", calls["closed"])[offset:offset + 20000]
+            if offset == 0:
+                calls["closed"] += 1
+        return FakeResp(json.dumps({"count": len(rows), "trades": rows}))
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    return m
+
+
+def test_a_trade_that_opens_during_the_closed_pass_is_still_collected(monkeypatch):
+    """The mirror of the closing-race: open->closed alone loses a mid-pass OPEN.
+
+    A trade that opens after the open request and never closes appears in
+    neither the open list nor the closed pages, yet complete=true vouched for
+    the snapshot.  The second open read is what makes it observable
+    (Codex P2, PR #273).
+    """
+    closed = [{"id": 1, "status": "CLOSED", "exit_time": "2026-09-19T00:00:00"}]
+
+    def script(kind, n):
+        if kind == "closed":
+            return list(closed)
+        return [] if n == 0 else [{"id": 7, "status": "OPEN"}]
+
+    m = _bracket_stub(monkeypatch, script)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert [r["id"] for r in open_rows] == [7], (
+        "the union of the two open reads must include the mid-pass open")
+    assert ev["opened_midfetch"] == 1, "it must be COUNTED, not just included"
+    assert ev["holes_observed"] == [] and ev["attempts"] == 1
+
+
+def test_a_trade_that_closes_inside_the_window_is_a_hole_and_forces_a_retry(monkeypatch):
+    """KNOWN-NG INPUT: open before, gone from both sets after.
+
+    Row 9 is open at the first read, does NOT reach the closed pages, and is
+    no longer open at the second read — it was served to nobody.  That is a
+    hole, so the attempt must be discarded rather than stamped complete.
+    """
+    state = {"attempt": 0}
+
+    def script(kind, n):
+        if kind == "open":
+            if n == 0:                       # attempt 1, before
+                return [{"id": 9, "status": "OPEN"}]
+            if n == 1:                       # attempt 1, after: closed away
+                return []
+            return []                        # attempt 2: quiet book
+        state["attempt"] = n
+        base = [{"id": 1, "status": "CLOSED", "exit_time": "2026-09-19T00:00:00"}]
+        if n >= 1:                           # attempt 2 sees it closed
+            base.insert(0, {"id": 9, "status": "CLOSED",
+                            "exit_time": "2026-09-20T00:00:00"})
+        return base
+
+    m = _bracket_stub(monkeypatch, script)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert ev["holes_observed"] == [1], (
+        "the discarded attempt must stay VISIBLE, not be silently absorbed")
+    assert ev["attempts"] == 2
+    ids = sorted(r["id"] for r in payload["trades"])
+    assert ids == [1, 9], "the retry must collect the row that fell in the hole"
+
+
+def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkeypatch):
+    """Never fold "cannot verify" into "fine" — the invariant of this tool."""
+    def script(kind, n):
+        if kind == "open":
+            return [{"id": 9, "status": "OPEN"}] if n % 2 == 0 else []
+        return [{"id": 1, "status": "CLOSED", "exit_time": "2026-09-19T00:00:00"}]
+
+    m = _bracket_stub(monkeypatch, script)
+    with pytest.raises(SystemExit, match="closed inside the fetch window"):
+        m._fetch_bracketed(max_attempts=3)

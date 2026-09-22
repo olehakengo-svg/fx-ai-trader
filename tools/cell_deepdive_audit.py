@@ -802,15 +802,31 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
 
     # LOCKed cells: grouped from RAW rows with an outcome-FREE filter only
     # (unique = dedup_violation != 1, in-window).  No outcome field is read.
+    #
+    # The KEY SET comes from the raw rows and the COUNT from the deduplicated
+    # ones — two different questions (Codex P2, PR #273).  Building the key set
+    # from the deduplicated rows made a non-empty LOCK vanish from the
+    # inventory entirely when ALL of its rows carry `dedup_violation=1`: the
+    # `ws3-*` shadow decisions declare no unique/dedup predicate, so the
+    # canonical watcher counts those rows and the LOCK can reach `n_decide`
+    # while `redacted_cells` holds no `n_lock_population` record for it at all.
+    # Under-reporting a LOCK that is AT its gate is the same false-negative
+    # direction as the rest of this file's defects, so the group must still
+    # appear — with `n_unique_rows_in_window` = 0 if that is the truth.
+    locked_v2_keys: dict = {}
+    locked_v3_keys: dict = {}
     locked_v2 = defaultdict(list)
     locked_v3 = defaultdict(list)
     for key, rows in locked_raw.items():
         for t in rows:
+            v3key = (key[0], key[1], derive_session(t.get("entry_time")),
+                     key[2])
+            locked_v2_keys.setdefault(key, None)      # insertion-ordered set
+            locked_v3_keys.setdefault(v3key, None)
             if t.get("dedup_violation") == 1:
                 continue
             locked_v2[key].append(t)
-            locked_v3[(key[0], key[1], derive_session(t.get("entry_time")),
-                       key[2])].append(t)
+            locked_v3[v3key].append(t)
 
     v2_elig = {k: v for k, v in v2.items() if len(v) >= min_n}
     v3_elig = {k: v for k, v in v3.items() if len(v) >= min_n}
@@ -861,9 +877,17 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
         out.sort(key=lambda x: (x.get("redacted", False), -x.get("wilson_lo", 0.0)))
         return out
 
-    def locked_records(groups, level):
+    def locked_records(keys, unique_groups, level):
         out = []
-        for k, rows in groups.items():
+        for k in keys:
+            # `locked_raw` is keyed (entry_type, instrument, direction); a v3
+            # key carries `session` in the middle, so drop it.  Attribution
+            # below is computed over the RAW rows on purpose: when every row
+            # of the group is a dedup repeat, `unique_rows` is empty and an
+            # argmax over it would fall back to registry order — exactly the
+            # mis-attribution this pass is fixing.
+            rows = locked_raw.get((k[0], k[1], k[-1]), [])
+            unique_rows = unique_groups.get(k, [])
             covering = locks_for_cell(k[0], k[1], k[-1], cell_locks)
             # The PRIMARY lock must be the one that actually matched these
             # rows, not `covering[0]` (Codex P2, PR #273).  Routing above
@@ -880,7 +904,7 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
             # argmax, ties broken by registry order = stable output.
             lock = covering[matched.index(max(matched))] if covering else None
             rec = count_only_record(
-                level, k, len(rows), lock,
+                level, k, len(unique_rows), lock,
                 lock_population_n=lock_population_count(
                     trades, lock, as_of_exclusive=win_hi),
                 lock_population_watcher_n=lock_population_count(
@@ -907,8 +931,10 @@ def run_audit(trades, *, run_date, targets=DEFAULT_TARGETS, locked_cells=None,
     # below min_n (kalman: n_decide=10) otherwise produced no record at all —
     # no redacted_cell_count, no n_lock_population — even once its declared
     # look had been reached (Codex P2, PR #273).
-    v2_eval = eval_cells(v2_elig, m_family, "v2") + locked_records(locked_v2, "v2")
-    v3_eval = eval_cells(v3_elig, m_family, "v3") + locked_records(locked_v3, "v3")
+    v2_eval = (eval_cells(v2_elig, m_family, "v2")
+               + locked_records(locked_v2_keys, locked_v2, "v2"))
+    v3_eval = (eval_cells(v3_elig, m_family, "v3")
+               + locked_records(locked_v3_keys, locked_v3, "v3"))
     candidates = [c for c in (v2_eval + v3_eval) if c.get("promoted")]
     redacted_cells = [c for c in (v2_eval + v3_eval) if c.get("redacted")]
 
@@ -1193,20 +1219,71 @@ def _http_fetch_open(limit: int = 100000) -> list:
     return _http_fetch("open", limit, 0)
 
 
+def _fetch_bracketed(max_attempts: int = 3) -> tuple:
+    """open -> closed pages -> open, retried until no row fell in a hole.
+
+    Returns (open_rows, closed_payload, evidence).  `open_rows` is the UNION of
+    the two open reads, so a trade that opened during the closed pass is
+    present even though it never appears in the closed pages.
+
+    A row that was open BEFORE the pass and appears in neither the second open
+    read nor the closed pages closed inside the window and was served to
+    nobody.  That is a hole, not a reconcilable overlap, so the attempt is
+    discarded and re-run; if every attempt holes we raise instead of claiming
+    completeness (Codex P2, PR #273).
+    """
+    holes: list = []
+    for attempt in range(1, max_attempts + 1):
+        open_before = _http_fetch_open()
+        payload = paginate_trades(_http_fetch_closed_page)
+        open_after = _http_fetch_open()
+
+        closed_keys = {_row_identity(r) for r in payload["trades"]}
+        after_keys = {_row_identity(r) for r in open_after}
+        missed = [r for r in open_before
+                  if _row_identity(r) not in after_keys
+                  and _row_identity(r) not in closed_keys]
+        if missed:
+            holes.append(len(missed))
+            continue
+
+        by_key = {_row_identity(r): r for r in open_before}
+        opened_midfetch = 0
+        for r in open_after:                   # opened during the pass
+            k = _row_identity(r)
+            if k not in by_key:
+                by_key[k] = r
+                opened_midfetch += 1
+        return (list(by_key.values()), payload,
+                {"attempts": attempt, "opened_midfetch": opened_midfetch,
+                 "holes_observed": holes})
+    raise SystemExit(
+        f"a trade closed inside the fetch window on all {max_attempts} "
+        f"attempts (rows missed per attempt: {holes}) — it would be in neither "
+        f"the open nor the closed set, so completeness cannot be claimed. "
+        f"Re-run, or fetch from a server-side stable snapshot")
+
+
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
     if args.fetch_to:
-        # OPEN rows are fetched FIRST, then the closed pages (Codex P2,
-        # PR #273).  With the old order a trade that closed AFTER the closed
-        # pass finished but BEFORE the open request was absent from BOTH sets
-        # — still open when the closed pages were read, no longer open when the
-        # open request ran — while `complete=true` vouched for the snapshot.
-        # Fetching open first turns that window into an OVERLAP instead of a
-        # hole: the trade is in the open list AND in the later closed pages,
-        # and merge_open_into_closed reconciles it by identity, keeping the
-        # closed copy.  An overlap is repairable; a hole is not detectable.
-        open_rows = _http_fetch_open()
-        payload = paginate_trades(_http_fetch_closed_page)
+        # The closed pass is BRACKETED by two open reads (Codex P2, PR #273,
+        # two rounds).  Neither single order is sound, and they fail in mirror
+        # directions:
+        #   closed -> open : a trade CLOSING in between is in neither set
+        #                    (still open for the closed pass, already closed
+        #                    for the open request)
+        #   open -> closed : a trade OPENING in between is in neither set
+        #                    (not yet open for the open request, never closed
+        #                    so never in the closed pages)
+        # Fixing only the first order produced the second — the symmetric side
+        # of the same window ([[feedback_check_the_symmetric_side_2026_09_19]]).
+        # Bracketing makes BOTH observable: open_before ∪ open_after covers a
+        # mid-pass open, and a row that was open BEFORE but is in neither
+        # open_after nor the closed pages is a row that closed inside the
+        # window and was missed — a hole.  A hole is evidence, so we discard
+        # the attempt and retry rather than stamp complete=true over it.
+        open_rows, payload, brackets = _fetch_bracketed()
         merged, open_dropped = merge_open_into_closed(open_rows,
                                                       payload["trades"])
         payload["trades"] = merged
@@ -1214,14 +1291,21 @@ def main(argv=None) -> int:
         payload["_fetch_meta"].update({"status": "closed+open",
                                        "closed": payload["_fetch_meta"]["rows"],
                                        "open": len(open_rows) - open_dropped,
-                                       "open_closed_midfetch": open_dropped})
+                                       "open_closed_midfetch": open_dropped,
+                                       "open_attempts": brackets["attempts"],
+                                       "open_opened_midfetch":
+                                           brackets["opened_midfetch"],
+                                       "holes_observed":
+                                           brackets["holes_observed"]})
         with open(args.fetch_to, "w") as f:
             json.dump(payload, f)
         m = payload["_fetch_meta"]
         print(f"wrote {args.fetch_to}: {payload['count']} rows "
               f"(closed {m['closed']} in {m['pages']} pages + open {m['open']}, "
-              f"attempt {m['attempts']}, discarded drifted passes "
-              f"{m['drift_observed']}, open-rows-already-closed dropped "
+              f"page attempt {m['attempts']}, discarded drifted passes "
+              f"{m['drift_observed']}, bracket attempt {m['open_attempts']} "
+              f"(discarded holes {m['holes_observed']}), opened mid-fetch "
+              f"{m['open_opened_midfetch']}, open-rows-already-closed dropped "
               f"{m['open_closed_midfetch']}, completeness proven)")
         return 0
     if not args.trades_json:

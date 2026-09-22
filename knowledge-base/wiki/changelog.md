@@ -314,7 +314,35 @@
 - ✅ **3 件とも counterfactual で確認** (修正を戻すと当該 pin が落ちる): 順序 pin は
   **機構 (呼び出し順) より先に実体 (`[8] == [8, 9]` = 約定 9 の消失)** を assert するよう
   並べ替え — 回帰時に「並べ替えた」ではなく「データを失った」と報告される
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**62 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第22波 (Codex P2×2) — 第21波の修正が生んだ鏡像と、第11波の取りこぼし**:
+  (oo) **fetch を「open → closed → open」の bracket に** — 🔴 **第21波 (ll) で
+  closed→open の穴を塞いだら、open→closed の鏡像の穴が開いていた**: パス中に
+  **新規 OPEN した**約定は open 要求時点では未存在、CLOSE しないので closed ページにも
+  現れず、**どちらの集合にも入らない**まま `complete=true` が保証していた。
+  ⇒ closed パスを **2 回の open 読み取りで挟む**。`open_before ∪ open_after` が
+  mid-pass open を捕まえ、かつ **open_before に居て open_after にも closed にも
+  居ない行 = 窓の内側で CLOSE して誰にも配信されなかった行 = 穴**として検出可能になる。
+  穴は証拠なので attempt を破棄して再走、全試行で穴なら `SystemExit` (第20波 drift と
+  同じ規律)。meta に `open_attempts` / `open_opened_midfetch` / `holes_observed`
+  (nn2) **全行が dedup repeat の LOCK が棚卸しから消えていた** — 棚卸しの**キー集合**を
+  dedup 後の行から作っていたため、`dedup_violation=1` の行しか持たない LOCK は
+  `redacted_cells` から**丸ごと消滅**し `n_lock_population` の record が 1 件も出なかった。
+  `ws3-*` shadow decision は unique/dedup 述語を宣言しないので**正本 watcher はその行を
+  数える** ⇒ **LOCK が `n_decide` に到達しているのに監査が何も報告しない**状態になりうる。
+  キー集合は raw 行から、計数は dedup 後から (**別の問い**) に分離し、
+  `n_unique_rows_in_window=0` を正直に出す。帰属 (第21波 mm) も raw 行で計算する
+  (unique が空だと argmax が registry 順に退化するため)
+- 🔴 **教訓の 3 例目: 片側の穴を塞ぐと鏡像が開く** — 第21波 (ll) は Codex の指摘どおり
+  「closed→open の穴」を直したが、**順序を入れ替えるという形の修正は窓を消さず移動させる**
+  だけだった。窓そのものを消すには**両端を測る (bracket)** しかない。
+  [[feedback_check_the_symmetric_side_2026_09_19]] の 3 例目で、今回は
+  **自分の修正が生んだ**鏡像 — 「対称側を確認する」は修正前の状態だけでなく
+  **修正後の状態に対しても**回す必要がある
+- 🔴 **危険の向きは一貫して UNDER-count** (第20波 skip / 第21波 hole / 第22波 mirror hole /
+  (nn2) の LOCK 消滅)。**この PR の欠陥族は全て「無かったことになる」方向**に倒れていた
+- pin 63 → **66 本**。4 件すべて counterfactual 確認済 (修正を戻すと当該 pin が
+  実体のメッセージ付きで落ちる — 「棚卸しから消えた」「mid-pass open が入っていない」)
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**66 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 
