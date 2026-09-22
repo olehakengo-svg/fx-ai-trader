@@ -9,18 +9,21 @@
 > ⚠️ **2026-07-02 zero-fire 診断 (解消済み、記録として保持)**: 06-12 LIVE enable 以降 fill 0 の根本原因は **CEILING=159.5 が市場 (161-162.8) に取り残されたこと**。06-03 以降の RSI dip cross 22 回が全て ceiling block、emit 自体ゼロ。thesis の「155-160.7 レンジ」仮定が (一時) 失効。QUALBAR logging (T7) 実装済み。
 > 詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] / [[carry-dip-ceiling-reeval-2026-07-02]] (当時の推奨 "hold" が結果的に正解 — 壁を動かさなかったので市場復帰と同時に再武装した)
 
-## Live 実績 (post-cutoff 2026-04-08〜, is_shadow=0) — **2026-09-16 更新 (demo 側は 09-14 と bit-flat、broker 側を 11 fill 全数で掘り直した)**
+## Live 実績 (post-cutoff 2026-04-08〜, is_shadow=0) — **2026-09-16 更新 (demo 側は 09-14 と bit-flat、broker 側を 11 fill 全数で掘り直した) / 2026-09-22 更新 (broker 実測行を 14/14 突合値に置換、[[carry-dip-broker-reconcile-2026-09-22]])**
 
 | 基準 | N | W/L/BE | WR (as reported) | decided WR | PnL | EV/trade |
 |---|---|---|---|---|---|---|
 | **demo book (API as reported)** | **14** | 8W/5L/**1BE** | **57.1%** | **61.5%** | **+103.0 pip** | **+7.36** |
-| **🔴 broker-corrected demo 集計 (推定・未監査 / broker N ではない)** | **14 (demo 行数)** | **7W/6L/1BE** | **50.0%** | **53.8%** | **+78.4 pip** | **+5.60** |
-| **broker 実測 (ledger で決済まで突合できた分のみ)** | **7** | 未集計 | — | — | — | — |
+| **⬛ broker-corrected demo 集計 (推定 / broker N ではない — 2026-09-22 に下行 broker 実測 14/14 で superseded、歴史記録として残置)** | **14 (demo 行数)** | **7W/6L/1BE** | **50.0%** | **53.8%** | **+78.4 pip** | **+5.60** |
+| **broker 実測 (閉じ ORDER_FILL `pl`、14/14 突合 2026-09-22、financing 非含)** | **14** | 8 正/6 負 (符号; \|pl\|≤¥10 の scratch 4 本を除くと 4 正/6 負) | **57.1%** (符号) | **40.0%** (decided 10 本) | **+¥793 = +79.3 pip** | **+¥56.6 = +5.66** |
 
 > ⬛ **2026-09-19 (rule:R3)**: 上表の行ラベル自体を訂正した — 注記を下に置いても
 > **表だけを読む読み手には `N=14` の broker サンプルが存在するように見える** (本頁 §(1) と同型)。
 > broker 実測 N=7 を**独立の行**として併記し、demo 集計行は「broker N ではない」と行名に入れた。
 
+> ⬛ **2026-09-22 (rule:R3、PR #282 レビュー P2 対応)**: broker 実測行を **N=7 / 未集計 → 14/14 (+¥793 = +79.3p、EV +¥56.6 = +5.66p/trade)** に置換した。符号一致 13/14 (不一致は #709598 の halted-exit 1 本のみ)、両 estimand (demo +103.0p / broker +79.3p) とも正で REG `carry-dip-v3-revival-watch` の R2 (N≥10 ∧ EV<0) は不成立。decided WR 40.0% は \|pl\|≤¥10 の 4 本 (#677402 / #677931 / #837978 / #847578) を scratch 扱いした 10 本の比で、demo 行の decided WR 61.5% (BE 1 本除外) とは scratch 定義が異なる — 行間で直接比較しない。突合表・tx ID は [[carry-dip-broker-reconcile-2026-09-22]] §2–3。
+
+> ⬛ **superseded 2026-09-22** — 下記は 09-17 時点の記録。「7/11 のみ突合・demo 3 行は broker 未観測」は [[carry-dip-broker-reconcile-2026-09-22]] §2 で **14/14 全数を broker tx (open / 閉じ ORDER_FILL) で確認**し解消した (#549260 / #573986 / #677396 も実在)。現行の broker 実測は上表の N=14 行を読むこと。
 > 📌 **救済時訂正 (2026-09-17、PR #264 レビュー指摘)**: broker-corrected 行の **N=14 は broker サンプルサイズではない**。実体は「demo 14 行の集計に、broker ledger で符号反転が確認された **#709598 の 1 本分だけ**補正を当てたもの」。broker fill として列挙されているのは **11 本**、ledger で決済まで突合できたのは **7/11** のみで、残る demo 3 行は broker 観測に一度もなっていない。この行の WR/EV を N≥30 live 判定の入力に使う場合は「broker 実測 N=7」として扱うこと。
 
 - vs 2026-09-09: **N 12→13 (+1)**、PnL **+71.3→+71.9 (+0.6)**、as-reported WR 50.0→**53.8%**（増えた 1 本が **win** として記録されたため）、decided WR 54.5→**58.3%**、EV/trade +5.94→**+5.53**。broker 基準は **+45.6→+46.3**。→ 詳細: [[2026-09-10]]

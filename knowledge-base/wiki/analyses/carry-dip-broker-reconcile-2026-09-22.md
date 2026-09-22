@@ -1,7 +1,7 @@
 # carry_dip broker 突合 14/14 + 戦略カード訂正 + velocity_down 照合 (2026-09-22)
 
 **Status**: 記録完了 (rule:R3 — 突合・訂正・観測のみ。lot / tier / 契約 / フィルタの変更なし)
-**Scope**: [[usdjpy_carry_dip_accumulator]] の LIVE 全 14 本 (`oanda_trade_id != ''`) について、demo 簿 `pnl_pips` と broker realized (`/api/oanda/transactions` の閉じ ORDER_FILL `pl`) を 1 本ずつ突合し、REG `carry-dip-v3-revival-watch` の事前規定 R2 (deduped LIVE N≥10 ∧ EV<0) を **demo 簿 (凍結 estimand) と broker realized の両基準で**判定する。併せてカード L3 の誤帰属 (`agg_kelly` block / 「08-14 以降」) を訂正し、直近 11 日の fill ゼロを velocity_down ガードと価格キャッシュで照合する。
+**Scope**: [[usdjpy_carry_dip_accumulator]] の LIVE 全 14 本 (`oanda_trade_id != ''`) について、demo 簿 `pnl_pips` と broker realized (`/api/oanda/transactions` の閉じ ORDER_FILL `pl`) を 1 本ずつ突合し、REG `carry-dip-v3-revival-watch` の事前規定 R2 (deduped LIVE N≥10 ∧ EV<0) を **demo 簿 (凍結 estimand) と broker realized の両基準で**判定する。併せてカード L3 の誤帰属 (`agg_kelly` block / 「08-14 以降」) を訂正し、カード上表の broker 実測行 (N=7 / 未集計) を 14/14 値に置換し、直近 11 日の fill ゼロを velocity_down ガードと価格キャッシュで照合する。
 **入力**: [[path-to-win-reassessment-2026-09-22]] §3 Rank 5 (a)(b)(c) / D5 (user 決裁) の入力。carry_dip は凍結 look ではないため outcome 計算可。
 **取得時刻**: 2026-09-22 08:3x–08:5x UTC (全て本番 GET、書込みなし)。
 
@@ -120,7 +120,7 @@ demo = `pnl_pips` (凍結 estimand)。broker = 閉じ ORDER_FILL `pl` (JPY) と 
 | 「`agg_kelly=-0.327<0` でゲート block」で fill 0 | **誤帰属**。`usdjpy_carry_dip_accumulator` は `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` (`modules/demo_trader.py:10560–10586`) に所属し 1000u では agg_kelly gate を bypass する。永続 block 台帳 (`GET /api/demo/block-counts?days=11`、09-22 06:3x UTC、`persisted.per_cell_counts`) の本セルは `order_bar_dedup` 319 / `velocity_down` 4 / `same_price_3pip` 1 / **AGG_KELLY 0**。fill 0 の第一候補は `_tick_entry` 下流の velocity_down ガード (§7) | [[path-to-win-reassessment-2026-09-22]] §1 執行層 |
 | 「5.03 日間 live fill 0 本」 | 09-22T08:47Z 時点で最終 fill 09-11T11:02:36Z から **10.9 日** | demo 簿 |
 
-訂正は旧文を置き換え、「2026-09-22 訂正、旧記述は誤り」を併記した (撤回は旧文の横ではなく旧文を置き換える — [[lesson-unscoped-global-replace-2026-09-18]])。**他の行は触っていない**。カード上表の「broker 実測 N=7 / 未集計」行は本稿で superseded (14/14、+¥793) だが、行の置換は orchestrator へ回す (本 PR は L3 のみ)。
+訂正は旧文を置き換え、「2026-09-22 訂正、旧記述は誤り」を併記した (撤回は旧文の横ではなく旧文を置き換える — [[lesson-unscoped-global-replace-2026-09-18]])。L3 以外で触ったのは「Live 実績」節の見出し (09-22 更新の追記) と上表の broker 関連 3 行 + 直下の注記 2 件のみ (下記)。カード上表の「broker 実測 N=7 / 未集計」行は **同 PR (レビュー P2 対応) で 14/14 値 (+¥793 = +79.3p、EV +¥56.6 = +5.66p) に置換**し、broker-corrected 推定行 (+78.4p) には superseded 表示を付け (数値は歴史記録として残置)、09-17 注記「7/11 のみ突合・demo 3 行は broker 未観測」には superseded 前置きを付けた。上表直下に 09-22 の置換注記 (decided WR の scratch 定義差を含む) を追加。
 
 ## 7. velocity_down 照合 (価格キャッシュ、断定しない)
 
@@ -152,7 +152,7 @@ demo = `pnl_pips` (凍結 estimand)。broker = 閉じ ORDER_FILL `pl` (JPY) と 
 - `/api/oanda/trades` のローカル同期は 08-11 で停止しており、**14/14 のうち 12 本はローカル `oanda_trades` テーブルに存在しない**。再現性は `/api/oanda/transactions` idrange (tx ID は本稿の表に固定) に依存。
 - §7 は価格キャッシュ (MASSIVE 15m → H1) による再現で、live engine の feed / RSI と一致する保証は「14 fill の 14/14 一致」のみ。台帳 count 4 と bar 2 の差は未解決。
 - 30d 窓 (N=5) の符号割れは #709598 1 本で説明され、判定には使わない。
-- カード上表の broker 行 (N=7 / 未集計) は本稿で superseded、行置換は未実施 (本 PR は L3 のみ)。
+- カード上表の broker 行は同 PR で 14/14 に置換済 (§6)。broker 実測行の decided WR 40.0% (\|pl\|≤¥10 scratch 4 本除外) と demo 行の decided WR 61.5% (BE 1 本除外) は scratch 定義が異なり、行間の直接比較は不可 (カード注記に明記)。
 - `_QUICK_HARVEST_MULT` の carry_dip 免除有無 (`_QUICK_HARVEST_EXEMPT` は (entry_type, instrument) 集合) は code で本セル非所属を確認したが、demo TP 自体が宣言 80p (shift 3p 後 77p) と一致しない理由 (69.6–82.5p) は未追跡。
 
 ## 10. 出所
