@@ -4706,6 +4706,16 @@ PnL合計  : データなし（API取得失敗）
 - KB記録上、6日以上ブローカーTX=0本という状態が続いている
 - 原因候補：spread_guard全ブロック / シグナル非発火 / OANDA接続問題
 
+### 2026-09-22 (Pre-Tokyo Briefing)
+| PnL合計（前日） | データなし（トレード0本） |
+| 全体WR | 算出不能（N=0） |
+| 戦略 | N | WR | EV | 判定 |
+| 🟠 注意 | `hedge_block`（daytrade_audjpy/gbpusd/eur） | 151件合計 | ヘッジポジション検知による新規エントリー抑制 |
+- `r2_shadow_demoted_cell` が244件と最大群: Scalp系・DT1h_USDCHF のシャドウセルが有効ポジション候補を全遮断している。**N蓄積が進まない根本原因がここにある**。シャドウ期間中のセル降格状態が解消されない限り、これらの戦略のN=30到達は不可能。
+- `order_bar_dedup` 315件: daytrade_eur・gbpusd・gbpjpy・eurjpy の4戦略でシグナルは発生しているが同一バー内の重複として遮断。**シグナルの発生タイミング集中**を示唆。
+- `hedge_block` 151件: audjpy・gbpusd・eur でヘッジ判定が頻発。現在オープントレード=0にもかかわらず hedge_block が積算されているのは、当日中にポジションが建っては閉じられるサイクルを繰り返した可能性、またはヘッジ判定ロジックが保守的に作動している可能性を示す。
+- **JPY系クロス（EUR/JPY・GBP/JPY）**: ATR81%・明確な下降トレンド → DT系の方向性バイアス有利。唯一の障害は`order_bar_dedup`。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
