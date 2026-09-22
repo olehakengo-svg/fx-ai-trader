@@ -73,6 +73,11 @@ DEDUP_GATE_FIX_TS = "2026-04-30T02:42:00"
 # size is the signature of a plain curl without ?limit=.
 _API_DEFAULT_LIMIT = 50
 
+# Default --min-rows floor.  Kept as a module constant so the CLI default can
+# stay None: main() needs to tell "caller said nothing" from "caller
+# deliberately lowered the floor" (Codex P3, PR #273).
+_DEFAULT_MIN_ROWS = 1000
+
 # Outcome fields that must never be emitted for a LOCKed cell.
 REDACTED_FIELDS = (
     "wr", "wilson_lo", "ev_net", "pf", "p_raw", "p_bonf", "kelly",
@@ -1000,36 +1005,139 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--fetch-limit", type=int, default=100000,
                    help="the ?limit= used when fetching; the snapshot must be a "
                         "SHORT page (len < limit) to prove completeness")
-    p.add_argument("--min-rows", type=int, default=1000,
-                   help="refuse a snapshot smaller than this (truncation guard; "
-                        "PROD currently returns ~18k rows)")
+    p.add_argument("--min-rows", type=int, default=None,
+                   help=f"refuse a snapshot smaller than this (truncation "
+                        f"guard; default {_DEFAULT_MIN_ROWS}, PROD currently "
+                        f"returns ~18k rows). Passing a value <= "
+                        f"{_API_DEFAULT_LIMIT} EXPLICITLY also waives the "
+                        f"exactly-{_API_DEFAULT_LIMIT}-rows truncation "
+                        f"signature, for deliberately tiny snapshots")
     p.add_argument("--window-days", type=int, default=365,
                    help="audit window length ending at --run-date (default 365)")
     p.add_argument("--no-write", action="store_true", help="print only")
     return p
 
 
-def paginate_trades(fetch_page, page_size: int = 20000,
-                    max_pages: int = 50) -> dict:
-    """Page until a SHORT page proves the end was reached.
+def _row_identity(row: dict):
+    """Stable identity for de-duplicating a paginated snapshot.
 
-    `fetch_page(limit, offset) -> list[dict]`.  Returns a payload carrying
-    `_fetch_meta.complete`, which is the only completeness evidence this tool
-    accepts.  Mirrors prereg_trigger_watch.paginate_closed_trades: exhausting
-    max_pages is NOT completeness, so it raises instead of returning a
-    silently truncated list.
+    demo_trades has `id INTEGER PRIMARY KEY` and `trade_id TEXT UNIQUE`, and
+    /api/demo/trades does `SELECT *`, so a real page always carries one.  The
+    key is (field, value) so that id=5 and trade_id="5" cannot collide.
+
+    Raises when neither field is present: without an identity we cannot tell a
+    drift duplicate from a distinct row, so completeness would be an unbacked
+    assertion.  Same invariant as everywhere else in this tool — never fold
+    "cannot verify" into "fine" (Codex P2, PR #273).
+    """
+    if isinstance(row, dict):
+        for field in ("id", "trade_id"):
+            v = row.get(field)
+            if v is not None and v != "":
+                return (field, v)
+    raise SystemExit(
+        "paginated row carries neither 'id' nor 'trade_id' "
+        f"(keys: {sorted(row)[:8] if isinstance(row, dict) else type(row).__name__}) "
+        "— cannot de-duplicate page drift, so completeness cannot be claimed")
+
+
+def _paginate_pass(fetch_page, page_size: int, max_pages: int) -> dict:
+    """ONE full offset pass, de-duplicated by row identity.
+
+    Returns the rows kept plus this pass's drift evidence.  Mirrors
+    prereg_trigger_watch.paginate_closed_trades: exhausting max_pages is NOT
+    completeness, so it raises instead of returning a silently truncated list.
+
+    The cursor is how many rows the server has already SERVED, not how many we
+    kept (Codex P2, PR #273).  Dropping a duplicate and then re-requesting the
+    same offset would re-read the same page forever.
     """
     rows: list = []
+    seen: set = set()
+    fetched = 0                                # rows SERVED == the cursor
+    dups = 0
     for page in range(max_pages):
-        got = fetch_page(page_size, len(rows))
-        rows.extend(got)
+        got = fetch_page(page_size, fetched)
+        fetched += len(got)
+        for row in got:
+            key = _row_identity(row)
+            if key in seen:
+                dups += 1                      # page drift, not new data
+                continue
+            seen.add(key)
+            rows.append(row)
         if len(got) < page_size:               # short page == end of data
-            return {"count": len(rows), "trades": rows,
-                    "_fetch_meta": {"complete": True, "limit": page_size,
-                                    "pages": page + 1, "rows": len(rows)}}
+            return {"rows": rows, "pages": page + 1,
+                    "rows_served": fetched, "duplicates_dropped": dups}
     raise SystemExit(
         f"pagination hit max_pages={max_pages} at {len(rows)} rows without a "
         f"short page — refusing to return a silently truncated snapshot")
+
+
+def paginate_trades(fetch_page, page_size: int = 20000,
+                    max_pages: int = 50, max_attempts: int = 3) -> dict:
+    """Page until a DRIFT-FREE short page proves the end was reached.
+
+    `fetch_page(limit, offset) -> list[dict]`.  Returns a payload carrying
+    `_fetch_meta.complete`, which is the only completeness evidence this tool
+    accepts.
+
+    get_closed_trades pages with a bare `ORDER BY exit_time DESC LIMIT ?
+    OFFSET ?` — no keyset, no snapshot — so a trade that closes mid-pass is
+    inserted at the FRONT.  That has TWO consequences, not one (Codex P2,
+    PR #273; the skip half was found by this file's own test on 2026-09-22):
+
+    1. IT DUPLICATES.  Every already-passed row shifts one offset further, so
+       a fixed cursor re-reads a boundary row.  Undeduplicated, that inflates
+       N, the multiplicity family and the LOCK population counts.
+
+    2. IT ALSO SKIPS — and de-duplicating does NOT repair that.  The inserted
+       row itself lands at an offset the cursor has already gone past, so it
+       is never served at all.  The union of a drifted pass is therefore NOT
+       exact: it is missing the newest closed trade while the short page still
+       "proves" the end.  The residual error points at UNDER-count, i.e. the
+       direction that reads as "no trade happened" — the same false-negative
+       direction as the hunt_events readout.
+
+    So a dropped duplicate is evidence that a row may also have been SKIPPED,
+    and `complete=true` is claimed only for a pass that dropped none.  A
+    drifted pass is discarded and re-run — by then the insertion sits at a
+    stable offset, so the retry collects it — and if every attempt drifts we
+    raise rather than hand back a snapshot whose completeness we cannot back.
+    Never fold "cannot verify" into "fine", the same invariant as everywhere
+    else in this tool.
+    """
+    drift_observed: list = []
+    for attempt in range(1, max_attempts + 1):
+        got = _paginate_pass(fetch_page, page_size, max_pages)
+        if got["duplicates_dropped"] == 0:
+            return {"count": len(got["rows"]), "trades": got["rows"],
+                    "_fetch_meta": {"complete": True, "limit": page_size,
+                                    "pages": got["pages"],
+                                    "rows": len(got["rows"]),
+                                    "rows_served": got["rows_served"],
+                                    "duplicates_dropped": 0,
+                                    "attempts": attempt,
+                                    "drift_observed": drift_observed}}
+        drift_observed.append(got["duplicates_dropped"])
+    raise SystemExit(
+        f"page drift on all {max_attempts} attempts (duplicates dropped per "
+        f"attempt: {drift_observed}) — a drifted pass can SKIP the newly "
+        f"closed row entirely, so completeness cannot be claimed. Re-run, or "
+        f"fetch a snapshot the writer is not appending to")
+
+
+def merge_open_into_closed(open_rows: list, closed_rows: list) -> tuple:
+    """Prepend open rows, dropping any that already closed mid-fetch.
+
+    The open list is fetched AFTER the closed pages, so a trade that closed in
+    between appears in both.  Keep the CLOSED copy (it carries exit_time /
+    outcome) and report how many open rows were dropped, rather than letting
+    one trade be counted twice (Codex P2, PR #273).
+    """
+    closed_keys = {_row_identity(r) for r in closed_rows}
+    kept = [r for r in open_rows if _row_identity(r) not in closed_keys]
+    return kept + closed_rows, len(open_rows) - len(kept)
 
 
 def _http_fetch(status: str, limit: int, offset: int) -> list:
@@ -1076,17 +1184,22 @@ def main(argv=None) -> int:
         # open rows are fetched exactly ONCE and appended.
         payload = paginate_trades(_http_fetch_closed_page)
         open_rows = _http_fetch_open()
-        payload["trades"] = open_rows + payload["trades"]
+        merged, open_dropped = merge_open_into_closed(open_rows,
+                                                      payload["trades"])
+        payload["trades"] = merged
         payload["count"] = len(payload["trades"])
         payload["_fetch_meta"].update({"status": "closed+open",
                                        "closed": payload["_fetch_meta"]["rows"],
-                                       "open": len(open_rows)})
+                                       "open": len(open_rows) - open_dropped,
+                                       "open_closed_midfetch": open_dropped})
         with open(args.fetch_to, "w") as f:
             json.dump(payload, f)
         m = payload["_fetch_meta"]
         print(f"wrote {args.fetch_to}: {payload['count']} rows "
               f"(closed {m['closed']} in {m['pages']} pages + open {m['open']}, "
-              f"completeness proven)")
+              f"attempt {m['attempts']}, discarded drifted passes "
+              f"{m['drift_observed']}, open-rows-already-closed dropped "
+              f"{m['open_closed_midfetch']}, completeness proven)")
         return 0
     if not args.trades_json:
         raise SystemExit("trades_json is required unless --fetch-to is used")
@@ -1127,16 +1240,23 @@ def main(argv=None) -> int:
             raise SystemExit(
                 f"{args.trades_json}: 'count' ({count}) != len(trades) "
                 f"({len(trades)}) — inconsistent snapshot, refusing to audit")
-    if len(trades) == _API_DEFAULT_LIMIT:
+    # The escape hatch named in the error below must actually work: this
+    # branch used to run unconditionally and ahead of the --min-rows check, so
+    # `--min-rows 0` could never reach it (Codex P3, PR #273).  An EXPLICIT
+    # --min-rows at or below the signature value is the caller declaring that a
+    # tiny snapshot is intended, which is exactly when the heuristic is wrong.
+    min_rows = _DEFAULT_MIN_ROWS if args.min_rows is None else args.min_rows
+    waives_signature = args.min_rows is not None and min_rows <= _API_DEFAULT_LIMIT
+    if len(trades) == _API_DEFAULT_LIMIT and not waives_signature:
         raise SystemExit(
             f"{args.trades_json}: exactly {_API_DEFAULT_LIMIT} rows — that is "
             f"/api/demo/trades' DEFAULT limit, i.e. almost certainly a "
             f"truncated first page. Re-fetch with ?limit=100000 "
             f"(or pass --min-rows 0 if you really mean {_API_DEFAULT_LIMIT})")
-    if len(trades) < args.min_rows:
+    if len(trades) < min_rows:
         raise SystemExit(
             f"{args.trades_json}: only {len(trades)} rows < --min-rows "
-            f"{args.min_rows} — a truncated page must not silently become an "
+            f"{min_rows} — a truncated page must not silently become an "
             f"audit. Re-fetch with ?limit=100000, or lower --min-rows "
             f"deliberately")
     # Reaching a floor is NOT proof of completeness: ?limit=1000 returns

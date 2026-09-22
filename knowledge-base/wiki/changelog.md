@@ -234,7 +234,41 @@
   — 潜在的欠陥で、修正は将来の重複登録への予防
 - 🔑 **over-routing を直すと under-routing が生まれる** — §2.3o で「母集団で切れ」と
   直した際、**その母集団検査をどの LOCK に対して行うかを 1 つに固定**したままだった
-- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**55 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
+- 🟠 **レビュー第20波 (Codex P2 + P3) — そして指摘の「残り半分」を自分の pin が反証した**:
+  (jj) **page drift の de-dup + カーソルを「配信済み行数」に** — `get_closed_trades` は
+  keyset も snapshot も無い素の `ORDER BY exit_time DESC LIMIT ? OFFSET ?` なので、
+  フェッチ中に約定が CLOSE すると先頭に挿入され、通過済みの行が 1 offset ずれて
+  **境界行が再読される**。未 de-dup では N / 多重度族 / LOCK 母集団計数が膨らむのに
+  `complete=true` が保証していた。カーソルは**サーバが配信した行数**でなければならない
+  (採用行数で進めると同じ offset を無限に再要求する)
+  (kk) **P3: 広告された `--min-rows 0` を実際に到達可能に** — 50 行ちょうどの truncation
+  署名検査が `--min-rows` 検査より前で**無条件**に走っていたため、エラー文が名指しする
+  脱出口が原理的に効かなかった。`--min-rows` の default を `None` にし
+  「呼び手が何も言っていない」と「意図的に下げた」を区別
+- 🔴 **指摘は欠陥の半分しか述べていなかった (本波で最も重い所見)**: Codex P2 は drift を
+  「**重複する**」としか書かず、こちらもそれを受けて docstring に
+  「*drift duplicates, it never skips … de-dup すれば union は exact*」と**書いてしまった**。
+  **これは偽**。前方挿入された当の行は**カーソルが既に通過した offset に着地する**ので
+  **一度も配信されない = SKIP される**。de-dup は膨張を直すが**欠落は直さない** ⇒
+  drift した pass の union は exact ではなく、**最新の CLOSE 済み約定を欠いたまま**
+  短ページが終端を「証明」する。🔴 **残差の向きは UNDER-count** = 「取引が無かった」と
+  読める方向 ([[project_hunt_events_dataset_readout_2026_09_19]] と同じ偽陰性の向き)
+- ✅ **修正 = 「de-dup して complete と名乗る」から「drift-free な pass を要求する」へ**:
+  重複を 1 件でも落とした pass は**証拠つきで破棄して再実行** (その時点で挿入行は安定
+  offset に居るので再走が拾う)、全試行が drift したら `SystemExit`。成功時の meta に
+  `attempts` と破棄した pass の `drift_observed` を残し、**黙って吸収しない**。
+  実測 pin: drift 1 回 → `attempts=2` / `drift_observed=[1]` / 挿入行 99 も収集
+- 🔵 **副次効果**: `status=all` ページング形状 (open 行が全ページに前置される) は
+  毎試行 drift 証拠を出すため、**第16波で「危険だがそのまま complete=true を返す」と
+  pin していた経路が fail-loud になった** — pin を新挙動へ更新
+- 🔑 **教訓: 指摘された欠陥の「対称な残り半分」を自分で確認する** — 当の pin
+  (`test_pagination_dedups_drift_and_uses_a_served_row_cursor`) は
+  「99 も 1 度だけ収集される」と assert しており**最初から落ちていた**。つまり
+  **前回セッションは自分の pin が赤のまま作業を置いていた** ⇒
+  [[feedback_commit_exit0_lies_autosaver_bypasses_precommit]] の「suite green は
+  測ったツリー状態でのみ有効」と [[feedback_check_the_symmetric_side_2026_09_19]] の
+  2 例目。**レビューが片側を指摘したら対称側は自分で測る**
+- **pin** `tests/test_cell_deepdive_lock_redaction.py` (**59 本**、buggy shape を再現して比較): redaction の assertion はすべて**非 redaction の counter-pin と対** (全部 redact / 何も redact しない の双方が落ちる) + 実 registry ロード検査 (LOCK を含む ∧ `*_fire-info` を含まない ∧ 解決済みを含まない) + **算術 pin** (`DEDUP_GATE_FIX_TS` ≡ `DemoDB._DEDUP_BACKFILL_CUTOFF`)。教訓「検知器には NG を返す既知の入力を同じコミットで pin せよ」の適用
 - **残課題**: 他の読み手 (`r2_cell_demotion_audit` / `alpha_scan_block_recalibration` / `cell_edge_audit`) の LOCK セル露出の横展開 grep は**本 PR では未実施** (deepdive 経路のみ封鎖) / LOCK セル用「`n` だけを返す」計数ヘルパ (ad-hoc クエリ経路の封鎖) / `mqe_gbpusd_fix` の発火枯渇の signal 側調査
 - 成果物: `tools/cell_deepdive_audit.py` / `tests/test_cell_deepdive_lock_redaction.py` / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] / `knowledge-base/raw/cell_deepdive/2026-09-20/` (as-run 保存 + 訂正 addendum) / roadmap v2.3 M3 行 追補
 

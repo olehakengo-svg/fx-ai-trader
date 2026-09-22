@@ -1389,13 +1389,15 @@ def test_pagination_only_claims_complete_on_a_short_page():
 
     def pages(total):
         def fetch(limit, offset):
-            return [{"i": i} for i in range(offset, min(offset + limit, total))]
+            return [{"id": i} for i in range(offset, min(offset + limit, total))]
         return fetch
 
     out = paginate_trades(pages(25), page_size=10)
     assert out["count"] == 25
     assert out["_fetch_meta"] == {"complete": True, "limit": 10, "pages": 3,
-                                  "rows": 25}
+                                  "rows": 25, "rows_served": 25,
+                                  "duplicates_dropped": 0, "attempts": 1,
+                                  "drift_observed": []}
 
     # An exact multiple still needs the trailing short (empty) page.
     out = paginate_trades(pages(20), page_size=10)
@@ -1427,13 +1429,20 @@ def test_pagination_must_request_closed_only_pages():
     def status_closed(limit, offset):
         return closed[offset:offset + limit]
 
-    # The status=all shape silently loses closed rows...
-    bad = paginate_trades(status_all, page_size=10)
-    got = [r["id"] for r in bad["trades"] if r["id"].startswith("c")]
+    # The status=all shape loses closed rows: the repeated open rows eat
+    # offsets, so the cursor walks past closed rows that are never served.
+    from tools.cell_deepdive_audit import _paginate_pass
+    one = _paginate_pass(status_all, 10, 50)
+    got = [r["id"] for r in one["rows"] if r["id"].startswith("c")]
     assert len(set(got)) < len(closed), (
         "status=all paging must be shown to LOSE closed rows")
-    assert bad["_fetch_meta"]["complete"] is True, (
-        "...while still claiming completeness — that is the danger")
+    assert one["duplicates_dropped"] > 0, (
+        "the repeated open rows are the drift evidence")
+    # ...and because that evidence is present on EVERY attempt, the public
+    # entry point refuses instead of vouching for the snapshot.  Claiming
+    # complete=true here was the danger (2026-09-22).
+    with pytest.raises(SystemExit, match="drift on all"):
+        paginate_trades(status_all, page_size=10)
 
     # ...whereas closed-only paging is exact.
     good = paginate_trades(status_closed, page_size=10)
@@ -1487,9 +1496,9 @@ def test_malformed_page_aborts_instead_of_faking_end_of_data(monkeypatch):
 
     def good_urlopen(url, timeout=None):
         calls["n"] += 1
-        n = 10 if calls["n"] == 1 else 3
-        return FakeResp(json.dumps({"count": n,
-                                    "trades": [{"id": i} for i in range(n)]}))
+        lo, n = (0, 10) if calls["n"] == 1 else (10, 3)
+        return FakeResp(json.dumps(
+            {"count": n, "trades": [{"id": i} for i in range(lo, lo + n)]}))
 
     monkeypatch.setattr(urllib.request, "urlopen", good_urlopen)
     out = m.paginate_trades(m._http_fetch_closed_page, page_size=10)
@@ -1571,3 +1580,155 @@ def test_every_covering_lock_is_checked_before_a_row_is_exposed():
                             locked_cells=[shadow])
     assert only_shadow["meta"]["locked_rows_routed_out"] == 21
     assert only_shadow["meta"]["clean_N"] == 7
+
+
+def test_pagination_dedups_drift_and_uses_a_served_row_cursor():
+    """KNOWN-NG INPUT: a trade that closes mid-fetch.
+
+    get_closed_trades pages with `ORDER BY exit_time DESC LIMIT ? OFFSET ?`
+    (demo_db.py) — no keyset, no snapshot.  A trade closing between requests is
+    inserted at the FRONT, shifting every later row one offset further, so a
+    fixed cursor re-reads a boundary row.  Undeduplicated that inflates N, the
+    multiplicity family and the LOCK population counts, while
+    `_fetch_meta.complete=true` vouches for the snapshot (Codex P2, PR #273).
+    """
+    from tools.cell_deepdive_audit import paginate_trades
+
+    def drifting(inserts_at):
+        """Newest-first pages; one new row is prepended before page `inserts_at`."""
+        table = [{"id": i} for i in range(24, -1, -1)]   # id 24..0, newest first
+        state = {"page": 0}
+
+        def fetch(limit, offset):
+            if state["page"] == inserts_at:
+                table.insert(0, {"id": 99})              # closed mid-fetch
+            state["page"] += 1
+            return table[offset:offset + limit]
+        return fetch
+
+    # ONE drifted pass: the boundary row duplicates AND the inserted row is
+    # never served at all.  De-dup alone therefore does NOT make the union
+    # exact — that half was asserted wrongly until 2026-09-22.
+    from tools.cell_deepdive_audit import _paginate_pass
+    one = _paginate_pass(drifting(inserts_at=1), 10, 50)
+    ids = [r["id"] for r in one["rows"]]
+    assert len(ids) == len(set(ids)), "drift must not duplicate a trade"
+    assert one["duplicates_dropped"] >= 1, (
+        "the drift duplicate must be COUNTED, not silently absorbed")
+    assert 99 not in ids, (
+        "the mid-pass insertion lands BEHIND the cursor, so a single pass "
+        "skips it — the error direction is UNDER-count")
+    # The cursor is rows SERVED, not rows KEPT: advancing by the deduplicated
+    # length would re-request the same offset forever.
+    assert one["rows_served"] > len(one["rows"])
+
+    # The public entry point discards that pass and re-runs, which DOES make
+    # the union exact — the insertion sits at a stable offset by then.
+    out = paginate_trades(drifting(inserts_at=1), page_size=10)
+    ids = [r["id"] for r in out["trades"]]
+    assert set(ids) == set(range(25)) | {99}, (
+        "every row must be collected exactly once, including the one that "
+        "closed mid-fetch")
+    assert len(ids) == len(set(ids)) == out["count"] == out["_fetch_meta"]["rows"]
+    assert out["_fetch_meta"]["duplicates_dropped"] == 0, (
+        "complete=true is only claimed for a drift-free pass")
+    assert out["_fetch_meta"]["attempts"] == 2
+    assert out["_fetch_meta"]["drift_observed"] == [1], (
+        "the discarded pass must stay VISIBLE, not be silently absorbed")
+
+    # Counter-pin: no drift -> one attempt, no dedup, no spurious count.
+    calm = paginate_trades(drifting(inserts_at=99), page_size=10)
+    assert [r["id"] for r in calm["trades"]] == list(range(24, -1, -1))
+    assert calm["_fetch_meta"]["duplicates_dropped"] == 0
+    assert calm["_fetch_meta"]["attempts"] == 1
+    assert calm["_fetch_meta"]["drift_observed"] == []
+    assert calm["_fetch_meta"]["rows_served"] == calm["_fetch_meta"]["rows"]
+
+    # KNOWN-NG INPUT: a book that drifts on every attempt must RAISE, not
+    # return a snapshot whose completeness cannot be backed.
+    def always_drifts(limit, offset):
+        table = [{"id": i} for i in range(24, -1, -1)]
+        return table[max(offset - 1, 0):max(offset - 1, 0) + limit]
+
+    with pytest.raises(SystemExit, match="drift on all"):
+        paginate_trades(always_drifts, page_size=10, max_attempts=3)
+
+
+def test_pagination_refuses_rows_without_an_identity():
+    """No id/trade_id => page drift is undetectable => no completeness claim."""
+    from tools.cell_deepdive_audit import paginate_trades
+
+    def anonymous(limit, offset):
+        return [{"pnl_pips": 1.0} for _ in range(3)] if offset == 0 else []
+
+    with pytest.raises(SystemExit, match="cannot de-duplicate"):
+        paginate_trades(anonymous, page_size=10)
+
+    # Counter-pin: trade_id alone is enough, and id/trade_id cannot collide.
+    def by_trade_id(limit, offset):
+        rows = [{"trade_id": "5"}, {"id": 5}]
+        return rows[offset:offset + limit]
+
+    out = paginate_trades(by_trade_id, page_size=10)
+    assert out["_fetch_meta"]["rows"] == 2, (
+        "id=5 and trade_id='5' are different trades and must both survive")
+
+
+def test_open_rows_that_closed_midfetch_are_not_counted_twice():
+    """The open list is fetched AFTER the closed pages, so overlap is possible."""
+    from tools.cell_deepdive_audit import merge_open_into_closed
+
+    closed = [{"id": 1, "status": "CLOSED", "exit_time": "2026-09-20T00:00:00"}]
+    open_rows = [{"id": 1, "status": "OPEN"}, {"id": 2, "status": "OPEN"}]
+
+    merged, dropped = merge_open_into_closed(open_rows, closed)
+    assert dropped == 1
+    assert [r["id"] for r in merged] == [2, 1]
+    # The CLOSED copy wins: it is the one carrying exit_time / outcome.
+    assert [r for r in merged if r["id"] == 1][0]["status"] == "CLOSED"
+
+    # Counter-pin: disjoint lists are concatenated untouched.
+    merged2, dropped2 = merge_open_into_closed([{"id": 3}], closed)
+    assert dropped2 == 0 and [r["id"] for r in merged2] == [3, 1]
+
+
+def test_min_rows_override_actually_reaches_the_50_row_signature(tmp_path):
+    """The advertised escape hatch must work (Codex P3, PR #273).
+
+    The exactly-50-rows truncation signature used to be an unconditional branch
+    ahead of the --min-rows check, so the `pass --min-rows 0` the error message
+    named could never take effect.
+    """
+    import json
+    import tools.cell_deepdive_audit as m
+
+    row = {"entry_type": "x", "instrument": "EUR_JPY", "direction": "BUY",
+           "entry_time": "2026-09-19T00:00:00", "outcome": "WIN",
+           "pnl_pips": 1.0, "is_shadow": 1, "oanda_trade_id": ""}
+    small = tmp_path / "fifty.json"
+    small.write_text(json.dumps(
+        {"count": 50, "trades": [dict(row, id=i) for i in range(50)],
+         "_fetch_meta": {"complete": True, "limit": 100000, "pages": 1}}))
+
+    # Default floor: the signature fires and NAMES the override.
+    with pytest.raises(SystemExit) as e:
+        m.main([str(small), "--run-date", "2026-09-20", "--no-write"])
+    assert "--min-rows 0" in str(e.value)
+
+    # The named override is reachable.
+    assert m.main([str(small), "--run-date", "2026-09-20", "--no-write",
+                   "--min-rows", "0"]) == 0
+
+    # Counter-pin 1: an explicit floor ABOVE the signature keeps refusing —
+    # the waiver is the caller declaring a tiny snapshot, not a blanket bypass.
+    with pytest.raises(SystemExit, match="DEFAULT limit"):
+        m.main([str(small), "--run-date", "2026-09-20", "--no-write",
+                "--min-rows", "1000"])
+
+    # Counter-pin 2: --min-rows 0 does not disable the OTHER guards.
+    bare = tmp_path / "bare.json"
+    bare.write_text(json.dumps({"count": 50,
+                                "trades": [dict(row, id=i) for i in range(50)]}))
+    with pytest.raises(SystemExit, match="_fetch_meta"):
+        m.main([str(bare), "--run-date", "2026-09-20", "--no-write",
+                "--min-rows", "0"])
