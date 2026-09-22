@@ -43,9 +43,9 @@
 → OANDA forwarding 確認: `is_shadow=0 ∧ oanda_trade_id` で **2 件流入**。`mode=scalp_eur` で 1 件、`mode=daytrade` で 1 件。
 
 ## 教訓
-- [[../lessons/lesson-shadow-always-emit-cleanup-2026-04-28]] — SHADOW_ALWAYS の無条件 emit は EV<0 戦略を**自動的にデータ蓄積汚染源**にする
-- [[../lessons/lesson-data-source-production-first-2026-04-28]] — ローカル DB と本番 DB の乖離調査時は **本番優先**
-- [[../decisions/sr-strategies-signal-track-2026-04-28]] — SHADOW_EMIT 経路の元設計
+- [[lesson-shadow-always-emit-cleanup-2026-04-28]] — SHADOW_ALWAYS の無条件 emit は EV<0 戦略を**自動的にデータ蓄積汚染源**にする
+- [[lesson-data-source-production-first-2026-04-28]] — ローカル DB と本番 DB の乖離調査時は **本番優先**
+- [[sr-strategies-signal-track-2026-04-28]] — SHADOW_EMIT 経路の元設計
 
 ## Signal Logic
 1. ペアフィルター: 5 majors すべて
@@ -59,7 +59,13 @@
 ## Components
 - `modules/sr_detector.py` — KDE + obviousness scoring (round-number, touch_count, age 統合)
 - `research/edge_discovery/hunt_analyzer.py` — hunt 統計 + reversal WR
-- `tools/sr_audit.py` — CLI audit
+- `tools/sr_audit.py` — CLI audit。⚠️ **2026-09-19 (rule:R3) 以降、`raw/hunt_events/` を入力に
+  した実行は `DATA-BLOCKED` を返す** — `reversal` が 69,577/69,577 で None (labeler
+  `tools/attribute_hunt_outcomes.py` が未実装) かつ重複評価 70.3% で N が 3.36 倍に膨らむ
+  (既定 dedup 窓 1h。⚠️ 膨張率は窓依存 — 点推定で引用しない)。
+  disposition = registry `hunt-events-labeler-disposition` (期日 2026-10-20)。
+  読み取り規約: [[hunt-events-dataset-readout-2026-09-19]]
+- `tools/hunt_event_dataset.py` — hunt_events の読み手 (provenance / dedup / label gate)
 - `tools/sr_rigor_audit.py` — Wilson + Bonferroni + Quarterly + Trade-Sim audit
 - `strategies/daytrade/sr_anti_hunt_bounce.py`
 

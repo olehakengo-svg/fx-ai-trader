@@ -86,7 +86,22 @@ def run_rss() -> dict:
 #   soft = 警告のみ。全範囲を毎回再取得する派生系列で、次回 run が完全に自己修復する
 #          ため 1 日の失敗に情報価値が無い。GDELT は runner IP に対する 429 が
 #          慢性的 (2026-09-03..16 で 8/20 run) で、hard 扱いだと本体を道連れにする。
+#
+# ⚠️ 2026-09-19 (rule:R3、PR #261 Codex P2 の消化): **ソース名だけで soft を
+# 決めてはいけない**。同じ `run_gdelt` から出る例外には
+#   (a) 429 / timeout        → 翌 run で自己修復する = soft
+#   (b) `unexpected GDELT response` → 上流の恒久変更の署名 = hard
+#   (c) 書込み失敗 (OSError) → 環境障害 = hard
+# があり、旧実装は (b)(c) も soft に落として `main()` を exit 0 にしていたため
+# workflow の `Notify failure` が走らず、CSV が無期限に stale で残りうる。
+# 判定は `ing.is_transient_fetch_error()` に集約 (**列挙に無い形状は hard** =
+# fail-closed。上流がエラー表現を変えたら過剰 alert 側に倒れる)。
 _SOFT_SOURCES = {"gdelt"}
+
+
+def _is_soft(name: str, exc: BaseException) -> bool:
+    """soft = 「soft 候補ソース」かつ「自己修復が見込める例外形状」の両方。"""
+    return name in _SOFT_SOURCES and ing.is_transient_fetch_error(exc)
 
 _STEPS = (
     ("interventions", lambda: ing.run_interventions(check=False)),
@@ -116,10 +131,11 @@ def main():
         try:
             summary[name] = fn()
         except Exception as exc:  # noqa: BLE001 — 隔離が目的
-            bucket = soft_failed if name in _SOFT_SOURCES else hard_failed
-            bucket.append(name)
-            summary[name] = {"error": f"{type(exc).__name__}: {exc}"}
-            print(f"[daily-{name}] FAILED ({'soft' if name in _SOFT_SOURCES else 'hard'}): {exc}")
+            soft = _is_soft(name, exc)
+            (soft_failed if soft else hard_failed).append(name)
+            summary[name] = {"error": f"{type(exc).__name__}: {exc}",
+                             "classified": "soft" if soft else "hard"}
+            print(f"[daily-{name}] FAILED ({'soft' if soft else 'hard'}): {exc}")
 
     print("[daily-summary]", json.dumps(summary, ensure_ascii=False))
     if soft_failed:
