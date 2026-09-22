@@ -1289,7 +1289,8 @@ class DemoTrader:
         )
 
     def _persist_gate_block(self, *, mode: str, entry_type: str,
-                            instrument: str, reason_key: str) -> None:
+                            instrument: str, reason_key: str,
+                            metric: float | None = None) -> None:
         """Best-effort durable gate-block aggregate (recording only).
 
         2026-09-11 (rule:R3, P8 hull 残余帰属): in-memory の _block_counts は
@@ -1304,7 +1305,8 @@ class DemoTrader:
             db_path = getattr(self._db, "_path", None)
             if db_path:
                 record_block(db_path, mode=mode, entry_type=entry_type,
-                             instrument=instrument, reason_key=reason_key)
+                             instrument=instrument, reason_key=reason_key,
+                             metric=metric)
         except Exception:
             pass
 
@@ -1335,8 +1337,21 @@ class DemoTrader:
         self._block_counts_per_strategy[k_strat] = (
             self._block_counts_per_strategy.get(k_strat, 0) + 1
         )
+        # 2026-09-21 (rule:R3): keep the magnitude the gate measured. The
+        # in-memory key drops everything after '(' to bound the key space, and
+        # until today the durable table dropped it too — so the ps-seat readout
+        # could prove `spread_wide` killed 6/6 opportunities but not whether the
+        # spread was 3.1p (tunable) or 15p (structural). The daily rollup folds
+        # it into min/mean/max per key, so the key space is unchanged.
+        # 詳細: knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md §10
+        try:
+            from modules.block_event_logger import parse_reason_metric
+            _reason_metric = parse_reason_metric(reason)
+        except Exception:
+            _reason_metric = None
         self._persist_gate_block(mode=mode, entry_type=entry_type,
-                                 instrument=instrument, reason_key=_reason_key)
+                                 instrument=instrument, reason_key=_reason_key,
+                                 metric=_reason_metric)
         if (
             entry_type in self._UNIVERSAL_SENTINEL
             or entry_type in self._SCALP_SENTINEL
