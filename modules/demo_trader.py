@@ -834,6 +834,26 @@ _SHADOW_RELAX_REASON_TAG = "[SHADOW_RELAX]"
 _SHADOW_BYPASS_REASON_TAG = "[SHADOW_BYPASS]"
 _PROMO_BLOCK_REASON_TAG = "[PROMO_BLOCK]"
 ORDER_BAR_FIRST_BLOCK_REASON_PREFIX = "order_bar_dedup_first:"
+# oanda_audit block_reason の promo cause 表記は 2 世代ある:
+#   * `shadow_tracking(session_filter_out)` — P-V4 (2026-07-02) の legacy variant。
+#     exact pin (tests/test_session_filter_promotion_guard.py) と KB 参照を持つ契約
+#     なので書き換えない。意味は promo cause `session_filter` と同一。
+#   * `shadow_tracking(promo_block:<cause>)` — 2026-09-23 R3 の標準表記 (他 cause)。
+# 消費側 (転記 / 集計) は文字列比較ではなく本 helper で cause に正規化する
+# (PR #293 review P2 4078290940)。row reasons の `[PROMO_BLOCK] <cause>` は両世代とも
+# 標準表記で付く。
+_LEGACY_PROMO_BLOCK_AUDIT_ALIASES = {"session_filter_out": "session_filter"}
+
+
+def promo_block_cause_from_audit(block_reason) -> str:
+    """oanda_audit block_reason → promotion gate の block cause ("" = promo 由来でない)."""
+    s = str(block_reason or "")
+    if not s.startswith("shadow_tracking(") or not s.endswith(")"):
+        return ""
+    inner = s[len("shadow_tracking("):-1]
+    if inner.startswith("promo_block:"):
+        return inner[len("promo_block:"):]
+    return _LEGACY_PROMO_BLOCK_AUDIT_ALIASES.get(inner, "")
 
 
 def _mode_downstream_relax(mode: str) -> bool:
@@ -8196,6 +8216,9 @@ class DemoTrader:
                 # startswith 対応済み)。
                 # weekend_gap_fade: cap skip / R2 stop は原因を機械可読で永続
                 # (pre-reg §2.2: block_cause=weekend_gap_spread_cap + 実測値保存)
+                # 優先順位: wg 固有 cause > legacy `session_filter_out` (P-V4 契約、
+                # promo_block:session_filter の alias — promo_block_cause_from_audit
+                # が正規化する) > `promo_block:<cause>` (R3 2026-09-23) > 素の値。
                 _block_reason = _resolve_shadow_audit_block_reason(
                     _is_shadow,
                     (_wg_shadow_cause if (_wg_entry and _wg_shadow_cause)

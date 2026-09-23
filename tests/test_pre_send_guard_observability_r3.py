@@ -55,6 +55,7 @@ from modules.demo_trader import (
     _SHADOW_BYPASS_REASON_TAG,
     ORDER_BAR_FIRST_BLOCK_REASON_PREFIX,
     DemoTrader,
+    promo_block_cause_from_audit,
 )
 from modules.oanda_bridge import OandaBridge
 
@@ -410,6 +411,46 @@ def test_symmetric_shadow_tracking_plain_when_shadow_came_from_upstream(tmp_path
     assert skipped and skipped[0]["block_reason"] == "shadow_tracking", skipped
     assert not any("[SHADOW_FIX] Post-gate escalation" in m for m in logs)
     assert not any(r.startswith(_PROMO_BLOCK_REASON_TAG) for r in _row_reasons(rows[0]))
+
+
+def test_promo_block_cause_normalizer_covers_both_audit_generations():
+    """PR #293 review P2 (4078290940): legacy `session_filter_out` (P-V4 契約、書き換え
+    ない) と R3 標準 `promo_block:<cause>` を消費側で 1 つの cause に正規化する。"""
+    assert promo_block_cause_from_audit("shadow_tracking(promo_block:mode_off)") == "mode_off"
+    assert promo_block_cause_from_audit("shadow_tracking(session_filter_out)") == "session_filter"
+    assert promo_block_cause_from_audit("shadow_tracking") == ""
+    assert promo_block_cause_from_audit("shadow_tracking(weekend_gap_spread_cap(spread=12.0p>10.0p))") == ""
+    assert promo_block_cause_from_audit("daily_loss_limit(-42.0pip<=-20.0pip)") == ""
+    assert promo_block_cause_from_audit(None) == ""
+
+
+def test_session_filter_keeps_legacy_audit_key_and_gets_promo_marker(tmp_path, monkeypatch):
+    """session_filter は audit を legacy `shadow_tracking(session_filter_out)` のまま
+    (exact pin を持つ P-V4 契約) にし、row には標準 `[PROMO_BLOCK] session_filter` を付ける
+    — 両世代を helper で同じ cause に読めることの pin (PR #293 review P2)。"""
+    import tests.test_session_filter_promotion_guard as _sf
+    from edge_cell_test_helpers import make_trader as _make_sf_trader
+
+    cell = (_sf.VIX, _sf.INST)
+    monkeypatch.setattr(demo_trader_mod, "DemoTrader", DemoTrader)
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_PROMOTED", frozenset(set(DemoTrader._PAIR_PROMOTED) | {cell}))
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_DEMOTED", frozenset(t for t in DemoTrader._PAIR_DEMOTED if t != cell))
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_SESSION_FILTER", {**DemoTrader._PAIR_SESSION_FILTER, cell: {"Overlap"}})
+    trader, logs = _make_sf_trader(tmp_path, monkeypatch, hour=_sf.HOUR_OUT)
+    audits = []
+    trader._add_oanda_audit = lambda **kw: audits.append(kw)
+
+    trader._tick_entry("daytrade", _sf._usdjpy_cfg(), _sf._vix_sell_sig(), "15m", _sf.INST)
+
+    assert audits and audits[-1]["block_reason"] == "shadow_tracking(session_filter_out)"
+    assert promo_block_cause_from_audit(audits[-1]["block_reason"]) == "session_filter"
+    rows = _rows(trader)
+    assert rows and rows[0]["is_shadow"] == 1
+    assert f"{_PROMO_BLOCK_REASON_TAG} session_filter" in _row_reasons(rows[0]), _row_reasons(rows[0])
+    assert any("[PROMO_BLOCK] " in m and "cause=session_filter" in m for m in logs), logs
 
 
 # ═══════════════════════════════════════════════════════════════════════
