@@ -1,5 +1,17 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-23 — fix(engine): WAIT tick が count ゲートの block 帰属を汚染していた — 計数器契約バグ 3 例目 (rule:R3)
+
+- **発見**: `_tick_entry` の `if signal == "WAIT": return` guard (コメント「WAITはカウントしない（大半がWAIT）」) が 3 つの count ゲート (`max_per_mode_pair` / `hedge_block` / `max_open`) の**後ろ**にあり、建玉がある限り WAIT tick が毎 tick それらの理由名で計上されていた。`hedge_block` の述語 `_ot["direction"] != signal` は signal="WAIT" で**恒真**、`max_open` の述語は signal 非依存
+- **本番実測** (`gate_block_daily` 30d、2026-08-24〜09-23): `hedge_block` 59,881 件中 **55,219 件 (92.2%)**、`max_open` 6,501 件中 **5,928 件 (91.2%)** が entry_type unknown/wait。**他の 20+ reason は汚染 0.0%** — 汚染は「WAIT で述語が真になるゲート」に厳密に限られる
+- **補正後の順位**: `hedge_block` は **#1 (27.3%) → #5 (3.0%)** へ降格。真の #1 は `r2_shadow_demoted_cell` (36.4%)、以下 `no_signal` (25.0%) / `order_bar_dedup` (24.9%) / `score_gate` (6.4%)
+- **estimand 検査**: `_record_entry_block` は `reason.split('(')[0]` で引数を捨てるためカウンタ自身は `:WAIT` を区別できない。判別は別経路で確定 — entry_type unknown/wait が現れる reason は `hedge_block` と `max_open` の **2 つだけ**で、方向や実体を要求する 20+ の reason には 1 件も現れない / 30d の記録 trade 1,800 本に unknown・wait は **0 本**。⚠️ Render ログの `:WAIT)` grep 0 件は**反証にならない** (`SENTINEL_BLOCK_DIAG` は sentinel entry_type にしか出ない)。実 entry_type で WAIT を返す戦略がある分、真の件数 4,662 / 573 は**上界**
+- **修理**: guard を 3 つの count ゲートの直前へ移動。**取引挙動は不変** (WAIT は元々エントリーしない / 移動区間に予約・dedup・DB 書込みの副作用なし)、変わるのは block カウンタと 3 ゲートの診断ログのみ。汚染ゼロだったゲート (`score_gate` / `r2_shadow_demoted_cell`) は guard より前のまま = スコープ最小化
+- **pin**: `tests/test_wait_tick_block_attribution.py` 6 本 — 振る舞い 2 (count ゲート不計上 / trade・送信ゼロ) + **NG を返す既知の入力** (本物の逆方向 SELL は従来どおり `hedge_block`、「全部素通し」でも通るテストにしない) + 性質 3 (順序 / 出現回数 1 / 汚染ゼロゲートが guard 前のままというスコープ pin)。**counterfactual 実測** (bytecode purge 後): guard を旧位置に戻すと 2 本が落ち、本番と同型の `hedge_block(daytrade/USD_JPY:WAIT)` を返す。挙動不変 pin は両方で通る
+- **引用規律**: 2026-09-23 より前の `hedge_block` / `max_open` の**件数**は WAIT を除いた再計算なしに引用しない。他 reason の件数は汚染ゼロでそのまま引用可。消費者への caveat 追記は registry `block-counter-wait-contamination-recite-audit` (期日 10-13) が読む。⚠️ [[ps-seat-supply-remeasure-2026-09-10]] §8 の**結論** (hedge_block 寄与 = 0 本) は `MODE_CONFIG` の構造由来で**本汚染では覆らない** — 覆るのは併記された件数のみ
+- **副産物 (未執行・R1 候補)**: hedge 抑制の継続長は dedup の 60s ではなく**建玉保有時間** — 中央値 **22.0 分** (2026-04-30 H2 が置いた上界 60s の約 22 倍) / p90 132.2 分 / max 720 分 / **≤60s は 1.61%**。片方向被拘束は daytrade/USD_JPY 218.0h (窓 720h の 30.3%、うち shadow 単独 213.0h)。建玉 1,798 本中 1,788 本が shadow。**ただし経済的重みは被拘束時間ではなく真の 4,662 件/30d (3.0%)** であり、`_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS` の 6 type (kalman_d7 ×3 ほか) は hedge を bypass する = **今月唯一 live 約定した kalman_d7 は免除側**。緩和は live 経路を含むゲート変更 = **Rule 1** につき本 PR では触らず registry `hedge-gate-duration-vs-2026-04-30-premise` (期日 10-20) に凍結
+- **教訓**: 早期 return が「これは数えない」と宣言しても、その return より前のゲートには効かない。**述語が対象外入力で自明に真になるゲート (方向比較・総数比較) は、ガードの後ろに置かれた瞬間に別物を数え始める**。ゲートを追加・移動したら、上流の早期 return の宣言がまだ成り立つかを確認する
+- 詳細: [[wait-tick-block-attribution-2026-09-23]]
 ## 2026-09-23 — docs(decisions): UD1 結果 = GOLD (user 画面確認) を registry / 決裁パケットに記録 (rule:R3)
 
 - `ud1-gold-screen-check` resolved: OANDA status 画面で 9 月 keeper ($520k) 算入・**GOLD** 表示。SILVER 分岐 (packet v0.1 書き直し) は不発、v0 前提のまま確定版 10-08 へ。keeper 10 月 run 継続

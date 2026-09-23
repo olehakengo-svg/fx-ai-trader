@@ -1,5 +1,13 @@
 # FX AI Trader - Changelog
 
+## 2026-09-23 — fix(engine): WAIT tick が count ゲートの block 帰属を汚染していた — 計数器契約バグ 3 例目 (rule:R3)
+
+- `_tick_entry` の `if signal == "WAIT": return` が 3 つの count ゲート (`max_per_mode_pair` / `hedge_block` / `max_open`) の後ろにあり、建玉がある限り WAIT tick をそれらの理由名で計上していた (`hedge_block` の述語は WAIT で恒真、`max_open` は signal 非依存)
+- 本番 30d 実測: `hedge_block` の **92.2%** (55,219/59,881)、`max_open` の **91.2%** (5,928/6,501) が WAIT 由来。他の 20+ reason は **0.0%**。補正後 `hedge_block` は **#1 (27.3%) → #5 (3.0%)**
+- 修理 = guard を 3 ゲートの直前へ移動。**取引挙動は不変** (WAIT は元々エントリーしない)、変わるのはカウンタと診断ログのみ。汚染ゼロのゲートは guard 前のまま (スコープ最小化)
+- pin: `tests/test_wait_tick_block_attribution.py` (6 本 — 振る舞い 2 / NG を返す既知の入力 1 / 性質 3)。counterfactual 実測で 2 本が落ちることを bytecode purge 後に確認
+- registry: `block-counter-wait-contamination-recite-audit` (10-13、過去引用への caveat) / `hedge-gate-duration-vs-2026-04-30-premise` (10-20、抑制継続長 中央値 22.0 分 vs 前提 60s の R1 候補凍結 — autopilot 執行禁止)
+- 詳細: knowledge-base/wiki/analyses/wait-tick-block-attribution-2026-09-23.md
 ## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
 
 - `_SHADOW_ONLY_DOWNSTREAM_RELAX_MODES = {rnb_usdjpy}` + `_mode_downstream_relax()` (allowlist ∧ shadow_only=True) — velocity_down / mtf_strong_bias / 1h_rr_low の hard block を shadow 化。他 gate・閾値・session_hours・daytrade_audjpy は不変
