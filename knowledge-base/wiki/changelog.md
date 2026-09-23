@@ -12,6 +12,12 @@
 - **副産物 (未執行・R1 候補)**: hedge 抑制の継続長は dedup の 60s ではなく**建玉保有時間** — 中央値 **22.0 分** (2026-04-30 H2 が置いた上界 60s の約 22 倍) / p90 132.2 分 / max 720 分 / **≤60s は 1.61%**。片方向被拘束は daytrade/USD_JPY 218.0h (窓 720h の 30.3%、うち shadow 単独 213.0h)。建玉 1,798 本中 1,788 本が shadow。**ただし経済的重みは被拘束時間ではなく真の 4,662 件/30d (3.0%)** であり、`_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS` の 6 type (kalman_d7 ×3 ほか) は hedge を bypass する = **今月唯一 live 約定した kalman_d7 は免除側**。緩和は live 経路を含むゲート変更 = **Rule 1** につき本 PR では触らず registry `hedge-gate-duration-vs-2026-04-30-premise` (期日 10-20) に凍結
 - **教訓**: 早期 return が「これは数えない」と宣言しても、その return より前のゲートには効かない。**述語が対象外入力で自明に真になるゲート (方向比較・総数比較) は、ガードの後ろに置かれた瞬間に別物を数え始める**。ゲートを追加・移動したら、上流の早期 return の宣言がまだ成り立つかを確認する
 - 詳細: [[wait-tick-block-attribution-2026-09-23]]
+## 2026-09-23 — docs(decisions): UD1 結果 = GOLD (user 画面確認) を registry / 決裁パケットに記録 (rule:R3)
+
+- `ud1-gold-screen-check` resolved: OANDA status 画面で 9 月 keeper ($520k) 算入・**GOLD** 表示。SILVER 分岐 (packet v0.1 書き直し) は不発、v0 前提のまま確定版 10-08 へ。keeper 10 月 run 継続
+- 併記: [[integrated-decision-packet-d1-d12-2026-09-22]] 末尾 / [[path-to-win-reassessment-2026-09-22]] 末尾
+- registry 新規 `oanda-gold-monthly-status-record-2026-10` (期日 09-30 → 10-01 判定): 10 月ランクの user 確認・記録義務の読み手 (Codex P2: 参照していた「10-01 項目」は未存在だった)
+
 ## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
 
 - **背景**: [[rnb-shadow-lane-health-precheck-2026-09-22]] §6 — 09-12 以降の rnb BUY bar 6/6 が `_tick_entry` 下流の velocity_down / mtf_strong_bias / 1h_rr_low で hard block、closed shadow N=2 のまま (checkpoint-1 09-24 n_floor 3 は 09-25 00:20Z 判定で TRIGGERED 見込み)。shadow_only mode は OANDA 送信が構造的にゼロで、これらの gate が守る資本は無い。365d ablated BT は同 gate を適用していない (BT⇄live 母集団の非同期 = 構造欠陥、R3)

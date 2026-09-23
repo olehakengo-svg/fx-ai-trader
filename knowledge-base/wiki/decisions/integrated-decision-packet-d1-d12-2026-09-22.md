@@ -18,7 +18,7 @@
 
 ## 1. 前提条件 (D1〜D12 の返答より先に確認が必要な 2 項目)
 
-### UD1. Gold 算入の画面確認 (期限 2026-09-23、10-01 を待たない)
+### UD1. Gold 算入の画面確認 (期限 2026-09-23、10-01 を待たない) **→ 結果 (2026-09-23 user 画面確認): GOLD 表示** (keeper $520k 算入、SILVER 分岐は不発、10 月分は registry `oanda-gold-monthly-status-record-2026-10` が読む。詳細は末尾「UD1 結果」節)
 
 | 項目 | 内容 |
 |---|---|
@@ -208,3 +208,11 @@ D1: B / D2: (i) L73 (ii) type×pair×dir / D3: (i) ¥54,000 (補項: 単 leg、1
 
 ## 関連
 [[path-to-win-decision-memo-2026-09-20]] / [[path-to-win-reassessment-2026-09-22]] / [[mission-capital-redecision-packet-2026-09-10]] / [[u1-mission-redecision-2026-09-17]] / [[monthly-target-rederivation-2026-07-10]] / [[lot-ladder-template-2026-08]] / [[shortest-path-decision-memo-2026-07-10]] / [[process-meta-audit-2026-09-07]] / [[status-volume-keeper-2026-09-01]] / [[live-frequency-and-oanda-status-survival-2026-09-01]] / [[kalman-d7-carveout-postfill-packet-2026-09-17]] / [[usdjpy_carry_dip_accumulator]] / [[weekend-gap-fade]] / [[supply-space-feasibility-2026-09-17]] / MEMORY `project_path_to_win_memo_2026_09_20` / `project_oanda_status_api_survival_2026_09_01`
+
+---
+
+## UD1 結果 (2026-09-23) — GOLD 確認
+
+- user 画面確認 (2026-09-23 JST 午前): OANDA status 画面「今月の取引額」に 9 月 keeper 26 RT ($520k) が算入され **GOLD** 表示。
+- 帰結: §1 UD1 の SILVER 分岐 (v0.1 書き直し、D5/D6/D7 前提消滅、D3 縮約、Rank 5・7 前提消滅) は**不発**。v0 の前提はそのまま確定版 (10-08) へ。keeper は 10 月も設計どおり run (¥2,080/月)。
+- registry `ud1-gold-screen-check` resolved (2026-09-23)。10 月の月次判定 (Gold 維持) は**新規** registry entry `oanda-gold-monthly-status-record-2026-10` (期日 09-30、cron 判定 10-01 00:20Z、Gold 画面は user 専権で Claude は依頼と記録のみ) が読む — 旧記述「既存の 10-01 項目」は存在しなかった (PR #292 Codex P2 4078219840 で訂正)。
