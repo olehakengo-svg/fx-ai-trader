@@ -4,9 +4,9 @@
 
 - pre-check (`bridge_inactive` / `mode_<mode>_not_allowed`) を bridge 拒否経路と対称に shadow 化 (ExposureManager + `[SHADOW_FIX] Pre-send guard` ログ) / `OandaBridge.open_trade` の無 audit False 経路に `blocked` audit (`bridge_inactive_race` / `mode_<mode>_not_allowed_race` / `unsupported_instrument(<inst>)`)
 - `_is_promoted_ex` の block cause を event 時点で row reasons `[PROMO_BLOCK] <cause>` + audit `shadow_tracking(promo_block:<cause>)` に永続 (現在 mode からの転記推定を廃止) / `[SHADOW] <gate> bypass:` 23 サイトの cause を row reasons `[SHADOW_BYPASS] <gate>` に永続 / order-bar 予約後の最初の terminal block を `gate_block_daily` `order_bar_dedup_first:<reason_key>` に 1 回だけ永続 + dedup ログに `first_block=` 併記
-- 判定・戻り値・is_shadow 最終値・行数・凍結値は不変 (record-only)。pin: `tests/test_pre_send_guard_observability_r3.py` 24 本 (counterfactual 10 / 対称側 10 / shadow_only 母集団不変 2 / review P2 消化 2)
+- 判定・戻り値・is_shadow 最終値・行数・凍結値は不変 (record-only)。pin: `tests/test_pre_send_guard_observability_r3.py` 25 本 (counterfactual 10 / 対称側 10 / shadow_only 母集団不変 2 / review P2 消化 3)
 - DRAFT §2 訂正: (c2) DB row は 48025ebd3 以降 write-time で is_shadow=1 (欠陥は in-memory/Exposure 側) / (d) mode_off は無ログ fallback で shadow 化され `Post-gate escalation` ログは発火しない — 詳細: knowledge-base/wiki/analyses/pre-send-guard-observability-r3-2026-09-23.md
-- review P2 消化: `session_filter` の audit は legacy `shadow_tracking(session_filter_out)` を維持 (P-V4 契約)、消費側正規化 `promo_block_cause_from_audit()` + session_filter 行 pin を追加
+- review P2 消化: `session_filter` の audit は legacy `shadow_tracking(session_filter_out)` を維持 (P-V4 契約)、消費側正規化 `promo_block_cause_from_audit()` + session_filter 行 pin を追加 / 2 巡目: (d) 帰属条件を不変 snapshot `_live_intent_at_open` へ (live 復活後の FD 最終ゲート経路の取り逃し修正)
 
 ## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
 

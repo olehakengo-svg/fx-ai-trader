@@ -384,6 +384,40 @@ def test_mode_off_promo_cause_persisted_on_row_and_audit(tmp_path, monkeypatch):
     assert f"{_PROMO_BLOCK_REASON_TAG} mode_off" in _row_reasons(_rows(trader)[0])
 
 
+def test_promo_cause_survives_late_demotion_gate_after_live_override(tmp_path, monkeypatch):
+    """PR #293 review P2 (4078373240): GRAIL/C1/PRIME の live 復活 (`_shadow_at_open=False`)
+    の後に `_apply_force_demoted_final_gate` が shadow へ戻し `_shadow_at_open=True` を書く
+    経路では、可変の `_shadow_at_open` を条件に使うと帰属が落ちる。「row 書込み時の live 意図」
+    は不変 flag で判定し、`[PROMO_BLOCK] force_demoted` + audit variant が残ることを pin。"""
+    fake = _fake_bridge(accept=True, strategy_mode="")
+    _promote_synthetic_elite(monkeypatch)
+    # synthetic: ELITE 戦略を FORCE_DEMOTED 扱いにし (cause=force_demoted)、GRAIL 候補にも入れて
+    # フィルタ合致 → live 復活 → FD 最終ゲートで shadow 化、という実機構の順序を踏ませる
+    monkeypatch.setattr(
+        DemoTrader, "_is_force_demoted_entry",
+        lambda self, et, inst="": et == ELITE,
+    )
+    monkeypatch.setattr(
+        DemoTrader, "_GRAIL_CANDIDATES", set(getattr(DemoTrader, "_GRAIL_CANDIDATES", set())) | {ELITE},
+    )
+    monkeypatch.setenv("GRAIL_SENTINEL_ENABLED", "1")
+    trader, logs = _make_trader(tmp_path, monkeypatch)
+    monkeypatch.setattr(trader, "_check_grail_filter", lambda *_a, **_k: True)
+    monkeypatch.setattr(trader, "_oanda", fake)
+    trader._tick_entry("daytrade", _cfg("EUR_USD"), _sig(), "15m", "EUR_USD")
+
+    rows = _rows(trader)
+    assert rows and len(rows) == 1 and rows[0]["is_shadow"] == 1
+    assert not fake.open_trade.called
+    # 実機構の順序が踏まれたこと (GRAIL 復活 → FD 最終ゲート)
+    assert any("[GRAIL] " in m and "LIVE Sentinel" in m for m in logs), logs
+    assert any("[FORCE_DEMOTED_GATE] " in m for m in logs), logs
+    reasons = _row_reasons(rows[0])
+    assert f"{_PROMO_BLOCK_REASON_TAG} force_demoted" in reasons, reasons
+    skipped = [a for a in _audits(fake) if a.get("bridge_status") == "skipped"]
+    assert skipped and skipped[0]["block_reason"] == "shadow_tracking(promo_block:force_demoted)", skipped
+
+
 def test_promo_block_marker_absent_when_gate_passes(tmp_path, monkeypatch):
     """恒真でない側: promotion gate を通った row には `[PROMO_BLOCK]` が付かない。"""
     fake = _fake_bridge(accept=True, strategy_mode="live")

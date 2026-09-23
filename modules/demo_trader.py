@@ -7553,6 +7553,13 @@ class DemoTrader:
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _shadow_at_open = _is_shadow  # v9.x: DB書込み時点の値を保存 (persistence fix)
+        # rule:R3 2026-09-23: 「row 書込み時の live 意図」の**不変** snapshot。
+        # `_shadow_at_open` は persistence-fix の差分検出用で、emergency trip /
+        # GRAIL・C1・PRIME の live 復活 / `_apply_force_demoted_final_gate` が書き換える
+        # 可変値 — promo cause の帰属条件には使わない (PR #293 review P2 4078373240:
+        # C1 が fib_reversal を live 復活 → FD 最終ゲートが shadow へ戻し
+        # `_shadow_at_open=True` を書くと `[PROMO_BLOCK] force_demoted` が落ちた)。
+        _live_intent_at_open = not _is_shadow
         # ── P-V4 (2026-07-02): session filter 窓外 block の観測性 ──
         # _is_promoted_ex が「deciding factor」の cause タグを返すので、
         # mode_off / pair_demoted 等の上流 block を session filter に誤帰属
@@ -8017,14 +8024,15 @@ class DemoTrader:
         # cause (`_is_promoted_ex` 戻り値、上 7542 で 1 回だけ評価) を **event 時点**で
         # row reasons `[PROMO_BLOCK] <cause>` + audit `shadow_tracking(promo_block:<cause>)`
         # に永続する。転記時に現在の strategy mode を読むと mode 変更後に誤帰属する
-        # (Codex P2 4075642847)。条件 = 「row 書込み時は live 意図 (_shadow_at_open 偽) →
-        # 送信判定までに shadow 化 ∧ 非 promoted」= v8.9 fallback (無ログ) / post-gate
-        # escalation / SHIELD 経由の全 flip を 1 箇所で拾う。除外: 上流 bypass で最初から
+        # (Codex P2 4075642847)。条件 = 「row 書込み時は live 意図 (_live_intent_at_open、
+        # 不変 snapshot) → 送信判定までに shadow 化 ∧ 非 promoted」= v8.9 fallback (無ログ) /
+        # post-gate escalation / SHIELD / live 復活後の FD・PAIR 最終ゲート経由の全 flip を
+        # 1 箇所で拾う (可変の _shadow_at_open は使わない — review P2 4078373240)。除外: 上流 bypass で最初から
         # shadow の row ([SHADOW_BYPASS] 側で帰属) / shadow_only mode (構造的 shadow、
         # promo cause は moot) / cause 空 (SHIELD・VWAP trip・Kelly・MC ruin — Kelly・MC は
         # 自前の `blocked` audit 行を持つ) は従来どおり素の shadow_tracking。
         _post_gate_promo_cause = ""
-        if (_is_shadow and not _shadow_at_open and not _is_promoted
+        if (_is_shadow and _live_intent_at_open and not _is_promoted
                 and _promo_block_cause and not _mode_is_shadow_only(mode)):
             _post_gate_promo_cause = _promo_block_cause
             self._persist_promo_block_marker(trade_id, _promo_block_cause)
