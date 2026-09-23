@@ -4756,6 +4756,16 @@ PnL合計 N/A、トレード数 0、WR 算出不能。
 - USD_JPY ATR%ile=79% でRANGINGは統計的に不安定な組み合わせ。TRENDING転換の可能性を保持。
 ただし長期的にShadow降格状態が継続すれば、本番稼働実績が積み上がらず **N蓄積も停滞するという構造的デッドロック** に陥る点は要注意。
 
+### 2026-09-23 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **−4.5p** |
+| 全体WR | **0.0%（1/1 LOSS）** |
+前日（2026-09-22）はシステム全体で実質1トレードのみ発火。`kalman_d7_po_dn_flip / USD_JPY / BUY` が `SIGNAL_REVERSE` で損切り終了。これは統計的に評価不能な単日スナップショットであり、異常値でも好転でもない——単なる低流量日。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **判定: N=1 → 「データなし」。EV・WR の評価は保留。昇格/降格判断の対象外。**
+| 昇格候補（N≥30 & EV≥1.0） | 該当なし | N=1のみ |
+| 降格候補（N≥30 & EV<−0.5） | 該当なし | N到達戦略なし |
+- **`r2_shadow_demoted_cell`が主力scalpを事実上封鎖**（scalp: 485件, scalp_eur: 356件, scalp_5m_eur: 266件, scalp_5m: 209件, scalp_5m_gbp: 188件）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
