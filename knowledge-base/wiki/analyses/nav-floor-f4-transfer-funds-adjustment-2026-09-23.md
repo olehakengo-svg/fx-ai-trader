@@ -44,14 +44,15 @@ D = ¥100,000, span = 30d → −3,333 JPY/日  ≫  keeper 68.3 JPY/日
 edge_jpy  = (NAV_now − NAV_start) − Σ transfers(window) + keeper_rt_in_window × JPY_PER_RT
 burn_edge = −edge_jpy / span                                  (不変)
 
-window    = (t_start, t_now]      t = NAV 採取時刻 (heartbeat.last_check)
+window    = (t_start, t_now]      t = NAV 採取時刻 (heartbeat.nav_at — 成功 heartbeat で nav と同時にだけ更新)
   tx ∈ window ⇔ t_start < tx.time ≤ t_now       TRANSFER_FUNDS のみ数える
                                                 (TRANSFER_FUNDS_REJECT は残高を動かさない /
                                                  約定・DAILY_FINANCING は trade 由来 = edge 側)
   t_start   = start_row.nav_ts_utc (新列)。無い legacy 行 (2026-09-23 以前) は日付で切り、
               tx.date == start_date なら前後不定 → unavailable:transfer_on_start_bound
-  t_now     = nav_ts (heartbeat.last_check、無ければ取得時刻)。tests のように date しか無い
-              場合は tx.date == asof で unavailable:transfer_on_asof_bound (両端対称)
+  t_now     = nav_ts (heartbeat.nav_at。無い旧 app は status=="ok" の last_check のみ、失敗 heartbeat
+              の last_check は NAV の時刻ではないので None)。None / date しか無い場合は
+              tx.date == asof で unavailable:transfer_on_asof_bound (両端対称)。取得時刻で埋めない
   amount / time が読めない TRANSFER_FUNDS → unavailable:transfers_malformed
 
 台帳       = 本番 GET /api/oanda/transfers?from=YYYY-MM-DD&to=YYYY-MM-DD (app.py、read-only)
@@ -70,6 +71,7 @@ basis      = nav_delta:<start>-><asof>:<span>d,keeper_rt_in_window=<n>,transfers
 設計原則:
 - **入出金は edge に不可視** — 資金時計の estimand は「口座が自力で減る速さ」であり、user の入金は分母 (NAV) を動かすが burn を動かさない。project() は伸びた NAV を正しい burn で割る (days_to_floor は増える = 正しい)。
 - **窓端は時刻** — 日付で切ると nav_start の採取前後に同日入出金が載った場合に ±D/span の誤差が丸ごと出る (入金なら偽の burn 5,000/日級 → 偽発火、逆なら盲目化)。どちらの方向も許容できないので、時刻の無い端に同日 tx が載れば fail-closed。新列 `nav_ts_utc` で今後の行は時刻を持つ。
+- **時刻は NAV と一緒に書かれたものだけ** (PR #295 review P2) — `run_heartbeat()` は失敗時も `last_check` を進めて `nav` を前回値のまま残す。障害中に `last_check` を NAV の時刻と読むと、直前の成功〜失敗の間の入出金を「反映済み」と誤って除外する。bridge に `heartbeat.nav_at` (成功 update でのみ nav と同時に更新) を追加し、tool はそれを使う。無ければ `status=="ok"` の `last_check` のみ、失敗 heartbeat は None (asof 端は日付判定 → 同日入出金は unavailable)。取得時刻で埋めない。
 - **取得不能を 0 と折り畳まない** (monitoring-blind 教訓) — 09-23 時点で本番 route は未デプロイ (HTTP 404) → dry-run は `WARN: 入出金台帳 (TRANSFER_FUNDS) 取得不能 — edge は unavailable:transfers_unavailable として記録` を出し、行の burn は keeper のみ (68.3/日、days_to_floor 197、09-23 実測 dry-run)。edge_basis は先行する理由 (`keeper_split_unknown(span=16d)`、CSV が当月内から始まる窓) が優先表示される — 理由は 1 つだけ書く設計、transfers の判定は keeper 側が確定した後。
 - **対称に処置** — 入金/出金、start 端/asof 端、REJECT/本体、それぞれ両側を同じ関数で同じ規則にした ([[feedback_check_the_symmetric_side_2026_09_19]] の教訓: 片側だけ塞いだ fail-closed は「再発できない」を偽にする)。
 
@@ -84,7 +86,9 @@ basis      = nav_delta:<start>-><asof>:<span>d,keeper_rt_in_window=<n>,transfers
 | `test_transfer_ledger_ignores_non_transfer_types_and_flags_malformed` | REJECT / DAILY_FINANCING は不算入、amount・time 不正は `transfers_malformed` | — |
 | `test_transfer_window_bounds_use_nav_timestamps_and_fail_closed_on_legacy_boundary` | legacy start 端の同日 tx → `transfer_on_start_bound`、`nav_ts_utc` があれば 02:00Z (採取前) は除外・08:00Z (採取後) は差し引き、asof 端も対称 | — |
 | `test_append_row_persists_nav_timestamp_for_future_window_bounds` | 新列 `nav_ts_utc`、既存 6 列不変 | — |
-| `test_main_fetches_transfer_ledger_over_window_and_exposes_unavailable` | main が窓を覆う範囲で台帳を取り、None をそのまま渡す、nav_ts = heartbeat.last_check | — |
+| `test_main_fetches_transfer_ledger_over_window_and_exposes_unavailable` | main が窓を覆う範囲で台帳を取り、None をそのまま渡す、nav_ts = heartbeat.nav_at | — |
+| `test_nav_ts_comes_from_successful_nav_fetch_only` / `test_main_passes_none_nav_ts_during_heartbeat_outage_not_now` | nav_at 優先、無ければ status=ok の last_check、失敗 heartbeat は None (main は取得時刻で埋めない) | 障害中 payload (nav は 06:00 の値、last_check は 09:00 の失敗時刻) |
+| `tests/test_oanda_bridge_heartbeat_nav_at.py` (2 本) | nav_at は成功 heartbeat で nav と同時にだけ動き、失敗では last_check だけ進む / 初回失敗は None | — |
 | `test_fetch_transfers_returns_none_on_failure_or_bad_scheme` | scheme 遮断 / 例外 / transactions 配列なし → None | — |
 | `test_transfers_reader_wiring_tool_path_matches_app_route` | tool の path 定数と app.py の route が一致 (write-only 教訓) | — |
 | `test_registry_f4_message_records_transfer_funds_adjustment` | registry F4 message に方法変更、condition 不変 | — |
@@ -107,7 +111,7 @@ basis      = nav_delta:<start>-><asof>:<span>d,keeper_rt_in_window=<n>,transfers
 
 ## 5. 残る限界 (caveat)
 
-- 窓端の時刻は `heartbeat.last_check` (bridge の 60s heartbeat)。heartbeat が止まっている間の入出金は「nav_now 未反映」として正しく除外されるが、NAV 自体が古いのは別問題 (freshness は watcher 側の責務)。
+- 窓端の時刻は `heartbeat.nav_at` (bridge の 60s heartbeat、成功時のみ更新)。heartbeat が失敗し続ける間の入出金は「nav_now 未反映」として正しく除外されるが、NAV 自体が古いのは別問題 (freshness は watcher 側の責務)。旧 app (nav_at 無し) との deploy skew 中は `status=="ok"` の `last_check` で同値。
 - `TRANSFER_FUNDS` 以外の非トレード残高変動 (手数料・調整系の ADMIN tx) は未調整。本口座での有無は**未確認** — 出たら route の type を足す (同型の兄弟を同じ PR で掃く教訓、[[project_mof_ingest_defect_family_2026_09_17]])。
 - OANDA `to` は route 側で「今」に clamp。tool の取得窓は日付 [asof−32d, asof+1d) で、窓判定は時刻。TransactionList の pageSize 1000 で 1 ページに収まる想定 (入出金は月に数件)。
 - `nav_ts_utc` は 12 列目 (registry `csv_row_match` が読む先頭 6 列は不変)。
@@ -116,13 +120,16 @@ basis      = nav_delta:<start>-><asof>:<span>d,keeper_rt_in_window=<n>,transfers
 
 | ファイル | 変更 |
 |---|---|
-| `tools/nav_floor_projection.py` | `transfers_in_window` / `fetch_transfers` / `nav_ts_from_status` / `_parse_ts` 追加、`edge_burn_per_day` に `transfers` / `nav_ts` (None = unavailable)、basis に `transfers_jpy,n_transfers`、新列 `nav_ts_utc`、`main()` が台帳を窓分取得し None は WARN + そのまま渡す |
+| `tools/nav_floor_projection.py` | `transfers_in_window` / `fetch_transfers` / `nav_ts_from_status` / `_parse_ts` 追加、`edge_burn_per_day` に `transfers` / `nav_ts` (None = unavailable)、basis に `transfers_jpy,n_transfers`、新列 `nav_ts_utc`、`main()` が台帳を窓分取得し None は WARN + そのまま渡す (nav_ts も None のまま渡す) |
+| `modules/oanda_bridge.py` | `heartbeat.nav_at` — 成功 heartbeat で `nav` と同じ update にだけ書く採取時刻 (telemetry 追加のみ、送信経路に変更なし) |
 | `modules/oanda_client.py` | `list_transactions_full(from, to, types)` — pages → idrange 走査 (失敗は部分結果を返さない) |
 | `app.py` | `GET /api/oanda/transfers?from&to` (read-only、400 日上限、to を今で clamp、TRANSFER_FUNDS のみ、503/500 で 0 件と偽らない) |
 | `tests/test_nav_floor_projection_f4.py` §14 / `tests/test_oanda_client_transactions_full.py` / `tests/test_api_oanda_transfers_endpoint.py` | 上記 pin (11 + 3 + 5 本)、既存呼び出しは `transfers=[]` 明示 |
 | `prereg-trigger-registry.json` | F4 message 追記 (1 行、condition 不変) |
 | `nav-floor-f4-estimator-decomposition-2026-09-22.md` §5 | 本ページへの追記 1 行 |
 
-## 7. レビュー消化記録
+## 7. レビュー消化記録 (PR #295)
 
-PR 作成後、connector レビュー (P1/P2) の消化をここに追記する (`tools/pr_review_gate.py` で到着 + 消化を確認してからマージ)。
+| 巡 | 指摘 | 判定 | 対応 |
+|---|---|---|---|
+| 1 | P2: `nav_ts = heartbeat.last_check` は失敗 heartbeat でも進む (nav は前回値) — 障害中は失敗時刻を古い NAV の採取時刻と誤読し、直前成功〜失敗の間の入出金を「反映済み」として除外、edge を障害中にこそ壊す | 実欠陥 | bridge に `heartbeat.nav_at` (成功 update で nav と同時にだけ更新) を追加、tool は nav_at 優先 / 旧 app は `status=="ok"` の last_check のみ / 失敗は None (main は取得時刻で埋めない、asof 端は日付判定 → 同日入出金 unavailable)。bridge 2 本 + tool 2 本 (障害中 payload = 既知 NG) で pin |

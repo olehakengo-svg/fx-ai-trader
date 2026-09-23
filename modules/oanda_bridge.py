@@ -117,6 +117,7 @@ class OandaBridge:
             "latency_ms": None,       # API response latency
             "balance": None,          # Account balance
             "nav": None,              # Net asset value
+            "nav_at": None,           # nav を書いた成功 heartbeat の時刻 (失敗では動かない、F4 資金時計の窓境界)
             "unrealized_pl": None,    # Unrealized P/L
             "margin_used": None,
             "margin_available": None,
@@ -456,8 +457,13 @@ class OandaBridge:
 
                 if ok:
                     acct = data.get("account", data)
+                    _now_iso = datetime.now(timezone.utc).isoformat()
                     self._heartbeat.update({
-                        "last_check": datetime.now(timezone.utc).isoformat(),
+                        "last_check": _now_iso,
+                        # nav と同じ update でのみ動く採取時刻。失敗 heartbeat は last_check
+                        # だけ進めて nav を残すので、last_check を NAV の時刻と読むと障害中に
+                        # 入出金の窓境界がずれる (PR #295 review P2、tools/nav_floor_projection.py)
+                        "nav_at": _now_iso,
                         "latency_ms": round(_elapsed, 1),
                         "balance": acct.get("balance"),
                         "nav": acct.get("NAV"),

@@ -615,8 +615,9 @@ def test_append_row_persists_nav_timestamp_for_future_window_bounds(tmp_path):
 
 
 def test_main_fetches_transfer_ledger_over_window_and_exposes_unavailable(monkeypatch):
-    payload = {"oanda": {"heartbeat": {"nav": str(NAV_0922),
-                                       "last_check": "2026-09-23T06:00:00.123456+00:00"}},
+    payload = {"oanda": {"heartbeat": {"nav": str(NAV_0922), "status": "ok",
+                                       "last_check": "2026-09-23T06:00:00.123456+00:00",
+                                       "nav_at": "2026-09-23T06:00:00.123456+00:00"}},
                "status_volume_keeper": KEEPER_0922}
     monkeypatch.setattr(nfp, "fetch_status", lambda *a, **k: payload)
     calls, captured = [], {}
@@ -679,3 +680,41 @@ def test_registry_f4_message_records_transfer_funds_adjustment():
     assert "TRANSFER_FUNDS" in e["message"] and "2026-09-23" in e["message"]
     vals = {c["column"]: (c["op"], c["value"]) for c in e["source"]["match"]}
     assert vals["days_to_floor"] == ("<=", 90)  # condition 不変
+
+
+def test_nav_ts_comes_from_successful_nav_fetch_only():
+    """(PR #295 review P2) heartbeat.last_check は失敗時も進む (nav は前回値のまま) —
+    asof 端の時刻は NAV と一緒に更新される nav_at のみ。無ければ status=ok の last_check
+    (同じ update で書かれる)。失敗 heartbeat の last_check は None (asof 端は日付判定 →
+    同日入出金は unavailable、fail-closed)。既知 NG 入力: 障害中の payload。"""
+    ok_hb = {"nav": "275472.0", "status": "ok", "last_check": "2026-09-23T06:00:00+00:00",
+             "nav_at": "2026-09-23T05:59:30+00:00"}
+    assert nfp.nav_ts_from_status({"oanda": {"heartbeat": ok_hb}}) == datetime(
+        2026, 9, 23, 5, 59, 30, tzinfo=timezone.utc)  # nav_at 優先
+    legacy_ok = {"nav": "275472.0", "status": "ok", "last_check": "2026-09-23T06:00:00+00:00"}
+    assert nfp.nav_ts_from_status({"oanda": {"heartbeat": legacy_ok}}) == datetime(
+        2026, 9, 23, 6, 0, tzinfo=timezone.utc)
+    outage = {"nav": "275472.0", "status": "error", "error": "timeout",
+              "last_check": "2026-09-23T09:00:00+00:00"}  # nav は 06:00 の値、時刻は失敗時刻
+    assert nfp.nav_ts_from_status({"oanda": {"heartbeat": outage}}) is None
+    assert nfp.nav_ts_from_status({"oanda": {"heartbeat": {"nav": "1", "last_check": "2026-09-23T09:00:00+00:00"}}}) is None
+    # nav_at があれば障害中でも NAV の採取時刻として使える
+    outage_with_nav_at = outage | {"nav_at": "2026-09-23T06:00:00+00:00"}
+    assert nfp.nav_ts_from_status({"oanda": {"heartbeat": outage_with_nav_at}}) == datetime(
+        2026, 9, 23, 6, 0, tzinfo=timezone.utc)
+
+
+def test_main_passes_none_nav_ts_during_heartbeat_outage_not_now(monkeypatch):
+    payload = {"oanda": {"heartbeat": {"nav": str(NAV_0922), "status": "error", "error": "timeout",
+                                       "last_check": "2026-09-23T09:00:00+00:00"}},
+               "status_volume_keeper": KEEPER_0922}
+    monkeypatch.setattr(nfp, "fetch_status", lambda *a, **k: payload)
+    monkeypatch.setattr(nfp, "fetch_transfers", lambda *a, **k: [])
+    captured = {}
+
+    def _fake_append(nav, asof=None, path=None, keeper=None, transfers=None, nav_ts=None):
+        captured["nav_ts"] = nav_ts
+        return nfp.build_row(nav, asof, [], keeper, transfers=transfers, nav_ts=nav_ts)
+    monkeypatch.setattr(nfp, "append_row", _fake_append)
+    assert nfp.main(["--append"]) == 0
+    assert captured["nav_ts"] is None  # 失敗時刻や取得時刻で埋めない

@@ -3,7 +3,8 @@
 ## 2026-09-23 — fix(nav_floor): F4 資金時計の edge 残差から入出金 (OANDA TRANSFER_FUNDS) を差し引く (rule:R3)
 
 - 欠陥: broker NAV Δ の残差 edge に入出金調整が無く (repo 全体 0 件)、入金 ¥D で窓 30 日の間 burn ≤ 0 → sentinel 99999 → registry F4 (days_to_floor ≤ 90) 発火不能、窓を抜けると逆に跳ねる。出金は偽早期発火
-- `tools/nav_floor_projection.py`: `transfers_in_window` / `fetch_transfers` / `nav_ts_from_status`、`edge_burn_per_day(..., transfers, nav_ts)` (None = `unavailable:transfers_unavailable`、ゼロと偽らない)、新列 `nav_ts_utc` (窓端 = NAV 採取時刻、legacy 端の同日 tx は fail-closed)、basis に `transfers_jpy,n_transfers`
+- `tools/nav_floor_projection.py`: `transfers_in_window` / `fetch_transfers` / `nav_ts_from_status`、`edge_burn_per_day(..., transfers, nav_ts)` (None = `unavailable:transfers_unavailable`、ゼロと偽らない)、新列 `nav_ts_utc` (窓端 = NAV 採取時刻 = `heartbeat.nav_at` [成功 heartbeat で nav と同時にだけ更新、PR #295 P2]、legacy 端の同日 tx は fail-closed)、basis に `transfers_jpy,n_transfers`
+- `modules/oanda_bridge.py`: `heartbeat.nav_at` 追加 (telemetry のみ、失敗 heartbeat では動かない)
 - `modules/oanda_client.py`: `list_transactions_full` (pages → idrange、部分結果を成功と偽らない) / `app.py`: `GET /api/oanda/transfers?from&to` (read-only、400 日上限、to を今で clamp、TRANSFER_FUNDS のみ)
 - pin: `tests/test_nav_floor_projection_f4.py` §14 (11) + `tests/test_oanda_client_transactions_full.py` (3) + `tests/test_api_oanda_transfers_endpoint.py` (5)、counterfactual 2 本で落ちることを確認 (pycache purge)。registry F4 message 追記 (condition 不変)
 - 詳細: knowledge-base/wiki/analyses/nav-floor-f4-transfer-funds-adjustment-2026-09-23.md

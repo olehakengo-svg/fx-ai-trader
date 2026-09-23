@@ -51,8 +51,9 @@ burn 推定器 (2026-09-22 方法変更、rule:R3):
   窓を抜けると逆方向に跳ねる (path-to-win-reassessment-2026-09-22 §9-5 /
   integrated-decision-packet D1)。本番 ``/api/oanda/transfers`` (app.py、
   broker 台帳 read-only) から窓内 TRANSFER_FUNDS を取り、edge_jpy から差し引く。
-- 窓の両端は **NAV 採取時刻** で判定する (heartbeat.last_check → 当日行の
-  ``nav_ts_utc`` 列)。時刻の無い legacy 端 (2026-09-23 以前の行) に同日の
+- 窓の両端は **NAV 採取時刻** で判定する (heartbeat.nav_at = 成功 heartbeat で
+  nav と同時にだけ更新 → 当日行の ``nav_ts_utc`` 列。失敗 heartbeat の last_check
+  は NAV の時刻ではない)。時刻の無い legacy 端 (2026-09-23 以前の行) に同日の
   入出金が載ると前後が決まらないので unavailable (両端対称、fail-closed)。
 - 台帳が取得不能 (route 未デプロイ / OANDA 失敗 / 形式不正) なら edge は
   ``unavailable:transfers_unavailable`` — 「入出金ゼロ」と偽らない。keeper 分は残る。
@@ -106,7 +107,7 @@ LEGACY_FIELDNAMES = ["date", "nav_jpy", "burn_per_day_jpy", "days_to_floor",
 FIELDNAMES = LEGACY_FIELDNAMES + [
     "burn_fit_per_day_jpy", "days_to_floor_fit",
     "burn_keeper_per_day_jpy", "burn_edge_per_day_jpy", "edge_basis",
-    "nav_ts_utc"]  # NAV 採取時刻 (heartbeat.last_check) — 入出金の窓境界に使う
+    "nav_ts_utc"]  # NAV 採取時刻 (heartbeat.nav_at、成功 heartbeat のみ) — 入出金の窓境界
 DAYS_SENTINEL_NO_BURN = 99999  # burn <= 0 (NAV 増加中) の残日数表現
 # ── 入出金台帳 (2026-09-23) ─────────────────────────────────────────
 # 本番 app.py の read-only route。OANDA v20 transactions を type=TRANSFER_FUNDS で
@@ -164,9 +165,23 @@ def _parse_ts(s: Any) -> datetime | None:
 
 
 def nav_ts_from_status(payload: dict[str, Any] | None) -> datetime | None:
-    """heartbeat.last_check (NAV 採取時刻)。無ければ None。"""
+    """NAV の採取時刻。成功 heartbeat と一緒に書かれた時刻だけを使う。
+
+    heartbeat.nav_at (nav と同じ update でのみ更新、oanda_bridge.run_heartbeat) を
+    優先。無い (旧 app) 場合は status == "ok" のときだけ last_check を使う — 同じ
+    update で書かれるので NAV の時刻と一致する。失敗 heartbeat は last_check だけ
+    進めて nav を前回値のまま残すので、その last_check を NAV の時刻と読むと
+    「直前の成功〜失敗」の間の入出金を反映済みと誤って除外する (PR #295 review
+    P2)。読めなければ None — 呼び手は asof 端を日付判定にし、同日の入出金は
+    unavailable (fail-closed)。取得時刻で埋めない。
+    """
     hb = ((payload or {}).get("oanda") or {}).get("heartbeat") or {}
-    return _parse_ts(hb.get("last_check"))
+    ts = _parse_ts(hb.get("nav_at"))
+    if ts is not None:
+        return ts
+    if hb.get("status") == "ok":
+        return _parse_ts(hb.get("last_check"))
+    return None
 
 
 def fetch_transfers(app_base: str, d_from: date, d_to: date,
@@ -418,7 +433,7 @@ def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
     入出金 (``transfers`` = TRANSFER_FUNDS tx の台帳) は broker NAV Δ に乗るが edge
     ではない — 差し引かないと入金 ¥D が窓の間 burn を負にし F4 を盲目化する
     (2026-09-23)。台帳が None (取得不能) は「ゼロ」と偽らず unavailable。窓の両端は
-    NAV 採取時刻 (start_row.nav_ts_utc / ``nav_ts``) で判定、時刻の無い端に同日の
+    NAV 採取時刻 (start_row.nav_ts_utc / ``nav_ts`` = heartbeat.nav_at) で判定、時刻の無い端に同日の
     tx が載れば unavailable (transfers_in_window)。
     窓開始 = max(asof − EDGE_WINDOW_DAYS, 直前月 burst 終了日 + 1) — 直前月の
     keeper burst を跨ぐと窓内 keeper 支出が telemetry で確定できないため。
@@ -599,10 +614,13 @@ def main(argv: list[str] | None = None) -> int:
     if keeper is None:
         print("[nav_floor] WARN: keeper telemetry 無し — RT 数はフォールバック定数、"
               "edge は unavailable として記録")
-    now = datetime.now(timezone.utc)
-    asof = now.date()
-    # NAV 採取時刻 = heartbeat.last_check (入出金の窓境界)。無ければ取得時刻で代用。
-    nav_ts = nav_ts_from_status(payload) or now
+    asof = datetime.now(timezone.utc).date()
+    # NAV 採取時刻 = heartbeat.nav_at (成功 heartbeat でのみ更新、入出金の窓境界)。
+    # 読めなければ None のまま — 取得時刻や失敗時刻で埋めると障害中に境界がずれる。
+    nav_ts = nav_ts_from_status(payload)
+    if nav_ts is None:
+        print("[nav_floor] WARN: NAV 採取時刻 (heartbeat.nav_at) 不明 — asof 端は日付判定、"
+              "同日の入出金があれば edge は unavailable として記録")
     # 入出金台帳 — edge 窓 (最長 EDGE_WINDOW_DAYS) を余裕込みで覆う日付範囲を取り、
     # 窓判定は edge_burn_per_day が時刻で行う。取得不能 (None) はそのまま渡す。
     transfers = fetch_transfers(
