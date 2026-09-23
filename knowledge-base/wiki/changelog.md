@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-23 — fix(nav_floor): F4 資金時計の edge 残差から入出金 (OANDA TRANSFER_FUNDS) を差し引く — 入金で F4 が最長 30 日盲目化する構造バグ (rule:R3)
+
+- **欠陥**: `edge_jpy = (nav_now − nav_start) + keeper 窓内支出` は broker NAV Δ の残差で、入出金調整が repo 全体で 0 件。入金 ¥D が窓 (30 日) に入ると burn_edge −D/span (¥100k → −3,333/日 ≫ keeper 68.3) で合計 burn ≤ 0 → `project()` が sentinel 99999 → registry F4 (≤90 日) が発火不能、窓を抜けると逆に跳ねる。出金は偽早期発火。[[path-to-win-reassessment-2026-09-22]] §9-5 / [[integrated-decision-packet-d1-d12-2026-09-22]] D1 (入金が M2 を虚偽達成) と同根 — U3 入金の決裁時にこそ壊れる
+- **修正**: 本番 `GET /api/oanda/transfers?from&to` (app.py、read-only、`OandaClient.list_transactions_full` = TransactionList pages → idrange) から窓内 TRANSFER_FUNDS を取り `edge_jpy` から差し引く。窓の両端は **NAV 採取時刻** (heartbeat.last_check → 新列 `nav_ts_utc`、既存 6 列不変) で判定、時刻の無い legacy 端の同日 tx は unavailable (両端対称)。台帳取得不能は `unavailable:transfers_unavailable` (入出金ゼロと偽らない、keeper 分は残る)。basis に `transfers_jpy=±X,n_transfers=k`
+- **pin**: `tests/test_nav_floor_projection_f4.py` §14 (11 本: 入金 ¥100k / 出金 ¥50k で burn 不変・窓の出入りで跳ねない・台帳なしで sentinel = 既知 NG・境界 fail-closed・main 配線・route 配線・registry) + client 3 本 + route 5 本。counterfactual 2 本 (差し引き除去 → 4 本落ち / None をゼロ扱い → 1 本落ち、pycache purge + sha 一致 restore)。全 suite 3,924 passed
+- **移行**: route は merge → Render deploy 後に生きる (それまで keeper のみ = 現状値と同じ)。legacy 行が start_row の間 (10 月下旬まで) は start 日に入出金があれば unavailable。発火日再現値 (09-22) は入出金ゼロ前提で不変。registry F4 message 追記 (condition 不変)
+- 詳細: [[nav-floor-f4-transfer-funds-adjustment-2026-09-23]]
+
 ## 2026-09-23 — fix(engine): 送信前拒否・shadow 化の観測性 5 件を修復 — weekend_gap_fade / 共有 `_tick_entry` 経路 (rule:R3、PR #293)
 
 - **背景**: [[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]] §2「不成立 (v) PRE_SEND_GUARD」行 (PR #289、Codex 3 巡 + 敵対的レビュー) が確定した帰属欠陥 — G0' event #2 (09-27 21:00Z) が broker 到達証拠なしで終端した場合、亜種 (a)〜(d) を事後に識別する一次ソースが (a-後) `order_bar_dedup` 上書き / (b) 8000 行刈り込み DB logs のみ / (c3) 無記録 / (d) 現在 mode からの推定、で欠けていた。分析: [[pre-send-guard-observability-r3-2026-09-23]]

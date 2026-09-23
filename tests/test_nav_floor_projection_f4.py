@@ -27,12 +27,16 @@ pin する性質 (構文でなく性質で):
    (SVK_UNITS 20k/5k で月次総額不変、RT 数×単価が反比例) / telemetry の month が
    asof と違う (UTC 月替わり 00:00 cron) 間は edge を unavailable にし、前月
    rt_count で keeper burn を打ち消さない。既知 NG 入力で pin。
+14. (2026-09-23 rule:R3) 入出金 (OANDA TRANSFER_FUNDS) は edge に不可視 — 台帳を差し引けば
+   burn は入金 ¥100k / 出金 ¥50k の有無で不変、窓に入る日も抜ける日も跳ねない。台帳なし
+   (None) は unavailable (ゼロと偽らない)。窓の両端は NAV 採取時刻で判定、時刻の無い
+   legacy 端の同日 tx は unavailable (両端対称)。既知 NG 入力 (台帳を見ない) で sentinel を pin。
 """
 
 from __future__ import annotations
 
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -180,7 +184,7 @@ def test_edge_burn_recovers_drift_after_keeper_deduction():
     asof = date(2026, 10, 30)
     keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
               "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
-    burn, basis = nfp.edge_burn_per_day(rows[:-1], nav_now, asof, keeper)
+    burn, basis = nfp.edge_burn_per_day(rows[:-1], nav_now, asof, keeper, transfers=[])
     assert burn == pytest.approx(13.7, abs=0.6), basis  # 整数丸めの分だけ許容
     assert basis.startswith("nav_delta:") and "keeper_rt_in_window=26" in basis
     # keeper を差し引かないと drift が 3 倍以上に見える — 差し引きが効いている証拠
@@ -199,7 +203,7 @@ def test_edge_window_never_cuts_previous_month_burst():
     # 当月 12 RT 分 (¥960) を 10-01〜10-04 に落とす
     nav_now -= 960.0
     rows.append({"date": "2026-10-04", "nav_jpy": f"{nav_now:.0f}"})
-    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper)
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper, transfers=[])
     assert "nav_delta:2026-09-15->2026-10-05:20d" in basis
     assert "keeper_rt_in_window=12" in basis
     assert burn == pytest.approx(0.0, abs=0.05)
@@ -210,7 +214,7 @@ def test_edge_window_on_31st_still_covers_whole_current_month():
     asof = date(2026, 10, 31)
     keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
               "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
-    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper)
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper, transfers=[])
     assert not basis.startswith("unavailable"), basis
     assert "nav_delta:2026-09-30->2026-10-31:31d" in basis
 
@@ -218,13 +222,13 @@ def test_edge_window_on_31st_still_covers_whole_current_month():
 def test_edge_unavailable_when_no_keeper_telemetry_or_young_csv():
     rows, nav_now = _synthetic_rows(date(2026, 9, 15), 40, 280_000.0, 10.0, {})
     asof = date(2026, 10, 25)
-    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, None)
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, None, transfers=[])
     assert burn == 0.0 and basis.startswith("unavailable:no_keeper_telemetry")
     # CSV が当月内から始まり、当月 RT の前後分割が telemetry で確定できない
     young = [r for r in rows if r["date"] >= "2026-10-03"]
     keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
               "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
-    burn, basis = nfp.edge_burn_per_day(young, nav_now, asof, keeper)
+    burn, basis = nfp.edge_burn_per_day(young, nav_now, asof, keeper, transfers=[])
     assert burn == 0.0 and basis.startswith("unavailable:keeper_split_unknown")
 
 
@@ -238,12 +242,12 @@ def test_young_window_completed_month_with_old_last_rt_is_still_unknown():
     asof = date(2026, 10, 26)
     keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
               "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}  # 回収分は時刻なし
-    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper)
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, keeper, transfers=[])
     assert burn == 0.0 and basis.startswith("unavailable:keeper_split_unknown"), basis
     # 当月 RT ゼロ (rt_count 0) なら窓内 keeper 支出 0 と確定できる
     fresh = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 0.0,
              "rt_count": 0, "last_rt_at": ""}
-    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, fresh)
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, fresh, transfers=[])
     assert basis.startswith("nav_delta:") and "keeper_rt_in_window=0" in basis
     assert burn == pytest.approx(160.0 / 14, abs=0.05)
 
@@ -283,12 +287,12 @@ def test_edge_deduction_uses_scaled_jpy_per_rt():
     rows, nav_now = _synthetic_rows(date(2026, 9, 15), 45, 280_000.0, 10.0, drops)
     keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
               "rt_count": 13, "last_rt_at": "2026-10-05T01:00:00+00:00"}
-    dec = nfp.decomposed_burn_per_day(rows[:-1], nav_now, date(2026, 10, 30), keeper)
+    dec = nfp.decomposed_burn_per_day(rows[:-1], nav_now, date(2026, 10, 30), keeper, transfers=[])
     assert dec["edge_basis"].startswith("nav_delta:") and "keeper_rt_in_window=13" in dec["edge_basis"]
     assert dec["edge"] == pytest.approx(10.0, abs=0.6), dec
     # 単価を ¥80 固定にすると keeper 差し引きが半分になり drift が ¥1,040/窓 分過大に見える
     wrong = nfp.decomposed_burn_per_day(rows[:-1], nav_now, date(2026, 10, 30), keeper,
-                                        jpy_per_rt=80.0)
+                                        jpy_per_rt=80.0, transfers=[])
     assert wrong["edge"] > dec["edge"] + 20
 
 
@@ -301,7 +305,7 @@ def test_edge_unavailable_when_keeper_month_differs_from_asof():
     assert nfp.keeper_month_mismatch(stale, asof) == "keeper_month_mismatch(2026-10!=2026-11)"
     assert nfp.keeper_month_mismatch(stale, date(2026, 10, 31)) is None
     assert nfp.keeper_month_mismatch({"target_usd": 520000.0}, asof).startswith("keeper_month_unknown")
-    dec = nfp.decomposed_burn_per_day(rows, nav_now, asof, stale)
+    dec = nfp.decomposed_burn_per_day(rows, nav_now, asof, stale, transfers=[])
     assert dec["edge"] == 0.0
     assert dec["edge_basis"].startswith("unavailable:keeper_month_mismatch(2026-10!=2026-11)")
     assert dec["burn"] == pytest.approx(dec["keeper"])  # keeper burn は打ち消されない
@@ -309,12 +313,12 @@ def test_edge_unavailable_when_keeper_month_differs_from_asof():
     assert (dec["rt_per_month"], dec["rt_basis"]) == (26, "api")
     # 既知 NG 入力: month を見ずに前月 rt_count 26 を当月支出とすると
     # edge = −(0 + 26×80)/span < 0 で keeper 分 (+68.3) を打ち消す
-    e_wrong, _ = nfp.edge_burn_per_day(rows, nav_now, asof, stale | {"month": "2026-11"})
+    e_wrong, _ = nfp.edge_burn_per_day(rows, nav_now, asof, stale | {"month": "2026-11"}, transfers=[])
     assert e_wrong < 0 and abs(e_wrong) > 0.9 * dec["keeper"]
     # 当月 telemetry (roll 後、rt_count 0) が来れば edge は測れる
     fresh = {"month": "2026-11", "target_usd": 520000.0, "volume_usd": 0.0,
              "rt_count": 0, "last_rt_at": ""}
-    dec2 = nfp.decomposed_burn_per_day(rows, nav_now, asof, fresh)
+    dec2 = nfp.decomposed_burn_per_day(rows, nav_now, asof, fresh, transfers=[])
     assert dec2["edge_basis"].startswith("nav_delta:") and "keeper_rt_in_window=0" in dec2["edge_basis"]
     assert dec2["edge"] == pytest.approx(0.0, abs=0.05)
 
@@ -384,10 +388,11 @@ def test_main_writes_decomposed_row_from_status_payload(monkeypatch, tmp_path):
     payload = {"oanda": {"heartbeat": {"nav": str(NAV_0922)}},
                "status_volume_keeper": KEEPER_0922}
     monkeypatch.setattr(nfp, "fetch_status", lambda *a, **k: payload)
+    monkeypatch.setattr(nfp, "fetch_transfers", lambda *a, **k: [])  # 台帳 0 件 (network 遮断)
     # append_row は CSV_PATH を既定引数で束縛しているので path を差し替えて呼ぶ
     monkeypatch.setattr(nfp, "append_row",
-                        lambda nav, asof=None, path=None, keeper=None:
-                        nfp.build_row(nav, asof, [], keeper))
+                        lambda nav, asof=None, path=None, keeper=None, transfers=None, nav_ts=None:
+                        nfp.build_row(nav, asof, [], keeper, transfers=transfers, nav_ts=nav_ts))
     assert nfp.main(["--append"]) == 0
 
 
@@ -434,7 +439,7 @@ def _simulate_first_fire(drift: float) -> tuple[str, str]:
         nav -= drift
         keeper = {"month": d.strftime("%Y-%m"), "target_usd": 520000.0,
                   "volume_usd": rt * 20000.0, "rt_count": rt, "last_rt_at": last_rt}
-        row = nfp.build_row(nav, d, rows, keeper)
+        row = nfp.build_row(nav, d, rows, keeper, transfers=[])  # 入出金ゼロ前提
         rows.append(row)
         if first is None and int(row["days_to_floor"]) <= 90:
             first = d.isoformat()
@@ -447,3 +452,230 @@ def _simulate_first_fire(drift: float) -> tuple[str, str]:
 def test_reproduced_fire_dates_keeper_only_and_with_drift():
     assert _simulate_first_fire(0.0) == ("2027-01-05", "2027-04-05")
     assert _simulate_first_fire(13.7) == ("2026-12-04", "2027-03-04")
+
+
+# ── 14. 入出金 (OANDA TRANSFER_FUNDS) は edge に不可視 (2026-09-23、rule:R3) ────
+# 欠陥: edge_jpy = (nav_now − nav_start) + keeper 窓内支出 は broker NAV Δ の残差で、
+# 入出金の調整が無かった (repo 全体で TRANSFER_FUNDS 参照 0 件)。入金 ¥D が窓に入ると
+# burn_edge が負に転じ合計 burn ≤ 0 → project() が sentinel 99999 → F4 が最長 30 日
+# 発火不能、窓を抜けると逆方向に跳ねる。pin は性質 (台帳を差し引けば burn は入出金の
+# 有無で不変) で書く。
+
+
+def _tx(amount: float, when: str, typ: str = "TRANSFER_FUNDS", tid: str = "900001") -> dict:
+    """OANDA v20 TransferFundsTransaction の最小形 (time は ns 精度 Z 表記)。"""
+    return {"id": tid, "type": typ, "amount": f"{amount:.4f}", "time": when,
+            "fundingReason": "CLIENT_FUNDING" if amount > 0 else "CLIENT_WITHDRAWAL",
+            "accountBalance": "0.0000"}
+
+
+_KEEPER_OCT_NO_RT = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 0.0,
+                     "rt_count": 0, "last_rt_at": ""}
+
+
+def _drift_rows_oct30() -> tuple[list[dict[str, str]], float, date]:
+    rows, nav_now = _synthetic_rows(date(2026, 9, 15), 45, 280_000.0, 10.0, {})
+    return rows, nav_now, date(2026, 10, 30)  # 窓 09-30 → 10-30 (30d)、drift 10/日
+
+
+def test_deposit_inside_window_is_invisible_to_edge_burn():
+    rows, nav_now, asof = _drift_rows_oct30()
+    base, base_basis = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT, transfers=[])
+    assert base == pytest.approx(10.0, abs=0.6) and base_basis.startswith("nav_delta:")
+    deposit = _tx(100_000.0, "2026-10-10T02:00:00.000000000Z")
+    with_dep, basis = nfp.edge_burn_per_day(rows, nav_now + 100_000.0, asof, _KEEPER_OCT_NO_RT,
+                                            transfers=[deposit])
+    assert with_dep == pytest.approx(base, abs=1e-9), basis
+    assert "transfers_jpy=+100000" in basis and "n_transfers=1" in basis
+    # 既知 NG 入力: 台帳を見ない (= 入出金ゼロと偽る) と入金が edge に化け burn<0 → sentinel
+    blind, _ = nfp.edge_burn_per_day(rows, nav_now + 100_000.0, asof, _KEEPER_OCT_NO_RT, transfers=[])
+    assert blind < 0
+    assert nfp.project(nav_now + 100_000.0, blind, asof)[0] == nfp.DAYS_SENTINEL_NO_BURN
+    # 台帳あり: project は入金で伸びた NAV を正しい burn で割る (sentinel ではない)
+    days, _ = nfp.project(nav_now + 100_000.0, with_dep, asof)
+    assert days != nfp.DAYS_SENTINEL_NO_BURN and days > nfp.project(nav_now, base, asof)[0]
+
+
+def test_withdrawal_inside_window_is_invisible_to_edge_burn_symmetric():
+    """対称側: 出金 (amount<0) も不可視。台帳を見ないと損失に化け F4 が偽早期発火する。"""
+    rows, nav_now, asof = _drift_rows_oct30()
+    base, _ = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT, transfers=[])
+    wd = _tx(-50_000.0, "2026-10-20T05:00:00.000000000Z")
+    with_wd, basis = nfp.edge_burn_per_day(rows, nav_now - 50_000.0, asof, _KEEPER_OCT_NO_RT,
+                                           transfers=[wd])
+    assert with_wd == pytest.approx(base, abs=1e-9), basis
+    assert "transfers_jpy=-50000" in basis
+    blind, _ = nfp.edge_burn_per_day(rows, nav_now - 50_000.0, asof, _KEEPER_OCT_NO_RT, transfers=[])
+    assert blind > base * 50  # ¥50k/30d ≈ 1,667/日 の偽 burn
+
+
+def test_edge_burn_does_not_rebound_when_deposit_leaves_window():
+    """入金が窓に入る日も窓を抜けた日も burn = drift (跳ねない)。
+    窓外 (start_row 以前) の入金は nav_start に含まれているので差し引かない (台帳側で日付除外)。"""
+    rows, _ = _synthetic_rows(date(2026, 9, 15), 45, 280_000.0, 10.0, {})
+    dep_day = date(2026, 9, 20)
+    for r in rows:  # 09-20 以降の行は入金 +100k を含む NAV
+        if date.fromisoformat(r["date"]) >= dep_day:
+            r["nav_jpy"] = f"{float(r['nav_jpy']) + 100_000.0:.0f}"
+    deposit = _tx(100_000.0, "2026-09-20T01:00:00.000000000Z")
+    # (a) 入金が窓内 (asof 10-10: 窓 09-15 → 10-10、start_row は入金前)
+    rows_a = [r for r in rows if r["date"] < "2026-10-10"]
+    nav_a = float(rows_a[-1]["nav_jpy"]) - 10.0
+    burn_a, basis_a = nfp.edge_burn_per_day(rows_a, nav_a, date(2026, 10, 10), _KEEPER_OCT_NO_RT,
+                                            transfers=[deposit])
+    assert basis_a.startswith("nav_delta:2026-09-15->2026-10-10") and "n_transfers=1" in basis_a
+    assert burn_a == pytest.approx(10.0, abs=0.6), basis_a
+    # (b) 入金が窓外 (asof 10-30: 窓 09-30 → 10-30、start_row は入金後)
+    nav_b = float(rows[-1]["nav_jpy"]) - 10.0
+    burn_b, basis_b = nfp.edge_burn_per_day(rows, nav_b, date(2026, 10, 30), _KEEPER_OCT_NO_RT,
+                                            transfers=[deposit])
+    assert basis_b.startswith("nav_delta:2026-09-30->2026-10-30") and "n_transfers=0" in basis_b
+    assert burn_b == pytest.approx(10.0, abs=0.6), basis_b
+    # 既知 NG (修正前の跳ね): 台帳なしだと (a) は −3,323/日、(b) は +10/日 に跳ぶ
+    blind_a, _ = nfp.edge_burn_per_day(rows_a, nav_a, date(2026, 10, 10), _KEEPER_OCT_NO_RT, transfers=[])
+    assert blind_a < -3000
+
+
+def test_edge_unavailable_when_transfer_ledger_missing_not_silent_zero():
+    """台帳取得不能 (None) は「入出金ゼロ」に折り畳まず unavailable (fail-loud)。keeper 分は残る。"""
+    rows, nav_now, asof = _drift_rows_oct30()
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT, transfers=None)
+    assert burn == 0.0 and basis.startswith("unavailable:transfers_unavailable")
+    keeper = {"month": "2026-10", "target_usd": 520000.0, "volume_usd": 520000.0,
+              "rt_count": 26, "last_rt_at": "2026-10-09T01:00:00+00:00"}
+    dec = nfp.decomposed_burn_per_day(rows, nav_now, asof, keeper, transfers=None)
+    assert dec["edge"] == 0.0 and dec["edge_basis"].startswith("unavailable:transfers_unavailable")
+    assert dec["burn"] == pytest.approx(dec["keeper"]) and dec["burn"] > 0
+    # 既定引数でも同じ (省略 = 台帳未参照 = unavailable、ゼロと偽らない)
+    burn2, basis2 = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT)
+    assert burn2 == 0.0 and basis2.startswith("unavailable:transfers_unavailable")
+
+
+def test_transfer_ledger_ignores_non_transfer_types_and_flags_malformed():
+    rows, nav_now, asof = _drift_rows_oct30()
+    base, _ = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT, transfers=[])
+    # REJECT は残高を動かさない / DAILY_FINANCING は edge 側 (trade 由来) — どちらも差し引かない
+    noise = [_tx(100_000.0, "2026-10-10T02:00:00.000000000Z", typ="TRANSFER_FUNDS_REJECT"),
+             _tx(-12.5, "2026-10-11T21:00:00.000000000Z", typ="DAILY_FINANCING")]
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT, transfers=noise)
+    assert burn == pytest.approx(base, abs=1e-9) and "n_transfers=0" in basis
+    # 窓内 TRANSFER_FUNDS の amount が読めない → unavailable (0 と折り畳まない)
+    bad = _tx(100_000.0, "2026-10-10T02:00:00.000000000Z") | {"amount": "n/a"}
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT, transfers=[bad])
+    assert burn == 0.0 and basis.startswith("unavailable:transfers_malformed")
+    # time が読めない TRANSFER_FUNDS も窓判定不能 → unavailable
+    bad_t = _tx(100_000.0, "not-a-time")
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT, transfers=[bad_t])
+    assert burn == 0.0 and basis.startswith("unavailable:transfers_malformed")
+
+
+def test_transfer_window_bounds_use_nav_timestamps_and_fail_closed_on_legacy_boundary():
+    """窓の両端は NAV 採取時刻 (start_row.nav_ts_utc / nav_ts) で判定する。
+    時刻の無い legacy 端に入出金が同日で載ると前後が決まらない → unavailable (両端対称)。"""
+    rows, nav_now, asof = _drift_rows_oct30()
+    base, _ = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT, transfers=[])
+    # start 端 (legacy 行、時刻なし) に同日入金 → 判定不能
+    on_start = _tx(100_000.0, "2026-09-30T02:00:00.000000000Z")
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now + 100_000.0, asof, _KEEPER_OCT_NO_RT,
+                                        transfers=[on_start])
+    assert burn == 0.0 and basis.startswith("unavailable:transfer_on_start_bound")
+    # start 行に nav_ts_utc があれば時刻で前後を切る
+    stamped = [dict(r, nav_ts_utc="2026-09-30T06:00:00+00:00") if r["date"] == "2026-09-30" else r
+               for r in rows]
+    before_write = _tx(100_000.0, "2026-09-30T02:00:00.000000000Z")  # nav_start に既に含まれる
+    burn, basis = nfp.edge_burn_per_day(stamped, nav_now, asof, _KEEPER_OCT_NO_RT,
+                                        transfers=[before_write])
+    assert burn == pytest.approx(base, abs=1e-9) and "n_transfers=0" in basis
+    after_write = _tx(100_000.0, "2026-09-30T08:00:00.000000000Z")  # Δ に含まれる → 差し引く
+    burn, basis = nfp.edge_burn_per_day(stamped, nav_now + 100_000.0, asof, _KEEPER_OCT_NO_RT,
+                                        transfers=[after_write])
+    assert burn == pytest.approx(base, abs=1e-9) and "n_transfers=1" in basis
+    # asof 端: nav_ts なしで同日入金 → 判定不能 / nav_ts ありなら時刻で切る
+    on_asof = _tx(100_000.0, "2026-10-30T08:00:00.000000000Z")
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT, transfers=[on_asof])
+    assert burn == 0.0 and basis.startswith("unavailable:transfer_on_asof_bound")
+    ts = datetime(2026, 10, 30, 6, 0, tzinfo=timezone.utc)
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now, asof, _KEEPER_OCT_NO_RT,
+                                        transfers=[on_asof], nav_ts=ts)  # 採取後の入金 = 未反映
+    assert burn == pytest.approx(base, abs=1e-9) and "n_transfers=0" in basis
+    early = _tx(100_000.0, "2026-10-30T02:00:00.000000000Z")
+    burn, basis = nfp.edge_burn_per_day(rows, nav_now + 100_000.0, asof, _KEEPER_OCT_NO_RT,
+                                        transfers=[early], nav_ts=ts)
+    assert burn == pytest.approx(base, abs=1e-9) and "n_transfers=1" in basis
+
+
+def test_append_row_persists_nav_timestamp_for_future_window_bounds(tmp_path):
+    csv_path = tmp_path / "nav.csv"
+    ts = datetime(2026, 9, 24, 0, 5, 12, tzinfo=timezone.utc)
+    row = nfp.append_row(275_472.0, asof=date(2026, 9, 24), path=csv_path, keeper=KEEPER_0922
+                         | {"month": "2026-09"}, transfers=[], nav_ts=ts)
+    assert row["nav_ts_utc"] == ts.isoformat()
+    assert nfp.FIELDNAMES[:6] == nfp.LEGACY_FIELDNAMES and "nav_ts_utc" in nfp.FIELDNAMES
+    assert nfp.read_rows(csv_path)[0]["nav_ts_utc"] == ts.isoformat()
+
+
+def test_main_fetches_transfer_ledger_over_window_and_exposes_unavailable(monkeypatch):
+    payload = {"oanda": {"heartbeat": {"nav": str(NAV_0922),
+                                       "last_check": "2026-09-23T06:00:00.123456+00:00"}},
+               "status_volume_keeper": KEEPER_0922}
+    monkeypatch.setattr(nfp, "fetch_status", lambda *a, **k: payload)
+    calls, captured = [], {}
+    monkeypatch.setattr(nfp, "fetch_transfers",
+                        lambda app_base, d_from, d_to, timeout=30: calls.append((d_from, d_to)) or None)
+
+    def _fake_append(nav, asof=None, path=None, keeper=None, transfers=None, nav_ts=None):
+        captured.update(transfers=transfers, nav_ts=nav_ts)
+        return nfp.build_row(nav, asof, [], keeper, transfers=transfers, nav_ts=nav_ts)
+    monkeypatch.setattr(nfp, "append_row", _fake_append)
+    assert nfp.main(["--append"]) == 0
+    asof = datetime.now(timezone.utc).date()
+    (d_from, d_to), = calls
+    assert d_from <= asof - timedelta(days=nfp.EDGE_WINDOW_DAYS) and d_to > asof  # 窓を覆う
+    assert captured["transfers"] is None  # 取得不能はそのまま渡す (ゼロと偽らない)
+    assert captured["nav_ts"] == datetime(2026, 9, 23, 6, 0, 0, 123456, tzinfo=timezone.utc)
+
+
+def test_fetch_transfers_returns_none_on_failure_or_bad_scheme(monkeypatch):
+    assert nfp.fetch_transfers("file:///etc", date(2026, 9, 1), date(2026, 9, 2)) is None
+
+    class _Resp:
+        def __init__(self, body): self._b = body
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return self._b
+    seen = {}
+
+    def _urlopen(req, timeout=30):
+        seen["url"] = req.full_url
+        return _Resp(b'{"count": 1, "transactions": [{"type": "TRANSFER_FUNDS", "amount": "1.0000",'
+                     b' "time": "2026-09-01T00:00:00.000000000Z", "id": "1"}]}')
+    monkeypatch.setattr(nfp.urllib.request, "urlopen", _urlopen)
+    got = nfp.fetch_transfers("https://x.test", date(2026, 9, 1), date(2026, 9, 3))
+    assert got == [{"type": "TRANSFER_FUNDS", "amount": "1.0000",
+                    "time": "2026-09-01T00:00:00.000000000Z", "id": "1"}]
+    assert seen["url"] == "https://x.test/api/oanda/transfers?from=2026-09-01&to=2026-09-03"
+
+    def _boom(req, timeout=30):
+        raise OSError("down")
+    monkeypatch.setattr(nfp.urllib.request, "urlopen", _boom)
+    assert nfp.fetch_transfers("https://x.test", date(2026, 9, 1), date(2026, 9, 3)) is None
+    # payload に transactions 配列が無い (route 変更/エラー JSON) も None
+    monkeypatch.setattr(nfp.urllib.request, "urlopen", lambda req, timeout=30: _Resp(b'{"error": "x"}'))
+    assert nfp.fetch_transfers("https://x.test", date(2026, 9, 1), date(2026, 9, 3)) is None
+
+
+def test_transfers_reader_wiring_tool_path_matches_app_route():
+    """書き手 (app.py route) と読み手 (tool の path 定数) が同じ URL を指す (write-only 教訓)。"""
+    assert nfp.TRANSFERS_PATH == "/api/oanda/transfers"
+    src = (ROOT / "app.py").read_text(encoding="utf-8")
+    assert f'@app.route("{nfp.TRANSFERS_PATH}")' in src
+
+
+def test_registry_f4_message_records_transfer_funds_adjustment():
+    reg = json.loads((ROOT / "knowledge-base" / "wiki" / "decisions" /
+                      "prereg-trigger-registry.json").read_text(encoding="utf-8"))
+    e = [t for t in reg["triggers"]
+         if t["id"] == "project-falsification-f4-nav-floor-clock"][0]
+    assert "TRANSFER_FUNDS" in e["message"] and "2026-09-23" in e["message"]
+    vals = {c["column"]: (c["op"], c["value"]) for c in e["source"]["match"]}
+    assert vals["days_to_floor"] == ("<=", 90)  # condition 不変

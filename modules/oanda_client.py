@@ -369,6 +369,37 @@ class OandaClient:
                 + "&".join(params))
         return self._request("GET", path, timeout=30)
 
+    def list_transactions_full(self, from_time: str, to_time: str,
+                               types: list = None) -> tuple:
+        """Walk a time window's TransactionList pages and return the tx bodies.
+        GET /transactions (page urls) → GET /transactions/idrange per page.
+        Same type filter on both hops. Zero pages (empty window) is a success
+        with transactions=[]; any failed hop returns (False, err) — never a
+        partial list dressed as success. Used by /api/oanda/transfers (F4 資金
+        時計の入出金調整、2026-09-23 rule:R3).
+        Returns (ok, {"from","to","pages","transactions":[...]}).
+        """
+        ok, listing = self.list_transactions(from_time=from_time, to_time=to_time,
+                                             types=types, page_size=1000)
+        if not ok:
+            return False, listing
+        pages = (listing or {}).get("pages") or []
+        txs = []
+        for page_url in pages:
+            try:
+                from_id = str(page_url).split("from=")[1].split("&")[0]
+                to_id = str(page_url).split("to=")[1].split("&")[0]
+            except IndexError:
+                return False, {"error": "bad_page_url", "message": str(page_url)[:200],
+                               "page": page_url}
+            ok, body = self.get_transactions_id_range(from_id, to_id, types=types)
+            if not ok:
+                return False, dict(body or {}, page=page_url)
+            txs.extend((body or {}).get("transactions") or [])
+        return True, {"from": (listing or {}).get("from", from_time),
+                      "to": (listing or {}).get("to", to_time),
+                      "pages": len(pages), "transactions": txs}
+
     def get_transactions_since_id(self, since_id: str,
                                   types: list = None) -> tuple:
         """Fetch all transactions since a given ID (exclusive).
