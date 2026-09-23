@@ -11,3 +11,4 @@ date,nav_jpy,burn_per_day_jpy,days_to_floor,floor_date_est,method,burn_fit_per_d
 2026-09-19,275517,55.8,242,2027-05-19,fit,,,,,
 2026-09-21,275517,40.4,334,2027-08-21,fit,,,,,
 2026-09-22,275517,68.3,197,2027-04-07,decomposed,34.6,390,68.3,0.0,unavailable:keeper_split_unknown(span=15d)
+2026-09-23,275472,68.3,197,2027-04-08,decomposed,34.6,388,68.3,0.0,unavailable:keeper_split_unknown(span=16d)
