@@ -4736,6 +4736,16 @@ PnL合計 N/A、トレード数 0、WR 算出不能。
 ### 課題②：唯一の発火トレードが SIGNAL_REVERSE でロス
 `kalman_d7_po_dn_flip` が BUY エントリー直後に `SIGNAL_REVERSE` でクローズ（-4.5p）。エントリー後のシグナル反転による早期決済であり、エントリーロジックとシグナル持続性の整合性に構造的な問いを残す。Spread = 0.8p であり、spread自体は許容範囲内（scalp/DT閾値を下回る）。
 
+### 2026-09-23 (Pre-Tokyo Briefing)
+前日（2026-09-22）の総PnLは **−4.5p**、トレード数 **1件**、全体WR **0%**。
+`kalman_d7_po_dn_flip / USD_JPY / BUY` が `SIGNAL_REVERSE` により損切り。スプレッドは0.8ppsと良好。実質的な活動量はゼロに近く、システム全体がシグナル不足で静止した1日。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **注**: N=1はデータとして機能しない（統計的判断不能域）。EV −4.50は参考値に過ぎず、傾向判断に用いてはならない。
+| B | `kalman_d7_po_dn_flip`がSIGNAL_REVERSEでLOSS。エントリー後にシグナルが即反転 | 中（−4.5p） |
+- **課題C（rnb_usdjpy）**: `no_signal` 連発はUSD/JPYが現在レンジ相場（ATR%ile 79%で高いが方向性なし）に入っているため、RnB戦略が不利なレジームにある。今日のTokyo sessionでのシグナル発生には期待値低。
+- **課題D（scalp r2_shadow_demoted_cell）**: セルの降格状態が継続中。本日も同様のブロックが続く見込み。
+- **課題E（gbp_asia_flash_crash）**: GBPは昨日のBlock Countsからも引き続き揮発性フィルターが継続発動中。GBPJPYのTRENDING_DOWN（ATR%ile 76%）と合わせて、今日のAsiaセッション開幕は特に注意。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
