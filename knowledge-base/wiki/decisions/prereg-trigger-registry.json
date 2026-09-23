@@ -1078,6 +1078,32 @@
       "message": "30d スプリント (2026-09-22〜10-22) の終了レビュー + 次 30 日 triage 文書 (REASSESS §3 形式、両レンズ反証つき)。**巡目中央値が 8.5 (09-18〜22 実測) から下がらなければ §3.1 の上限値 (≤6) 自体を見直す** — 品質規律ではなく容量規律の側を動かす。起票日 (09-22 ウェーブ) の実測: PR #277〜#287 の 11 本 (code 4 / docs 7) がマージ。レビュー依頼 (`@codex review`) 回数で計数した巡目は依頼あり 9 PR で **5〜18 (中央値 6)** (#287 storm guard = 18、#286 = 8、#285 = 7、他 5〜6)、docs-only 2 PR (#278 / #280) は依頼なし。P2 繰延 9 件 (review-backlog-sprint0922-p2-deferrals、6 PR)、`review-ack` を『解決』として使った件数 0 (全て繰延の明示 or 対応済み commit の参照)、P1 の繰延 0 件 (繰延は全て P2)。中間チェックは sprint-0922-midpoint-check (10-06)。出所: [[sprint-triage-pr-discipline-2026-09-22]] §5。",
       "condition": "終了レビュー文書 (8 項目の done / in-flight / parked、巡目実測の中央値・P2 上限超過回数・繰延 P2 消化率、market-safe 窓違反件数) が decisions/ に置かれ、次 30 日 triage が両レンズ反証つきで起案されること",
       "reachability": "Claude が期日までに `gh pr list --state merged` と各 PR の `@codex review` 依頼回数 / inline P1・P2 件数を集計し、REASSESS §3 形式で文書化する。上限値の変更は容量規律の変更 (R3 文書) で user 決裁不要、品質規律 (P1 例外なし・凍結 look 非接触) は動かさない。"
+    },
+    {
+      "id": "hedge-gate-duration-vs-2026-04-30-premise",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-20",
+      "doc": "knowledge-base/wiki/analyses/wait-tick-block-attribution-2026-09-23.md",
+      "message": "R1 候補の凍結 (未起案・未執行)。per-cell-shadow-cap-2026-04-30 H2 (hedge shadow bypass 撤廃) はコスト上界を「60s dedup があるので signal 反転時は 60s 後に shadow 化可能」と置いたが、実装上の抑制継続長は dedup ではなく **建玉の保有時間**。本番 30d 実測 (2026-08-24〜09-23、closed N=1,798): 保有時間 中央値 22.0 分 (前提の約 22 倍) / p90 132.2 分 / max 720.0 分 / **≤60s は 1.61%**。片方向被拘束時間は daytrade/USD_JPY 218.0h (窓 720h の 30.3%、うち shadow 単独 213.0h)、GBP_USD 189.4h、EUR_USD 180.1h。建玉 1,798 本中 1,788 本 (99.4%) が shadow。⚠️ **経済的重みは被拘束時間ではなく『真の hedge_block = 4,662 件/30d (全 block の 3.0%)』** — 被拘束時間はその窓にシグナルが出た保証がないので失われた観測数ではない。⚠️ shadow 建玉が live 候補を塞ぐ経路は実在するが `_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS` の 6 type (kalman_d7 x3 / zz_pivot x2 / pivot_detector) は hedge を bypass する = **今月唯一 live 約定した kalman_d7 は免除側**なので live 約定枯渇の説明に hedge_block を充てる根拠は現時点で無い。H2 は統計的動機 (同時刻の逆方向 sample が score-max ランキングを壊す) の R2 決定であり、22 分離れた別バーはその動機の射程外だが、**緩和は live 経路を含むゲート変更 = Rule 1** (365d BT + Bonferroni + pre-reg LOCK + user 決裁)。autopilot は執行禁止。期日に『起案する/しない』を判断し、しないなら resolved で閉じる (黙って延長しない)。",
+      "condition": "2026-10-20 までに (a) Rule 1 pre-reg LOCK を起案して user 決裁へ回す、または (b) 起案しない判断を analyses へ記録する、のいずれかが行われること",
+      "reachability": "評価主体 = tools/prereg_trigger_watch.py の deadline_info 型 (日次 Tier A cron、期日翌日 00:20Z に TRIGGERED)。判断 = Claude が材料を提示し user が決裁 (R1)。状態を進めるジョブは無く、期日での判断そのものが唯一の遷移。",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
+    },
+    {
+      "id": "block-counter-wait-contamination-recite-audit",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-13",
+      "doc": "knowledge-base/wiki/analyses/wait-tick-block-attribution-2026-09-23.md",
+      "message": "引用監査の読み手 (rule:R3)。2026-09-23 修理前の `gate_block_daily` / `/api/demo/block-counts` / `/api/demo/status` の **hedge_block と max_open の件数**は WAIT tick 汚染込み (30d 実測 92.2% / 91.2%)。他の 20+ reason は汚染 0.0% でそのまま引用可。既知の消費者 = hull-fire-rate-funnel-2026-08-24 §8 / ps-seat-supply-remeasure-2026-09-10 §8 + raw/audits/ps-seat-hedge-block-snapshot-2026-09-10.md (『daytrade_eurgbp 129 / daytrade_audjpy 109』『hedge_block は AUD_JPY 固有』の**件数**) / 日次レポート・監視。⚠️ ps-seat 監査の**結論**(hedge_block 寄与 = 0 本) は MODE_CONFIG の構造 (3 席に対向 mode が存在せず原理的に bind 不能) から出ており本汚染では覆らない — 覆るのは併記された件数のみ。TRIGGERED (期日超過 ∧ 未実施) = 引用面に caveat が入っていない。期日までに上記 3 文書へ caveat 追記 (または再計算) を済ませたら resolved。",
+      "condition": "hull-fire-rate-funnel-2026-08-24 §8 / ps-seat-supply-remeasure-2026-09-10 §8 / raw/audits/ps-seat-hedge-block-snapshot-2026-09-10.md の hedge_block・max_open 件数に WAIT 汚染 caveat が追記されていること",
+      "reachability": "Claude が KB 3 文書へ caveat を追記する docs commit を積む。評価主体 = tools/prereg_trigger_watch.py の deadline_info 型 (日次 Tier A cron、期日翌日 00:20Z)。",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
     }
   ]
 }
