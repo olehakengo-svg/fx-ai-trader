@@ -388,6 +388,32 @@ class OandaBridge:
                 logger.warning(f"[OandaBridge] Audit DB write failed: {e}")
         return entry
 
+    def _add_refused_audit(self, *, demo_trade_id: str, entry_type: str,
+                           block_reason: str, direction: str, instrument: str,
+                           units: int, mode: str, log_callback=None) -> None:
+        """open_trade が送信せず False を返す経路の `blocked` audit (record-only).
+
+        rule:R3 2026-09-23: daily-loss gate の `blocked` 行と同じ形。audit 失敗は
+        warning のみで、戻り値 (False) にも判定にも影響しない。
+        """
+        try:
+            self._add_audit(
+                demo_trade_id=demo_trade_id, entry_type=entry_type,
+                is_live=False, bridge_status="blocked",
+                block_reason=block_reason,
+                direction=direction, instrument=instrument,
+                units=(units if units > 0 else self._units),
+            )
+        except Exception as e:
+            logger.warning(f"[OandaBridge] audit write failed during refusal ({block_reason}): {e}")
+        logger.warning(f"[OandaBridge] OPEN REFUSED ({block_reason}) "
+                       f"demo={demo_trade_id} mode={mode} {direction} {instrument}")
+        if log_callback:
+            try:
+                log_callback(f"🔗 OANDA: [BLOCKED] {direction} {instrument} — Reason: {block_reason}")
+            except Exception:
+                pass
+
     def get_execution_audit(self, limit: int = 20) -> list:
         """直近の実行監査記録を返す (DB優先、フォールバック: インメモリ)."""
         if self._db:
@@ -646,7 +672,20 @@ class OandaBridge:
         — the bridge gate verdict is the single source of truth
         (2026-07-02 gate-asymmetry fix, rule:R3).
         """
+        _audit_entry_type = entry_type if entry_type is not None else mode
+        # rule:R3 2026-09-23 (pre-send-guard-observability-r3): 送信せず False を返す
+        # 3 経路は audit も log も書かなかった。呼び出し側の pre-check (`_bridge_active` /
+        # `is_mode_allowed`) 通過後にここで偽になる race は、oanda_audit `sent` 無し ∧
+        # broker 証拠無しで終端し、事後に「なぜ送られなかったか」が読めなかった
+        # (weekend-gap R1 再審 DRAFT §2 不成立 (v) 亜種 (c3))。daily-loss gate と同じ
+        # `blocked` audit 行を書く (判定・戻り値は不変)。
         if not self.active:
+            self._add_refused_audit(
+                demo_trade_id=demo_trade_id, entry_type=_audit_entry_type,
+                block_reason="bridge_inactive_race", direction=direction,
+                instrument=instrument, units=units, mode=mode,
+                log_callback=log_callback,
+            )
             return False
         try:
             instrument = resolve_instrument(instrument)
@@ -654,11 +693,22 @@ class OandaBridge:
             logger.error(f"[OandaBridge] {e}")
             if log_callback:
                 log_callback(f"🔗 OANDA: [BLOCKED] unsupported instrument — {instrument}")
+            self._add_refused_audit(
+                demo_trade_id=demo_trade_id, entry_type=_audit_entry_type,
+                block_reason=f"unsupported_instrument({instrument})",
+                direction=direction, instrument=instrument, units=units, mode=mode,
+                log_callback=None,
+            )
             return False
         if not self.is_mode_allowed(mode):
             logger.debug(f"[OandaBridge] mode={mode} not in allowed_modes, skip")
+            self._add_refused_audit(
+                demo_trade_id=demo_trade_id, entry_type=_audit_entry_type,
+                block_reason=f"mode_{mode}_not_allowed_race", direction=direction,
+                instrument=instrument, units=units, mode=mode,
+                log_callback=log_callback,
+            )
             return False
-        _audit_entry_type = entry_type if entry_type is not None else mode
 
         # Daily loss gate (audit 2026-05-01 P0-2). Transmit-only halt: the
         # demo trade is still recorded by the caller; we only refuse to

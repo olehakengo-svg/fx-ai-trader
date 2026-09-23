@@ -1,5 +1,12 @@
 # FX AI Trader - Changelog
 
+## 2026-09-23 — fix(engine): 送信前拒否・shadow 化の観測性 5 件を修復 — weekend_gap_fade / 共有 `_tick_entry` 経路 (rule:R3、PR #293)
+
+- pre-check (`bridge_inactive` / `mode_<mode>_not_allowed`) を bridge 拒否経路と対称に shadow 化 (ExposureManager + `[SHADOW_FIX] Pre-send guard` ログ) / `OandaBridge.open_trade` の無 audit False 経路に `blocked` audit (`bridge_inactive_race` / `mode_<mode>_not_allowed_race` / `unsupported_instrument(<inst>)`)
+- `_is_promoted_ex` の block cause を event 時点で row reasons `[PROMO_BLOCK] <cause>` + audit `shadow_tracking(promo_block:<cause>)` に永続 (現在 mode からの転記推定を廃止) / `[SHADOW] <gate> bypass:` 23 サイトの cause を row reasons `[SHADOW_BYPASS] <gate>` に永続 / order-bar 予約後の最初の terminal block を `gate_block_daily` `order_bar_dedup_first:<reason_key>` に 1 回だけ永続 + dedup ログに `first_block=` 併記
+- 判定・戻り値・is_shadow 最終値・行数・凍結値は不変 (record-only)。pin: `tests/test_pre_send_guard_observability_r3.py` 22 本 (counterfactual 10 / 対称側 10 / shadow_only 母集団不変 2)
+- DRAFT §2 訂正: (c2) DB row は 48025ebd3 以降 write-time で is_shadow=1 (欠陥は in-memory/Exposure 側) / (d) mode_off は無ログ fallback で shadow 化され `Post-gate escalation` ログは発火しない — 詳細: knowledge-base/wiki/analyses/pre-send-guard-observability-r3-2026-09-23.md
+
 ## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
 
 - `_SHADOW_ONLY_DOWNSTREAM_RELAX_MODES = {rnb_usdjpy}` + `_mode_downstream_relax()` (allowlist ∧ shadow_only=True) — velocity_down / mtf_strong_bias / 1h_rr_low の hard block を shadow 化。他 gate・閾値・session_hours・daytrade_audjpy は不変
