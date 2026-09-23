@@ -5354,6 +5354,27 @@ class DemoTrader:
                 _block("r2_shadow_demoted_cell")
                 return
 
+        # ── WAIT 早期 return (2026-09-23, rule:R3 — 計数器契約バグ 3 例目) ──
+        # 本 guard は元々 max_open の直後 (旧 5347 行) にあり、コメントも
+        # 「WAITはカウントしない」と宣言していた。しかし下流 3 つの計数ゲート
+        # (max_per_mode_pair / hedge_block / max_open) は **WAIT でも述語が真に
+        # なる** ため、宣言と裏腹に WAIT tick を自分の理由名で数えていた:
+        #   - hedge_block: 述語が `_ot["direction"] != signal`。signal="WAIT" は
+        #     全建玉と不一致 → 建玉がある限り毎 tick 発火
+        #   - max_open:    述語が signal 非依存 (全体建玉数のみ)
+        # 実測 (本番 gate_block_daily 30d, 2026-08-24〜09-23):
+        #   hedge_block 59,881 件中 55,219 件 (92.2%) が entry_type unknown/wait
+        #   max_open     6,501 件中  5,928 件 (91.2%) が同上
+        #   他の全 reason は 0.0% — 汚染は「WAIT で述語が真になるゲート」に限る
+        # 補正後の真の順位: hedge_block は 27.3% (#1) → 3.0% (#5) へ降格。
+        # 同 family: direction_filter が 100% WAIT を「方向棄却」と名乗っていた
+        # 件 (5057-5065 行, 2026-09-05 修正) / 計数器契約バグ (2026-08-18)。
+        # ⚠️ 取引挙動は不変 — WAIT は元々どの経路でもエントリーしない。
+        #    変わるのは block 帰属カウンタと 3 ゲートの診断ログのみ。
+        # 分析: knowledge-base/wiki/analyses/wait-tick-block-attribution-2026-09-23.md
+        if signal == "WAIT":
+            return  # WAITはカウントしない（大半がWAIT）
+
         # ── 通貨ペア×モードクラス別ポジション制限 ──
         # scalp/DT/1H/swingが独立してポジションを持てる
         # scalp: 高頻度のため2本まで（シグナル方向転換に対応）
@@ -5450,8 +5471,6 @@ class DemoTrader:
                 )
             else:
                 _block(f"max_open({_n_open}/{_max_open})"); return
-        if signal == "WAIT":
-            return  # WAITはカウントしない（大半がWAIT）
         if self._check_drawdown():
             _block("drawdown"); return
 

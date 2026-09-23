@@ -37,6 +37,16 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### `[[lesson-wait-tick-block-attribution-2026-09-23]]`
+**発見日**: 2026-09-23 | **rule**: R3 | **計数器契約バグ 3 例目**
+- 問題: `_tick_entry` の `if signal == "WAIT": return` guard が 3 つの count ゲート (`max_per_mode_pair` / `hedge_block` / `max_open`) の**後ろ**にあり、建玉がある限り **WAIT tick が毎 tick それらの理由名で計上**されていた
+- 症状: 本番 30d で `hedge_block` が **block 理由 #1 (59,881 件 / 27.3%)** に見えた。**建玉 0 本の時間帯に 75 分で 79 件**という算数の不整合が入口
+- 原因: 述語が**対象外入力で自明に真**になる。`hedge_block` は `_ot["direction"] != signal` で signal="WAIT" なら恒真、`max_open` は述語に signal が現れない。guard 自身のコメントが「WAITはカウントしない」と宣言していたのに、**その宣言が効いていたのは guard より後ろのゲートだけ**だった
+- 実測: hedge_block 92.2% / max_open 91.2% が WAIT 由来、**他の 20+ reason は 0.0%** (汚染は「WAIT で述語が真になるゲート」に厳密に一致)。補正後 hedge_block は **#1 → #5 (3.0%)**
+- 検査: カウンタは `reason.split('(')[0]` で `:WAIT` を捨てるので**自己申告できない**。判別は別経路 — entry_type unknown/wait は 2 reason にしか現れず、方向を要求する 20+ reason には皆無 / 記録 trade 1,800 本に 0 本。⚠️ Render ログの `:WAIT)` 0 件は**反証ではない** (`SENTINEL_BLOCK_DIAG` は sentinel 限定 = 証拠が届かない経路)
+- 修正: guard を 3 ゲート直前へ移動 (取引挙動は不変)。汚染ゼロのゲートは guard 前に**残す**スコープ pin を同時に置いた — 上げ過ぎると今度は正当な block が消える (2026-09-19「自分が足したガードは広すぎる方向に壊れる」の反映)
+- 教訓: **早期 return が「これは数えない」と宣言しても、その return より前のゲートには効かない。述語が対象外入力で自明に真になるゲート (方向比較・総数比較) は、ガードの後ろに置かれた瞬間に別物を数え始める。ゲートを追加・移動したら、上流の早期 return の宣言がまだ成り立つかを確認せよ。不在の証拠を出せない経路 (sentinel 限定ログ) を反証に使うな**
+
 ### `[[lesson-symmetric-side-check-2026-09-19]]`
 **発見日**: 2026-09-19 | **rule**: R3 | **PR #272 レビュー 1・2 巡目**
 - 問題: `stage_a_audit` の `events` 側だけを fail-closed にし、readout に「どの呼び出し元からも**再発できない**」と書いた。**`benchmark_events` 経路ではその主張が偽**で、未ラベル行が `bench_n` に入り `bench_wins` から落ちて `net_edge` が過大になる (promotion verdict が変わりうる)
