@@ -1,5 +1,10 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-23 — docs(decisions): UD1 結果 = GOLD (user 画面確認) を registry / 決裁パケットに記録 (rule:R3)
+
+- `ud1-gold-screen-check` resolved: OANDA status 画面で 9 月 keeper ($520k) 算入・**GOLD** 表示。SILVER 分岐 (packet v0.1 書き直し) は不発、v0 前提のまま確定版 10-08 へ。keeper 10 月 run 継続
+- 併記: [[integrated-decision-packet-d1-d12-2026-09-22]] 末尾 / [[path-to-win-reassessment-2026-09-22]] 末尾
+
 ## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
 
 - **背景**: [[rnb-shadow-lane-health-precheck-2026-09-22]] §6 — 09-12 以降の rnb BUY bar 6/6 が `_tick_entry` 下流の velocity_down / mtf_strong_bias / 1h_rr_low で hard block、closed shadow N=2 のまま (checkpoint-1 09-24 n_floor 3 は 09-25 00:20Z 判定で TRIGGERED 見込み)。shadow_only mode は OANDA 送信が構造的にゼロで、これらの gate が守る資本は無い。365d ablated BT は同 gate を適用していない (BT⇄live 母集団の非同期 = 構造欠陥、R3)

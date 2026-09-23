@@ -1031,13 +1031,15 @@
     },
     {
       "id": "ud1-gold-screen-check",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-09-23",
       "doc": "knowledge-base/wiki/decisions/integrated-decision-packet-d1-d12-2026-09-22.md",
       "message": "user 画面確認 (UD1): OANDA status 画面「今月の取引額」に 9 月 keeper 26 RT ($520k、同一秒自己往復) が算入され **GOLD** 表示か (GOLD / SILVER / 不明)。status 頁は毎営業日判定・順次適用なので 10-01 を待たず今日読める。**SILVER なら packet v0.1 書き直しトリガ** (D5 / D6 / D7 の前提消滅、D3 縮約、live 系施策 Rank 5・7 の前提消滅、9 月 ¥2,080 は sunk)。無回答 = keeper は設計どおり 10 月 run (¥2,080)。出所: [[integrated-decision-packet-d1-d12-2026-09-22]] §1 UD1 / [[path-to-win-reassessment-2026-09-22]] §4 UD1。",
       "condition": "user が GOLD / SILVER / 不明 のいずれかを返答し、packet §1 UD1 に転記されること",
-      "reachability": "user 決裁 (会員画面は user のみ読める — Claude は OANDA 会員画面に到達できない)。Claude は返答を packet §1 に転記し、SILVER なら v0.1 を起票。期日超過は『無回答 = 既定挙動』として記録し packet 確定版 (10-08) に無回答を明記して active:false にする (黙って延長しない)。"
+      "reachability": "user 決裁 (会員画面は user のみ読める — Claude は OANDA 会員画面に到達できない)。Claude は返答を packet §1 に転記し、SILVER なら v0.1 を起票。期日超過は『無回答 = 既定挙動』として記録し packet 確定版 (10-08) に無回答を明記して active:false にする (黙って延長しない)。",
+      "resolved": "2026-09-23",
+      "resolution": "user 画面確認 (2026-09-23 JST 午前、session 5f9b6517): OANDA status 画面で 9 月 keeper ($520k) が「今月の取引額」に算入され **GOLD 表示**。→ 決裁パケット v0 の前提 (D5/D6/D7、live 系施策 Rank 5・7) は維持、SILVER 分岐 (packet v0.1 書き直し) は不発。keeper は設計どおり 10 月 run (¥2,080) 継続。10-01 の月次判定記録 (registry 既存の 10-01 項目) は別途。"
     },
     {
       "id": "e1-first-look-freeze-due",
