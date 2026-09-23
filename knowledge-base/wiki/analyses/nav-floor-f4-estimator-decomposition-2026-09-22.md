@@ -89,6 +89,7 @@ burn_edge = −edge_jpy / span
 - edge の estimand は **broker NAV Δ** (定義 A 側)。demo `pnl_pips` (定義 B 側) ではない。F3 の D11 と同じ母集団軸の論点であり、ここでは A を採る (floor は NAV/残高で判定されるため)。
 - floor の estimand: OANDA 条件は「残高 ≥¥250k」、本 CSV は NAV。建玉ゼロの間は一致。
 - month 一致チェックは keeper loop の poll (300s) が月替わりを跨いでから有効になる。00:00 cron の行は edge unavailable (keeper のみ) で書かれ、06:00 run で上書きされる。ただし 1 日が土日の月は 00:00/06:00 とも走らず、翌営業日の初回 run で当月 telemetry が読める (冪等上書きに依存しない)。
+- **(2026-09-23 追記)** 本稿 §2 の edge 残差は入出金 (OANDA `TRANSFER_FUNDS`) を差し引いていなかった — 入金 ¥D で窓 30 日の間 burn ≤ 0 → sentinel 99999 で F4 が盲目化、出金で偽早期発火。[[nav-floor-f4-transfer-funds-adjustment-2026-09-23]] で本番 `/api/oanda/transfers` 台帳の差し引き + 窓端を NAV 採取時刻 (新列 `nav_ts_utc`) で判定する形に是正 (rule:R3)。§3 の再現値は入出金ゼロ前提で不変。
 
 ## 6. レビュー消化記録 (PR #285)
 

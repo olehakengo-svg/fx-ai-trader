@@ -43,6 +43,20 @@ burn 推定器 (2026-09-22 方法変更、rule:R3):
   参考列 ``burn_fit_per_day_jpy`` / ``days_to_floor_fit`` として併記のみ。
 - registry F4 の condition (days_to_floor <= 90) は不変。``days_to_floor``
   列に書くのは decomposed の値。
+
+入出金調整 (2026-09-23 方法変更、rule:R3):
+- edge_jpy は broker NAV Δ の残差なので、窓内の入出金 (OANDA v20 tx type
+  ``TRANSFER_FUNDS``) がそのまま edge に化ける — 入金 ¥D で burn_edge が負に
+  転じ合計 burn ≤ 0 → project() が sentinel 99999 → F4 が最長 30 日発火不能、
+  窓を抜けると逆方向に跳ねる (path-to-win-reassessment-2026-09-22 §9-5 /
+  integrated-decision-packet D1)。本番 ``/api/oanda/transfers`` (app.py、
+  broker 台帳 read-only) から窓内 TRANSFER_FUNDS を取り、edge_jpy から差し引く。
+- 窓の両端は **NAV 採取時刻** で判定する (heartbeat.nav_at = 成功 heartbeat で
+  nav と同時にだけ更新 → 当日行の ``nav_ts_utc`` 列。失敗 heartbeat の last_check
+  は NAV の時刻ではない)。時刻の無い legacy 端 (2026-09-23 以前の行) に同日の
+  入出金が載ると前後が決まらないので unavailable (両端対称、fail-closed)。
+- 台帳が取得不能 (route 未デプロイ / OANDA 失敗 / 形式不正) なら edge は
+  ``unavailable:transfers_unavailable`` — 「入出金ゼロ」と偽らない。keeper 分は残る。
 """
 
 from __future__ import annotations
@@ -50,6 +64,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import re
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -91,8 +106,16 @@ LEGACY_FIELDNAMES = ["date", "nav_jpy", "burn_per_day_jpy", "days_to_floor",
                      "floor_date_est", "method"]
 FIELDNAMES = LEGACY_FIELDNAMES + [
     "burn_fit_per_day_jpy", "days_to_floor_fit",
-    "burn_keeper_per_day_jpy", "burn_edge_per_day_jpy", "edge_basis"]
+    "burn_keeper_per_day_jpy", "burn_edge_per_day_jpy", "edge_basis",
+    "nav_ts_utc"]  # NAV 採取時刻 (heartbeat.nav_at、成功 heartbeat のみ) — 入出金の窓境界
 DAYS_SENTINEL_NO_BURN = 99999  # burn <= 0 (NAV 増加中) の残日数表現
+# ── 入出金台帳 (2026-09-23) ─────────────────────────────────────────
+# 本番 app.py の read-only route。OANDA v20 transactions を type=TRANSFER_FUNDS で
+# 時間窓照会し、入出金 tx (amount: +入金 / −出金、time: ns 精度 Z) を返す。
+TRANSFERS_PATH = "/api/oanda/transfers"
+TRANSFER_TX_TYPE = "TRANSFER_FUNDS"
+# 台帳の取得窓は edge 窓 (最長 EDGE_WINDOW_DAYS) を余裕込みで覆う。窓判定は時刻で行う。
+TRANSFERS_FETCH_MARGIN_DAYS = 2
 
 
 def fetch_status(app_base: str = APP_BASE_DEFAULT,
@@ -118,6 +141,71 @@ def nav_from_status(payload: dict[str, Any] | None) -> float | None:
         return float(nav) if nav is not None else None
     except (TypeError, ValueError):
         return None
+
+
+_TS_RE = re.compile(r"^(.*T\d{2}:\d{2}:\d{2})(\.\d+)?([+-]\d{2}:\d{2})$")
+
+
+def _parse_ts(s: Any) -> datetime | None:
+    """RFC3339 / isoformat を aware UTC datetime に。OANDA の ns 精度 (9 桁) と
+    末尾 Z を受ける。読めなければ None (0 や now に折り畳まない)。"""
+    if not s:
+        return None
+    txt = str(s).strip()
+    if txt.endswith("Z"):
+        txt = txt[:-1] + "+00:00"
+    m = _TS_RE.match(txt)
+    if not m:
+        return None
+    frac = (m.group(2) or "")[:7]  # '.' + 最大 6 桁 (datetime は µs まで)
+    try:
+        return datetime.fromisoformat(m.group(1) + frac + m.group(3)).astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def nav_ts_from_status(payload: dict[str, Any] | None) -> datetime | None:
+    """NAV の採取時刻。成功 heartbeat と一緒に書かれた時刻だけを使う。
+
+    heartbeat.nav_at (nav と同じ update でのみ更新、oanda_bridge.run_heartbeat) を
+    優先。無い (旧 app) 場合は status == "ok" のときだけ last_check を使う — 同じ
+    update で書かれるので NAV の時刻と一致する。失敗 heartbeat は last_check だけ
+    進めて nav を前回値のまま残すので、その last_check を NAV の時刻と読むと
+    「直前の成功〜失敗」の間の入出金を反映済みと誤って除外する (PR #295 review
+    P2)。読めなければ None — 呼び手は asof 端を日付判定にし、同日の入出金は
+    unavailable (fail-closed)。取得時刻で埋めない。
+    """
+    hb = ((payload or {}).get("oanda") or {}).get("heartbeat") or {}
+    ts = _parse_ts(hb.get("nav_at"))
+    if ts is not None:
+        return ts
+    if hb.get("status") == "ok":
+        return _parse_ts(hb.get("last_check"))
+    return None
+
+
+def fetch_transfers(app_base: str, d_from: date, d_to: date,
+                    timeout: int = 30) -> list[dict[str, Any]] | None:
+    """本番 TRANSFERS_PATH から [d_from, d_to) の入出金 tx を取る。取得不能は None。
+
+    None は「台帳を見られなかった」であり「入出金ゼロ」ではない — 呼び手は edge を
+    unavailable にする。transactions 配列を持たない payload (error JSON / route 未
+    デプロイの 404 HTML) も None。
+    """
+    if not app_base.startswith(("https://", "http://localhost", "http://127.0.0.1")):
+        return None  # file:// 等の scheme 混入を遮断 (semgrep CWE-939)
+    try:
+        req = urllib.request.Request(
+            f"{app_base}{TRANSFERS_PATH}?from={d_from.isoformat()}&to={d_to.isoformat()}",
+            headers={"User-Agent": "fx-nav-floor-projection/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            payload = json.load(resp)
+    except Exception:
+        return None
+    txs = (payload or {}).get("transactions") if isinstance(payload, dict) else None
+    if not isinstance(txs, list) or not all(isinstance(t, dict) for t in txs):
+        return None
+    return txs
 
 
 def keeper_from_status(payload: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -287,12 +375,66 @@ def _parse_date(s: Any) -> date | None:
         return None
 
 
+def transfers_in_window(transfers: list[dict[str, Any]],
+                        start_bound: datetime | date,
+                        end_bound: datetime | date) -> tuple[float, int, str | None]:
+    """窓 (start_bound, end_bound] 内の TRANSFER_FUNDS 合計 [JPY]。(sum, n, reason)。
+
+    bound が datetime なら NAV 採取時刻で厳密に切る (start: tx.time > start、
+    end: tx.time <= end)。bound が date (時刻の無い legacy 行 / nav_ts 不明) なら
+    日付で切るが、**同日に載る tx は前後が決まらない**ので reason を返す
+    (両端対称、fail-closed)。TRANSFER_FUNDS 以外 (REJECT / 約定 / financing) は
+    残高を動かさないか trade 由来 (edge 側) なので数えない。amount / time が
+    読めない TRANSFER_FUNDS は "transfers_malformed"。reason が None のとき有効。
+    """
+    total, n = 0.0, 0
+    for tx in transfers:
+        if (tx or {}).get("type") != TRANSFER_TX_TYPE:
+            continue
+        ts = _parse_ts(tx.get("time"))
+        try:
+            amount = float(tx.get("amount"))
+        except (TypeError, ValueError):
+            amount = None
+        if ts is None or amount is None or math.isnan(amount):
+            return 0.0, 0, f"transfers_malformed(id={tx.get('id')})"
+        tx_day = ts.date()
+        # start 側: 採取時刻より後の tx のみ Δ に含まれる
+        if isinstance(start_bound, datetime):
+            if ts <= start_bound:
+                continue
+        else:
+            if tx_day == start_bound:
+                return 0.0, 0, f"transfer_on_start_bound({start_bound.isoformat()},id={tx.get('id')})"
+            if tx_day < start_bound:
+                continue
+        # end 側: 採取時刻以前の tx のみ nav_now に反映済み
+        if isinstance(end_bound, datetime):
+            if ts > end_bound:
+                continue
+        else:
+            if tx_day == end_bound:
+                return 0.0, 0, f"transfer_on_asof_bound({end_bound.isoformat()},id={tx.get('id')})"
+            if tx_day > end_bound:
+                continue
+        total += amount
+        n += 1
+    return total, n, None
+
+
 def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
                       keeper: dict[str, Any] | None,
-                      jpy_per_rt: float = KEEPER_JPY_PER_RT) -> tuple[float, str]:
+                      jpy_per_rt: float = KEEPER_JPY_PER_RT,
+                      transfers: list[dict[str, Any]] | None = None,
+                      nav_ts: datetime | None = None) -> tuple[float, str]:
     """edge 30d 実現 PnL を broker NAV Δ の残差で測る。(burn_per_day, basis)。
 
-    edge_jpy = (nav_now − nav_start) + keeper 窓内支出。burn は −edge/日数。
+    edge_jpy = (nav_now − nav_start) − 窓内入出金 + keeper 窓内支出。burn は −edge/日数。
+    入出金 (``transfers`` = TRANSFER_FUNDS tx の台帳) は broker NAV Δ に乗るが edge
+    ではない — 差し引かないと入金 ¥D が窓の間 burn を負にし F4 を盲目化する
+    (2026-09-23)。台帳が None (取得不能) は「ゼロ」と偽らず unavailable。窓の両端は
+    NAV 採取時刻 (start_row.nav_ts_utc / ``nav_ts`` = heartbeat.nav_at) で判定、時刻の無い端に同日の
+    tx が載れば unavailable (transfers_in_window)。
     窓開始 = max(asof − EDGE_WINDOW_DAYS, 直前月 burst 終了日 + 1) — 直前月の
     keeper burst を跨ぐと窓内 keeper 支出が telemetry で確定できないため。
     窓内 keeper 支出は当月 rt_count で確定する (RT は全て月初以降に起きる)。
@@ -316,12 +458,12 @@ def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
             continue
         if start_row is None or d < start_row[0]:
             try:
-                start_row = (d, float(r["nav_jpy"]))
+                start_row = (d, float(r["nav_jpy"]), _parse_ts(r.get("nav_ts_utc")))
             except (KeyError, ValueError):
                 continue
     if start_row is None:
         return 0.0, f"unavailable:no_row_since_{window_start.isoformat()}"
-    start_date, nav_start = start_row
+    start_date, nav_start, start_ts = start_row
     span = (asof - start_date).days
     if span < EDGE_MIN_SPAN_DAYS:
         return 0.0, f"unavailable:span={span}d<{EDGE_MIN_SPAN_DAYS}d"
@@ -350,28 +492,42 @@ def edge_burn_per_day(rows: list[dict[str, str]], nav_now: float, asof: date,
         # 確定できない。last_rt_at は回収 (_recover_stale_trades) で更新され
         # ないため「≤ start_date」でも窓内 RT の不在を証明しない。
         return 0.0, f"unavailable:keeper_split_unknown(span={span}d)"
-    edge_jpy = (nav_now - nav_start) + keeper_rt_in_window * jpy_per_rt
+    if transfers is None:
+        # 台帳を見られなかった — 入出金ゼロと偽ると入金が edge に化ける (fail-loud)
+        return 0.0, f"unavailable:transfers_unavailable(span={span}d)"
+    transfer_jpy, n_tx, t_reason = transfers_in_window(
+        transfers, start_ts if start_ts is not None else start_date,
+        nav_ts if nav_ts is not None else asof)
+    if t_reason is not None:
+        return 0.0, f"unavailable:{t_reason}(span={span}d)"
+    edge_jpy = (nav_now - nav_start) - transfer_jpy + keeper_rt_in_window * jpy_per_rt
     burn = -edge_jpy / span
     basis = (f"nav_delta:{start_date.isoformat()}->{asof.isoformat()}:{span}d,"
-             f"keeper_rt_in_window={keeper_rt_in_window}")
+             f"keeper_rt_in_window={keeper_rt_in_window},"
+             f"transfers_jpy={transfer_jpy:+.0f},n_transfers={n_tx}")
     return burn, basis
 
 
 def decomposed_burn_per_day(rows: list[dict[str, str]], nav_now: float,
                             asof: date, keeper: dict[str, Any] | None,
-                            jpy_per_rt: float | None = None
+                            jpy_per_rt: float | None = None,
+                            transfers: list[dict[str, Any]] | None = None,
+                            nav_ts: datetime | None = None,
                             ) -> dict[str, Any]:
     """primary 推定器。keeper 確定分 + edge 実測分を分解して返す。
 
     jpy_per_rt を省略すると telemetry の units でスケールした値を使う
     (SVK_UNITS 変更で F4 トリガが動かない)。明示指定はテスト/監査用。
+    transfers (入出金台帳) を省略/None にすると edge は unavailable (台帳未参照を
+    ゼロと偽らない)。nav_ts は NAV 採取時刻 (窓の asof 側境界)。
     """
     rt_per_month, rt_basis = keeper_rt_per_month(keeper)
     units, _ = keeper_units(keeper)
     if jpy_per_rt is None:
         jpy_per_rt, _ = keeper_jpy_per_rt(keeper)
     k_burn = keeper_burn_per_day(rt_per_month, jpy_per_rt)
-    e_burn, e_basis = edge_burn_per_day(rows, nav_now, asof, keeper, jpy_per_rt)
+    e_burn, e_basis = edge_burn_per_day(rows, nav_now, asof, keeper, jpy_per_rt,
+                                        transfers=transfers, nav_ts=nav_ts)
     return {"burn": k_burn + e_burn, "keeper": k_burn, "edge": e_burn,
             "rt_per_month": rt_per_month, "rt_basis": rt_basis,
             "units": units, "jpy_per_rt": jpy_per_rt,
@@ -390,14 +546,17 @@ def project(nav_jpy: float, burn_per_day: float,
 
 
 def build_row(nav_jpy: float, asof: date, rows: list[dict[str, str]],
-              keeper: dict[str, Any] | None) -> dict[str, str]:
+              keeper: dict[str, Any] | None,
+              transfers: list[dict[str, Any]] | None = None,
+              nav_ts: datetime | None = None) -> dict[str, str]:
     """当日行を組む。days_to_floor = decomposed、fit は参考列。
 
     decomposed の両成分が未測定 (keeper 計画 0 ∧ edge unavailable) のときは
     burn 0 → sentinel 99999 (「NAV 減っていない」) に折り畳まず、fit (行不足
     なら audit default) を primary に使い method="fit_fallback" で露出する。
     """
-    dec = decomposed_burn_per_day(rows, nav_jpy, asof, keeper)
+    dec = decomposed_burn_per_day(rows, nav_jpy, asof, keeper,
+                                  transfers=transfers, nav_ts=nav_ts)
     fitted = fit_burn_per_day(rows)
     fit_burn = fitted if fitted is not None else DEFAULT_BURN_PER_DAY
     days_fit, _ = project(nav_jpy, fit_burn, asof)
@@ -413,16 +572,19 @@ def build_row(nav_jpy: float, asof: date, rows: list[dict[str, str]],
             "days_to_floor_fit": str(days_fit),
             "burn_keeper_per_day_jpy": f"{dec['keeper']:.1f}",
             "burn_edge_per_day_jpy": f"{dec['edge']:.1f}",
-            "edge_basis": dec["edge_basis"]}
+            "edge_basis": dec["edge_basis"],
+            "nav_ts_utc": nav_ts.isoformat() if nav_ts is not None else ""}
 
 
 def append_row(nav_jpy: float, asof: date | None = None,
                path: Path = CSV_PATH,
-               keeper: dict[str, Any] | None = None) -> dict[str, str]:
+               keeper: dict[str, Any] | None = None,
+               transfers: list[dict[str, Any]] | None = None,
+               nav_ts: datetime | None = None) -> dict[str, str]:
     """当日行を追記 (同日既存行は上書き = 日次 4 回 cron でも冪等)。"""
     asof = asof or datetime.now(timezone.utc).date()
     rows = read_rows(path)
-    row = build_row(nav_jpy, asof, rows, keeper)
+    row = build_row(nav_jpy, asof, rows, keeper, transfers=transfers, nav_ts=nav_ts)
     rows = [r for r in rows if r.get("date") != row["date"]] + [row]
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as f:
@@ -453,10 +615,26 @@ def main(argv: list[str] | None = None) -> int:
         print("[nav_floor] WARN: keeper telemetry 無し — RT 数はフォールバック定数、"
               "edge は unavailable として記録")
     asof = datetime.now(timezone.utc).date()
+    # NAV 採取時刻 = heartbeat.nav_at (成功 heartbeat でのみ更新、入出金の窓境界)。
+    # 読めなければ None のまま — 取得時刻や失敗時刻で埋めると障害中に境界がずれる。
+    nav_ts = nav_ts_from_status(payload)
+    if nav_ts is None:
+        print("[nav_floor] WARN: NAV 採取時刻 (heartbeat.nav_at) 不明 — asof 端は日付判定、"
+              "同日の入出金があれば edge は unavailable として記録")
+    # 入出金台帳 — edge 窓 (最長 EDGE_WINDOW_DAYS) を余裕込みで覆う日付範囲を取り、
+    # 窓判定は edge_burn_per_day が時刻で行う。取得不能 (None) はそのまま渡す。
+    transfers = fetch_transfers(
+        args.app_base,
+        asof - timedelta(days=EDGE_WINDOW_DAYS + TRANSFERS_FETCH_MARGIN_DAYS),
+        asof + timedelta(days=1))
+    if transfers is None:
+        print("[nav_floor] WARN: 入出金台帳 (TRANSFER_FUNDS) 取得不能 — edge は "
+              "unavailable:transfers_unavailable として記録 (入出金ゼロと偽らない)")
     if args.append:
-        row = append_row(nav, asof=asof, keeper=keeper)
+        row = append_row(nav, asof=asof, keeper=keeper, transfers=transfers, nav_ts=nav_ts)
     else:
-        row = dict(build_row(nav, asof, read_rows(), keeper), date="(dry-run)")
+        row = dict(build_row(nav, asof, read_rows(), keeper, transfers=transfers,
+                             nav_ts=nav_ts), date="(dry-run)")
     print(f"[nav_floor] NAV=¥{float(row['nav_jpy']):,.0f} floor=¥{FLOOR_JPY:,.0f} "
           f"burn={row['burn_per_day_jpy']}/日 ({row['method']}: "
           f"keeper {row['burn_keeper_per_day_jpy']} + edge "

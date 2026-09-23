@@ -14312,6 +14312,42 @@ def api_oanda_transactions():
     return jsonify({"error": data}), 500
 
 
+@app.route("/api/oanda/transfers")
+def api_oanda_transfers():
+    """OANDA TRANSFER_FUNDS (入出金) 台帳の日付窓照会 (read-only 観測性、窓上限 400 日)。
+
+    2026-09-23 rule:R3: F4 資金時計 (tools/nav_floor_projection.py) の edge 残差は
+    broker NAV Δ なので、窓内の入出金を差し引かないと入金 ¥D が窓 (最長 30 日) の間
+    burn を負にし F4 (registry project-falsification-f4-nav-floor-clock) を盲目化する。
+    broker 台帳 (v20 transactions、type=TRANSFER_FUNDS) を [from, to) で返す。to は
+    「今」で clamp (未来の to を OANDA に渡さない)。live 挙動への影響なし (純 read)。
+    失敗は 5xx で返し 0 件と偽らない (読み手は edge を unavailable にする)。
+    """
+    from datetime import date as _date, datetime as _dt, timezone as _tz
+    try:
+        d_from = _date.fromisoformat(request.args.get("from", ""))
+        d_to = _date.fromisoformat(request.args.get("to", ""))
+    except (TypeError, ValueError):
+        return jsonify({"error": "from/to must be YYYY-MM-DD"}), 400
+    if d_to <= d_from:
+        return jsonify({"error": "invalid range (to must be after from)"}), 400
+    if (d_to - d_from).days > 400:
+        return jsonify({"error": "range too wide (max 400 days)"}), 400
+    client = getattr(_demo_trader._oanda, "_client", None)
+    if client is None or not getattr(client, "configured", False):
+        return jsonify({"error": "oanda client not configured"}), 503
+    from_time = f"{d_from.isoformat()}T00:00:00Z"
+    to_dt = min(_dt(d_to.year, d_to.month, d_to.day, tzinfo=_tz.utc), _dt.now(_tz.utc))
+    to_time = to_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    ok, data = client.list_transactions_full(from_time, to_time, types=["TRANSFER_FUNDS"])
+    if not ok:
+        return jsonify({"error": data}), 500
+    txs = [t for t in ((data or {}).get("transactions") or [])
+           if isinstance(t, dict) and t.get("type") == "TRANSFER_FUNDS"]
+    return jsonify({"from": from_time, "to": to_time, "type": "TRANSFER_FUNDS",
+                    "count": len(txs), "transactions": txs})
+
+
 @app.route("/api/oanda/status")
 def api_oanda_status():
     """OANDA連携ステータス + アカウント情報 + ヘルスチェック + 実行監査サマリー"""
