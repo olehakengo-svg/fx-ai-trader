@@ -820,6 +820,40 @@ _SHADOW_ONLY_DOWNSTREAM_RELAX_GATES = ("velocity_down", "mtf_strong_bias", "1h_r
 # ([HOURBLOCK_CLASS_EXEMPT] marker と同型)。LOCK amendment の層別キー (一次):
 # 「relax が無ければ存在しなかった行」をデプロイ時刻に依存せず識別する。
 _SHADOW_RELAX_REASON_TAG = "[SHADOW_RELAX]"
+# 送信前拒否・shadow 化の観測性 (rule:R3 2026-09-23、pre-send-guard-observability-r3):
+#   [SHADOW_BYPASS] <gate> — _UNIVERSAL_SENTINEL 等 `_is_shadow_eligible_full` 分岐の
+#     shadow bypass (`[SHADOW] <gate> bypass:` ログ) を row reasons に永続 (DB logs は
+#     8000 行で刈り込まれる)。gate ラベルは `_block` reason の正規化キーと同じ語彙。
+#   [PROMO_BLOCK] <cause> — `_is_promoted_ex` の block cause (mode_off / pair_demoted /
+#     force_demoted / session_filter …) を post-gate escalation の event 時点で永続。
+#     転記時に現在の strategy mode を読むと誤帰属する (Codex P2 4075642847)。
+#   order_bar_dedup_first:<reason_key> — order-bar 予約後の terminal `_block` の最初の
+#     理由を gate_block_daily に 1 回だけ永続 (以後の tick は `order_bar_dedup` に固定され
+#     本当の blocker が消えるため)。既存の reason 正規化 (`split('(')[0]`) を使う。
+# pin: tests/test_pre_send_guard_observability_r3.py
+_SHADOW_BYPASS_REASON_TAG = "[SHADOW_BYPASS]"
+_PROMO_BLOCK_REASON_TAG = "[PROMO_BLOCK]"
+ORDER_BAR_FIRST_BLOCK_REASON_PREFIX = "order_bar_dedup_first:"
+# oanda_audit block_reason の promo cause 表記は 2 世代ある:
+#   * `shadow_tracking(session_filter_out)` — P-V4 (2026-07-02) の legacy variant。
+#     exact pin (tests/test_session_filter_promotion_guard.py) と KB 参照を持つ契約
+#     なので書き換えない。意味は promo cause `session_filter` と同一。
+#   * `shadow_tracking(promo_block:<cause>)` — 2026-09-23 R3 の標準表記 (他 cause)。
+# 消費側 (転記 / 集計) は文字列比較ではなく本 helper で cause に正規化する
+# (PR #293 review P2 4078290940)。row reasons の `[PROMO_BLOCK] <cause>` は両世代とも
+# 標準表記で付く。
+_LEGACY_PROMO_BLOCK_AUDIT_ALIASES = {"session_filter_out": "session_filter"}
+
+
+def promo_block_cause_from_audit(block_reason) -> str:
+    """oanda_audit block_reason → promotion gate の block cause ("" = promo 由来でない)."""
+    s = str(block_reason or "")
+    if not s.startswith("shadow_tracking(") or not s.endswith(")"):
+        return ""
+    inner = s[len("shadow_tracking("):-1]
+    if inner.startswith("promo_block:"):
+        return inner[len("promo_block:"):]
+    return _LEGACY_PROMO_BLOCK_AUDIT_ALIASES.get(inner, "")
 
 
 def _mode_downstream_relax(mode: str) -> bool:
@@ -1453,6 +1487,58 @@ class DemoTrader:
                                      reason_key="order_bar_dedup")
             return key
         return None
+
+    def _note_order_bar_first_block(self, key, *, mode: str, entry_type: str,
+                                    instrument: str, reason: str) -> bool:
+        """order-bar 予約後 terminal `_block` の最初の理由を 1 回だけ永続 (record-only).
+
+        rule:R3 2026-09-23 (pre-send-guard-observability-r3): 予約 (`_maybe_reserve_
+        order_bar_emit`) は後段 `_block` (recent_emit / cooldown / circuit-breaker /
+        spike / spread・SL guard …) より前にあるため、一度 block されると同じ closed bar
+        の以後の tick は `order_bar_dedup` で固定され、`gate_block_daily` の末尾が本当の
+        blocker を隠す。ここでは同じ reason 正規化 (`split('(')[0]`) を使い、reason_key
+        `order_bar_dedup_first:<reason_key>` を予約 key ごとに 1 回だけ記録する (キー空間
+        は既存 reason 集合と同数で爆発しない)。判定・ゲート挙動には影響しない。
+        """
+        reason_key = str(reason).split("(")[0]
+        with self._lock:
+            store = getattr(self, "_order_bar_first_block", None)
+            if not isinstance(store, dict):
+                store = {}
+                self._order_bar_first_block = store
+            if key in store:
+                return False
+            store[key] = reason_key
+            emits = getattr(self, "_order_bar_signal_emits", None)
+            if isinstance(emits, dict) and len(store) > 512:
+                for _k in [k for k in store if k not in emits]:
+                    store.pop(_k, None)
+        self._persist_gate_block(
+            mode=mode, entry_type=entry_type, instrument=instrument,
+            reason_key=f"{ORDER_BAR_FIRST_BLOCK_REASON_PREFIX}{reason_key}",
+        )
+        self._add_log(
+            f"[ORDER_BAR_DEDUP] first terminal block after reservation: "
+            f"{entry_type} {instrument} {key[2]} bar_ts={key[3]} reason={reason}"
+        )
+        return True
+
+    def _order_bar_first_block_reason(self, key) -> str:
+        """予約 key に記録済みの最初の terminal block reason_key ("" = 未記録)."""
+        store = getattr(self, "_order_bar_first_block", None)
+        if not isinstance(store, dict):
+            return ""
+        with self._lock:
+            return str(store.get(key) or "")
+
+    def _persist_promo_block_marker(self, trade_id: str, cause: str) -> None:
+        """`[PROMO_BLOCK] <cause>` を row reasons に永続 (record-only、失敗はログのみ)."""
+        if not trade_id or not cause:
+            return
+        try:
+            self._db.append_trade_reason(trade_id, f"{_PROMO_BLOCK_REASON_TAG} {cause}")
+        except Exception as exc:
+            self._add_log(f"[PROMO_BLOCK] reason persist failed trade={trade_id}: {exc}")
 
     def _open_shadow_emit_trade(self, *, direction: str, entry_price: float,
                                 sl: float, tp: float, entry_type: str,
@@ -5049,7 +5135,26 @@ class DemoTrader:
         # に抽出 (挙動不変 — in-memory カウンタ/SENTINEL ログは同一キー・同一条件)。
         # 加えて gate_block_daily へ永続集計する (再起動/デプロイで消えない唯一の
         # block 帰属面)。詳細: [[hull-fire-rate-funnel-2026-08-24]] §8。
-        def _block(reason):
+        # rule:R3 2026-09-23 (pre-send-guard-observability-r3):
+        #  * _order_bar_reserved_key — この tick で order-bar 予約が成立した key。予約後の
+        #    terminal `_block` は以後の tick が `order_bar_dedup` に固定されるため、最初の
+        #    理由を 1 回だけ gate_block_daily へ永続する (closure は call 時に読む)。
+        #  * _shadow_bypass_gates — `[SHADOW] <gate> bypass:` で shadow 化した gate ラベル。
+        #    row 生成時に reasons へ `[SHADOW_BYPASS] <gate>` として永続する。
+        _order_bar_reserved_key = None
+        _shadow_bypass_gates: list = []
+
+        def _block(reason, *, terminal=True):
+            # terminal=False = 記帳のみで _tick_entry を抜けない呼び出し
+            # (session_filter_live_downgrade: row は作られ shadow 化される)。
+            # 予約後 first-block は「本当に終端した block」だけを記録する
+            # (PR #293 review P2 4078430621 — 成功した shadow 降格を最初の terminal
+            # block として metric に混ぜない)。
+            if terminal and _order_bar_reserved_key is not None:
+                self._note_order_bar_first_block(
+                    _order_bar_reserved_key, mode=mode, entry_type=entry_type,
+                    instrument=instrument, reason=reason,
+                )
             return self._record_entry_block(mode, entry_type, instrument, reason)
 
         # ── 方向フィルター (RNB BUY-only等) ── (2026-04-05 audit fix)
@@ -5311,6 +5416,7 @@ class DemoTrader:
                 )
             elif _is_slot_shadow_eligible and len(_mode_inst_shadow) < _shadow_per_cell_limit:
                 _is_shadow = True
+                _shadow_bypass_gates.append("max_per_mode_pair")
                 self._add_log(
                     f"[SHADOW] Slot bypass: {entry_type} {mode}/{instrument} "
                     f"(live={len(_mode_inst_live)}/{_mode_limit} "
@@ -5363,6 +5469,11 @@ class DemoTrader:
                 )
             elif _is_slot_shadow_eligible and _n_open < _shadow_max:
                 _is_shadow = True
+                _shadow_bypass_gates.append("max_open")
+                self._add_log(
+                    f"[SHADOW] max_open bypass: {entry_type} {mode} "
+                    f"({_n_open}/{_max_open} → shadow)"
+                )
             else:
                 _block(f"max_open({_n_open}/{_max_open})"); return
         if self._check_drawdown():
@@ -5380,6 +5491,7 @@ class DemoTrader:
         if _outside_active_hours:
             if _is_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("session_hours")
                 self._add_log(
                     f"[SHADOW] Session bypass: {entry_type} {mode} (outside active_hours → shadow)"
                 )
@@ -5503,6 +5615,7 @@ class DemoTrader:
                 and not _regime_gate_exempt):
             if _is_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("regime_range_dt_tf")
                 self._add_log(
                     f"[SHADOW] DT RANGE bypass: {entry_type} (TF in RANGE → shadow) | "
                     f"{signal} {instrument}"
@@ -5530,6 +5643,7 @@ class DemoTrader:
                 and not _regime_gate_exempt):
             if _is_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("regime_trend_bull_dt_tf")
                 self._add_log(
                     f"[SHADOW] DT TREND_BULL TF bypass: {entry_type} "
                     f"(TF in TREND_BULL WR=0% → shadow) | {signal} {instrument}"
@@ -5563,6 +5677,7 @@ class DemoTrader:
                 return
             else:
                 _is_shadow = True
+                _shadow_bypass_gates.append("gbp_asia_flash_crash")
                 self._add_log(
                     f"[SHADOW] GBP Asia bypass: {entry_type} (flash crash zone → shadow)"
                 )
@@ -5596,11 +5711,16 @@ class DemoTrader:
             _path="primary",
         )
         if _bar_dedup_key is not None:
+            _first_block = self._order_bar_first_block_reason(_bar_dedup_key)
             self._add_log(
                 f"[ORDER_BAR_DEDUP] blocked {entry_type} {instrument} "
                 f"{signal}: bar_ts={_bar_dedup_key[3]}"
+                + (f" first_block={_first_block}" if _first_block else "")
             )
             return
+        _reserved_bar_ts = self._normalize_order_bar_ts(_signal_bar_ts)
+        if _reserved_bar_ts:
+            _order_bar_reserved_key = (entry_type, instrument, signal, _reserved_bar_ts)
         _dedup_age = self._maybe_reserve_signal_emit(
             entry_type, instrument, signal,
             window_sec=_primary_window, _path="primary",
@@ -5617,6 +5737,7 @@ class DemoTrader:
                 )
             elif _is_shadow_eligible_full:
                 _is_shadow = True
+                _shadow_bypass_gates.append("recent_emit")
                 self._add_log(
                     f"[SHADOW] recent_emit bypass: {entry_type} "
                     f"({int(_dedup_age)}s<{_primary_window}s → shadow)"
@@ -5998,6 +6119,7 @@ class DemoTrader:
         if instrument == "EUR_GBP" and entry_type not in _EURGBP_DAILY_MR_WHITELIST:
             if _is_shadow_eligible_full:
                 _is_shadow = True
+                _shadow_bypass_gates.append("session_pair(EUR_GBP)")
                 self._add_log(
                     f"[SHADOW] session_pair bypass: {entry_type} "
                     f"(EUR_GBP全停止 WR=11% → shadow)"
@@ -6011,6 +6133,7 @@ class DemoTrader:
                     _hourblock_exempt_pass(f"EUR_USD_Tokyo_H{_utc_hour}")
                 elif _is_shadow_eligible_full:
                     _is_shadow = True
+                    _shadow_bypass_gates.append("session_pair(EUR_USD_Tokyo)")
                     self._add_log(
                         f"[SHADOW] session_pair bypass: {entry_type} "
                         f"(EUR_USD_Tokyo WR=20% → shadow)"
@@ -6031,6 +6154,7 @@ class DemoTrader:
                     _hourblock_exempt_pass(f"EUR_USD_Late_NY_H{_utc_hour}")
                 elif _is_shadow_eligible_full:
                     _is_shadow = True
+                    _shadow_bypass_gates.append("session_pair(EUR_USD_Late_NY)")
                     self._add_log(
                         f"[SHADOW] session_pair bypass: {entry_type} "
                         f"(EUR_USD_Late_NY WR=10% → shadow)"
@@ -6043,6 +6167,7 @@ class DemoTrader:
             if signal == "SELL" and not _is_live_tier_exempt:
                 if _is_slot_shadow_eligible:
                     _is_shadow = True
+                    _shadow_bypass_gates.append("alpha_scan(EUR_USD_SELL)")
                     self._add_log(f"[SHADOW] EUR_USD SELL block: {entry_type} → shadow (EV=-2.714)")
                 else:
                     _block(f"alpha_scan(EUR_USD_SELL,N=43,EV=-2.714)")
@@ -6065,6 +6190,7 @@ class DemoTrader:
                 and confidence < 65):
             if _is_slot_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("alpha_scan(RANGE_SELL)")
                 self._add_log(f"[SHADOW] RANGE SELL gate: {entry_type} conf={confidence}<65 → shadow")
             else:
                 _block(f"alpha_scan(RANGE_SELL,conf={confidence}<65,EV=-1.636)")
@@ -6085,6 +6211,7 @@ class DemoTrader:
                 and confidence < 65):
             if _is_slot_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("alpha_scan(TREND_BULL_BUY)")
                 self._add_log(f"[SHADOW] TREND_BULL BUY block: {entry_type} conf={confidence}<65 → shadow (EV=-0.776)")
             else:
                 _block(f"alpha_scan(TREND_BULL_BUY,{entry_type},conf={confidence}<65,EV=-0.776)")
@@ -6099,6 +6226,7 @@ class DemoTrader:
                 _hourblock_exempt_pass("H11_EUR_USD")
             elif _is_slot_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("alpha_scan(H11_EUR_USD)")
                 self._add_log(f"[SHADOW] H11 EUR_USD block: {entry_type} → shadow (EV=-4.489)")
             else:
                 _block(f"alpha_scan(H11_EUR_USD,N=9,EV=-4.489)")
@@ -6113,6 +6241,7 @@ class DemoTrader:
                 _hourblock_exempt_pass("H13_USD_JPY")
             elif _is_slot_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("alpha_scan(H13_USD_JPY)")
                 self._add_log(f"[SHADOW] H13 USD_JPY block: {entry_type} → shadow (EV=-2.486)")
             else:
                 _block(f"alpha_scan(H13_USD_JPY,N=14,EV=-2.486)")
@@ -6125,6 +6254,7 @@ class DemoTrader:
                 _hourblock_exempt_pass(f"H{_utc_hour}_USD_JPY")
             elif _is_slot_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("alpha_scan(H16-20_USD_JPY)")
                 self._add_log(f"[SHADOW] H{_utc_hour} USD_JPY block: {entry_type} → shadow")
             else:
                 _block(f"alpha_scan(H16-20_USD_JPY,EV=-2.4)")
@@ -6134,6 +6264,7 @@ class DemoTrader:
                 and not _is_live_tier_exempt and confidence < 70):
             if _is_slot_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("alpha_scan(BUY_TREND_BEAR)")
                 self._add_log(f"[SHADOW] BUY TREND_BEAR block: {entry_type} conf={confidence} → shadow")
             else:
                 _block(f"alpha_scan(BUY_TREND_BEAR,conf={confidence}<70,EV=-1.67)")
@@ -6144,6 +6275,7 @@ class DemoTrader:
                 _hourblock_exempt_pass(f"H{_utc_hour}_EUR_USD")
             elif _is_slot_shadow_eligible:
                 _is_shadow = True
+                _shadow_bypass_gates.append("alpha_scan(H7-8_EUR_USD)")
                 self._add_log(f"[SHADOW] H{_utc_hour} EUR_USD block: {entry_type} → shadow")
             else:
                 _block(f"alpha_scan(H7-8_EUR_USD,EV=-2.38)")
@@ -6241,6 +6373,7 @@ class DemoTrader:
                 _tag, _pnl, _n, _wr = _guardrail_hit
                 if _is_slot_shadow_eligible:
                     _is_shadow = True
+                    _shadow_bypass_gates.append("regime_guardrail")
                     self._add_log(
                         f"[SHADOW] Regime guardrail: {entry_type} {signal} "
                         f"regime={_ind_regime} → shadow ({_tag} N={_n} {_pnl:+.1f}p WR={_wr:.1f}%)"
@@ -6364,6 +6497,7 @@ class DemoTrader:
                 if _spread_cost_ratio > _sg_threshold:
                     if _is_shadow_eligible_full:
                         _is_shadow = True
+                        _shadow_bypass_gates.append("spread_guard")
                         self._add_log(
                             f"[SHADOW] spread_guard bypass: {entry_type} "
                             f"(cost={_spread_pips*2:.1f}pip/profit={_expected_profit_pips:.1f}pip="
@@ -6422,6 +6556,7 @@ class DemoTrader:
                 _spike_m = 100 if (_is_jpy or "XAU" in instrument) else 10000
                 if _is_shadow_eligible_full:
                     _is_shadow = True
+                    _shadow_bypass_gates.append("spike")
                     self._add_log(
                         f"[SHADOW] spike bypass: {entry_type} "
                         f"({_spike_range*_spike_m:.1f}pip/60s → shadow)"
@@ -6455,6 +6590,7 @@ class DemoTrader:
                 if _price_move > 0 and signal == "SELL":
                     if _is_shadow_eligible_full:
                         _is_shadow = True
+                        _shadow_bypass_gates.append("velocity_up")
                         self._add_log(
                             f"[SHADOW] velocity_up bypass: {entry_type} "
                             f"({_move_pips:.0f}pip vs SELL → shadow)"
@@ -6464,6 +6600,7 @@ class DemoTrader:
                 if _price_move < 0 and signal == "BUY":
                     if _is_shadow_eligible_full:
                         _is_shadow = True
+                        _shadow_bypass_gates.append("velocity_down")
                         self._add_log(
                             f"[SHADOW] velocity_down bypass: {entry_type} "
                             f"({_move_pips:.0f}pip vs BUY → shadow)"
@@ -6877,6 +7014,12 @@ class DemoTrader:
         _reasons_with_inv = sig.get("reasons", [])
         if _invalidation is not None:
             _reasons_with_inv = list(_reasons_with_inv) + [f"__INV__:{_invalidation:.3f}"]
+        if _shadow_bypass_gates:
+            # rule:R3 2026-09-23: shadow bypass の cause を row に永続 (DB logs は 8000 行で
+            # 刈り込まれ、`[SHADOW] <gate> bypass:` が 24h で消える)。選択条件には使わない。
+            _reasons_with_inv = list(_reasons_with_inv) + [
+                f"{_SHADOW_BYPASS_REASON_TAG} {_g}" for _g in _shadow_bypass_gates
+            ]
 
         # ══════════════════════════════════════════════════════════════
         # ── 高摩擦ペア指値強制: 成行エントリー禁止 (RT摩擦>3pip) ──
@@ -7434,6 +7577,13 @@ class DemoTrader:
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _shadow_at_open = _is_shadow  # v9.x: DB書込み時点の値を保存 (persistence fix)
+        # rule:R3 2026-09-23: 「row 書込み時の live 意図」の**不変** snapshot。
+        # `_shadow_at_open` は persistence-fix の差分検出用で、emergency trip /
+        # GRAIL・C1・PRIME の live 復活 / `_apply_force_demoted_final_gate` が書き換える
+        # 可変値 — promo cause の帰属条件には使わない (PR #293 review P2 4078373240:
+        # C1 が fib_reversal を live 復活 → FD 最終ゲートが shadow へ戻し
+        # `_shadow_at_open=True` を書くと `[PROMO_BLOCK] force_demoted` が落ちた)。
+        _live_intent_at_open = not _is_shadow
         # ── P-V4 (2026-07-02): session filter 窓外 block の観測性 ──
         # _is_promoted_ex が「deciding factor」の cause タグを返すので、
         # mode_off / pair_demoted 等の上流 block を session filter に誤帰属
@@ -7443,7 +7593,7 @@ class DemoTrader:
         _is_promoted, _promo_block_cause = self._is_promoted_ex(entry_type, instrument)
         _session_gate_blocked = _promo_block_cause == "session_filter"
         if _session_gate_blocked:
-            _block("session_filter_live_downgrade")
+            _block("session_filter_live_downgrade", terminal=False)
         _diag_live_intent = (
             entry_type in self._SILENT_DROP_DIAG_TYPES
             and (
@@ -7890,7 +8040,31 @@ class DemoTrader:
             self._exposure_mgr.set_shadow_status(trade_id, True)
             self._add_log(
                 f"[SHADOW_FIX] Post-gate escalation: {entry_type} {instrument} "
-                f"→ shadow (OANDA gate blocked, excluded from resend)"
+                f"→ shadow (OANDA gate blocked, excluded from resend, "
+                f"cause={_promo_block_cause or 'post_gate'})"
+            )
+
+        # rule:R3 2026-09-23 (pre-send-guard-observability-r3): promotion gate の block
+        # cause (`_is_promoted_ex` 戻り値、上 7542 で 1 回だけ評価) を **event 時点**で
+        # row reasons `[PROMO_BLOCK] <cause>` + audit `shadow_tracking(promo_block:<cause>)`
+        # に永続する。転記時に現在の strategy mode を読むと mode 変更後に誤帰属する
+        # (Codex P2 4075642847)。条件 = 「row 書込み時は live 意図 (_live_intent_at_open、
+        # 不変 snapshot) → 送信判定までに shadow 化 ∧ 非 promoted」= v8.9 fallback (無ログ) /
+        # post-gate escalation / SHIELD / live 復活後の FD・PAIR 最終ゲート経由の全 flip を
+        # 1 箇所で拾う (可変の _shadow_at_open は使わない — review P2 4078373240)。除外: 上流 bypass で最初から
+        # shadow の row ([SHADOW_BYPASS] 側で帰属) / shadow_only mode (構造的 shadow、
+        # promo cause は moot) / cause 空 (SHIELD・VWAP trip・Kelly・MC ruin — Kelly・MC は
+        # 自前の `blocked` audit 行を持つ) は従来どおり素の shadow_tracking。
+        _post_gate_promo_cause = ""
+        if (_is_shadow and _live_intent_at_open and not _is_promoted
+                and _promo_block_cause and not _mode_is_shadow_only(mode)):
+            _post_gate_promo_cause = _promo_block_cause
+            self._persist_promo_block_marker(trade_id, _promo_block_cause)
+            # v8.9 fallback (7680) は無ログで shadow 化するため、event 時点の一次ソース
+            # としてここで 1 行残す (Render/DB logs; 永続面は reasons marker + audit)。
+            self._add_log(
+                f"[PROMO_BLOCK] {entry_type} {instrument} trade={trade_id} → shadow "
+                f"(cause={_promo_block_cause}, persisted to reasons + oanda_audit)"
             )
 
         _ldn_live_send = bool(_is_promoted and not _is_shadow and _bridge_active and _mode_allowed)
@@ -8049,6 +8223,18 @@ class DemoTrader:
                     units=_adjusted_units,
                     sr_meta=_sr_meta,
                 )
+                # rule:R3 2026-09-23: 上の bridge 拒否経路と対称に shadow 化する。DB row は
+                # write-time invariant (demo_db.open_trade, 48025ebd3) で既に is_shadow=1
+                # だが、in-memory _is_shadow / ExposureManager は live のままで、実弾なしの
+                # exposure 計上 + marker ログ無し (転記時に (c2) を識別できない) だった。
+                _is_shadow = True
+                self._db.update_shadow_status(trade_id, True)
+                self._exposure_mgr.set_shadow_status(trade_id, True)
+                self._add_log(
+                    f"[SHADOW_FIX] Pre-send guard: {entry_type} {instrument} "
+                    f"trade={trade_id} → shadow ({_br}, no 'sent' audit, "
+                    f"excluded from clean-live and resend)"
+                )
         else:
             # ── OANDA未連携: 理由を詳細記録 + 🔗ラベル ──
             _promo = self._promoted_types.get(entry_type, {})
@@ -8062,12 +8248,17 @@ class DemoTrader:
                 # startswith 対応済み)。
                 # weekend_gap_fade: cap skip / R2 stop は原因を機械可読で永続
                 # (pre-reg §2.2: block_cause=weekend_gap_spread_cap + 実測値保存)
+                # 優先順位: wg 固有 cause > legacy `session_filter_out` (P-V4 契約、
+                # promo_block:session_filter の alias — promo_block_cause_from_audit
+                # が正規化する) > `promo_block:<cause>` (R3 2026-09-23) > 素の値。
                 _block_reason = _resolve_shadow_audit_block_reason(
                     _is_shadow,
                     (_wg_shadow_cause if (_wg_entry and _wg_shadow_cause)
                      else ("shadow_tracking(session_filter_out)"
                            if _session_gate_blocked
-                           else SHADOW_TRACKING_BLOCK_REASON)),
+                           else (f"shadow_tracking(promo_block:{_post_gate_promo_cause})"
+                                 if _post_gate_promo_cause
+                                 else SHADOW_TRACKING_BLOCK_REASON))),
                 )
             elif _strat_mode == "off":
                 _block_reason = "手動停止"
