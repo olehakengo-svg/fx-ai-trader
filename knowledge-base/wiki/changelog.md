@@ -7,6 +7,11 @@
 - **DRAFT 訂正 2 件 (テストで実測)**: (c2) の「`oanda_trade_id` 空の非 shadow row が残る」は DB row については 48025ebd3 (2026-05-11 write-time invariant) 以降 stale — 欠陥は in-memory / ExposureManager / marker ログ側。(d) の「`[SHADOW_FIX] Post-gate escalation` が event 時点記録」は mode_off では発火しない (無ログの v8.9 fallback 7680 が先に shadow 化) — 一次ソースを `[PROMO_BLOCK]` marker / audit variant へ差替え。§2 (v) 行 / §6 転記項目 / §7 禁止事項を新観測面に同期、凍結値・分類・消費規則は不変
 - **pin**: `tests/test_pre_send_guard_observability_r3.py` 22 本 — counterfactual 10 (修復前 RED を実測) / 対称側・恒真でない側 10 (bridge 拒否・accept 経路 / daily-loss `blocked` 1 行 / gate 通過 `blocked` 0 行 / promoted row に marker 無し / 上流 bypass row の audit 素の shadow_tracking / 非 sentinel hard block 不変 / 予約前・bar_ts なし block は未記録 / サイト数 23 スコープ) / **shadow_only 母集団不変 2** (rnb relax 行 1 行・`[SHADOW_RELAX]` 従来どおり・新 marker 無し / daytrade_audjpy は mode off でも 1 行・素の shadow_tracking・`[PROMO_BLOCK]` 無し)。関連既存 22 ファイル 322 本 + full suite 通過
 - 残置: 永続 first-qualification ts (DRAFT §4 row 8、別 R3) / SHIELD・VWAP trip 由来 escalation の audit variant / 2026-09-23 以前の row は従来どおり `bypass:UNKNOWN` `promo:UNKNOWN`
+## 2026-09-23 — docs(decisions): UD1 結果 = GOLD (user 画面確認) を registry / 決裁パケットに記録 (rule:R3)
+
+- `ud1-gold-screen-check` resolved: OANDA status 画面で 9 月 keeper ($520k) 算入・**GOLD** 表示。SILVER 分岐 (packet v0.1 書き直し) は不発、v0 前提のまま確定版 10-08 へ。keeper 10 月 run 継続
+- 併記: [[integrated-decision-packet-d1-d12-2026-09-22]] 末尾 / [[path-to-win-reassessment-2026-09-22]] 末尾
+- registry 新規 `oanda-gold-monthly-status-record-2026-10` (期日 09-30 → 10-01 判定): 10 月ランクの user 確認・記録義務の読み手 (Codex P2: 参照していた「10-01 項目」は未存在だった)
 
 ## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
 
