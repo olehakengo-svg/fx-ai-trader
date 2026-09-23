@@ -4746,6 +4746,16 @@ PnL合計 N/A、トレード数 0、WR 算出不能。
 - **課題D（scalp r2_shadow_demoted_cell）**: セルの降格状態が継続中。本日も同様のブロックが続く見込み。
 - **課題E（gbp_asia_flash_crash）**: GBPは昨日のBlock Countsからも引き続き揮発性フィルターが継続発動中。GBPJPYのTRENDING_DOWN（ATR%ile 76%）と合わせて、今日のAsiaセッション開幕は特に注意。
 
+### 2026-09-23 (Pre-Tokyo Briefing)
+前日（2026-09-22）の確認済みトレードは **1件のみ**。`kalman_d7_po_dn_flip / USD_JPY / BUY / LOSS` で PnL = **-4.5p**、WR = **0%**。全体稼働モード27種中、実際に約定を生成したのは1戦略1ペアのみという極端な低稼働状態。前日を通じた全セッション（東京・ロンドン・NY）合計PnLは **-4.5p**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+唯一約定した同戦略が `SIGNAL_REVERSE` で損失決済（-4.5p, spread=0.8p）。USD_JPY のレジームが **RANGING（ATR%ile 79%）** という高ATRレンジ環境でトレンドフォロー系ロジックが機能しなかった可能性あり。
+- `r2_shadow_demoted_cell` 多発セルの降格状態が継続中である限り、約定再開は見込みにくい。現状を「Shadow評価期間中」として**自然な評価サイクルを待つ**判断が適切。
+- `order_bar_dedup` 多発のdaytrade系は重複除去が機能している正常状態とも読めるため、過剰介入を避ける。
+- EUR_JPY・GBP_JPY は既にTRENDING_DOWN（ATR81%/76%）。**さらなるATR上昇でspread_guard抵触リスク**（DT閾値20%）。特に欧州セッションでの円高加速局面に注意。
+- USD_JPY ATR%ile=79% でRANGINGは統計的に不安定な組み合わせ。TRENDING転換の可能性を保持。
+ただし長期的にShadow降格状態が継続すれば、本番稼働実績が積み上がらず **N蓄積も停滞するという構造的デッドロック** に陥る点は要注意。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
