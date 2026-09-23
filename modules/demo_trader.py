@@ -5144,8 +5144,13 @@ class DemoTrader:
         _order_bar_reserved_key = None
         _shadow_bypass_gates: list = []
 
-        def _block(reason):
-            if _order_bar_reserved_key is not None:
+        def _block(reason, *, terminal=True):
+            # terminal=False = 記帳のみで _tick_entry を抜けない呼び出し
+            # (session_filter_live_downgrade: row は作られ shadow 化される)。
+            # 予約後 first-block は「本当に終端した block」だけを記録する
+            # (PR #293 review P2 4078430621 — 成功した shadow 降格を最初の terminal
+            # block として metric に混ぜない)。
+            if terminal and _order_bar_reserved_key is not None:
                 self._note_order_bar_first_block(
                     _order_bar_reserved_key, mode=mode, entry_type=entry_type,
                     instrument=instrument, reason=reason,
@@ -7588,7 +7593,7 @@ class DemoTrader:
         _is_promoted, _promo_block_cause = self._is_promoted_ex(entry_type, instrument)
         _session_gate_blocked = _promo_block_cause == "session_filter"
         if _session_gate_blocked:
-            _block("session_filter_live_downgrade")
+            _block("session_filter_live_downgrade", terminal=False)
         _diag_live_intent = (
             entry_type in self._SILENT_DROP_DIAG_TYPES
             and (

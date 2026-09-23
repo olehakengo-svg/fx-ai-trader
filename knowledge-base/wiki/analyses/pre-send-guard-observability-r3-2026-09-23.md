@@ -2,7 +2,7 @@
 
 > **種別**: R3 (構造欠陥 = 観測面の欠落)。凍結値 / estimand / live 送信ロジック / gate 判定は**一切不変** — 追加は永続記録 (row reasons marker / oanda_audit 行 / gate_block_daily reason_key / DB log) のみ。
 > **起点**: [[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]] §2「不成立 (v) 未到達 `PRE_SEND_GUARD`」行 (PR #289、Codex 3 巡 + 敵対的レビュー) が確定した「G0' event #2 が (v) で終端したとき、亜種 (a)〜(d) を**事後に**識別できない」5 欠陥。
-> **pin**: `tests/test_pre_send_guard_observability_r3.py` 25 本 (counterfactual 10 + 対称側/恒真でない側 10 + shadow_only 母集団不変 2 + review P2 消化 3: audit 2 世代の正規化 helper / session_filter 行 / live 復活後の FD 最終ゲート経路)。修復前に 10 本が挙動理由で RED、修復後 GREEN を実測。
+> **pin**: `tests/test_pre_send_guard_observability_r3.py` 26 本 (counterfactual 10 + 対称側/恒真でない側 10 + shadow_only 母集団不変 2 + review P2 消化 4: audit 2 世代の正規化 helper / session_filter 行 / live 復活後の FD 最終ゲート経路 / 非終端 `_block` の first-block 除外)。修復前に 10 本が挙動理由で RED、修復後 GREEN を実測。
 
 ## 0. 3 行サマリ
 
@@ -42,6 +42,7 @@ gate ラベル (修復 4) は `_block` reason の正規化キーと同じ語彙:
 - **キー空間**: `order_bar_dedup_first:<reason_key>` は既存 reason 正規化 (`reason.split('(')[0]`) を使うため、gate_block_daily のキー集合は既存 reason 数 × 1 で有界。in-memory の予約→初回理由 map は `_order_bar_signal_emits` に無い key を 512 超で剪定。
 - **(d) の統一永続点**: 「post-gate escalation ブロック内」ではなく「全 flip 完了後 (`_ldn_live_send` の直前)」に置いた。理由 = mode_off / pair_demoted / force_demoted は v8.9 fallback (7680) が**無ログで先に** shadow 化し、escalation ブロック (`not _is_promoted and not _is_shadow`) に到達しない (テストで実測)。条件に「row 書込み時は live 意図だった」(`_live_intent_at_open`) を含めることで、その row のみを (d) に帰属し、上流 bypass row ((b)、書込み時から shadow) と shadow_only mode row (構造的 shadow) を除外する。**flag は書込み直後の不変 snapshot** — 既存の `_shadow_at_open` は persistence-fix の差分検出用で、emergency trip / GRAIL・C1・PRIME の live 復活 / `_apply_force_demoted_final_gate` が書き換える可変値のため条件に使わない (PR #293 review P2 4078373240: C1 が fib_reversal を live 復活 → FD 最終ゲートが shadow へ戻し `_shadow_at_open=True` を書くと帰属が落ちた。pin: `test_promo_cause_survives_late_demotion_gate_after_live_override` — GRAIL 復活 → `[FORCE_DEMOTED_GATE]` の実機構順序を踏ませる)。cause 空 (SHIELD mode / VWAP trip / Kelly / MC ruin) は従来どおり素の `shadow_tracking` — Kelly / MC は自前の `blocked` audit を持つ。
 - **audit key の 2 世代 (PR #293 review P2 4078290940)**: `shadow_tracking(session_filter_out)` は P-V4 の legacy variant で、exact pin (`tests/test_session_filter_promotion_guard.py`) と KB 参照 ([[zero-fire-diagnosis-carrydip-vix-2026-07-02]]) を持つ契約のため書き換えない。row reasons の `[PROMO_BLOCK] session_filter` は標準表記で付く (pin: `test_session_filter_keeps_legacy_audit_key_and_gets_promo_marker`)。消費側は文字列比較でなく `promo_block_cause_from_audit(block_reason)` (legacy alias → `session_filter`、`promo_block:<cause>` → `<cause>`、他 → "") で正規化する。
+- **first-block は終端 `_block` のみ (PR #293 review P2 4078430621)**: `_block(reason, *, terminal=True)` に非終端フラグを追加。`_tick_entry` 内で return を伴わない `_block` 呼び出しは `_block("session_filter_live_downgrade", terminal=False)` の 1 箇所のみ (走査で確認) — row が作られ shadow 化される「成功した降格」を `order_bar_dedup_first:*` に混ぜない。counter 本体は従来どおり。pin: `test_nonterminal_session_filter_downgrade_is_not_recorded_as_first_block` (修正前 RED: 偽キー `order_bar_dedup_first:session_filter_live_downgrade` が 1 件記録されていた)。
 - **corner case (記録する)**: `_promo_block_cause` 非空 → force-live override (PRIME / GRAIL / C1 / kalman / edge-cell) で `_is_promoted=True` → その後 Kelly / MC で再度 False、の順で起きると `[PROMO_BLOCK] <cause>` は「promotion gate の verdict」として付くが最終 blocker は Kelly / MC (自前 audit あり)。転記時は audit `blocked` 行を優先する。
 - **(c2) の DB row**: `demo_db.open_trade(enforce_oanda_live_invariant=True)` (48025ebd3、2026-05-11) 以降、fill 前の row は常に is_shadow=1 で、`set_oanda_trade_id` の fill callback だけが is_shadow=0 にする。従って pre-check 拒否 row が resend (`get_open_trades_without_oanda` は is_shadow=0 のみ) に拾われる経路は元から無い。修復 1 の実効 = ExposureManager の実弾なし live 計上の解消 + marker ログ。
 
@@ -49,7 +50,7 @@ gate ラベル (修復 4) は `_block` reason の正規化キーと同じ語彙:
 
 - `modules/demo_trader.py`: 定数 834–836 / helper 1471–1521 (`_note_order_bar_first_block` / `_order_bar_first_block_reason` / `_persist_promo_block_marker`) / `_block` closure 5124–5133 / 予約 5665–5680 / bypass marker 23 サイト / reasons fold 6973 / (d) 統一永続点 7998–8015 / pre-check shadow 化 8170–8186 / audit variant 8204
 - `modules/oanda_bridge.py`: `_add_refused_audit` 391–414 / `open_trade` 冒頭 675–711
-- `tests/test_pre_send_guard_observability_r3.py` (新規 25 本)
+- `tests/test_pre_send_guard_observability_r3.py` (新規 26 本)
 - KB: 本ページ / `wiki/changelog.md` / `CHANGELOG.md` / DRAFT §2 (v) 行 + §6 転記項目 + §7 禁止事項の識別手順を新観測面へ更新 (凍結値・分類規則・消費規則は不変)
 
 ## 5. 残置 (範囲外)

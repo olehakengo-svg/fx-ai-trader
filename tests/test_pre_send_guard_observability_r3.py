@@ -621,6 +621,38 @@ def test_post_reservation_first_block_persisted_once_and_surfaced_on_dedup(tmp_p
     assert _rows(trader) == []
 
 
+def test_nonterminal_session_filter_downgrade_is_not_recorded_as_first_block(tmp_path, monkeypatch):
+    """PR #293 review P2 (4078430621): `_block("session_filter_live_downgrade")` は意図的に
+    **非終端** (row は作られ shadow 化される)。予約 key があってもこれを
+    `order_bar_dedup_first:*` として記録してはならない (成功した shadow 降格を「最初の
+    terminal block」として metric を汚染する)。counter 本体 (`session_filter_live_downgrade`)
+    は従来どおり増える。"""
+    import tests.test_session_filter_promotion_guard as _sf
+    from edge_cell_test_helpers import make_trader as _make_sf_trader
+
+    cell = (_sf.VIX, _sf.INST)
+    monkeypatch.setattr(demo_trader_mod, "DemoTrader", DemoTrader)
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_PROMOTED", frozenset(set(DemoTrader._PAIR_PROMOTED) | {cell}))
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_DEMOTED", frozenset(t for t in DemoTrader._PAIR_DEMOTED if t != cell))
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_SESSION_FILTER", {**DemoTrader._PAIR_SESSION_FILTER, cell: {"Overlap"}})
+    trader, logs = _make_sf_trader(tmp_path, monkeypatch, hour=_sf.HOUR_OUT)
+    assert init_block_table(trader._db._path)
+    sig = _sf._vix_sell_sig()
+    sig["_closed_bar_ts"] = _BAR_TS  # order-bar 予約を成立させる
+
+    trader._tick_entry("daytrade", _sf._usdjpy_cfg(), sig, "15m", _sf.INST)
+
+    rows = _rows(trader)
+    assert rows and rows[0]["is_shadow"] == 1, "non-terminal downgrade must still create the row"
+    counts = query_block_counts(trader._db._path, days=7, strategy=_sf.VIX)["per_strategy_counts"]
+    assert counts.get(f"{_sf.VIX}:session_filter_live_downgrade") == 1, counts
+    assert _first_block_keys(counts) == {}, counts
+    assert not any("first terminal block" in m for m in logs), [m for m in logs if "ORDER_BAR" in m]
+
+
 def test_pre_reservation_block_records_no_first_block(tmp_path, monkeypatch):
     """対称側: 予約前 blocker (conf<threshold) は次 tick で再評価されるので記録しない。"""
     fake = _fake_bridge(accept=True)
