@@ -1039,7 +1039,17 @@
       "condition": "user が GOLD / SILVER / 不明 のいずれかを返答し、packet §1 UD1 に転記されること",
       "reachability": "user 決裁 (会員画面は user のみ読める — Claude は OANDA 会員画面に到達できない)。Claude は返答を packet §1 に転記し、SILVER なら v0.1 を起票。期日超過は『無回答 = 既定挙動』として記録し packet 確定版 (10-08) に無回答を明記して active:false にする (黙って延長しない)。",
       "resolved": "2026-09-23",
-      "resolution": "user 画面確認 (2026-09-23 JST 午前、session 5f9b6517): OANDA status 画面で 9 月 keeper ($520k) が「今月の取引額」に算入され **GOLD 表示**。→ 決裁パケット v0 の前提 (D5/D6/D7、live 系施策 Rank 5・7) は維持、SILVER 分岐 (packet v0.1 書き直し) は不発。keeper は設計どおり 10 月 run (¥2,080) 継続。10-01 の月次判定記録 (registry 既存の 10-01 項目) は別途。"
+      "resolution": "user 画面確認 (2026-09-23 JST 午前、session 5f9b6517): OANDA status 画面で 9 月 keeper ($520k) が「今月の取引額」に算入され **GOLD 表示**。→ 決裁パケット v0 の前提 (D5/D6/D7、live 系施策 Rank 5・7) は維持、SILVER 分岐 (packet v0.1 書き直し) は不発。keeper は設計どおり 10 月 run (¥2,080) 継続。10 月の月次判定 (Gold 維持) の記録は新規 entry `oanda-gold-monthly-status-record-2026-10` (期日 09-30、cron 判定 10-01 00:20Z) が読む。"
+    },
+    {
+      "id": "oanda-gold-monthly-status-record-2026-10",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-09-30",
+      "doc": "knowledge-base/wiki/decisions/integrated-decision-packet-d1-d12-2026-09-22.md",
+      "message": "OANDA status 月次判定 (10 月分) の記録義務。9 月 keeper $520k で GOLD 表示は user が 09-23 に画面確認済み (UD1 resolved)。10-01 (JST) に status 画面の 10 月ランク表示 (GOLD / SILVER / 不明) を user に確認依頼し、結果を packet D1〜D12 の「UD1 結果」節と本 entry の resolution に記録する。SILVER なら packet v0.1 書き直しトリガ (D5 / D6 / D7 の前提消滅) を発動。Gold 画面は user 専権 (autopilot は依頼と記録のみ)。deadline は cron 判定 (翌日 00:20Z) を考慮して 09-30 に置く規則どおり (PR #292 Codex P2 4078219840: 参照先の 10-01 entry が存在しなかったため新設)。",
+      "condition": "packet D1〜D12「UD1 結果」節に 10 月ランク (GOLD / SILVER / 不明) が user 確認日付付きで追記され、本 entry の resolution に転記されていること。",
+      "reachability": "Claude (autopilot / daily session) が 10-01 JST に user へ画面確認を依頼し、回答を packet と registry に記録する docs commit を積む。Tier A cron (tools/prereg_trigger_watch.py、10-01 00:20Z) が deadline 超過で TRIGGERED を出す = 依頼忘れの検知。"
     },
     {
       "id": "e1-first-look-freeze-due",

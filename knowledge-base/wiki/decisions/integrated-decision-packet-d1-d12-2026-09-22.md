@@ -215,4 +215,4 @@ D1: B / D2: (i) L73 (ii) type×pair×dir / D3: (i) ¥54,000 (補項: 単 leg、1
 
 - user 画面確認 (2026-09-23 JST 午前): OANDA status 画面「今月の取引額」に 9 月 keeper 26 RT ($520k) が算入され **GOLD** 表示。
 - 帰結: §1 UD1 の SILVER 分岐 (v0.1 書き直し、D5/D6/D7 前提消滅、D3 縮約、Rank 5・7 前提消滅) は**不発**。v0 の前提はそのまま確定版 (10-08) へ。keeper は 10 月も設計どおり run (¥2,080/月)。
-- registry `ud1-gold-screen-check` resolved (2026-09-23)。10-01 の月次判定は既存の 10-01 項目で別途記録。
+- registry `ud1-gold-screen-check` resolved (2026-09-23)。10 月の月次判定 (Gold 維持) は**新規** registry entry `oanda-gold-monthly-status-record-2026-10` (期日 09-30、cron 判定 10-01 00:20Z、Gold 画面は user 専権で Claude は依頼と記録のみ) が読む — 旧記述「既存の 10-01 項目」は存在しなかった (PR #292 Codex P2 4078219840 で訂正)。

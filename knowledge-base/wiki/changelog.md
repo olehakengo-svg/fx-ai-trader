@@ -4,6 +4,7 @@
 
 - `ud1-gold-screen-check` resolved: OANDA status 画面で 9 月 keeper ($520k) 算入・**GOLD** 表示。SILVER 分岐 (packet v0.1 書き直し) は不発、v0 前提のまま確定版 10-08 へ。keeper 10 月 run 継続
 - 併記: [[integrated-decision-packet-d1-d12-2026-09-22]] 末尾 / [[path-to-win-reassessment-2026-09-22]] 末尾
+- registry 新規 `oanda-gold-monthly-status-record-2026-10` (期日 09-30 → 10-01 判定): 10 月ランクの user 確認・記録義務の読み手 (Codex P2: 参照していた「10-01 項目」は未存在だった)
 
 ## 2026-09-23 — fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 (rule:R3)
 
