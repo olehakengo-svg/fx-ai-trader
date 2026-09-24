@@ -344,9 +344,9 @@ def test_daily_report_monitoring_csv_is_ignored():
     分析: analyses/dual-engine-dup-rate-readout-2026-09-24.md §7。
 
     性質 A: `data/monitoring/**` は ignore される (実在パス形状で確認)
-    性質 B: web プロセス (app.py / modules/) に読み手が居ない — `data/monitoring` /
-            `nav_floor_projection.csv` をパスとして参照するコードが無いこと
-            (読み始めたら ignore を外す。tools/ 名の docstring 言及は対象外)
+    性質 B: web プロセス (app.py / modules/** / strategies/**、再帰) に読み手が居ない —
+            `data/monitoring` / `nav_floor_projection.csv` をパスとして参照するコードが
+            無いこと (読み始めたら ignore を外す。tools/ 名の docstring 言及は対象外)
     性質 C: sibling の `data/cache/**` は巻き込まない (取引パス read)
     """
     ignored = _ignored_paths()
@@ -356,7 +356,14 @@ def test_daily_report_monitoring_csv_is_ignored():
             f"日報 CSV が ignore されていない (日報 commit が取引エンジンを 1 日 4 回再起動する): {p}"
         )
     readers = []
-    for src in [ROOT / "app.py"] + sorted((ROOT / "modules").glob("*.py")):
+    # web プロセスが import する全パッケージを**再帰**で走査する (PR #297 review P2):
+    # `modules/*.py` だけだと modules/strategies/** や strategies/** の読み手を見逃し、
+    # ignore 後に deployment-stale なファイルを読み続けるプロセスが guard を通り抜ける。
+    runtime_srcs = ([ROOT / "app.py"]
+                    + sorted((ROOT / "modules").rglob("*.py"))
+                    + sorted((ROOT / "strategies").rglob("*.py")))
+    assert len(runtime_srcs) > 50, "走査対象が縮小している (rglob が壊れた?)"
+    for src in runtime_srcs:
         if not src.exists():
             continue
         text = src.read_text(encoding="utf-8")
