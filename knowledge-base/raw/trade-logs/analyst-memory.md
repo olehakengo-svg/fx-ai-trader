@@ -4766,6 +4766,16 @@ PnL合計 N/A、トレード数 0、WR 算出不能。
 | 降格候補（N≥30 & EV<−0.5） | 該当なし | N到達戦略なし |
 - **`r2_shadow_demoted_cell`が主力scalpを事実上封鎖**（scalp: 485件, scalp_eur: 356件, scalp_5m_eur: 266件, scalp_5m: 209件, scalp_5m_gbp: 188件）
 
+### 2026-09-24 (Pre-Tokyo Briefing)
+前日（2026-09-23）トレード数 **0本**。PnL **¥0**、WR **N/A**。
+Cutoff後（2026-04-08〜）の有効トレードは **N=1（kalman_d7_po_dn_flip / USD_JPY、EV=-4.50）** のみで、実質的に稼働統計は存在しない水準。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計判定**: N=1 → **「データなし」扱い**（統計的判断不能）。EV=-4.50 は1サンプルの偶発値であり、戦略評価に使用しない。昇格・降格いずれの判定も保留。
+- **rnb_usdjpy**：USD_JPYが「RANGING」レジームにもかかわらずno_signal 505件は過剰に見える。RnB戦略がレンジ環境で機能するはずが発火ゼロ → レジーム認識とシグナル生成条件のミスマッチを**監視継続**（介入判断はN≥30後）
+- **r2_shadow_demoted_cell**：scalp系3戦略合計268件。Shadow demoteセルの蓄積がscalpシグナル枯渇の直接原因 → N蓄積を妨げる構造的抑制として**注視を継続**
+- **score_gate**：daytrade + daytrade_eurで計213件 → 市場環境がスコア閾値を満たすシグナルを生成していない。本日TRENDING_DOWN環境が継続する場合、daytrade系の発火条件が整う可能性 → **午後のロンドン時間帯に注目**
+| EUR_USD | RANGING | 59% | -0.00471 | Scalp_eur / scalp_5m_eur：レンジ環境でscalpは本来有利だが、r2_shadow_demoteが128件阻害。レンジブレイクに注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
