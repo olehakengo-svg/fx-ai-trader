@@ -16241,7 +16241,8 @@ def _auto_start_trader():
 
     from modules.demo_trader import MODE_CONFIG as _mc
     _all_modes = [m for m, c in _mc.items() if c.get("auto_start", True)]
-    print(f"[AutoStart] Starting {len(_all_modes)} modes: {_all_modes}", flush=True)
+    from modules.demo_trader import engine_process_role as _engine_process_role
+    print(f"[AutoStart] Starting {len(_all_modes)} modes (pid={os.getpid()} role={_engine_process_role()}): {_all_modes}", flush=True)
     for _mode in _all_modes:
         try:
             result = _demo_trader.start(mode=_mode)
