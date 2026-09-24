@@ -4786,6 +4786,16 @@ Cutoff後（2026-04-08〜）の有効トレードは **N=1（kalman_d7_po_dn_fli
 - GBP 系は `gbp_asia_flash_crash` ガードが継続発動する可能性が高く、東京時間の GBP ポジション期待値はゼロとみなす
 - **EUR_USD**: ATR%ile=59%・Slope微弱下向き。RANGING → TRENDING_DOWN への遷移が進めば Scalp の適合条件が変化する
 
+### 2026-09-24 (Pre-Tokyo Briefing)
+前日（2026-09-23）のトレード実績は**0件**。PnL = ¥0、WR = N/A。
+Cutoff後の有効データ全期間でも、`kalman_d7_po_dn_flip / USD_JPY` の **N=2（EV=-12.25、PnL=-24.5p）** のみが記録されており、戦略全体として実質的に非稼働状態が続いている。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的注記**: N=2はデータなしと同義。EV=-12.25は参考値に過ぎず、降格判断の根拠には使用不可。
+- **`order_bar_dedup`**: 同バー内重複注文の除去。ロジック正常稼働の証拠であり、直接の問題ではないが、同バー内でのシグナル多発はエントリー機会の実質的な圧縮を意味する。
+- **`r2_shadow_demoted_cell`**: Shadow tracking（デモ先行検証）での降格セルへの到達 — これが**最大の実稼働抑制要因**。R2評価でデモ段階を通過していないセルへのエントリーをシステムが自律的に遮断している。
+| USD_JPY | RANGING | 76% | -0.00310 | rnb_usdjpy ⚠️ RANGINGだがATR高水準で注意 |
+**レジーム遷移リスク**: EUR_USD は現在RANGING（ATR%ile 59%）。ロンドンセッションで方向性が出始めた場合、TRENDING_DOWNへの遷移が起き、スキャルピング系の有効性が低下する可能性。USD_JPYのRANGING + 高ATRは引き続き不安定な組み合わせ — ブレイクアウト方向への急転換に注意。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
