@@ -332,6 +332,33 @@ def test_cron_only_kb_state_paths_are_ignored():
     )
 
 
+# web プロセス (`gunicorn app:app`) が import しうる**全**ローカル package を走査対象にする。
+# `modules/` + `strategies/` だけだと app.py が直接 import する cfd_trader.web.app /
+# scripts.cfd_phase2_shadow_catchup / tools.* の読み手を見逃す (PR #297 review P2 ×2)。
+# 「どの package が web に import されるか」を列挙で追うと必ず漏れるので、リポジトリ内の
+# .py を**全部**読み、web と無関係と確定しているディレクトリだけを除く (fail-closed の向き)。
+_NON_WEB_DIRS = {
+    "tests", "cfd_tests",            # テスト
+    ".worktrees", ".claude", ".git",  # 作業ツリー / エージェント
+    "knowledge-base", "docs", "wiki", "reports", "research", "audit", "audits",
+    "bt-results", "raw", "done", "templates", "migrations", "monitoring",
+    "node_modules", ".venv", "venv", "services",  # discord bot (別 service)
+}
+# web プロセス外で `data/monitoring` を**書く**ことが確定している writer (GitHub Actions
+# daily-report.yml が起動、web からの import なしを下で pin)。
+_MONITORING_WRITERS_OUTSIDE_WEB = {"tools/nav_floor_projection.py"}
+
+
+def _web_runtime_sources() -> list[Path]:
+    out = []
+    for src in sorted(ROOT.rglob("*.py")):
+        rel = src.relative_to(ROOT)
+        if any(part in _NON_WEB_DIRS for part in rel.parts[:-1]) or rel.parts[0].startswith("."):
+            continue
+        out.append(src)
+    return out
+
+
 def test_daily_report_monitoring_csv_is_ignored():
     """2026-09-24 (rule:R3): 日報 commit が F4 資金時計 CSV で本番を 1 日 4 回再デプロイしていた.
 
@@ -344,9 +371,12 @@ def test_daily_report_monitoring_csv_is_ignored():
     分析: analyses/dual-engine-dup-rate-readout-2026-09-24.md §7。
 
     性質 A: `data/monitoring/**` は ignore される (実在パス形状で確認)
-    性質 B: web プロセス (app.py / modules/** / strategies/**、再帰) に読み手が居ない —
-            `data/monitoring` / `nav_floor_projection.csv` をパスとして参照するコードが
-            無いこと (読み始めたら ignore を外す。tools/ 名の docstring 言及は対象外)
+    性質 B: web プロセスが import しうる全ローカル .py (`_web_runtime_sources`、
+            tests/KB 等の非 web ディレクトリのみ除外) に読み手が居ない —
+            連続文字列 `data/monitoring` / `nav_floor_projection.csv` **と**
+            分割リテラル (`Path("data") / "monitoring"` / `os.path.join("data", "monitoring", …)`)
+            の両形を検査 (読み始めたら ignore を外す)
+    性質 B': 既知 writer (`tools/nav_floor_projection.py`) は web から import されていない
     性質 C: sibling の `data/cache/**` は巻き込まない (取引パス read)
     """
     ignored = _ignored_paths()
@@ -355,23 +385,41 @@ def test_daily_report_monitoring_csv_is_ignored():
         assert any(_matches(p, pat) for pat in ignored), (
             f"日報 CSV が ignore されていない (日報 commit が取引エンジンを 1 日 4 回再起動する): {p}"
         )
-    readers = []
-    # web プロセスが import する全パッケージを**再帰**で走査する (PR #297 review P2):
-    # `modules/*.py` だけだと modules/strategies/** や strategies/** の読み手を見逃し、
-    # ignore 後に deployment-stale なファイルを読み続けるプロセスが guard を通り抜ける。
-    runtime_srcs = ([ROOT / "app.py"]
-                    + sorted((ROOT / "modules").rglob("*.py"))
-                    + sorted((ROOT / "strategies").rglob("*.py")))
-    assert len(runtime_srcs) > 50, "走査対象が縮小している (rglob が壊れた?)"
-    for src in runtime_srcs:
-        if not src.exists():
+    srcs = _web_runtime_sources()
+    rels = {str(s.relative_to(ROOT)) for s in srcs}
+    assert len(srcs) > 200, f"走査対象が縮小している (rglob / 除外集合が壊れた?): {len(srcs)}"
+    for must in ("app.py", "modules/demo_trader.py", "strategies/__init__.py",
+                 "cfd_trader/web/app.py", "scripts/cfd_phase2_shadow_catchup.py"):
+        assert must in rels, f"web が import する package が走査対象から外れている: {must}"
+
+    # `"data", "monitoring"` (os.path.join) と `Path("data") / "monitoring"` の両形。
+    # 後者は `"data"` の直後に `)` が入るので省略可能な閉じ括弧を許す
+    # (`_literal_paths_with_root` は `)` を許さず Path(...) 形を見逃す — counterfactual 実測)。
+    seg = re.compile(r'"data"\)?((?:\s*[,/]\s*"[A-Za-z0-9_.\-]+")+)')
+    readers, importers = [], []
+    for src in srcs:
+        rel = str(src.relative_to(ROOT))
+        text = src.read_text(encoding="utf-8", errors="replace")
+        if rel not in _MONITORING_WRITERS_OUTSIDE_WEB and re.search(
+                r"^\s*(from\s+tools\.nav_floor_projection\s+import|"
+                r"from\s+tools\s+import[^\n]*\bnav_floor_projection\b|"
+                r"import\s+tools\.nav_floor_projection)", text, re.M):
+            importers.append(rel)
+        if rel in _MONITORING_WRITERS_OUTSIDE_WEB:
             continue
-        text = src.read_text(encoding="utf-8")
-        if "data/monitoring" in text or "nav_floor_projection.csv" in text:
-            readers.append(str(src.relative_to(ROOT)))
+        contiguous = "data/monitoring" in text or "nav_floor_projection.csv" in text
+        segmented = any(
+            re.findall(r'"([A-Za-z0-9_.\-]+)"', m.group(1))[:1] == ["monitoring"]
+            for m in seg.finditer(text)
+        )
+        if contiguous or segmented:
+            readers.append(rel)
     assert not readers, (
-        "web プロセスが data/monitoring を読み始めている。ignoredPaths から外すこと: "
-        f"{readers}"
+        "web プロセスが import しうるコードが data/monitoring を読み始めている。"
+        " ignoredPaths から外すこと: %s" % readers
+    )
+    assert not importers, (
+        "web プロセスが writer (tools/nav_floor_projection.py) を import している —"
+        " 読み手になった可能性。ignore を見直すこと: %s" % importers
     )
     assert not any(_matches("data/cache/yield/any.json", pat) for pat in ignored)
-
