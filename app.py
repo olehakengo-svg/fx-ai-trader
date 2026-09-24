@@ -16240,6 +16240,8 @@ def _auto_start_trader():
         return
 
     from modules.demo_trader import MODE_CONFIG as _mc
+    # rule:R3 2026-09-24: このプロセスのエンジンを起こした経路 (import 時 autostart) を記録。
+    _demo_trader._engine_start_origin = "autostart"
     _all_modes = [m for m, c in _mc.items() if c.get("auto_start", True)]
     from modules.demo_trader import engine_process_role as _engine_process_role
     print(f"[AutoStart] Starting {len(_all_modes)} modes (pid={os.getpid()} role={_engine_process_role()}): {_all_modes}", flush=True)

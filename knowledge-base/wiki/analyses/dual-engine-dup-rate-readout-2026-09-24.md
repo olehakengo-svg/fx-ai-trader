@@ -13,7 +13,7 @@
 | dedup=0 の N は膨張しているか | **していない**。133 ペア全てで片方が `dedup_violation=1` (両方 0 = **0 ペア**)。write-time フラグ (2026-09-02) が cross-process dup を全件捕捉 | §2 |
 | LIVE 二重送信 | **0 件 / 30d**。live 11 行に 120 秒以内の twin なし、audit `sent` 12 / `filled` 11 (差 1 = 09-06 weekend_gap_fade の既知 sent-no-fill)、本日 kalman #893189 も sent 1 / filled 1 | §3 |
 | 単一化の regime break (shadow 生成率) | **自然実験で検出されず**: master 単独だった HTTP 全盲窓 (09-15 / 09-22 00:15–03:33Z) の kept 行 **12 / 10 本** vs 二重の平日同窓 **平均 9.75、中央値 10** (20 日、0–17)。⚠️ N=2 日・3h 窓・記述級 | §4 |
-| 何を変えたか | row reasons に `[EMIT_PROC] import|forked` marker、stdout ログに `pid=`/`role=`、status に `engine_pid`/`engine_process_role` (**record-only、取引挙動不変**) | §5 |
+| 何を変えたか | row reasons に `[EMIT_PROC] <role>:<origin>` marker (role = import/forked、origin = autostart/statusheal)、stdout ログに `pid=`/`role=`/`origin=`、status に `engine_pid`/`engine_process_role`/`engine_import_pid`/`engine_start_origin` (**record-only、取引挙動不変**) | §5 |
 | 単一化の設計 | gunicorn `post_worker_init` hook で autostart (master は import のみ)。deploy 時刻 + marker で層別 | §6 |
 | 副産物 | `docs(KB): daily report` commit が `data/monitoring/nav_floor_projection.csv` 経由で**本番を 1 日 4 回再デプロイ** (ignoredPaths 漏れ) → 別 PR | §7 |
 
@@ -95,11 +95,12 @@ master 単独でエンジンが走った窓 = HTTP 全盲 3 件のうち平日 2
 
 | 箇所 | 変更 |
 |---|---|
-| `modules/demo_trader.py` module | `_MODULE_IMPORT_PID = os.getpid()` を import 時に凍結、`engine_process_role()` = `import` (import したプロセス = gunicorn master) / `forked` (fork 後の子 = worker)、`emit_proc_marker()` = `[EMIT_PROC] <role>` |
+| `modules/demo_trader.py` module | `_MODULE_IMPORT_PID = os.getpid()` を import 時に凍結、`engine_process_role()` = `import` (import したプロセス = gunicorn master) / `forked` (fork 後の子 = worker)、`emit_proc_marker(origin)` = `[EMIT_PROC] <role>:<origin>` |
+| 起動経路 (origin) | `_engine_start_origin` = `autostart` (app.py `_auto_start_trader`、モード起動の**前**に刻む) / `statusheal` (`get_status` の MainLoop 再起動分岐) / `unknown`。**role は import 順序の前提 (master が import → fork) に依存するが、origin は「このプロセスのエンジンを誰が起こしたか」の事実**なので、前提が崩れても帰属が黙って壊れない (PR #296 Codex review P1 の消化) |
 | 両方の `self._db.open_trade(` call site (shadow 永続化 `_open_shadow_emit_trade` / primary `_tick_entry`) | reasons に marker を 1 個 append (`[SHADOW_BYPASS]` / `[PROMO_BLOCK]` と同型)。**選択条件・gate・dedup では読まない** |
 | stdout | `[MainLoop] iter=… pid=… role=…` / `[MainLoop/<mode>] tick #… pid=…` / `[StatusHeal] Healed: … | pid=… role=…` / app.py `[AutoStart] Starting … (pid=… role=…)` |
-| `get_status()` | `engine_pid` / `engine_process_role` (常に worker 側の値 — master は不可視、という事実自体を露出) |
-| pin | `tests/test_dual_engine_process_attribution.py` 12 本 — role 2 値 / marker は PID を含まない / **call site 2 箇所が対称に append** (片側を外すと 3 本落ちる、counterfactual 実測・sha 一致 restore) / record-only (述語として読まれていない) / ログ 4 行 / status 2 key / 永続 row の reasons に marker (import・forked 両側) |
+| `get_status()` | `engine_pid` / `engine_process_role` / `engine_import_pid` / `engine_start_origin` (常に worker 側の値 — master は不可視、という事実自体を露出)。**self-check**: worker で `engine_pid != engine_import_pid` なら「master が import → fork」トポロジが成立 (role 軸が使える)。等しければ worker 自身が import している (gunicorn `--preload` なし等) = role 軸は捨て origin 軸だけで読む |
+| pin | `tests/test_dual_engine_process_attribution.py` 17 本 — role 2 値 (**実 fork** で親 import / 子 forked を検査) / marker に PID 桁なし / origin が autostart (モード起動前) と statusheal (MainLoop 再起動分岐) で刻まれる / **call site 2 箇所が対称に append** (片側を外すと 3 本落ちる、counterfactual 実測・sha 一致 restore) / record-only (述語として読まれていない) / ログ 4 行 / status 4 key / 永続 row の reasons に marker (import:unknown・forked:statusheal 両側) |
 
 読み手 (10-01、registry `dual-engine-emit-proc-attribution-readout`):
 
@@ -113,11 +114,15 @@ for t in rows:
     r=t.get("reasons"); r=json.loads(r) if isinstance(r,str) else (r or [])
     tag=[x for x in r if str(x).startswith("[EMIT_PROC]")]
     c[tag[0] if tag else "none"]+=1
-print(c)   # kept shadow 行の import / forked / none (marker 前の行)
+print(c)   # kept shadow 行の <role>:<origin> / none (marker 前の行)
+st=json.load(urllib.request.urlopen("https://fx-ai-trader.onrender.com/api/demo/status"))
+print({k:st.get(k) for k in ("engine_pid","engine_import_pid","engine_process_role","engine_start_origin")})
 EOF
 ```
 
-判定表: `forked` 比率 p_f。(a) p_f ≈ 0.5 → 対称 race winner、単一化の生成率影響は §4 どおり小 / (b) p_f ≪ 0.5 (例 <0.2) → worker エンジンは殆ど emit しておらず単一化の影響ほぼゼロ / (c) p_f ≫ 0.5 → master エンジンが劣後 (HTTP 全盲時のみ稼ぐ) — いずれでも**単一化 PR は起案**、違うのは layered N の読み方だけ。
+**self-check (先に読む)**: status の `engine_pid != engine_import_pid` ∧ `engine_process_role == forked` ∧ `engine_start_origin == statusheal` なら「master が import → worker へ fork」トポロジが実測どおり (§1)。もし `engine_pid == engine_import_pid` なら worker 自身が import しており、**role 軸 (import/forked) は無効** — origin 軸 (autostart/statusheal) だけで p_f を読む。Render ログの `[MainLoop] iter=` に `pid=` が 2 種類あることも併せて確認する。
+
+判定表: 2 本目のエンジン (role `forked` ≡ origin `statusheal`) の比率 p_f。(a) p_f ≈ 0.5 → 対称 race winner、単一化の生成率影響は §4 どおり小 / (b) p_f ≪ 0.5 (例 <0.2) → worker エンジンは殆ど emit しておらず単一化の影響ほぼゼロ / (c) p_f ≫ 0.5 → master エンジンが劣後 (HTTP 全盲時のみ稼ぐ) — いずれでも**単一化 PR は起案**、違うのは layered N の読み方だけ。
 
 ## 6. 単一化の設計 (別 PR、R3 + deploy stamp)
 
