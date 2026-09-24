@@ -4796,6 +4796,12 @@ Cutoff後の有効データ全期間でも、`kalman_d7_po_dn_flip / USD_JPY` �
 | USD_JPY | RANGING | 76% | -0.00310 | rnb_usdjpy ⚠️ RANGINGだがATR高水準で注意 |
 **レジーム遷移リスク**: EUR_USD は現在RANGING（ATR%ile 59%）。ロンドンセッションで方向性が出始めた場合、TRENDING_DOWNへの遷移が起き、スキャルピング系の有効性が低下する可能性。USD_JPYのRANGING + 高ATRは引き続き不安定な組み合わせ — ブレイクアウト方向への急転換に注意。
 
+### 2026-09-24 (Pre-Tokyo Briefing)
+前日（2026-09-23）はトレードゼロ。Cutoff後全期間を通じても有効取引は `kalman_d7_po_dn_flip / USD_JPY` の N=2 のみで、PnL合計 **−24.5p**、WR **0.0%**。システムはポジション保有ゼロで東京セッションに入る。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **N=2 は「データなし」扱い**（統計的有意性基準: N<10）。EV=−12.25は参考値に留め、昇格/降格判断の対象外。
+Cutoff後に判断可能な戦略が皆無。N=2のEV=−12.25はノイズであり、これをもって`kalman_d7_po_dn_flip`の降格/昇格判断は**不可**。システムは現在「評価フェーズに入ることすらできない」状態にある。問題はパフォーマンスではなく、**トレード機会の創出自体**。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
