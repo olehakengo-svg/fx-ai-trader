@@ -35,6 +35,7 @@
 - **なぜ「再決裁」か**: [[status-volume-keeper-2026-09-01]] で user は **案 A (自動 keeper)** を選び、[[live-frequency-and-oanda-status-survival-2026-09-01]] L36 の **案 B (user 手動出来高)** を退けた。M1 は案 B の変種 (system 口座でなく別口座) なので、09-01 決裁の上書きになる。
 - **unverifiable 2 点**: (a) 複数口座の出来高が会員単位で合算されるか — status 頁に「合算 / 複数口座 / 口座単位」の語 0 件。(b) user 側コスト = spread 差 (0.8 銭 − s0) × 出来高 で、上界は $500k 相当 250,000〜260,000 units×RT × 0.8 銭 = **¥2,000〜2,080/月** (= keeper と同額が上界、s0 ≥ 0)。swap/financing 差・個人口座の証拠金・units 下限 (≥1,634u/RT で $500k 充足) は未算入。
 - **効くもの / 効かないもの**: 必要 gross% の圧縮には効く。**clock には効かない** (G3 binding、L0 では keeper=0 でも 137.8p/月 @1000u が必要)。
+- **2026-09-24 user 発言により見送り扱い** (「OANDA は仕様だから変えられない」— [[user-decision-capital-not-binding-edge-first-2026-09-24]])。D3 は (i) 入金の方向で額のみ未定。registry の resolved 化は user 既読確認後。
 - **返答**: `UD3: 確認する` (→ D3 に第 4 選択肢 (iv) を追加) / `UD3: 見送り` (09-01 案 A 維持)。期限 2026-10-31 (11 月 run に効かせる場合; 10 月 run は ~10-13 完了で間に合わない)。無回答 = 案 A 継続。
 - **問い合わせ文案 (user が OANDA サポートへ送る用、Claude 起草)**:
 

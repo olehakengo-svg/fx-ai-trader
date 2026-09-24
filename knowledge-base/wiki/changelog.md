@@ -1,5 +1,11 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-24 — docs(decision): user 決裁 — OANDA 固定 / 資金は必要時追加 (U3 方向 = 入金) / 優先はエッジ見極めと勝てるトレード増 (rule:R3 記録のみ)
+
+- **決裁記録**: [[user-decision-capital-not-binding-edge-first-2026-09-24]] — venue 変更 / 別口座で出来高合算 / keeper ゼロ化 / U3 縮退 は提案対象から除外。keeper ¥2,080/月 は固定費。資本税・分母レバーの議論は打ち切り
+- **影響**: packet UD3 (会員合算の OANDA 問い合わせ) は見送り扱い、D3 は (i) 入金の方向で額のみ未定、F4 資金時計は決裁強制の機能を失う (期限管理は packet 11-30)。資本ゲートで park の供給枝 U4 (a)(b)(c) は scan#6 (10-18) で「資本制約なし」として再上程 ((c) は OANDA 銘柄内)
+- **未決裁のまま**: U2 (資本上限の数字)、D1 / D2(i) / D5 / D8 (11-30)。registry の resolved 化は user 既読確認後の follow-up
+
 ## 2026-09-24 — fix(engine): 二重エンジン (gunicorn master + worker) のプロセス帰属計装 + dup 率/LIVE 二重送信の実測 — registry 10-06 disposition の (1)(2) 前倒し (rule:R3)
 
 - **背景**: [[http-blind-fork-poisoning-2026-09-22]] §6 で「取引エンジンが master と worker の 2 プロセスで走っている」を確定したが、dup 率・LIVE 二重送信リスク・単一化の regime break は未評価だった (registry `dual-engine-master-worker-disposition`、期日 10-06)
