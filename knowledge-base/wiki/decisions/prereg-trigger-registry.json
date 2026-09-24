@@ -958,7 +958,7 @@
       "type": "deadline_info",
       "deadline": "2026-10-08",
       "doc": "knowledge-base/wiki/decisions/integrated-decision-packet-d1-d12-2026-09-22.md",
-      "message": "統合決裁パケット (D1–D12: U3 入金/縮退/停止・U2 資本上限・M2 会計 A/B・M2 定義不整合 2 点・carry_dip disposition・ps_aud_jpy 再上程・kalman DRAFT) の Claude 起票期日 (v0 2026-09-29 → 確定版 10-08 = E1 cutoff)。user 返答期限は 2026-11-30 (E1 verdict 10-15 後の返答を推奨)。既定挙動 (無回答) = 何も起きず余裕を消費、F4 発火は decomposed 読み手で 2026-12-04〜2027-01-05 の幅、Claude は 12-03 に record として再上程 (執行はしない)。TRIGGERED (10-08 に doc 未作成 or DRAFT のまま) は stale = T5 型の起票ギャップ。出所: path-to-win-decision-memo-2026-09-20 §4.1 Rank 1 / 再評価 2026-09-22 §3 Rank 1・§4 UD5。"
+      "message": "統合決裁パケット (D1–D12: U3 = 入金の額と時点のみ [⛔ 2026-09-24 user 決裁で方向 (i) 入金に確定、縮退/停止は除外 — user-decision-capital-not-binding-edge-first-2026-09-24.md]・U2 資本上限・M2 会計 A/B・M2 定義不整合 2 点・carry_dip disposition・ps_aud_jpy 再上程・kalman DRAFT) の Claude 起票期日 (v0 2026-09-29 → 確定版 10-08 = E1 cutoff)。user 返答期限は 2026-11-30 (E1 verdict 10-15 後の返答を推奨)。既定挙動 (無回答) = 何も起きず余裕を消費、F4 発火は decomposed 読み手で 2026-12-04〜2027-01-05 の幅、Claude は 12-03 に record として再上程 (執行はしない)。TRIGGERED (10-08 に doc 未作成 or DRAFT のまま) は stale = T5 型の起票ギャップ。出所: path-to-win-decision-memo-2026-09-20 §4.1 Rank 1 / 再評価 2026-09-22 §3 Rank 1・§4 UD5。"
     },
     {
       "id": "e1-frozen-export-tool",
