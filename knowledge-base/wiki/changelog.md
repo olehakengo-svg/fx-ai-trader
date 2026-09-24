@@ -1,10 +1,24 @@
 # Changelog — バージョン別変更と評価基準日
 
+<<<<<<< HEAD
 ## 2026-09-24 — fix(render): 日報 commit の F4 CSV (`data/monitoring/**`) を ignoredPaths へ — 本番を 1 日 4 回再デプロイしていた取りこぼし (rule:R3)
 
 - **実測**: Render deploy 一覧 (09-23T05:27 → 09-24T03:02) の 5 件中 4 件が `docs(KB): daily report` commit 起点 (00:20Z / 03:02Z / 11:12Z / 19:22Z)。commit 内の `data/monitoring/nav_floor_projection.csv` (F4 資金時計、`daily-report.yml` が `--append`) 1 パスだけが ignoredPaths に無かった。web プロセス非参照 (app.py / modules/ 出現ゼロ)、読み手は tools + registry csv_row_match (cron 側)
 - **害**: 1 日 4 回のエンジン再起動 (二重エンジン再生成 + in-memory 状態リセット) + **00:20Z boot = fork 窓 hour-0 の再露出** ([[http-blind-fork-poisoning-2026-09-22]] §3.3)
 - **対策**: `data/monitoring/**` 追加。pin `tests/test_render_build_filter.py::test_daily_report_monitoring_csv_is_ignored` (ignore / 読み手ゼロ / `data/cache/**` 非巻き込み)。詳細 [[deploy-churn-trading-gap-2026-08-21]] §9 / [[dual-engine-dup-rate-readout-2026-09-24]] §7
+=======
+## 2026-09-24 — fix(engine): 二重エンジン (gunicorn master + worker) のプロセス帰属計装 + dup 率/LIVE 二重送信の実測 — registry 10-06 disposition の (1)(2) 前倒し (rule:R3)
+
+- **背景**: [[http-blind-fork-poisoning-2026-09-22]] §6 で「取引エンジンが master と worker の 2 プロセスで走っている」を確定したが、dup 率・LIVE 二重送信リスク・単一化の regime break は未評価だった (registry `dual-engine-master-worker-disposition`、期日 10-06)
+- **実測 (30d、本番 API + Render ログ)**: 現行 instance でも `[MainLoop] iter=810`/`630`/`840` の 2 カウンタ、`tick #70` と `tick #50` が 1.0 秒差で**二重は現在も継続**。shadow 近接ペア (同 type×pair×dir、Δ≤45s) **133 ペア/30d = kept 1,670 行の 8.0%**、全取引日 3–17 ペアで恒常。**両方 `dedup_violation=0` は 0 ペア** = write-time フラグ (2026-09-02) が cross-process dup を全件捕捉 → **dedup=0 の N は非膨張**。**LIVE 二重送信 0 件** (live 11 行に Δ≤120s twin なし、audit sent 12 / filled 11 の差 1 は 09-06 wg 既知)。自然実験: master 単独の HTTP 全盲窓 (09-15/09-22 00:15–03:33Z) の kept 行 **12 / 10** vs 二重平日同窓 平均 **9.75** (N=2、記述級) = 単一化で生成率が落ちる兆候なし。機構: count ゲートが DB の `get_open_trades()` を読むため 2 本目は race 窓以外 block される
+- **計装 (record-only、取引挙動・gate・dedup 不変)**: `engine_process_role()` (import 時 PID 凍結、`import`=master / `forked`=worker) + 起動経路 `_engine_start_origin` (`autostart` = app.py import 時 thread、モード起動前に刻む / `statusheal` = MainLoop 再起動分岐) → 両方の `open_trade` call site で row reasons に `[EMIT_PROC] <role>:<origin>` marker / `[MainLoop] iter=`・tick・`[StatusHeal] Healed`・`[AutoStart] Starting` に `pid=`/`role=`/`origin=` / `get_status()` に `engine_pid`・`engine_process_role`・`engine_import_pid` (self-check 用)・`engine_start_origin`
+- **pin**: `tests/test_dual_engine_process_attribution.py` 17 本 (role 2 値を**実 fork**で検査 / marker に PID 桁なし / origin が autostart・statusheal で刻まれる / call site 2 箇所の対称 append / record-only / ログ 4 行 / status 4 key / 永続 row の marker 両側)。counterfactual: 片側の append を外すと 3 本落ちる (pycache purge、sha 一致 restore)
+- **Codex review P1 (4089913868) 消化**: 「gunicorn 既定では worker が import するので `_MODULE_IMPORT_PID` が worker 自身になり `forked` が現れない」— 本番ログは master import (AutoStart PID=64 → 0.3 秒後 `Booting worker with pid: 131`) を示すが、**トポロジ前提に依存して黙って誤分類する設計**である点は正しい → origin 軸 (起動経路の事実) を併記 + status `engine_import_pid` で読み手が self-check + 実 fork テスト
+- **設計 (別 PR)**: 案 A = `gunicorn.conf.py` `post_worker_init` で worker 起動、master は import のみ、StatusHeal は残す。層別 = marker (一次) + deploy 時刻 (二次)。user 決裁不要 (Rule 3 ∧ N 非膨張・非低下) — 統合パケットに **D16 record** を追加。registry: 親 entry 追記 + `dual-engine-emit-proc-attribution-readout` (10-01) 新設
+- **副産物**: `docs(KB): daily report` commit が `data/monitoring/nav_floor_projection.csv` (ignoredPaths 漏れ) で**本番を 1 日 4 回再デプロイ** (00:20Z boot = fork 窓 hour-0 の再露出) → 別 PR で ignore 追加
+- **引用規律**: 「二重で shadow N 2 倍」は禁止 (膨張は dedup 込み生 row の +8% のみ) / 自然実験は記述級 / 09-24 以前の row は marker `none`
+- 詳細: [[dual-engine-dup-rate-readout-2026-09-24]]
+>>>>>>> origin/main
 
 ## 2026-09-23 — fix(nav_floor): F4 資金時計の edge 残差から入出金 (OANDA TRANSFER_FUNDS) を差し引く — 入金で F4 が最長 30 日盲目化する構造バグ (rule:R3)
 

@@ -113,6 +113,8 @@ gthread は `accept()` ごとに `nr_conns += 1` し、完了しないハンド�
 - app.py:13855-13859 / §11 の当時の解釈「demo_trader が生きているのは StatusHeal のおかげ」は**不完全**だった — master でも生きていた。
 - **本 PR では変更しない** (プロセス配置の変更は shadow N の生成率を変える regime break を伴い、pre-reg 群の窓設計に触る)。registry `dual-engine-master-worker-disposition` (期日 2026-10-06) で (a) dup 率の実測 (b) 単一エンジン化 (gunicorn `post_worker_init` で worker 起動 / master は import のみ) の設計と regime break の記録方法を決める。
 
+- **2026-09-24 追補**: (a) dup 率と LIVE 二重送信を実測 — 近接ペア 133/30d (kept の 8.0%)、両方 dedup=0 は 0 ペア (write-time フラグが全件捕捉、N 非膨張)、LIVE 二重送信 0 件。(b) master 単独窓 (09-15/09-22 の全盲 3h) の shadow 生成率は二重平日と同水準 (N=2、記述級)。(c) 計装: row `[EMIT_PROC] import|forked` marker + pid ログ + status `engine_pid` (record-only)。単一化は案 A (gunicorn `post_worker_init`) で別 PR。詳細と読み手: [[dual-engine-dup-rate-readout-2026-09-24]] / registry `dual-engine-emit-proc-attribution-readout` (10-01)。
+
 ## 7. 教訓
 
 - **pre-fork サーバでは「import 時に起動するスレッド」は network も DB も禁忌** — §11 は network だけを塞いだ。「対称に処置せよ」(MEMORY `feedback_check_the_symmetric_side_2026_09_19`) の 3 例目: 同じ fork 問題が resource の種類を替えて再発した。
