@@ -1,5 +1,10 @@
 # FX AI Trader - Changelog
 
+## 2026-09-24 — fix(render): `data/monitoring/**` を ignoredPaths へ — 日報 commit が本番を 1 日 4 回再デプロイしていた (rule:R3)
+
+- `daily-report.yml` が追記する F4 資金時計 CSV (`data/monitoring/nav_floor_projection.csv`) 1 パスが ignoredPaths に無く、`docs(KB): daily report` commit (00:20Z / 03:02Z / 11:12Z / 19:22Z) が毎回 web service を再デプロイ (Render deploy 一覧 5 件中 4 件)。web プロセス非参照、読み手は tools + cron registry のみ
+- pin: `tests/test_render_build_filter.py::test_daily_report_monitoring_csv_is_ignored`。詳細: knowledge-base/wiki/analyses/deploy-churn-trading-gap-2026-08-21.md §9
+
 ## 2026-09-23 — fix(nav_floor): F4 資金時計の edge 残差から入出金 (OANDA TRANSFER_FUNDS) を差し引く (rule:R3)
 
 - 欠陥: broker NAV Δ の残差 edge に入出金調整が無く (repo 全体 0 件)、入金 ¥D で窓 30 日の間 burn ≤ 0 → sentinel 99999 → registry F4 (days_to_floor ≤ 90) 発火不能、窓を抜けると逆に跳ねる。出金は偽早期発火

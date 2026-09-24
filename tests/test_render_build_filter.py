@@ -330,3 +330,41 @@ def test_cron_only_kb_state_paths_are_ignored():
         "web プロセスが alpha_budget / wiki/research を読み始めている。ignoredPaths から"
         f" 外すこと (cron 専用なら外さない): {readers}"
     )
+
+
+def test_daily_report_monitoring_csv_is_ignored():
+    """2026-09-24 (rule:R3): 日報 commit が F4 資金時計 CSV で本番を 1 日 4 回再デプロイしていた.
+
+    `.github/workflows/daily-report.yml` は `tools/nav_floor_projection.py --append` で
+    `data/monitoring/nav_floor_projection.csv` に 1 行追記し `docs(KB): daily report` として
+    commit する。trade-logs / market-analysis は ignore 済みだったが **この CSV 1 パスが
+    ignoredPaths に無く**、Render deploy 一覧 (09-23T05:27 → 09-24T03:02) の 5 件中 4 件が
+    日報 commit 起点だった (00:20Z / 03:02Z / 11:12Z / 19:22Z)。00:20Z boot は fork 窓
+    hour-0 の再露出 (analyses/http-blind-fork-poisoning-2026-09-22.md §3.3) でもある。
+    分析: analyses/dual-engine-dup-rate-readout-2026-09-24.md §7。
+
+    性質 A: `data/monitoring/**` は ignore される (実在パス形状で確認)
+    性質 B: web プロセス (app.py / modules/) に読み手が居ない — `data/monitoring` /
+            `nav_floor_projection.csv` をパスとして参照するコードが無いこと
+            (読み始めたら ignore を外す。tools/ 名の docstring 言及は対象外)
+    性質 C: sibling の `data/cache/**` は巻き込まない (取引パス read)
+    """
+    ignored = _ignored_paths()
+    for p in ("data/monitoring/nav_floor_projection.csv",
+              "data/monitoring/some_future_monitor.csv"):
+        assert any(_matches(p, pat) for pat in ignored), (
+            f"日報 CSV が ignore されていない (日報 commit が取引エンジンを 1 日 4 回再起動する): {p}"
+        )
+    readers = []
+    for src in [ROOT / "app.py"] + sorted((ROOT / "modules").glob("*.py")):
+        if not src.exists():
+            continue
+        text = src.read_text(encoding="utf-8")
+        if "data/monitoring" in text or "nav_floor_projection.csv" in text:
+            readers.append(str(src.relative_to(ROOT)))
+    assert not readers, (
+        "web プロセスが data/monitoring を読み始めている。ignoredPaths から外すこと: "
+        f"{readers}"
+    )
+    assert not any(_matches("data/cache/yield/any.json", pat) for pat in ignored)
+
