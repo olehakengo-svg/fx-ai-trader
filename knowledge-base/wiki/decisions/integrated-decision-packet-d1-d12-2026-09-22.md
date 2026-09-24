@@ -178,8 +178,8 @@
 各項目を 1 行で。D1〜D4 のみ先行返答でも分母は有限化できる。
 
 ```
-UD1: GOLD / UD3: 確認する
-D1: B / D2: (i) L73 (ii) type×pair×dir / D3: (i) ¥54,000 (補項: 単 leg、11-30 入金基準) / D4: ¥1,000,000 / D5: S3 待ち→分岐どおり / D6: 09-30 委任 / D7: 承認 / D8: 容認+shadow 保存 / D9: 四半期 / D10: Render ¥__ MASSIVE ¥__ Claude ¥__ / D11: EV≥1.0∧Wilson 両基準 / D12: (ii) / D15: 維持
+UD1: GOLD (09-23 確認済み) / UD3: 回答不要 (09-24 廃止)
+D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方向 (i) 入金は 09-24 確定; 補項: 単 leg、入金日基準) / D4: ¥1,000,000 / D5: S3 待ち→分岐どおり / D6: 09-30 委任 / D7: 承認 / D8: 容認+shadow 保存 / D9: 四半期 / D10: Render ¥__ MASSIVE ¥__ Claude ¥__ / D11: EV≥1.0∧Wilson 両基準 / D12: (ii) / D15: 維持
 ```
 
 「推奨どおり」と 1 語で返された場合の解釈 = 上記例の **D3 の額と D4 の数字と D10 の金額を除く全項目**を Claude 推奨で確定し、D3 額 / D4 / D10 は user の数字を別途待つ (額の推奨はしない — user 専権)。
@@ -192,7 +192,7 @@ D1: B / D2: (i) L73 (ii) type×pair×dir / D3: (i) ¥54,000 (補項: 単 leg、1
 2. D3 補項の 4.4/4.5 多 leg 同時評価 (wg 3 leg @L1 の証拠金・exposure cap) の計算 (reassess §9-15)。
 3. UD1 の結果反映 (SILVER なら v0.1)。
 4. F4 推定器分解 (sprint S-F4) 着地後の発火日幅の再計算。
-5. U3 (ii) 縮退の可逆性 (口座切替時の `OANDA_ACCOUNT_ID` / `restore_mappings` / trade_id 名前空間) の記述級列挙 (11-15 まで追補可)。
+5. ~~U3 (ii) 縮退の可逆性 (口座切替時の `OANDA_ACCOUNT_ID` / `restore_mappings` / trade_id 名前空間) の記述級列挙 (11-15 まで追補可)~~ — ⛔ 2026-09-24 廃止 ((ii) 縮退は選択肢から除外、[[user-decision-capital-not-binding-edge-first-2026-09-24]])。
 6. D10 台帳の器 (KB ページ) の作成。
 7. D3 補項 (a) の per-leg rung 可否 (wg 専用 rung 定数の R1 要否、template L114 / card L51) の判定と、§3.4 の ¥472,800 版 (wg 3 leg 一律 rung、USD-quote leg 単価 ¥78.8/pip を含む) の再計算 → D3 参照点 (11-30 入金基準 ≈ ¥53,600 / ≈ ¥226,400、入金日 NAV で再計算) の一本化。
 8. D2(i) 無回答時の L1 潰れ (5000u × 0.2 → 1000u) の解消経路 ((a) 決裁 or JPY 台帳 0.2x 解除) と D3 入金の同時性の明記; §3.4 pair セル単位の再計算 (pair 別 event 実測 N を wg card から取得し、等分仮定 1/3 を実測比で置換)。
