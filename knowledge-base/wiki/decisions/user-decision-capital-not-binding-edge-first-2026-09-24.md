@@ -18,7 +18,7 @@ status: active
 |---|---|---|
 | 1 | **OANDA は仕様で不変** — venue 変更 / 同一会員の別口座で出来高合算 (M1 レバー) / keeper ゼロ化 / U3 (ii) 縮退 は**提案しない**。keeper ¥2,080/月 は固定費として受容 | packet UD3 (会員合算の OANDA 問い合わせ) → **見送り**扱い。D3 の選択肢 (ii) 縮退 / (iv) 別口座 は候補から外す。memo Rank 8 venue feasibility (90 日側) → 不要 |
 | 2 | **資金は足りなくなったら user が追加** — U3 の方向 = **(i) 入金**。額・時点は未定 (D3 の数字は別途)。floor ¥262k / F4 資金時計は「user が先回りで補充する」前提となり、kill 条件としての重みが下がる | D3 (i) 確定方向。F4 (registry `project-falsification-f4-nav-floor-clock`) は「決裁を強制する」機能を失い、期限管理はパケット側 (11-30)。⚠️ 入金は F4 推定器・M2 定義 A の読み手を汚染する — PR #295 (TRANSFER_FUNDS 調整) の着地を確認して引用 |
-| 3 | **優先 = エッジをしっかり見極めて勝てるトレードを増やす** — 資本税・分母レバーの議論は打ち切り。資源配分は研究供給 (新 family 起案、shadow readout、pre-reg) と fill 変換 (live 資格セルの N 時計)、計測整合に寄せる | roadmap の資源配分 (研究 6 : 執行 4、[[cell-portfolio-thesis]] 2026-08-05) を維持。資本ゲートで park されていた供給枝 — U4 (a) 有償 probe ((a-1) CME DataMine FX options 歴史 等)、(b) daily+ クロスセクショナル、(c) 非 FX (**OANDA 銘柄内に限る**) — は「資本が先」の前提が外れたため再評価対象 ([[supply-space-feasibility-2026-09-17]] §3〜4) |
+| 3 | **優先 = エッジをしっかり見極めて勝てるトレードを増やす** — 資本税・分母レバーの議論は打ち切り。資源配分は研究供給 (新 family 起案、shadow readout、pre-reg) と fill 変換 (live 資格セルの N 時計)、計測整合に寄せる | roadmap の資源配分 (研究 6 : 執行 4 — user 合意 2026-08-05、原本は Claude MEMORY `feedback_cell_portfolio_thesis_2026_08_05`。KB 側に単独ページは無く、[[roadmap-v2.3-payoff-friction-repair]] の配分と整合) を維持。資本ゲートで park されていた供給枝 — U4 (a) 有償 probe ((a-1) CME DataMine FX options 歴史 等)、(b) daily+ クロスセクショナル、(c) 非 FX (**OANDA 銘柄内に限る**) — は「資本が先」の前提が外れたため再評価対象 ([[supply-space-feasibility-2026-09-17]] §3〜4) |
 
 ## 3. 未決裁のまま残るもの
 
