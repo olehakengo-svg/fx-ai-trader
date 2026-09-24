@@ -31,7 +31,7 @@ status: active
 - 「勝てる方法」を問われたら資本 / keeper の話を先に出さない。**研究供給 / shadow readout / fill 変換 / 計測整合の 4 軸**で答える
 - 資本ゲートの供給枝 U4 (a)(b)(c) を scan#6 (10-18) の議題に「資本制約なし」で再上程する。(c) は OANDA JP の取扱銘柄内 (FX + 貴金属 CFD 等、要確認) に限定
 - 4 原則 (攻める / デスゾーン = 動的のみ / 静的時間ブロック禁止 / 攻撃は最大の防御) との整合: 本決裁は原則 1・4 を強化する方向
-- registry の関連 entry (UD3 `ud3-m1-member-volume-inquiry` 相当、F4、packet D3 選択肢) の更新は本 PR では触らない — user 既読確認後に follow-up (2026-09-23 user 指示「勝手に resolved 化しない」に従う)
+- registry は **message 文言のみ本 PR で同期済み** (resolved フラグは一切変更しない — 2026-09-23 user 指示「勝手に resolved 化しない」に従い、resolved 化は user 既読確認後の follow-up): `project-falsification-f4-nav-floor-clock` (TRIGGERED 時の起票を「入金の額と時点」のみに改文、強制機能の消失を明記) / `integrated-decision-packet-d1-d12` (U3 = 入金の額と時点のみ) / `edge-supply-scan-monthly` (10-18 議題に U4 (a)(b)(c) の資本制約なし再上程を追加)。packet 本文は UD3 返答プロンプト・D3 (ii)(iii)(iv)・§3.6 UD3 一次確認・§6-5 U3 (ii) を取り消し線 + 廃止日で表記 (歴史記録として残置)
 
 ## 5. 関連
 
