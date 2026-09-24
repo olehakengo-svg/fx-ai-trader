@@ -4776,6 +4776,16 @@ Cutoff後（2026-04-08〜）の有効トレードは **N=1（kalman_d7_po_dn_fli
 - **score_gate**：daytrade + daytrade_eurで計213件 → 市場環境がスコア閾値を満たすシグナルを生成していない。本日TRENDING_DOWN環境が継続する場合、daytrade系の発火条件が整う可能性 → **午後のロンドン時間帯に注目**
 | EUR_USD | RANGING | 59% | -0.00471 | Scalp_eur / scalp_5m_eur：レンジ環境でscalpは本来有利だが、r2_shadow_demoteが128件阻害。レンジブレイクに注意 |
 
+### 2026-09-24 (Pre-Tokyo Briefing)
+2026-09-23 は **全セッション（東京・ロンドン・NY）通じてゼロトレード**。PnL = ¥0、N = 0、WR = N/A。システムは稼働中だが、シグナルが一切約定まで至らなかった日。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **判定**: N=1 は「データなし」ゾーン（統計的閾値 N<10）。EV=−4.50 は参考値にすぎず、昇格・降格いずれの判断も不可。XAU系（daytrade_xau / scalp_xau）は現在 **OFF**、トレードデータなし。
+- `r2_shadow_demoted_cell` 系の合計 = **318件**（scalp / scalp_5m / scalp_5m_eur / scalp_eur の計4戦略）。全ブロックの最大ファクター。Shadow降格セルが依然として Scalp系の通路を大規模に塞いでいる
+- GBP系で `gbp_asia_flash_crash` が 36+26=**62件**。昨日のアジアセッションで GBP の高ボラティリティが継続していた証拠
+- Shadow降格セルの回復状況を引き続き観察。新規セルが降格から復帰しない限り Scalp系のトレード数は増えない
+- GBP 系は `gbp_asia_flash_crash` ガードが継続発動する可能性が高く、東京時間の GBP ポジション期待値はゼロとみなす
+- **EUR_USD**: ATR%ile=59%・Slope微弱下向き。RANGING → TRENDING_DOWN への遷移が進めば Scalp の適合条件が変化する
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
