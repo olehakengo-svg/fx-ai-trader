@@ -1,12 +1,10 @@
 # Changelog — バージョン別変更と評価基準日
 
-<<<<<<< HEAD
 ## 2026-09-24 — fix(render): 日報 commit の F4 CSV (`data/monitoring/**`) を ignoredPaths へ — 本番を 1 日 4 回再デプロイしていた取りこぼし (rule:R3)
 
 - **実測**: Render deploy 一覧 (09-23T05:27 → 09-24T03:02) の 5 件中 4 件が `docs(KB): daily report` commit 起点 (00:20Z / 03:02Z / 11:12Z / 19:22Z)。commit 内の `data/monitoring/nav_floor_projection.csv` (F4 資金時計、`daily-report.yml` が `--append`) 1 パスだけが ignoredPaths に無かった。web プロセス非参照 (app.py / modules/ 出現ゼロ)、読み手は tools + registry csv_row_match (cron 側)
 - **害**: 1 日 4 回のエンジン再起動 (二重エンジン再生成 + in-memory 状態リセット) + **00:20Z boot = fork 窓 hour-0 の再露出** ([[http-blind-fork-poisoning-2026-09-22]] §3.3)
 - **対策**: `data/monitoring/**` 追加。pin `tests/test_render_build_filter.py::test_daily_report_monitoring_csv_is_ignored` (ignore / 読み手ゼロ / `data/cache/**` 非巻き込み)。詳細 [[deploy-churn-trading-gap-2026-08-21]] §9 / [[dual-engine-dup-rate-readout-2026-09-24]] §7
-=======
 ## 2026-09-24 — fix(engine): 二重エンジン (gunicorn master + worker) のプロセス帰属計装 + dup 率/LIVE 二重送信の実測 — registry 10-06 disposition の (1)(2) 前倒し (rule:R3)
 
 - **背景**: [[http-blind-fork-poisoning-2026-09-22]] §6 で「取引エンジンが master と worker の 2 プロセスで走っている」を確定したが、dup 率・LIVE 二重送信リスク・単一化の regime break は未評価だった (registry `dual-engine-master-worker-disposition`、期日 10-06)
@@ -18,7 +16,6 @@
 - **副産物**: `docs(KB): daily report` commit が `data/monitoring/nav_floor_projection.csv` (ignoredPaths 漏れ) で**本番を 1 日 4 回再デプロイ** (00:20Z boot = fork 窓 hour-0 の再露出) → 別 PR で ignore 追加
 - **引用規律**: 「二重で shadow N 2 倍」は禁止 (膨張は dedup 込み生 row の +8% のみ) / 自然実験は記述級 / 09-24 以前の row は marker `none`
 - 詳細: [[dual-engine-dup-rate-readout-2026-09-24]]
->>>>>>> origin/main
 
 ## 2026-09-23 — fix(nav_floor): F4 資金時計の edge 残差から入出金 (OANDA TRANSFER_FUNDS) を差し引く — 入金で F4 が最長 30 日盲目化する構造バグ (rule:R3)
 

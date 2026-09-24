@@ -336,8 +336,11 @@ def test_cron_only_kb_state_paths_are_ignored():
 # `modules/` + `strategies/` だけだと app.py が直接 import する cfd_trader.web.app /
 # scripts.cfd_phase2_shadow_catchup / tools.* の読み手を見逃す (PR #297 review P2 ×2)。
 # 「どの package が web に import されるか」を列挙で追うと必ず漏れるので、リポジトリ内の
-# .py を**全部**読み、web と無関係と確定しているディレクトリだけを除く (fail-closed の向き)。
-_NON_WEB_DIRS = {
+# .py を**全部**読み、web と無関係と確定している **top-level** ディレクトリだけを除く
+# (fail-closed の向き)。除外は path の先頭要素にだけ適用する — 全要素に適用すると
+# `cfd_trader/audit/**` (cfd_trader/web/app.py が直接 import) や `tools/audit/**` が
+# 名前の一致だけで消える (PR #297 review P2 3 巡目、counterfactual 実測)。
+_NON_WEB_TOP_DIRS = {
     "tests", "cfd_tests",            # テスト
     ".worktrees", ".claude", ".git",  # 作業ツリー / エージェント
     "knowledge-base", "docs", "wiki", "reports", "research", "audit", "audits",
@@ -353,7 +356,8 @@ def _web_runtime_sources() -> list[Path]:
     out = []
     for src in sorted(ROOT.rglob("*.py")):
         rel = src.relative_to(ROOT)
-        if any(part in _NON_WEB_DIRS for part in rel.parts[:-1]) or rel.parts[0].startswith("."):
+        top = rel.parts[0]
+        if len(rel.parts) > 1 and (top in _NON_WEB_TOP_DIRS or top.startswith(".")):
             continue
         out.append(src)
     return out
@@ -372,10 +376,10 @@ def test_daily_report_monitoring_csv_is_ignored():
 
     性質 A: `data/monitoring/**` は ignore される (実在パス形状で確認)
     性質 B: web プロセスが import しうる全ローカル .py (`_web_runtime_sources`、
-            tests/KB 等の非 web ディレクトリのみ除外) に読み手が居ない —
+            tests/KB 等の非 web **top-level** ディレクトリのみ除外) に読み手が居ない —
             連続文字列 `data/monitoring` / `nav_floor_projection.csv` **と**
-            分割リテラル (`Path("data") / "monitoring"` / `os.path.join("data", "monitoring", …)`)
-            の両形を検査 (読み始めたら ignore を外す)
+            分割リテラル (`Path("data") / "monitoring"` / `os.path.join("data", "monitoring", …)`、
+            single / double quote 両方) の両形を検査 (読み始めたら ignore を外す)
     性質 B': 既知 writer (`tools/nav_floor_projection.py`) は web から import されていない
     性質 C: sibling の `data/cache/**` は巻き込まない (取引パス read)
     """
@@ -389,13 +393,17 @@ def test_daily_report_monitoring_csv_is_ignored():
     rels = {str(s.relative_to(ROOT)) for s in srcs}
     assert len(srcs) > 200, f"走査対象が縮小している (rglob / 除外集合が壊れた?): {len(srcs)}"
     for must in ("app.py", "modules/demo_trader.py", "strategies/__init__.py",
-                 "cfd_trader/web/app.py", "scripts/cfd_phase2_shadow_catchup.py"):
+                 "cfd_trader/web/app.py", "scripts/cfd_phase2_shadow_catchup.py",
+                 "cfd_trader/audit/__init__.py"):  # 名前が除外集合と衝突する web package
         assert must in rels, f"web が import する package が走査対象から外れている: {must}"
 
-    # `"data", "monitoring"` (os.path.join) と `Path("data") / "monitoring"` の両形。
-    # 後者は `"data"` の直後に `)` が入るので省略可能な閉じ括弧を許す
-    # (`_literal_paths_with_root` は `)` を許さず Path(...) 形を見逃す — counterfactual 実測)。
-    seg = re.compile(r'"data"\)?((?:\s*[,/]\s*"[A-Za-z0-9_.\-]+")+)')
+    # `"data", "monitoring"` (os.path.join) と `Path("data") / "monitoring"` の両形、
+    # single / double quote 両方。Path(...) 形は `"data"` の直後に `)` が入るので省略可能な
+    # 閉じ括弧を許す (`_literal_paths_with_root` は `)` を許さず Path(...) 形を見逃す —
+    # counterfactual 実測)。
+    _q = "[\"']"
+    seg = re.compile(_q + r'data' + _q + r'\)?((?:\s*[,/]\s*' + _q + r'[A-Za-z0-9_.\-]+' + _q + r')+)')
+    _seg_item = re.compile(_q + r'([A-Za-z0-9_.\-]+)' + _q)
     readers, importers = [], []
     for src in srcs:
         rel = str(src.relative_to(ROOT))
@@ -409,7 +417,7 @@ def test_daily_report_monitoring_csv_is_ignored():
             continue
         contiguous = "data/monitoring" in text or "nav_floor_projection.csv" in text
         segmented = any(
-            re.findall(r'"([A-Za-z0-9_.\-]+)"', m.group(1))[:1] == ["monitoring"]
+            _seg_item.findall(m.group(1))[:1] == ["monitoring"]
             for m in seg.finditer(text)
         )
         if contiguous or segmented:
