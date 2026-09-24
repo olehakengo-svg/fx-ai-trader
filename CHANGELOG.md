@@ -1,5 +1,12 @@
 # FX AI Trader - Changelog
 
+## 2026-09-24 — fix(engine): 二重エンジン (gunicorn master + worker) のプロセス帰属計装 + dup 率 / LIVE 二重送信の実測 (rule:R3)
+
+- 二重は現行 instance でも継続 (`[MainLoop] iter=` 2 カウンタ、`tick #70`/`#50` が 1.0 秒差)。30d 実測: shadow 近接ペア 133 (kept 1,670 の 8.0%)、**両方 dedup_violation=0 は 0** (write-time フラグが全件捕捉、N 非膨張)、**LIVE 二重送信 0 件**、master 単独窓の生成率は二重と同水準 (N=2、記述級)
+- `modules/demo_trader.py`: `engine_process_role()` (`import`/`forked`) + 起動経路 `_engine_start_origin` (`autostart`/`statusheal`) → 両 `open_trade` call site で reasons に `[EMIT_PROC] <role>:<origin>` / `[MainLoop]`・tick・`[StatusHeal]` ログに `pid=`・`role=`・`origin=` / `get_status()` に `engine_pid`・`engine_process_role`・`engine_import_pid`・`engine_start_origin`。`app.py`: autostart で origin 記録 + `[AutoStart] Starting` に pid/role。record-only (取引挙動・gate・dedup 不変)
+- pin: `tests/test_dual_engine_process_attribution.py` (17、実 fork 含む)、counterfactual で 3 本落ちを確認。Codex P1 (import 順序依存で `forked` が現れないリスク) は origin 軸 + `engine_import_pid` self-check で消化。registry: 親 entry 追記 + `dual-engine-emit-proc-attribution-readout` (10-01) 新設。統合パケット D16 (record)
+- 詳細: knowledge-base/wiki/analyses/dual-engine-dup-rate-readout-2026-09-24.md
+
 ## 2026-09-23 — fix(nav_floor): F4 資金時計の edge 残差から入出金 (OANDA TRANSFER_FUNDS) を差し引く (rule:R3)
 
 - 欠陥: broker NAV Δ の残差 edge に入出金調整が無く (repo 全体 0 件)、入金 ¥D で窓 30 日の間 burn ≤ 0 → sentinel 99999 → registry F4 (days_to_floor ≤ 90) 発火不能、窓を抜けると逆に跳ねる。出金は偽早期発火

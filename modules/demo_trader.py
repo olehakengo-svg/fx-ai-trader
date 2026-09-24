@@ -17,6 +17,40 @@ import sys
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
+# ── プロセス帰属 (rule:R3, 2026-09-24) ──────────────────────────────────
+# gunicorn は app.py (→ 本モジュール) を master で import した直後に worker を
+# fork する。import 時 autostart のエンジンは master に残り、worker では
+# StatusHeal が 2 本目のエンジンを起こす = 取引エンジンが 2 プロセスで二重に
+# 走る (analyses/dual-engine-dup-rate-readout-2026-09-24.md §1)。row と
+# stdout ログを「どのプロセスが emit したか」で事後に層別できるよう、import
+# 時の PID を凍結して role を 2 値で返す。PID そのものは boot ごとに変わる
+# ので row には role だけを置き、PID は stdout ログ側に出す (Render ログで突合)。
+_MODULE_IMPORT_PID = _os.getpid()
+EMIT_PROC_REASON_TAG = "[EMIT_PROC]"
+
+
+def engine_process_role() -> str:
+    """'import' = 本モジュールを import したプロセス (gunicorn では master)、
+    'forked' = その後 fork された子 (worker)。fork しないランタイム (BT / test /
+    ローカル) では常に 'import'。"""
+    return "import" if _os.getpid() == _MODULE_IMPORT_PID else "forked"
+
+
+ENGINE_START_ORIGIN_UNKNOWN = "unknown"
+
+
+def emit_proc_marker(origin: str = ENGINE_START_ORIGIN_UNKNOWN) -> str:
+    """demo_trades.reasons に永続する marker `[EMIT_PROC] <role>:<origin>`。
+
+    role   = import / forked (PID 比較、gunicorn の import 順序に依存)
+    origin = autostart (app.py import 時 thread) / statusheal (get_status の self-heal)
+             / unknown — **実際にこのプロセスのエンジンを起こした経路**。
+    role が import 順序の前提 (master が import → worker へ fork) に依存するのに対し、
+    origin は起動経路の事実そのものなので、前提が崩れても (worker 自身が import する
+    トポロジでも) 帰属が黙って壊れない (PR #296 review P1)。
+    record-only — 選択条件・gate・dedup には使わない。"""
+    return f"{EMIT_PROC_REASON_TAG} {engine_process_role()}:{origin}"
+
 from modules.demo_db import DemoDB
 from modules.learning_engine import LearningEngine
 from modules.daily_review import DailyReviewEngine
@@ -1652,6 +1686,10 @@ class DemoTrader:
         if mtf_vol_state is None:
             mtf_vol_state = str(_mtf_payload.get("vol", ""))
 
+        # rule:R3 2026-09-24: emit したプロセス (import=master / forked=worker)
+        # を row に永続 — 二重エンジンの solo emission 帰属 (record-only)。
+        reasons = list(reasons or []) + [self._emit_proc_marker()]
+
         trade_id = self._db.open_trade(
             direction=direction,
             entry_price=entry_price,
@@ -2162,6 +2200,13 @@ class DemoTrader:
             return _loop_alive and self._runners.get(mode, {}).get("running", False)
         return _loop_alive and any(r.get("running", False) for r in self._runners.values())
 
+    def _emit_proc_marker(self) -> str:
+        """row reasons 用 `[EMIT_PROC] <role>:<origin>` (rule:R3, 2026-09-24)。
+        origin は _engine_start_origin (autostart / statusheal / unknown)。"""
+        return emit_proc_marker(
+            getattr(self, "_engine_start_origin", ENGINE_START_ORIGIN_UNKNOWN)
+        )
+
     def get_status(self) -> dict:
         # ── Self-healing: 30秒ごとに死んだスレッドを自動復旧（毎回実行は帯域浪費） ──
         _now = time.time()
@@ -2181,6 +2226,9 @@ class DemoTrader:
                 # スレッド復旧
                 if not (self._health_thread and self._health_thread.is_alive()):
                     print("[StatusHeal] MainLoop dead — restarting", flush=True)
+                    # rule:R3 2026-09-24: このプロセスのエンジンを起こした経路を記録
+                    # (worker では fork 後の空状態を「死亡」と判定してここに来る)。
+                    self._engine_start_origin = "statusheal"
                     self._ensure_main_loop()
                     _healed.append("MainLoop")
                 if not (self._watchdog_thread and self._watchdog_thread.is_alive()):
@@ -2204,7 +2252,7 @@ class DemoTrader:
                         _healed.append(m)
 
             if _healed:
-                print(f"[StatusHeal] Healed: {_healed} | started={list(self._started_modes)} "
+                print(f"[StatusHeal] Healed: {_healed} | pid={_os.getpid()} role={engine_process_role()} | started={list(self._started_modes)} "
                       f"user_stopped={list(self._user_stopped_modes)}", flush=True)
                 try:
                     self._add_log(f"🔄 StatusHeal自動復旧: {', '.join(_healed)}")
@@ -2295,6 +2343,16 @@ class DemoTrader:
             "sltp_checker_active": bool(self._sltp_thread and self._sltp_thread.is_alive()),
             "tick_counts": getattr(self, '_tick_counts', None),
             "main_loop_restarts": getattr(self, '_main_loop_restart_count', 0),
+            # ── プロセス帰属 (rule:R3, 2026-09-24): この payload を返した
+            #    エンジンの PID / role。gunicorn では常に worker (forked) 側 —
+            #    master のエンジンは API から不可視 (二重起動 §1)。
+            "engine_pid": _os.getpid(),
+            "engine_process_role": engine_process_role(),
+            # self-check 用: import 時に凍結した PID。worker が master から fork
+            # されたなら engine_pid != engine_import_pid。等しければ worker 自身が
+            # import している (gunicorn --preload なし等) = role 軸は使えない。
+            "engine_import_pid": _MODULE_IMPORT_PID,
+            "engine_start_origin": getattr(self, "_engine_start_origin", ENGINE_START_ORIGIN_UNKNOWN),
             # ── ブロック理由カウント (2026-04-07: 発火拒否の可視化) ──
             "block_counts": dict(sorted(
                 getattr(self, '_block_counts', {}).items(),
@@ -3953,7 +4011,7 @@ class DemoTrader:
                         _modes_list = list(self._started_modes)
                         _running_modes = [m for m in _modes_list if self._runners.get(m, {}).get("running", False)]
                         _tc = getattr(self, '_tick_counts', {})
-                        print(f"[MainLoop] iter={_loop_iter} started={_modes_list} "
+                        print(f"[MainLoop] iter={_loop_iter} pid={_os.getpid()} role={engine_process_role()} origin={getattr(self, '_engine_start_origin', ENGINE_START_ORIGIN_UNKNOWN)} started={_modes_list} "
                               f"running={_running_modes} ticks={_tc} restart#{_restart_count}", flush=True)
                     for mode in list(self._started_modes):
                         runner = self._runners.get(mode, {})
@@ -3995,7 +4053,7 @@ class DemoTrader:
                             _last_tick[mode] = time.time()
                             _tick_count = self._record_tick(mode)
                             if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 15:
-                                print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)", flush=True)
+                                print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s) pid={_os.getpid()}", flush=True)
                         except Exception as e:
                             errs = _consecutive_errors.get(mode, 0) + 1
                             _consecutive_errors[mode] = errs
@@ -7219,6 +7277,10 @@ class DemoTrader:
                     _edge_cell_force_live = True
         except Exception as _edge_exc:
             self._add_log(f"[EDGE_CELL] match failed: {_edge_exc}")
+
+        # rule:R3 2026-09-24: emit したプロセス (import=master / forked=worker)
+        # を row に永続 — 二重エンジンの solo emission 帰属 (record-only)。
+        _reasons_with_inv = list(_reasons_with_inv or []) + [self._emit_proc_marker()]
 
         trade_id = self._db.open_trade(
             direction=signal,
