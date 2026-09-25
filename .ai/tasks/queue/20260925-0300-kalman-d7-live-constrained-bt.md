@@ -85,14 +85,14 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
   前版の「走 5 EV ≤ 0 → R2 降格」「不完全な走は保守側のみ正当化」は**撤回** — 不完全なシミュレーションは**どちらの側も**正当化しない
 - 本 BT の役割 = **診断**: (1) 走 0 → 走 4 の分解で、どの overlay が BT edge をどれだけ削るか (2) winner / loser 別の hold・exit 分布
   (どちら側が打ち切られるか) (3) 8h 以内に完結する winner の割合 — を registry `kalman-d7-live-exit-spec-mismatch-disposition` の
-  **user 決裁 packet** (10-08) に載せる。決裁肢 = (a) live exit を宣言仕様に合わせる (override 120h + 週末保持 + C5/C6 免除 = Rule 1)
+  **user 決裁 packet** (10-08) に載せる。決裁肢 = (a) live exit を宣言仕様に合わせる (override 120h + 週末保持 + C3〜C6 免除 (BE / trail も宣言 BT に無い overlay なので外す) = Rule 1)
   (b) 現状維持 (live は BT の無い戦略と認識した上で執行 QA として継続) (c) shadow 降格
 - autopilot が単独で取れる処置は**通常の live 損失停止規律 (Rule 2、live realized N ベース) のみ**。BT の数字を降格根拠に使わない
 
 # 禁止事項
 
 - 制約付き BT の EV が負でも**制約を外す方向の live 変更 (override 120h / 週末保持) を提案・実装しない** (Rule 1、user 決裁)
-- パラメータ (TP 5.0×ATR / SL 1.5×ATR / filters) の再最適化禁止 (カーブフィッティング禁止。制約 2 つを足すだけ)
+- パラメータ (TP 5.0×ATR / SL 1.5×ATR / filters) の再最適化禁止 (カーブフィッティング禁止。足すのは live exit スタック C1〜C6 の 6 経路だけで、それ以外のパラメータは BT 宣言値のまま — 「8h + 金曜の 2 制約だけ」の旧実装は不可)
 - 走 0 が現行 BT を再現できないまま制約付きの数字を出さない (harness 未検証の数字は引用禁止)
 - 走 0〜5 のいずれの EV も、単独で keep / demote の根拠にしない (上記 判定の扱い)。特に走 5 (C6 近似) の数字を「full stack」と呼ばない
 
