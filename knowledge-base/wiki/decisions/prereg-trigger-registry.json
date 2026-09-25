@@ -1129,6 +1129,14 @@
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
       "outcome_lock": false
+    },
+    {
+      "id": "kalman-d7-live-exit-spec-mismatch-disposition",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-08",
+      "doc": "knowledge-base/wiki/strategies/kalman-d7-po-dn-flip.md",
+      "message": "🔴 **kalman_d7_po_dn_flip の live exit 仕様が BT と決定論的に不一致 (2026-09-25 確定、rule:R3、PR #299 review P1)**: 宣言 max hold 480 bars (~120h) に対し live は `MAX_HOLD_SEC[\"daytrade\"]=28800` (8h、`_ENTRY_TYPE_MAX_HOLD` override 無し) + 金曜 21:45Z 全建玉クローズ。BT (TV Pine 10.5mo、WR 23.91% / PF 3.866 / W/L 12.3×) の edge は ~115h winner ride 依存なので live では**勝ち側だけが打ち切られる** = payoff 形状が構造的に劣化。N=10 監視計画ではこの仮説は検証不能 (エンジンが産めない結果)。期日までに: (1) Codex queue `20260925-0300-kalman-d7-live-constrained-bt` — TV Pine に hold≤8h + 金曜 21:45Z 決済を入れた制約付き BT (同期間、摩擦調整 EV) (2) 分岐: 制約付き EV ≤ 0 → **R2 shadow 降格** (autopilot 執行可) / EV > 0 → live 維持 + 参照 BT を制約付きに差し替え (3) 宣言通り保持 (override 120h + 週末保持) の live 導入は **Rule 1 = user 決裁**、autopilot 禁止。期日は cron 判定が翌日 00:20Z なので 10-08 (実質 10-09 判定)。分岐が出るまで live carve-out 維持、ただしこの間の fill は BT 検証の N に数えない。"
     }
   ]
 }

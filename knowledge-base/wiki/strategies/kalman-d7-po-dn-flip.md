@@ -31,7 +31,7 @@ Entry filters (v16 forensic 導出):
 ## Exit Logic
 - **TP**: 5.0×ATR (PO-DN regime flip approximation, hold for max winner ride)
 - **SL**: 1.5×ATR
-- **Max hold**: 480 bars (~120h)
+- **Max hold**: 480 bars (~120h) — ⚠️ **live 未同期**: `daytrade` mode の 8h cap + 金曜 21:45Z クローズが優先 (2026-09-25 確定、下記 09-24 節)
 
 ## Current Configuration
 - Lot Boost: default (1.0x)
@@ -122,8 +122,14 @@ Entry filters (v16 forensic 導出):
 
 - **demo 累計: N=3 / 1W-2L / WR 33.3% / PnL −16.3 / EV −5.43** (`strategy_status.promo_ev` −5.43 と一致、`promotion: pending`)
 - ✅ 2 本とも demo と broker が完全一致 (09-10 の #859468 は 0.9p 差) ⇒ 本戦略の `daytrade` モード推定器は汚染なし。tx 893180〜893193 に `REPLACEMENT` 0 本 = **storm なし** (09-11 節の storm 4 は再発せず)。`storm_guard` (detect-only、[[storm-guard-design-2026-09-22]]) は `evaluated` 0 — `modify_sl` が呼ばれていないので整合
-- 🔴 **3 本すべて BT の前提に到達せず決済**: BT WR 23.91% / PF 3.866 は winner を ~458 bars (~115h) 保持することで成立するが、実走 hold は **4h04m / 54m / 58m**。#2 は SL 距離の 26% で `SIGNAL_REVERSE` 自主撤退、#3 は SL タッチ。**N=3 で edge 判定は不可**、ただし「長く持てない」は 3/3。⚠️ SL 距離 17.1p / 20.0p、TP 56.1p / 50.3p (R:R 2.5–3.3) — 宣言値との突合は未実施
+- 🔴 **3 本すべて BT の前提に到達せず決済**: BT WR 23.91% / PF 3.866 は winner を ~458 bars (~115h) 保持することで成立するが、実走 hold は **4h04m / 54m / 58m**。#2 は SL 距離の 26% で `SIGNAL_REVERSE` 自主撤退、#3 は SL タッチ。~~N=3 で edge 判定は不可、ただし「長く持てない」は 3/3~~ → **09-25 訂正 (PR #299 review P1)**: 「長く持てない」は標本の問題ではなく**決定論的な live⇄BT 設定不一致** (下記)。また 3 本のうち 2 本は負け (早期 SL は BT でも想定内の経路) なので「3/3 保持不能」の証拠にならない — 保持上限を試されるのは**勝ち側**だけで、その勝ち側の観測は #1 (+8.2p、4h SL 決済) の 1 本のみ。⚠️ SL 距離 17.1p / 20.0p、TP 56.1p / 50.3p (R:R 2.5–3.3) — 宣言値との突合は未実施
 - 🔴🔑 **DD ledger は #3 の −¥200 だけを計上し #2 の −¥45 を取りこぼした** (`dd_jpy` +¥200 / broker −¥245) ⇒ [[2026-09-24]] 発見 2。`SIGNAL_REVERSE` 経路の決済が ledger に載らない仮説 (N=1)
-- 📋 次: N=10 まで毎 fill で hold 時間・exit 種別・demo↔broker 差を本節に追記。Kelly `agg_kelly` は 2 敗を受け −0.329→−0.340
+- 🔴🔑 **2026-09-25 確定 (rule:R3、PR #299 review P1 4100250627): live は宣言 max hold 480 bars (~120h) を構造的に再現できない — 2 つの決定論的上限**
+  1. **`MAX_HOLD_SEC["daytrade"] = 28800` (8h)** — `modules/demo_trader.py` の保持上限辞書に `kalman_d7_po_dn_flip` の `_ENTRY_TYPE_MAX_HOLD` override が**存在しない** (override があるのは vwap_mean_reversion / price_shock_rev_* / sweep_reversion_eurgbp_late / hull_donchian_fade / weekend_gap_fade のみ)。8h 超の建玉は `MAX_HOLD_TIME` で強制決済 ⇒ BT の winner ride (~115h) は **live で発生し得ない**。負け側 (SL 1.5×ATR、実走 17–20p) は 8h 以内に決着するので影響なし = **打ち切りは勝ち側だけに掛かる片側 censoring** → live の payoff 形状は BT (W/L 12.3×) から構造的に劣化する
+  2. **金曜 21:45Z 全建玉クローズ** (`_is_pre_weekend`、全戦略共通) — BT は bar 連続で週末を跨いで保持するが live は跨げない。480 bars@15m ≈ 5 営業日なので**上限 1 を外しても** 週内エントリの大半が金曜に打ち切られる
+  - ⇒ **N=10 の監視計画では BT の保持仮説は検証できない** (エンジンが産めない結果を測る計画だった)。09-17 packet 6. の「exit 実装監査 (別タスク)」はこれで**結論が出た**: 不一致は実装バグではなく **BT (TV Pine、hold 無制限) ⇄ live (8h + 金曜) の仕様非同期** (CLAUDE.md「本番⇄BT 同期必須」違反)
+  - **処置分岐 (registry `kalman-d7-live-exit-spec-mismatch-disposition`、期日 2026-10-08)**: (a) **制約付き BT** — TV Pine (eval canon) に「hold ≤ 8h」「金曜 21:45Z 強制決済」を入れて同期間で再計測 (Codex queue `20260925-0300-kalman-d7-live-constrained-bt`)。EV (摩擦調整) ≤ 0 なら **R2 で shadow へ降格** (live は BT に無い戦略を走らせているのと同じ)。EV > 0 なら現状維持 + 制約付き BT を新たな参照 BT に差し替え。(b) 宣言通りの保持 (override 120h + 週末保持) を live に導入するのは**新 live 挙動 = Rule 1** (週末ギャップ露出・1,000u でも SL 外決済リスク) で autopilot 執行禁止、user 決裁項目
+  - 分岐が出るまで: **live carve-out は維持** (原則 1、1,000u × SL ~20p = ¥200/敗 で資金時計への影響は小さい) が、**この間の fill を BT 検証の N に数えない** (estimand が違う)
+- 📋 次: 毎 fill で hold 時間・exit 種別・demo↔broker 差を本節に追記 (**保持仮説の検証としてではなく執行 QA として**)。Kelly `agg_kelly` は 2 敗を受け −0.329→−0.340
 
 詳細: [[2026-09-24]] 発見 1・2

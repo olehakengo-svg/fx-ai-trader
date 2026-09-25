@@ -77,6 +77,7 @@ GO の根拠 brief ([[live-frequency-and-oanda-status-survival-2026-09-01]] kalm
 4. **estimand 未凍結のまま N=10 到達** = ps1a と同型の判定不能化 → §3 で凍結。
 5. **頻度乖離**: brief の ΔN +11-17/月を M1 算数 (必要 N=385 の短縮) に引用しない。実測 ~2/月。
 6. **BT 前提と実走 exit の乖離**: 初 fill は 4h04m SL 決済 (BT edge は ~115h winner ride 依存) + 宣言に存在しない trail 挙動が実走。exit 実装監査 (別タスク) 完了まで promo_wr/promo_ev (N=1) を判断に使わない。
+   - **2026-09-25 追記 (rule:R3、PR #299)**: exit 実装監査の結論 — 乖離は**決定論的な仕様非同期**。live は `MAX_HOLD_SEC["daytrade"]=8h` (override 無し) + 金曜 21:45Z 全クローズで、宣言 480 bars (~120h) の保持を構造的に再現できない (勝ち側のみ censoring)。処置分岐は [[kalman-d7-po-dn-flip]] 09-24 節 / registry `kalman-d7-live-exit-spec-mismatch-disposition` (期日 10-08)。宣言通りの保持を live に入れるのは Rule 1 (user 決裁)。
 
 ## §7 user 最終承認欄 (承認で凍結する事項)
 1. [ ] §0 前提訂正の承認 — 2026-09-17 GO は 09-01 LOCK により**既に充足済み**と認定 (新規コード変更なし)
