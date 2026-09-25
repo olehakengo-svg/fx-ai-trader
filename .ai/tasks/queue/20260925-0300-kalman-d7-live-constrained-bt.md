@@ -1,6 +1,6 @@
 ---
 id: 20260925-0300-kalman-d7-live-constrained-bt
-title: "[M1 clean live] kalman_d7_po_dn_flip — live 制約 (hold≤8h + 金曜 21:45Z 強制決済) 付き BT で摩擦調整 EV を再計測"
+title: "[M1 clean live] kalman_d7_po_dn_flip — live exit スタック (C1〜C5 + C6 近似) 付き BT による診断: overlay 別の edge 減衰と winner/loser 別 hold 分布 (user 決裁 packet 用)"
 owner: unclaimed
 status: queued
 created_at: 2026-09-25T03:00:00+0900
