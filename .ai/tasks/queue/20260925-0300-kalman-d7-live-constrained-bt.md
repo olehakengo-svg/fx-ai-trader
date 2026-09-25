@@ -27,7 +27,7 @@ prereq_artifacts:
 - 宣言 max hold 480 bars (~120h)、BT edge は winner を ~458 bars (~115h) 保持することに依存 (WR 23.91% / PF 3.866 /
   W/L 12.3×、N=46、2025-07-01→2026-05-19 USDJPY uptrend)。
 - live は `MAX_HOLD_SEC["daytrade"]=28800` に override 無し → 8h で `MAX_HOLD_TIME` 強制決済。負け側 (SL 1.5×ATR) は
-  8h 内に決着するので**勝ち側だけが打ち切られる** (片側 censoring)。さらに金曜 21:45Z の全クローズで週末を跨げない。
+  8h 内に決着する保証は無く、C5 (4h 含み損 TIME_DECAY) は負け側も打ち切る — **どちら側がどれだけ削られるかは本 BT の winner / loser 別分布で初めて分かる**。さらに金曜 21:45Z の全クローズで週末を跨げない。
 - 実走 3 fill (hold 4h04m / 54m / 58m、1W-2L) はこの上限に触れていないが、N=10 監視では上限の効果は測れない
   (エンジンが産めない結果を測る計画だった — PR #299 review P1)。
 
@@ -46,9 +46,12 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 | C6 | SIGNAL_REVERSE | hold ≥ **600s** 後、反対方向シグナルが confidence ≥ `confidence_threshold + 10` (下限 50) で成行決済 | L8439-8572 `_check_signal_reverse` |
 
 - ATR の定義は live と同じもの (entry 時点の `_entry_atr`、14 期間 15m を確認して記載)。
-- C6 の「反対方向シグナル」= 本戦略の PO-DN 側 flip か、同 mode の他戦略シグナルか — live では **同 mode で評価される全戦略の
-  反対シグナル**が対象 (kalman 固有ではない)。TV で完全再現は不可能なので、**C6 は「PO 崩れ (close < EMA25 or EMA25 < EMA75) で成行」
-  を下限近似**とし、近似であることを結果表に明記する。
+- **C6 は BT で忠実に再現できない** (PR #299 review P1 3 巡目 4100391371)。live の `_check_signal_reverse` (L8439-8572) は
+  (i) hold ≥ 600s、(ii) **同 mode で評価される全戦略**の反対方向候補が `confidence ≥ confidence_threshold+10` (下限 50)、
+  (iii) score 閾値 (USD_JPY 固有)、(iv) **ADX > 20**、(v) **含み益 > ATR×0.3 の建玉は保護** (切らない) — の全部を要求する。
+  PO 崩れ等の単一指標サロゲートは (ii)〜(v) を持たず、**早期の合成 exit は EV を上げも下げもする**ので下限にも上限にもならない。
+  ⇒ 走 5 は「C6 を PO 崩れで近似した参考値」として**必ず「近似」ラベル付きで別掲**し、判定には使わない (下記)。
+  忠実な再現には同期間の同 mode 全戦略 signal stream の replay が必要 — 本タスクの範囲外 (必要なら別タスクで起案)。
 - ⚠️ 前版の「Python fallback では BE/Trail を無効化」は**撤回** — 無効化すると live と別の exit 分布になる。
 
 # 実行手順
@@ -67,21 +70,25 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 5. KB: `knowledge-base/wiki/analyses/kalman-d7-live-constrained-bt-2026-10.md` に結果 + 分岐判定。strategy card 09-24 節 /
    registry entry に結果リンク。**R2 降格の判定が出ても執行は Claude が別 PR**。
 
-# 分岐の非対称 (凍結)
+# 判定の扱い (凍結、3 巡目改訂)
 
-- **走 5 (full stack) の摩擦調整 EV ≤ 0 → R2 shadow 降格** (autopilot 執行可)
-- **走 5 の EV > 0 → live 維持 + 参照 BT を走 5 に差し替え** — ただし **C1〜C6 のいずれかが再現できていない (近似のまま) 場合、
-  「維持」の分岐は取れない**。不完全なシミュレーションが正当化できるのは保守側 (降格) だけで、live が産めない exit 分布で
-  live を維持する判断はしない (PR #299 review P1)。その場合は「判定保留 + 未再現 overlay の列挙」を書き、Claude が処置を再起案
-- 走 1〜4 の中間結果は分解の参考であり、**分岐判定には走 5 のみ**を使う
+- **走 0〜4 (C1〜C5) は全て決定論的で忠実に再現できる** = 「exact partial stack」。走 5 (C6 近似) は参考値
+- **本 BT 単独では keep / demote を決めない**: live の exit 分布は C6 を含む 6 経路の合成で、C6 が再現できない以上、
+  走 4 の EV の符号がどちらでも full stack の符号は確定しない (早期合成 exit は EV を上げも下げもする)。
+  前版の「走 5 EV ≤ 0 → R2 降格」「不完全な走は保守側のみ正当化」は**撤回** — 不完全なシミュレーションは**どちらの側も**正当化しない
+- 本 BT の役割 = **診断**: (1) 走 0 → 走 4 の分解で、どの overlay が BT edge をどれだけ削るか (2) winner / loser 別の hold・exit 分布
+  (どちら側が打ち切られるか) (3) 8h 以内に完結する winner の割合 — を registry `kalman-d7-live-exit-spec-mismatch-disposition` の
+  **user 決裁 packet** (10-08) に載せる。決裁肢 = (a) live exit を宣言仕様に合わせる (override 120h + 週末保持 + C5/C6 免除 = Rule 1)
+  (b) 現状維持 (live は BT の無い戦略と認識した上で執行 QA として継続) (c) shadow 降格
+- autopilot が単独で取れる処置は**通常の live 損失停止規律 (Rule 2、live realized N ベース) のみ**。BT の数字を降格根拠に使わない
 
 # 禁止事項
 
 - 制約付き BT の EV が負でも**制約を外す方向の live 変更 (override 120h / 週末保持) を提案・実装しない** (Rule 1、user 決裁)
 - パラメータ (TP 5.0×ATR / SL 1.5×ATR / filters) の再最適化禁止 (カーブフィッティング禁止。制約 2 つを足すだけ)
 - 走 0 が現行 BT を再現できないまま制約付きの数字を出さない (harness 未検証の数字は引用禁止)
-- overlay を一部省いた走の EV > 0 を「維持」の根拠にしない (上記 分岐の非対称)
+- 走 0〜5 のいずれの EV も、単独で keep / demote の根拠にしない (上記 判定の扱い)。特に走 5 (C6 近似) の数字を「full stack」と呼ばない
 
 # 完了条件
 
-- 走 0〜5 の表 + hold 分布 + exit 種別比率 + 分岐判定が analyses/ に保存され、done ファイルに '## Claude Review' が付く
+- 走 0〜5 の表 (走 5 は「C6 近似」ラベル) + winner/loser 別 hold 分布 + exit 種別比率 + packet 用の所見が analyses/ に保存され、done ファイルに '## Claude Review' が付く
