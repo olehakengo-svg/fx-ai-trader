@@ -378,9 +378,33 @@ def _imports_monitoring_writer(text: str) -> bool:
             mod = node.module or ""
             if mod == "tools.nav_floor_projection":
                 return True
+            # `from .nav_floor_projection import read_rows` (tools/ 配下からの相対 import、
+            # level>=1 で module 名が短縮される — PR #297 review P2 7 巡目)
+            if node.level >= 1 and mod.split(".")[-1] == "nav_floor_projection":
+                return True
             if mod in ("tools", "") and any(a.name == "nav_floor_projection" for a in node.names):
                 return True
     return False
+
+
+def _imported_top_packages(text: str) -> set[str]:
+    """ソースが import する top-level package 名の集合 (`ast`、全 alias を走査).
+
+    `import os, services.foo` のようなカンマ import は regex だと先頭の alias しか
+    見えない (PR #297 review P2 7 巡目)。相対 import (level>=1) は同 package 内なので除く。
+    """
+    import ast
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return set()
+    out: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            out.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            out.add(node.module.split(".")[0])
+    return out
 
 
 def _web_runtime_sources() -> list[Path]:
@@ -475,14 +499,13 @@ def test_non_web_top_dirs_are_not_imported_by_web():
     性質: 走査対象の .py に `from <excluded>` / `import <excluded>` が 1 件も無い。
     counterfactual: 集合に "research" を戻すと demo_trader 由来で落ちる (実測)。
     """
-    pkgs = sorted(d for d in _NON_WEB_TOP_DIRS if (ROOT / d).is_dir() and not d.startswith("."))
-    pat = re.compile(r"^\s*(?:from|import)\s+(%s)(?:\.|\s|$)"
-                     % "|".join(re.escape(d) for d in pkgs), re.M)
+    pkgs = {d for d in _NON_WEB_TOP_DIRS if (ROOT / d).is_dir() and not d.startswith(".")}
     offenders = {}
     for src in _web_runtime_sources():
         rel = str(src.relative_to(ROOT))
-        for m in pat.finditer(src.read_text(encoding="utf-8", errors="replace")):
-            offenders.setdefault(m.group(1), []).append(rel)
+        text = src.read_text(encoding="utf-8", errors="replace")
+        for pkg in sorted(_imported_top_packages(text) & pkgs):
+            offenders.setdefault(pkg, []).append(rel)
     assert not offenders, (
         "web 側コードが除外 top-dir を import している — その dir は web runtime の一部なので"
         " _NON_WEB_TOP_DIRS から外すこと: %s" % {k: sorted(v)[:5] for k, v in offenders.items()}
