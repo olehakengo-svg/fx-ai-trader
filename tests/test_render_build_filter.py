@@ -340,10 +340,15 @@ def test_cron_only_kb_state_paths_are_ignored():
 # (fail-closed の向き)。除外は path の先頭要素にだけ適用する — 全要素に適用すると
 # `cfd_trader/audit/**` (cfd_trader/web/app.py が直接 import) や `tools/audit/**` が
 # 名前の一致だけで消える (PR #297 review P2 3 巡目、counterfactual 実測)。
+# `research` は**除外しない** — modules/demo_trader.py が live 経路で
+# `research.edge_discovery.{strategy_family_map,regime_labeler,mtf_regime_engine}` を import
+# する (PR #297 review P2 4 巡目)。除外集合は下の `test_non_web_top_dirs_are_not_imported_by_web`
+# で「走査対象から import されていない」ことを pin し、同型の再発 (import されている package
+# を名前だけで除外) を構造的に防ぐ。
 _NON_WEB_TOP_DIRS = {
     "tests", "cfd_tests",            # テスト
     ".worktrees", ".claude", ".git",  # 作業ツリー / エージェント
-    "knowledge-base", "docs", "wiki", "reports", "research", "audit", "audits",
+    "knowledge-base", "docs", "wiki", "reports", "audit", "audits",
     "bt-results", "raw", "done", "templates", "migrations", "monitoring",
     "node_modules", ".venv", "venv", "services",  # discord bot (別 service)
 }
@@ -394,7 +399,8 @@ def test_daily_report_monitoring_csv_is_ignored():
     assert len(srcs) > 200, f"走査対象が縮小している (rglob / 除外集合が壊れた?): {len(srcs)}"
     for must in ("app.py", "modules/demo_trader.py", "strategies/__init__.py",
                  "cfd_trader/web/app.py", "scripts/cfd_phase2_shadow_catchup.py",
-                 "cfd_trader/audit/__init__.py"):  # 名前が除外集合と衝突する web package
+                 "cfd_trader/audit/__init__.py",  # 名前が除外集合と衝突する web package
+                 "research/edge_discovery/regime_labeler.py"):  # demo_trader が live 経路で import
         assert must in rels, f"web が import する package が走査対象から外れている: {must}"
 
     # `"data", "monitoring"` (os.path.join) と `Path("data") / "monitoring"` の両形、
@@ -431,3 +437,27 @@ def test_daily_report_monitoring_csv_is_ignored():
         " 読み手になった可能性。ignore を見直すこと: %s" % importers
     )
     assert not any(_matches("data/cache/yield/any.json", pat) for pat in ignored)
+
+
+def test_non_web_top_dirs_are_not_imported_by_web():
+    """除外集合の自己検査 (PR #297 review P2 4 巡目、rule:R3).
+
+    `_NON_WEB_TOP_DIRS` は「web プロセスが import しない」ことを前提に読み手走査から外す
+    集合。前提が崩れる (走査対象のどれかが除外 top-dir を package として import する) と
+    読み手 guard がその package 全体を見なくなる — `research` がまさにそれだった
+    (modules/demo_trader.py が research.edge_discovery.* を live 経路で import)。
+    性質: 走査対象の .py に `from <excluded>` / `import <excluded>` が 1 件も無い。
+    counterfactual: 集合に "research" を戻すと demo_trader 由来で落ちる (実測)。
+    """
+    pkgs = sorted(d for d in _NON_WEB_TOP_DIRS if (ROOT / d).is_dir() and not d.startswith("."))
+    pat = re.compile(r"^\s*(?:from|import)\s+(%s)(?:\.|\s|$)"
+                     % "|".join(re.escape(d) for d in pkgs), re.M)
+    offenders = {}
+    for src in _web_runtime_sources():
+        rel = str(src.relative_to(ROOT))
+        for m in pat.finditer(src.read_text(encoding="utf-8", errors="replace")):
+            offenders.setdefault(m.group(1), []).append(rel)
+    assert not offenders, (
+        "web 側コードが除外 top-dir を import している — その dir は web runtime の一部なので"
+        " _NON_WEB_TOP_DIRS から外すこと: %s" % {k: sorted(v)[:5] for k, v in offenders.items()}
+    )
