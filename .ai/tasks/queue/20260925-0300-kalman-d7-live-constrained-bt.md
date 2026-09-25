@@ -82,7 +82,7 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 - **走 0′〜4 は「C0 近似」** (PR #299 review 8 巡目): C0a は `sr_entry_map` が有効なら live は SR ベース SL を採る (RR≥1.0) が BT では ATR×1.0 で代用、C0c (低流動性時間 / fast-SL / ラウンドナンバーの SL 調整) と C0d (MTF strong 一致時の TP ×1.3、一致判定は再現不能で 2 値併記) も近似。どちらも「どの fill が SL に達するか」を変え得るので、**走 0′〜4 の分布を「live ルール忠実」と呼ばない**。感度は **BT 側の what-if** (完了条件参照) で出す — live ログには SR/ATR の選択枝も C0c 発動も永続化されていないため live 実測率は導出できない (計装は follow-up)
 - **走 0′〜4 (C0 + C1〜C5) は C0 近似かつ intrabar 順序近似** (ルールの列挙は決定論的だが、SR-stop / fast-SL / MTF 一致の状態は再現できず、bar 内順序も決まらない): live の C3/C4 (BE / trail) と SL/TP は `_sltp_loop` が bid/ask を
   0.5s ごとに評価するのに対し、M15 OHLC では同一 bar 内で BE/trail 発動と SL/TP 到達のどちらが先かを決められない
-  (PR #299 review P2 4 巡目)。⇒ 走 0〜4 も「**ルール忠実・順序近似**」とラベルし、**bar 内順序の仮定を明示** (既定 = 逆行先行 =
+  (PR #299 review P2 4 巡目)。⇒ 走 0′〜4 は「**C0 近似 + intrabar 順序近似**」とラベルし (「ルール忠実」とは書かない)、**bar 内順序の仮定を明示** (既定 = 逆行先行 =
   保守側: 同一 bar で BE/trail 発動と SL 到達が両方あり得る場合は SL 到達を先に処理) し、**逆の仮定 (順行先行) での感度走を併記**する。
   両仮定の差が結論 (分解の順位 / winner 比率) を変えるなら packet にそう書く。tick / bid-ask replay は本タスクの範囲外。
   走 5 (C6 近似) は参考値
