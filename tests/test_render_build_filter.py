@@ -383,8 +383,9 @@ def test_daily_report_monitoring_csv_is_ignored():
     性質 B: web プロセスが import しうる全ローカル .py (`_web_runtime_sources`、
             tests/KB 等の非 web **top-level** ディレクトリのみ除外) に読み手が居ない —
             連続文字列 `data/monitoring` / `nav_floor_projection.csv` **と**
-            分割リテラル (`Path("data") / "monitoring"` / `os.path.join("data", "monitoring", …)`、
-            single / double quote 両方) の両形を検査 (読み始めたら ignore を外す)
+            分割リテラル (`Path("data") / "monitoring"` / `os.path.join("data", "monitoring", …)` /
+            `Path("data").joinpath("monitoring", …)`、single / double quote 両方) の両形を検査
+            (読み始めたら ignore を外す)
     性質 B': 既知 writer (`tools/nav_floor_projection.py`) は web から import されていない
     性質 C: sibling の `data/cache/**` は巻き込まない (取引パス read)
     """
@@ -403,12 +404,14 @@ def test_daily_report_monitoring_csv_is_ignored():
                  "research/edge_discovery/regime_labeler.py"):  # demo_trader が live 経路で import
         assert must in rels, f"web が import する package が走査対象から外れている: {must}"
 
-    # `"data", "monitoring"` (os.path.join) と `Path("data") / "monitoring"` の両形、
-    # single / double quote 両方。Path(...) 形は `"data"` の直後に `)` が入るので省略可能な
-    # 閉じ括弧を許す (`_literal_paths_with_root` は `)` を許さず Path(...) 形を見逃す —
-    # counterfactual 実測)。
+    # `"data", "monitoring"` (os.path.join) / `Path("data") / "monitoring"` /
+    # `Path("data").joinpath("monitoring", …)` の 3 形、single / double quote 両方。
+    # Path(...) 形は `"data"` の直後に `)` が入るので省略可能な閉じ括弧を許す
+    # (`_literal_paths_with_root` は `)` を許さず Path(...) 形を見逃す — counterfactual 実測)。
+    # joinpath 形は区切りが `,` / `/` ではなく `).joinpath(` になる (PR #297 review P2 5 巡目)。
     _q = "[\"']"
-    seg = re.compile(_q + r'data' + _q + r'\)?((?:\s*[,/]\s*' + _q + r'[A-Za-z0-9_.\-]+' + _q + r')+)')
+    _sep = r'(?:\s*[,/]\s*|\s*\.joinpath\(\s*)'
+    seg = re.compile(_q + r'data' + _q + r'\)?((?:' + _sep + _q + r'[A-Za-z0-9_.\-]+' + _q + r')+)')
     _seg_item = re.compile(_q + r'([A-Za-z0-9_.\-]+)' + _q)
     readers, importers = [], []
     for src in srcs:
