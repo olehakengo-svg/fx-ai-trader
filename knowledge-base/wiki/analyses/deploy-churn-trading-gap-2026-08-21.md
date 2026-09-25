@@ -285,3 +285,12 @@ counterfactual を注入しても **6 テスト全て pass した**。
   guard を触ったら必ず counterfactual を注入して**落ちること**を確認する。
 - **効果報告は履歴再生の推定でなく、本番の実行記録と突き合わせる。**
   今回、推定 7.9/日 に対し実測 1.7/日 だった。
+
+## 9. phase-3 — 日報 commit の取りこぼし 1 パス (2026-09-24, rule:R3)
+
+- **実測**: Render deploy 一覧 (2026-09-23T05:27Z → 09-24T03:02Z) の 5 件中 **4 件**が `docs(KB): daily report` commit 起点 (00:20Z / 03:02Z / 11:12Z / 19:22Z)。各 commit は trade-logs / market-analysis (ignore 済み) + **`data/monitoring/nav_floor_projection.csv`** (F4 資金時計、PR #285 以降 `daily-report.yml` が `--append`) の 4 ファイルで、CSV 1 パスだけが ignoredPaths に無かった。
+- **3 階層分類**: web プロセス非参照 (app.py / modules/ に `data/monitoring` / `nav_floor_projection.csv` の出現ゼロ、docstring の `tools/nav_floor_projection.py` 言及 2 箇所のみ)。読み手は tools/nav_floor_projection.py (workflow 内) と registry `project-falsification-f4-nav-floor-clock` (csv_row_match、Tier A cron) — cron service は buildFilter を持たないので鮮度は落ちない (phase-2 (a) と同型)。
+- **害**: 1 日 4 回のエンジン再起動 = 二重エンジン ([[dual-engine-dup-rate-readout-2026-09-24]]) の再生成 + in-memory 予約/limit 状態のリセット + **00:20Z boot は fork 窓 hour-0 のリスク再露出** ([[http-blind-fork-poisoning-2026-09-22]] §3.3 — 事故 3 件は全て 0 時台 boot)。sprint midpoint check (v)「data/monitoring 着地」は未着地だった。
+- **対策**: `data/monitoring/**` を ignoredPaths に追加。pin = `tests/test_render_build_filter.py::test_daily_report_monitoring_csv_is_ignored` (性質 A ignore / B 読み手ゼロ / C `data/cache/**` 非巻き込み)。
+- **検証 (次 run 以降)**: 日報 commit で Render deploy が起きないこと (deploy 一覧に `docs(KB): daily report` が現れない)。`http-blind-fix-verification-hour0-boots` (10-06) の 0 時台 boot 件数はこれで減る — 分母縮小を registry 側で織り込む。
+

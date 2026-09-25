@@ -1,5 +1,10 @@
 # FX AI Trader - Changelog
 
+## 2026-09-24 — fix(render): `data/monitoring/**` を ignoredPaths へ — 日報 commit が本番を 1 日 4 回再デプロイしていた (rule:R3)
+
+- `daily-report.yml` が追記する F4 資金時計 CSV (`data/monitoring/nav_floor_projection.csv`) 1 パスが ignoredPaths に無く、`docs(KB): daily report` commit (00:20Z / 03:02Z / 11:12Z / 19:22Z) が毎回 web service を再デプロイ (Render deploy 一覧 5 件中 4 件)。web プロセス非参照、読み手は tools + cron registry のみ
+- pin: `tests/test_render_build_filter.py::test_daily_report_monitoring_csv_is_ignored`。詳細: knowledge-base/wiki/analyses/deploy-churn-trading-gap-2026-08-21.md §9
+
 ## 2026-09-24 — fix(engine): 二重エンジン (gunicorn master + worker) のプロセス帰属計装 + dup 率 / LIVE 二重送信の実測 (rule:R3)
 
 - 二重は現行 instance でも継続 (`[MainLoop] iter=` 2 カウンタ、`tick #70`/`#50` が 1.0 秒差)。30d 実測: shadow 近接ペア 133 (kept 1,670 の 8.0%)、**両方 dedup_violation=0 は 0** (write-time フラグが全件捕捉、N 非膨張)、**LIVE 二重送信 0 件**、master 単独窓の生成率は二重と同水準 (N=2、記述級)

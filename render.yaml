@@ -116,6 +116,19 @@ services:
         # test_cron_only_kb_state_paths_are_ignored が CI で落とす。
         - "knowledge-base/raw/alpha_budget/**"
         - "knowledge-base/wiki/research/**"
+        # 2026-09-24 (rule:R3): data/monitoring/** — F4 資金時計 CSV
+        #   (nav_floor_projection.csv)。daily-report.yml が
+        #   `tools/nav_floor_projection.py --append` で 1 日 4 回追記し、その
+        #   `docs(KB): daily report` commit が **毎回 web service を再デプロイ**
+        #   していた (Render deploy 一覧 09-23T05:27→09-24T03:02 の 5 件中 4 件、
+        #   うち 00:20Z は fork 窓 hour-0 [http-blind-fork-poisoning §3.3] の再露出)。
+        #   読み手は tools/nav_floor_projection.py と registry
+        #   project-falsification-f4-nav-floor-clock (csv_row_match、cron 側) のみ。
+        #   app.py / modules/ からの参照ゼロ (docstring/comment の tools 名言及 2 箇所
+        #   のみ、tests/test_render_build_filter.py
+        #   test_daily_report_monitoring_csv_is_ignored が pin)。
+        #   分析: analyses/dual-engine-dup-rate-readout-2026-09-24.md §7
+        - "data/monitoring/**"
     disk:
       name: fx-data
       mountPath: /var/data

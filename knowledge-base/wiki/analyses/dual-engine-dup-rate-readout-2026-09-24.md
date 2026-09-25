@@ -42,6 +42,22 @@ boot 順序 (2026-09-23T05:28Z、deploy `dep-dapm6d7avr4c73epla70` / PR #295) �
 - ログに PID が無いため**どの行がどちらか**は本稿時点では特定不能 → §5 の計装で解消。
 - `/api/demo/status` の `main_loop_restarts=1` は worker 側の値 (master エンジンは API から不可視)。
 
+### 1b. 計装デプロイ後の実測 (2026-09-24T04:43Z、deploy c5838f6b / PR #296)
+
+計装 (§5) を載せた直後の boot で、二重起動が **PID・role・origin 付きで**確定した:
+
+| UTC | ログ | 帰属 |
+|---|---|---|
+| 04:43:49.636 | `[AutoStart] Starting 24 modes (pid=62 role=import)` | master (import したプロセス) |
+| 04:43:49.636〜 | `[MainLoop] iter=1..5 pid=62 role=import origin=autostart` | master のエンジン |
+| 04:45:43.017 | `[StatusHeal] Healed: ['MainLoop', 'Watchdog', 'SLTP', 24 modes] | pid=131 role=forked` | worker (boot +1m54s、最初の status 呼び出し) |
+| 04:45:45.016〜 | `[MainLoop] iter=1..150 pid=131 role=forked origin=statusheal` | worker のエンジン |
+| 04:46〜04:52 | `iter=30/60/90/120/150/180 pid=62` と `iter=30/60/90/120/150 pid=131` が交互 | **2 系列が同時進行** |
+
+- `/api/demo/status` (04:5xZ): `engine_pid=131` / `engine_import_pid=62` / `engine_process_role=forked` / `engine_start_origin=statusheal` / `main_loop_restarts=1`。**self-check 通過** (`engine_pid != engine_import_pid`) = 「master が import → worker へ fork」トポロジが実測どおり。`/healthz/http` の `serving_pid=131` と一致。
+- PR #296 Codex review P1「gunicorn 既定では worker が import する」は本番トポロジでは**成立しない**ことがこれで直接確定 (worker 131 の `_MODULE_IMPORT_PID` は 62 = master)。ただし前提依存の設計リスクへの処方 (origin 軸 + self-check) はそのまま有効。
+- 以後の row は `[EMIT_PROC] import:autostart` (master 由来) / `[EMIT_PROC] forked:statusheal` (worker 由来) の 2 値で層別できる。readout (10-01、registry `dual-engine-emit-proc-attribution-readout`) はこの 2 値の比 p_f を読む。
+
 ## 2. shadow の cross-process dup 率 (30d、2026-08-26T04:16Z → 09-24T03:37Z)
 
 母集団 1,876 行 = live 11 (`oanda_trade_id` 非空、全て `is_shadow=0`) + shadow 1,865 (全て `is_shadow=1`)。shadow のうち `dedup_violation=1` **195 (10.5%)**、kept (=0) **1,670**。

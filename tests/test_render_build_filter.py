@@ -330,3 +330,183 @@ def test_cron_only_kb_state_paths_are_ignored():
         "web プロセスが alpha_budget / wiki/research を読み始めている。ignoredPaths から"
         f" 外すこと (cron 専用なら外さない): {readers}"
     )
+
+
+# web プロセス (`gunicorn app:app`) が import しうる**全**ローカル package を走査対象にする。
+# `modules/` + `strategies/` だけだと app.py が直接 import する cfd_trader.web.app /
+# scripts.cfd_phase2_shadow_catchup / tools.* の読み手を見逃す (PR #297 review P2 ×2)。
+# 「どの package が web に import されるか」を列挙で追うと必ず漏れるので、リポジトリ内の
+# .py を**全部**読み、web と無関係と確定している **top-level** ディレクトリだけを除く
+# (fail-closed の向き)。除外は path の先頭要素にだけ適用する — 全要素に適用すると
+# `cfd_trader/audit/**` (cfd_trader/web/app.py が直接 import) や `tools/audit/**` が
+# 名前の一致だけで消える (PR #297 review P2 3 巡目、counterfactual 実測)。
+# `research` は**除外しない** — modules/demo_trader.py が live 経路で
+# `research.edge_discovery.{strategy_family_map,regime_labeler,mtf_regime_engine}` を import
+# する (PR #297 review P2 4 巡目)。除外集合は下の `test_non_web_top_dirs_are_not_imported_by_web`
+# で「走査対象から import されていない」ことを pin し、同型の再発 (import されている package
+# を名前だけで除外) を構造的に防ぐ。
+_NON_WEB_TOP_DIRS = {
+    "tests", "cfd_tests",            # テスト
+    ".worktrees", ".claude", ".git",  # 作業ツリー / エージェント
+    "knowledge-base", "docs", "wiki", "reports", "audit", "audits",
+    "bt-results", "raw", "done", "templates", "migrations", "monitoring",
+    "node_modules", ".venv", "venv", "services",  # discord bot (別 service)
+}
+# web プロセス外で `data/monitoring` を**書く**ことが確定している writer (GitHub Actions
+# daily-report.yml が起動、web からの import なしを下で pin)。
+_MONITORING_WRITERS_OUTSIDE_WEB = {"tools/nav_floor_projection.py"}
+
+
+def _imports_monitoring_writer(text: str) -> bool:
+    """`tools.nav_floor_projection` を import しているか — `ast` で構造的に判定.
+
+    regex は `from tools import (` + 改行 + `nav_floor_projection` の複数行 import を
+    取り逃す (PR #297 review P2 6 巡目)。Import / ImportFrom ノードを走査するので
+    改行・括弧・alias・相対 import の書き方に依存しない。構文エラーのファイルは
+    保守側 (import 有りと見なす) に倒す — 読めないコードを「読み手ではない」と断定しない。
+    """
+    import ast
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return "nav_floor_projection" in text
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(a.name == "tools.nav_floor_projection" for a in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            if mod == "tools.nav_floor_projection":
+                return True
+            # `from .nav_floor_projection import read_rows` (tools/ 配下からの相対 import、
+            # level>=1 で module 名が短縮される — PR #297 review P2 7 巡目)
+            if node.level >= 1 and mod.split(".")[-1] == "nav_floor_projection":
+                return True
+            if mod in ("tools", "") and any(a.name == "nav_floor_projection" for a in node.names):
+                return True
+    return False
+
+
+def _imported_top_packages(text: str) -> set[str]:
+    """ソースが import する top-level package 名の集合 (`ast`、全 alias を走査).
+
+    `import os, services.foo` のようなカンマ import は regex だと先頭の alias しか
+    見えない (PR #297 review P2 7 巡目)。相対 import (level>=1) は同 package 内なので除く。
+    """
+    import ast
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return set()
+    out: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            out.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            out.add(node.module.split(".")[0])
+    return out
+
+
+def _web_runtime_sources() -> list[Path]:
+    out = []
+    for src in sorted(ROOT.rglob("*.py")):
+        rel = src.relative_to(ROOT)
+        top = rel.parts[0]
+        if len(rel.parts) > 1 and (top in _NON_WEB_TOP_DIRS or top.startswith(".")):
+            continue
+        out.append(src)
+    return out
+
+
+def test_daily_report_monitoring_csv_is_ignored():
+    """2026-09-24 (rule:R3): 日報 commit が F4 資金時計 CSV で本番を 1 日 4 回再デプロイしていた.
+
+    `.github/workflows/daily-report.yml` は `tools/nav_floor_projection.py --append` で
+    `data/monitoring/nav_floor_projection.csv` に 1 行追記し `docs(KB): daily report` として
+    commit する。trade-logs / market-analysis は ignore 済みだったが **この CSV 1 パスが
+    ignoredPaths に無く**、Render deploy 一覧 (09-23T05:27 → 09-24T03:02) の 5 件中 4 件が
+    日報 commit 起点だった (00:20Z / 03:02Z / 11:12Z / 19:22Z)。00:20Z boot は fork 窓
+    hour-0 の再露出 (analyses/http-blind-fork-poisoning-2026-09-22.md §3.3) でもある。
+    分析: analyses/dual-engine-dup-rate-readout-2026-09-24.md §7。
+
+    性質 A: `data/monitoring/**` は ignore される (実在パス形状で確認)
+    性質 B: web プロセスが import しうる全ローカル .py (`_web_runtime_sources`、
+            tests/KB 等の非 web **top-level** ディレクトリのみ除外) に読み手が居ない —
+            連続文字列 `data/monitoring` / `nav_floor_projection.csv` **と**
+            分割リテラル (`Path("data") / "monitoring"` / `os.path.join("data", "monitoring", …)` /
+            `Path("data").joinpath("monitoring", …)`、single / double quote 両方) の両形を検査
+            (読み始めたら ignore を外す)
+    性質 B': 既知 writer (`tools/nav_floor_projection.py`) は web から import されていない
+    性質 C: sibling の `data/cache/**` は巻き込まない (取引パス read)
+    """
+    ignored = _ignored_paths()
+    for p in ("data/monitoring/nav_floor_projection.csv",
+              "data/monitoring/some_future_monitor.csv"):
+        assert any(_matches(p, pat) for pat in ignored), (
+            f"日報 CSV が ignore されていない (日報 commit が取引エンジンを 1 日 4 回再起動する): {p}"
+        )
+    srcs = _web_runtime_sources()
+    rels = {str(s.relative_to(ROOT)) for s in srcs}
+    assert len(srcs) > 200, f"走査対象が縮小している (rglob / 除外集合が壊れた?): {len(srcs)}"
+    for must in ("app.py", "modules/demo_trader.py", "strategies/__init__.py",
+                 "cfd_trader/web/app.py", "scripts/cfd_phase2_shadow_catchup.py",
+                 "cfd_trader/audit/__init__.py",  # 名前が除外集合と衝突する web package
+                 "research/edge_discovery/regime_labeler.py"):  # demo_trader が live 経路で import
+        assert must in rels, f"web が import する package が走査対象から外れている: {must}"
+
+    # `"data", "monitoring"` (os.path.join) / `Path("data") / "monitoring"` /
+    # `Path("data").joinpath("monitoring", …)` の 3 形、single / double quote 両方。
+    # Path(...) 形は `"data"` の直後に `)` が入るので省略可能な閉じ括弧を許す
+    # (`_literal_paths_with_root` は `)` を許さず Path(...) 形を見逃す — counterfactual 実測)。
+    # joinpath 形は区切りが `,` / `/` ではなく `).joinpath(` になる (PR #297 review P2 5 巡目)。
+    _q = "[\"']"
+    _sep = r'(?:\s*[,/]\s*|\s*\.joinpath\(\s*)'
+    seg = re.compile(_q + r'data' + _q + r'\)?((?:' + _sep + _q + r'[A-Za-z0-9_.\-]+' + _q + r')+)')
+    _seg_item = re.compile(_q + r'([A-Za-z0-9_.\-]+)' + _q)
+    readers, importers = [], []
+    for src in srcs:
+        rel = str(src.relative_to(ROOT))
+        text = src.read_text(encoding="utf-8", errors="replace")
+        if rel not in _MONITORING_WRITERS_OUTSIDE_WEB and _imports_monitoring_writer(text):
+            importers.append(rel)
+        if rel in _MONITORING_WRITERS_OUTSIDE_WEB:
+            continue
+        contiguous = "data/monitoring" in text or "nav_floor_projection.csv" in text
+        segmented = any(
+            _seg_item.findall(m.group(1))[:1] == ["monitoring"]
+            for m in seg.finditer(text)
+        )
+        if contiguous or segmented:
+            readers.append(rel)
+    assert not readers, (
+        "web プロセスが import しうるコードが data/monitoring を読み始めている。"
+        " ignoredPaths から外すこと: %s" % readers
+    )
+    assert not importers, (
+        "web プロセスが writer (tools/nav_floor_projection.py) を import している —"
+        " 読み手になった可能性。ignore を見直すこと: %s" % importers
+    )
+    assert not any(_matches("data/cache/yield/any.json", pat) for pat in ignored)
+
+
+def test_non_web_top_dirs_are_not_imported_by_web():
+    """除外集合の自己検査 (PR #297 review P2 4 巡目、rule:R3).
+
+    `_NON_WEB_TOP_DIRS` は「web プロセスが import しない」ことを前提に読み手走査から外す
+    集合。前提が崩れる (走査対象のどれかが除外 top-dir を package として import する) と
+    読み手 guard がその package 全体を見なくなる — `research` がまさにそれだった
+    (modules/demo_trader.py が research.edge_discovery.* を live 経路で import)。
+    性質: 走査対象の .py に `from <excluded>` / `import <excluded>` が 1 件も無い。
+    counterfactual: 集合に "research" を戻すと demo_trader 由来で落ちる (実測)。
+    """
+    pkgs = {d for d in _NON_WEB_TOP_DIRS if (ROOT / d).is_dir() and not d.startswith(".")}
+    offenders = {}
+    for src in _web_runtime_sources():
+        rel = str(src.relative_to(ROOT))
+        text = src.read_text(encoding="utf-8", errors="replace")
+        for pkg in sorted(_imported_top_packages(text) & pkgs):
+            offenders.setdefault(pkg, []).append(rel)
+    assert not offenders, (
+        "web 側コードが除外 top-dir を import している — その dir は web runtime の一部なので"
+        " _NON_WEB_TOP_DIRS から外すこと: %s" % {k: sorted(v)[:5] for k, v in offenders.items()}
+    )
