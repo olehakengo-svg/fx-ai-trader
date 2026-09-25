@@ -111,3 +111,19 @@ Entry filters (v16 forensic 導出):
 ⚪ 本戦略の live 実績は 09-10 の #859468 以降 **fill 0 本** (システム全体で最終 live fill は 09-11 の #893161 = **5.03 日前**)。`promo_n` **1** / EV +8.2 / `enabled: true` で不変。
 
 詳細: [[2026-09-16]] / [[usdjpy_carry_dip_accumulator]]
+
+
+## 🔴 2026-09-24 更新: **LIVE fill #2・#3 — 11.37 日の途絶を破って 2 本、いずれも負け、demo = broker 0.0p 差**
+
+| # | oanda tradeID | entry (UTC) | 価格 | ON_FILL bracket | exit | broker realized | demo 記録 | hold |
+|---|---|---|---|---|---|---|---|---|
+| 2 | **#893181** | 09-22 19:59:19 USD_JPY BUY 1,000u | 157.425 | TP 157.986 (+56.1p) / SL 157.254 (−17.1p) | 09-22 20:53:29 `MARKET_ORDER_TRADE_CLOSE` @157.380 | **−¥45 = −4.5p** | **−4.5** `SIGNAL_REVERSE` | 54m10s |
+| 3 | **#893189** | 09-24 03:37:22 USD_JPY BUY 1,000u | 158.092 | TP 158.595 (+50.3p) / SL 157.892 (−20.0p) | 09-24 04:35:28 `STOP_LOSS_ORDER` @157.892 (slippage 0) | **−¥200 = −20.0p** | **−20.0** `SL_HIT` | 58m06s |
+
+- **demo 累計: N=3 / 1W-2L / WR 33.3% / PnL −16.3 / EV −5.43** (`strategy_status.promo_ev` −5.43 と一致、`promotion: pending`)
+- ✅ 2 本とも demo と broker が完全一致 (09-10 の #859468 は 0.9p 差) ⇒ 本戦略の `daytrade` モード推定器は汚染なし。tx 893180〜893193 に `REPLACEMENT` 0 本 = **storm なし** (09-11 節の storm 4 は再発せず)。`storm_guard` (detect-only、[[storm-guard-design-2026-09-22]]) は `evaluated` 0 — `modify_sl` が呼ばれていないので整合
+- 🔴 **3 本すべて BT の前提に到達せず決済**: BT WR 23.91% / PF 3.866 は winner を ~458 bars (~115h) 保持することで成立するが、実走 hold は **4h04m / 54m / 58m**。#2 は SL 距離の 26% で `SIGNAL_REVERSE` 自主撤退、#3 は SL タッチ。**N=3 で edge 判定は不可**、ただし「長く持てない」は 3/3。⚠️ SL 距離 17.1p / 20.0p、TP 56.1p / 50.3p (R:R 2.5–3.3) — 宣言値との突合は未実施
+- 🔴🔑 **DD ledger は #3 の −¥200 だけを計上し #2 の −¥45 を取りこぼした** (`dd_jpy` +¥200 / broker −¥245) ⇒ [[2026-09-24]] 発見 2。`SIGNAL_REVERSE` 経路の決済が ledger に載らない仮説 (N=1)
+- 📋 次: N=10 まで毎 fill で hold 時間・exit 種別・demo↔broker 差を本節に追記。Kelly `agg_kelly` は 2 敗を受け −0.329→−0.340
+
+詳細: [[2026-09-24]] 発見 1・2
