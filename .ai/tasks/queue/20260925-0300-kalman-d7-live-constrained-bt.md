@@ -41,6 +41,7 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 | # | 経路 | 仕様 (live 実装) | 出典 |
 |---|---|---|---|
 | C0a | entry 時 SL 書き換え | `kalman_d7_po_dn_flip` は `_1H_PRESERVE_SLTP` に**無い** → 宣言 SL 1.5×ATR は捨てられ、**nearest_support − margin (SR ベース、RR≥1.0 の場合)** か **ATR × 1.0** (daytrade fallback) に置換。session / recent-fast-SL buffer でさらに変わる | L6746 / L6867-6908 |
+| C0c | 下流 SL 調整 (共有経路、`_1H_PRESERVE_SLTP` でも**スキップされない**) | UTC {0,1,18,19,20,21} で SL に **+0.2×ATR** バッファ / 直近 5 分に同ペアで fast SL (<120s) があれば SL 拡幅 / カウンタートレンド時 **+0.25×ATR** / ラウンドナンバー (50pip 刻み) 近傍で **2.5pip 外側へ nudge** | L6947-7026 |
 | C0b | broker TP 85% | `_QUICK_HARVEST_EXEMPT` に**無い** → OANDA へ送る TP は `signal_price + (tp − signal_price) × 0.85` (demo 側 TP は宣言のまま = demo⇄broker で TP が違う) | L10648 / L8179-8186 |
 | C1 | MAX_HOLD | entry から **28,800s (8h)** 超で成行決済 `MAX_HOLD_TIME` | L3130 / L3705-3728 |
 | C2 | 金曜クローズ | 金曜 **21:45Z 以降**の最初の tick で全建玉成行決済 | L3135 / L3702 |
@@ -77,6 +78,7 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 
 # 判定の扱い (凍結、3 巡目改訂)
 
+- **走 0′〜4 は「C0 近似」** (PR #299 review 8 巡目): C0a は `sr_entry_map` が有効なら live は SR ベース SL を採る (RR≥1.0) が BT では ATR×1.0 で代用、C0c (低流動性時間 / fast-SL / カウンタートレンド / ラウンドナンバーの SL 調整) も再現しない。どちらも「どの fill が SL に達するか」を変え得るので、**走 0′〜4 の分布を「live ルール忠実」と呼ばない**。感度として live ログから SR-stop 採用率 / C0c 発動率を出し、packet に併記
 - **走 0〜4 (C1〜C5) はルールは決定論的だが、intrabar 順序は近似**: live の C3/C4 (BE / trail) と SL/TP は `_sltp_loop` が bid/ask を
   0.5s ごとに評価するのに対し、M15 OHLC では同一 bar 内で BE/trail 発動と SL/TP 到達のどちらが先かを決められない
   (PR #299 review P2 4 巡目)。⇒ 走 0〜4 も「**ルール忠実・順序近似**」とラベルし、**bar 内順序の仮定を明示** (既定 = 逆行先行 =
@@ -88,7 +90,7 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
   前版の「走 5 EV ≤ 0 → R2 降格」「不完全な走は保守側のみ正当化」は**撤回** — 不完全なシミュレーションは**どちらの側も**正当化しない
 - 本 BT の役割 = **診断**: (1) 走 0 → 走 4 の分解で、どの overlay が BT edge をどれだけ削るか (2) winner / loser 別の hold・exit 分布
   (どちら側が打ち切られるか) (3) 8h 以内に完結する winner の割合 — を registry `kalman-d7-live-exit-spec-mismatch-disposition` の
-  **user 決裁 packet** (10-08) に載せる。決裁肢 = (a) live exit を宣言仕様に合わせる (override 120h + 週末保持 + C3〜C6 免除 (BE / trail も宣言 BT に無い overlay なので外す) + **C0 免除 = `_1H_PRESERVE_SLTP` と `_QUICK_HARVEST_EXEMPT` への登録** (宣言 SL 1.5×ATR / TP 5×ATR をそのまま送る) = Rule 1)
+  **user 決裁 packet** (10-08) に載せる。決裁肢 = (a) live exit を宣言仕様に合わせる (override 120h + 週末保持 + C3〜C6 免除 (BE / trail も宣言 BT に無い overlay なので外す) + **C0 免除 = `_1H_PRESERVE_SLTP` と `_QUICK_HARVEST_EXEMPT` への登録 + 下流 SL 調整 (C0c: 低流動性時間バッファ / fast-SL 拡幅 / カウンタートレンド / ラウンドナンバー nudge、L6947-7026 の共有経路) の免除フラグ新設** (宣言 SL 1.5×ATR / TP 5×ATR をそのまま送る — 現状この共有経路は exempt 集合でスキップされないので新フラグが要る) = Rule 1)
   (b) 現状維持 (live は BT の無い戦略と認識した上で執行 QA として継続) (c) shadow 降格
 - autopilot が単独で取れる処置は**通常の live 損失停止規律 (Rule 2、live realized N ベース) のみ**。BT の数字を降格根拠に使わない
 
@@ -101,4 +103,4 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 
 # 完了条件
 
-- 走 0〜5 の表 (走 0〜4 は「ルール忠実・順序近似」+ bar 内順序仮定の両方向、走 5 は「C6 近似」ラベル) + winner/loser 別 hold 分布 + exit 種別比率 + packet 用の所見が analyses/ に保存され、done ファイルに '## Claude Review' が付く
+- 走 0〜5 の表 (**走 0′〜4 は「C0 近似」ラベル** — SR ベース SL を ATR×1.0 で代用し下流 SL 調整 (C0c) も未再現、+ bar 内順序仮定の両方向、走 5 は「C6 近似」) + **C0 感度** (live ログから SR-stop 採用率と C0c 発動率を出し、SR-stop 採用 fill を除いた再集計を併記) + winner/loser 別 hold 分布 + exit 種別比率 + packet 用の所見が analyses/ に保存され、done ファイルに '## Claude Review' が付く
