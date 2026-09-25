@@ -4812,6 +4812,16 @@ Cutoff後に判断可能な戦略が皆無。N=2のEV=−12.25はノイズであ
 - **今日の対処**: USD_JPY がRANGINGを脱するまでは、同戦略の新規エントリーシグナルが発生しても期待値の根拠が薄い。N=2 の段階では「降格」の判断は下せないが、レジームとの整合性に注目。
 - 27モード中26モードON、しかし全モードで Trades=0 — シグナル発生そのものが抑制されている。
 
+### 2026-09-25 (Pre-Tokyo Briefing)
+前日（2026-09-24）の確定トレードは **1件**、PnL **-20.0p**、WR **0%**（1敗0勝）。
+Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとしては極小。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- r2降格セルが解消するかどうかをBlock Count推移で追跡する
+- `daytrade_eur:order_bar_dedup` が46件 → 同バー連続シグナルの頻度が高い時間帯（ロンドン開始前後）を特定して注視
+- **EUR/GBP系は一様に「下方向」**。EUR_JPY・GBP_JPYはVOLATILE（高ATR）、EUR_USD・GBP_USDはTRENDING_DOWN。クロス円の売り圧力が強い環境。
+- **USD_JPYはRANGING**だがATR%ile=72%と高め — 「レンジだが振れ幅が大きい」という最も扱いにくい状態。kalman BUYが前日SL_HITした背景と整合する。
+- スカルプ系にとってATR高水準は spread_guard 発動リスクを高める。現在scalp_xau / scalp_eurjpy はOFF、この判断は現レジームでは妥当。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
