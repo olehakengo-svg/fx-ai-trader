@@ -65,8 +65,8 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 1. **eval canon = TV Pine** (MEMORY feedback_tv_edge_discovery_loop: Live > TV > Python BT)。strategy card の Signal Logic / Exit Logic
    (TP 5.0×ATR / SL 1.5×ATR) を実装した Pine に C1〜C6 を**累積**で足し、同期間 (2025-07-01→2026-05-19、USDJPY M15) で走らせる:
    - 走 0: 制約なし (現行 BT の再現 — N=46 / WR 23.91% / PF 3.866 に一致することを先に確認 = harness 検証)
-   - 走 0′: +C0a+C0b+C0d (entry 時の SL/TP 変換。C0d は MTF strong 一致の有無で TP が 2 値になるので、一致判定は BT で再現しないので**両方の TP で走らせて併記** (近似)。一致率の live 実測は `_15m_tactical_bias` snapshot が fill 行に永続化されていないため出せない — follow-up 計装 — **これが「実走 R:R 2.5–3.3 vs 宣言 3.33」のズレの正体**。C0a の SR ベース SL は歴史的 `sr_entry_map` が無いと再現できない。**実行可能な近似は 2 択**: (A) `app.py` の `find_sr_levels_weighted` を Python port し、各 entry bar 時点の直近 N 本から SR map を再構築して live と同じ選択規則 (SR 優先 / RR≥1.0 / clamp) を掛ける (Python 走のみ、TV では不可) / (B) port が困難なら ATR×1.0 のみで走り、**SR 採用は「未再現」と明記**して what-if (ii) は省く。どちらを採ったかを結果表に書く。SR 採用率の live 実測は分岐が永続化されていないため出せない)
-   - 走 1: 走 0′+C1 ／ 走 2: +C2 ／ 走 3: +C3+C4 ／ 走 4: +C5 ／ 走 5: +C6 近似 (以降の走は全て 走 0′ を土台にする) (**参考値。C6 は PO 崩れサロゲートで conf/score/ADX/含み益保護/他戦略シグナルを持たない — 「full live stack」と呼ばない**)
+   - 走 0′: +C0a+C0b+C0d **+C0c の決定論部分 (低流動性時間 {0,1,18-21}Z の +0.2×ATR バッファ / ラウンドナンバー nudge、L6951-6961 / L7008-7017)** — 状態依存の fast-SL 拡幅 (直近 5 分の同ペア fast SL 履歴) だけは再現せず「未再現」と明記 (entry 時の SL/TP 変換。C0d は MTF strong 一致の有無で TP が 2 値になるので、一致判定は BT で再現しないので**両方の TP で走らせて併記** (近似)。一致率の live 実測は `_15m_tactical_bias` snapshot が fill 行に永続化されていないため出せない — follow-up 計装 — **これが「実走 R:R 2.5–3.3 vs 宣言 3.33」のズレの正体**。C0a の SR ベース SL は歴史的 `sr_entry_map` が無いと再現できない。**実行可能な近似は 2 択**: (A) `app.py` の `find_sr_levels_weighted` を Python port し、各 entry bar 時点の直近 N 本から SR map を再構築して live と同じ選択規則 (SR 優先 / RR≥1.0 / clamp) を掛ける (Python 走のみ、TV では不可) / (B) port が困難なら ATR×1.0 のみで走り、**SR 採用は「未再現」と明記**して what-if (ii) は省く。どちらを採ったかを結果表に書く。SR 採用率の live 実測は分岐が永続化されていないため出せない)
+   - 走 1: 走 0′+C1 ／ 走 2: +C2 ／ 走 3: +C3+C4 ／ 走 4: +C5 ／ 走 5: +C6 近似 (以降の走は全て 走 0′ を土台にする。走 0′〜4 のラベルは一貫して「**C0 近似 + intrabar 順序近似**」— 「ルール忠実」とは書かない) (**参考値。C6 は PO 崩れサロゲートで conf/score/ADX/含み益保護/他戦略シグナルを持たない — 「full live stack」と呼ばない**)
    - 累積にする理由: どの overlay が EV を削るかを分解する (処置 (b) Rule 1 packet を書く場合の根拠になる)
 2. TV が使えない場合は Python port で同じ 6 走 (⚠️ Python BT は容疑者。走 0 が TV の N / WR / PF を ±10% で再現できなければ
    結果を採用しない。BE/Trail は **無効化せず C3/C4 として実装**)。
@@ -80,7 +80,7 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 # 判定の扱い (凍結、3 巡目改訂)
 
 - **走 0′〜4 は「C0 近似」** (PR #299 review 8 巡目): C0a は `sr_entry_map` が有効なら live は SR ベース SL を採る (RR≥1.0) が BT では ATR×1.0 で代用、C0c (低流動性時間 / fast-SL / ラウンドナンバーの SL 調整) と C0d (MTF strong 一致時の TP ×1.3、一致判定は再現不能で 2 値併記) も近似。どちらも「どの fill が SL に達するか」を変え得るので、**走 0′〜4 の分布を「live ルール忠実」と呼ばない**。感度は **BT 側の what-if** (完了条件参照) で出す — live ログには SR/ATR の選択枝も C0c 発動も永続化されていないため live 実測率は導出できない (計装は follow-up)
-- **走 0〜4 (C1〜C5) はルールは決定論的だが、intrabar 順序は近似**: live の C3/C4 (BE / trail) と SL/TP は `_sltp_loop` が bid/ask を
+- **走 0′〜4 (C0 + C1〜C5) は C0 近似かつ intrabar 順序近似** (ルールの列挙は決定論的だが、SR-stop / fast-SL / MTF 一致の状態は再現できず、bar 内順序も決まらない): live の C3/C4 (BE / trail) と SL/TP は `_sltp_loop` が bid/ask を
   0.5s ごとに評価するのに対し、M15 OHLC では同一 bar 内で BE/trail 発動と SL/TP 到達のどちらが先かを決められない
   (PR #299 review P2 4 巡目)。⇒ 走 0〜4 も「**ルール忠実・順序近似**」とラベルし、**bar 内順序の仮定を明示** (既定 = 逆行先行 =
   保守側: 同一 bar で BE/trail 発動と SL 到達が両方あり得る場合は SL 到達を先に処理) し、**逆の仮定 (順行先行) での感度走を併記**する。
