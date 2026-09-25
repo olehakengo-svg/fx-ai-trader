@@ -4822,6 +4822,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **USD_JPYはRANGING**だがATR%ile=72%と高め — 「レンジだが振れ幅が大きい」という最も扱いにくい状態。kalman BUYが前日SL_HITした背景と整合する。
 - スカルプ系にとってATR高水準は spread_guard 発動リスクを高める。現在scalp_xau / scalp_eurjpy はOFF、この判断は現レジームでは妥当。
 
+### 2026-09-25 (Pre-Tokyo Briefing)
+前日（2026-09-24）のアクティブトレードは **1件のみ**。`kalman_d7_po_dn_flip / USD_JPY / BUY` がSL_HITで終了、PnL = **−20.0p**、WR = **0.0%**。システム全体として発注機会は著しく抑制されており、前日は事実上「1発退場」の一日だった。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **全体集計（Cutoff後）: N=4, WR=0.0%, PnL=−57.8p**
+- N=2はいずれも「データなし」域（N<10）。EV・WRは判断材料として使用不可。
+- ただし「全4件すべて敗北」という事実は、短期的な方向性バイアスの警戒材料として記録しておく。
+- 昇格基準（N≥30 & EV≥1.0）到達まで：`kalman_d7` は残り **28件**、`usdjpy_carry_dip` は残り **28件**。
+- **問題の特定:** USD_JPYは現在 **RANGING / ATR%ile 72%** というやや矛盾したレジームにある。RangingだがATRは高位置にあり、レンジ内の振れ幅が大きいことを示す。この環境でBUY方向に入った場合、SL到達リスクは構造的に高い。
+- **Spread確認:** 前日のSpread = 0.8（ペア基準として許容範囲内、spread_guardによるblockは発生していない）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
