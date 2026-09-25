@@ -357,6 +357,32 @@ _NON_WEB_TOP_DIRS = {
 _MONITORING_WRITERS_OUTSIDE_WEB = {"tools/nav_floor_projection.py"}
 
 
+def _imports_monitoring_writer(text: str) -> bool:
+    """`tools.nav_floor_projection` を import しているか — `ast` で構造的に判定.
+
+    regex は `from tools import (` + 改行 + `nav_floor_projection` の複数行 import を
+    取り逃す (PR #297 review P2 6 巡目)。Import / ImportFrom ノードを走査するので
+    改行・括弧・alias・相対 import の書き方に依存しない。構文エラーのファイルは
+    保守側 (import 有りと見なす) に倒す — 読めないコードを「読み手ではない」と断定しない。
+    """
+    import ast
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return "nav_floor_projection" in text
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(a.name == "tools.nav_floor_projection" for a in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            if mod == "tools.nav_floor_projection":
+                return True
+            if mod in ("tools", "") and any(a.name == "nav_floor_projection" for a in node.names):
+                return True
+    return False
+
+
 def _web_runtime_sources() -> list[Path]:
     out = []
     for src in sorted(ROOT.rglob("*.py")):
@@ -417,10 +443,7 @@ def test_daily_report_monitoring_csv_is_ignored():
     for src in srcs:
         rel = str(src.relative_to(ROOT))
         text = src.read_text(encoding="utf-8", errors="replace")
-        if rel not in _MONITORING_WRITERS_OUTSIDE_WEB and re.search(
-                r"^\s*(from\s+tools\.nav_floor_projection\s+import|"
-                r"from\s+tools\s+import[^\n]*\bnav_floor_projection\b|"
-                r"import\s+tools\.nav_floor_projection)", text, re.M):
+        if rel not in _MONITORING_WRITERS_OUTSIDE_WEB and _imports_monitoring_writer(text):
             importers.append(rel)
         if rel in _MONITORING_WRITERS_OUTSIDE_WEB:
             continue
