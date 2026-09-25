@@ -6,7 +6,7 @@ status: queued
 created_at: 2026-09-25T03:00:00+0900
 priority: P1
 deadline: 2026-10-08 (registry `kalman-d7-live-exit-spec-mismatch-disposition`)
-roadmap_gate: "M1 (clean live 月次符号転換)。今月唯一 LIVE 約定している戦略の live 仕様が BT と決定論的に不一致 = live は BT に無い戦略を走らせている状態。EV の符号が出れば R2 降格 / 維持 の分岐が機械的に決まる"
+roadmap_gate: "M1 (clean live 月次符号転換)。今月唯一 LIVE 約定している戦略の live 仕様が BT と決定論的に不一致 = live は BT に無い戦略を走らせている状態。本タスクは診断のみ — 分解 (どの overlay が edge を削るか) と winner/loser 別分布を user 決裁 packet (10-08) に供給する。keep / demote はこの数字から機械的に決めない"
 rule: R3 (計測のみ。tier / lot / live 配線の変更は本タスク範囲外。宣言通り保持 (override 120h + 週末保持) の live 導入は Rule 1 = user 決裁)
 prereq_artifacts:
   - knowledge-base/wiki/strategies/kalman-d7-po-dn-flip.md (Overview / BT Performance / Exit Logic / 09-24 節「2026-09-25 確定」)
@@ -19,8 +19,10 @@ prereq_artifacts:
 
 `kalman_d7_po_dn_flip` の **BT (TV Pine、hold 無制限、480 bars ≈ 120h) と live (`daytrade` mode 8h cap
 + 金曜 21:45Z 全建玉クローズ) の仕様不一致**を、**live 制約を BT に入れて**同期間で再計測し、
-摩擦調整 EV の符号を出す。分岐は registry entry に凍結済み: **EV ≤ 0 → R2 shadow 降格 / EV > 0 → live 維持 +
-参照 BT を制約付きに差し替え**。
+**overlay 別に分解して診断する** (走 0〜5、下記)。出力は (1) どの overlay が BT edge をどれだけ削るか (2) winner / loser 別の
+hold・exit 分布 (3) 8h 以内に完結する winner の割合 — で、これを registry entry の **user 決裁 packet (10-08)** に供給する。
+**本タスクの数字から keep / demote を決めない** (C6 は再現不能、C1〜C5 も intrabar 順序は近似 — 「判定の扱い」参照)。
+旧版の「EV ≤ 0 → R2 降格 / EV > 0 → 維持」は撤回済み。
 
 # 背景
 
@@ -68,11 +70,16 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
    BE / trail / TIME_DECAY / SIGNAL_REVERSE)。走 0 の **winner hold 分布 (bars in trade) と 8h 以内に完結した winner の割合**を明記
    (「制約 EV が正に残る余地」の直接指標)。
 5. KB: `knowledge-base/wiki/analyses/kalman-d7-live-constrained-bt-2026-10.md` に結果 + 分岐判定。strategy card 09-24 節 /
-   registry entry に結果リンク。**R2 降格の判定が出ても執行は Claude が別 PR**。
+   registry entry に結果リンク。**本タスクは判定を書かない** (packet 用の所見のみ)。
 
 # 判定の扱い (凍結、3 巡目改訂)
 
-- **走 0〜4 (C1〜C5) は全て決定論的で忠実に再現できる** = 「exact partial stack」。走 5 (C6 近似) は参考値
+- **走 0〜4 (C1〜C5) はルールは決定論的だが、intrabar 順序は近似**: live の C3/C4 (BE / trail) と SL/TP は `_sltp_loop` が bid/ask を
+  0.5s ごとに評価するのに対し、M15 OHLC では同一 bar 内で BE/trail 発動と SL/TP 到達のどちらが先かを決められない
+  (PR #299 review P2 4 巡目)。⇒ 走 0〜4 も「**ルール忠実・順序近似**」とラベルし、**bar 内順序の仮定を明示** (既定 = 逆行先行 =
+  保守側: 同一 bar で BE/trail 発動と SL 到達が両方あり得る場合は SL 到達を先に処理) し、**逆の仮定 (順行先行) での感度走を併記**する。
+  両仮定の差が結論 (分解の順位 / winner 比率) を変えるなら packet にそう書く。tick / bid-ask replay は本タスクの範囲外。
+  走 5 (C6 近似) は参考値
 - **本 BT 単独では keep / demote を決めない**: live の exit 分布は C6 を含む 6 経路の合成で、C6 が再現できない以上、
   走 4 の EV の符号がどちらでも full stack の符号は確定しない (早期合成 exit は EV を上げも下げもする)。
   前版の「走 5 EV ≤ 0 → R2 降格」「不完全な走は保守側のみ正当化」は**撤回** — 不完全なシミュレーションは**どちらの側も**正当化しない
@@ -91,4 +98,4 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 
 # 完了条件
 
-- 走 0〜5 の表 (走 5 は「C6 近似」ラベル) + winner/loser 別 hold 分布 + exit 種別比率 + packet 用の所見が analyses/ に保存され、done ファイルに '## Claude Review' が付く
+- 走 0〜5 の表 (走 0〜4 は「ルール忠実・順序近似」+ bar 内順序仮定の両方向、走 5 は「C6 近似」ラベル) + winner/loser 別 hold 分布 + exit 種別比率 + packet 用の所見が analyses/ に保存され、done ファイルに '## Claude Review' が付く
