@@ -65,7 +65,7 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 1. **eval canon = TV Pine** (MEMORY feedback_tv_edge_discovery_loop: Live > TV > Python BT)。strategy card の Signal Logic / Exit Logic
    (TP 5.0×ATR / SL 1.5×ATR) を実装した Pine に C1〜C6 を**累積**で足し、同期間 (2025-07-01→2026-05-19、USDJPY M15) で走らせる:
    - 走 0: 制約なし (現行 BT の再現 — N=46 / WR 23.91% / PF 3.866 に一致することを先に確認 = harness 検証)
-   - 走 0′: +C0a+C0b+C0d (entry 時の SL/TP 変換。C0d は MTF strong 一致の有無で TP が 2 値になるので、一致判定は BT で再現しないので**両方の TP で走らせて併記** (近似)。一致率の live 実測は `_15m_tactical_bias` snapshot が fill 行に永続化されていないため出せない — follow-up 計装 — **これが「実走 R:R 2.5–3.3 vs 宣言 3.33」のズレの正体**。C0a は SR map が要るので TV では ATR×1.0 fallback で近似し、SR 置換率は live ログから別途記載)
+   - 走 0′: +C0a+C0b+C0d (entry 時の SL/TP 変換。C0d は MTF strong 一致の有無で TP が 2 値になるので、一致判定は BT で再現しないので**両方の TP で走らせて併記** (近似)。一致率の live 実測は `_15m_tactical_bias` snapshot が fill 行に永続化されていないため出せない — follow-up 計装 — **これが「実走 R:R 2.5–3.3 vs 宣言 3.33」のズレの正体**。C0a は SR map が要るので TV では ATR×1.0 fallback で近似する。SR 採用率は live ログに分岐が永続化されていないため出せない — 完了条件の BT 側 what-if (ii) で代替)
    - 走 1: 走 0′+C1 ／ 走 2: +C2 ／ 走 3: +C3+C4 ／ 走 4: +C5 ／ 走 5: +C6 近似 (以降の走は全て 走 0′ を土台にする) (**参考値。C6 は PO 崩れサロゲートで conf/score/ADX/含み益保護/他戦略シグナルを持たない — 「full live stack」と呼ばない**)
    - 累積にする理由: どの overlay が EV を削るかを分解する (処置 (b) Rule 1 packet を書く場合の根拠になる)
 2. TV が使えない場合は Python port で同じ 6 走 (⚠️ Python BT は容疑者。走 0 が TV の N / WR / PF を ±10% で再現できなければ
