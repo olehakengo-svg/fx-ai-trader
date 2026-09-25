@@ -61,7 +61,7 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 1. **eval canon = TV Pine** (MEMORY feedback_tv_edge_discovery_loop: Live > TV > Python BT)。strategy card の Signal Logic / Exit Logic
    (TP 5.0×ATR / SL 1.5×ATR) を実装した Pine に C1〜C6 を**累積**で足し、同期間 (2025-07-01→2026-05-19、USDJPY M15) で走らせる:
    - 走 0: 制約なし (現行 BT の再現 — N=46 / WR 23.91% / PF 3.866 に一致することを先に確認 = harness 検証)
-   - 走 1: +C1 ／ 走 2: +C1+C2 ／ 走 3: +C1+C2+C3+C4 ／ 走 4: +C5 ／ 走 5: +C6 (= **full live stack**)
+   - 走 1: +C1 ／ 走 2: +C1+C2 ／ 走 3: +C1+C2+C3+C4 ／ 走 4: +C5 ／ 走 5: +C6 近似 (**参考値。C6 は PO 崩れサロゲートで conf/score/ADX/含み益保護/他戦略シグナルを持たない — 「full live stack」と呼ばない**)
    - 累積にする理由: どの overlay が EV を削るかを分解する (処置 (b) Rule 1 packet を書く場合の根拠になる)
 2. TV が使えない場合は Python port で同じ 6 走 (⚠️ Python BT は容疑者。走 0 が TV の N / WR / PF を ±10% で再現できなければ
    結果を採用しない。BE/Trail は **無効化せず C3/C4 として実装**)。
