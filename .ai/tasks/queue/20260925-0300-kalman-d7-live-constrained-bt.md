@@ -40,6 +40,8 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 
 | # | 経路 | 仕様 (live 実装) | 出典 |
 |---|---|---|---|
+| C0a | entry 時 SL 書き換え | `kalman_d7_po_dn_flip` は `_1H_PRESERVE_SLTP` に**無い** → 宣言 SL 1.5×ATR は捨てられ、**nearest_support − margin (SR ベース、RR≥1.0 の場合)** か **ATR × 1.0** (daytrade fallback) に置換。session / recent-fast-SL buffer でさらに変わる | L6746 / L6867-6908 |
+| C0b | broker TP 85% | `_QUICK_HARVEST_EXEMPT` に**無い** → OANDA へ送る TP は `signal_price + (tp − signal_price) × 0.85` (demo 側 TP は宣言のまま = demo⇄broker で TP が違う) | L10648 / L8179-8186 |
 | C1 | MAX_HOLD | entry から **28,800s (8h)** 超で成行決済 `MAX_HOLD_TIME` | L3130 / L3705-3728 |
 | C2 | 金曜クローズ | 金曜 **21:45Z 以降**の最初の tick で全建玉成行決済 | L3135 / L3702 |
 | C3 | ATR BE | MFE が **entry ATR × 0.8** 到達で SL → 建値 (+spread) | L3328-3340 (共通建値ガード) |
@@ -61,7 +63,8 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 1. **eval canon = TV Pine** (MEMORY feedback_tv_edge_discovery_loop: Live > TV > Python BT)。strategy card の Signal Logic / Exit Logic
    (TP 5.0×ATR / SL 1.5×ATR) を実装した Pine に C1〜C6 を**累積**で足し、同期間 (2025-07-01→2026-05-19、USDJPY M15) で走らせる:
    - 走 0: 制約なし (現行 BT の再現 — N=46 / WR 23.91% / PF 3.866 に一致することを先に確認 = harness 検証)
-   - 走 1: +C1 ／ 走 2: +C1+C2 ／ 走 3: +C1+C2+C3+C4 ／ 走 4: +C5 ／ 走 5: +C6 近似 (**参考値。C6 は PO 崩れサロゲートで conf/score/ADX/含み益保護/他戦略シグナルを持たない — 「full live stack」と呼ばない**)
+   - 走 0′: +C0a+C0b (entry 時の SL/TP 変換 — **これが「実走 R:R 2.5–3.3 vs 宣言 3.33」のズレの正体**。C0a は SR map が要るので TV では ATR×1.0 fallback で近似し、SR 置換率は live ログから別途記載)
+   - 走 1: 走 0′+C1 ／ 走 2: +C2 ／ 走 3: +C3+C4 ／ 走 4: +C5 ／ 走 5: +C6 近似 (以降の走は全て 走 0′ を土台にする) (**参考値。C6 は PO 崩れサロゲートで conf/score/ADX/含み益保護/他戦略シグナルを持たない — 「full live stack」と呼ばない**)
    - 累積にする理由: どの overlay が EV を削るかを分解する (処置 (b) Rule 1 packet を書く場合の根拠になる)
 2. TV が使えない場合は Python port で同じ 6 走 (⚠️ Python BT は容疑者。走 0 が TV の N / WR / PF を ±10% で再現できなければ
    結果を採用しない。BE/Trail は **無効化せず C3/C4 として実装**)。
@@ -85,7 +88,7 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
   前版の「走 5 EV ≤ 0 → R2 降格」「不完全な走は保守側のみ正当化」は**撤回** — 不完全なシミュレーションは**どちらの側も**正当化しない
 - 本 BT の役割 = **診断**: (1) 走 0 → 走 4 の分解で、どの overlay が BT edge をどれだけ削るか (2) winner / loser 別の hold・exit 分布
   (どちら側が打ち切られるか) (3) 8h 以内に完結する winner の割合 — を registry `kalman-d7-live-exit-spec-mismatch-disposition` の
-  **user 決裁 packet** (10-08) に載せる。決裁肢 = (a) live exit を宣言仕様に合わせる (override 120h + 週末保持 + C3〜C6 免除 (BE / trail も宣言 BT に無い overlay なので外す) = Rule 1)
+  **user 決裁 packet** (10-08) に載せる。決裁肢 = (a) live exit を宣言仕様に合わせる (override 120h + 週末保持 + C3〜C6 免除 (BE / trail も宣言 BT に無い overlay なので外す) + **C0 免除 = `_1H_PRESERVE_SLTP` と `_QUICK_HARVEST_EXEMPT` への登録** (宣言 SL 1.5×ATR / TP 5×ATR をそのまま送る) = Rule 1)
   (b) 現状維持 (live は BT の無い戦略と認識した上で執行 QA として継続) (c) shadow 降格
 - autopilot が単独で取れる処置は**通常の live 損失停止規律 (Rule 2、live realized N ベース) のみ**。BT の数字を降格根拠に使わない
 
