@@ -6,6 +6,12 @@
 - **害**: 1 日 4 回のエンジン再起動 (二重エンジン再生成 + in-memory 状態リセット) + **00:20Z boot = fork 窓 hour-0 の再露出** ([[http-blind-fork-poisoning-2026-09-22]] §3.3)
 - **対策**: `data/monitoring/**` 追加。pin `tests/test_render_build_filter.py::test_daily_report_monitoring_csv_is_ignored` (ignore / 読み手ゼロ / `data/cache/**` 非巻き込み)。詳細 [[deploy-churn-trading-gap-2026-08-21]] §9 / [[dual-engine-dup-rate-readout-2026-09-24]] §7
 - **レビュー 4 巡目 (P2 4090163186)**: 読み手走査の除外集合に `research` が入っていたが、`modules/demo_trader.py` が live 経路で `research.edge_discovery.{strategy_family_map,regime_labeler,mtf_regime_engine}` を import している (L6365 / L11218 / L11343) — 対称チェック (除外 top-dir × 走査対象からの import) で該当は `research` のみ。`research` を除外から外し、除外集合の自己検査 pin `test_non_web_top_dirs_are_not_imported_by_web` (「除外 top-dir は走査対象から import されない」) を新設。counterfactual: `research` を戻す → 2 テスト失敗 / `research/edge_discovery/regime_labeler.py` に `Path("data") / "monitoring"` を足す → 読み手 guard が名指しで失敗
+## 2026-09-24 — docs(decision): user 決裁 — OANDA 固定 / 資金は必要時追加 (U3 方向 = 入金) / 優先はエッジ見極めと勝てるトレード増 (rule:R3 記録のみ)
+
+- **決裁記録**: [[user-decision-capital-not-binding-edge-first-2026-09-24]] — venue 変更 / 別口座で出来高合算 / keeper ゼロ化 / U3 縮退 は提案対象から除外。keeper ¥2,080/月 は固定費。資本税・分母レバーの議論は打ち切り
+- **影響**: packet UD3 (会員合算の OANDA 問い合わせ) は見送り扱い、D3 は (i) 入金の方向で額のみ未定、F4 資金時計は決裁強制の機能を失う (期限管理は packet 11-30)。資本ゲートで park の供給枝 U4 (a)(b)(c) は scan#6 (10-18) で「資本制約なし」として再上程 ((c) は OANDA 銘柄内)
+- **未決裁のまま**: U2 (資本上限の数字)、D1 / D2(i) / D5 / D8 (11-30)。registry の resolved 化は user 既読確認後の follow-up
+
 ## 2026-09-24 — fix(engine): 二重エンジン (gunicorn master + worker) のプロセス帰属計装 + dup 率/LIVE 二重送信の実測 — registry 10-06 disposition の (1)(2) 前倒し (rule:R3)
 
 - **背景**: [[http-blind-fork-poisoning-2026-09-22]] §6 で「取引エンジンが master と worker の 2 プロセスで走っている」を確定したが、dup 率・LIVE 二重送信リスク・単一化の regime break は未評価だった (registry `dual-engine-master-worker-disposition`、期日 10-06)
