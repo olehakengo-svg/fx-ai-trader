@@ -1,5 +1,10 @@
 # FX AI Trader - Changelog
 
+## 2026-09-26 — feat(engine): entry 時 SL/TP 構築の分岐を fill 行に永続 (`[SLTP_CONSTRUCT]` / `[BROKER_TP]`) (rule:R3 record-only)
+
+- `modules/demo_trader.py`: `_tick_entry` の SL/TP 構築 (SR/ATR 選択・MIN/MAX clamp・低流動性/fast-SL/カウンタートレンド/ラウンドナンバー バッファ・MTF TP ×1.3・range TP) の分岐と宣言/実発注距離を `[SLTP_CONSTRUCT] …` として reasons に永続、promoted 送信経路で broker TP (quick-harvest ×0.85 等) を `[BROKER_TP] …` として追記。取引挙動・gate・値は不変
+- 読み手 `tools/sltp_construct_readout.py` (件数・距離のみ、outcome 非読)。pin `tests/test_sltp_construct_marker_r3.py` (15)。詳細: knowledge-base/wiki/changelog.md 2026-09-26
+
 ## 2026-09-24 — fix(render): `data/monitoring/**` を ignoredPaths へ — 日報 commit が本番を 1 日 4 回再デプロイしていた (rule:R3)
 
 - `daily-report.yml` が追記する F4 資金時計 CSV (`data/monitoring/nav_floor_projection.csv`) 1 パスが ignoredPaths に無く、`docs(KB): daily report` commit (00:20Z / 03:02Z / 11:12Z / 19:22Z) が毎回 web service を再デプロイ (Render deploy 一覧 5 件中 4 件)。web プロセス非参照、読み手は tools + cron registry のみ

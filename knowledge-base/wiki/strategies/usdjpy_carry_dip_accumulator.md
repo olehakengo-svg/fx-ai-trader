@@ -75,6 +75,14 @@
 >
 > ⚠️ 併発リスク: この建玉の週末クローズ試行が **47 時間 / 64,170 回の `MARKET_HALTED` リトライ storm** (128,340 transactions) を引き起こし、OANDA Gold status = API アクセスを脅かした。hold ≤24 H1 は金曜クローズを日常的に跨ぐため **再発する**。詳細: [[2026-09-07]]
 
+## 🔴 2026-09-25/26 更新: **LIVE fill #15・#16 (2 本とも SL_HIT、13.7 日ぶり) — N=16 で R2 不成立、SL 契約破棄の機構を code reading で特定し、fill 毎に確認できる計装を入れた**
+
+- **fill**: #893195 (09-25 04:02:39Z、entry 158.368、ON_FILL SL 158.207 = **−16.1p** / TP 159.047 = +67.9p) → 05:13:50 `STOP_LOSS_ORDER` **−¥161** (demo id 18464 −16.3 `SL_HIT`、hold 71m) ／ #893201 (06:03:15Z、entry 158.240、SL 158.071 = **−16.9p** / TP 158.858 = +61.8p) → 06:14:21 `STOP_LOSS_ORDER` **−¥171** (demo id 18467 −17.0、hold **11m**)。demo↔broker 差 +0.2 / −0.1p、REPLACEMENT tx 0 (storm なし)。詳細表: [[2026-09-25]] 発見 1
+- **累計**: demo **N 14→16 / 8W-7L-1BE / WR 50.0% / PnL +103.0→+69.7 / EV +4.36**、broker 実測 **+¥793→+¥461 = +46.1p / EV +2.9p**。REG `carry-dip-v3-revival-watch` の R2 (N≥10 ∧ EV<0、両 estimand) は**不成立**。正値 4 本依存 (+¥1,633) は不変、負け側が 2 本増
+- 🔴 **#16 は #15 の SL 約定 49 分後に 12.8p 下で再エントリーし 11 分で SL** — 宣言セル (150p テールキャップ) なら #15 が生きている場面。切り詰め SL × 再エントリーが 1 回の下落を 2 敗に変換 (#837947 09-06 と同型、今回は 2 本重ね)
+- 🔑 **機構 (code reading、`modules/demo_trader.py` 2026-09-26 origin/main)**: 本戦略は `_1H_PRESERVE_SLTP` に無いので宣言 SL は捨てられ、共有経路 (C0a) で **SR ベース (nearest_support − 0.3×ATR、RR≥1.0 のとき) か ATR fallback** に置換される。mode `daytrade_1h` は `_get_base_mode` で接尾辞が剥がれない (`_1h` は剥離リストに無い) ため ATR 倍率は `{scalp 0.8, daytrade 1.0, swing 1.5}.get("daytrade_1h", 0.8)` = **0.8**、MIN_SL_DIST = **3p** (`.get(…, 0.030)`)、MAX_SL_DIST = **50p** (`"daytrade_1h": 0.500`)。その後 C0c (UTC 0/1/18-21 で +0.2×ATR、直近 5 分の同ペア fast-SL で +0.3×ATR、.000/.500 ±2p でラウンドナンバー 2.5p 外側 nudge) が乗る。観測帯 9.8–28.5p・「ボラ連動」・「TP は demo × 0.85」(C0b `_QUICK_HARVEST_MULT`) はこの経路の出力として整合する — ただし **どの fill が SR / ATR / clamp / バッファのどれを通ったかは 16/16 とも復元不能** (row に分岐が無い)
+- ✅ **計装 (branch `feat/sltp-construct-marker-r3-2026-09-26`、rule:R3 record-only)**: 以降の fill 行 reasons に `[SLTP_CONSTRUCT] sl=<preserve|sr|atr_nosr|atr_rrlow> clamp=… lowliq fastsl ct rn mtf_tp range_tp decl_sl_p sl_p decl_tp_p tp_p` と `[BROKER_TP] basis=qh mult=0.85 tp_p=…` が永続する。`decl_sl_p` (宣言 150p 相当) と `sl_p` (実発注) を同一行で読めるので、機構の確認は次 fill で閉じる。読み手 `tools/sltp_construct_readout.py`。**SL 契約の復元 (a) / breakeven trail (b) は user 決裁事項 (08-07) で autopilot 禁止 — 本計装は値を変えない**
+
 ## 概要
 現レジーム固有の順張りロング dip-buy。USD_JPY H1 で RSI(14) が 45 を**下抜けた瞬間**（押し目入口）に、close が天井 159.5 未満なら LONG。SL = entry-1.5円（介入ギャップ前提の per-trade テールキャップ）、TP = entry+0.8円、hold ≤ 24 H1。同一押し目クラスタは 12h cooldown で1エントリーに畳む。
 
