@@ -4842,6 +4842,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **課題B**: `r2_shadow_demoted_cell`がscalp系を全面的に抑制している。これはシャドウモードのdemoteセルが本番フィルターとして機能している正常動作であり、現状の抑制は設計通り。ただしblock累積が全体シグナル機会を著しく削減している点は継続監視。
 - **課題C**: `agg_kelly=-0.359<0`によるblockは、Kelly基準が負値（期待値マイナス）と判定していることを意味する。現状の戦略群に正のEV根拠が統計的に存在しない（N不足＋EV負）状況と整合的。本日もSKIPが続く可能性が高い。
 
+### 2026-09-26 (Pre-Tokyo Briefing)
+前日（2026-09-25）の執行は **N=2、PnL=−33.3、WR=0%** と完全な損失セッション。`usdjpy_carry_dip_accumulator` が USD/JPY でBUY×2発、いずれもSL_HITで終了。全トレードのReason=SL_HITであり、エントリー方向そのものが機能しなかった日。Spread（0.8pip）は正常範囲内のため、摩擦コストが主因ではない。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的地位**: 両戦略ともN=2。「データなし」水準（N<10）。EV・WRの数値はノイズと区別不能。判断保留が正当。
+- `usdjpy_carry_dip_accumulator`: N=2 / 30まで **28件残**
+- `kalman_d7_po_dn_flip`: N=2（Cutoff後） / 30まで **28件残**
+- 両戦略ともN=30到達まで昇格/降格判断は保留フェーズ
+- **Daytrade系（EUR/GBP）**: TRENDING_DOWNで高ATR。方向が整合していればDT系に追い風。ただしATR71-75%ile水準はSLが広くなる可能性。
+- **Scalp系**: EUR/GBPペアは方向性明確でScalpエントリー機会が存在するが、`r2_shadow_demoted_cell`によるブロックが多数（後述）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
