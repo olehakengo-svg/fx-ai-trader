@@ -143,19 +143,25 @@ def _print_table(summary: dict) -> None:
     if summary["rows_with_marker"] == 0:
         print("(marker 行なし — デプロイ前の行か、窓が古い。`sl=unset` も 0 件)")
         return
-    hdr = ("entry_type", "lane", "n", "sl", "clamp", "lowliq", "fastsl", "rn", "mtf1.3",
-           "decl_sl/sl_p", "decl_tp/tp_p/broker")
+    # 既定表は収集した provenance を全部出す (PR #300 review P2 4110787960: ct / range_tp /
+    # entry_drift_p を省くと C0c カウンタートレンド枝と宣言⇄実発注の基準ずれが既定では読めない)
+    hdr = ("entry_type", "lane", "n", "sl", "clamp",
+           "lowliq", "fastsl", "ct", "rn", "range_tp", "mtf1.3",
+           "decl_sl/sl_p", "decl_tp/tp_p/broker", "drift_p", "broker_basis")
     print(" | ".join(hdr))
     for g in summary["groups"]:
         mp = g["median_pips"]
+        rt = g["rate"]
         print(" | ".join([
             g["entry_type"], g["lane"], str(g["n"]),
             ",".join(f"{k}:{v}" for k, v in sorted(g["sl"].items())),
             ",".join(f"{k}:{v}" for k, v in sorted(g["clamp"].items())),
-            f"{g['rate']['lowliq']:.2f}", f"{g['rate']['fastsl']:.2f}",
-            f"{g['rate']['rn']:.2f}", f"{g['rate']['mtf_tp_1_3']:.2f}",
+            f"{rt['lowliq']:.2f}", f"{rt['fastsl']:.2f}", f"{rt['ct']:.2f}",
+            f"{rt['rn']:.2f}", f"{rt['range_tp']:.2f}", f"{rt['mtf_tp_1_3']:.2f}",
             f"{mp['decl_sl_p']}/{mp['sl_p']}",
             f"{mp['decl_tp_p']}/{mp['tp_p']}/{mp['broker_tp_p']}",
+            f"{mp['entry_drift_p']}",
+            ",".join(f"{k}:{v}" for k, v in sorted(g["broker_basis"].items())) or "-",
         ]))
 
 
