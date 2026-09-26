@@ -77,7 +77,10 @@ def _load_rows(args, fetch_page=_fetch_page) -> tuple[list, bool]:
         if len(page) < PAGE_SIZE:
             return rows, False
         offset += PAGE_SIZE
-    return rows, True
+    # 40 ページちょうどで窓が尽きた場合を truncated と誤報しない — 1 行だけ先を覗く
+    # (PR #300 review P3 4110918322)
+    probe = fetch_page(args.url, limit=1, offset=offset, date_from=args.since, status="closed")
+    return rows, bool(probe)
 
 
 def _reasons(row) -> list:
