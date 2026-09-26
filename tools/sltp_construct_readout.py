@@ -41,9 +41,11 @@ def _unwrap(data) -> list:
     return data
 
 
-def _fetch_page(url: str, *, limit: int, offset: int, date_from: str | None) -> list:
+def _fetch_page(url: str, *, limit: int, offset: int, date_from: str | None,
+                status: str = "closed") -> list:
     import requests  # 遅延 import (pytest 収集時の依存を避ける)
-    params = {"limit": int(limit), "offset": int(offset), "include_shadow": "true"}
+    params = {"limit": int(limit), "offset": int(offset), "include_shadow": "true",
+              "status": status}
     if date_from:
         params["date_from"] = date_from  # サーバ側で窓を切る (LIMIT/OFFSET はその後)
     resp = requests.get(url, params=params, timeout=60)
@@ -60,11 +62,17 @@ def _load_rows(args, fetch_page=_fetch_page) -> tuple[list, bool]:
     if not str(args.url).startswith("https://"):
         raise SystemExit("--url は https:// のみ")
     if not args.since:
-        return fetch_page(args.url, limit=args.limit, offset=0, date_from=None), False
-    rows: list = []
+        return fetch_page(args.url, limit=args.limit, offset=0, date_from=None,
+                          status="all"), False
+    # open 行は status=all だと毎ページ先頭に全件 prepend され offset が効かない
+    # (PR #300 review P2 4110860717) → open は 1 回だけ、ページングは status=closed で行う。
+    # 取りこぼし防止に summarize 側でも trade_id で dedup する。
+    rows: list = list(fetch_page(args.url, limit=PAGE_SIZE, offset=0,
+                                 date_from=args.since, status="open"))
     offset = 0
     for _ in range(MAX_PAGES):
-        page = fetch_page(args.url, limit=PAGE_SIZE, offset=offset, date_from=args.since)
+        page = fetch_page(args.url, limit=PAGE_SIZE, offset=offset, date_from=args.since,
+                          status="closed")
         rows.extend(page)
         if len(page) < PAGE_SIZE:
             return rows, False
@@ -124,7 +132,15 @@ def summarize(rows: list, since: str | None, *, truncated: bool = False) -> dict
     })
     total = 0
     with_marker = 0
+    seen: set = set()
+    dupes = 0
     for row in rows:
+        tid = row.get("trade_id") or row.get("id")
+        if tid is not None:
+            if tid in seen:
+                dupes += 1
+                continue
+            seen.add(tid)
         et = row.get("entry_type") or "?"
         ts = str(row.get("entry_time") or "")
         if since and ts[:10] < since:
@@ -160,7 +176,7 @@ def summarize(rows: list, since: str | None, *, truncated: bool = False) -> dict
         return round(statistics.median(xs), 1) if xs else None
 
     out = {"rows_in_window": total, "rows_with_marker": with_marker,
-           "truncated": truncated, "groups": []}
+           "truncated": truncated, "dedup_dropped": dupes, "groups": []}
     for (et, lane), g in sorted(groups.items(), key=lambda kv: (-kv[1]["n"], kv[0])):
         n = g["n"]
         out["groups"].append({
@@ -179,7 +195,7 @@ def summarize(rows: list, since: str | None, *, truncated: bool = False) -> dict
 def _print_table(summary: dict) -> None:
     print(f"rows_in_window={summary['rows_in_window']} "
           f"rows_with_marker={summary['rows_with_marker']} "
-          f"truncated={summary['truncated']}")
+          f"truncated={summary['truncated']} dedup_dropped={summary['dedup_dropped']}")
     if summary["truncated"]:
         print(f"⚠️ 窓が MAX_PAGES ({MAX_PAGES}×{PAGE_SIZE}) を超えた — 率は部分窓の値、--since を狭めること")
     if summary["rows_with_marker"] == 0:
