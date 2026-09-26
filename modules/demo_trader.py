@@ -883,6 +883,7 @@ _PROMO_BLOCK_REASON_TAG = "[PROMO_BLOCK]"
 #     計装で、kalman_d7 / carry_dip の「SL 契約破棄の機構は未特定」を live 実測率で閉じる前提。
 #   [BROKER_TP] basis=<qh|exempt|range_mr|wg_none|passthrough> mult=<0.85|1.0> tp_p=<broker TP 距離|na>
 #     — OANDA へ送った TP (C0b quick-harvest) を row に永続 (demo 行 tp 列は宣言のまま)。
+#     tp_p は [SLTP_CONSTRUCT] の tp_p と同じ current_price 基準 (readout で直接比較可)。
 #   どちらも選択子 (is_shadow / gate / lot) には触れない。読み手: tools/sltp_construct_readout.py
 # pin: tests/test_sltp_construct_marker_r3.py
 _SLTP_CONSTRUCT_REASON_TAG = "[SLTP_CONSTRUCT]"
@@ -923,9 +924,12 @@ def _format_sltp_construct_marker(trace: dict, *, current_price: float, sl: floa
     return f"{_SLTP_CONSTRUCT_REASON_TAG} " + " ".join(parts)
 
 
-def _format_broker_tp_marker(basis: str, mult: float, *, broker_tp, signal_price: float,
+def _format_broker_tp_marker(basis: str, mult: float, *, broker_tp, entry_price: float,
                              pip_mult: float) -> str:
-    tp_p = _pip_dist(broker_tp, signal_price, pip_mult) if broker_tp is not None else "na"
+    """broker TP の距離は **実約定基準価格 (current_price = row entry_price)** から測る —
+    [SLTP_CONSTRUCT] の tp_p と同じ基準にして readout で比較可能にする (quick-harvest の
+    計算基準 `_signal_price` ではない — PR #300 review P2 4110734587)。"""
+    tp_p = _pip_dist(broker_tp, entry_price, pip_mult) if broker_tp is not None else "na"
     return f"{_BROKER_TP_REASON_TAG} basis={basis} mult={mult} tp_p={tp_p}"
 
 
@@ -8309,7 +8313,7 @@ class DemoTrader:
                         trade_id,
                         _format_broker_tp_marker(
                             _broker_tp_basis, _broker_tp_mult,
-                            broker_tp=_tp_oanda, signal_price=_signal_price,
+                            broker_tp=_tp_oanda, entry_price=current_price,
                             pip_mult=(100 if _is_jpy_or_xau else 10000),
                         ),
                     )

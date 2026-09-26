@@ -380,6 +380,25 @@ def test_broker_tp_marker_records_quick_harvest_on_send(tmp_path, monkeypatch):
     assert abs(rows[0]["tp"] - 1.2060) < 1e-9
 
 
+def test_broker_tp_distance_uses_execution_entry_not_signal_price(tmp_path, monkeypatch):
+    """PR #300 review P2 4110734587: quick-harvest は `_signal_price` (sig.entry) 基準で TP を
+    計算するが、marker の距離は [SLTP_CONSTRUCT] tp_p と同じ current_price 基準で報告する。
+    bid/ask +3p: broker TP = 1.2000 + 60p×0.85 = 1.2051 → 実約定 1.2003 から **48.0p**
+    (signal 基準なら 51.0p と読めてしまう)。"""
+    def _ba(_inst):
+        return {"bid": 1.2002, "ask": 1.2003}
+    _promote_synthetic_elite(monkeypatch)
+    monkeypatch.setattr(data_mod, "fetch_oanda_bid_ask", _ba)
+    trader, _ = _make_trader(tmp_path, monkeypatch)
+    monkeypatch.setattr(trader, "_oanda", _fake_bridge(accept=True))
+    trader._tick_entry("daytrade", _cfg("EUR_USD"), _sig(), "15m", "EUR_USD")
+    rows = _rows(trader)
+    btp = [r for r in _reasons(rows[0]) if r.startswith(_BROKER_TP_REASON_TAG + " ")]
+    assert btp and btp[0].endswith(" tp_p=48.0"), btp
+    m = parse_sltp_construct_marker(_reasons(rows[0]))
+    assert m["tp_p"] == "57.0" and m["entry_drift_p"] == "3.0"  # 同じ基準 → 57 vs 48 が比較可能
+
+
 def test_broker_tp_marker_present_even_when_bridge_refuses(tmp_path, monkeypatch):
     trader, _ = _run(tmp_path, monkeypatch, sig=_sig(), bridge=_fake_bridge(accept=False))
     reasons = _reasons(_rows(trader)[0])
