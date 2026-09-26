@@ -31,20 +31,45 @@ from modules.demo_trader import (  # noqa: E402
 DEFAULT_URL = "https://fx-ai-trader.onrender.com/api/demo/trades"
 
 
-def _load_rows(args) -> list:
-    if args.file:
-        data = json.loads(Path(args.file).read_text(encoding="utf-8"))
-    else:
-        if not str(args.url).startswith("https://"):
-            raise SystemExit("--url は https:// のみ")
-        import requests  # 遅延 import (pytest 収集時の依存を避ける)
-        resp = requests.get(args.url, params={"limit": int(args.limit),
-                                              "include_shadow": "true"}, timeout=60)
-        resp.raise_for_status()
-        data = resp.json()
+PAGE_SIZE = 500
+MAX_PAGES = 40  # 20,000 行で打ち切り (truncated=True を報告)
+
+
+def _unwrap(data) -> list:
     if isinstance(data, dict):
         data = data.get("trades") or data.get("data") or []
     return data
+
+
+def _fetch_page(url: str, *, limit: int, offset: int, date_from: str | None) -> list:
+    import requests  # 遅延 import (pytest 収集時の依存を避ける)
+    params = {"limit": int(limit), "offset": int(offset), "include_shadow": "true"}
+    if date_from:
+        params["date_from"] = date_from  # サーバ側で窓を切る (LIMIT/OFFSET はその後)
+    resp = requests.get(url, params=params, timeout=60)
+    resp.raise_for_status()
+    return _unwrap(resp.json())
+
+
+def _load_rows(args, fetch_page=_fetch_page) -> tuple[list, bool]:
+    """(rows, truncated)。--since を `date_from` としてサーバへ渡し、offset でページングして
+    窓を使い切るまで取る (PR #300 review P2 4110824129: ローカル date filter の前に LIMIT/OFFSET
+    が掛かると古い行が黙って落ち、rates が全窓のように見える)。--since なしは --limit 行のみ。"""
+    if args.file:
+        return _unwrap(json.loads(Path(args.file).read_text(encoding="utf-8"))), False
+    if not str(args.url).startswith("https://"):
+        raise SystemExit("--url は https:// のみ")
+    if not args.since:
+        return fetch_page(args.url, limit=args.limit, offset=0, date_from=None), False
+    rows: list = []
+    offset = 0
+    for _ in range(MAX_PAGES):
+        page = fetch_page(args.url, limit=PAGE_SIZE, offset=offset, date_from=args.since)
+        rows.extend(page)
+        if len(page) < PAGE_SIZE:
+            return rows, False
+        offset += PAGE_SIZE
+    return rows, True
 
 
 def _reasons(row) -> list:
@@ -70,6 +95,19 @@ def _broker_tp(reasons: list) -> dict | None:
     return None
 
 
+def _lane(row) -> str:
+    """3 分割 (MEMORY feedback_live_vs_shadow_strict_separation / PR #300 review P2 4110824136):
+    live = oanda_trade_id 非空 / shadow = is_shadow=1 ∧ id 空 / flag_drift = is_shadow=0 ∧ id 空
+    (live 意図で fill しなかった行 — shadow の分岐率に混ぜない)。"""
+    if row.get("oanda_trade_id"):
+        return "live"
+    try:
+        is_shadow = int(row.get("is_shadow") or 0)
+    except (TypeError, ValueError):
+        is_shadow = 0
+    return "shadow" if is_shadow == 1 else "flag_drift"
+
+
 def _fnum(v):
     try:
         return float(v)
@@ -77,7 +115,7 @@ def _fnum(v):
         return None
 
 
-def summarize(rows: list, since: str | None) -> dict:
+def summarize(rows: list, since: str | None, *, truncated: bool = False) -> dict:
     groups: dict = defaultdict(lambda: {
         "n": 0, "sl": Counter(), "clamp": Counter(), "lowliq": 0, "fastsl": 0, "ct": 0,
         "rn": 0, "mtf_tp_1_3": 0, "range_tp": 0, "decl_sl_p": [], "sl_p": [],
@@ -97,7 +135,7 @@ def summarize(rows: list, since: str | None) -> dict:
         if m is None:
             continue
         with_marker += 1
-        lane = "live" if row.get("oanda_trade_id") else "shadow"
+        lane = _lane(row)
         g = groups[(et, lane)]
         g["n"] += 1
         g["sl"][m.get("sl", "?")] += 1
@@ -121,7 +159,8 @@ def summarize(rows: list, since: str | None) -> dict:
     def _med(xs):
         return round(statistics.median(xs), 1) if xs else None
 
-    out = {"rows_in_window": total, "rows_with_marker": with_marker, "groups": []}
+    out = {"rows_in_window": total, "rows_with_marker": with_marker,
+           "truncated": truncated, "groups": []}
     for (et, lane), g in sorted(groups.items(), key=lambda kv: (-kv[1]["n"], kv[0])):
         n = g["n"]
         out["groups"].append({
@@ -139,7 +178,10 @@ def summarize(rows: list, since: str | None) -> dict:
 
 def _print_table(summary: dict) -> None:
     print(f"rows_in_window={summary['rows_in_window']} "
-          f"rows_with_marker={summary['rows_with_marker']}")
+          f"rows_with_marker={summary['rows_with_marker']} "
+          f"truncated={summary['truncated']}")
+    if summary["truncated"]:
+        print(f"⚠️ 窓が MAX_PAGES ({MAX_PAGES}×{PAGE_SIZE}) を超えた — 率は部分窓の値、--since を狭めること")
     if summary["rows_with_marker"] == 0:
         print("(marker 行なし — デプロイ前の行か、窓が古い。`sl=unset` も 0 件)")
         return
@@ -174,8 +216,8 @@ def main(argv=None) -> int:
     ap.add_argument("--file", default=None, help="保存済み trades JSON")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
-    rows = _load_rows(args)
-    summary = summarize(rows, args.since)
+    rows, truncated = _load_rows(args)
+    summary = summarize(rows, args.since, truncated=truncated)
     if args.json:
         print(json.dumps(summary, ensure_ascii=False, indent=2))
     else:
