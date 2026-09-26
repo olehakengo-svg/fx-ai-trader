@@ -32,6 +32,10 @@ hold・exit 分布 (3) 8h 以内に完結する winner の割合 — で、こ�
   8h 内に決着する保証は無く、C5 (4h 含み損 TIME_DECAY) は負け側も打ち切る — **どちら側がどれだけ削られるかは本 BT の winner / loser 別分布で初めて分かる**。さらに金曜 21:45Z の全クローズで週末を跨げない。
 - 実走 3 fill (hold 4h04m / 54m / 58m、1W-2L) はこの上限に触れていないが、N=10 監視では上限の効果は測れない
   (エンジンが産めない結果を測る計画だった — PR #299 review P1)。
+- **2026-09-26 追記**: 本文中の「follow-up 計装 (SL 選択枝 / C0c 発動 / MTF bonus を `reasons` marker に記録、別タスク)」は
+  branch `feat/sltp-construct-marker-r3-2026-09-26` で実装済み — fill 行 reasons の `[SLTP_CONSTRUCT] …` / `[BROKER_TP] …`、読み手
+  `tools/sltp_construct_readout.py`。**デプロイ後の fill にのみ付く**ので、C0 感度の live 実測率への差し替えは marker 付き
+  live N が溜まった後 (本タスクの完了条件は BT 側 what-if のまま)。
 
 # live exit スタック (全部入れる — PR #299 review P1 2 巡目 4100301156)
 

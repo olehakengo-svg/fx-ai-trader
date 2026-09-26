@@ -867,6 +867,85 @@ _SHADOW_RELAX_REASON_TAG = "[SHADOW_RELAX]"
 # pin: tests/test_pre_send_guard_observability_r3.py
 _SHADOW_BYPASS_REASON_TAG = "[SHADOW_BYPASS]"
 _PROMO_BLOCK_REASON_TAG = "[PROMO_BLOCK]"
+# entry 時 SL/TP 構築の分岐 provenance (rule:R3 2026-09-26、record-only):
+#   [SLTP_CONSTRUCT] sl=<preserve|sr|atr_nosr|atr_rrlow> clamp=<none|min|max> lowliq=<0|1>
+#     fastsl=<0|1> ct=<0|1> rn=<0|1> mtf_tp=<1.0|1.3> range_tp=<0|1>
+#     decl_sl_p=<sig SL 距離 pip|na> sl_p=<row SL 距離> decl_tp_p=<sig TP 距離|na> tp_p=<row TP 距離>
+#     entry_drift_p=<|current_price − sig.entry| pip|na>
+#     — decl_* は **signal entry (sig["entry"]) からの距離**、sl_p / tp_p は **実約定基準価格
+#     (current_price = bid/ask) からの距離**。基準を分けるのは、closed-bar signal を後の tick で
+#     執行する rebase (`rebase_tp_to_current_price`) や slippage で current_price が sig.entry から
+#     ずれると、両方を current_price から測ると宣言側が偽の拡大/縮小に見えるため
+#     (PR #300 review P2 4110716471)。ずれ自体は entry_drift_p で読む。
+#     — `_tick_entry` の共有 SL/TP 経路 (C0a: SR/ATR 選択 + MIN/MAX clamp、C0c: 低流動性 /
+#     fast-SL / カウンタートレンド / ラウンドナンバー、C0d: MTF TP ×1.3、range BB_mid TP) が
+#     どの分岐を通ったかを fill 行に残す。宣言 (sig) と実発注の乖離を fill 毎に復元するための
+#     計装で、kalman_d7 / carry_dip の「SL 契約破棄の機構は未特定」を live 実測率で閉じる前提。
+#   [BROKER_TP] basis=<qh|exempt|range_mr|wg_none|passthrough> mult=<0.85|1.0> tp_p=<broker TP 距離|na>
+#     — OANDA へ送った TP (C0b quick-harvest) を row に永続 (demo 行 tp 列は宣言のまま)。
+#     tp_p は [SLTP_CONSTRUCT] の tp_p と同じ current_price 基準 (readout で直接比較可)。
+#   どちらも選択子 (is_shadow / gate / lot) には触れない。読み手: tools/sltp_construct_readout.py
+# pin: tests/test_sltp_construct_marker_r3.py
+_SLTP_CONSTRUCT_REASON_TAG = "[SLTP_CONSTRUCT]"
+_BROKER_TP_REASON_TAG = "[BROKER_TP]"
+_SLTP_TRACE_KEYS = ("sl", "clamp", "lowliq", "fastsl", "ct", "rn", "mtf_tp", "range_tp")
+
+
+def _new_sltp_trace(decl_entry: float, decl_sl: float, decl_tp: float) -> dict:
+    """SL/TP 構築 provenance の初期状態。`sl="unset"` が残る行は構築経路を通っていない。
+    decl_entry = sig["entry"] (宣言 SL/TP 距離の基準)。"""
+    return {
+        "sl": "unset", "clamp": "none", "lowliq": 0, "fastsl": 0, "ct": 0, "rn": 0,
+        "mtf_tp": 1.0, "range_tp": 0,
+        "decl_entry": float(decl_entry or 0.0),
+        "decl_sl": float(decl_sl or 0.0), "decl_tp": float(decl_tp or 0.0),
+    }
+
+
+def _pip_dist(a: float, b: float, pip_mult: float) -> str:
+    try:
+        if a and b and a > 0 and b > 0:
+            return f"{abs(float(a) - float(b)) * pip_mult:.1f}"
+    except (TypeError, ValueError):
+        pass
+    return "na"
+
+
+def _format_sltp_construct_marker(trace: dict, *, current_price: float, sl: float,
+                                  tp: float, pip_mult: float) -> str:
+    parts = [f"{k}={trace.get(k)}" for k in _SLTP_TRACE_KEYS]
+    # 宣言側は signal entry 基準 (無ければ current_price に退避)、実発注側は current_price 基準
+    decl_entry = trace.get("decl_entry") or current_price
+    parts.append(f"decl_sl_p={_pip_dist(trace.get('decl_sl'), decl_entry, pip_mult)}")
+    parts.append(f"sl_p={_pip_dist(sl, current_price, pip_mult)}")
+    parts.append(f"decl_tp_p={_pip_dist(trace.get('decl_tp'), decl_entry, pip_mult)}")
+    parts.append(f"tp_p={_pip_dist(tp, current_price, pip_mult)}")
+    parts.append(f"entry_drift_p={_pip_dist(trace.get('decl_entry'), current_price, pip_mult)}")
+    return f"{_SLTP_CONSTRUCT_REASON_TAG} " + " ".join(parts)
+
+
+def _format_broker_tp_marker(basis: str, mult: float, *, broker_tp, entry_price: float,
+                             pip_mult: float) -> str:
+    """broker TP の距離は **実約定基準価格 (current_price = row entry_price)** から測る —
+    [SLTP_CONSTRUCT] の tp_p と同じ基準にして readout で比較可能にする (quick-harvest の
+    計算基準 `_signal_price` ではない — PR #300 review P2 4110734587)。"""
+    tp_p = _pip_dist(broker_tp, entry_price, pip_mult) if broker_tp is not None else "na"
+    return f"{_BROKER_TP_REASON_TAG} basis={basis} mult={mult} tp_p={tp_p}"
+
+
+def parse_sltp_construct_marker(reasons) -> "dict | None":
+    """row reasons から [SLTP_CONSTRUCT] を 1 件読む (読み手用)。無ければ None。"""
+    if not isinstance(reasons, (list, tuple)):
+        return None
+    for r in reasons:
+        if isinstance(r, str) and r.startswith(_SLTP_CONSTRUCT_REASON_TAG + " "):
+            out: dict = {}
+            for kv in r[len(_SLTP_CONSTRUCT_REASON_TAG) + 1:].split(" "):
+                if "=" in kv:
+                    k, v = kv.split("=", 1)
+                    out[k] = v
+            return out
+    return None
 ORDER_BAR_FIRST_BLOCK_REASON_PREFIX = "order_bar_dedup_first:"
 # oanda_audit block_reason の promo cause 表記は 2 世代ある:
 #   * `shadow_tracking(session_filter_out)` — P-V4 (2026-07-02) の legacy variant。
@@ -6759,6 +6838,8 @@ class DemoTrader:
         }
 
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
+        # rule:R3 2026-09-26: SL/TP 構築 provenance (record-only、[SLTP_CONSTRUCT] marker)
+        _sltp_trace = _new_sltp_trace(sig.get("entry", 0), sig.get("sl", 0), tp)
 
         if sig.get("rebase_tp_to_current_price"):
             tp = self._rebase_tp_to_current_price(
@@ -6772,6 +6853,7 @@ class DemoTrader:
         if entry_type == "hull_donchian_fade":
             _mtf_tp_bonus = 1.0
         tp_dist = abs(tp - current_price) * _mtf_tp_bonus  # MTF順方向時にTP拡大
+        _sltp_trace["mtf_tp"] = _mtf_tp_bonus
         if tp_dist <= 0:
             _block(f"tp_invalid(tp={tp},price={current_price},{entry_type})"); return
         if _mtf_tp_bonus > 1.0:
@@ -6823,6 +6905,7 @@ class DemoTrader:
                     _tp_overridden = True
 
                 if _tp_overridden:
+                    _sltp_trace["range_tp"] = 1
                     self._add_log(
                         f"[RANGE_EXIT] {signal} {instrument} | "
                         f"TP: {_original_tp:.{_price_dec}f}→{tp:.{_price_dec}f} "
@@ -6841,6 +6924,7 @@ class DemoTrader:
             if _sig_sl > 0:
                 sl = round(_sig_sl, _price_dec)
                 sl_dist = abs(current_price - sl)
+                _sltp_trace["sl"] = "preserve"
                 if sl_dist <= 0:
                     _block(f"1h_sl_invalid(sl={sl},price={current_price},{entry_type})"); return
                 # RR検証
@@ -6900,12 +6984,15 @@ class DemoTrader:
                 if _sr_rr >= _sr_rr_floor:
                     sl = round(_sr_sl, _price_dec)
                     sl_dist = _sr_sl_dist
+                    _sltp_trace["sl"] = "sr"
                 else:
                     sl = round(_atr_sl, _price_dec)
                     sl_dist = abs(current_price - _atr_sl)
+                    _sltp_trace["sl"] = "atr_rrlow"  # SR 候補ありだが RR 床未達で ATR に退避
             else:
                 sl = round(_atr_sl, _price_dec)
                 sl_dist = abs(current_price - _atr_sl)
+                _sltp_trace["sl"] = "atr_nosr"  # sr_entry_map に候補なし
 
             # 最低SL距離保証 (XAU uses same pip scale as JPY)
             if _is_jpy_or_xau:
@@ -6914,6 +7001,7 @@ class DemoTrader:
                 MIN_SL_DIST = {"scalp": 0.00030, "daytrade": 0.00050, "swing": 0.00100}.get(_base_mode, 0.00030)
             if sl_dist < MIN_SL_DIST:
                 sl_dist = MIN_SL_DIST
+                _sltp_trace["clamp"] = "min"
                 if signal == "BUY":
                     sl = round(current_price - sl_dist, _price_dec)
                 else:
@@ -6934,6 +7022,7 @@ class DemoTrader:
             if sl_dist > MAX_SL_DIST:
                 _old_sl_dist = sl_dist
                 sl_dist = MAX_SL_DIST
+                _sltp_trace["clamp"] = "max"
                 if signal == "BUY":
                     sl = round(current_price - sl_dist, _price_dec)
                 else:
@@ -6954,6 +7043,7 @@ class DemoTrader:
         # SL狩り対策の広げ/ずらしは 150p 距離では無意味かつ凍結値改変になる。
         if _utc_h in _low_liq_hours and not _wg_entry:
             _liq_buffer = _atr * 0.2  # ATR×0.2追加バッファ
+            _sltp_trace["lowliq"] = 1
             sl_dist += _liq_buffer
             if signal == "BUY":
                 sl = round(current_price - sl_dist, _price_dec)
@@ -6972,6 +7062,7 @@ class DemoTrader:
                           and h[3] < 120]  # hold_sec < 120s = fast SL
         if _recent_fast_sl and not _wg_entry:
             _hunt_buffer = _atr * 0.3  # ATR×0.3追加（SL狩りスパイク回避）
+            _sltp_trace["fastsl"] = 1
             sl_dist += _hunt_buffer
             if signal == "BUY":
                 sl = round(current_price - sl_dist, _price_dec)
@@ -6994,6 +7085,7 @@ class DemoTrader:
         )
         if _is_counter_trend:
             _ct_buffer = _atr * 0.25  # ATR×0.25追加（カウンタートレンド吸収）
+            _sltp_trace["ct"] = 1
             sl_dist += _ct_buffer
             if signal == "BUY":
                 sl = round(current_price - sl_dist, _price_dec)
@@ -7010,6 +7102,7 @@ class DemoTrader:
             _sl_frac = sl % 0.500
             if _sl_frac < 0.020 or _sl_frac > 0.480:  # 2pip以内
                 _nudge = 0.025  # 2.5pip外側
+                _sltp_trace["rn"] = 1
                 if signal == "BUY":
                     sl = round(sl - _nudge, _price_dec)
                 else:
@@ -7019,6 +7112,7 @@ class DemoTrader:
             _sl_frac_5 = round((sl * 10000) % 50, 1)  # 50pips刻みからの距離
             if _sl_frac_5 < 2 or _sl_frac_5 > 48:  # 2pip以内
                 _nudge = 0.00025  # 2.5pip外側
+                _sltp_trace["rn"] = 1
                 if signal == "BUY":
                     sl = round(sl - _nudge, _price_dec)
                 else:
@@ -7278,6 +7372,15 @@ class DemoTrader:
         except Exception as _edge_exc:
             self._add_log(f"[EDGE_CELL] match failed: {_edge_exc}")
 
+        # rule:R3 2026-09-26: entry 時 SL/TP 構築の分岐 (SR/ATR 選択・clamp・C0c バッファ・
+        # MTF TP bonus・range TP) と宣言/実発注の距離を row に永続 — 宣言 SL/TP との乖離を
+        # fill 毎に復元するための provenance (record-only、選択子には触れない)。
+        _reasons_with_inv = list(_reasons_with_inv or []) + [
+            _format_sltp_construct_marker(
+                _sltp_trace, current_price=current_price, sl=sl, tp=tp,
+                pip_mult=(100 if _is_jpy_or_xau else 10000),
+            )
+        ]
         # rule:R3 2026-09-24: emit したプロセス (import=master / forked=worker)
         # を row に永続 — 二重エンジンの solo emission 帰属 (record-only)。
         _reasons_with_inv = list(_reasons_with_inv or []) + [self._emit_proc_marker()]
@@ -8176,16 +8279,23 @@ class DemoTrader:
                 # v6.5: RANGE MR は BB_mid TP で既に短縮済み → 二重Harvest禁止
                 #        ×0.70 重ね掛け → 実効RR≈0.56 → 損益分岐WR=64% (無理ゲー)
                 _tp_oanda = tp
+                _broker_tp_basis = (
+                    "exempt" if (entry_type, instrument) in self._QUICK_HARVEST_EXEMPT
+                    else "passthrough")
+                _broker_tp_mult = 1.0
                 if ((entry_type, instrument) not in self._QUICK_HARVEST_EXEMPT
                         and not _is_range_mr
                         and _signal_price and _signal_price > 0
                         and abs(tp - _signal_price) > 0):
                     _tp_oanda = _signal_price + (tp - _signal_price) * self._QUICK_HARVEST_MULT
+                    _broker_tp_basis = "qh"
+                    _broker_tp_mult = self._QUICK_HARVEST_MULT
                     self._add_log(
                         f"[SHIELD] Quick-Harvest TP: {tp:.{_price_dec}f} → "
                         f"{_tp_oanda:.{_price_dec}f} (×{self._QUICK_HARVEST_MULT})"
                     )
                 elif _is_range_mr:
+                    _broker_tp_basis = "range_mr"
                     self._add_log(
                         f"[RANGE_EXIT] Quick-Harvest bypassed — "
                         f"BB_mid TP preserved ×1.0 | TP={tp:.{_price_dec}f}"
@@ -8195,6 +8305,20 @@ class DemoTrader:
                     # (demo row の TP は 500p sentinel、monitor 側も TP-hit skip)。
                     # _QUICK_HARVEST_EXEMPT にも登録済みで ×0.85 短縮は非適用。
                     _tp_oanda = None
+                    _broker_tp_basis = "wg_none"
+                # rule:R3 2026-09-26: broker へ送る TP の構築 (C0b) を row に永続
+                # (record-only、送信可否・TP 値には無関係。demo 行 tp 列は宣言 TP のまま)。
+                try:
+                    self._db.append_trade_reason(
+                        trade_id,
+                        _format_broker_tp_marker(
+                            _broker_tp_basis, _broker_tp_mult,
+                            broker_tp=_tp_oanda, entry_price=current_price,
+                            pip_mult=(100 if _is_jpy_or_xau else 10000),
+                        ),
+                    )
+                except Exception as _btp_exc:
+                    self._add_log(f"[BROKER_TP] marker append failed: {_btp_exc}")
                 # ── 実弾実行パス ──
                 # Pass entry_type so the bridge can stamp a strategy-name
                 # 'sent' audit row when it owns that write. skip_sent_audit=True
