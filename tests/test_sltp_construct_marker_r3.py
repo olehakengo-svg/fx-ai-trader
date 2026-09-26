@@ -169,19 +169,56 @@ def _marker(trader) -> dict:
 
 
 def test_marker_format_has_every_key_in_stable_order():
-    trace = _new_sltp_trace(1.1950, 1.2060)
+    trace = _new_sltp_trace(1.2000, 1.1950, 1.2060)
     m = _format_sltp_construct_marker(trace, current_price=1.2000, sl=1.1950,
                                       tp=1.2060, pip_mult=10000)
     assert m.startswith(_SLTP_CONSTRUCT_REASON_TAG + " ")
     keys = [kv.split("=")[0] for kv in m.split(" ")[1:]]
-    assert keys == list(_SLTP_TRACE_KEYS) + ["decl_sl_p", "sl_p", "decl_tp_p", "tp_p"]
+    assert keys == list(_SLTP_TRACE_KEYS) + [
+        "decl_sl_p", "sl_p", "decl_tp_p", "tp_p", "entry_drift_p"]
     parsed = parse_sltp_construct_marker(["✅ x", m, "[EMIT_PROC] import:autostart"])
     assert parsed["sl"] == "unset" and parsed["decl_sl_p"] == "50.0"
     assert parsed["sl_p"] == "50.0" and parsed["tp_p"] == "60.0"
+    assert parsed["entry_drift_p"] == "0.0"
+
+
+def test_declared_distances_are_measured_from_signal_entry_not_fill_price():
+    """PR #300 review P2 4110716471: signal 1.2000 / TP 1.2060 (60p 宣言) を rebase して
+    1.2020 で執行すると、両方を current_price 基準で測ると decl_tp_p=40 / tp_p=60 と
+    「1.5× 拡大」に見える。宣言側は sig.entry 基準、実発注側は current_price 基準で分ける。"""
+    trace = _new_sltp_trace(1.2000, 1.1950, 1.2060)
+    m = parse_sltp_construct_marker([_format_sltp_construct_marker(
+        trace, current_price=1.2020, sl=1.1970, tp=1.2080, pip_mult=10000)])
+    assert m["decl_tp_p"] == "60.0" and m["tp_p"] == "60.0"   # rebase は距離保存 → 拡大なし
+    assert m["decl_sl_p"] == "50.0" and m["sl_p"] == "50.0"
+    assert m["entry_drift_p"] == "20.0"
+
+    # 対照: decl_entry が無い trace は current_price に退避する (旧挙動と同じ数字)
+    trace0 = _new_sltp_trace(0, 1.1950, 1.2060)
+    m0 = parse_sltp_construct_marker([_format_sltp_construct_marker(
+        trace0, current_price=1.2020, sl=1.1970, tp=1.2080, pip_mult=10000)])
+    assert m0["decl_tp_p"] == "40.0" and m0["entry_drift_p"] == "na"
+
+
+def test_tick_entry_uses_signal_entry_for_declared_distances(tmp_path, monkeypatch):
+    """実経路: bid/ask が sig.entry から +3p ずれた状態で BUY を流し、decl_tp_p は
+    sig.entry 基準 60.0、tp_p は current_price (ask) 基準 57.0、entry_drift_p=3.0。"""
+    def _ba(_inst):
+        return {"bid": 1.2002, "ask": 1.2003}
+    _promote_synthetic_elite(monkeypatch)
+    monkeypatch.setattr(data_mod, "fetch_oanda_bid_ask", _ba)
+    trader, _ = _make_trader(tmp_path, monkeypatch)
+    monkeypatch.setattr(trader, "_oanda", _fake_bridge(accept=False))
+    trader._tick_entry("daytrade", _cfg("EUR_USD"), _sig(), "15m", "EUR_USD")
+    m = _marker(trader)
+    row = _rows(trader)[0]
+    assert abs(row["entry_price"] - 1.2003) < 1e-9
+    assert m["decl_tp_p"] == "60.0" and m["tp_p"] == "57.0", m
+    assert m["entry_drift_p"] == "3.0", m
 
 
 def test_marker_format_na_when_declared_sl_missing():
-    trace = _new_sltp_trace(0, 1.2060)
+    trace = _new_sltp_trace(1.2000, 0, 1.2060)
     m = _format_sltp_construct_marker(trace, current_price=1.2000, sl=1.1950,
                                       tp=1.2060, pip_mult=10000)
     assert " decl_sl_p=na " in m

@@ -871,6 +871,12 @@ _PROMO_BLOCK_REASON_TAG = "[PROMO_BLOCK]"
 #   [SLTP_CONSTRUCT] sl=<preserve|sr|atr_nosr|atr_rrlow> clamp=<none|min|max> lowliq=<0|1>
 #     fastsl=<0|1> ct=<0|1> rn=<0|1> mtf_tp=<1.0|1.3> range_tp=<0|1>
 #     decl_sl_p=<sig SL 距離 pip|na> sl_p=<row SL 距離> decl_tp_p=<sig TP 距離|na> tp_p=<row TP 距離>
+#     entry_drift_p=<|current_price − sig.entry| pip|na>
+#     — decl_* は **signal entry (sig["entry"]) からの距離**、sl_p / tp_p は **実約定基準価格
+#     (current_price = bid/ask) からの距離**。基準を分けるのは、closed-bar signal を後の tick で
+#     執行する rebase (`rebase_tp_to_current_price`) や slippage で current_price が sig.entry から
+#     ずれると、両方を current_price から測ると宣言側が偽の拡大/縮小に見えるため
+#     (PR #300 review P2 4110716471)。ずれ自体は entry_drift_p で読む。
 #     — `_tick_entry` の共有 SL/TP 経路 (C0a: SR/ATR 選択 + MIN/MAX clamp、C0c: 低流動性 /
 #     fast-SL / カウンタートレンド / ラウンドナンバー、C0d: MTF TP ×1.3、range BB_mid TP) が
 #     どの分岐を通ったかを fill 行に残す。宣言 (sig) と実発注の乖離を fill 毎に復元するための
@@ -884,11 +890,13 @@ _BROKER_TP_REASON_TAG = "[BROKER_TP]"
 _SLTP_TRACE_KEYS = ("sl", "clamp", "lowliq", "fastsl", "ct", "rn", "mtf_tp", "range_tp")
 
 
-def _new_sltp_trace(decl_sl: float, decl_tp: float) -> dict:
-    """SL/TP 構築 provenance の初期状態。`sl="unset"` が残る行は構築経路を通っていない。"""
+def _new_sltp_trace(decl_entry: float, decl_sl: float, decl_tp: float) -> dict:
+    """SL/TP 構築 provenance の初期状態。`sl="unset"` が残る行は構築経路を通っていない。
+    decl_entry = sig["entry"] (宣言 SL/TP 距離の基準)。"""
     return {
         "sl": "unset", "clamp": "none", "lowliq": 0, "fastsl": 0, "ct": 0, "rn": 0,
         "mtf_tp": 1.0, "range_tp": 0,
+        "decl_entry": float(decl_entry or 0.0),
         "decl_sl": float(decl_sl or 0.0), "decl_tp": float(decl_tp or 0.0),
     }
 
@@ -905,10 +913,13 @@ def _pip_dist(a: float, b: float, pip_mult: float) -> str:
 def _format_sltp_construct_marker(trace: dict, *, current_price: float, sl: float,
                                   tp: float, pip_mult: float) -> str:
     parts = [f"{k}={trace.get(k)}" for k in _SLTP_TRACE_KEYS]
-    parts.append(f"decl_sl_p={_pip_dist(trace.get('decl_sl'), current_price, pip_mult)}")
+    # 宣言側は signal entry 基準 (無ければ current_price に退避)、実発注側は current_price 基準
+    decl_entry = trace.get("decl_entry") or current_price
+    parts.append(f"decl_sl_p={_pip_dist(trace.get('decl_sl'), decl_entry, pip_mult)}")
     parts.append(f"sl_p={_pip_dist(sl, current_price, pip_mult)}")
-    parts.append(f"decl_tp_p={_pip_dist(trace.get('decl_tp'), current_price, pip_mult)}")
+    parts.append(f"decl_tp_p={_pip_dist(trace.get('decl_tp'), decl_entry, pip_mult)}")
     parts.append(f"tp_p={_pip_dist(tp, current_price, pip_mult)}")
+    parts.append(f"entry_drift_p={_pip_dist(trace.get('decl_entry'), current_price, pip_mult)}")
     return f"{_SLTP_CONSTRUCT_REASON_TAG} " + " ".join(parts)
 
 
@@ -6824,7 +6835,7 @@ class DemoTrader:
 
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
         # rule:R3 2026-09-26: SL/TP 構築 provenance (record-only、[SLTP_CONSTRUCT] marker)
-        _sltp_trace = _new_sltp_trace(sig.get("sl", 0), tp)
+        _sltp_trace = _new_sltp_trace(sig.get("entry", 0), sig.get("sl", 0), tp)
 
         if sig.get("rebase_tp_to_current_price"):
             tp = self._rebase_tp_to_current_price(

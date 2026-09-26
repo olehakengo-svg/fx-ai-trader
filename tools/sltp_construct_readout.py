@@ -81,7 +81,8 @@ def summarize(rows: list, since: str | None) -> dict:
     groups: dict = defaultdict(lambda: {
         "n": 0, "sl": Counter(), "clamp": Counter(), "lowliq": 0, "fastsl": 0, "ct": 0,
         "rn": 0, "mtf_tp_1_3": 0, "range_tp": 0, "decl_sl_p": [], "sl_p": [],
-        "decl_tp_p": [], "tp_p": [], "broker_basis": Counter(), "broker_tp_p": [],
+        "decl_tp_p": [], "tp_p": [], "entry_drift_p": [],
+        "broker_basis": Counter(), "broker_tp_p": [],
     })
     total = 0
     with_marker = 0
@@ -106,7 +107,7 @@ def summarize(rows: list, since: str | None) -> dict:
                 g[k] += 1
         if m.get("mtf_tp") == "1.3":
             g["mtf_tp_1_3"] += 1
-        for k in ("decl_sl_p", "sl_p", "decl_tp_p", "tp_p"):
+        for k in ("decl_sl_p", "sl_p", "decl_tp_p", "tp_p", "entry_drift_p"):
             v = _fnum(m.get(k))
             if v is not None:
                 g[k].append(v)
@@ -129,7 +130,8 @@ def summarize(rows: list, since: str | None) -> dict:
             "rate": {k: round(g[k] / n, 3) for k in
                      ("lowliq", "fastsl", "ct", "rn", "range_tp", "mtf_tp_1_3")},
             "median_pips": {k: _med(g[k]) for k in
-                            ("decl_sl_p", "sl_p", "decl_tp_p", "tp_p", "broker_tp_p")},
+                            ("decl_sl_p", "sl_p", "decl_tp_p", "tp_p", "entry_drift_p",
+                             "broker_tp_p")},
             "broker_basis": dict(g["broker_basis"]),
         })
     return out
