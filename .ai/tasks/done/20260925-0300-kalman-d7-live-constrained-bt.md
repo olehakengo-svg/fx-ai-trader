@@ -137,4 +137,6 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 12. **7 巡目 P1 ×1 / P2 ×1 を修正** (ゲートの「レビュー済み commit = HEAD」要件で再依頼、P1 のため修正) — (a) adverse_first で同 bar の high が BE/trail を発動して stop を引き上げたのに close がその新 stop を割っても次 bar に持ち越していた → 連続パス (high→close の脚) で同 bar 決済。走 3 EV −3.8 → -3.7 / C3C4 単独 −3.8 → -4.1、順位不変 / (b) ギャップ open 決済 bar の high/low を MFE/MAE に含めていた → open までに限定。pin 30 本
 13. **禁止事項の遵守** — 制約を外す live 変更の提案・実装なし、TP/SL/filter の再最適化なし (flip 定義の識別は canon の同定であり exit のパラメータ探索ではない — entry / SL / cap 固定、結果は全 ❌ で採用もしていない)。tier / lot / 配線は不変
 
+マージ: PR #302 → ed227b37 (2026-09-27 05:27Z)。8 巡目の P2 ×2 (C5 境界 bar / bar 内 exit 後の MFE・MAE) は review-ack 繰延 (registry `review-backlog-pr302-p2-deferrals`、10-04)。
+
 残課題: harness を閉じ、canon exit を確定するには TV で v17 canon を再走する必要がある (user の TV desktop 起動が前提 — 対話セッションで依頼、queue 20260927-0300)。packet 10-08 は「harness 未検証・順位のみ」で組む。

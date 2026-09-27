@@ -1,6 +1,6 @@
 # kalman_d7_po_dn_flip — live exit スタック (C0〜C6) 付き制約 BT: 診断 (2026-09-27、rule:R3)
 
-**目的**: registry `kalman-d7-live-exit-spec-mismatch-disposition` (期日 2026-10-08) の **user 決裁 packet** に、(1) どの overlay が BT edge を削るか、(2) winner / loser 別の hold・exit 分布、(3) 8h 以内に完結する winner の割合、(4) C0 感度 (BT 側 what-if) を供給する。PR #302 レビュー 7 巡 (Codex P1 ×4 / P2 ×12 / P3 ×1、全件実欠陥・誤検知 0) を反映済み (§5 レビュー反映)。Codex queue `20260925-0300-kalman-d7-live-constrained-bt` を Claude が Python port で実行 (TV は本セッションで CDP 接続不可、v17 canon Pine はリポジトリ不在 = TV slot 2026-05-21 上書き)。
+**目的**: registry `kalman-d7-live-exit-spec-mismatch-disposition` (期日 2026-10-08) の **user 決裁 packet** に、(1) どの overlay が BT edge を削るか、(2) winner / loser 別の hold・exit 分布、(3) 8h 以内に完結する winner の割合、(4) C0 感度 (BT 側 what-if) を供給する。PR #302 レビュー 8 巡 (Codex P1 ×4 / P2 ×14 / P3 ×1、全件実欠陥・誤検知 0、P2 2 件は繰延 registry 10-04) を反映済み (§5 レビュー反映)。マージ ed227b37。Codex queue `20260925-0300-kalman-d7-live-constrained-bt` を Claude が Python port で実行 (TV は本セッションで CDP 接続不可、v17 canon Pine はリポジトリ不在 = TV slot 2026-05-21 上書き)。
 
 **判定の扱い (task 文書の凍結ラベルを継承)**: 本 BT の数字から keep / demote を決めない。走 0′〜4 は「C0 近似 + intrabar 順序近似」、走 5 は「C6 近似 (参考値)」。**加えて本走は harness 未検証 (下記 §1) — 全数値は引用禁止で、packet に載せるのは分解の順位・向き・exit 種別の構造のみ。**
 
@@ -112,6 +112,7 @@ flip 定義の識別 (entry / SL / cap 固定、TV 基準): perfect_dn N=60 PF 1
 
 ## §5 ツール規律
 
+- **レビュー反映 (PR #302、8 巡目 — HEAD 046155e8 対象、P2 ×2 は繰延)**: P2 4114208143 (C5 境界 bar: hold_open == 14,400s の bar を `>` で除外 = 1 bar 遅れ) / P2 4114208147 (bar 内 exit 後の値動きを MFE/MAE に含める) — いずれも EV / 帰属 / 順位に影響しないため review-ack で繰延、registry `review-backlog-pr302-p2-deferrals` (2026-10-04)。**マージ ed227b37 (2026-09-27 05:27Z)**
 - **レビュー反映 (PR #302、7 巡目 — ゲートの HEAD 一致要件で依頼、P1 のため修正)**: P1 4114171432 — adverse_first で同 bar の high が BE/trail を発動し新 stop を引き上げたのに、close がその新 stop を割っていても次 bar に持ち越していた → open→low→high→close の連続パスでは high→close の脚で必ず新 stop に触れるので同 bar で決済 (走 3 EV −3.8 → -3.7、C3C4 単独 −3.8 → -4.1、順位不変。pin: close < 新 BE stop で同 bar BE / close > stop で持ち越し) / P2 4114171436 — ギャップ open 決済した bar の high/low を MFE/MAE に含めていた → open までに限定 (pin)
 - **レビュー反映 (PR #302、6 巡目 = P2 巡目上限、以降は再レビュー依頼を出さない)**: P2 4114143809 — 4h 超の bar が TP と entry 割れを両方含むとき、favorable_first でも C5 を無条件に先行させていた → `cfg.order` に従い favorable_first は TP 先 (pin: 同 bar で adverse = TIME_DECAY / favorable = TP_HIT)。本 window では該当 bar なし (数値不変) / P2 4114143815 — `harness_check` の `ok` が numpy.bool_ で JSON `default=str` により文字列 "False" になっていた → 全て Python bool に正規化 (pin: numpy 入力でも `type is bool`、json 往復で `false`)。数値・帰属は不変
 - **レビュー反映 (PR #302、5 巡目)**: P2 4114113659 — 日曜 open がギャップで stop を割っているのに C2 (WEEKEND_CLOSE_SUNDAY_FILL) に帰属していた → ギャップ SL/TP 判定を C2/C1/C5 の open 判定より前に (live `_sltp_loop` と同順)。EV は不変、帰属だけ変わる: C2 fill 5 → 2 件、MAX_HOLD 14 → 10 本、TIME_DECAY 12 → 10 本 (pin: ギャップ −30p は c2 でも SL_HIT) / P2 4114113668 — `harness_unverified` が識別候補の合格を無視していた → `harness_unverified(harness, identification)` に集約 (pin 3 条件) / P3 4114113678 — done ファイルの撤回済み「45 分合成クローズ」項を deferred Sunday fill の記述に書き換え
