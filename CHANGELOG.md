@@ -1,5 +1,10 @@
 # FX AI Trader - Changelog
 
+## 2026-09-27 — research(bt): kalman_d7_po_dn_flip live 制約付き BT (C0〜C6) Python port — harness 未検証 / 宣言 TP 5×ATR は canon exit ではない (rule:R3 診断のみ)
+
+- `tools/kalman_d7_live_constrained_bt.py` (standalone) + pin `tests/test_kalman_d7_live_constrained_bt.py` (17)。Codex queue `20260925-0300` を Claude 自走で完遂 (done + Claude Review)
+- 算術で確定: カード BT (PF 3.866 / WR 23.91%) は payoff 12.3× を要求 → 固定 TP 5×ATR / SL 1.5×ATR (上限 3.33×) では出ない = canon exit は PO-DN flip。harness は Massive で ❌ (TV 不可) → 走 0′〜5 の数値は引用禁止、packet 10-08 には順位のみ (C3/C4 BE+trail ≫ C0、C1 は tp5 上で正、flip 形状は 8h/金曜と両立しない)。詳細: knowledge-base/wiki/analyses/kalman-d7-live-constrained-bt-2026-09-27.md
+
 ## 2026-09-26 — feat(engine): entry 時 SL/TP 構築の分岐を fill 行に永続 (`[SLTP_CONSTRUCT]` / `[BROKER_TP]`) (rule:R3 record-only)
 
 - `modules/demo_trader.py`: `_tick_entry` の SL/TP 構築 (SR/ATR 選択・MIN/MAX clamp・低流動性/fast-SL/カウンタートレンド/ラウンドナンバー バッファ・MTF TP ×1.3・range TP) の分岐と宣言/実発注距離を `[SLTP_CONSTRUCT] …` として reasons に永続、promoted 送信経路で broker TP (quick-harvest ×0.85 等) を `[BROKER_TP] …` として追記。取引挙動・gate・値は不変

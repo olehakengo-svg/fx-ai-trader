@@ -1,8 +1,8 @@
 ---
 id: 20260925-0300-kalman-d7-live-constrained-bt
 title: "[M1 clean live] kalman_d7_po_dn_flip — live exit スタック (C1〜C5 + C6 近似) 付き BT による診断: overlay 別の edge 減衰と winner/loser 別 hold 分布 (user 決裁 packet 用)"
-owner: unclaimed
-status: queued
+owner: claude (autopilot 2026-09-27)
+status: done (2026-09-27、Python port。harness 未検証 — 数値引用禁止、順位・向きのみ packet 供給)
 created_at: 2026-09-25T03:00:00+0900
 priority: P1
 deadline: 2026-10-08 (registry `kalman-d7-live-exit-spec-mismatch-disposition`)
@@ -109,3 +109,25 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 # 完了条件
 
 - 走 0〜5 の表 (**走 0′〜4 は「C0 近似」ラベル** — SR ベース SL を ATR×1.0 で代用し下流 SL 調整 (C0c) も未再現、+ bar 内順序仮定の両方向、走 5 は「C6 近似」) + **C0 感度 = BT 側の what-if** (live ログは SL 選択枝 (SR / ATR) と C0c 発動を**永続化していない** — L6895-6908 / L6951-7026 にマーカー無し、ON_FILL の SL 距離だけでは分岐を復元できない — ので live 実測率は要求しない): (i) C0a を ATR×1.0 のみ / (ii) C0a の SR-stop — 上記 (A) の port ができた場合のみ「SR 優先」走を併記、できなければ省いて「未再現」と明記 / (iii) 5–20pip clamp 有 / 無 / (iv) C0c の低流動性時間バッファ有 / 無 / (vi) **C0c のラウンドナンバー nudge** (USD_JPY で SL が .000/.500 の ±2pip 以内なら 2.5pip 外側へ — 決定論的なので **base の C0 replay に含める**、有 / 無の感度も併記、L7008-7017) / (v) C0d の MTF ×1.3 有 / 無 — の各 what-if で走 0′〜4 を再集計し、**分解の順位と winner 比率がどの what-if で変わるか**を packet に書く。live 実測率は follow-up 計装 (SL 選択枝 / C0c 発動 / MTF bonus を `reasons` marker に記録、別タスク) の後に差し替える + winner/loser 別 hold 分布 + exit 種別比率 + packet 用の所見が analyses/ に保存され、done ファイルに '## Claude Review' が付く
+
+
+# 実行結果 (2026-09-27、Claude 自走、Python port)
+
+- 実装: `tools/kalman_d7_live_constrained_bt.py` (standalone、indicator は `tools/kalman_d7_v18e_python_port`、SR は `modules/indicators.find_sr_levels_weighted` を live と同じ引数で)。走 0 (flip / tp5 の 2 変種) → 走 0′ (+C0 近似) → 走 1〜4 (C1〜C5 累積) → 走 5 (C6 近似)、bar 内順序仮定 2 方向、限界分解 (overlay 単独)、C0 what-if (i)〜(vii)、flip 定義の識別 5 候補
+- 生成物: `knowledge-base/raw/bt-results/kalman_d7_live_constrained_bt_2026_09_27.{json,md}` / 所見: `knowledge-base/wiki/analyses/kalman-d7-live-constrained-bt-2026-09-27.md` / pin: `tests/test_kalman_d7_live_constrained_bt.py` (17 passed)
+- TV: `tv_health_check` = CDP 接続不可 (desktop 未起動、自走セッションでは起動しない)。v17 canon Pine はリポジトリ不在 (BACKUP は v18e のみ) ⇒ Python port 経路 (手順 2)
+- **走 0 harness = ❌ FAIL**: flip 変種 N 60 / WR 18.3% / PF 2.27 / winner 373 bars、tp5 変種 N 74 / 29.7% / 1.53 / 37 bars、flip 定義 5 候補すべて ±10% 外 ⇒ 手順 2 の規律「走 0 が再現できなければ結果を採用しない」により **走 0′〜5 の数値は引用禁止**。packet へは順位・向き・exit 構造のみ
+- 新規所見 (データ不要): カード BT の PF 3.866 × WR 23.91% ⇒ payoff 12.3× (Avg Win/Loss 12.27× と一致) は固定 TP 5×ATR / SL 1.5×ATR (上限 3.33×) から出ない ⇒ **canon exit = PO-DN flip、宣言 TP 5×ATR は近似**。決裁肢 (a) の再定義が要る
+
+## Claude Review
+
+出力を額面で採らず、以下を独立に確認した:
+
+1. **harness の FAIL を隠さなかった** — task 文書は「走 0 が現行 BT を再現できないまま制約付きの数字を出さない」。本走は 2 変種 + 5 候補で全て ❌ なので、ツールは JSON `harness_unverified: true` と MD 冒頭バナーを標準出力し、analyses / カード / registry の全記載に「引用禁止・順位のみ」を明記した。走 3〜5 の負 EV を降格根拠に使っていない (task「判定の扱い」)
+2. **算術所見は BT に依存しない** — PF = payoff × WR/(1−WR) から payoff 12.3× を導き、カードの Avg Win 122 / Avg Loss 9.94 = 12.27× で裏取り。Avg Loss ≈15 pip = 1.5×ATR (ATR ≈10p、Massive で中央値 10.4p) で SL 側は宣言どおり、Avg Win ≈185 pip ≫ 50 pip で TP 側だけが宣言と違う ⇒ exit は flip。ベンダー差の影響を受けない
+3. **順位の頑健性を 2 軸で確認** — bar 内順序仮定 (adverse / favorable) と C0 what-if 7 種の全組合せで「C3C4 が最大の負」「C1 が正」「C0 が 2 位」の順位が不変。大きさは走 3 で 2 倍以上ぶれる (BE の同 bar 発動) — packet にはこの幅を書く
+4. **pin の counterfactual 設計** — 各 overlay は発火 / 不発の両側 (C5 は含み益側で不発、C2 は非金曜で不発、C1 は flag 無しで EOD)、順序仮定で同 bar の結果が SL_HIT ⇄ BE に変わる bar、`harness_check` は canon 一致 dict で True / 本走値で False。17 passed、full suite 3981 passed、check.py 10/10
+5. **近似ラベルの維持** — C0 は SR lookback 500 bars を「live fetch 本数未確認」と明記、fast-SL 拡幅は未再現、C2 は Massive の金曜最終 bar (20:45) close で近似 (21:00→21:45 未再現)、C5 は bar open + intrabar entry 割れ近似、C6 はサロゲート参考値。「ルール忠実」「full live stack」の語は使っていない
+6. **禁止事項の遵守** — 制約を外す live 変更の提案・実装なし、TP/SL/filter の再最適化なし (flip 定義の識別は canon の同定であり exit のパラメータ探索ではない — entry / SL / cap 固定、結果は全 ❌ で採用もしていない)。tier / lot / 配線は不変
+
+残課題: harness を閉じるには TV で v17 canon を再走する必要がある (user の TV desktop 起動が前提 — 対話セッションで依頼)。packet 10-08 は「harness 未検証・順位のみ」で組む。

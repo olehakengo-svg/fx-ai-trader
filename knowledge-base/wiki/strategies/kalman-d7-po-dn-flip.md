@@ -136,3 +136,12 @@ Entry filters (v16 forensic 導出):
 - ✅ **2026-09-26 follow-up 計装 (branch `feat/sltp-construct-marker-r3-2026-09-26`、rule:R3 record-only)**: PR #299 review 11 巡目の「C0 の live 実測率 (SR 採用率 / C0c 発動率 / MTF 一致率) は分岐が永続化されていないため導出不能」を閉じる — 以降の fill 行 reasons に `[SLTP_CONSTRUCT] sl=<preserve|sr|atr_nosr|atr_rrlow> clamp=<none|min|max> lowliq fastsl ct rn mtf_tp=<1.0|1.3> range_tp decl_sl_p sl_p decl_tp_p tp_p` と、promoted 送信経路で `[BROKER_TP] basis=<qh|…> mult=0.85 tp_p=…` が永続する。読み手 `tools/sltp_construct_readout.py` (件数・距離のみ)。**09-26 デプロイ前の fill #1〜#3 には付かない** — 制約付き BT (Codex queue `20260925-0300`) の C0 感度を live 実測率に差し替えるのは marker 付き live N が溜まってから。計装は値・gate に触れない (決裁肢 (a) の C0 免除フラグとは別物)
 
 詳細: [[2026-09-24]] 発見 1・2
+
+## 🟠 2026-09-27 更新: **live 制約付き BT (Python port) 実行 — harness 未検証、かつ「宣言 TP 5×ATR は canon の exit ではない」が算術で確定**
+
+- 実行: Codex queue `20260925-0300` を Claude が Python port (`tools/kalman_d7_live_constrained_bt.py`) で実行。TV は CDP 接続不可・v17 canon Pine はリポジトリ不在 (TV slot 2026-05-21 上書き)。詳細 [[kalman-d7-live-constrained-bt-2026-09-27]]
+- 🔴 **§0 (データ不要の算術)**: 本頁 BT (WR 23.91% / PF 3.866 / Avg Win 122 vs Avg Loss 9.94 JPY) は payoff **12.3×** を要求する。固定 TP 5×ATR / SL 1.5×ATR の payoff 上限は 3.33× ⇒ **canon の winner は TP ではなく PO-DN flip まで ~458 bars 走って決済している**。「TP 5.0×ATR (PO-DN regime flip approximation)」は Python live 実装の近似であって BT canon の exit ではない。**決裁肢 (a)「宣言仕様へ合わせる」は宣言 = TP 5×ATR のままでは BT を回復しない** — (a) を採る場合は flip exit として再定義が要る (Rule 1)
+- 🔴 **harness FAIL**: 走 0 の flip 変種 (N 60 / WR 18.3% / PF 2.27 / winner 373 bars) も tp5 変種 (N 74 / PF 1.53 / winner 37 bars) も canon を ±10% で再現しない (flip 定義 5 候補も全て ❌)。**走 0′〜5 の数値は引用禁止 — packet に載せるのは分解の順位・向き・exit 構造のみ**
+- 順位 (両順序仮定・全 C0 what-if で不変): **C3/C4 (BE 0.8×ATR → trail 1.5/0.5) が edge を最も削る** (winner hold 中央値 25 → 6 bars、winner の 100% が 8h 内完結) ≫ C0 (SL 1.5→1.0×ATR / broker TP 0.85 / lowliq) > C6 近似 (参考) > C5 ≈ C2。**C1 (8h cap) は tp5 exit 上では正の寄与** (切られた 14 本の大半が後で SL に落ちる) だが、**canon flip 形状の winner は 8h 内完結 0% (全 11 本が 259–480 bars) = flip edge は 8h cap・金曜クローズと両立しない**
+- 決裁 packet (10-08) への含意: (a) = flip exit + SL 1.5×ATR + 市場 bar 480 本 + **BE/trail 免除が最重要**、次に C0 免除、8h/金曜は外す (週末ギャップ露出・1 建玉 5 営業日拘束) / (b) = 「BT の無い戦略」として執行 QA 継続 / (c) は本 BT を根拠にしない。**harness を閉じる唯一の経路 = TV で v17 canon 再走 (user 操作の TV desktop 起動が前提)**
+- 執行 QA: 09-26 デプロイ以降 LIVE fill 0 (週末)。`[SLTP_CONSTRUCT]` marker 付き fill が溜まったら C0 感度の live 実測率を差し替え
