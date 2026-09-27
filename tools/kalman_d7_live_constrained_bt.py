@@ -357,7 +357,10 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
             # ── C5 連続パス近似 (PR #302 review P2 4114077250): 4h 超で open ≥ entry の bar が bar 内で entry を割るとき、
             #    live の 0.5s ループは stop (< entry) に達する前に entry 割れの tick を見て決済する。SL が entry 以上に
             #    移動済み (BE / trail) なら SL の方が先に触れるので通常経路。
-            if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and o[j] >= entry and bar_lo < entry and sl < entry:
+            #    C5 vs TP の同 bar 曖昧性は順序仮定に従う (PR #302 review P2 4114143809): favorable_first では
+            #    bar high が TP に届いていれば TP を先に処理し、この分岐は使わない。
+            _tp_first = cfg.order == "favorable_first" and cfg.exit_mode == "tp5" and bar_hi >= tp
+            if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and o[j] >= entry and bar_lo < entry and sl < entry and not _tp_first:
                 exit_raw, exit_px, reason = entry, entry - MINTICK, "TIME_DECAY_EXIT"
                 highest = max(highest, bar_hi); lowest = min(lowest, bar_lo)
                 exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
@@ -528,18 +531,22 @@ def harness_check(s: dict[str, Any]) -> dict[str, Any]:
     """走 0 が canon (N=46 / WR 23.91% / PF 3.866 / avg winner bars 458) を ±10% で再現するか。
     WR/PF は **TV コスト後** (commission 0.002%×2 + slippage 1 tick) で比較する — canon の数字は TV の
     strategy() コストを含む net なので、live 摩擦 2.14p (別物) ではなく TV のコストモデルを当てる。"""
+    # `ok` は必ず Python bool (PF が numpy スカラーだと比較結果が numpy.bool_ になり、json default=str で
+    # 文字列 "False" に化ける — PR #302 review P2 4114143815)。port 値も float に正規化する。
     checks = {}
-    checks["n"] = {"canon": CANON["n"], "port": s["n"],
-                   "ok": abs(s["n"] - CANON["n"]) / CANON["n"] <= HARNESS_TOL}
-    checks["wr"] = {"canon": CANON["wr"], "port": s["wr_tv"],
-                    "ok": abs(s["wr_tv"] - CANON["wr"]) / CANON["wr"] <= HARNESS_TOL}
-    pf = s["pf_tv"] if s["pf_tv"] is not None else float("inf")
+    n_port = int(s["n"])
+    checks["n"] = {"canon": CANON["n"], "port": n_port,
+                   "ok": bool(abs(n_port - CANON["n"]) / CANON["n"] <= HARNESS_TOL)}
+    wr = float(s["wr_tv"])
+    checks["wr"] = {"canon": CANON["wr"], "port": wr,
+                    "ok": bool(abs(wr - CANON["wr"]) / CANON["wr"] <= HARNESS_TOL)}
+    pf = float(s["pf_tv"]) if s["pf_tv"] is not None else float("inf")
     checks["pf"] = {"canon": CANON["pf"], "port": pf,
-                    "ok": math.isfinite(pf) and abs(pf - CANON["pf"]) / CANON["pf"] <= HARNESS_TOL}
-    awb = s["hold_bars_winners_tv"]["mean"] or 0.0
+                    "ok": bool(math.isfinite(pf) and abs(pf - CANON["pf"]) / CANON["pf"] <= HARNESS_TOL)}
+    awb = float(s["hold_bars_winners_tv"]["mean"] or 0.0)
     checks["avg_win_bars"] = {"canon": CANON["avg_win_bars"], "port": awb,
-                              "ok": abs(awb - CANON["avg_win_bars"]) / CANON["avg_win_bars"] <= HARNESS_TOL}
-    checks["all_ok"] = all(v["ok"] for k, v in checks.items() if k != "all_ok")
+                              "ok": bool(abs(awb - CANON["avg_win_bars"]) / CANON["avg_win_bars"] <= HARNESS_TOL)}
+    checks["all_ok"] = bool(all(v["ok"] for k, v in checks.items() if k != "all_ok"))
     return checks
 
 
@@ -644,7 +651,7 @@ def harness_identification(data: pd.DataFrame) -> list[dict[str, Any]]:
         rows.append({"flip_def": name, "desc": desc, "n": s["n"], "wr_tv": s["wr_tv"],
                      "pf_tv": s["pf_tv"], "avg_win_bars": s["hold_bars_winners_tv"]["mean"],
                      "ev_tv_pips": s["ev_tv_pips"], "payoff": s["payoff"],
-                     "exit_reasons": s["exit_reasons"], "harness_ok": chk["all_ok"],
+                     "exit_reasons": s["exit_reasons"], "harness_ok": bool(chk["all_ok"]),
                      "harness": chk})
     return rows
 

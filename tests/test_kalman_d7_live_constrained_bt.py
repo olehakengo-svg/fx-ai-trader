@@ -420,3 +420,30 @@ def test_harness_unverified_counts_identification_candidate_passes():
     assert K.harness_unverified(fail, [{"harness_ok": False}, {"harness_ok": False}]) is True
     assert K.harness_unverified(fail, [{"harness_ok": False}, {"harness_ok": True}]) is False
     assert K.harness_unverified({"a": {"all_ok": True}}, []) is False
+
+
+# ── 6 巡目 (PR #302 review P2 4114143809 / P2 4114143815) ───
+def test_c5_vs_tp_same_bar_follows_ordering_assumption():
+    """4h 超で open ≥ entry、bar 内で TP と entry 割れの両方 → adverse_first は C5 (entry 割れ先)、favorable_first は TP 先。"""
+    entry = 150.000 + K.MINTICK
+    def frame():
+        df = _bars(80, atr=0.100)
+        j = 5 + 20
+        for b in range(6, j):
+            df.iloc[b, [df.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [entry + 0.010, entry + 0.012, entry + 0.008, entry + 0.010]
+        df.iloc[j, [df.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [entry + 0.010, entry + 0.600, entry - 0.050, entry + 0.100]
+        return df
+    adv = _one(K.simulate(frame(), K.StackConfig(exit_mode="tp5", c5=True, order="adverse_first")))
+    fav = _one(K.simulate(frame(), K.StackConfig(exit_mode="tp5", c5=True, order="favorable_first")))
+    assert adv.exit_reason == "TIME_DECAY_EXIT"
+    assert fav.exit_reason == "TP_HIT"
+
+
+def test_harness_check_emits_plain_python_bools_even_from_numpy_inputs():
+    s = {"n": np.int64(60), "wr_tv": np.float64(0.1833), "pf_tv": np.float64(1.99), "hold_bars_winners_tv": {"mean": np.float64(372.8)}}
+    chk = K.harness_check(s)
+    for key in ("n", "wr", "pf", "avg_win_bars"):
+        assert type(chk[key]["ok"]) is bool
+    assert type(chk["all_ok"]) is bool
+    import json
+    assert json.loads(json.dumps(chk, default=str))["pf"]["ok"] is False   # 文字列 "False" ではなく JSON false

@@ -2724,7 +2724,7 @@
    "pf": {
     "canon": 3.866,
     "port": 1.9871679262332802,
-    "ok": "False"
+    "ok": false
    },
    "avg_win_bars": {
     "canon": 458,
@@ -2747,7 +2747,7 @@
    "pf": {
     "canon": 3.866,
     "port": 1.4885166840584192,
-    "ok": "False"
+    "ok": false
    },
    "avg_win_bars": {
     "canon": 458,
@@ -2787,7 +2787,7 @@
     "pf": {
      "canon": 3.866,
      "port": 1.9871679262332802,
-     "ok": "False"
+     "ok": false
     },
     "avg_win_bars": {
      "canon": 458,
@@ -2825,7 +2825,7 @@
     "pf": {
      "canon": 3.866,
      "port": 0.7820378707552974,
-     "ok": "False"
+     "ok": false
     },
     "avg_win_bars": {
      "canon": 458,
@@ -2863,7 +2863,7 @@
     "pf": {
      "canon": 3.866,
      "port": 1.9958840441449048,
-     "ok": "False"
+     "ok": false
     },
     "avg_win_bars": {
      "canon": 458,
@@ -2901,7 +2901,7 @@
     "pf": {
      "canon": 3.866,
      "port": 2.249626409097623,
-     "ok": "False"
+     "ok": false
     },
     "avg_win_bars": {
      "canon": 458,
@@ -2939,7 +2939,7 @@
     "pf": {
      "canon": 3.866,
      "port": 2.518181113918978,
-     "ok": "False"
+     "ok": false
     },
     "avg_win_bars": {
      "canon": 458,
