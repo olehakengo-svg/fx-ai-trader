@@ -530,13 +530,13 @@
     "wins": 20,
     "wr": 0.23529411764705882,
     "wilson95_lower": 0.15779538674738286,
-    "pf_net": 0.5391033800028283,
-    "ev_net_pips": -3.8341176470588234,
-    "ev_gross_pips": -1.8929411764705883,
-    "total_net_pips": -325.9,
-    "avg_win_pips": 19.060000000000002,
+    "pf_net": 0.5528213831141279,
+    "ev_net_pips": -3.7199999999999998,
+    "ev_gross_pips": -1.7788235294117645,
+    "total_net_pips": -316.2,
+    "avg_win_pips": 19.544999999999998,
     "avg_loss_pips": -10.878461538461542,
-    "payoff": 1.752085985009192,
+    "payoff": 1.7966694951209157,
     "exit_reasons": {
      "SL_HIT": 47,
      "BE": 18,
@@ -556,10 +556,10 @@
     },
     "hold_bars_winners": {
      "n": 20,
-     "p25": 4.0,
+     "p25": 3.75,
      "median": 5.5,
      "p75": 7.0,
-     "mean": 6.7
+     "mean": 6.5
     },
     "hold_bars_losers": {
      "n": 65,
@@ -575,7 +575,7 @@
      "p25": 18.0,
      "median": 24.950000000000003,
      "p75": 35.425000000000004,
-     "mean": 27.699999999999996
+     "mean": 27.434999999999995
     },
     "mfe_pips_losers": {
      "n": 65,
@@ -597,17 +597,17 @@
      }
     },
     "wr_tv": 0.43529411764705883,
-    "pf_tv": 0.6592532133191936,
-    "pf_tv_pips": 0.657333783110854,
-    "net_tv_cash": -138.17771618640276,
-    "ending_equity_tv": 99861.82228381354,
-    "ev_tv_pips": -2.5096470588235302,
+    "pf_tv": 0.6750756917558192,
+    "pf_tv_pips": 0.6729153615086824,
+    "net_tv_cash": -131.76595032267005,
+    "ending_equity_tv": 99868.23404967731,
+    "ev_tv_pips": -2.395529411764707,
     "hold_bars_winners_tv": {
      "n": 37,
      "p25": 4.0,
      "median": 6.0,
      "p75": 9.0,
-     "mean": 7.162162162162162
+     "mean": 7.054054054054054
     }
    },
    {
@@ -636,13 +636,13 @@
     "wins": 20,
     "wr": 0.23529411764705882,
     "wilson95_lower": 0.15779538674738286,
-    "pf_net": 0.5391033800028283,
-    "ev_net_pips": -3.8341176470588234,
-    "ev_gross_pips": -1.8929411764705883,
-    "total_net_pips": -325.9,
-    "avg_win_pips": 19.060000000000002,
+    "pf_net": 0.5528213831141279,
+    "ev_net_pips": -3.7199999999999998,
+    "ev_gross_pips": -1.7788235294117645,
+    "total_net_pips": -316.2,
+    "avg_win_pips": 19.544999999999998,
     "avg_loss_pips": -10.878461538461542,
-    "payoff": 1.752085985009192,
+    "payoff": 1.7966694951209157,
     "exit_reasons": {
      "SL_HIT": 47,
      "BE": 18,
@@ -662,10 +662,10 @@
     },
     "hold_bars_winners": {
      "n": 20,
-     "p25": 4.0,
+     "p25": 3.75,
      "median": 5.5,
      "p75": 7.0,
-     "mean": 6.7
+     "mean": 6.5
     },
     "hold_bars_losers": {
      "n": 65,
@@ -681,7 +681,7 @@
      "p25": 18.0,
      "median": 24.950000000000003,
      "p75": 35.425000000000004,
-     "mean": 27.699999999999996
+     "mean": 27.434999999999995
     },
     "mfe_pips_losers": {
      "n": 65,
@@ -703,17 +703,17 @@
      }
     },
     "wr_tv": 0.43529411764705883,
-    "pf_tv": 0.6592532133191936,
-    "pf_tv_pips": 0.657333783110854,
-    "net_tv_cash": -138.17771618640276,
-    "ending_equity_tv": 99861.82228381354,
-    "ev_tv_pips": -2.5096470588235302,
+    "pf_tv": 0.6750756917558192,
+    "pf_tv_pips": 0.6729153615086824,
+    "net_tv_cash": -131.76595032267005,
+    "ending_equity_tv": 99868.23404967731,
+    "ev_tv_pips": -2.395529411764707,
     "hold_bars_winners_tv": {
      "n": 37,
      "p25": 4.0,
      "median": 6.0,
      "p75": 9.0,
-     "mean": 7.162162162162162
+     "mean": 7.054054054054054
     }
    },
    {
@@ -742,13 +742,13 @@
     "wins": 18,
     "wr": 0.1956521739130435,
     "wilson95_lower": 0.12749843131197144,
-    "pf_net": 0.5343197310966606,
-    "ev_net_pips": -3.2226086956521747,
-    "ev_gross_pips": -1.2815217391304345,
-    "total_net_pips": -296.4800000000001,
-    "avg_win_pips": 18.89888888888889,
+    "pf_net": 0.5495554927276723,
+    "ev_net_pips": -3.1171739130434792,
+    "ev_gross_pips": -1.1760869565217391,
+    "total_net_pips": -286.7800000000001,
+    "avg_win_pips": 19.437777777777775,
     "avg_loss_pips": -8.603513513513514,
-    "payoff": 2.196647783397383,
+    "payoff": 2.2592836923248756,
     "exit_reasons": {
      "SIGNAL_REVERSE_APPROX": 32,
      "SL_HIT": 26,
@@ -769,10 +769,10 @@
     },
     "hold_bars_winners": {
      "n": 18,
-     "p25": 4.0,
+     "p25": 3.25,
      "median": 5.0,
      "p75": 6.0,
-     "mean": 6.277777777777778
+     "mean": 6.055555555555555
     },
     "hold_bars_losers": {
      "n": 74,
@@ -788,7 +788,7 @@
      "p25": 17.8,
      "median": 24.950000000000003,
      "p75": 34.225,
-     "mean": 27.666666666666668
+     "mean": 27.37222222222222
     },
     "mfe_pips_losers": {
      "n": 74,
@@ -811,17 +811,17 @@
      }
     },
     "wr_tv": 0.358695652173913,
-    "pf_tv": 0.6787623325283152,
-    "pf_tv_pips": 0.6766176525056484,
-    "net_tv_cash": -113.23363723620619,
-    "ending_equity_tv": 99886.7663627638,
-    "ev_tv_pips": -1.8980434782608697,
+    "pf_tv": 0.6969664380578653,
+    "pf_tv_pips": 0.6945812807881774,
+    "net_tv_cash": -106.82026980352293,
+    "ending_equity_tv": 99893.17973019651,
+    "ev_tv_pips": -1.792608695652174,
     "hold_bars_winners_tv": {
      "n": 33,
      "p25": 4.0,
      "median": 5.0,
      "p75": 7.0,
-     "mean": 6.484848484848484
+     "mean": 6.363636363636363
     }
    }
   ],
@@ -1844,18 +1844,18 @@
     "wins": 19,
     "wr": 0.2235294117647059,
     "wilson95_lower": 0.1480325724449223,
-    "pf_net": 0.5584091894234936,
-    "ev_net_pips": -3.835294117647059,
-    "ev_gross_pips": -1.8929411764705886,
-    "total_net_pips": -326.0,
-    "avg_win_pips": 21.696842105263162,
+    "pf_net": 0.5282022106631988,
+    "ev_net_pips": -4.097647058823529,
+    "ev_gross_pips": -2.1564705882352944,
+    "total_net_pips": -348.3,
+    "avg_win_pips": 20.52315789473684,
     "avg_loss_pips": -11.185454545454549,
-    "payoff": 1.9397371843131885,
+    "payoff": 1.8348076791458483,
     "exit_reasons": {
      "SL_HIT": 48,
+     "TRAIL": 18,
      "BE": 18,
-     "TRAIL": 17,
-     "TP_HIT": 2
+     "TP_HIT": 1
     },
     "sl_branches": {
      "atr": 85
@@ -1871,7 +1871,7 @@
      "p25": 4.0,
      "median": 6.0,
      "p75": 7.0,
-     "mean": 7.052631578947368
+     "mean": 6.7894736842105265
     },
     "hold_bars_losers": {
      "n": 66,
@@ -1880,14 +1880,14 @@
      "p75": 7.0,
      "mean": 5.075757575757576
     },
-    "winners_within_8h_share": 0.9473684210526315,
+    "winners_within_8h_share": 1.0,
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 19,
      "p25": 18.25,
      "median": 28.3,
-     "p75": 37.3,
-     "mean": 30.857894736842102
+     "p75": 35.650000000000006,
+     "mean": 29.21052631578947
     },
     "mfe_pips_losers": {
      "n": 66,
@@ -1898,8 +1898,8 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "TRAIL": 17,
-      "TP_HIT": 2
+      "TRAIL": 18,
+      "TP_HIT": 1
      },
      "losers": {
       "SL_HIT": 48,
@@ -3027,9 +3027,9 @@
      "label": "walk3_+C3C4",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5391033800028283,
-     "ev_net_pips": -3.8341176470588234,
-     "total_net_pips": -325.9,
+     "pf_net": 0.5528213831141279,
+     "ev_net_pips": -3.7199999999999998,
+     "total_net_pips": -316.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -3053,9 +3053,9 @@
      "label": "walk4_+C5",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5391033800028283,
-     "ev_net_pips": -3.8341176470588234,
-     "total_net_pips": -325.9,
+     "pf_net": 0.5528213831141279,
+     "ev_net_pips": -3.7199999999999998,
+     "total_net_pips": -316.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -3151,9 +3151,9 @@
      "label": "walk3_+C3C4",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5391033800028283,
-     "ev_net_pips": -3.8341176470588234,
-     "total_net_pips": -325.9,
+     "pf_net": 0.5528213831141279,
+     "ev_net_pips": -3.7199999999999998,
+     "total_net_pips": -316.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -3177,9 +3177,9 @@
      "label": "walk4_+C5",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5391033800028283,
-     "ev_net_pips": -3.8341176470588234,
-     "total_net_pips": -325.9,
+     "pf_net": 0.5528213831141279,
+     "ev_net_pips": -3.7199999999999998,
+     "total_net_pips": -316.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -3278,9 +3278,9 @@
      "label": "walk3_+C3C4",
      "n": 77,
      "wr": 0.2987012987012987,
-     "pf_net": 0.5855891162556337,
-     "ev_net_pips": -3.8451948051948044,
-     "total_net_pips": -296.0799999999999,
+     "pf_net": 0.6089634129272458,
+     "ev_net_pips": -3.628311688311688,
+     "total_net_pips": -279.38,
      "winners_within_8h_share": 0.9565217391304348,
      "exit_reasons": {
       "SL_HIT": 32,
@@ -3305,9 +3305,9 @@
      "label": "walk4_+C5",
      "n": 77,
      "wr": 0.2987012987012987,
-     "pf_net": 0.608234233710348,
-     "ev_net_pips": -3.499740259740261,
-     "total_net_pips": -269.4800000000001,
+     "pf_net": 0.6325124298549123,
+     "ev_net_pips": -3.282857142857143,
+     "total_net_pips": -252.78,
      "winners_within_8h_share": 0.9565217391304348,
      "exit_reasons": {
       "SL_HIT": 30,
@@ -3405,9 +3405,9 @@
      "label": "walk3_+C3C4",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5391033800028283,
-     "ev_net_pips": -3.8341176470588234,
-     "total_net_pips": -325.9,
+     "pf_net": 0.5528213831141279,
+     "ev_net_pips": -3.7199999999999998,
+     "total_net_pips": -316.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -3431,9 +3431,9 @@
      "label": "walk4_+C5",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5391033800028283,
-     "ev_net_pips": -3.8341176470588234,
-     "total_net_pips": -325.9,
+     "pf_net": 0.5528213831141279,
+     "ev_net_pips": -3.7199999999999998,
+     "total_net_pips": -316.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -3529,9 +3529,9 @@
      "label": "walk3_+C3C4",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5547147846332943,
-     "ev_net_pips": -3.6,
-     "total_net_pips": -306.0,
+     "pf_net": 0.5688300349243303,
+     "ev_net_pips": -3.4858823529411764,
+     "total_net_pips": -296.3,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 48,
@@ -3555,9 +3555,9 @@
      "label": "walk4_+C5",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5547147846332943,
-     "ev_net_pips": -3.6,
-     "total_net_pips": -306.0,
+     "pf_net": 0.5688300349243303,
+     "ev_net_pips": -3.4858823529411764,
+     "total_net_pips": -296.3,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 48,
@@ -3653,9 +3653,9 @@
      "label": "walk3_+C3C4",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5386791118653654,
-     "ev_net_pips": -3.837647058823529,
-     "total_net_pips": -326.2,
+     "pf_net": 0.5570640644887567,
+     "ev_net_pips": -3.684705882352941,
+     "total_net_pips": -313.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -3678,9 +3678,9 @@
      "label": "walk4_+C5",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5386791118653654,
-     "ev_net_pips": -3.837647058823529,
-     "total_net_pips": -326.2,
+     "pf_net": 0.5570640644887567,
+     "ev_net_pips": -3.684705882352941,
+     "total_net_pips": -313.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -3775,9 +3775,9 @@
      "label": "walk3_+C3C4",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5375070501974054,
-     "ev_net_pips": -3.8588235294117648,
-     "total_net_pips": -328.0,
+     "pf_net": 0.5511844331641284,
+     "ev_net_pips": -3.744705882352941,
+     "total_net_pips": -318.3,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 48,
@@ -3801,9 +3801,9 @@
      "label": "walk4_+C5",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5375070501974054,
-     "ev_net_pips": -3.8588235294117648,
-     "total_net_pips": -328.0,
+     "pf_net": 0.5511844331641284,
+     "ev_net_pips": -3.744705882352941,
+     "total_net_pips": -318.3,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 48,
@@ -3899,9 +3899,9 @@
      "label": "walk3_+C3C4",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5386791118653654,
-     "ev_net_pips": -3.837647058823529,
-     "total_net_pips": -326.2,
+     "pf_net": 0.5570640644887567,
+     "ev_net_pips": -3.684705882352941,
+     "total_net_pips": -313.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -3924,9 +3924,9 @@
      "label": "walk4_+C5",
      "n": 85,
      "wr": 0.23529411764705882,
-     "pf_net": 0.5386791118653654,
-     "ev_net_pips": -3.837647058823529,
-     "total_net_pips": -326.2,
+     "pf_net": 0.5570640644887567,
+     "ev_net_pips": -3.684705882352941,
+     "total_net_pips": -313.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
       "SL_HIT": 47,
@@ -10316,7 +10316,7 @@
     "net_pips": 54.06,
     "tv_net_pips": 55.47,
     "mfe_pips": 56.1,
-    "mae_pips": 11.8
+    "mae_pips": 2.5
    },
    {
     "signal_time": "2026-02-18T01:30:00+00:00",
@@ -12667,7 +12667,7 @@
     "net_pips": 54.06,
     "tv_net_pips": 55.47,
     "mfe_pips": 56.1,
-    "mae_pips": 11.8
+    "mae_pips": 2.5
    },
    {
     "signal_time": "2026-02-18T01:30:00+00:00",
@@ -16187,7 +16187,7 @@
     "entry_time": "2025-08-18T09:30:00+00:00",
     "exit_time": "2025-08-18T13:00:00+00:00",
     "entry": 147.387,
-    "exit": 147.726,
+    "exit": 147.733,
     "atr": 0.1212,
     "decl_sl": 147.205,
     "decl_tp": 147.993,
@@ -16201,14 +16201,14 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 15,
+    "bars_held": 14,
     "hold_sec": 12600.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 33.9,
-    "raw_pips": 34.1,
-    "net_pips": 31.96,
-    "tv_net_pips": 33.31,
-    "mfe_pips": 46.1,
+    "gross_pips": 34.6,
+    "raw_pips": 34.8,
+    "net_pips": 32.66,
+    "tv_net_pips": 34.01,
+    "mfe_pips": 40.8,
     "mae_pips": 3.7
    },
    {
@@ -16593,7 +16593,7 @@
     "entry_time": "2025-10-21T01:30:00+00:00",
     "exit_time": "2025-10-21T02:15:00+00:00",
     "entry": 150.728,
-    "exit": 150.981,
+    "exit": 151.052,
     "atr": 0.1204,
     "decl_sl": 150.547,
     "decl_tp": 151.33,
@@ -16607,13 +16607,13 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 4,
+    "bars_held": 3,
     "hold_sec": 2700.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 25.3,
-    "raw_pips": 25.5,
-    "net_pips": 23.36,
-    "tv_net_pips": 24.7,
+    "gross_pips": 32.4,
+    "raw_pips": 32.6,
+    "net_pips": 30.46,
+    "tv_net_pips": 31.8,
     "mfe_pips": 38.5,
     "mae_pips": 5.7
    },
@@ -17289,7 +17289,7 @@
     "entry_time": "2026-01-21T18:45:00+00:00",
     "exit_time": "2026-01-21T19:45:00+00:00",
     "entry": 158.217,
-    "exit": 158.478,
+    "exit": 158.479,
     "atr": 0.1005,
     "decl_sl": 158.066,
     "decl_tp": 158.719,
@@ -17303,13 +17303,13 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 5,
+    "bars_held": 4,
     "hold_sec": 3600.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 26.1,
-    "raw_pips": 26.3,
-    "net_pips": 24.16,
-    "tv_net_pips": 25.47,
+    "gross_pips": 26.2,
+    "raw_pips": 26.4,
+    "net_pips": 24.26,
+    "tv_net_pips": 25.57,
     "mfe_pips": 31.3,
     "mae_pips": 8.9
    },
@@ -17463,7 +17463,7 @@
     "entry_time": "2026-02-18T01:45:00+00:00",
     "exit_time": "2026-02-18T02:30:00+00:00",
     "entry": 153.441,
-    "exit": 153.627,
+    "exit": 153.645,
     "atr": 0.1114,
     "decl_sl": 153.274,
     "decl_tp": 153.998,
@@ -17477,13 +17477,13 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 4,
+    "bars_held": 3,
     "hold_sec": 2700.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 18.6,
-    "raw_pips": 18.8,
-    "net_pips": 16.66,
-    "tv_net_pips": 17.99,
+    "gross_pips": 20.4,
+    "raw_pips": 20.6,
+    "net_pips": 18.46,
+    "tv_net_pips": 19.79,
     "mfe_pips": 26.1,
     "mae_pips": 4.2
    },
@@ -18654,7 +18654,7 @@
     "entry_time": "2025-08-18T09:30:00+00:00",
     "exit_time": "2025-08-18T13:00:00+00:00",
     "entry": 147.387,
-    "exit": 147.726,
+    "exit": 147.733,
     "atr": 0.1212,
     "decl_sl": 147.205,
     "decl_tp": 147.993,
@@ -18668,14 +18668,14 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 15,
+    "bars_held": 14,
     "hold_sec": 12600.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 33.9,
-    "raw_pips": 34.1,
-    "net_pips": 31.96,
-    "tv_net_pips": 33.31,
-    "mfe_pips": 46.1,
+    "gross_pips": 34.6,
+    "raw_pips": 34.8,
+    "net_pips": 32.66,
+    "tv_net_pips": 34.01,
+    "mfe_pips": 40.8,
     "mae_pips": 3.7
    },
    {
@@ -19060,7 +19060,7 @@
     "entry_time": "2025-10-21T01:30:00+00:00",
     "exit_time": "2025-10-21T02:15:00+00:00",
     "entry": 150.728,
-    "exit": 150.981,
+    "exit": 151.052,
     "atr": 0.1204,
     "decl_sl": 150.547,
     "decl_tp": 151.33,
@@ -19074,13 +19074,13 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 4,
+    "bars_held": 3,
     "hold_sec": 2700.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 25.3,
-    "raw_pips": 25.5,
-    "net_pips": 23.36,
-    "tv_net_pips": 24.7,
+    "gross_pips": 32.4,
+    "raw_pips": 32.6,
+    "net_pips": 30.46,
+    "tv_net_pips": 31.8,
     "mfe_pips": 38.5,
     "mae_pips": 5.7
    },
@@ -19756,7 +19756,7 @@
     "entry_time": "2026-01-21T18:45:00+00:00",
     "exit_time": "2026-01-21T19:45:00+00:00",
     "entry": 158.217,
-    "exit": 158.478,
+    "exit": 158.479,
     "atr": 0.1005,
     "decl_sl": 158.066,
     "decl_tp": 158.719,
@@ -19770,13 +19770,13 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 5,
+    "bars_held": 4,
     "hold_sec": 3600.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 26.1,
-    "raw_pips": 26.3,
-    "net_pips": 24.16,
-    "tv_net_pips": 25.47,
+    "gross_pips": 26.2,
+    "raw_pips": 26.4,
+    "net_pips": 24.26,
+    "tv_net_pips": 25.57,
     "mfe_pips": 31.3,
     "mae_pips": 8.9
    },
@@ -19930,7 +19930,7 @@
     "entry_time": "2026-02-18T01:45:00+00:00",
     "exit_time": "2026-02-18T02:30:00+00:00",
     "entry": 153.441,
-    "exit": 153.627,
+    "exit": 153.645,
     "atr": 0.1114,
     "decl_sl": 153.274,
     "decl_tp": 153.998,
@@ -19944,13 +19944,13 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 4,
+    "bars_held": 3,
     "hold_sec": 2700.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 18.6,
-    "raw_pips": 18.8,
-    "net_pips": 16.66,
-    "tv_net_pips": 17.99,
+    "gross_pips": 20.4,
+    "raw_pips": 20.6,
+    "net_pips": 18.46,
+    "tv_net_pips": 19.79,
     "mfe_pips": 26.1,
     "mae_pips": 4.2
    },
@@ -21150,7 +21150,7 @@
     "entry_time": "2025-08-18T09:30:00+00:00",
     "exit_time": "2025-08-18T13:00:00+00:00",
     "entry": 147.387,
-    "exit": 147.726,
+    "exit": 147.733,
     "atr": 0.1212,
     "decl_sl": 147.205,
     "decl_tp": 147.993,
@@ -21164,14 +21164,14 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 15,
+    "bars_held": 14,
     "hold_sec": 12600.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 33.9,
-    "raw_pips": 34.1,
-    "net_pips": 31.96,
-    "tv_net_pips": 33.31,
-    "mfe_pips": 46.1,
+    "gross_pips": 34.6,
+    "raw_pips": 34.8,
+    "net_pips": 32.66,
+    "tv_net_pips": 34.01,
+    "mfe_pips": 40.8,
     "mae_pips": 3.7
    },
    {
@@ -21614,7 +21614,7 @@
     "entry_time": "2025-10-21T01:30:00+00:00",
     "exit_time": "2025-10-21T02:15:00+00:00",
     "entry": 150.728,
-    "exit": 150.981,
+    "exit": 151.052,
     "atr": 0.1204,
     "decl_sl": 150.547,
     "decl_tp": 151.33,
@@ -21628,13 +21628,13 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 4,
+    "bars_held": 3,
     "hold_sec": 2700.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 25.3,
-    "raw_pips": 25.5,
-    "net_pips": 23.36,
-    "tv_net_pips": 24.7,
+    "gross_pips": 32.4,
+    "raw_pips": 32.6,
+    "net_pips": 30.46,
+    "tv_net_pips": 31.8,
     "mfe_pips": 38.5,
     "mae_pips": 5.7
    },
@@ -22368,7 +22368,7 @@
     "entry_time": "2026-01-21T18:45:00+00:00",
     "exit_time": "2026-01-21T19:45:00+00:00",
     "entry": 158.217,
-    "exit": 158.478,
+    "exit": 158.479,
     "atr": 0.1005,
     "decl_sl": 158.066,
     "decl_tp": 158.719,
@@ -22382,13 +22382,13 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 5,
+    "bars_held": 4,
     "hold_sec": 3600.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 26.1,
-    "raw_pips": 26.3,
-    "net_pips": 24.16,
-    "tv_net_pips": 25.47,
+    "gross_pips": 26.2,
+    "raw_pips": 26.4,
+    "net_pips": 24.26,
+    "tv_net_pips": 25.57,
     "mfe_pips": 31.3,
     "mae_pips": 8.9
    },
@@ -22542,7 +22542,7 @@
     "entry_time": "2026-02-18T01:45:00+00:00",
     "exit_time": "2026-02-18T02:30:00+00:00",
     "entry": 153.441,
-    "exit": 153.627,
+    "exit": 153.645,
     "atr": 0.1114,
     "decl_sl": 153.274,
     "decl_tp": 153.998,
@@ -22556,13 +22556,13 @@
      "mtf": 1.0,
      "broker": 1
     },
-    "bars_held": 4,
+    "bars_held": 3,
     "hold_sec": 2700.0,
     "exit_reason": "TRAIL",
-    "gross_pips": 18.6,
-    "raw_pips": 18.8,
-    "net_pips": 16.66,
-    "tv_net_pips": 17.99,
+    "gross_pips": 20.4,
+    "raw_pips": 20.6,
+    "net_pips": 18.46,
+    "tv_net_pips": 19.79,
     "mfe_pips": 26.1,
     "mae_pips": 4.2
    },
@@ -28834,7 +28834,7 @@
     "net_pips": 54.06,
     "tv_net_pips": 55.47,
     "mfe_pips": 56.1,
-    "mae_pips": 11.8
+    "mae_pips": 2.5
    },
    {
     "signal_time": "2026-02-18T01:30:00+00:00",
@@ -31185,7 +31185,7 @@
     "net_pips": 54.06,
     "tv_net_pips": 55.47,
     "mfe_pips": 56.1,
-    "mae_pips": 11.8
+    "mae_pips": 2.5
    },
    {
     "signal_time": "2026-02-18T01:30:00+00:00",

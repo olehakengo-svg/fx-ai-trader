@@ -319,7 +319,8 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
                     exit_raw, exit_px, reason = o[j], o[j] - MINTICK, (sl_moved or "SL_HIT")
                 else:
                     exit_raw, exit_px, reason = o[j], o[j], "TP_HIT"
-                highest = max(highest, bar_hi); lowest = min(lowest, bar_lo)
+                # exit は open 時点 — exit 後の bar 範囲を MFE/MAE に含めない (PR #302 review P2)
+                highest = max(highest, o[j]); lowest = min(lowest, o[j])
                 exit_j, exit_ts = j, ts
                 break
 
@@ -372,7 +373,12 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
                 elif cfg.exit_mode == "tp5" and bar_hi >= tp:
                     hit_tp = True
                 if not hit_sl and not hit_tp and cfg.c3c4:
+                    _sl_before = sl
                     _update_be_trail(max(highest, bar_hi))
+                    # PR #302 review P1 4114171432: open → low → high → close の連続パスでは、high で引き上げた
+                    # 新 stop を close が割っていれば high→close の脚で必ず触れる → 同 bar で決済 (次 bar 持ち越しは誤り)
+                    if sl > _sl_before and c[j] <= sl:
+                        hit_sl = True
             else:  # favorable_first
                 if cfg.c3c4:
                     _update_be_trail(max(highest, bar_hi))

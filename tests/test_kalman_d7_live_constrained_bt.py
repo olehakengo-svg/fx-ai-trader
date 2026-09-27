@@ -447,3 +447,33 @@ def test_harness_check_emits_plain_python_bools_even_from_numpy_inputs():
     assert type(chk["all_ok"]) is bool
     import json
     assert json.loads(json.dumps(chk, default=str))["pf"]["ok"] is False   # 文字列 "False" ではなく JSON false
+
+
+# ── 7 巡目 (PR #302 review P1 4114171432 / P2 excursions) ───
+def test_adverse_first_recheck_raised_stop_against_close_in_same_bar():
+    """adverse_first: 同 bar で low は旧 SL に届かず、high で BE (0.8×ATR) 発動、close が新 stop (entry+spread) を割る
+    → open→low→high→close の連続パスで新 stop に触れるので同 bar で BE 決済 (次 bar 持ち越しは誤り)。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(40, atr=0.100)
+    j = 12
+    df.iloc[j, [df.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [entry + 0.010, entry + 0.090, entry - 0.050, entry - 0.040]
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c3c4=True, order="adverse_first")))
+    assert t.exit_reason == "BE" and t.bars_held == j - 5
+    assert t.exit == pytest.approx(round(entry + K.C3_BE_SPREAD, 3) - K.MINTICK, abs=1e-6)
+    # close が新 stop の上なら持ち越し (次 bar で判定)
+    df2 = _bars(40, atr=0.100)
+    df2.iloc[j, [df2.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [entry + 0.010, entry + 0.090, entry - 0.050, entry + 0.030]
+    t2 = _one(K.simulate(df2, K.StackConfig(exit_mode="tp5", c3c4=True, order="adverse_first", canon_cap=False)))
+    assert t2.bars_held > j - 5
+
+
+def test_gap_exit_excursions_exclude_post_exit_bar_range():
+    """ギャップで open 決済した bar の high/low は MFE/MAE に含めない (exit は open 時点)。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(40, atr=0.100)
+    gap_open = entry - 0.700
+    df.iloc[12, [df.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [gap_open, entry + 0.900, gap_open - 0.500, gap_open]
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5")))
+    assert t.exit_reason == "SL_HIT"
+    assert t.mfe_pips == pytest.approx(0.1, abs=0.05)        # 保持中の High 150.002 − entry 150.001 のみ (bar high +90p は含めない)
+    assert t.mae_pips == pytest.approx(70.0, abs=0.05)       # open までの逆行 (bar low −120p は含めない)
