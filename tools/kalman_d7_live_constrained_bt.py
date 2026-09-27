@@ -1,0 +1,865 @@
+#!/usr/bin/env python3
+"""kalman_d7_po_dn_flip — live exit スタック (C0〜C6) 付き制約 BT (診断専用、rule:R3).
+
+Codex queue `20260925-0300-kalman-d7-live-constrained-bt` の Python port 実装。
+registry `kalman-d7-live-exit-spec-mismatch-disposition` (2026-10-08) の user 決裁 packet に
+「どの overlay が BT edge をどれだけ削るか / winner・loser 別 hold・exit 分布 / 8h 内完結 winner 比率」
+を供給する。**本ツールの数字から keep / demote を決めない** (task 文書「判定の扱い」)。
+
+設計上の注意 (task 文書の凍結ラベル):
+- 走 0  = 宣言 BT 再現 (harness 検証)。exit は 2 変種で走らせる —
+    `flip` : PO-DN flip (EMA200 > EMA75 > EMA25 で成行) + SL 1.5×ATR + 480 bars cap  (TV v17 canon の推定)
+    `tp5`  : TP 5×ATR + SL 1.5×ATR + 480 bars cap                                    (Python live 宣言 = 近似)
+  カード BT (WR 23.91% / PF 3.866) は payoff 12.3× を要求し、固定 TP/SL (上限 3.33×) では算術的に
+  出ないので、canon は `flip` 側でしか再現できない (本ツールで実測)。
+- 走 0′〜4 = 「C0 近似 + intrabar 順序近似」。順序仮定は adverse_first (既定・保守側) と favorable_first の 2 方向。
+- 走 5 = C6 近似 (PO 崩れサロゲート)。参考値のみ、「full live stack」とは呼ばない。
+- 摩擦 = USD_JPY RT 2.14 pip / trade (wiki/analyses/friction-analysis.md)。
+
+standalone: live 戦略モジュールを import しない (indicator は tools/kalman_d7_v18e_python_port を再利用、
+SR は modules/indicators.find_sr_levels_weighted を live と同じ引数で呼ぶ)。
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import math
+import sys
+from dataclasses import asdict, dataclass, replace
+from pathlib import Path
+from statistics import NormalDist
+from typing import Any
+
+import numpy as np
+import pandas as pd
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from tools.kalman_d7_v18e_python_port import add_v18e_indicators  # noqa: E402
+from modules.indicators import find_sr_levels_weighted  # noqa: E402
+
+# ── 凍結定数 (live 実装の写し。出典 = modules/demo_trader.py 2026-09-27 origin/main) ──
+MINTICK = 0.001
+PIP = 0.01
+FRICTION_PIPS = 2.14          # USD_JPY RT friction (friction-analysis.md)
+DECL_SL_ATR = 1.5             # 宣言 SL
+DECL_TP_ATR = 5.0             # 宣言 TP (Python live 近似)
+CANON_MAX_BARS = 480          # 宣言 max hold (bars)
+C0_ATR_SL_MULT = 1.0          # daytrade fallback (`_atr_mult` daytrade=1.0)
+C0_SR_MARGIN_ATR = 0.3        # `_sl_margin = _atr * 0.3`
+C0_SR_RR_FLOOR = 1.0
+C0_SR_EXCLUDE_ATR = 0.05      # sr_entry_map: price < entry - atr*0.05
+C0_MIN_SL = 0.050             # MIN_SL_DIST daytrade JPY (5 pip)
+C0_MAX_SL = 0.200             # MAX_SL_DIST daytrade JPY (20 pip)
+C0_LOWLIQ_HOURS = frozenset({0, 1, 18, 19, 20, 21})
+C0_LOWLIQ_ATR = 0.2
+C0_RN_STEP = 0.500
+C0_RN_BAND = 0.020
+C0_RN_NUDGE = 0.025
+C0_BROKER_TP_MULT = 0.85      # _QUICK_HARVEST_MULT
+C0_MTF_TP_BONUS = 1.3
+C0_SR_LOOKBACK_BARS = 500     # ⚠️ 仮定: live の 15m fetch 本数は fill 行に無いので 500 本で近似
+C1_MAX_HOLD_SEC = 28800       # MAX_HOLD_SEC["daytrade"]
+C5_HALF_HOLD_SEC = 14400      # C1 半分時点
+C3_BE_ATR = 0.8
+C3_BE_SPREAD = 0.008          # fallback spread (bid/ask 無し時の live 既定)
+C4_TRAIL_TRIGGER_ATR = 1.5
+C4_TRAIL_OFFSET_ATR = 0.5
+C6_MIN_HOLD_SEC = 600
+C6_PROFIT_GUARD_ATR = 0.3
+
+CANON = {"n": 46, "wr": 0.2391, "pf": 3.866, "avg_win_bars": 458}
+HARNESS_TOL = 0.10
+# TV canon のコストモデル (v18e BACKUP Pine の strategy() 宣言と同じ前提): commission 0.002% / order (percent of
+# notional、entry と exit で 2 回) + slippage 1 tick (entry/exit の ±MINTICK で既に反映)。harness 比較はこの
+# TV コスト後の値で行う (PR #302 review P2 4113955123 — 「gross」= slippage 込み・commission 抜きは TV と基準不一致)。
+TV_COMMISSION_RATE = 0.00002
+
+
+def tv_commission_pips(entry: float, exit_px: float) -> float:
+    """TV canon の commission (entry + exit、notional 比例) を pips で返す。"""
+    return (entry + exit_px) * TV_COMMISSION_RATE / PIP
+
+WINDOW_START = "2025-07-01"
+WINDOW_END = "2026-05-19 23:59:59"
+WARMUP_START = "2025-04-01"
+
+
+@dataclass(frozen=True)
+class StackConfig:
+    label: str = "walk0_flip"
+    exit_mode: str = "flip"          # flip | tp5
+    canon_cap: bool = True           # 480 bars cap (宣言)
+    c0: bool = False
+    c0_sl_mode: str = "atr"          # atr | sr
+    c0_clamp: bool = True
+    c0_lowliq: bool = True
+    c0_rn: bool = True
+    c0_mtf: float = 1.0              # 1.0 | 1.3 (一致判定は再現不能 → 2 値併記)
+    c0_broker_tp: bool = True
+    c1: bool = False
+    c2: bool = False
+    c3c4: bool = False
+    c5: bool = False
+    c6: bool = False
+    order: str = "adverse_first"     # adverse_first | favorable_first
+    friction_pips: float = FRICTION_PIPS
+
+
+@dataclass
+class SimTrade:
+    signal_time: str
+    entry_time: str
+    exit_time: str
+    entry: float
+    exit: float
+    atr: float
+    decl_sl: float
+    decl_tp: float
+    sl0: float
+    tp0: float
+    sl_branch: str
+    c0_flags: dict
+    bars_held: int
+    hold_sec: float
+    exit_reason: str
+    gross_pips: float      # TV 流 slippage 込み (entry +1 tick / 成行 exit −1 tick)
+    raw_pips: float        # slippage 無しの水準差 (live 摩擦 2.14p を引く土台)
+    net_pips: float        # raw − 2.14p (live 推定 net)
+    tv_net_pips: float     # gross − TV commission (harness 比較用)
+    mfe_pips: float
+    mae_pips: float
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# indicators / data
+# ─────────────────────────────────────────────────────────────────────────────
+def load_data(path: Path) -> pd.DataFrame:
+    df = pd.read_parquet(path)
+    data = add_v18e_indicators(df)
+    data["perfect_dn"] = (data["ema200"] > data["ema75"]) & (data["ema75"] > data["ema25"])
+    return data
+
+
+def slice_window(data: pd.DataFrame, start: str, end: str, warmup: str) -> pd.DataFrame:
+    d = data.loc[pd.Timestamp(warmup, tz="UTC"):pd.Timestamp(end, tz="UTC")].copy()
+    d["in_window"] = d.index >= pd.Timestamp(start, tz="UTC")
+    return d
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# C0: entry 時 SL/TP 変換 (live `_tick_entry` の写し、近似ラベル)
+# ─────────────────────────────────────────────────────────────────────────────
+def nearest_support_sr(hist: pd.DataFrame, entry: float, atr: float) -> float | None:
+    """live `sr_entry_map["nearest_support"]` の近似 (app.py compute_daytrade_signal)。"""
+    if len(hist) < 50:
+        return None
+    levels = find_sr_levels_weighted(
+        hist[["High", "Low"]], window=5, tolerance_pct=0.003, min_touches=2,
+        max_levels=10, bars_per_day=96,
+    )
+    sup = [s for s in levels if s["price"] < entry - atr * C0_SR_EXCLUDE_ATR]
+    if not sup:
+        return None
+    return max(s["price"] for s in sup)
+
+
+def apply_c0(entry: float, atr: float, entry_ts: pd.Timestamp, hist: pd.DataFrame,
+             cfg: StackConfig) -> tuple[float, float, str, dict]:
+    """Return (sl, tp, sl_branch, flags). cfg.c0=False なら宣言値そのまま。"""
+    decl_sl = entry - DECL_SL_ATR * atr
+    decl_tp = entry + DECL_TP_ATR * atr
+    flags: dict[str, Any] = {"clamp": "none", "lowliq": 0, "rn": 0, "mtf": 1.0, "broker": 0}
+    if not cfg.c0:
+        return round(decl_sl, 3), round(decl_tp, 3), "preserve", flags
+
+    tp_dist = DECL_TP_ATR * atr * cfg.c0_mtf
+    flags["mtf"] = cfg.c0_mtf
+
+    atr_sl = entry - atr * C0_ATR_SL_MULT
+    branch = "atr_nosr"
+    sl = atr_sl
+    if cfg.c0_sl_mode == "sr":
+        ns = nearest_support_sr(hist, entry, atr)
+        if ns is not None:
+            sr_sl = ns - atr * C0_SR_MARGIN_ATR
+            sr_dist = entry - sr_sl
+            if sr_dist > 0 and tp_dist / sr_dist >= C0_SR_RR_FLOOR:
+                sl = sr_sl
+                branch = "sr"
+            else:
+                branch = "atr_rrlow"
+    else:
+        branch = "atr"
+    sl = round(sl, 3)
+    sl_dist = entry - sl
+
+    if cfg.c0_clamp:
+        if sl_dist < C0_MIN_SL:
+            sl_dist = C0_MIN_SL
+            flags["clamp"] = "min"
+            sl = round(entry - sl_dist, 3)
+        elif sl_dist > C0_MAX_SL:
+            sl_dist = C0_MAX_SL
+            flags["clamp"] = "max"
+            sl = round(entry - sl_dist, 3)
+
+    if cfg.c0_lowliq and entry_ts.hour in C0_LOWLIQ_HOURS:
+        flags["lowliq"] = 1
+        sl_dist += atr * C0_LOWLIQ_ATR
+        sl = round(entry - sl_dist, 3)
+
+    if cfg.c0_rn:
+        frac = sl % C0_RN_STEP
+        if frac < C0_RN_BAND or frac > C0_RN_STEP - C0_RN_BAND:
+            flags["rn"] = 1
+            sl = round(sl - C0_RN_NUDGE, 3)
+
+    if cfg.c0_broker_tp:
+        flags["broker"] = 1
+        tp = entry + tp_dist * C0_BROKER_TP_MULT
+    else:
+        tp = entry + tp_dist
+    return sl, round(tp, 3), branch, flags
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# simulation
+# ─────────────────────────────────────────────────────────────────────────────
+def _is_last_bar_before_weekend(idx: pd.DatetimeIndex, j: int) -> bool:
+    """bar j が金曜最終 bar (次 bar まで 6h 超のギャップ ∧ 金曜) なら True。"""
+    ts = idx[j]
+    if ts.weekday() != 4:
+        return False
+    if j + 1 >= len(idx):
+        return True
+    return (idx[j + 1] - ts).total_seconds() > 6 * 3600
+
+
+def _c2_exit_at_open(idx: pd.DatetimeIndex, j: int) -> str | None:
+    """live の金曜 21:45Z 全クローズ (C2) が bar j の open で執行される場合に理由ラベルを返す。
+
+    OANDA の閉場は **冬時間 22:00Z / 夏時間 21:00Z** (Massive M15 の金曜最終 bar は 21:45 / 20:45、日曜初 bar は
+    22:00 / 21:00 — 2025-07〜2026-05 window で 18 / 28 週)。
+    - 冬: 21:45 の tick が存在 → 金曜 21:45 bar の open で成行決済 (`WEEKEND_CLOSE`)
+    - 夏: 21:45 には閉場済みで注文は執行できず、**日曜 open で fill** する (KB 実例: carry_dip #709598 の 21:45 クローズ
+      指示が日曜 21:04:58 に fill、[[carry-dip-broker-reconcile-2026-09-22]]) → 週末ギャップを跨いだ日曜初 bar の open で
+      決済 (`WEEKEND_CLOSE_SUNDAY_FILL`)。PR #302 review P2 4114026089 — 旧実装の「金曜最終 bar close で決済」は
+      夏時間では live が得られない fill を作っていた。
+    """
+    ts = idx[j]
+    if ts.weekday() == 4 and ts.hour == 21 and ts.minute == 45:
+        return "WEEKEND_CLOSE"
+    if j > 0 and _is_last_bar_before_weekend(idx, j - 1):
+        prev = idx[j - 1]
+        if prev.hour < 21 or (prev.hour == 21 and prev.minute < 45):
+            return "WEEKEND_CLOSE_SUNDAY_FILL"
+    return None
+
+
+def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
+    idx = data.index
+    n = len(data)
+    o = data["Open"].to_numpy(float)
+    h = data["High"].to_numpy(float)
+    lo = data["Low"].to_numpy(float)
+    c = data["Close"].to_numpy(float)
+    atr_a = data["atr"].to_numpy(float)
+    sig_a = data["entry_signal"].to_numpy(bool)
+    pup = data["perfect_up"].to_numpy(bool)
+    pdn = data["perfect_dn"].to_numpy(bool)
+    in_w = data["in_window"].to_numpy(bool)
+    hours = idx.hour.to_numpy()
+
+    trades: list[SimTrade] = []
+    i = 0
+    while i < n - 1:
+        if not (sig_a[i] and in_w[i]):
+            i += 1
+            continue
+        atr = atr_a[i]
+        if not math.isfinite(atr) or atr <= 0:
+            i += 1
+            continue
+        # TV process_orders_on_close=true → signal bar close で約定 (+1 tick slippage)
+        entry = c[i] + MINTICK
+        entry_ts = idx[i] + pd.Timedelta(minutes=15)
+        hist = data.iloc[max(0, i - C0_SR_LOOKBACK_BARS + 1): i + 1]
+        sl, tp, branch, flags = apply_c0(entry, atr, entry_ts, hist, cfg)
+        decl_sl = round(entry - DECL_SL_ATR * atr, 3)
+        decl_tp = round(entry + DECL_TP_ATR * atr, 3)
+        sl0, tp0 = sl, tp
+        # 金曜最終 bar の signal (PR #302 review P2 4113998538 / 4114026089) は特別扱いしない — ループ先頭の
+        # `_c2_exit_at_open` が「冬: 21:45 bar open / 夏: 日曜初 bar open (deferred fill)」を一律に扱う。
+        sl_moved = None  # "BE" | "TRAIL"
+        exit_raw: float | None = None  # slippage 無しの約定水準 (live 摩擦 2.14p は slippage 込みなので二重計上を避ける)
+        highest = entry
+        lowest = entry
+        exit_px: float | None = None
+        reason = ""
+        exit_j = i + 1
+        exit_ts = None
+
+        for j in range(i + 1, n):
+            ts = idx[j]
+            hold_open = (ts - entry_ts).total_seconds()
+            bars = j - i  # bars since signal bar (bar j is the bars-th bar held)
+
+            # ── ギャップ fill (PR #302 review P1 4114077247 / P2 4114113659): bar open が既に stop を割って / TP を超えて
+            #    いれば fill は open 価格 (stop は sl − tick ではなく open − tick、指値 TP は open で fill = 有利側)。
+            #    live (`_sltp_loop`) は SL/TP を週末・保持上限・時間減衰より先に判定するので、C2/C1/C5 の open 判定より前に置く
+            #    (日曜 open がギャップで stop を割っていれば C2 ではなく SL_HIT に帰属)。順序仮定に依らず先に行う。
+            bar_hi, bar_lo = h[j], lo[j]
+            gap_sl = o[j] <= sl
+            gap_tp = cfg.exit_mode == "tp5" and o[j] >= tp
+            if gap_sl or gap_tp:
+                if gap_sl:
+                    exit_raw, exit_px, reason = o[j], o[j] - MINTICK, (sl_moved or "SL_HIT")
+                else:
+                    exit_raw, exit_px, reason = o[j], o[j], "TP_HIT"
+                # exit は open 時点 — exit 後の bar 範囲を MFE/MAE に含めない (PR #302 review P2)
+                highest = max(highest, o[j]); lowest = min(lowest, o[j])
+                exit_j, exit_ts = j, ts
+                break
+
+            # ── tick-based checks at bar open (live は毎 tick、ここでは open で近似) ──
+            if cfg.c2:
+                _c2 = _c2_exit_at_open(idx, j)
+                if _c2:
+                    exit_raw, exit_px, reason = o[j], o[j] - MINTICK, _c2
+                    exit_j, exit_ts = j, ts
+                    break
+            if cfg.c1 and hold_open >= C1_MAX_HOLD_SEC:
+                exit_raw, exit_px, reason = o[j], o[j] - MINTICK, "MAX_HOLD_TIME"
+                exit_j, exit_ts = j, ts
+                break
+            if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and o[j] < entry:
+                exit_raw, exit_px, reason = o[j], o[j] - MINTICK, "TIME_DECAY_EXIT"
+                exit_j, exit_ts = j, ts
+                break
+
+            bar_hi, bar_lo = h[j], lo[j]
+            hit_sl = hit_tp = False
+
+            def _update_be_trail(mfe_px: float) -> None:
+                nonlocal sl, sl_moved
+                fav = mfe_px - entry
+                if fav >= C4_TRAIL_TRIGGER_ATR * atr:
+                    new_sl = round(mfe_px - C4_TRAIL_OFFSET_ATR * atr, 3)
+                    if new_sl > sl:
+                        sl, sl_moved = new_sl, "TRAIL"
+                elif fav >= C3_BE_ATR * atr:
+                    new_sl = round(entry + C3_BE_SPREAD, 3)
+                    if new_sl > sl:
+                        sl, sl_moved = new_sl, "BE"
+
+            # ── C5 連続パス近似 (PR #302 review P2 4114077250): 4h 超で open ≥ entry の bar が bar 内で entry を割るとき、
+            #    live の 0.5s ループは stop (< entry) に達する前に entry 割れの tick を見て決済する。SL が entry 以上に
+            #    移動済み (BE / trail) なら SL の方が先に触れるので通常経路。
+            #    C5 vs TP の同 bar 曖昧性は順序仮定に従う (PR #302 review P2 4114143809): favorable_first では
+            #    bar high が TP に届いていれば TP を先に処理し、この分岐は使わない。
+            _tp_first = cfg.order == "favorable_first" and cfg.exit_mode == "tp5" and bar_hi >= tp
+            if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and o[j] >= entry and bar_lo < entry and sl < entry and not _tp_first:
+                exit_raw, exit_px, reason = entry, entry - MINTICK, "TIME_DECAY_EXIT"
+                highest = max(highest, bar_hi); lowest = min(lowest, bar_lo)
+                exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
+                break
+
+            if cfg.order == "adverse_first":
+                if bar_lo <= sl:
+                    hit_sl = True
+                elif cfg.exit_mode == "tp5" and bar_hi >= tp:
+                    hit_tp = True
+                if not hit_sl and not hit_tp and cfg.c3c4:
+                    _sl_before = sl
+                    _update_be_trail(max(highest, bar_hi))
+                    # PR #302 review P1 4114171432: open → low → high → close の連続パスでは、high で引き上げた
+                    # 新 stop を close が割っていれば high→close の脚で必ず触れる → 同 bar で決済 (次 bar 持ち越しは誤り)
+                    if sl > _sl_before and c[j] <= sl:
+                        hit_sl = True
+            else:  # favorable_first
+                if cfg.c3c4:
+                    _update_be_trail(max(highest, bar_hi))
+                if cfg.exit_mode == "tp5" and bar_hi >= tp:
+                    hit_tp = True
+                elif bar_lo <= sl:
+                    hit_sl = True
+
+            highest = max(highest, bar_hi)
+            lowest = min(lowest, bar_lo)
+
+            if hit_sl:
+                exit_raw, exit_px = sl, sl - MINTICK
+                reason = sl_moved or "SL_HIT"
+                exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
+                break
+            if hit_tp:
+                exit_raw, exit_px, reason = tp, tp, "TP_HIT"  # 指値は slippage 無し
+                exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
+                break
+
+            # ── bar close checks ──
+            if cfg.exit_mode == "flip" and pdn[j]:
+                exit_raw, exit_px, reason = c[j], c[j] - MINTICK, "PO_DN_FLIP"
+                exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
+                break
+            if cfg.c6 and hold_open + 900 >= C6_MIN_HOLD_SEC and not pup[j] \
+                    and (c[j] - entry) <= C6_PROFIT_GUARD_ATR * atr:
+                exit_raw, exit_px, reason = c[j], c[j] - MINTICK, "SIGNAL_REVERSE_APPROX"
+                exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
+                break
+            if cfg.canon_cap and bars >= CANON_MAX_BARS:
+                exit_raw, exit_px, reason = c[j], c[j] - MINTICK, "CANON_CAP_480"
+                exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
+                break
+
+        if exit_px is None:
+            exit_j = n - 1
+            exit_ts = idx[exit_j] + pd.Timedelta(minutes=15)
+            exit_raw, exit_px, reason = c[exit_j], c[exit_j] - MINTICK, "EOD"
+
+        # gross_pips = TV 流の約定 (entry +1 tick / 成行・stop exit −1 tick) → tv_net の土台。
+        # net_pips (live 推定) は **slippage 無しの水準差** から RT 摩擦 2.14p (spread 0.7 + slippage 0.5 ×2 込み、
+        # friction-analysis.md) を引く — slipped gross から引くと slippage が二重 (PR #302 review P2 4114026093)。
+        gross = (exit_px - entry) / PIP
+        raw = (exit_raw - c[i]) / PIP
+        net = raw - cfg.friction_pips
+        trades.append(SimTrade(
+            signal_time=idx[i].isoformat(), entry_time=entry_ts.isoformat(),
+            exit_time=exit_ts.isoformat(), entry=round(entry, 3), exit=round(exit_px, 3),
+            atr=round(atr, 4), decl_sl=decl_sl, decl_tp=decl_tp, sl0=sl0, tp0=tp0,
+            sl_branch=branch, c0_flags=flags, bars_held=int(exit_j - i),
+            hold_sec=float((exit_ts - entry_ts).total_seconds()), exit_reason=reason,
+            gross_pips=round(gross, 2), raw_pips=round(raw, 2), net_pips=round(net, 2),
+            tv_net_pips=round(gross - tv_commission_pips(entry, exit_px), 2),
+            mfe_pips=round((highest - entry) / PIP, 2), mae_pips=round((entry - lowest) / PIP, 2),
+        ))
+        # ── 再エントリ (PR #302 review P1 4114077249): bar 内 / open で exit した bar は close 時点でフラットなので、
+        #    その bar の entry_signal は評価対象 (TV process_orders_on_close / live の bar close signal)。
+        #    close 時点の exit (FLIP / SR 近似 / CAP480 / EOD) は同 bar で再エントリできないので次 bar へ。
+        if reason in _CLOSE_TIME_EXITS:
+            i = exit_j + 1
+        else:
+            i = exit_j
+    return trades
+
+
+_CLOSE_TIME_EXITS = frozenset({"PO_DN_FLIP", "SIGNAL_REVERSE_APPROX", "CANON_CAP_480", "EOD"})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# stats
+# ─────────────────────────────────────────────────────────────────────────────
+def wilson_lower(wins: int, n: int, z: float = 1.959964) -> float:
+    if n == 0:
+        return 0.0
+    p = wins / n
+    denom = 1 + z * z / n
+    centre = p + z * z / (2 * n)
+    margin = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return (centre - margin) / denom
+
+
+def _dist(vals: list[float]) -> dict[str, float | None]:
+    if not vals:
+        return {"n": 0, "p25": None, "median": None, "p75": None, "mean": None}
+    a = np.array(vals, float)
+    return {"n": int(len(a)), "p25": float(np.percentile(a, 25)), "median": float(np.median(a)),
+            "p75": float(np.percentile(a, 75)), "mean": float(a.mean())}
+
+
+def summarize(trades: list[SimTrade], cfg: StackConfig) -> dict[str, Any]:
+    n = len(trades)
+    net = [t.net_pips for t in trades]
+    gross = [t.gross_pips for t in trades]
+    wins = [t for t in trades if t.net_pips > 0]
+    losses = [t for t in trades if t.net_pips <= 0]
+    gw = sum(t.net_pips for t in wins)
+    gl = -sum(t.net_pips for t in losses)
+    pf = (gw / gl) if gl > 0 else (math.inf if gw > 0 else 0.0)
+    reasons: dict[str, int] = {}
+    for t in trades:
+        reasons[t.exit_reason] = reasons.get(t.exit_reason, 0) + 1
+    branches: dict[str, int] = {}
+    flags_ct = {"clamp_min": 0, "clamp_max": 0, "lowliq": 0, "rn": 0}
+    for t in trades:
+        branches[t.sl_branch] = branches.get(t.sl_branch, 0) + 1
+        if t.c0_flags.get("clamp") == "min":
+            flags_ct["clamp_min"] += 1
+        if t.c0_flags.get("clamp") == "max":
+            flags_ct["clamp_max"] += 1
+        flags_ct["lowliq"] += int(t.c0_flags.get("lowliq", 0))
+        flags_ct["rn"] += int(t.c0_flags.get("rn", 0))
+    win_bars = [t.bars_held for t in wins]
+    return {
+        "label": cfg.label,
+        "order": cfg.order,
+        "config": asdict(cfg),
+        "n": n,
+        "wins": len(wins),
+        "wr": (len(wins) / n) if n else 0.0,
+        "wilson95_lower": wilson_lower(len(wins), n),
+        "pf_net": pf if math.isfinite(pf) else None,
+        "ev_net_pips": (sum(net) / n) if n else 0.0,
+        "ev_gross_pips": (sum(gross) / n) if n else 0.0,
+        "total_net_pips": sum(net),
+        "avg_win_pips": (gw / len(wins)) if wins else 0.0,
+        "avg_loss_pips": (-gl / len(losses)) if losses else 0.0,
+        "payoff": (gw / len(wins)) / (gl / len(losses)) if wins and losses else None,
+        "exit_reasons": dict(sorted(reasons.items(), key=lambda kv: -kv[1])),
+        "sl_branches": branches,
+        "c0_flags": flags_ct,
+        "hold_bars_winners": _dist(win_bars),
+        "hold_bars_losers": _dist([t.bars_held for t in losses]),
+        # 8h は壁時計 (live の C1 と同じ hold_sec 基準)。bars 数 ≤32 では週末跨ぎ (16 bars で 55h) と
+        # ちょうど 8h (=33 bars 目) を誤分類する (PR #302 review P2 4113955120)
+        "winners_within_8h_share": (sum(1 for t in wins if t.hold_sec <= C1_MAX_HOLD_SEC) / len(wins)) if wins else None,
+        "winners_within_480_share": (sum(1 for b in win_bars if b <= 480) / len(win_bars)) if win_bars else None,
+        "mfe_pips_winners": _dist([t.mfe_pips for t in wins]),
+        "mfe_pips_losers": _dist([t.mfe_pips for t in losses]),
+        "exit_reason_by_outcome": {
+            "winners": _count([t.exit_reason for t in wins]),
+            "losers": _count([t.exit_reason for t in losses]),
+        },
+    }
+
+
+def _count(items: list[str]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for x in items:
+        out[x] = out.get(x, 0) + 1
+    return dict(sorted(out.items(), key=lambda kv: -kv[1]))
+
+
+def harness_check(s: dict[str, Any]) -> dict[str, Any]:
+    """走 0 が canon (N=46 / WR 23.91% / PF 3.866 / avg winner bars 458) を ±10% で再現するか。
+    WR/PF は **TV コスト後** (commission 0.002%×2 + slippage 1 tick) で比較する — canon の数字は TV の
+    strategy() コストを含む net なので、live 摩擦 2.14p (別物) ではなく TV のコストモデルを当てる。"""
+    # `ok` は必ず Python bool (PF が numpy スカラーだと比較結果が numpy.bool_ になり、json default=str で
+    # 文字列 "False" に化ける — PR #302 review P2 4114143815)。port 値も float に正規化する。
+    checks = {}
+    n_port = int(s["n"])
+    checks["n"] = {"canon": CANON["n"], "port": n_port,
+                   "ok": bool(abs(n_port - CANON["n"]) / CANON["n"] <= HARNESS_TOL)}
+    wr = float(s["wr_tv"])
+    checks["wr"] = {"canon": CANON["wr"], "port": wr,
+                    "ok": bool(abs(wr - CANON["wr"]) / CANON["wr"] <= HARNESS_TOL)}
+    pf = float(s["pf_tv"]) if s["pf_tv"] is not None else float("inf")
+    checks["pf"] = {"canon": CANON["pf"], "port": pf,
+                    "ok": bool(math.isfinite(pf) and abs(pf - CANON["pf"]) / CANON["pf"] <= HARNESS_TOL)}
+    awb = float(s["hold_bars_winners_tv"]["mean"] or 0.0)
+    checks["avg_win_bars"] = {"canon": CANON["avg_win_bars"], "port": awb,
+                              "ok": bool(abs(awb - CANON["avg_win_bars"]) / CANON["avg_win_bars"] <= HARNESS_TOL)}
+    checks["all_ok"] = bool(all(v["ok"] for k, v in checks.items() if k != "all_ok"))
+    return checks
+
+
+TV_INITIAL_EQUITY = 100_000.0   # v18e BACKUP Pine: initial_capital=100000 (JPY 建て口座想定)
+TV_QTY_PCT = 0.10               # default_qty_type=strategy.percent_of_equity, default_qty_value=10
+
+
+def tv_stats(trades: list[SimTrade]) -> dict[str, Any]:
+    """TV canon と同じ計算基準の WR / PF / winner bars。harness 比較専用。
+
+    PF は **逐次 equity 10% サイジングの cash PnL** で出す (PR #302 review P2 4114026095 — カードの PF 3.866 は
+    TV strategy() の monetary gross profit / gross loss。pips 合計 PF とは entry 価格・equity 変動の分だけずれる)。
+    cash PnL = qty × (exit − entry) − commission(entry, exit)、qty = equity × 10% / entry、equity は trade 毎に更新。
+    WR は cash PnL の符号 (tv_net_pips と同符号)。参考として pips 合計 PF も返す。"""
+    equity = TV_INITIAL_EQUITY
+    cash: list[float] = []
+    for t in sorted(trades, key=lambda x: x.entry_time):
+        qty = equity * TV_QTY_PCT / t.entry
+        pnl = qty * (t.exit - t.entry) - qty * (t.entry + t.exit) * TV_COMMISSION_RATE
+        cash.append(pnl)
+        equity += pnl
+    wins_c = [x for x in cash if x > 0]
+    losses_c = [x for x in cash if x <= 0]
+    gw_c, gl_c = sum(wins_c), -sum(losses_c)
+    pf_cash = (gw_c / gl_c) if gl_c > 0 else None
+    wins = [t for t in trades if t.tv_net_pips > 0]
+    gw = sum(t.tv_net_pips for t in wins)
+    gl = -sum(t.tv_net_pips for t in trades if t.tv_net_pips <= 0)
+    return {"wr_tv": (len(wins_c) / len(cash)) if cash else 0.0,
+            "pf_tv": pf_cash,
+            "pf_tv_pips": (gw / gl) if gl > 0 else None,
+            "net_tv_cash": sum(cash),
+            "ending_equity_tv": equity,
+            "ev_tv_pips": (sum(t.tv_net_pips for t in trades) / len(trades)) if trades else 0.0,
+            "hold_bars_winners_tv": _dist([t.bars_held for t in wins])}
+
+
+gross_stats = tv_stats  # 後方互換 (旧名)。「gross」は slippage 込み・commission 抜きで誤称だった
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# walk plan
+# ─────────────────────────────────────────────────────────────────────────────
+def build_walks(base_c0: StackConfig) -> list[StackConfig]:
+    """走 0 (flip / tp5) → 走 0′ (+C0) → 走 1 (+C1) → 走 2 (+C2) → 走 3 (+C3C4) → 走 4 (+C5) → 走 5 (+C6 近似)。
+    走 0′〜5 は base_c0 (C0 の what-if 設定) を土台にし、tp5 exit (live 宣言) で走る。"""
+    w0f = StackConfig(label="walk0_flip_canon", exit_mode="flip")
+    w0t = StackConfig(label="walk0_tp5_decl", exit_mode="tp5")
+    w0p = replace(base_c0, label="walk0p_C0", exit_mode="tp5", c0=True)
+    w1 = replace(w0p, label="walk1_C0+C1", c1=True)
+    w2 = replace(w1, label="walk2_+C2", c2=True)
+    w3 = replace(w2, label="walk3_+C3C4", c3c4=True)
+    w4 = replace(w3, label="walk4_+C5", c5=True)
+    w5 = replace(w4, label="walk5_+C6approx", c6=True)
+    return [w0f, w0t, w0p, w1, w2, w3, w4, w5]
+
+
+def build_marginals(base_c0: StackConfig) -> list[StackConfig]:
+    """限界分解: 走 0′ (C0) を土台に overlay を 1 つずつ単独で載せる + C3C4 抜きの累積 (C5 の単独効果の可視化)。"""
+    w0p = replace(base_c0, label="walk0p_C0", exit_mode="tp5", c0=True)
+    return [
+        replace(w0p, label="marg_C1_only", c1=True),
+        replace(w0p, label="marg_C2_only", c2=True),
+        replace(w0p, label="marg_C3C4_only", c3c4=True),
+        replace(w0p, label="marg_C5_only", c5=True),
+        replace(w0p, label="marg_C6approx_only", c6=True),
+        replace(w0p, label="walk4b_C0+C1+C2+C5_noC3C4", c1=True, c2=True, c5=True),
+    ]
+
+
+FLIP_DEFS = {
+    "perfect_dn": "EMA200 > EMA75 > EMA25 (完全下順) — 既定",
+    "not_perfect_up": "perfect_up が偽になる (close < EMA25 含む)",
+    "close_lt_ema75": "close < EMA75",
+    "close_lt_ema200": "close < EMA200",
+    "ema25_lt_ema75": "EMA25 < EMA75",
+}
+
+
+def add_flip_columns(data: pd.DataFrame) -> pd.DataFrame:
+    d = data
+    d["flip_perfect_dn"] = (d["ema200"] > d["ema75"]) & (d["ema75"] > d["ema25"])
+    d["flip_not_perfect_up"] = ~d["perfect_up"].astype(bool)
+    d["flip_close_lt_ema75"] = d["Close"] < d["ema75"]
+    d["flip_close_lt_ema200"] = d["Close"] < d["ema200"]
+    d["flip_ema25_lt_ema75"] = d["ema25"] < d["ema75"]
+    return d
+
+
+def harness_identification(data: pd.DataFrame) -> list[dict[str, Any]]:
+    """v17 canon Pine はリポジトリに無い (TV slot は 2026-05-21 に上書き) ので、flip exit の定義候補を
+    走らせて canon にどれが最も近いかを記録する。**識別のみ** — パラメータ最適化ではない (entry / SL / cap は不変)。"""
+    rows = []
+    for name, desc in FLIP_DEFS.items():
+        d = data.copy()
+        d["perfect_dn"] = d[f"flip_{name}"]
+        cfg = StackConfig(label=f"walk0_flip[{name}]", exit_mode="flip")
+        tr = simulate(d, cfg)
+        s = summarize(tr, cfg)
+        s.update(tv_stats(tr))
+        chk = harness_check(s)
+        rows.append({"flip_def": name, "desc": desc, "n": s["n"], "wr_tv": s["wr_tv"],
+                     "pf_tv": s["pf_tv"], "avg_win_bars": s["hold_bars_winners_tv"]["mean"],
+                     "ev_tv_pips": s["ev_tv_pips"], "payoff": s["payoff"],
+                     "exit_reasons": s["exit_reasons"], "harness_ok": bool(chk["all_ok"]),
+                     "harness": chk})
+    return rows
+
+
+def c0_whatifs(base: StackConfig) -> dict[str, StackConfig]:
+    """C0 感度 (BT 側 what-if)。それぞれ base から 1 要素だけ変える。"""
+    return {
+        "base": base,
+        "i_atr_only": replace(base, c0_sl_mode="atr"),
+        "ii_sr_priority": replace(base, c0_sl_mode="sr"),
+        "iii_no_clamp": replace(base, c0_clamp=False),
+        "iv_no_lowliq": replace(base, c0_lowliq=False),
+        "v_mtf_1p3": replace(base, c0_mtf=1.3),
+        "vi_no_rn": replace(base, c0_rn=False),
+        "vii_no_broker_tp": replace(base, c0_broker_tp=False),
+    }
+
+
+def run_all(data: pd.DataFrame, orders: tuple[str, ...] = ("adverse_first", "favorable_first"),
+            keep_trades: bool = False) -> dict[str, Any]:
+    out: dict[str, Any] = {"walks": {}, "marginals": {}, "harness": {}, "harness_identification": [],
+                           "c0_whatifs": {}, "trades": {}}
+    data = add_flip_columns(data)
+    w = data[data["in_window"]]
+    out["signals"] = {"entry_signal_in_window": int(w["entry_signal"].sum()),
+                      "po_up_start_in_window": int(w["po_up_start"].sum())}
+    out["harness_identification"] = harness_identification(data)
+    base_c0 = StackConfig(c0=True, c0_sl_mode="atr")
+    for order in orders:
+        out["walks"][order] = []
+        for cfg in build_walks(base_c0):
+            cfg = replace(cfg, order=order)
+            trades = simulate(data, cfg)
+            s = summarize(trades, cfg)
+            s.update(tv_stats(trades))
+            out["walks"][order].append(s)
+            if keep_trades:
+                out["trades"][f"{order}/{cfg.label}"] = [asdict(t) for t in trades]
+            if cfg.label.startswith("walk0_") and order == orders[0]:
+                out["harness"][cfg.label] = harness_check(s)
+        out["marginals"][order] = []
+        for cfg in build_marginals(base_c0):
+            cfg = replace(cfg, order=order)
+            trades = simulate(data, cfg)
+            s = summarize(trades, cfg)
+            out["marginals"][order].append(s)
+        # C0 what-if: 走 0′〜4 を各 what-if で再集計 (走 5 は参考値なので省く)
+        out["c0_whatifs"][order] = {}
+        for name, wcfg in c0_whatifs(replace(base_c0, order=order)).items():
+            rows = []
+            for cfg in build_walks(wcfg)[2:7]:
+                cfg = replace(cfg, order=order)
+                trades = simulate(data, cfg)
+                s = summarize(trades, cfg)
+                rows.append({k: s[k] for k in ("label", "n", "wr", "pf_net", "ev_net_pips", "total_net_pips",
+                                                 "winners_within_8h_share", "exit_reasons", "sl_branches",
+                                                 "c0_flags")})
+            out["c0_whatifs"][order][name] = rows
+    out["harness_unverified"] = harness_unverified(out["harness"], out["harness_identification"])
+    return out
+
+
+def harness_unverified(harness: dict[str, Any], identification: list[dict[str, Any]]) -> bool:
+    """走 0 の既定 2 変種 **または** flip 定義の識別候補のどれかが canon を ±10% で再現すれば検証済み扱い
+    (PR #302 review P2 4114113668 — 候補側の合格を無視すると、canon を同定できた走まで「引用禁止」にしてしまう)。"""
+    if any(h.get("all_ok") for h in harness.values()):
+        return False
+    return not any(r.get("harness_ok") for r in identification)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# report
+# ─────────────────────────────────────────────────────────────────────────────
+def _f(x: Any, nd: int = 2) -> str:
+    if x is None:
+        return "—"
+    if isinstance(x, float):
+        if math.isinf(x):
+            return "∞"
+        return f"{x:.{nd}f}"
+    return str(x)
+
+
+def render_md(res: dict[str, Any], meta: dict[str, Any]) -> str:
+    L: list[str] = []
+    L.append(f"# kalman_d7_po_dn_flip — live 制約付き BT (Python port、診断専用) {meta['run_date']}")
+    L.append("")
+    L.append(f"- data: `{meta['data']}` (Massive USD_JPY M15、TV 側は OANDA feed = ベンダー差あり)")
+    L.append(f"- window: {meta['start']} → {meta['end']} (warmup {meta['warmup']}), bars in window = {meta['bars']}")
+    L.append(f"- friction: {FRICTION_PIPS} pip / trade (USD_JPY RT、spread + slippage 込み) を **slippage 無しの水準差**から引く。WR / PF / EV は **net** (摩擦後)。"
+             f"harness 比較のみ **TV 基準** (slippage 1 tick + commission {TV_COMMISSION_RATE*100:.3f}%×2、PF は equity 10% 逐次サイジングの cash)")
+    L.append("- C2 (金曜 21:45Z クローズ) は **冬時間 = 21:45 bar open で執行 / 夏時間 = 閉場後なので日曜初 bar open で fill (`WEEKEND_CLOSE_SUNDAY_FILL`、週末ギャップ込み)**")
+    L.append("- `winner ≤8h` は **壁時計 hold_sec ≤ 28,800s** (live C1 と同基準。bars 数ではない — 週末跨ぎの bar は壁時計と乖離する)")
+    L.append("- ラベル: 走 0 = 宣言 BT 再現 (2 変種) / 走 0′〜4 = **C0 近似 + intrabar 順序近似** / 走 5 = **C6 近似 (参考値)**")
+    sg = res.get("signals", {})
+    L.append(f"- window 内 raw entry signal = {sg.get('entry_signal_in_window')} (po_up_start {sg.get('po_up_start_in_window')})。"
+             "1 建玉制 (Pine pyramiding=0) なので N は exit 長で変わる")
+    L.append("")
+    if res.get("harness_unverified"):
+        L.append("> 🔴 **HARNESS 未検証**: 走 0 の既定 2 変種も flip 定義の識別候補 5 つも canon (N=46 / WR 23.91% / PF 3.866 / avg winner bars 458) を ±10% で再現しない。"
+                 "task 文書「走 0 が現行 BT を再現できないまま制約付きの数字を出さない」に従い、**以下の全数値は引用禁止 — "
+                 "packet に載せるのは分解の順位・向き・exit 種別の構造のみ**。要因: (1) v17 canon Pine がリポジトリに無い "
+                 "(TV slot は 2026-05-21 上書き、TV は本セッションで接続不可) → flip exit の定義は推定、(2) データが Massive "
+                 "(TV は OANDA feed)、(3) EMA 初期化 / percentile 実装差。")
+        L.append("")
+    L.append("## Harness 検証 (走 0 vs canon N=46 / WR 23.91% / PF 3.866 / avg winner bars 458、±10%)")
+    L.append("")
+    L.append("| 走 0 変種 | 指標 | canon | port | ok |")
+    L.append("|---|---|---|---|---|")
+    for lab, chk in res["harness"].items():
+        for k in ("n", "wr", "pf", "avg_win_bars"):
+            v = chk[k]
+            L.append(f"| {lab} | {k} | {_f(v['canon'], 4)} | {_f(v['port'], 4)} | {'✅' if v['ok'] else '❌'} |")
+        L.append(f"| {lab} | **all** | | | {'✅' if chk['all_ok'] else '❌'} |")
+    L.append("")
+    L.append("### flip exit 定義の識別 (canon Pine 不在のため。entry / SL 1.5×ATR / 480 cap は固定、TV コスト基準)")
+    L.append("")
+    L.append("| flip 定義 | 説明 | N | WR (tv) | PF (tv) | avg win bars | EV tv p/t | payoff (net) | exits | harness |")
+    L.append("|---|---|---|---|---|---|---|---|---|---|")
+    for r in res["harness_identification"]:
+        ex = ", ".join(f"{k} {v}" for k, v in r["exit_reasons"].items())
+        L.append(f"| {r['flip_def']} | {r['desc']} | {r['n']} | {_f(r['wr_tv']*100,1)}% | {_f(r['pf_tv'])} | "
+                 f"{_f(r['avg_win_bars'],0)} | {_f(r['ev_tv_pips'])} | {_f(r['payoff'])} | {ex} | {'✅' if r['harness_ok'] else '❌'} |")
+    L.append("")
+    for order, rows in res["walks"].items():
+        L.append(f"## 走 0〜5 — bar 内順序仮定 = `{order}`" + (" (既定・保守側)" if order == "adverse_first" else " (感度)"))
+        L.append("")
+        L.append("| 走 | N | WR | Wilson lo | PF (net) | EV net p/t | Σ net p | avg win p | avg loss p | payoff | winner ≤8h | winner hold bars med (p25–p75) | loser hold bars med | exit 種別 |")
+        L.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+        for s in rows:
+            hw, hl = s["hold_bars_winners"], s["hold_bars_losers"]
+            ex = ", ".join(f"{k} {v}" for k, v in s["exit_reasons"].items())
+            L.append(
+                f"| {s['label']} | {s['n']} | {_f(s['wr']*100,1)}% | {_f(s['wilson95_lower']*100,1)}% | {_f(s['pf_net'])} | "
+                f"{_f(s['ev_net_pips'])} | {_f(s['total_net_pips'],1)} | {_f(s['avg_win_pips'],1)} | {_f(s['avg_loss_pips'],1)} | "
+                f"{_f(s['payoff'])} | {_f((s['winners_within_8h_share'] or 0)*100,0)}% | "
+                f"{_f(hw['median'],0)} ({_f(hw['p25'],0)}–{_f(hw['p75'],0)}) | {_f(hl['median'],0)} | {ex} |"
+            )
+        L.append("")
+        L.append("winner / loser 別 exit 種別:")
+        L.append("")
+        L.append("| 走 | winners | losers |")
+        L.append("|---|---|---|")
+        for s in rows:
+            eb = s["exit_reason_by_outcome"]
+            L.append(f"| {s['label']} | {', '.join(f'{k} {v}' for k, v in eb['winners'].items()) or '—'} | "
+                     f"{', '.join(f'{k} {v}' for k, v in eb['losers'].items()) or '—'} |")
+        L.append("")
+        L.append(f"限界分解 (走 0′ に overlay を単独で載せる、順序 = `{order}`):")
+        L.append("")
+        L.append("| 構成 | N | WR | PF (net) | EV net p/t | Σ net p | winner ≤8h | exit 種別 |")
+        L.append("|---|---|---|---|---|---|---|---|")
+        for s in res["marginals"][order]:
+            ex = ", ".join(f"{k} {v}" for k, v in s["exit_reasons"].items())
+            L.append(f"| {s['label']} | {s['n']} | {_f(s['wr']*100,1)}% | {_f(s['pf_net'])} | {_f(s['ev_net_pips'])} | "
+                     f"{_f(s['total_net_pips'],1)} | {_f((s['winners_within_8h_share'] or 0)*100,0)}% | {ex} |")
+        L.append("")
+    L.append("## C0 感度 (BT 側 what-if、走 0′〜4 を再集計。live 実測率は marker 付き live N 蓄積後に差し替え)")
+    L.append("")
+    for order, wi in res["c0_whatifs"].items():
+        L.append(f"### 順序仮定 = `{order}`")
+        L.append("")
+        L.append("| what-if | 走 | N | WR | PF | EV net | Σ net | winner ≤8h | SL 分岐 | flags |")
+        L.append("|---|---|---|---|---|---|---|---|---|---|")
+        for name, rows in wi.items():
+            for r in rows:
+                L.append(f"| {name} | {r['label']} | {r['n']} | {_f(r['wr']*100,1)}% | {_f(r['pf_net'])} | "
+                         f"{_f(r['ev_net_pips'])} | {_f(r['total_net_pips'],1)} | {_f((r['winners_within_8h_share'] or 0)*100,0)}% | "
+                         f"{r['sl_branches']} | {r['c0_flags']} |")
+        L.append("")
+    return "\n".join(L)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--data", default=str(ROOT / "data/cache/massive/USD_JPY_15m.parquet"))
+    ap.add_argument("--start", default=WINDOW_START)
+    ap.add_argument("--end", default=WINDOW_END)
+    ap.add_argument("--warmup", default=WARMUP_START)
+    ap.add_argument("--out-json", default=str(ROOT / "knowledge-base/raw/bt-results/kalman_d7_live_constrained_bt_2026_09_27.json"))
+    ap.add_argument("--out-md", default="")
+    ap.add_argument("--keep-trades", action="store_true")
+    ap.add_argument("--run-date", default=pd.Timestamp.utcnow().strftime("%Y-%m-%d"))
+    args = ap.parse_args()
+    import warnings
+    warnings.filterwarnings("ignore", category=FutureWarning)
+
+    data = slice_window(load_data(Path(args.data)), args.start, args.end, args.warmup)
+    res = run_all(data, keep_trades=args.keep_trades)
+    meta = {"data": args.data, "start": args.start, "end": args.end, "warmup": args.warmup,
+            "bars": int(data["in_window"].sum()), "run_date": args.run_date,
+            "constants": {k: (sorted(v) if isinstance(v, frozenset) else v) for k, v in globals().items()
+                          if k.isupper() and isinstance(v, (int, float, str, frozenset, dict))}}
+    res["meta"] = meta
+    md = render_md(res, meta)
+    Path(args.out_json).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.out_json).write_text(json.dumps(res, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+    if args.out_md:
+        Path(args.out_md).write_text(md, encoding="utf-8")
+    print(md)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

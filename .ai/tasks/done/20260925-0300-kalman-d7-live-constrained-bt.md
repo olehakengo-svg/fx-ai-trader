@@ -1,8 +1,8 @@
 ---
 id: 20260925-0300-kalman-d7-live-constrained-bt
 title: "[M1 clean live] kalman_d7_po_dn_flip — live exit スタック (C1〜C5 + C6 近似) 付き BT による診断: overlay 別の edge 減衰と winner/loser 別 hold 分布 (user 決裁 packet 用)"
-owner: unclaimed
-status: queued
+owner: claude (autopilot 2026-09-27)
+status: done (2026-09-27、Python port。harness 未検証 — 数値引用禁止、順位・向きのみ packet 供給)
 created_at: 2026-09-25T03:00:00+0900
 priority: P1
 deadline: 2026-10-08 (registry `kalman-d7-live-exit-spec-mismatch-disposition`)
@@ -109,3 +109,32 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 # 完了条件
 
 - 走 0〜5 の表 (**走 0′〜4 は「C0 近似」ラベル** — SR ベース SL を ATR×1.0 で代用し下流 SL 調整 (C0c) も未再現、+ bar 内順序仮定の両方向、走 5 は「C6 近似」) + **C0 感度 = BT 側の what-if** (live ログは SL 選択枝 (SR / ATR) と C0c 発動を**永続化していない** — L6895-6908 / L6951-7026 にマーカー無し、ON_FILL の SL 距離だけでは分岐を復元できない — ので live 実測率は要求しない): (i) C0a を ATR×1.0 のみ / (ii) C0a の SR-stop — 上記 (A) の port ができた場合のみ「SR 優先」走を併記、できなければ省いて「未再現」と明記 / (iii) 5–20pip clamp 有 / 無 / (iv) C0c の低流動性時間バッファ有 / 無 / (vi) **C0c のラウンドナンバー nudge** (USD_JPY で SL が .000/.500 の ±2pip 以内なら 2.5pip 外側へ — 決定論的なので **base の C0 replay に含める**、有 / 無の感度も併記、L7008-7017) / (v) C0d の MTF ×1.3 有 / 無 — の各 what-if で走 0′〜4 を再集計し、**分解の順位と winner 比率がどの what-if で変わるか**を packet に書く。live 実測率は follow-up 計装 (SL 選択枝 / C0c 発動 / MTF bonus を `reasons` marker に記録、別タスク) の後に差し替える + winner/loser 別 hold 分布 + exit 種別比率 + packet 用の所見が analyses/ に保存され、done ファイルに '## Claude Review' が付く
+
+
+# 実行結果 (2026-09-27、Claude 自走、Python port、PR #302)
+
+- 実装: `tools/kalman_d7_live_constrained_bt.py` (standalone、indicator は `tools/kalman_d7_v18e_python_port`、SR は `modules/indicators.find_sr_levels_weighted` を live と同じ引数で)。走 0 (flip / tp5 の 2 変種) → 走 0′ (+C0 近似) → 走 1〜4 (C1〜C5 累積) → 走 5 (C6 近似)、bar 内順序仮定 2 方向、限界分解 (overlay 単独)、C0 what-if (i)〜(vii)、flip 定義の識別 5 候補
+- 生成物: `knowledge-base/raw/bt-results/kalman_d7_live_constrained_bt_2026_09_27.{json,md}` / 所見: `knowledge-base/wiki/analyses/kalman-d7-live-constrained-bt-2026-09-27.md` / pin: `tests/test_kalman_d7_live_constrained_bt.py` (19 passed)
+- TV: `tv_health_check` = CDP 接続不可 (desktop 未起動、自走セッションでは起動しない)。v17 canon Pine はリポジトリ不在 (BACKUP は v18e のみ) ⇒ Python port 経路 (手順 2)。後続 queue `20260927-0300-kalman-d7-v17-canon-tv-harness` (対話セッション限定)
+- **走 0 harness = ❌ FAIL** (TV コスト基準 commission 0.002%×2 + slippage 1 tick): flip 変種 N 60 / WR 18.3% / PF 1.99 (cash) / winner 373 bars、tp5 変種 N 74 / 29.7% / 1.49 / 37 bars、flip 定義 5 候補すべて ±10% 外 ⇒ 手順 2 の規律「走 0 が再現できなければ結果を採用しない」により **走 0′〜5 の数値は引用禁止**。packet へは順位・向き・exit 構造のみ
+- 所見: カード BT の PF 3.866 × WR 23.91% ⇒ aggregate payoff 12.3× (Avg Win/Loss 12.27× と一致)。同 ATR・全 loser stop 到達の固定 TP 5×ATR / SL 1.5×ATR では上限 3.33× ⇒ **canon exit = PO-DN flip を強く示唆** — ただし review P1 のとおり ATR 異質性 / cap 早期クローズで超え得るため**確定ではない**。確定は TV 再走の per-trade ATR / exit 種別
+
+## Claude Review
+
+出力を額面で採らず、以下を独立に確認した:
+
+1. **harness の FAIL を隠さなかった** — task 文書は「走 0 が現行 BT を再現できないまま制約付きの数字を出さない」。本走は 2 変種 + 5 候補で全て ❌ なので、ツールは JSON `harness_unverified: true` と MD 冒頭バナーを標準出力し、analyses / カード / registry の全記載に「引用禁止・順位のみ」を明記した。走 3〜5 の負 EV を降格根拠に使っていない (task「判定の扱い」)
+2. **§0 の主張の強さを Codex P1 で訂正した** — 初版は「算術で確定 (データ不要)」と書いたが、aggregate payoff 12.3× は ATR の entry 間異質性と cap 早期クローズ loser があれば固定 TP/SL でも到達し得る。訂正後は「強い示唆」に格下げし、示唆の根拠を上界付きで書いた (signal ATR p80/p20 1.33 ⇒ ATR 差だけなら winner/loser 比 ≈3.7 が要る / cap 経路なら loser 平均損失 ≈36% of stop が要るが Massive tp5 走で CAP 決済 0 本 / 458 bars は 5×ATR 到達時間と不整合)。確定手段 (TV 再走で per-trade ATR / exit 種別) を後続 queue に置いた。**packet の (a) は「canon exit を確定してから定義」に変更**
+3. **順位の頑健性を 2 軸で確認** — bar 内順序仮定 (adverse / favorable) と C0 what-if 7 種の全組合せで「C3C4 が最大の負」「C1 が正」「C0 が 2 位」の順位が不変。大きさは走 3 で 2 倍以上ぶれる (BE の同 bar 発動) — packet にはこの幅を書く
+4. **計測定義の欠陥 2 件を Codex P2 で修正** — `winner ≤8h` は bars ≤32 で数えていたが週末跨ぎの bar は壁時計と乖離する (20 bars で 55h) → `hold_sec ≤ 28,800` に統一 (数値は tp5 55→45%、走 3 100→95% に変わったが順位不変) / harness 比較の「gross」は slippage 込み・commission 抜きで TV の基準と違った → TV commission 0.002%×2 を当てた `tv_net_pips` で比較 (PF 2.27→2.17、1.53→1.45、判定不変)
+5. **pin の counterfactual 設計** — 各 overlay は発火 / 不発の両側 (C5 は含み益側で不発、C2 は非金曜で不発、C1 は flag 無しで EOD)、順序仮定で同 bar の結果が SL_HIT ⇄ BE に変わる bar、`harness_check` は canon 一致 dict で True / 本走値で False、8h 判定は週末跨ぎ 20 bars = 外 / 32 bars = 内 / 33 bars = 外、TV コストは gross +0.3p の winner が TV で loser。19 passed、full suite green、check.py 10/10
+6. **近似ラベルの維持** — C0 は SR lookback 500 bars を「live fetch 本数未確認」と明記、fast-SL 拡幅は未再現、C2 は **冬時間 = 金曜 21:45 bar open で執行 / 夏時間 = 閉場後なので日曜初 bar open で fill (週末ギャップ込み)** の 2 レジーム (Massive: 金曜最終 bar 21:45 が 18 週 / 20:45 が 28 週)、C5 は bar open + intrabar entry 割れ近似、C6 はサロゲート参考値。「ルール忠実」「full live stack」の語は使っていない
+7. **2 巡目 P2 4113998538 (金曜最終 bar の signal を C2 が閉じず週末を跨いでいた)** — 945b861c では entry 直後 21:45Z の金曜クローズを合成したが、3 巡目 P2 4114026089 のとおり夏時間 (21:00Z 閉場) では live が得られない fill だったため **57477970 で撤回**。最終形はループ先頭の `_c2_exit_at_open` が一律に扱う: 冬 = 金曜 21:45 bar open で執行 / 夏 = 日曜初 bar open で deferred fill (committed JSON の 2026-04-03 20:45 signal は `WEEKEND_CLOSE_SUNDAY_FILL`、hold 172,800s)。さらに 5 巡目 P2 4114113659 で、日曜 open がギャップで stop を割っていれば live 同様 SL/TP を先に判定 (C2 ではなく SL_HIT に帰属) とした。pin: 夏 = 日曜 open fill / 冬 = 21:45 bar / ギャップ stop = SL_HIT
+8. **3 巡目 P2 ×3 を修正** — (a) 夏時間 (21:00Z 閉場) の金曜 21:45Z クローズは執行不能で日曜 open fill (KB 実例 #709598): 2 巡目の「金曜 close 合成」は live が得られない fill だったので撤回し、冬 21:45 bar open / 夏 日曜初 bar open の 2 レジームへ。C2 の寄与は −0.8 → +0.7 に変わった (日曜 fill 4 件のギャップが順行) — **小 N のギャップ運で性質ではない**と明記、順位の他は不変 / (b) RT 摩擦 2.14p (slippage 込み) を slipped gross から引いて二重計上 → 水準差 `raw_pips` から引く / (c) TV PF を pips 合計から equity 10% 逐次サイジングの cash に (2.17→2.21、判定不変)。pin 22 本
+9. **4 巡目 P1 ×2 / P2 ×2 を修正** — (a) ギャップ時の stop fill を open 価格に (週末ギャップで flip 走 EV +13.8 → +12.3、PF 2.21 → 1.99 — canon 形状の週末露出を評価に含める) / (b) bar 内 / open で exit した bar の close signal で再エントリ (close 時点 exit は次 bar から。本 window では N 不変) / (c) 連続パス近似で 4h 超の entry 割れ (C5) を SL より先に (SL < entry のとき) → C5 単独が −0.9 → +1.5 に反転 = **符号は順序仮定依存**と明記 / (d) 8h share を累積 95% / 92%、単独 95% / 100% と両順序で表記。pin 25 本。順位 (C3/C4 最大) は不変
+10. **5 巡目 P2 ×2 / P3 ×1 を修正** — (a) 日曜 open がギャップで stop を割っている建玉を C2 に帰属していた → ギャップ SL/TP 判定を C2/C1/C5 より先に (live 同順)。EV 不変・帰属修正: C2 5 → 2 件、MAX_HOLD 14 → 10、TIME_DECAY 12 → 10 / (b) `harness_unverified` に識別候補の合格を含める (pin 3 条件) / (c) 本ファイル 7. の撤回済み記述を deferred Sunday fill に書き換え。pin 26 本
+11. **6 巡目 P2 ×2 を修正 (P2 巡目上限)** — (a) favorable_first で同 bar の TP を C5 (entry 割れ) より先に処理 (本 window では該当なし、数値不変) / (b) `harness_check` の `ok` を Python bool に正規化 (JSON で "False" 文字列になっていた — 読み手が truthiness で読むと FAIL が PASS に化ける欠陥)。pin 28 本。以降は再レビュー依頼を出さずゲート → マージ
+12. **7 巡目 P1 ×1 / P2 ×1 を修正** (ゲートの「レビュー済み commit = HEAD」要件で再依頼、P1 のため修正) — (a) adverse_first で同 bar の high が BE/trail を発動して stop を引き上げたのに close がその新 stop を割っても次 bar に持ち越していた → 連続パス (high→close の脚) で同 bar 決済。走 3 EV −3.8 → -3.7 / C3C4 単独 −3.8 → -4.1、順位不変 / (b) ギャップ open 決済 bar の high/low を MFE/MAE に含めていた → open までに限定。pin 30 本
+13. **禁止事項の遵守** — 制約を外す live 変更の提案・実装なし、TP/SL/filter の再最適化なし (flip 定義の識別は canon の同定であり exit のパラメータ探索ではない — entry / SL / cap 固定、結果は全 ❌ で採用もしていない)。tier / lot / 配線は不変
+
+残課題: harness を閉じ、canon exit を確定するには TV で v17 canon を再走する必要がある (user の TV desktop 起動が前提 — 対話セッションで依頼、queue 20260927-0300)。packet 10-08 は「harness 未検証・順位のみ」で組む。
