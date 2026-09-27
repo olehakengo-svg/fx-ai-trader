@@ -106,6 +106,25 @@ def test_c2_weekend_close_on_last_friday_bar_before_gap():
     assert t0.exit_reason == "EOD"
 
 
+def test_c2_entry_on_final_friday_bar_is_closed_at_friday_2145():
+    """PR #302 review P2 4113998538: 金曜 20:45 bar の signal (entry 21:00) は live では 21:45Z にクローズされる。
+    ループが日曜 bar から始まるため、entry 時点で金曜クローズを合成しないと週末を跨いで保持してしまう。"""
+    fri = pd.date_range("2025-09-19 18:00", "2025-09-19 20:45", freq="15min", tz="UTC")
+    sun = pd.date_range("2025-09-21 21:00", periods=40, freq="15min", tz="UTC")
+    idx = fri.append(sun)
+    df = pd.DataFrame({"Open": 150.0, "High": 150.002, "Low": 149.998, "Close": 150.0, "atr": 0.1,
+                       "entry_signal": False, "perfect_up": True, "perfect_dn": False, "in_window": True}, index=idx)
+    df.iloc[len(fri) - 1, df.columns.get_loc("entry_signal")] = True   # 20:45 bar
+    entry = 150.000 + K.MINTICK
+    df.iloc[len(fri) + 2, df.columns.get_loc("High")] = entry + 0.6   # 日曜に TP 水準 (跨げば勝ち)
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c2=True)))
+    assert t.exit_reason == "WEEKEND_CLOSE" and t.bars_held == 0
+    assert pd.Timestamp(t.exit_time) == pd.Timestamp("2025-09-19 21:45", tz="UTC")
+    assert t.hold_sec == 45 * 60 and t.gross_pips < 0  # slippage 分の小さな負け、週末の TP は取れない
+    t0 = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c2=False)))
+    assert t0.exit_reason == "TP_HIT"  # C2 無しなら週末を跨いで TP
+
+
 # ── C3/C4 と bar 内順序仮定 ───────────────────────────────────────────────
 def test_be_trail_ordering_assumption_changes_same_bar_outcome():
     entry = 150.000 + K.MINTICK

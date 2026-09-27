@@ -271,6 +271,25 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
         decl_sl = round(entry - DECL_SL_ATR * atr, 3)
         decl_tp = round(entry + DECL_TP_ATR * atr, 3)
         sl0, tp0 = sl, tp
+        # ── C2 at entry (PR #302 review P2 4113998538): signal が金曜最終 bar (20:45、close 21:00) なら live は
+        #    21:45Z の tick で全クローズする。ループは i+1 (日曜) から始まるので、ここで金曜クローズを合成する
+        #    (exit ≈ entry bar close − slippage、hold 45 分、bar は 1 本も進まない)。
+        if cfg.c2 and _is_last_bar_before_weekend(idx, i):
+            exit_px = c[i] - MINTICK
+            exit_ts = entry_ts + pd.Timedelta(minutes=45)
+            gross = (exit_px - entry) / PIP
+            trades.append(SimTrade(
+                signal_time=idx[i].isoformat(), entry_time=entry_ts.isoformat(), exit_time=exit_ts.isoformat(),
+                entry=round(entry, 3), exit=round(exit_px, 3), atr=round(atr, 4),
+                decl_sl=round(entry - DECL_SL_ATR * atr, 3), decl_tp=round(entry + DECL_TP_ATR * atr, 3),
+                sl0=sl0, tp0=tp0, sl_branch=branch, c0_flags=flags, bars_held=0,
+                hold_sec=float((exit_ts - entry_ts).total_seconds()), exit_reason="WEEKEND_CLOSE",
+                gross_pips=round(gross, 2), net_pips=round(gross - cfg.friction_pips, 2),
+                tv_net_pips=round(gross - tv_commission_pips(entry, exit_px), 2),
+                mfe_pips=0.0, mae_pips=0.0,
+            ))
+            i += 1
+            continue
         sl_moved = None  # "BE" | "TRAIL"
         highest = entry
         lowest = entry

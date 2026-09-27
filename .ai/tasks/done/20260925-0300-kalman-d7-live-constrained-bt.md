@@ -129,6 +129,7 @@ live の `daytrade` 建玉に掛かる exit は 8h cap と金曜クローズだ�
 4. **計測定義の欠陥 2 件を Codex P2 で修正** — `winner ≤8h` は bars ≤32 で数えていたが週末跨ぎの bar は壁時計と乖離する (20 bars で 55h) → `hold_sec ≤ 28,800` に統一 (数値は tp5 55→45%、走 3 100→95% に変わったが順位不変) / harness 比較の「gross」は slippage 込み・commission 抜きで TV の基準と違った → TV commission 0.002%×2 を当てた `tv_net_pips` で比較 (PF 2.27→2.17、1.53→1.45、判定不変)
 5. **pin の counterfactual 設計** — 各 overlay は発火 / 不発の両側 (C5 は含み益側で不発、C2 は非金曜で不発、C1 は flag 無しで EOD)、順序仮定で同 bar の結果が SL_HIT ⇄ BE に変わる bar、`harness_check` は canon 一致 dict で True / 本走値で False、8h 判定は週末跨ぎ 20 bars = 外 / 32 bars = 内 / 33 bars = 外、TV コストは gross +0.3p の winner が TV で loser。19 passed、full suite green、check.py 10/10
 6. **近似ラベルの維持** — C0 は SR lookback 500 bars を「live fetch 本数未確認」と明記、fast-SL 拡幅は未再現、C2 は Massive の金曜最終 bar (20:45) close で近似 (21:00→21:45 未再現)、C5 は bar open + intrabar entry 割れ近似、C6 はサロゲート参考値。「ルール忠実」「full live stack」の語は使っていない
-7. **禁止事項の遵守** — 制約を外す live 変更の提案・実装なし、TP/SL/filter の再最適化なし (flip 定義の識別は canon の同定であり exit のパラメータ探索ではない — entry / SL / cap 固定、結果は全 ❌ で採用もしていない)。tier / lot / 配線は不変
+7. **2 巡目 P2 4113998538 を修正** — 金曜最終 bar の signal (entry 21:00) を C2 が閉じず週末を跨いでいた (ループが日曜 bar 開始)。entry 時点で 21:45Z WEEKEND_CLOSE を合成。committed 結果 (2026-04-03 20:45 signal が MAX_HOLD 勝ち) は WEEKEND_CLOSE 小負けに訂正、走 2 以降 EV −0.05 程度、順位不変。pin 20 本
+8. **禁止事項の遵守** — 制約を外す live 変更の提案・実装なし、TP/SL/filter の再最適化なし (flip 定義の識別は canon の同定であり exit のパラメータ探索ではない — entry / SL / cap 固定、結果は全 ❌ で採用もしていない)。tier / lot / 配線は不変
 
 残課題: harness を閉じ、canon exit を確定するには TV で v17 canon を再走する必要がある (user の TV desktop 起動が前提 — 対話セッションで依頼、queue 20260927-0300)。packet 10-08 は「harness 未検証・順位のみ」で組む。
