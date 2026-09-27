@@ -107,14 +107,19 @@ def _summer_weekend_frame(signal_at: int = 2, sunday_open: float = 150.0) -> pd.
 def test_c2_summer_close_is_deferred_to_sunday_open_with_gap():
     """PR #302 review P2 4114026089: 夏時間は 21:00Z 閉場なので 21:45Z のクローズは執行できず、日曜 open で fill する
     (KB 実例 carry_dip #709598)。金曜 close で決済したことにしてはいけない。"""
-    df = _summer_weekend_frame(sunday_open=149.700)   # 週末ギャップ −30p
+    df = _summer_weekend_frame(sunday_open=149.900)   # 週末ギャップ −10p (SL 15p には届かない)
     t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c2=True)))
     assert t.exit_reason == "WEEKEND_CLOSE_SUNDAY_FILL"
     assert pd.Timestamp(t.exit_time) == pd.Timestamp("2025-09-21 21:00", tz="UTC")
-    assert t.exit == pytest.approx(149.700 - K.MINTICK)      # 日曜 open − slippage、ギャップを食う
-    assert t.raw_pips == pytest.approx(-30.0, abs=0.01)
+    assert t.exit == pytest.approx(149.900 - K.MINTICK)      # 日曜 open − slippage、ギャップを食う
+    assert t.raw_pips == pytest.approx(-10.0, abs=0.01)
     t0 = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c2=False, canon_cap=False)))
-    assert t0.exit_reason == "SL_HIT"  # C2 無しなら日曜 open のギャップで SL (15p) に掛かる
+    assert t0.exit_reason == "EOD"  # C2 無しなら保持継続 (SL には届かない)
+    # ギャップが stop も割る (−30p) 場合は live 同様 SL/TP 判定が週末条件より先 → C2 ではなく SL_HIT に帰属 (review P2 4114113659)
+    df2 = _summer_weekend_frame(sunday_open=149.700)
+    t2 = _one(K.simulate(df2, K.StackConfig(exit_mode="tp5", c2=True)))
+    assert t2.exit_reason == "SL_HIT" and t2.exit == pytest.approx(149.700 - K.MINTICK)
+    assert pd.Timestamp(t2.exit_time) == pd.Timestamp("2025-09-21 21:00", tz="UTC")
 
 
 def test_c2_winter_close_executes_at_friday_2145_bar_open():
@@ -407,3 +412,11 @@ def test_c5_entry_crossing_precedes_a_later_stop_when_sl_is_below_entry():
     df3.iloc[j, [df3.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [entry + 0.010, entry + 0.012, entry - 0.300, entry - 0.250]
     t3 = _one(K.simulate(df3, K.StackConfig(exit_mode="tp5", c5=True, c3c4=True)))
     assert t3.exit_reason == "BE"
+
+
+def test_harness_unverified_counts_identification_candidate_passes():
+    """PR #302 review P2 4114113668: 既定 2 変種が ❌ でも識別候補が ±10% を満たせば「検証済み」扱い。"""
+    fail = {"a": {"all_ok": False}, "b": {"all_ok": False}}
+    assert K.harness_unverified(fail, [{"harness_ok": False}, {"harness_ok": False}]) is True
+    assert K.harness_unverified(fail, [{"harness_ok": False}, {"harness_ok": True}]) is False
+    assert K.harness_unverified({"a": {"all_ok": True}}, []) is False

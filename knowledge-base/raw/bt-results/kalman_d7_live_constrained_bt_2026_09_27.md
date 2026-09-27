@@ -8,7 +8,7 @@
 - ラベル: 走 0 = 宣言 BT 再現 (2 変種) / 走 0′〜4 = **C0 近似 + intrabar 順序近似** / 走 5 = **C6 近似 (参考値)**
 - window 内 raw entry signal = 92 (po_up_start 712)。1 建玉制 (Pine pyramiding=0) なので N は exit 長で変わる
 
-> 🔴 **HARNESS 未検証**: 走 0 のどの変種も canon (N=46 / WR 23.91% / PF 3.866 / avg winner bars 458) を ±10% で再現しない。task 文書「走 0 が現行 BT を再現できないまま制約付きの数字を出さない」に従い、**以下の全数値は引用禁止 — packet に載せるのは分解の順位・向き・exit 種別の構造のみ**。要因: (1) v17 canon Pine がリポジトリに無い (TV slot は 2026-05-21 上書き、TV は本セッションで接続不可) → flip exit の定義は推定、(2) データが Massive (TV は OANDA feed)、(3) EMA 初期化 / percentile 実装差。
+> 🔴 **HARNESS 未検証**: 走 0 の既定 2 変種も flip 定義の識別候補 5 つも canon (N=46 / WR 23.91% / PF 3.866 / avg winner bars 458) を ±10% で再現しない。task 文書「走 0 が現行 BT を再現できないまま制約付きの数字を出さない」に従い、**以下の全数値は引用禁止 — packet に載せるのは分解の順位・向き・exit 種別の構造のみ**。要因: (1) v17 canon Pine がリポジトリに無い (TV slot は 2026-05-21 上書き、TV は本セッションで接続不可) → flip exit の定義は推定、(2) データが Massive (TV は OANDA feed)、(3) EMA 初期化 / percentile 実装差。
 
 ## Harness 検証 (走 0 vs canon N=46 / WR 23.91% / PF 3.866 / avg winner bars 458、±10%)
 
@@ -42,11 +42,11 @@
 | walk0_flip_canon | 60 | 18.3% | 10.6% | 1.80 | 12.34 | 740.6 | 151.2 | -18.8 | 8.03 | 0% | 330 (294–466) | 9 | SL_HIT 48, PO_DN_FLIP 9, CANON_CAP_480 3 |
 | walk0_tp5_decl | 74 | 29.7% | 20.5% | 1.34 | 4.50 | 332.7 | 59.3 | -18.7 | 3.17 | 45% | 30 (15–52) | 6 | SL_HIT 52, TP_HIT 22 |
 | walk0p_C0 | 80 | 21.2% | 13.7% | 1.06 | 0.67 | 53.3 | 55.8 | -14.2 | 3.93 | 65% | 18 (15–30) | 4 | SL_HIT 63, TP_HIT 17 |
-| walk1_C0+C1 | 81 | 27.2% | 18.7% | 1.17 | 1.75 | 141.8 | 43.5 | -13.8 | 3.15 | 86% | 26 (15–33) | 4 | SL_HIT 56, MAX_HOLD_TIME 14, TP_HIT 11 |
-| walk2_+C2 | 81 | 27.2% | 18.7% | 1.13 | 1.34 | 108.8 | 42.0 | -13.8 | 3.04 | 91% | 25 (15–33) | 4 | SL_HIT 56, TP_HIT 11, MAX_HOLD_TIME 9, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
-| walk3_+C3C4 | 85 | 23.5% | 15.8% | 0.54 | -3.83 | -325.9 | 19.1 | -10.9 | 1.75 | 95% | 6 (4–7) | 4 | SL_HIT 46, TRAIL 17, BE 17, WEEKEND_CLOSE_SUNDAY_FILL 3, TP_HIT 1, WEEKEND_CLOSE 1 |
-| walk4_+C5 | 85 | 23.5% | 15.8% | 0.54 | -3.83 | -325.9 | 19.1 | -10.9 | 1.75 | 95% | 6 (4–7) | 4 | SL_HIT 46, TRAIL 17, BE 17, WEEKEND_CLOSE_SUNDAY_FILL 3, TP_HIT 1, WEEKEND_CLOSE 1 |
-| walk5_+C6approx | 92 | 19.6% | 12.7% | 0.53 | -3.22 | -296.5 | 18.9 | -8.6 | 2.20 | 94% | 5 (4–6) | 2 | SIGNAL_REVERSE_APPROX 32, SL_HIT 25, TRAIL 15, BE 15, WEEKEND_CLOSE_SUNDAY_FILL 3, TP_HIT 1, WEEKEND_CLOSE 1 |
+| walk1_C0+C1 | 81 | 27.2% | 18.7% | 1.17 | 1.75 | 141.8 | 43.5 | -13.8 | 3.15 | 86% | 26 (15–33) | 4 | SL_HIT 58, TP_HIT 13, MAX_HOLD_TIME 10 |
+| walk2_+C2 | 81 | 27.2% | 18.7% | 1.13 | 1.34 | 108.8 | 42.0 | -13.8 | 3.04 | 91% | 25 (15–33) | 4 | SL_HIT 58, TP_HIT 12, MAX_HOLD_TIME 9, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
+| walk3_+C3C4 | 85 | 23.5% | 15.8% | 0.54 | -3.83 | -325.9 | 19.1 | -10.9 | 1.75 | 95% | 6 (4–7) | 4 | SL_HIT 47, BE 18, TRAIL 17, TP_HIT 1, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
+| walk4_+C5 | 85 | 23.5% | 15.8% | 0.54 | -3.83 | -325.9 | 19.1 | -10.9 | 1.75 | 95% | 6 (4–7) | 4 | SL_HIT 47, BE 18, TRAIL 17, TP_HIT 1, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
+| walk5_+C6approx | 92 | 19.6% | 12.7% | 0.53 | -3.22 | -296.5 | 18.9 | -8.6 | 2.20 | 94% | 5 (4–6) | 2 | SIGNAL_REVERSE_APPROX 32, SL_HIT 26, BE 16, TRAIL 15, TP_HIT 1, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 
 winner / loser 別 exit 種別:
 
@@ -55,22 +55,22 @@ winner / loser 別 exit 種別:
 | walk0_flip_canon | PO_DN_FLIP 8, CANON_CAP_480 3 | SL_HIT 48, PO_DN_FLIP 1 |
 | walk0_tp5_decl | TP_HIT 22 | SL_HIT 52 |
 | walk0p_C0 | TP_HIT 17 | SL_HIT 63 |
-| walk1_C0+C1 | MAX_HOLD_TIME 11, TP_HIT 11 | SL_HIT 56, MAX_HOLD_TIME 3 |
-| walk2_+C2 | TP_HIT 11, MAX_HOLD_TIME 8, WEEKEND_CLOSE_SUNDAY_FILL 2, WEEKEND_CLOSE 1 | SL_HIT 56, WEEKEND_CLOSE_SUNDAY_FILL 2, MAX_HOLD_TIME 1 |
-| walk3_+C3C4 | TRAIL 17, TP_HIT 1, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 46, BE 17, WEEKEND_CLOSE_SUNDAY_FILL 2 |
-| walk4_+C5 | TRAIL 17, TP_HIT 1, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 46, BE 17, WEEKEND_CLOSE_SUNDAY_FILL 2 |
-| walk5_+C6approx | TRAIL 15, TP_HIT 1, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 | SIGNAL_REVERSE_APPROX 32, SL_HIT 25, BE 15, WEEKEND_CLOSE_SUNDAY_FILL 2 |
+| walk1_C0+C1 | TP_HIT 13, MAX_HOLD_TIME 9 | SL_HIT 58, MAX_HOLD_TIME 1 |
+| walk2_+C2 | TP_HIT 12, MAX_HOLD_TIME 8, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 58, MAX_HOLD_TIME 1 |
+| walk3_+C3C4 | TRAIL 17, TP_HIT 1, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 47, BE 18 |
+| walk4_+C5 | TRAIL 17, TP_HIT 1, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 47, BE 18 |
+| walk5_+C6approx | TRAIL 15, TP_HIT 1, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 | SIGNAL_REVERSE_APPROX 32, SL_HIT 26, BE 16 |
 
 限界分解 (走 0′ に overlay を単独で載せる、順序 = `adverse_first`):
 
 | 構成 | N | WR | PF (net) | EV net p/t | Σ net p | winner ≤8h | exit 種別 |
 |---|---|---|---|---|---|---|---|
-| marg_C1_only | 81 | 27.2% | 1.17 | 1.75 | 141.8 | 86% | SL_HIT 56, MAX_HOLD_TIME 14, TP_HIT 11 |
-| marg_C2_only | 80 | 22.5% | 1.06 | 0.67 | 53.4 | 67% | SL_HIT 60, TP_HIT 15, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| marg_C1_only | 81 | 27.2% | 1.17 | 1.75 | 141.8 | 86% | SL_HIT 58, TP_HIT 13, MAX_HOLD_TIME 10 |
+| marg_C2_only | 80 | 22.5% | 1.06 | 0.67 | 53.4 | 67% | SL_HIT 62, TP_HIT 16, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 | marg_C3C4_only | 85 | 22.4% | 0.56 | -3.84 | -326.0 | 95% | SL_HIT 48, BE 18, TRAIL 17, TP_HIT 2 |
-| marg_C5_only | 84 | 20.2% | 1.15 | 1.50 | 125.6 | 76% | SL_HIT 55, TP_HIT 17, TIME_DECAY_EXIT 12 |
+| marg_C5_only | 84 | 20.2% | 1.15 | 1.50 | 125.6 | 76% | SL_HIT 57, TP_HIT 17, TIME_DECAY_EXIT 10 |
 | marg_C6approx_only | 92 | 10.9% | 0.62 | -3.19 | -293.9 | 80% | SIGNAL_REVERSE_APPROX 49, SL_HIT 33, TP_HIT 10 |
-| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 26.2% | 1.18 | 1.75 | 147.2 | 91% | SL_HIT 55, TP_HIT 13, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 5, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 26.2% | 1.18 | 1.75 | 147.2 | 91% | SL_HIT 57, TP_HIT 14, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 5, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 
 ## 走 0〜5 — bar 内順序仮定 = `favorable_first` (感度)
 
@@ -79,11 +79,11 @@ winner / loser 別 exit 種別:
 | walk0_flip_canon | 60 | 18.3% | 10.6% | 1.80 | 12.34 | 740.6 | 151.2 | -18.8 | 8.03 | 0% | 330 (294–466) | 9 | SL_HIT 48, PO_DN_FLIP 9, CANON_CAP_480 3 |
 | walk0_tp5_decl | 74 | 31.1% | 21.7% | 1.41 | 5.25 | 388.8 | 58.5 | -18.8 | 3.12 | 48% | 28 (14–52) | 6 | SL_HIT 51, TP_HIT 23 |
 | walk0p_C0 | 80 | 22.5% | 14.7% | 1.11 | 1.25 | 100.3 | 54.7 | -14.3 | 3.84 | 67% | 17 (12–29) | 4 | SL_HIT 62, TP_HIT 18 |
-| walk1_C0+C1 | 81 | 28.4% | 19.7% | 1.24 | 2.33 | 188.8 | 43.1 | -13.8 | 3.11 | 87% | 24 (13–33) | 4 | SL_HIT 55, MAX_HOLD_TIME 14, TP_HIT 12 |
-| walk2_+C2 | 81 | 28.4% | 19.7% | 1.19 | 1.92 | 155.8 | 41.7 | -13.8 | 3.01 | 91% | 23 (13–33) | 4 | SL_HIT 55, TP_HIT 12, MAX_HOLD_TIME 9, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
-| walk3_+C3C4 | 85 | 14.1% | 8.3% | 0.21 | -5.87 | -499.2 | 11.1 | -8.7 | 1.28 | 92% | 4 (3–6) | 3 | SL_HIT 46, BE 26, TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 2 |
-| walk4_+C5 | 85 | 14.1% | 8.3% | 0.21 | -5.87 | -499.2 | 11.1 | -8.7 | 1.28 | 92% | 4 (3–6) | 3 | SL_HIT 46, BE 26, TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 2 |
-| walk5_+C6approx | 92 | 10.9% | 6.0% | 0.20 | -4.89 | -449.6 | 11.2 | -6.8 | 1.63 | 90% | 4 (3–6) | 2 | SIGNAL_REVERSE_APPROX 32, SL_HIT 25, BE 24, TRAIL 9, WEEKEND_CLOSE_SUNDAY_FILL 2 |
+| walk1_C0+C1 | 81 | 28.4% | 19.7% | 1.24 | 2.33 | 188.8 | 43.1 | -13.8 | 3.11 | 87% | 24 (13–33) | 4 | SL_HIT 57, TP_HIT 14, MAX_HOLD_TIME 10 |
+| walk2_+C2 | 81 | 28.4% | 19.7% | 1.19 | 1.92 | 155.8 | 41.7 | -13.8 | 3.01 | 91% | 23 (13–33) | 4 | SL_HIT 57, TP_HIT 13, MAX_HOLD_TIME 9, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
+| walk3_+C3C4 | 85 | 14.1% | 8.3% | 0.21 | -5.87 | -499.2 | 11.1 | -8.7 | 1.28 | 92% | 4 (3–6) | 3 | SL_HIT 47, BE 26, TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 1 |
+| walk4_+C5 | 85 | 14.1% | 8.3% | 0.21 | -5.87 | -499.2 | 11.1 | -8.7 | 1.28 | 92% | 4 (3–6) | 3 | SL_HIT 47, BE 26, TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 1 |
+| walk5_+C6approx | 92 | 10.9% | 6.0% | 0.20 | -4.89 | -449.6 | 11.2 | -6.8 | 1.63 | 90% | 4 (3–6) | 2 | SIGNAL_REVERSE_APPROX 32, SL_HIT 26, BE 24, TRAIL 9, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 
 winner / loser 別 exit 種別:
 
@@ -92,22 +92,22 @@ winner / loser 別 exit 種別:
 | walk0_flip_canon | PO_DN_FLIP 8, CANON_CAP_480 3 | SL_HIT 48, PO_DN_FLIP 1 |
 | walk0_tp5_decl | TP_HIT 23 | SL_HIT 51 |
 | walk0p_C0 | TP_HIT 18 | SL_HIT 62 |
-| walk1_C0+C1 | TP_HIT 12, MAX_HOLD_TIME 11 | SL_HIT 55, MAX_HOLD_TIME 3 |
-| walk2_+C2 | TP_HIT 12, MAX_HOLD_TIME 8, WEEKEND_CLOSE_SUNDAY_FILL 2, WEEKEND_CLOSE 1 | SL_HIT 55, WEEKEND_CLOSE_SUNDAY_FILL 2, MAX_HOLD_TIME 1 |
-| walk3_+C3C4 | TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 46, BE 26, WEEKEND_CLOSE_SUNDAY_FILL 1 |
-| walk4_+C5 | TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 46, BE 26, WEEKEND_CLOSE_SUNDAY_FILL 1 |
-| walk5_+C6approx | TRAIL 9, WEEKEND_CLOSE_SUNDAY_FILL 1 | SIGNAL_REVERSE_APPROX 32, SL_HIT 25, BE 24, WEEKEND_CLOSE_SUNDAY_FILL 1 |
+| walk1_C0+C1 | TP_HIT 14, MAX_HOLD_TIME 9 | SL_HIT 57, MAX_HOLD_TIME 1 |
+| walk2_+C2 | TP_HIT 13, MAX_HOLD_TIME 8, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 57, MAX_HOLD_TIME 1 |
+| walk3_+C3C4 | TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 47, BE 26 |
+| walk4_+C5 | TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 1 | SL_HIT 47, BE 26 |
+| walk5_+C6approx | TRAIL 9, WEEKEND_CLOSE_SUNDAY_FILL 1 | SIGNAL_REVERSE_APPROX 32, SL_HIT 26, BE 24 |
 
 限界分解 (走 0′ に overlay を単独で載せる、順序 = `favorable_first`):
 
 | 構成 | N | WR | PF (net) | EV net p/t | Σ net p | winner ≤8h | exit 種別 |
 |---|---|---|---|---|---|---|---|
-| marg_C1_only | 81 | 28.4% | 1.24 | 2.33 | 188.8 | 87% | SL_HIT 55, MAX_HOLD_TIME 14, TP_HIT 12 |
-| marg_C2_only | 80 | 23.8% | 1.12 | 1.25 | 100.4 | 68% | SL_HIT 59, TP_HIT 16, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| marg_C1_only | 81 | 28.4% | 1.24 | 2.33 | 188.8 | 87% | SL_HIT 57, TP_HIT 14, MAX_HOLD_TIME 10 |
+| marg_C2_only | 80 | 23.8% | 1.12 | 1.25 | 100.4 | 68% | SL_HIT 61, TP_HIT 17, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 | marg_C3C4_only | 85 | 12.9% | 0.20 | -6.26 | -532.3 | 100% | SL_HIT 48, BE 26, TRAIL 11 |
-| marg_C5_only | 84 | 21.4% | 1.21 | 2.06 | 172.6 | 78% | SL_HIT 54, TP_HIT 18, TIME_DECAY_EXIT 12 |
+| marg_C5_only | 84 | 21.4% | 1.21 | 2.06 | 172.6 | 78% | SL_HIT 56, TP_HIT 18, TIME_DECAY_EXIT 10 |
 | marg_C6approx_only | 92 | 12.0% | 0.67 | -2.68 | -246.9 | 82% | SIGNAL_REVERSE_APPROX 49, SL_HIT 32, TP_HIT 11 |
-| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 27.4% | 1.24 | 2.31 | 194.2 | 91% | SL_HIT 54, TP_HIT 14, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 5, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 27.4% | 1.24 | 2.31 | 194.2 | 91% | SL_HIT 56, TP_HIT 15, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 5, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 
 ## C0 感度 (BT 側 what-if、走 0′〜4 を再集計。live 実測率は marker 付き live N 蓄積後に差し替え)
 

@@ -326,15 +326,15 @@
     "wilson95_lower": 0.18673822581002805,
     "pf_net": 1.1739258459499913,
     "ev_net_pips": 1.7501234567901236,
-    "ev_gross_pips": 3.7037037037037037,
+    "ev_gross_pips": 3.7061728395061735,
     "total_net_pips": 141.76000000000002,
     "avg_win_pips": 43.49181818181818,
     "avg_loss_pips": -13.814576271186441,
     "payoff": 3.148255677774977,
     "exit_reasons": {
-     "SL_HIT": 56,
-     "MAX_HOLD_TIME": 14,
-     "TP_HIT": 11
+     "SL_HIT": 58,
+     "TP_HIT": 13,
+     "MAX_HOLD_TIME": 10
     },
     "sl_branches": {
      "atr": 81
@@ -363,10 +363,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 22,
-     "p25": 30.225,
-     "median": 39.55,
-     "p75": 55.975,
-     "mean": 42.9090909090909
+     "p25": 31.625,
+     "median": 46.25,
+     "p75": 57.25,
+     "mean": 52.963636363636354
     },
     "mfe_pips_losers": {
      "n": 59,
@@ -377,20 +377,20 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "MAX_HOLD_TIME": 11,
-      "TP_HIT": 11
+      "TP_HIT": 13,
+      "MAX_HOLD_TIME": 9
      },
      "losers": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 3
+      "SL_HIT": 58,
+      "MAX_HOLD_TIME": 1
      }
     },
     "wr_tv": 0.2716049382716049,
-    "pf_tv": 1.3510162999341289,
-    "pf_tv_pips": 1.339199457259159,
-    "net_tv_cash": 168.63952593839673,
-    "ending_equity_tv": 100168.63952593837,
-    "ev_tv_pips": 3.086296296296295,
+    "pf_tv": 1.3512900925074172,
+    "pf_tv_pips": 1.339470827679783,
+    "net_tv_cash": 168.7711635272461,
+    "ending_equity_tv": 100168.77116352723,
+    "ev_tv_pips": 3.0887654320987648,
     "hold_bars_winners_tv": {
      "n": 22,
      "p25": 15.0,
@@ -427,17 +427,17 @@
     "wilson95_lower": 0.18673822581002805,
     "pf_net": 1.1334380291021517,
     "ev_net_pips": 1.3427160493827164,
-    "ev_gross_pips": 3.2962962962962963,
+    "ev_gross_pips": 3.297530864197531,
     "total_net_pips": 108.76000000000003,
     "avg_win_pips": 41.99181818181818,
     "avg_loss_pips": -13.814576271186441,
     "payoff": 3.0396747144103164,
     "exit_reasons": {
-     "SL_HIT": 56,
-     "TP_HIT": 11,
+     "SL_HIT": 58,
+     "TP_HIT": 12,
      "MAX_HOLD_TIME": 9,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-     "WEEKEND_CLOSE": 1
+     "WEEKEND_CLOSE": 1,
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 81
@@ -466,10 +466,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 22,
-     "p25": 29.25,
-     "median": 39.55,
-     "p75": 55.975,
-     "mean": 42.62272727272727
+     "p25": 30.775000000000002,
+     "median": 43.4,
+     "p75": 57.25,
+     "mean": 51.49545454545454
     },
     "mfe_pips_losers": {
      "n": 59,
@@ -480,23 +480,22 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "TP_HIT": 11,
+      "TP_HIT": 12,
       "MAX_HOLD_TIME": 8,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 56,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
+      "SL_HIT": 58,
       "MAX_HOLD_TIME": 1
      }
     },
     "wr_tv": 0.2716049382716049,
-    "pf_tv": 1.3072168585196196,
-    "pf_tv_pips": 1.2944233378561738,
-    "net_tv_cash": 147.58731924498701,
-    "ending_equity_tv": 100147.58731924495,
-    "ev_tv_pips": 2.678888888888887,
+    "pf_tv": 1.307357930634505,
+    "pf_tv_pips": 1.2945590230664858,
+    "net_tv_cash": 147.65514796649214,
+    "ending_equity_tv": 100147.65514796648,
+    "ev_tv_pips": 2.680123456790122,
     "hold_bars_winners_tv": {
      "n": 22,
      "p25": 15.0,
@@ -539,12 +538,12 @@
     "avg_loss_pips": -10.878461538461542,
     "payoff": 1.752085985009192,
     "exit_reasons": {
-     "SL_HIT": 46,
+     "SL_HIT": 47,
+     "BE": 18,
      "TRAIL": 17,
-     "BE": 17,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 3,
      "TP_HIT": 1,
-     "WEEKEND_CLOSE": 1
+     "WEEKEND_CLOSE": 1,
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 85
@@ -593,9 +592,8 @@
       "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 46,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "SL_HIT": 47,
+      "BE": 18
      }
     },
     "wr_tv": 0.43529411764705883,
@@ -646,12 +644,12 @@
     "avg_loss_pips": -10.878461538461542,
     "payoff": 1.752085985009192,
     "exit_reasons": {
-     "SL_HIT": 46,
+     "SL_HIT": 47,
+     "BE": 18,
      "TRAIL": 17,
-     "BE": 17,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 3,
      "TP_HIT": 1,
-     "WEEKEND_CLOSE": 1
+     "WEEKEND_CLOSE": 1,
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 85
@@ -700,9 +698,8 @@
       "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 46,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "SL_HIT": 47,
+      "BE": 18
      }
     },
     "wr_tv": 0.43529411764705883,
@@ -754,12 +751,12 @@
     "payoff": 2.196647783397383,
     "exit_reasons": {
      "SIGNAL_REVERSE_APPROX": 32,
-     "SL_HIT": 25,
+     "SL_HIT": 26,
+     "BE": 16,
      "TRAIL": 15,
-     "BE": 15,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 3,
      "TP_HIT": 1,
-     "WEEKEND_CLOSE": 1
+     "WEEKEND_CLOSE": 1,
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 92
@@ -809,9 +806,8 @@
      },
      "losers": {
       "SIGNAL_REVERSE_APPROX": 32,
-      "SL_HIT": 25,
-      "BE": 15,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "SL_HIT": 26,
+      "BE": 16
      }
     },
     "wr_tv": 0.358695652173913,
@@ -1155,15 +1151,15 @@
     "wilson95_lower": 0.19728731577584635,
     "pf_net": 1.2351504883396447,
     "ev_net_pips": 2.3303703703703698,
-    "ev_gross_pips": 4.285185185185186,
+    "ev_gross_pips": 4.287654320987655,
     "total_net_pips": 188.75999999999996,
     "avg_win_pips": 43.107826086956514,
     "avg_loss_pips": -13.840000000000002,
     "payoff": 3.1147273184217132,
     "exit_reasons": {
-     "SL_HIT": 55,
-     "MAX_HOLD_TIME": 14,
-     "TP_HIT": 12
+     "SL_HIT": 57,
+     "TP_HIT": 14,
+     "MAX_HOLD_TIME": 10
     },
     "sl_branches": {
      "atr": 81
@@ -1192,10 +1188,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 23,
-     "p25": 30.35,
-     "median": 43.0,
-     "p75": 55.45,
-     "mean": 43.01304347826086
+     "p25": 31.950000000000003,
+     "median": 45.3,
+     "p75": 57.0,
+     "mean": 52.630434782608695
     },
     "mfe_pips_losers": {
      "n": 58,
@@ -1206,20 +1202,20 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "TP_HIT": 12,
-      "MAX_HOLD_TIME": 11
+      "TP_HIT": 14,
+      "MAX_HOLD_TIME": 9
      },
      "losers": {
-      "SL_HIT": 55,
-      "MAX_HOLD_TIME": 3
+      "SL_HIT": 57,
+      "MAX_HOLD_TIME": 1
      }
     },
     "wr_tv": 0.2839506172839506,
-    "pf_tv": 1.420235095179627,
-    "pf_tv_pips": 1.4092261494807021,
-    "net_tv_cash": 198.94236650321326,
-    "ending_equity_tv": 100198.94236650321,
-    "ev_tv_pips": 3.667777777777777,
+    "pf_tv": 1.42051299773209,
+    "pf_tv_pips": 1.4095016391636135,
+    "net_tv_cash": 199.07404391483425,
+    "ending_equity_tv": 100199.07404391482,
+    "ev_tv_pips": 3.6702469135802467,
     "hold_bars_winners_tv": {
      "n": 23,
      "p25": 13.0,
@@ -1256,17 +1252,17 @@
     "wilson95_lower": 0.19728731577584635,
     "pf_net": 1.194040263105441,
     "ev_net_pips": 1.9229629629629632,
-    "ev_gross_pips": 3.877777777777778,
+    "ev_gross_pips": 3.879012345679013,
     "total_net_pips": 155.76000000000002,
     "avg_win_pips": 41.67304347826086,
     "avg_loss_pips": -13.840000000000002,
     "payoff": 3.0110580547876338,
     "exit_reasons": {
-     "SL_HIT": 55,
-     "TP_HIT": 12,
+     "SL_HIT": 57,
+     "TP_HIT": 13,
      "MAX_HOLD_TIME": 9,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-     "WEEKEND_CLOSE": 1
+     "WEEKEND_CLOSE": 1,
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 81
@@ -1295,10 +1291,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 23,
-     "p25": 29.700000000000003,
-     "median": 43.0,
-     "p75": 55.45,
-     "mean": 42.7391304347826
+     "p25": 30.950000000000003,
+     "median": 43.8,
+     "p75": 57.0,
+     "mean": 51.22608695652173
     },
     "mfe_pips_losers": {
      "n": 58,
@@ -1309,23 +1305,22 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "TP_HIT": 12,
+      "TP_HIT": 13,
       "MAX_HOLD_TIME": 8,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 55,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
+      "SL_HIT": 57,
       "MAX_HOLD_TIME": 1
      }
     },
     "wr_tv": 0.2839506172839506,
-    "pf_tv": 1.3757767704061414,
-    "pf_tv_pips": 1.3637703518003252,
-    "net_tv_cash": 177.88379113327989,
-    "ending_equity_tv": 100177.88379113328,
-    "ev_tv_pips": 3.2603703703703695,
+    "pf_tv": 1.3759199560431148,
+    "pf_tv_pips": 1.363908096641781,
+    "net_tv_cash": 177.95164037421034,
+    "ending_equity_tv": 100177.95164037417,
+    "ev_tv_pips": 3.261604938271604,
     "hold_bars_winners_tv": {
      "n": 23,
      "p25": 13.0,
@@ -1368,10 +1363,10 @@
     "avg_loss_pips": -8.655068493150688,
     "payoff": 1.2769011216274673,
     "exit_reasons": {
-     "SL_HIT": 46,
+     "SL_HIT": 47,
      "BE": 26,
      "TRAIL": 11,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 2
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 85
@@ -1418,9 +1413,8 @@
       "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 46,
-      "BE": 26,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 1
+      "SL_HIT": 47,
+      "BE": 26
      }
     },
     "wr_tv": 0.4470588235294118,
@@ -1471,10 +1465,10 @@
     "avg_loss_pips": -8.655068493150688,
     "payoff": 1.2769011216274673,
     "exit_reasons": {
-     "SL_HIT": 46,
+     "SL_HIT": 47,
      "BE": 26,
      "TRAIL": 11,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 2
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 85
@@ -1521,9 +1515,8 @@
       "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 46,
-      "BE": 26,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 1
+      "SL_HIT": 47,
+      "BE": 26
      }
     },
     "wr_tv": 0.4470588235294118,
@@ -1575,10 +1568,10 @@
     "payoff": 1.6330471338487293,
     "exit_reasons": {
      "SIGNAL_REVERSE_APPROX": 32,
-     "SL_HIT": 25,
+     "SL_HIT": 26,
      "BE": 24,
      "TRAIL": 9,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 2
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 92
@@ -1626,9 +1619,8 @@
      },
      "losers": {
       "SIGNAL_REVERSE_APPROX": 32,
-      "SL_HIT": 25,
-      "BE": 24,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 1
+      "SL_HIT": 26,
+      "BE": 24
      }
     },
     "wr_tv": 0.3695652173913043,
@@ -1677,15 +1669,15 @@
     "wilson95_lower": 0.18673822581002805,
     "pf_net": 1.1739258459499913,
     "ev_net_pips": 1.7501234567901236,
-    "ev_gross_pips": 3.7037037037037037,
+    "ev_gross_pips": 3.7061728395061735,
     "total_net_pips": 141.76000000000002,
     "avg_win_pips": 43.49181818181818,
     "avg_loss_pips": -13.814576271186441,
     "payoff": 3.148255677774977,
     "exit_reasons": {
-     "SL_HIT": 56,
-     "MAX_HOLD_TIME": 14,
-     "TP_HIT": 11
+     "SL_HIT": 58,
+     "TP_HIT": 13,
+     "MAX_HOLD_TIME": 10
     },
     "sl_branches": {
      "atr": 81
@@ -1714,10 +1706,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 22,
-     "p25": 30.225,
-     "median": 39.55,
-     "p75": 55.975,
-     "mean": 42.9090909090909
+     "p25": 31.625,
+     "median": 46.25,
+     "p75": 57.25,
+     "mean": 52.963636363636354
     },
     "mfe_pips_losers": {
      "n": 59,
@@ -1728,12 +1720,12 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "MAX_HOLD_TIME": 11,
-      "TP_HIT": 11
+      "TP_HIT": 13,
+      "MAX_HOLD_TIME": 9
      },
      "losers": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 3
+      "SL_HIT": 58,
+      "MAX_HOLD_TIME": 1
      }
     }
    },
@@ -1765,16 +1757,16 @@
     "wilson95_lower": 0.14733207290549752,
     "pf_net": 1.0617355314573744,
     "ev_net_pips": 0.6675000000000002,
-    "ev_gross_pips": 2.6262499999999998,
+    "ev_gross_pips": 2.6275000000000004,
     "total_net_pips": 53.40000000000001,
     "avg_win_pips": 51.021111111111104,
     "avg_loss_pips": -13.951290322580647,
     "payoff": 3.657089052797623,
     "exit_reasons": {
-     "SL_HIT": 60,
-     "TP_HIT": 15,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-     "WEEKEND_CLOSE": 1
+     "SL_HIT": 62,
+     "TP_HIT": 16,
+     "WEEKEND_CLOSE": 1,
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 80
@@ -1803,10 +1795,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 18,
-     "p25": 37.825,
-     "median": 54.05,
-     "p75": 62.3,
-     "mean": 49.45555555555555
+     "p25": 43.175,
+     "median": 55.05,
+     "p75": 69.75,
+     "mean": 60.29999999999999
     },
     "mfe_pips_losers": {
      "n": 62,
@@ -1817,13 +1809,12 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "TP_HIT": 15,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
-      "WEEKEND_CLOSE": 1
+      "TP_HIT": 16,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 60,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "SL_HIT": 62
      }
     }
    },
@@ -1950,9 +1941,9 @@
     "avg_loss_pips": -12.272835820895521,
     "payoff": 4.5433672228438,
     "exit_reasons": {
-     "SL_HIT": 55,
+     "SL_HIT": 57,
      "TP_HIT": 17,
-     "TIME_DECAY_EXIT": 12
+     "TIME_DECAY_EXIT": 10
     },
     "sl_branches": {
      "atr": 84
@@ -1998,8 +1989,8 @@
       "TP_HIT": 17
      },
      "losers": {
-      "SL_HIT": 55,
-      "TIME_DECAY_EXIT": 12
+      "SL_HIT": 57,
+      "TIME_DECAY_EXIT": 10
      }
     }
    },
@@ -2118,18 +2109,18 @@
     "wilson95_lower": 0.17978478323753236,
     "pf_net": 1.1813121859915277,
     "ev_net_pips": 1.752857142857143,
-    "ev_gross_pips": 3.7083333333333326,
+    "ev_gross_pips": 3.7095238095238092,
     "total_net_pips": 147.24,
     "avg_win_pips": 43.605454545454535,
     "avg_loss_pips": -13.098064516129032,
     "payoff": 3.3291525241579416,
     "exit_reasons": {
-     "SL_HIT": 55,
-     "TP_HIT": 13,
+     "SL_HIT": 57,
+     "TP_HIT": 14,
      "MAX_HOLD_TIME": 6,
      "TIME_DECAY_EXIT": 5,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-     "WEEKEND_CLOSE": 1
+     "WEEKEND_CLOSE": 1,
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 84
@@ -2158,10 +2149,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 22,
-     "p25": 29.25,
-     "median": 44.55,
-     "p75": 55.975,
-     "mean": 44.07727272727272
+     "p25": 31.1,
+     "median": 47.0,
+     "p75": 57.25,
+     "mean": 52.949999999999996
     },
     "mfe_pips_losers": {
      "n": 62,
@@ -2172,15 +2163,14 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "TP_HIT": 13,
+      "TP_HIT": 14,
       "MAX_HOLD_TIME": 6,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 55,
-      "TIME_DECAY_EXIT": 5,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "SL_HIT": 57,
+      "TIME_DECAY_EXIT": 5
      }
     }
    }
@@ -2214,15 +2204,15 @@
     "wilson95_lower": 0.19728731577584635,
     "pf_net": 1.2351504883396447,
     "ev_net_pips": 2.3303703703703698,
-    "ev_gross_pips": 4.285185185185186,
+    "ev_gross_pips": 4.287654320987655,
     "total_net_pips": 188.75999999999996,
     "avg_win_pips": 43.107826086956514,
     "avg_loss_pips": -13.840000000000002,
     "payoff": 3.1147273184217132,
     "exit_reasons": {
-     "SL_HIT": 55,
-     "MAX_HOLD_TIME": 14,
-     "TP_HIT": 12
+     "SL_HIT": 57,
+     "TP_HIT": 14,
+     "MAX_HOLD_TIME": 10
     },
     "sl_branches": {
      "atr": 81
@@ -2251,10 +2241,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 23,
-     "p25": 30.35,
-     "median": 43.0,
-     "p75": 55.45,
-     "mean": 43.01304347826086
+     "p25": 31.950000000000003,
+     "median": 45.3,
+     "p75": 57.0,
+     "mean": 52.630434782608695
     },
     "mfe_pips_losers": {
      "n": 58,
@@ -2265,12 +2255,12 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "TP_HIT": 12,
-      "MAX_HOLD_TIME": 11
+      "TP_HIT": 14,
+      "MAX_HOLD_TIME": 9
      },
      "losers": {
-      "SL_HIT": 55,
-      "MAX_HOLD_TIME": 3
+      "SL_HIT": 57,
+      "MAX_HOLD_TIME": 1
      }
     }
    },
@@ -2302,16 +2292,16 @@
     "wilson95_lower": 0.1576467281454066,
     "pf_net": 1.117751923437793,
     "ev_net_pips": 1.2549999999999994,
-    "ev_gross_pips": 3.215,
+    "ev_gross_pips": 3.21625,
     "total_net_pips": 100.39999999999996,
     "avg_win_pips": 50.16,
     "avg_loss_pips": -13.977704918032789,
     "payoff": 3.588571964721335,
     "exit_reasons": {
-     "SL_HIT": 59,
-     "TP_HIT": 16,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-     "WEEKEND_CLOSE": 1
+     "SL_HIT": 61,
+     "TP_HIT": 17,
+     "WEEKEND_CLOSE": 1,
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 80
@@ -2340,10 +2330,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 19,
-     "p25": 39.55,
-     "median": 53.7,
-     "p75": 60.7,
-     "mean": 49.23684210526315
+     "p25": 43.35,
+     "median": 54.4,
+     "p75": 67.8,
+     "mean": 59.51052631578946
     },
     "mfe_pips_losers": {
      "n": 61,
@@ -2354,13 +2344,12 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "TP_HIT": 16,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
-      "WEEKEND_CLOSE": 1
+      "TP_HIT": 17,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 59,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "SL_HIT": 61
      }
     }
    },
@@ -2485,9 +2474,9 @@
     "avg_loss_pips": -12.27181818181818,
     "payoff": 4.448222502078344,
     "exit_reasons": {
-     "SL_HIT": 54,
+     "SL_HIT": 56,
      "TP_HIT": 18,
-     "TIME_DECAY_EXIT": 12
+     "TIME_DECAY_EXIT": 10
     },
     "sl_branches": {
      "atr": 84
@@ -2533,8 +2522,8 @@
       "TP_HIT": 18
      },
      "losers": {
-      "SL_HIT": 54,
-      "TIME_DECAY_EXIT": 12
+      "SL_HIT": 56,
+      "TIME_DECAY_EXIT": 10
      }
     }
    },
@@ -2653,18 +2642,18 @@
     "wilson95_lower": 0.18992825639172467,
     "pf_net": 1.2428789356540872,
     "ev_net_pips": 2.312380952380951,
-    "ev_gross_pips": 4.269047619047619,
+    "ev_gross_pips": 4.270238095238095,
     "total_net_pips": 194.2399999999999,
     "avg_win_pips": 43.21652173913043,
     "avg_loss_pips": -13.11049180327869,
     "payoff": 3.2963310902130143,
     "exit_reasons": {
-     "SL_HIT": 54,
-     "TP_HIT": 14,
+     "SL_HIT": 56,
+     "TP_HIT": 15,
      "MAX_HOLD_TIME": 6,
      "TIME_DECAY_EXIT": 5,
-     "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-     "WEEKEND_CLOSE": 1
+     "WEEKEND_CLOSE": 1,
+     "WEEKEND_CLOSE_SUNDAY_FILL": 1
     },
     "sl_branches": {
      "atr": 84
@@ -2693,10 +2682,10 @@
     "winners_within_480_share": 1.0,
     "mfe_pips_winners": {
      "n": 23,
-     "p25": 29.700000000000003,
+     "p25": 31.6,
      "median": 45.3,
-     "p75": 55.45,
-     "mean": 44.13043478260869
+     "p75": 57.0,
+     "mean": 52.61739130434782
     },
     "mfe_pips_losers": {
      "n": 61,
@@ -2707,15 +2696,14 @@
     },
     "exit_reason_by_outcome": {
      "winners": {
-      "TP_HIT": 14,
+      "TP_HIT": 15,
       "MAX_HOLD_TIME": 6,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "losers": {
-      "SL_HIT": 54,
-      "TIME_DECAY_EXIT": 5,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "SL_HIT": 56,
+      "TIME_DECAY_EXIT": 5
      }
     }
    }
@@ -2996,9 +2984,9 @@
      "total_net_pips": 141.76000000000002,
      "winners_within_8h_share": 0.8636363636363636,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 14,
-      "TP_HIT": 11
+      "SL_HIT": 58,
+      "TP_HIT": 13,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -3019,11 +3007,11 @@
      "total_net_pips": 108.76000000000003,
      "winners_within_8h_share": 0.9090909090909091,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "TP_HIT": 11,
+      "SL_HIT": 58,
+      "TP_HIT": 12,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -3044,12 +3032,12 @@
      "total_net_pips": -325.9,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
+      "BE": 18,
       "TRAIL": 17,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3070,12 +3058,12 @@
      "total_net_pips": -325.9,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
+      "BE": 18,
       "TRAIL": 17,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3120,9 +3108,9 @@
      "total_net_pips": 141.76000000000002,
      "winners_within_8h_share": 0.8636363636363636,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 14,
-      "TP_HIT": 11
+      "SL_HIT": 58,
+      "TP_HIT": 13,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -3143,11 +3131,11 @@
      "total_net_pips": 108.76000000000003,
      "winners_within_8h_share": 0.9090909090909091,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "TP_HIT": 11,
+      "SL_HIT": 58,
+      "TP_HIT": 12,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -3168,12 +3156,12 @@
      "total_net_pips": -325.9,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
+      "BE": 18,
       "TRAIL": 17,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3194,12 +3182,12 @@
      "total_net_pips": -325.9,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
+      "BE": 18,
       "TRAIL": 17,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3245,9 +3233,9 @@
      "total_net_pips": 180.2800000000001,
      "winners_within_8h_share": 0.8928571428571429,
      "exit_reasons": {
-      "SL_HIT": 41,
-      "MAX_HOLD_TIME": 20,
-      "TP_HIT": 12
+      "SL_HIT": 42,
+      "MAX_HOLD_TIME": 17,
+      "TP_HIT": 14
      },
      "sl_branches": {
       "sr": 72,
@@ -3269,10 +3257,10 @@
      "total_net_pips": 167.5800000000001,
      "winners_within_8h_share": 0.9285714285714286,
      "exit_reasons": {
-      "SL_HIT": 41,
+      "SL_HIT": 42,
       "MAX_HOLD_TIME": 14,
-      "TP_HIT": 12,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
+      "TP_HIT": 13,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
       "WEEKEND_CLOSE": 2
      },
      "sl_branches": {
@@ -3297,8 +3285,8 @@
      "exit_reasons": {
       "SL_HIT": 32,
       "TRAIL": 20,
-      "BE": 19,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
+      "BE": 20,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
       "WEEKEND_CLOSE": 2,
       "TP_HIT": 1
      },
@@ -3324,9 +3312,9 @@
      "exit_reasons": {
       "SL_HIT": 30,
       "TRAIL": 20,
-      "BE": 18,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
+      "BE": 19,
       "TIME_DECAY_EXIT": 3,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
       "WEEKEND_CLOSE": 2,
       "TP_HIT": 1
      },
@@ -3374,9 +3362,9 @@
      "total_net_pips": 141.76000000000002,
      "winners_within_8h_share": 0.8636363636363636,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 14,
-      "TP_HIT": 11
+      "SL_HIT": 58,
+      "TP_HIT": 13,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -3397,11 +3385,11 @@
      "total_net_pips": 108.76000000000003,
      "winners_within_8h_share": 0.9090909090909091,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "TP_HIT": 11,
+      "SL_HIT": 58,
+      "TP_HIT": 12,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -3422,12 +3410,12 @@
      "total_net_pips": -325.9,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
+      "BE": 18,
       "TRAIL": 17,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3448,12 +3436,12 @@
      "total_net_pips": -325.9,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
+      "BE": 18,
       "TRAIL": 17,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3498,9 +3486,9 @@
      "total_net_pips": 182.65999999999994,
      "winners_within_8h_share": 0.8636363636363636,
      "exit_reasons": {
-      "SL_HIT": 57,
-      "MAX_HOLD_TIME": 13,
-      "TP_HIT": 11
+      "SL_HIT": 58,
+      "TP_HIT": 13,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -3521,11 +3509,11 @@
      "total_net_pips": 149.65999999999988,
      "winners_within_8h_share": 0.9090909090909091,
      "exit_reasons": {
-      "SL_HIT": 57,
-      "TP_HIT": 11,
+      "SL_HIT": 58,
+      "TP_HIT": 12,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -3548,10 +3536,10 @@
      "exit_reasons": {
       "SL_HIT": 48,
       "TRAIL": 17,
-      "BE": 16,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
+      "BE": 17,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3574,10 +3562,10 @@
      "exit_reasons": {
       "SL_HIT": 48,
       "TRAIL": 17,
-      "BE": 16,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
+      "BE": 17,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3622,9 +3610,9 @@
      "total_net_pips": 220.76000000000005,
      "winners_within_8h_share": 0.8636363636363636,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 18,
-      "TP_HIT": 7
+      "SL_HIT": 58,
+      "MAX_HOLD_TIME": 15,
+      "TP_HIT": 8
      },
      "sl_branches": {
       "atr": 81
@@ -3645,11 +3633,11 @@
      "total_net_pips": 187.7599999999999,
      "winners_within_8h_share": 0.9090909090909091,
      "exit_reasons": {
-      "SL_HIT": 56,
+      "SL_HIT": 58,
       "MAX_HOLD_TIME": 13,
-      "TP_HIT": 7,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "TP_HIT": 8,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -3670,11 +3658,11 @@
      "total_net_pips": -326.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "TRAIL": 18,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
-      "WEEKEND_CLOSE": 1
+      "BE": 18,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3695,11 +3683,11 @@
      "total_net_pips": -326.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "TRAIL": 18,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
-      "WEEKEND_CLOSE": 1
+      "BE": 18,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3744,9 +3732,9 @@
      "total_net_pips": 156.7599999999999,
      "winners_within_8h_share": 0.8636363636363636,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 14,
-      "TP_HIT": 11
+      "SL_HIT": 58,
+      "TP_HIT": 13,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -3767,11 +3755,11 @@
      "total_net_pips": 123.75999999999998,
      "winners_within_8h_share": 0.9090909090909091,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "TP_HIT": 11,
+      "SL_HIT": 58,
+      "TP_HIT": 12,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -3792,12 +3780,12 @@
      "total_net_pips": -328.0,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 47,
+      "SL_HIT": 48,
       "TRAIL": 17,
-      "BE": 16,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
+      "BE": 17,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3818,12 +3806,12 @@
      "total_net_pips": -328.0,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 47,
+      "SL_HIT": 48,
       "TRAIL": 17,
-      "BE": 16,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
+      "BE": 17,
       "TP_HIT": 1,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3868,9 +3856,9 @@
      "total_net_pips": 173.55999999999997,
      "winners_within_8h_share": 0.8636363636363636,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 17,
-      "TP_HIT": 8
+      "SL_HIT": 58,
+      "MAX_HOLD_TIME": 14,
+      "TP_HIT": 9
      },
      "sl_branches": {
       "atr": 81
@@ -3891,11 +3879,11 @@
      "total_net_pips": 140.55999999999997,
      "winners_within_8h_share": 0.9090909090909091,
      "exit_reasons": {
-      "SL_HIT": 56,
+      "SL_HIT": 58,
       "MAX_HOLD_TIME": 12,
-      "TP_HIT": 8,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "TP_HIT": 9,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -3916,11 +3904,11 @@
      "total_net_pips": -326.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "TRAIL": 18,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
-      "WEEKEND_CLOSE": 1
+      "BE": 18,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3941,11 +3929,11 @@
      "total_net_pips": -326.2,
      "winners_within_8h_share": 0.95,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "TRAIL": 18,
-      "BE": 17,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
-      "WEEKEND_CLOSE": 1
+      "BE": 18,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -3992,9 +3980,9 @@
      "total_net_pips": 188.75999999999996,
      "winners_within_8h_share": 0.8695652173913043,
      "exit_reasons": {
-      "SL_HIT": 55,
-      "MAX_HOLD_TIME": 14,
-      "TP_HIT": 12
+      "SL_HIT": 57,
+      "TP_HIT": 14,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -4015,11 +4003,11 @@
      "total_net_pips": 155.76000000000002,
      "winners_within_8h_share": 0.9130434782608695,
      "exit_reasons": {
-      "SL_HIT": 55,
-      "TP_HIT": 12,
+      "SL_HIT": 57,
+      "TP_HIT": 13,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -4040,10 +4028,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4064,10 +4052,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4112,9 +4100,9 @@
      "total_net_pips": 188.75999999999996,
      "winners_within_8h_share": 0.8695652173913043,
      "exit_reasons": {
-      "SL_HIT": 55,
-      "MAX_HOLD_TIME": 14,
-      "TP_HIT": 12
+      "SL_HIT": 57,
+      "TP_HIT": 14,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -4135,11 +4123,11 @@
      "total_net_pips": 155.76000000000002,
      "winners_within_8h_share": 0.9130434782608695,
      "exit_reasons": {
-      "SL_HIT": 55,
-      "TP_HIT": 12,
+      "SL_HIT": 57,
+      "TP_HIT": 13,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -4160,10 +4148,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4184,10 +4172,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4233,9 +4221,9 @@
      "total_net_pips": 228.78000000000003,
      "winners_within_8h_share": 0.896551724137931,
      "exit_reasons": {
-      "SL_HIT": 40,
-      "MAX_HOLD_TIME": 20,
-      "TP_HIT": 13
+      "SL_HIT": 41,
+      "MAX_HOLD_TIME": 17,
+      "TP_HIT": 15
      },
      "sl_branches": {
       "sr": 72,
@@ -4257,10 +4245,10 @@
      "total_net_pips": 216.0800000000001,
      "winners_within_8h_share": 0.9310344827586207,
      "exit_reasons": {
-      "SL_HIT": 40,
+      "SL_HIT": 41,
       "MAX_HOLD_TIME": 14,
-      "TP_HIT": 13,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
+      "TP_HIT": 14,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 2,
       "WEEKEND_CLOSE": 2
      },
      "sl_branches": {
@@ -4360,9 +4348,9 @@
      "total_net_pips": 188.75999999999996,
      "winners_within_8h_share": 0.8695652173913043,
      "exit_reasons": {
-      "SL_HIT": 55,
-      "MAX_HOLD_TIME": 14,
-      "TP_HIT": 12
+      "SL_HIT": 57,
+      "TP_HIT": 14,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -4383,11 +4371,11 @@
      "total_net_pips": 155.76000000000002,
      "winners_within_8h_share": 0.9130434782608695,
      "exit_reasons": {
-      "SL_HIT": 55,
-      "TP_HIT": 12,
+      "SL_HIT": 57,
+      "TP_HIT": 13,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -4408,10 +4396,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4432,10 +4420,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4480,9 +4468,9 @@
      "total_net_pips": 227.96,
      "winners_within_8h_share": 0.8695652173913043,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 13,
-      "TP_HIT": 12
+      "SL_HIT": 57,
+      "TP_HIT": 14,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -4503,11 +4491,11 @@
      "total_net_pips": 194.9599999999999,
      "winners_within_8h_share": 0.9130434782608695,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "TP_HIT": 12,
+      "SL_HIT": 57,
+      "TP_HIT": 13,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 3,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -4600,9 +4588,9 @@
      "total_net_pips": 220.76000000000005,
      "winners_within_8h_share": 0.8636363636363636,
      "exit_reasons": {
-      "SL_HIT": 56,
-      "MAX_HOLD_TIME": 18,
-      "TP_HIT": 7
+      "SL_HIT": 58,
+      "MAX_HOLD_TIME": 15,
+      "TP_HIT": 8
      },
      "sl_branches": {
       "atr": 81
@@ -4623,11 +4611,11 @@
      "total_net_pips": 187.7599999999999,
      "winners_within_8h_share": 0.9090909090909091,
      "exit_reasons": {
-      "SL_HIT": 56,
+      "SL_HIT": 58,
       "MAX_HOLD_TIME": 13,
-      "TP_HIT": 7,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "TP_HIT": 8,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -4648,10 +4636,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4672,10 +4660,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4720,9 +4708,9 @@
      "total_net_pips": 203.75999999999996,
      "winners_within_8h_share": 0.8695652173913043,
      "exit_reasons": {
-      "SL_HIT": 55,
-      "MAX_HOLD_TIME": 14,
-      "TP_HIT": 12
+      "SL_HIT": 57,
+      "TP_HIT": 14,
+      "MAX_HOLD_TIME": 10
      },
      "sl_branches": {
       "atr": 81
@@ -4743,11 +4731,11 @@
      "total_net_pips": 170.7599999999999,
      "winners_within_8h_share": 0.9130434782608695,
      "exit_reasons": {
-      "SL_HIT": 55,
-      "TP_HIT": 12,
+      "SL_HIT": 57,
+      "TP_HIT": 13,
       "MAX_HOLD_TIME": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -4768,10 +4756,10 @@
      "total_net_pips": -501.30000000000007,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 47,
+      "SL_HIT": 48,
       "BE": 25,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4792,10 +4780,10 @@
      "total_net_pips": -501.30000000000007,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 47,
+      "SL_HIT": 48,
       "BE": 25,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4840,9 +4828,9 @@
      "total_net_pips": 227.06000000000006,
      "winners_within_8h_share": 0.8695652173913043,
      "exit_reasons": {
-      "SL_HIT": 55,
-      "MAX_HOLD_TIME": 17,
-      "TP_HIT": 9
+      "SL_HIT": 57,
+      "MAX_HOLD_TIME": 14,
+      "TP_HIT": 10
      },
      "sl_branches": {
       "atr": 81
@@ -4863,11 +4851,11 @@
      "total_net_pips": 194.05999999999997,
      "winners_within_8h_share": 0.9130434782608695,
      "exit_reasons": {
-      "SL_HIT": 55,
+      "SL_HIT": 57,
       "MAX_HOLD_TIME": 12,
-      "TP_HIT": 9,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 4,
-      "WEEKEND_CLOSE": 1
+      "TP_HIT": 10,
+      "WEEKEND_CLOSE": 1,
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 81
@@ -4888,10 +4876,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -4912,10 +4900,10 @@
      "total_net_pips": -499.2000000000001,
      "winners_within_8h_share": 0.9166666666666666,
      "exit_reasons": {
-      "SL_HIT": 46,
+      "SL_HIT": 47,
       "BE": 26,
       "TRAIL": 11,
-      "WEEKEND_CLOSE_SUNDAY_FILL": 2
+      "WEEKEND_CLOSE_SUNDAY_FILL": 1
      },
      "sl_branches": {
       "atr": 85
@@ -11281,13 +11269,13 @@
     },
     "bars_held": 15,
     "hold_sec": 185400.0,
-    "exit_reason": "MAX_HOLD_TIME",
+    "exit_reason": "SL_HIT",
     "gross_pips": -84.5,
     "raw_pips": -84.3,
     "net_pips": -86.44,
     "tv_net_pips": -85.09,
     "mfe_pips": 10.2,
-    "mae_pips": 5.4
+    "mae_pips": 84.4
    },
    {
     "signal_time": "2025-07-25T07:15:00+00:00",
@@ -11745,13 +11733,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "MAX_HOLD_TIME",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",
@@ -11816,7 +11804,7 @@
     "entry_time": "2025-10-03T17:15:00+00:00",
     "exit_time": "2025-10-05T21:00:00+00:00",
     "entry": 147.44,
-    "exit": 149.494,
+    "exit": 149.495,
     "atr": 0.1084,
     "decl_sl": 147.277,
     "decl_tp": 147.982,
@@ -11832,12 +11820,12 @@
     },
     "bars_held": 16,
     "hold_sec": 186300.0,
-    "exit_reason": "MAX_HOLD_TIME",
-    "gross_pips": 205.4,
+    "exit_reason": "TP_HIT",
+    "gross_pips": 205.5,
     "raw_pips": 205.6,
     "net_pips": 203.46,
-    "tv_net_pips": 204.81,
-    "mfe_pips": 10.3,
+    "tv_net_pips": 204.91,
+    "mfe_pips": 205.5,
     "mae_pips": 6.3
    },
    {
@@ -12657,7 +12645,7 @@
     "entry_time": "2026-02-06T16:15:00+00:00",
     "exit_time": "2026-02-08T22:00:00+00:00",
     "entry": 156.959,
-    "exit": 157.519,
+    "exit": 157.52,
     "atr": 0.1202,
     "decl_sl": 156.779,
     "decl_tp": 157.56,
@@ -12673,13 +12661,13 @@
     },
     "bars_held": 24,
     "hold_sec": 193500.0,
-    "exit_reason": "MAX_HOLD_TIME",
-    "gross_pips": 56.0,
+    "exit_reason": "TP_HIT",
+    "gross_pips": 56.1,
     "raw_pips": 56.2,
     "net_pips": 54.06,
-    "tv_net_pips": 55.37,
-    "mfe_pips": 30.1,
-    "mae_pips": 2.5
+    "tv_net_pips": 55.47,
+    "mfe_pips": 56.1,
+    "mae_pips": 11.8
    },
    {
     "signal_time": "2026-02-18T01:30:00+00:00",
@@ -13632,13 +13620,13 @@
     },
     "bars_held": 15,
     "hold_sec": 185400.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -84.5,
     "raw_pips": -84.3,
     "net_pips": -86.44,
     "tv_net_pips": -85.09,
     "mfe_pips": 10.2,
-    "mae_pips": 5.4
+    "mae_pips": 84.4
    },
    {
     "signal_time": "2025-07-25T07:15:00+00:00",
@@ -14096,13 +14084,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",
@@ -14167,7 +14155,7 @@
     "entry_time": "2025-10-03T17:15:00+00:00",
     "exit_time": "2025-10-05T21:00:00+00:00",
     "entry": 147.44,
-    "exit": 149.494,
+    "exit": 149.495,
     "atr": 0.1084,
     "decl_sl": 147.277,
     "decl_tp": 147.982,
@@ -14183,12 +14171,12 @@
     },
     "bars_held": 16,
     "hold_sec": 186300.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
-    "gross_pips": 205.4,
+    "exit_reason": "TP_HIT",
+    "gross_pips": 205.5,
     "raw_pips": 205.6,
     "net_pips": 203.46,
-    "tv_net_pips": 204.81,
-    "mfe_pips": 10.3,
+    "tv_net_pips": 204.91,
+    "mfe_pips": 205.5,
     "mae_pips": 6.3
    },
    {
@@ -16012,13 +16000,13 @@
     },
     "bars_held": 15,
     "hold_sec": 185400.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "BE",
     "gross_pips": -84.5,
     "raw_pips": -84.3,
     "net_pips": -86.44,
     "tv_net_pips": -85.09,
     "mfe_pips": 10.2,
-    "mae_pips": 5.4
+    "mae_pips": 84.4
    },
    {
     "signal_time": "2025-07-25T07:15:00+00:00",
@@ -16505,13 +16493,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",
@@ -18479,13 +18467,13 @@
     },
     "bars_held": 15,
     "hold_sec": 185400.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "BE",
     "gross_pips": -84.5,
     "raw_pips": -84.3,
     "net_pips": -86.44,
     "tv_net_pips": -85.09,
     "mfe_pips": 10.2,
-    "mae_pips": 5.4
+    "mae_pips": 84.4
    },
    {
     "signal_time": "2025-07-25T07:15:00+00:00",
@@ -18972,13 +18960,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",
@@ -20946,13 +20934,13 @@
     },
     "bars_held": 15,
     "hold_sec": 185400.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "BE",
     "gross_pips": -84.5,
     "raw_pips": -84.3,
     "net_pips": -86.44,
     "tv_net_pips": -85.09,
     "mfe_pips": 10.2,
-    "mae_pips": 5.4
+    "mae_pips": 84.4
    },
    {
     "signal_time": "2025-07-25T07:15:00+00:00",
@@ -21526,13 +21514,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",
@@ -29799,13 +29787,13 @@
     },
     "bars_held": 15,
     "hold_sec": 185400.0,
-    "exit_reason": "MAX_HOLD_TIME",
+    "exit_reason": "SL_HIT",
     "gross_pips": -84.5,
     "raw_pips": -84.3,
     "net_pips": -86.44,
     "tv_net_pips": -85.09,
     "mfe_pips": 10.2,
-    "mae_pips": 5.4
+    "mae_pips": 84.4
    },
    {
     "signal_time": "2025-07-25T07:15:00+00:00",
@@ -30263,13 +30251,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "MAX_HOLD_TIME",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",
@@ -30334,7 +30322,7 @@
     "entry_time": "2025-10-03T17:15:00+00:00",
     "exit_time": "2025-10-05T21:00:00+00:00",
     "entry": 147.44,
-    "exit": 149.494,
+    "exit": 149.495,
     "atr": 0.1084,
     "decl_sl": 147.277,
     "decl_tp": 147.982,
@@ -30350,12 +30338,12 @@
     },
     "bars_held": 16,
     "hold_sec": 186300.0,
-    "exit_reason": "MAX_HOLD_TIME",
-    "gross_pips": 205.4,
+    "exit_reason": "TP_HIT",
+    "gross_pips": 205.5,
     "raw_pips": 205.6,
     "net_pips": 203.46,
-    "tv_net_pips": 204.81,
-    "mfe_pips": 10.3,
+    "tv_net_pips": 204.91,
+    "mfe_pips": 205.5,
     "mae_pips": 6.3
    },
    {
@@ -31175,7 +31163,7 @@
     "entry_time": "2026-02-06T16:15:00+00:00",
     "exit_time": "2026-02-08T22:00:00+00:00",
     "entry": 156.959,
-    "exit": 157.519,
+    "exit": 157.52,
     "atr": 0.1202,
     "decl_sl": 156.779,
     "decl_tp": 157.56,
@@ -31191,13 +31179,13 @@
     },
     "bars_held": 24,
     "hold_sec": 193500.0,
-    "exit_reason": "MAX_HOLD_TIME",
-    "gross_pips": 56.0,
+    "exit_reason": "TP_HIT",
+    "gross_pips": 56.1,
     "raw_pips": 56.2,
     "net_pips": 54.06,
-    "tv_net_pips": 55.37,
-    "mfe_pips": 30.1,
-    "mae_pips": 2.5
+    "tv_net_pips": 55.47,
+    "mfe_pips": 56.1,
+    "mae_pips": 11.8
    },
    {
     "signal_time": "2026-02-18T01:30:00+00:00",
@@ -32150,13 +32138,13 @@
     },
     "bars_held": 15,
     "hold_sec": 185400.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -84.5,
     "raw_pips": -84.3,
     "net_pips": -86.44,
     "tv_net_pips": -85.09,
     "mfe_pips": 10.2,
-    "mae_pips": 5.4
+    "mae_pips": 84.4
    },
    {
     "signal_time": "2025-07-25T07:15:00+00:00",
@@ -32614,13 +32602,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",
@@ -32685,7 +32673,7 @@
     "entry_time": "2025-10-03T17:15:00+00:00",
     "exit_time": "2025-10-05T21:00:00+00:00",
     "entry": 147.44,
-    "exit": 149.494,
+    "exit": 149.495,
     "atr": 0.1084,
     "decl_sl": 147.277,
     "decl_tp": 147.982,
@@ -32701,12 +32689,12 @@
     },
     "bars_held": 16,
     "hold_sec": 186300.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
-    "gross_pips": 205.4,
+    "exit_reason": "TP_HIT",
+    "gross_pips": 205.5,
     "raw_pips": 205.6,
     "net_pips": 203.46,
-    "tv_net_pips": 204.81,
-    "mfe_pips": 10.3,
+    "tv_net_pips": 204.91,
+    "mfe_pips": 205.5,
     "mae_pips": 6.3
    },
    {
@@ -35023,13 +35011,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",
@@ -37490,13 +37478,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",
@@ -40044,13 +40032,13 @@
     },
     "bars_held": 4,
     "hold_sec": 175500.0,
-    "exit_reason": "WEEKEND_CLOSE_SUNDAY_FILL",
+    "exit_reason": "SL_HIT",
     "gross_pips": -11.6,
     "raw_pips": -11.4,
     "net_pips": -13.54,
     "tv_net_pips": -12.19,
     "mfe_pips": 4.3,
-    "mae_pips": 8.1
+    "mae_pips": 11.5
    },
    {
     "signal_time": "2025-09-15T00:15:00+00:00",

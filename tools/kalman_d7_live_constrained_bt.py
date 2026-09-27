@@ -307,6 +307,22 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
             hold_open = (ts - entry_ts).total_seconds()
             bars = j - i  # bars since signal bar (bar j is the bars-th bar held)
 
+            # ── ギャップ fill (PR #302 review P1 4114077247 / P2 4114113659): bar open が既に stop を割って / TP を超えて
+            #    いれば fill は open 価格 (stop は sl − tick ではなく open − tick、指値 TP は open で fill = 有利側)。
+            #    live (`_sltp_loop`) は SL/TP を週末・保持上限・時間減衰より先に判定するので、C2/C1/C5 の open 判定より前に置く
+            #    (日曜 open がギャップで stop を割っていれば C2 ではなく SL_HIT に帰属)。順序仮定に依らず先に行う。
+            bar_hi, bar_lo = h[j], lo[j]
+            gap_sl = o[j] <= sl
+            gap_tp = cfg.exit_mode == "tp5" and o[j] >= tp
+            if gap_sl or gap_tp:
+                if gap_sl:
+                    exit_raw, exit_px, reason = o[j], o[j] - MINTICK, (sl_moved or "SL_HIT")
+                else:
+                    exit_raw, exit_px, reason = o[j], o[j], "TP_HIT"
+                highest = max(highest, bar_hi); lowest = min(lowest, bar_lo)
+                exit_j, exit_ts = j, ts
+                break
+
             # ── tick-based checks at bar open (live は毎 tick、ここでは open で近似) ──
             if cfg.c2:
                 _c2 = _c2_exit_at_open(idx, j)
@@ -337,20 +353,6 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
                     new_sl = round(entry + C3_BE_SPREAD, 3)
                     if new_sl > sl:
                         sl, sl_moved = new_sl, "BE"
-
-            # ── ギャップ fill (PR #302 review P1 4114077247): bar open が既に stop を割って / TP を超えていれば
-            #    fill は open 価格 (stop は sl − tick ではなく open − tick、指値 TP は open で fill = 有利側)。
-            #    週末ギャップ (日曜 open) で SL 側に大きく効く。open 判定は順序仮定に依らず先に行う。
-            gap_sl = o[j] <= sl
-            gap_tp = cfg.exit_mode == "tp5" and o[j] >= tp
-            if gap_sl or gap_tp:
-                if gap_sl:
-                    exit_raw, exit_px, reason = o[j], o[j] - MINTICK, (sl_moved or "SL_HIT")
-                else:
-                    exit_raw, exit_px, reason = o[j], o[j], "TP_HIT"
-                highest = max(highest, bar_hi); lowest = min(lowest, bar_lo)
-                exit_j, exit_ts = j, ts
-                break
 
             # ── C5 連続パス近似 (PR #302 review P2 4114077250): 4h 超で open ≥ entry の bar が bar 内で entry を割るとき、
             #    live の 0.5s ループは stop (< entry) に達する前に entry 割れの tick を見て決済する。SL が entry 以上に
@@ -701,8 +703,16 @@ def run_all(data: pd.DataFrame, orders: tuple[str, ...] = ("adverse_first", "fav
                                                  "winners_within_8h_share", "exit_reasons", "sl_branches",
                                                  "c0_flags")})
             out["c0_whatifs"][order][name] = rows
-    out["harness_unverified"] = not any(h["all_ok"] for h in out["harness"].values())
+    out["harness_unverified"] = harness_unverified(out["harness"], out["harness_identification"])
     return out
+
+
+def harness_unverified(harness: dict[str, Any], identification: list[dict[str, Any]]) -> bool:
+    """走 0 の既定 2 変種 **または** flip 定義の識別候補のどれかが canon を ±10% で再現すれば検証済み扱い
+    (PR #302 review P2 4114113668 — 候補側の合格を無視すると、canon を同定できた走まで「引用禁止」にしてしまう)。"""
+    if any(h.get("all_ok") for h in harness.values()):
+        return False
+    return not any(r.get("harness_ok") for r in identification)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -734,7 +744,7 @@ def render_md(res: dict[str, Any], meta: dict[str, Any]) -> str:
              "1 建玉制 (Pine pyramiding=0) なので N は exit 長で変わる")
     L.append("")
     if res.get("harness_unverified"):
-        L.append("> 🔴 **HARNESS 未検証**: 走 0 のどの変種も canon (N=46 / WR 23.91% / PF 3.866 / avg winner bars 458) を ±10% で再現しない。"
+        L.append("> 🔴 **HARNESS 未検証**: 走 0 の既定 2 変種も flip 定義の識別候補 5 つも canon (N=46 / WR 23.91% / PF 3.866 / avg winner bars 458) を ±10% で再現しない。"
                  "task 文書「走 0 が現行 BT を再現できないまま制約付きの数字を出さない」に従い、**以下の全数値は引用禁止 — "
                  "packet に載せるのは分解の順位・向き・exit 種別の構造のみ**。要因: (1) v17 canon Pine がリポジトリに無い "
                  "(TV slot は 2026-05-21 上書き、TV は本セッションで接続不可) → flip exit の定義は推定、(2) データが Massive "
