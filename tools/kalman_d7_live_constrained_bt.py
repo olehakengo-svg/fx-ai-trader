@@ -338,6 +338,29 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
                     if new_sl > sl:
                         sl, sl_moved = new_sl, "BE"
 
+            # ── ギャップ fill (PR #302 review P1 4114077247): bar open が既に stop を割って / TP を超えていれば
+            #    fill は open 価格 (stop は sl − tick ではなく open − tick、指値 TP は open で fill = 有利側)。
+            #    週末ギャップ (日曜 open) で SL 側に大きく効く。open 判定は順序仮定に依らず先に行う。
+            gap_sl = o[j] <= sl
+            gap_tp = cfg.exit_mode == "tp5" and o[j] >= tp
+            if gap_sl or gap_tp:
+                if gap_sl:
+                    exit_raw, exit_px, reason = o[j], o[j] - MINTICK, (sl_moved or "SL_HIT")
+                else:
+                    exit_raw, exit_px, reason = o[j], o[j], "TP_HIT"
+                highest = max(highest, bar_hi); lowest = min(lowest, bar_lo)
+                exit_j, exit_ts = j, ts
+                break
+
+            # ── C5 連続パス近似 (PR #302 review P2 4114077250): 4h 超で open ≥ entry の bar が bar 内で entry を割るとき、
+            #    live の 0.5s ループは stop (< entry) に達する前に entry 割れの tick を見て決済する。SL が entry 以上に
+            #    移動済み (BE / trail) なら SL の方が先に触れるので通常経路。
+            if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and o[j] >= entry and bar_lo < entry and sl < entry:
+                exit_raw, exit_px, reason = entry, entry - MINTICK, "TIME_DECAY_EXIT"
+                highest = max(highest, bar_hi); lowest = min(lowest, bar_lo)
+                exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
+                break
+
             if cfg.order == "adverse_first":
                 if bar_lo <= sl:
                     hit_sl = True
@@ -363,12 +386,6 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
                 break
             if hit_tp:
                 exit_raw, exit_px, reason = tp, tp, "TP_HIT"  # 指値は slippage 無し
-                exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
-                break
-
-            # ── C5 intrabar (open ≥ entry だが bar 内で entry を割った): 最初の tick で決済 ≈ entry ──
-            if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and bar_lo < entry <= o[j]:
-                exit_raw, exit_px, reason = entry, entry - MINTICK, "TIME_DECAY_EXIT"
                 exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
                 break
 
@@ -408,8 +425,17 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
             tv_net_pips=round(gross - tv_commission_pips(entry, exit_px), 2),
             mfe_pips=round((highest - entry) / PIP, 2), mae_pips=round((entry - lowest) / PIP, 2),
         ))
-        i = exit_j + 1
+        # ── 再エントリ (PR #302 review P1 4114077249): bar 内 / open で exit した bar は close 時点でフラットなので、
+        #    その bar の entry_signal は評価対象 (TV process_orders_on_close / live の bar close signal)。
+        #    close 時点の exit (FLIP / SR 近似 / CAP480 / EOD) は同 bar で再エントリできないので次 bar へ。
+        if reason in _CLOSE_TIME_EXITS:
+            i = exit_j + 1
+        else:
+            i = exit_j
     return trades
+
+
+_CLOSE_TIME_EXITS = frozenset({"PO_DN_FLIP", "SIGNAL_REVERSE_APPROX", "CANON_CAP_480", "EOD"})
 
 
 # ─────────────────────────────────────────────────────────────────────────────

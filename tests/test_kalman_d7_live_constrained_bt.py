@@ -166,6 +166,8 @@ def test_trail_exit_after_1p5_atr_mfe():
     entry = 150.000 + K.MINTICK
     df = _bars(40, atr=0.100)
     df.iloc[10, df.columns.get_loc("High")] = entry + 0.200   # MFE 20p ≥ 1.5×ATR → trail SL = 20p − 5p = +15p
+    df.iloc[11, df.columns.get_loc("Open")] = entry + 0.180   # open は trail SL の上 (下ならギャップ fill 経路)
+    df.iloc[11, df.columns.get_loc("High")] = entry + 0.185
     df.iloc[11, df.columns.get_loc("Low")] = entry + 0.100    # trail SL に触る
     t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c3c4=True)))
     assert t.exit_reason == "TRAIL"
@@ -350,3 +352,58 @@ def test_tv_pf_is_cash_based_with_sequential_equity_sizing():
 
 def test_wilson_lower_matches_known_value():
     assert K.wilson_lower(11, 46) == pytest.approx(0.1394, abs=0.002)
+
+
+# ── 4 巡目 (PR #302 review P1 4114077247 / P1 4114077249 / P2 4114077250) ───
+def test_gap_through_stop_fills_at_open_not_at_stop_level():
+    """open が既に SL を割っていれば fill は open − tick (sl − tick ではない)。TP 側は open で fill (有利側)。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(40, atr=0.100)
+    gap_open = entry - 0.700          # SL (−15p) を 55p 飛び越える open
+    df.iloc[12, [df.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [gap_open, gap_open + 0.002, gap_open - 0.002, gap_open]
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5")))
+    assert t.exit_reason == "SL_HIT"
+    assert t.exit == pytest.approx(gap_open - K.MINTICK) and t.raw_pips == pytest.approx(-69.9, abs=0.01)  # raw = open − signal close
+    assert pd.Timestamp(t.exit_time) == df.index[12]                      # open 時刻で fill
+    df2 = _bars(40, atr=0.100)
+    gap_up = entry + 0.700            # TP (+50p) を飛び越える open → open で fill (+70p)
+    df2.iloc[12, [df2.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [gap_up, gap_up + 0.002, gap_up - 0.002, gap_up]
+    t2 = _one(K.simulate(df2, K.StackConfig(exit_mode="tp5")))
+    assert t2.exit_reason == "TP_HIT" and t2.raw_pips == pytest.approx(70.1, abs=0.01)
+
+
+def test_intrabar_exit_bar_can_reenter_at_its_close_but_close_time_exit_cannot():
+    """bar 内 exit (SL/TP) した bar の close に signal があれば再エントリする。close 時点 exit (flip) の bar は次 bar から。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(60)
+    df.iloc[10, df.columns.get_loc("High")] = entry + 0.501     # bar 10 で TP
+    df.iloc[10, df.columns.get_loc("entry_signal")] = True      # 同 bar close に再 signal
+    tr = K.simulate(df, K.StackConfig(exit_mode="tp5", canon_cap=False))
+    assert len(tr) == 2 and tr[0].exit_reason == "TP_HIT" and tr[1].signal_time == df.index[10].isoformat()
+    df2 = _bars(60)
+    df2.iloc[10, df2.columns.get_loc("perfect_dn")] = True       # bar 10 close で flip exit
+    df2.iloc[10, df2.columns.get_loc("entry_signal")] = True
+    tr2 = K.simulate(df2, K.StackConfig(exit_mode="flip", canon_cap=False))
+    assert len(tr2) == 1 and tr2[0].exit_reason == "PO_DN_FLIP"
+
+
+def test_c5_entry_crossing_precedes_a_later_stop_when_sl_is_below_entry():
+    """4h 超で open ≥ entry の bar が entry と SL を両方割る → 連続パスでは entry 割れ (C5) が先。SL が entry 以上 (BE 後) なら SL 経路。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(80, atr=0.100)
+    j = 5 + 20   # hold 5h の bar
+    for b in range(6, j):   # 保持中は entry の上で推移 (flat 150.0 だと Low 149.998 < entry で 4h 後に C5 が即発火)
+        df.iloc[b, [df.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [entry + 0.010, entry + 0.012, entry + 0.008, entry + 0.010]
+    df.iloc[j, [df.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [entry + 0.010, entry + 0.012, entry - 0.300, entry - 0.250]
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c5=True)))
+    assert t.exit_reason == "TIME_DECAY_EXIT" and t.exit == pytest.approx(entry - K.MINTICK)
+    t0 = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c5=False)))
+    assert t0.exit_reason == "SL_HIT"
+    # BE 済み (SL = entry + spread > entry) なら SL/BE 経路が先
+    df3 = _bars(80, atr=0.100)
+    for b in range(6, j):
+        df3.iloc[b, [df3.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [entry + 0.010, entry + 0.012, entry + 0.008, entry + 0.010]
+    df3.iloc[8, df3.columns.get_loc("High")] = entry + 0.090     # MFE 9p ≥ 0.8×ATR → BE
+    df3.iloc[j, [df3.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [entry + 0.010, entry + 0.012, entry - 0.300, entry - 0.250]
+    t3 = _one(K.simulate(df3, K.StackConfig(exit_mode="tp5", c5=True, c3c4=True)))
+    assert t3.exit_reason == "BE"

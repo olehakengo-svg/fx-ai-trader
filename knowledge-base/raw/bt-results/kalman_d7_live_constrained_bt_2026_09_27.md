@@ -16,12 +16,12 @@
 |---|---|---|---|---|
 | walk0_flip_canon | n | 46 | 60 | ❌ |
 | walk0_flip_canon | wr | 0.2391 | 0.1833 | ❌ |
-| walk0_flip_canon | pf | 3.8660 | 2.2120 | ❌ |
+| walk0_flip_canon | pf | 3.8660 | 1.9872 | ❌ |
 | walk0_flip_canon | avg_win_bars | 458 | 372.8182 | ❌ |
 | walk0_flip_canon | **all** | | | ❌ |
 | walk0_tp5_decl | n | 46 | 74 | ❌ |
 | walk0_tp5_decl | wr | 0.2391 | 0.2973 | ❌ |
-| walk0_tp5_decl | pf | 3.8660 | 1.4541 | ❌ |
+| walk0_tp5_decl | pf | 3.8660 | 1.4885 | ❌ |
 | walk0_tp5_decl | avg_win_bars | 458 | 37.0000 | ❌ |
 | walk0_tp5_decl | **all** | | | ❌ |
 
@@ -29,24 +29,24 @@
 
 | flip 定義 | 説明 | N | WR (tv) | PF (tv) | avg win bars | EV tv p/t | payoff (net) | exits | harness |
 |---|---|---|---|---|---|---|---|---|---|
-| perfect_dn | EMA200 > EMA75 > EMA25 (完全下順) — 既定 | 60 | 18.3% | 2.21 | 373 | 15.09 | 8.85 | SL_HIT 48, PO_DN_FLIP 9, CANON_CAP_480 3 | ❌ |
-| not_perfect_up | perfect_up が偽になる (close < EMA25 含む) | 92 | 20.7% | 0.90 | 26 | -0.71 | 4.03 | PO_DN_FLIP 78, SL_HIT 14 | ❌ |
-| close_lt_ema75 | close < EMA75 | 77 | 23.4% | 2.24 | 107 | 10.90 | 6.38 | PO_DN_FLIP 50, SL_HIT 27 | ❌ |
-| close_lt_ema200 | close < EMA200 | 65 | 21.5% | 2.51 | 243 | 16.70 | 8.12 | SL_HIT 39, PO_DN_FLIP 26 | ❌ |
-| ema25_lt_ema75 | EMA25 < EMA75 | 67 | 22.4% | 2.79 | 252 | 20.84 | 8.68 | SL_HIT 49, PO_DN_FLIP 18 | ❌ |
+| perfect_dn | EMA200 > EMA75 > EMA25 (完全下順) — 既定 | 60 | 18.3% | 1.99 | 373 | 13.66 | 8.03 | SL_HIT 48, PO_DN_FLIP 9, CANON_CAP_480 3 | ❌ |
+| not_perfect_up | perfect_up が偽になる (close < EMA25 含む) | 92 | 20.7% | 0.78 | 26 | -1.63 | 3.58 | PO_DN_FLIP 78, SL_HIT 14 | ❌ |
+| close_lt_ema75 | close < EMA75 | 77 | 23.4% | 2.00 | 107 | 9.80 | 5.75 | PO_DN_FLIP 50, SL_HIT 27 | ❌ |
+| close_lt_ema200 | close < EMA200 | 65 | 21.5% | 2.25 | 243 | 15.39 | 7.35 | SL_HIT 39, PO_DN_FLIP 26 | ❌ |
+| ema25_lt_ema75 | EMA25 < EMA75 | 67 | 22.4% | 2.52 | 252 | 19.57 | 7.90 | SL_HIT 49, PO_DN_FLIP 18 | ❌ |
 
 ## 走 0〜5 — bar 内順序仮定 = `adverse_first` (既定・保守側)
 
 | 走 | N | WR | Wilson lo | PF (net) | EV net p/t | Σ net p | avg win p | avg loss p | payoff | winner ≤8h | winner hold bars med (p25–p75) | loser hold bars med | exit 種別 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| walk0_flip_canon | 60 | 18.3% | 10.6% | 1.99 | 13.77 | 826.0 | 151.2 | -17.1 | 8.85 | 0% | 330 (294–466) | 9 | SL_HIT 48, PO_DN_FLIP 9, CANON_CAP_480 3 |
-| walk0_tp5_decl | 74 | 29.7% | 20.5% | 1.30 | 3.61 | 266.8 | 52.4 | -17.0 | 3.08 | 45% | 30 (15–52) | 6 | SL_HIT 52, TP_HIT 22 |
-| walk0p_C0 | 80 | 21.2% | 13.7% | 0.98 | -0.20 | -15.7 | 46.2 | -12.7 | 3.63 | 65% | 18 (15–30) | 4 | SL_HIT 63, TP_HIT 17 |
-| walk1_C0+C1 | 81 | 27.2% | 18.7% | 1.17 | 1.76 | 142.2 | 43.5 | -13.8 | 3.15 | 86% | 26 (15–33) | 4 | SL_HIT 56, MAX_HOLD_TIME 14, TP_HIT 11 |
-| walk2_+C2 | 81 | 27.2% | 18.7% | 1.13 | 1.35 | 109.2 | 42.0 | -13.8 | 3.04 | 91% | 25 (15–33) | 4 | SL_HIT 56, TP_HIT 11, MAX_HOLD_TIME 9, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
-| walk3_+C3C4 | 85 | 23.5% | 15.8% | 0.55 | -3.71 | -315.7 | 19.6 | -10.9 | 1.80 | 95% | 6 (4–7) | 4 | SL_HIT 46, TRAIL 17, BE 17, WEEKEND_CLOSE_SUNDAY_FILL 3, TP_HIT 1, WEEKEND_CLOSE 1 |
-| walk4_+C5 | 85 | 23.5% | 15.8% | 0.55 | -3.71 | -315.7 | 19.6 | -10.9 | 1.80 | 95% | 6 (4–7) | 4 | SL_HIT 46, TRAIL 17, BE 17, WEEKEND_CLOSE_SUNDAY_FILL 3, TP_HIT 1, WEEKEND_CLOSE 1 |
-| walk5_+C6approx | 92 | 19.6% | 12.7% | 0.55 | -3.12 | -286.7 | 19.4 | -8.6 | 2.26 | 94% | 5 (4–6) | 2 | SIGNAL_REVERSE_APPROX 32, SL_HIT 25, TRAIL 15, BE 15, WEEKEND_CLOSE_SUNDAY_FILL 3, TP_HIT 1, WEEKEND_CLOSE 1 |
+| walk0_flip_canon | 60 | 18.3% | 10.6% | 1.80 | 12.34 | 740.6 | 151.2 | -18.8 | 8.03 | 0% | 330 (294–466) | 9 | SL_HIT 48, PO_DN_FLIP 9, CANON_CAP_480 3 |
+| walk0_tp5_decl | 74 | 29.7% | 20.5% | 1.34 | 4.50 | 332.7 | 59.3 | -18.7 | 3.17 | 45% | 30 (15–52) | 6 | SL_HIT 52, TP_HIT 22 |
+| walk0p_C0 | 80 | 21.2% | 13.7% | 1.06 | 0.67 | 53.3 | 55.8 | -14.2 | 3.93 | 65% | 18 (15–30) | 4 | SL_HIT 63, TP_HIT 17 |
+| walk1_C0+C1 | 81 | 27.2% | 18.7% | 1.17 | 1.75 | 141.8 | 43.5 | -13.8 | 3.15 | 86% | 26 (15–33) | 4 | SL_HIT 56, MAX_HOLD_TIME 14, TP_HIT 11 |
+| walk2_+C2 | 81 | 27.2% | 18.7% | 1.13 | 1.34 | 108.8 | 42.0 | -13.8 | 3.04 | 91% | 25 (15–33) | 4 | SL_HIT 56, TP_HIT 11, MAX_HOLD_TIME 9, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| walk3_+C3C4 | 85 | 23.5% | 15.8% | 0.54 | -3.83 | -325.9 | 19.1 | -10.9 | 1.75 | 95% | 6 (4–7) | 4 | SL_HIT 46, TRAIL 17, BE 17, WEEKEND_CLOSE_SUNDAY_FILL 3, TP_HIT 1, WEEKEND_CLOSE 1 |
+| walk4_+C5 | 85 | 23.5% | 15.8% | 0.54 | -3.83 | -325.9 | 19.1 | -10.9 | 1.75 | 95% | 6 (4–7) | 4 | SL_HIT 46, TRAIL 17, BE 17, WEEKEND_CLOSE_SUNDAY_FILL 3, TP_HIT 1, WEEKEND_CLOSE 1 |
+| walk5_+C6approx | 92 | 19.6% | 12.7% | 0.53 | -3.22 | -296.5 | 18.9 | -8.6 | 2.20 | 94% | 5 (4–6) | 2 | SIGNAL_REVERSE_APPROX 32, SL_HIT 25, TRAIL 15, BE 15, WEEKEND_CLOSE_SUNDAY_FILL 3, TP_HIT 1, WEEKEND_CLOSE 1 |
 
 winner / loser 別 exit 種別:
 
@@ -65,24 +65,24 @@ winner / loser 別 exit 種別:
 
 | 構成 | N | WR | PF (net) | EV net p/t | Σ net p | winner ≤8h | exit 種別 |
 |---|---|---|---|---|---|---|---|
-| marg_C1_only | 81 | 27.2% | 1.17 | 1.76 | 142.2 | 86% | SL_HIT 56, MAX_HOLD_TIME 14, TP_HIT 11 |
-| marg_C2_only | 80 | 22.5% | 1.06 | 0.67 | 53.8 | 67% | SL_HIT 60, TP_HIT 15, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
-| marg_C3C4_only | 85 | 22.4% | 0.62 | -2.83 | -240.6 | 95% | SL_HIT 48, TRAIL 18, BE 18, TP_HIT 1 |
-| marg_C5_only | 84 | 20.2% | 0.92 | -0.85 | -71.2 | 76% | SL_HIT 58, TP_HIT 17, TIME_DECAY_EXIT 9 |
-| marg_C6approx_only | 92 | 10.9% | 0.70 | -2.22 | -203.9 | 80% | SIGNAL_REVERSE_APPROX 49, SL_HIT 33, TP_HIT 10 |
-| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 26.2% | 1.17 | 1.67 | 140.4 | 91% | SL_HIT 56, TP_HIT 13, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 4, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| marg_C1_only | 81 | 27.2% | 1.17 | 1.75 | 141.8 | 86% | SL_HIT 56, MAX_HOLD_TIME 14, TP_HIT 11 |
+| marg_C2_only | 80 | 22.5% | 1.06 | 0.67 | 53.4 | 67% | SL_HIT 60, TP_HIT 15, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| marg_C3C4_only | 85 | 22.4% | 0.56 | -3.84 | -326.0 | 95% | SL_HIT 48, BE 18, TRAIL 17, TP_HIT 2 |
+| marg_C5_only | 84 | 20.2% | 1.15 | 1.50 | 125.6 | 76% | SL_HIT 55, TP_HIT 17, TIME_DECAY_EXIT 12 |
+| marg_C6approx_only | 92 | 10.9% | 0.62 | -3.19 | -293.9 | 80% | SIGNAL_REVERSE_APPROX 49, SL_HIT 33, TP_HIT 10 |
+| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 26.2% | 1.18 | 1.75 | 147.2 | 91% | SL_HIT 55, TP_HIT 13, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 5, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
 
 ## 走 0〜5 — bar 内順序仮定 = `favorable_first` (感度)
 
 | 走 | N | WR | Wilson lo | PF (net) | EV net p/t | Σ net p | avg win p | avg loss p | payoff | winner ≤8h | winner hold bars med (p25–p75) | loser hold bars med | exit 種別 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| walk0_flip_canon | 60 | 18.3% | 10.6% | 1.99 | 13.77 | 826.0 | 151.2 | -17.1 | 8.85 | 0% | 330 (294–466) | 9 | SL_HIT 48, PO_DN_FLIP 9, CANON_CAP_480 3 |
-| walk0_tp5_decl | 74 | 31.1% | 21.7% | 1.37 | 4.36 | 322.9 | 51.9 | -17.1 | 3.04 | 48% | 28 (14–52) | 5 | SL_HIT 51, TP_HIT 23 |
-| walk0p_C0 | 80 | 22.5% | 14.7% | 1.04 | 0.39 | 31.3 | 45.5 | -12.7 | 3.58 | 67% | 17 (12–29) | 4 | SL_HIT 62, TP_HIT 18 |
-| walk1_C0+C1 | 81 | 28.4% | 19.7% | 1.24 | 2.34 | 189.2 | 43.1 | -13.8 | 3.12 | 87% | 24 (13–33) | 4 | SL_HIT 55, MAX_HOLD_TIME 14, TP_HIT 12 |
-| walk2_+C2 | 81 | 28.4% | 19.7% | 1.19 | 1.93 | 156.2 | 41.7 | -13.8 | 3.01 | 91% | 23 (13–33) | 4 | SL_HIT 55, TP_HIT 12, MAX_HOLD_TIME 9, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
-| walk3_+C3C4 | 85 | 14.1% | 8.3% | 0.21 | -5.87 | -498.8 | 11.1 | -8.6 | 1.28 | 92% | 4 (3–6) | 3 | SL_HIT 46, BE 26, TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 2 |
-| walk4_+C5 | 85 | 14.1% | 8.3% | 0.21 | -5.87 | -498.8 | 11.1 | -8.6 | 1.28 | 92% | 4 (3–6) | 3 | SL_HIT 46, BE 26, TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 2 |
+| walk0_flip_canon | 60 | 18.3% | 10.6% | 1.80 | 12.34 | 740.6 | 151.2 | -18.8 | 8.03 | 0% | 330 (294–466) | 9 | SL_HIT 48, PO_DN_FLIP 9, CANON_CAP_480 3 |
+| walk0_tp5_decl | 74 | 31.1% | 21.7% | 1.41 | 5.25 | 388.8 | 58.5 | -18.8 | 3.12 | 48% | 28 (14–52) | 6 | SL_HIT 51, TP_HIT 23 |
+| walk0p_C0 | 80 | 22.5% | 14.7% | 1.11 | 1.25 | 100.3 | 54.7 | -14.3 | 3.84 | 67% | 17 (12–29) | 4 | SL_HIT 62, TP_HIT 18 |
+| walk1_C0+C1 | 81 | 28.4% | 19.7% | 1.24 | 2.33 | 188.8 | 43.1 | -13.8 | 3.11 | 87% | 24 (13–33) | 4 | SL_HIT 55, MAX_HOLD_TIME 14, TP_HIT 12 |
+| walk2_+C2 | 81 | 28.4% | 19.7% | 1.19 | 1.92 | 155.8 | 41.7 | -13.8 | 3.01 | 91% | 23 (13–33) | 4 | SL_HIT 55, TP_HIT 12, MAX_HOLD_TIME 9, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| walk3_+C3C4 | 85 | 14.1% | 8.3% | 0.21 | -5.87 | -499.2 | 11.1 | -8.7 | 1.28 | 92% | 4 (3–6) | 3 | SL_HIT 46, BE 26, TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 2 |
+| walk4_+C5 | 85 | 14.1% | 8.3% | 0.21 | -5.87 | -499.2 | 11.1 | -8.7 | 1.28 | 92% | 4 (3–6) | 3 | SL_HIT 46, BE 26, TRAIL 11, WEEKEND_CLOSE_SUNDAY_FILL 2 |
 | walk5_+C6approx | 92 | 10.9% | 6.0% | 0.20 | -4.89 | -449.6 | 11.2 | -6.8 | 1.63 | 90% | 4 (3–6) | 2 | SIGNAL_REVERSE_APPROX 32, SL_HIT 25, BE 24, TRAIL 9, WEEKEND_CLOSE_SUNDAY_FILL 2 |
 
 winner / loser 別 exit 種別:
@@ -102,12 +102,12 @@ winner / loser 別 exit 種別:
 
 | 構成 | N | WR | PF (net) | EV net p/t | Σ net p | winner ≤8h | exit 種別 |
 |---|---|---|---|---|---|---|---|
-| marg_C1_only | 81 | 28.4% | 1.24 | 2.34 | 189.2 | 87% | SL_HIT 55, MAX_HOLD_TIME 14, TP_HIT 12 |
-| marg_C2_only | 80 | 23.8% | 1.12 | 1.26 | 100.8 | 68% | SL_HIT 59, TP_HIT 16, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
-| marg_C3C4_only | 85 | 12.9% | 0.20 | -6.00 | -509.9 | 100% | SL_HIT 48, BE 26, TRAIL 11 |
-| marg_C5_only | 84 | 21.4% | 0.97 | -0.29 | -24.2 | 78% | SL_HIT 57, TP_HIT 18, TIME_DECAY_EXIT 9 |
-| marg_C6approx_only | 92 | 12.0% | 0.76 | -1.71 | -156.9 | 82% | SIGNAL_REVERSE_APPROX 49, SL_HIT 32, TP_HIT 11 |
-| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 27.4% | 1.23 | 2.23 | 187.4 | 91% | SL_HIT 55, TP_HIT 14, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 4, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| marg_C1_only | 81 | 28.4% | 1.24 | 2.33 | 188.8 | 87% | SL_HIT 55, MAX_HOLD_TIME 14, TP_HIT 12 |
+| marg_C2_only | 80 | 23.8% | 1.12 | 1.25 | 100.4 | 68% | SL_HIT 59, TP_HIT 16, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
+| marg_C3C4_only | 85 | 12.9% | 0.20 | -6.26 | -532.3 | 100% | SL_HIT 48, BE 26, TRAIL 11 |
+| marg_C5_only | 84 | 21.4% | 1.21 | 2.06 | 172.6 | 78% | SL_HIT 54, TP_HIT 18, TIME_DECAY_EXIT 12 |
+| marg_C6approx_only | 92 | 12.0% | 0.67 | -2.68 | -246.9 | 82% | SIGNAL_REVERSE_APPROX 49, SL_HIT 32, TP_HIT 11 |
+| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 27.4% | 1.24 | 2.31 | 194.2 | 91% | SL_HIT 54, TP_HIT 14, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 5, WEEKEND_CLOSE_SUNDAY_FILL 4, WEEKEND_CLOSE 1 |
 
 ## C0 感度 (BT 側 what-if、走 0′〜4 を再集計。live 実測率は marker 付き live N 蓄積後に差し替え)
 
@@ -115,88 +115,88 @@ winner / loser 別 exit 種別:
 
 | what-if | 走 | N | WR | PF | EV net | Σ net | winner ≤8h | SL 分岐 | flags |
 |---|---|---|---|---|---|---|---|---|---|
-| base | walk0p_C0 | 80 | 21.2% | 0.98 | -0.20 | -15.7 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| base | walk1_C0+C1 | 81 | 27.2% | 1.17 | 1.76 | 142.2 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| base | walk2_+C2 | 81 | 27.2% | 1.13 | 1.35 | 109.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| base | walk3_+C3C4 | 85 | 23.5% | 0.55 | -3.71 | -315.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| base | walk4_+C5 | 85 | 23.5% | 0.55 | -3.71 | -315.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| i_atr_only | walk0p_C0 | 80 | 21.2% | 0.98 | -0.20 | -15.7 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| i_atr_only | walk1_C0+C1 | 81 | 27.2% | 1.17 | 1.76 | 142.2 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| i_atr_only | walk2_+C2 | 81 | 27.2% | 1.13 | 1.35 | 109.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| i_atr_only | walk3_+C3C4 | 85 | 23.5% | 0.55 | -3.71 | -315.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| i_atr_only | walk4_+C5 | 85 | 23.5% | 0.55 | -3.71 | -315.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| ii_sr_priority | walk0p_C0 | 68 | 33.8% | 1.27 | 3.14 | 213.8 | 52% | {'sr': 67, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 32, 'lowliq': 22, 'rn': 10} |
+| base | walk0p_C0 | 80 | 21.2% | 1.06 | 0.67 | 53.3 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| base | walk1_C0+C1 | 81 | 27.2% | 1.17 | 1.75 | 141.8 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| base | walk2_+C2 | 81 | 27.2% | 1.13 | 1.34 | 108.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| base | walk3_+C3C4 | 85 | 23.5% | 0.54 | -3.83 | -325.9 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| base | walk4_+C5 | 85 | 23.5% | 0.54 | -3.83 | -325.9 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| i_atr_only | walk0p_C0 | 80 | 21.2% | 1.06 | 0.67 | 53.3 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| i_atr_only | walk1_C0+C1 | 81 | 27.2% | 1.17 | 1.75 | 141.8 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| i_atr_only | walk2_+C2 | 81 | 27.2% | 1.13 | 1.34 | 108.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| i_atr_only | walk3_+C3C4 | 85 | 23.5% | 0.54 | -3.83 | -325.9 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| i_atr_only | walk4_+C5 | 85 | 23.5% | 0.54 | -3.83 | -325.9 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| ii_sr_priority | walk0p_C0 | 68 | 33.8% | 1.34 | 4.39 | 298.3 | 52% | {'sr': 67, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 32, 'lowliq': 22, 'rn': 10} |
 | ii_sr_priority | walk1_C0+C1 | 73 | 38.4% | 1.21 | 2.47 | 180.3 | 89% | {'sr': 72, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 34, 'lowliq': 25, 'rn': 10} |
 | ii_sr_priority | walk2_+C2 | 73 | 38.4% | 1.20 | 2.30 | 167.6 | 93% | {'sr': 72, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 34, 'lowliq': 25, 'rn': 10} |
-| ii_sr_priority | walk3_+C3C4 | 77 | 29.9% | 0.61 | -3.63 | -279.3 | 96% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
-| ii_sr_priority | walk4_+C5 | 77 | 29.9% | 0.63 | -3.28 | -252.7 | 96% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
-| iii_no_clamp | walk0p_C0 | 80 | 21.2% | 0.98 | -0.20 | -15.7 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| iii_no_clamp | walk1_C0+C1 | 81 | 27.2% | 1.17 | 1.76 | 142.2 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| iii_no_clamp | walk2_+C2 | 81 | 27.2% | 1.13 | 1.35 | 109.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| iii_no_clamp | walk3_+C3C4 | 85 | 23.5% | 0.55 | -3.71 | -315.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| iii_no_clamp | walk4_+C5 | 85 | 23.5% | 0.55 | -3.71 | -315.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| iv_no_lowliq | walk0p_C0 | 80 | 21.2% | 1.04 | 0.34 | 27.6 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| iv_no_lowliq | walk1_C0+C1 | 81 | 27.2% | 1.24 | 2.26 | 183.1 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| iv_no_lowliq | walk2_+C2 | 81 | 27.2% | 1.19 | 1.85 | 150.1 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| iv_no_lowliq | walk3_+C3C4 | 85 | 23.5% | 0.57 | -3.48 | -295.8 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| iv_no_lowliq | walk4_+C5 | 85 | 23.5% | 0.57 | -3.48 | -295.8 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| v_mtf_1p3 | walk0p_C0 | 80 | 20.0% | 1.22 | 2.24 | 179.3 | 44% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| v_mtf_1p3 | walk1_C0+C1 | 81 | 27.2% | 1.27 | 2.73 | 221.2 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| v_mtf_1p3 | walk2_+C2 | 81 | 27.2% | 1.23 | 2.32 | 188.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| v_mtf_1p3 | walk3_+C3C4 | 85 | 23.5% | 0.56 | -3.68 | -312.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| v_mtf_1p3 | walk4_+C5 | 85 | 23.5% | 0.56 | -3.68 | -312.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| vi_no_rn | walk0p_C0 | 80 | 21.2% | 1.00 | -0.01 | -0.7 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
-| vi_no_rn | walk1_C0+C1 | 81 | 27.2% | 1.20 | 1.94 | 157.2 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
-| vi_no_rn | walk2_+C2 | 81 | 27.2% | 1.16 | 1.53 | 124.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
-| vi_no_rn | walk3_+C3C4 | 85 | 23.5% | 0.55 | -3.74 | -317.8 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 0} |
-| vi_no_rn | walk4_+C5 | 85 | 23.5% | 0.55 | -3.74 | -317.8 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 0} |
-| vii_no_broker_tp | walk0p_C0 | 80 | 20.0% | 1.10 | 1.02 | 81.9 | 50% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| vii_no_broker_tp | walk1_C0+C1 | 81 | 27.2% | 1.21 | 2.15 | 174.0 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| vii_no_broker_tp | walk2_+C2 | 81 | 27.2% | 1.17 | 1.74 | 141.0 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| vii_no_broker_tp | walk3_+C3C4 | 85 | 23.5% | 0.56 | -3.68 | -312.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| vii_no_broker_tp | walk4_+C5 | 85 | 23.5% | 0.56 | -3.68 | -312.7 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| ii_sr_priority | walk3_+C3C4 | 77 | 29.9% | 0.59 | -3.85 | -296.1 | 96% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
+| ii_sr_priority | walk4_+C5 | 77 | 29.9% | 0.61 | -3.50 | -269.5 | 96% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
+| iii_no_clamp | walk0p_C0 | 80 | 21.2% | 1.06 | 0.67 | 53.3 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| iii_no_clamp | walk1_C0+C1 | 81 | 27.2% | 1.17 | 1.75 | 141.8 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| iii_no_clamp | walk2_+C2 | 81 | 27.2% | 1.13 | 1.34 | 108.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| iii_no_clamp | walk3_+C3C4 | 85 | 23.5% | 0.54 | -3.83 | -325.9 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| iii_no_clamp | walk4_+C5 | 85 | 23.5% | 0.54 | -3.83 | -325.9 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| iv_no_lowliq | walk0p_C0 | 80 | 21.2% | 1.11 | 1.21 | 97.0 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| iv_no_lowliq | walk1_C0+C1 | 81 | 27.2% | 1.24 | 2.26 | 182.7 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| iv_no_lowliq | walk2_+C2 | 81 | 27.2% | 1.19 | 1.85 | 149.7 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| iv_no_lowliq | walk3_+C3C4 | 85 | 23.5% | 0.55 | -3.60 | -306.0 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| iv_no_lowliq | walk4_+C5 | 85 | 23.5% | 0.55 | -3.60 | -306.0 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| v_mtf_1p3 | walk0p_C0 | 80 | 20.0% | 1.25 | 2.87 | 229.5 | 44% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| v_mtf_1p3 | walk1_C0+C1 | 81 | 27.2% | 1.27 | 2.73 | 220.8 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| v_mtf_1p3 | walk2_+C2 | 81 | 27.2% | 1.23 | 2.32 | 187.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| v_mtf_1p3 | walk3_+C3C4 | 85 | 23.5% | 0.54 | -3.84 | -326.2 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| v_mtf_1p3 | walk4_+C5 | 85 | 23.5% | 0.54 | -3.84 | -326.2 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| vi_no_rn | walk0p_C0 | 80 | 21.2% | 1.08 | 0.85 | 68.3 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
+| vi_no_rn | walk1_C0+C1 | 81 | 27.2% | 1.20 | 1.94 | 156.8 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
+| vi_no_rn | walk2_+C2 | 81 | 27.2% | 1.15 | 1.53 | 123.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
+| vi_no_rn | walk3_+C3C4 | 85 | 23.5% | 0.54 | -3.86 | -328.0 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 0} |
+| vi_no_rn | walk4_+C5 | 85 | 23.5% | 0.54 | -3.86 | -328.0 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 0} |
+| vii_no_broker_tp | walk0p_C0 | 80 | 20.0% | 1.15 | 1.72 | 137.8 | 50% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| vii_no_broker_tp | walk1_C0+C1 | 81 | 27.2% | 1.21 | 2.14 | 173.6 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| vii_no_broker_tp | walk2_+C2 | 81 | 27.2% | 1.17 | 1.74 | 140.6 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| vii_no_broker_tp | walk3_+C3C4 | 85 | 23.5% | 0.54 | -3.84 | -326.2 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| vii_no_broker_tp | walk4_+C5 | 85 | 23.5% | 0.54 | -3.84 | -326.2 | 95% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
 
 ### 順序仮定 = `favorable_first`
 
 | what-if | 走 | N | WR | PF | EV net | Σ net | winner ≤8h | SL 分岐 | flags |
 |---|---|---|---|---|---|---|---|---|---|
-| base | walk0p_C0 | 80 | 22.5% | 1.04 | 0.39 | 31.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| base | walk1_C0+C1 | 81 | 28.4% | 1.24 | 2.34 | 189.2 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| base | walk2_+C2 | 81 | 28.4% | 1.19 | 1.93 | 156.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| base | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| base | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| i_atr_only | walk0p_C0 | 80 | 22.5% | 1.04 | 0.39 | 31.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| i_atr_only | walk1_C0+C1 | 81 | 28.4% | 1.24 | 2.34 | 189.2 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| i_atr_only | walk2_+C2 | 81 | 28.4% | 1.19 | 1.93 | 156.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| i_atr_only | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| i_atr_only | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| ii_sr_priority | walk0p_C0 | 68 | 35.3% | 1.33 | 3.86 | 262.3 | 54% | {'sr': 67, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 32, 'lowliq': 22, 'rn': 10} |
+| base | walk0p_C0 | 80 | 22.5% | 1.11 | 1.25 | 100.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| base | walk1_C0+C1 | 81 | 28.4% | 1.24 | 2.33 | 188.8 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| base | walk2_+C2 | 81 | 28.4% | 1.19 | 1.92 | 155.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| base | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| base | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| i_atr_only | walk0p_C0 | 80 | 22.5% | 1.11 | 1.25 | 100.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| i_atr_only | walk1_C0+C1 | 81 | 28.4% | 1.24 | 2.33 | 188.8 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| i_atr_only | walk2_+C2 | 81 | 28.4% | 1.19 | 1.92 | 155.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| i_atr_only | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| i_atr_only | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| ii_sr_priority | walk0p_C0 | 68 | 35.3% | 1.40 | 5.10 | 346.8 | 54% | {'sr': 67, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 32, 'lowliq': 22, 'rn': 10} |
 | ii_sr_priority | walk1_C0+C1 | 73 | 39.7% | 1.27 | 3.13 | 228.8 | 90% | {'sr': 72, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 34, 'lowliq': 25, 'rn': 10} |
 | ii_sr_priority | walk2_+C2 | 73 | 39.7% | 1.26 | 2.96 | 216.1 | 93% | {'sr': 72, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 34, 'lowliq': 25, 'rn': 10} |
 | ii_sr_priority | walk3_+C3C4 | 77 | 14.3% | 0.19 | -6.78 | -522.2 | 91% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
 | ii_sr_priority | walk4_+C5 | 77 | 14.3% | 0.20 | -6.44 | -495.6 | 91% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
-| iii_no_clamp | walk0p_C0 | 80 | 22.5% | 1.04 | 0.39 | 31.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| iii_no_clamp | walk1_C0+C1 | 81 | 28.4% | 1.24 | 2.34 | 189.2 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| iii_no_clamp | walk2_+C2 | 81 | 28.4% | 1.19 | 1.93 | 156.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| iii_no_clamp | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| iii_no_clamp | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| iv_no_lowliq | walk0p_C0 | 80 | 22.5% | 1.10 | 0.91 | 72.9 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| iv_no_lowliq | walk1_C0+C1 | 81 | 28.4% | 1.30 | 2.82 | 228.4 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| iv_no_lowliq | walk2_+C2 | 81 | 28.4% | 1.26 | 2.41 | 195.4 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| iv_no_lowliq | walk3_+C3C4 | 85 | 14.1% | 0.22 | -5.63 | -478.9 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| iv_no_lowliq | walk4_+C5 | 85 | 14.1% | 0.22 | -5.63 | -478.9 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
-| v_mtf_1p3 | walk0p_C0 | 80 | 20.0% | 1.22 | 2.24 | 179.3 | 44% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| v_mtf_1p3 | walk1_C0+C1 | 81 | 27.2% | 1.27 | 2.73 | 221.2 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| v_mtf_1p3 | walk2_+C2 | 81 | 27.2% | 1.23 | 2.32 | 188.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| v_mtf_1p3 | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| v_mtf_1p3 | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| vi_no_rn | walk0p_C0 | 80 | 22.5% | 1.06 | 0.58 | 46.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
-| vi_no_rn | walk1_C0+C1 | 81 | 28.4% | 1.26 | 2.52 | 204.2 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
-| vi_no_rn | walk2_+C2 | 81 | 28.4% | 1.22 | 2.11 | 171.2 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
-| vi_no_rn | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.89 | -500.9 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 0} |
-| vi_no_rn | walk4_+C5 | 85 | 14.1% | 0.21 | -5.89 | -500.9 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 0} |
-| vii_no_broker_tp | walk0p_C0 | 80 | 21.2% | 1.17 | 1.69 | 135.4 | 53% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| vii_no_broker_tp | walk1_C0+C1 | 81 | 28.4% | 1.28 | 2.81 | 227.5 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| vii_no_broker_tp | walk2_+C2 | 81 | 28.4% | 1.24 | 2.40 | 194.5 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
-| vii_no_broker_tp | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
-| vii_no_broker_tp | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -498.8 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| iii_no_clamp | walk0p_C0 | 80 | 22.5% | 1.11 | 1.25 | 100.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| iii_no_clamp | walk1_C0+C1 | 81 | 28.4% | 1.24 | 2.33 | 188.8 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| iii_no_clamp | walk2_+C2 | 81 | 28.4% | 1.19 | 1.92 | 155.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| iii_no_clamp | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| iii_no_clamp | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| iv_no_lowliq | walk0p_C0 | 80 | 22.5% | 1.17 | 1.78 | 142.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| iv_no_lowliq | walk1_C0+C1 | 81 | 28.4% | 1.30 | 2.81 | 228.0 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| iv_no_lowliq | walk2_+C2 | 81 | 28.4% | 1.26 | 2.41 | 195.0 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| iv_no_lowliq | walk3_+C3C4 | 85 | 14.1% | 0.22 | -5.64 | -479.3 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| iv_no_lowliq | walk4_+C5 | 85 | 14.1% | 0.22 | -5.64 | -479.3 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 0, 'rn': 5} |
+| v_mtf_1p3 | walk0p_C0 | 80 | 20.0% | 1.25 | 2.87 | 229.5 | 44% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| v_mtf_1p3 | walk1_C0+C1 | 81 | 27.2% | 1.27 | 2.73 | 220.8 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| v_mtf_1p3 | walk2_+C2 | 81 | 27.2% | 1.23 | 2.32 | 187.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| v_mtf_1p3 | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| v_mtf_1p3 | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| vi_no_rn | walk0p_C0 | 80 | 22.5% | 1.13 | 1.44 | 115.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
+| vi_no_rn | walk1_C0+C1 | 81 | 28.4% | 1.26 | 2.52 | 203.8 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
+| vi_no_rn | walk2_+C2 | 81 | 28.4% | 1.22 | 2.11 | 170.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 0} |
+| vi_no_rn | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.90 | -501.3 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 0} |
+| vi_no_rn | walk4_+C5 | 85 | 14.1% | 0.21 | -5.90 | -501.3 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 0} |
+| vii_no_broker_tp | walk0p_C0 | 80 | 21.2% | 1.21 | 2.39 | 191.3 | 53% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| vii_no_broker_tp | walk1_C0+C1 | 81 | 28.4% | 1.28 | 2.80 | 227.1 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| vii_no_broker_tp | walk2_+C2 | 81 | 28.4% | 1.24 | 2.40 | 194.1 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
+| vii_no_broker_tp | walk3_+C3C4 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
+| vii_no_broker_tp | walk4_+C5 | 85 | 14.1% | 0.21 | -5.87 | -499.2 | 92% | {'atr': 85} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 27, 'rn': 6} |
