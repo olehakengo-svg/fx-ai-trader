@@ -18,8 +18,9 @@ prereq_artifacts:
 
 # 目的 (1タスク1目的)
 
-前タスクで **canon の exit は PO-DN flip (payoff 12.3×、winner ~458 bars) であって宣言 TP 5×ATR ではない**ことが算術で確定した
-(カード §0)。しかし v17 Pine はリポジトリに無く (TV slot は 2026-05-21 上書き)、Massive データの Python port では flip 定義 5 候補の
+前タスクで **canon の exit は PO-DN flip (aggregate payoff 12.3×、winner ~458 bars) であって宣言 TP 5×ATR ではない可能性が高い**
+ことが aggregate payoff の算術から示唆された (analyses §0 — ⚠️ 確定ではない: ATR の entry 間異質性と 480 bars cap の早期クローズ loser
+があれば固定 TP/SL でも 3.33× を超え得る、PR #302 review P1。**確定は本タスクの手順 1 で winner ごとの entry ATR / exit 種別を読む**)。しかし v17 Pine はリポジトリに無く (TV slot は 2026-05-21 上書き)、Massive データの Python port では flip 定義 5 候補の
 いずれも canon (N=46 / WR 23.91% / PF 3.866 / avg winner bars 458) を ±10% で再現できなかった。
 本タスクは **TV desktop (OANDA feed) 上で v17 canon を再構築して走 0 を一致させ、その Pine に C0〜C6 を累積で足して**
 制約付き走を「harness 検証済み」の状態にする。packet 10-08 の (a) 再定義 (flip exit + SL 1.5×ATR + 市場 bar 480 本) の根拠数値になる。

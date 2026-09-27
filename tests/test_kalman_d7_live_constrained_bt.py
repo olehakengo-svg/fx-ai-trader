@@ -207,9 +207,64 @@ def test_c0_sr_mode_prefers_support_cluster_when_rr_ok():
 
 
 # ── harness / stats ───────────────────────────────────────────────────────
+def test_winner_within_8h_share_uses_wall_clock_not_bar_count():
+    """PR #302 review P2 4113955120: 週末跨ぎの 20 bars は 8h 内ではない / ちょうど 8h (33 bars 目) は 8h 内。"""
+    entry = 150.000 + K.MINTICK
+    # (a) 金曜 19:00 signal → 週末を跨いで月曜に TP: bars は少ないが壁時計は 8h を大きく超える
+    fri = pd.date_range("2025-09-19 17:00", "2025-09-19 20:45", freq="15min", tz="UTC")
+    mon = pd.date_range("2025-09-21 21:00", periods=12, freq="15min", tz="UTC")
+    idx = fri.append(mon)
+    df = pd.DataFrame({"Open": 150.0, "High": 150.002, "Low": 149.998, "Close": 150.0, "atr": 0.1,
+                       "entry_signal": False, "perfect_up": True, "perfect_dn": False, "in_window": True}, index=idx)
+    df.iloc[8, df.columns.get_loc("entry_signal")] = True          # 19:00 signal
+    df.iloc[len(fri) + 3, df.columns.get_loc("High")] = entry + 0.6  # 月曜 21:45 bar で TP
+    cfg = K.StackConfig(exit_mode="tp5")
+    tr = K.simulate(df, cfg)
+    t = _one(tr)
+    assert t.exit_reason == "TP_HIT" and t.bars_held < 32 and t.hold_sec > K.C1_MAX_HOLD_SEC
+    assert K.summarize(tr, cfg)["winners_within_8h_share"] == 0.0
+    # (b) 連続 bar で 8h ちょうど (32 bars = 28,800s) → 8h 内 / 1 bar 後 (33 bars = 8h15m) → 8h 外
+    df2 = _bars(60)
+    df2.iloc[5 + 32, df2.columns.get_loc("High")] = entry + 0.6
+    tr2 = K.simulate(df2, cfg)
+    t2 = _one(tr2)
+    assert t2.bars_held == 32 and t2.hold_sec == pytest.approx(K.C1_MAX_HOLD_SEC)
+    assert K.summarize(tr2, cfg)["winners_within_8h_share"] == 1.0
+    df3 = _bars(60)
+    df3.iloc[5 + 33, df3.columns.get_loc("High")] = entry + 0.6
+    tr3 = K.simulate(df3, cfg)
+    t3 = _one(tr3)
+    assert t3.bars_held == 33 and t3.hold_sec == pytest.approx(K.C1_MAX_HOLD_SEC + 900)
+    assert K.summarize(tr3, cfg)["winners_within_8h_share"] == 0.0
+
+
+def test_tv_stats_apply_tv_commission_not_live_friction():
+    """PR #302 review P2 4113955123: harness 比較は TV コスト (commission 0.002%×2) 基準。"""
+    df = _bars(40)
+    entry = 150.000 + K.MINTICK
+    df.iloc[10, df.columns.get_loc("High")] = entry + 0.501
+    tr = K.simulate(df, K.StackConfig(exit_mode="tp5"))
+    t = _one(tr)
+    expected_comm = (t.entry + t.exit) * K.TV_COMMISSION_RATE / K.PIP
+    assert expected_comm == pytest.approx(0.6, abs=0.01)
+    assert t.tv_net_pips == pytest.approx(t.gross_pips - expected_comm, abs=0.01)  # 2 桁丸め
+    assert t.tv_net_pips != pytest.approx(t.net_pips)  # live 摩擦 2.14p とは別物
+    s = K.tv_stats(tr)
+    assert s["wr_tv"] == 1.0 and s["ev_tv_pips"] == pytest.approx(t.tv_net_pips)
+    # 極小の gross winner は TV では loser: gross +0.3p → tv −0.3p
+    df3 = _bars(40)
+    df3.iloc[10:, df3.columns.get_loc("perfect_dn")] = True
+    for c in ("Open", "High", "Low", "Close"):
+        df3.iloc[10, df3.columns.get_loc(c)] = entry + 0.004
+    tr3 = K.simulate(df3, K.StackConfig(exit_mode="flip"))
+    t3 = _one(tr3)
+    assert t3.gross_pips > 0 and t3.tv_net_pips < 0
+    assert K.tv_stats(tr3)["wr_tv"] == 0.0
+
+
 def test_harness_check_flags_mismatch_and_passes_canon():
-    good = {"n": 46, "wr_gross": 0.2391, "pf_gross": 3.866, "hold_bars_winners_gross": {"mean": 458.0}}
-    bad = {"n": 60, "wr_gross": 0.1833, "pf_gross": 2.27, "hold_bars_winners_gross": {"mean": 372.8}}
+    good = {"n": 46, "wr_tv": 0.2391, "pf_tv": 3.866, "hold_bars_winners_tv": {"mean": 458.0}}
+    bad = {"n": 60, "wr_tv": 0.1833, "pf_tv": 2.27, "hold_bars_winners_tv": {"mean": 372.8}}
     assert K.harness_check(good)["all_ok"] is True
     chk = K.harness_check(bad)
     assert chk["all_ok"] is False and not chk["n"]["ok"] and not chk["pf"]["ok"]

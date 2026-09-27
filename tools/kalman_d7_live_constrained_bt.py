@@ -72,6 +72,15 @@ C6_PROFIT_GUARD_ATR = 0.3
 
 CANON = {"n": 46, "wr": 0.2391, "pf": 3.866, "avg_win_bars": 458}
 HARNESS_TOL = 0.10
+# TV canon のコストモデル (v18e BACKUP Pine の strategy() 宣言と同じ前提): commission 0.002% / order (percent of
+# notional、entry と exit で 2 回) + slippage 1 tick (entry/exit の ±MINTICK で既に反映)。harness 比較はこの
+# TV コスト後の値で行う (PR #302 review P2 4113955123 — 「gross」= slippage 込み・commission 抜きは TV と基準不一致)。
+TV_COMMISSION_RATE = 0.00002
+
+
+def tv_commission_pips(entry: float, exit_px: float) -> float:
+    """TV canon の commission (entry + exit、notional 比例) を pips で返す。"""
+    return (entry + exit_px) * TV_COMMISSION_RATE / PIP
 
 WINDOW_START = "2025-07-01"
 WINDOW_END = "2026-05-19 23:59:59"
@@ -118,6 +127,7 @@ class SimTrade:
     exit_reason: str
     gross_pips: float
     net_pips: float
+    tv_net_pips: float
     mfe_pips: float
     mae_pips: float
 
@@ -366,6 +376,7 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
             sl_branch=branch, c0_flags=flags, bars_held=int(exit_j - i),
             hold_sec=float((exit_ts - entry_ts).total_seconds()), exit_reason=reason,
             gross_pips=round(gross, 2), net_pips=round(net, 2),
+            tv_net_pips=round(gross - tv_commission_pips(entry, exit_px), 2),
             mfe_pips=round((highest - entry) / PIP, 2), mae_pips=round((entry - lowest) / PIP, 2),
         ))
         i = exit_j + 1
@@ -436,7 +447,9 @@ def summarize(trades: list[SimTrade], cfg: StackConfig) -> dict[str, Any]:
         "c0_flags": flags_ct,
         "hold_bars_winners": _dist(win_bars),
         "hold_bars_losers": _dist([t.bars_held for t in losses]),
-        "winners_within_8h_share": (sum(1 for b in win_bars if b <= 32) / len(win_bars)) if win_bars else None,
+        # 8h は壁時計 (live の C1 と同じ hold_sec 基準)。bars 数 ≤32 では週末跨ぎ (16 bars で 55h) と
+        # ちょうど 8h (=33 bars 目) を誤分類する (PR #302 review P2 4113955120)
+        "winners_within_8h_share": (sum(1 for t in wins if t.hold_sec <= C1_MAX_HOLD_SEC) / len(wins)) if wins else None,
         "winners_within_480_share": (sum(1 for b in win_bars if b <= 480) / len(win_bars)) if win_bars else None,
         "mfe_pips_winners": _dist([t.mfe_pips for t in wins]),
         "mfe_pips_losers": _dist([t.mfe_pips for t in losses]),
@@ -456,31 +469,37 @@ def _count(items: list[str]) -> dict[str, int]:
 
 def harness_check(s: dict[str, Any]) -> dict[str, Any]:
     """走 0 が canon (N=46 / WR 23.91% / PF 3.866 / avg winner bars 458) を ±10% で再現するか。
-    WR/PF は gross (摩擦前) で比較する — TV 側は commission 0.002% + slippage 1 tick なので gross 相当。"""
+    WR/PF は **TV コスト後** (commission 0.002%×2 + slippage 1 tick) で比較する — canon の数字は TV の
+    strategy() コストを含む net なので、live 摩擦 2.14p (別物) ではなく TV のコストモデルを当てる。"""
     checks = {}
     checks["n"] = {"canon": CANON["n"], "port": s["n"],
                    "ok": abs(s["n"] - CANON["n"]) / CANON["n"] <= HARNESS_TOL}
-    checks["wr"] = {"canon": CANON["wr"], "port": s["wr_gross"],
-                    "ok": abs(s["wr_gross"] - CANON["wr"]) / CANON["wr"] <= HARNESS_TOL}
-    pf = s["pf_gross"] if s["pf_gross"] is not None else float("inf")
+    checks["wr"] = {"canon": CANON["wr"], "port": s["wr_tv"],
+                    "ok": abs(s["wr_tv"] - CANON["wr"]) / CANON["wr"] <= HARNESS_TOL}
+    pf = s["pf_tv"] if s["pf_tv"] is not None else float("inf")
     checks["pf"] = {"canon": CANON["pf"], "port": pf,
                     "ok": math.isfinite(pf) and abs(pf - CANON["pf"]) / CANON["pf"] <= HARNESS_TOL}
-    awb = s["hold_bars_winners_gross"]["mean"] or 0.0
+    awb = s["hold_bars_winners_tv"]["mean"] or 0.0
     checks["avg_win_bars"] = {"canon": CANON["avg_win_bars"], "port": awb,
                               "ok": abs(awb - CANON["avg_win_bars"]) / CANON["avg_win_bars"] <= HARNESS_TOL}
     checks["all_ok"] = all(v["ok"] for k, v in checks.items() if k != "all_ok")
     return checks
 
 
-def gross_stats(trades: list[SimTrade]) -> dict[str, Any]:
-    wins = [t for t in trades if t.gross_pips > 0]
-    losses = [t for t in trades if t.gross_pips <= 0]
-    gw = sum(t.gross_pips for t in wins)
-    gl = -sum(t.gross_pips for t in losses)
+def tv_stats(trades: list[SimTrade]) -> dict[str, Any]:
+    """TV canon と同じコスト基準 (commission 0.002%×2 + slippage 1 tick) の WR / PF / winner bars。harness 比較専用。"""
+    wins = [t for t in trades if t.tv_net_pips > 0]
+    losses = [t for t in trades if t.tv_net_pips <= 0]
+    gw = sum(t.tv_net_pips for t in wins)
+    gl = -sum(t.tv_net_pips for t in losses)
     pf = (gw / gl) if gl > 0 else None
-    return {"wr_gross": (len(wins) / len(trades)) if trades else 0.0,
-            "pf_gross": pf,
-            "hold_bars_winners_gross": _dist([t.bars_held for t in wins])}
+    return {"wr_tv": (len(wins) / len(trades)) if trades else 0.0,
+            "pf_tv": pf,
+            "ev_tv_pips": (sum(t.tv_net_pips for t in trades) / len(trades)) if trades else 0.0,
+            "hold_bars_winners_tv": _dist([t.bars_held for t in wins])}
+
+
+gross_stats = tv_stats  # 後方互換 (旧名)。「gross」は slippage 込み・commission 抜きで誤称だった
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -542,11 +561,11 @@ def harness_identification(data: pd.DataFrame) -> list[dict[str, Any]]:
         cfg = StackConfig(label=f"walk0_flip[{name}]", exit_mode="flip")
         tr = simulate(d, cfg)
         s = summarize(tr, cfg)
-        s.update(gross_stats(tr))
+        s.update(tv_stats(tr))
         chk = harness_check(s)
-        rows.append({"flip_def": name, "desc": desc, "n": s["n"], "wr_gross": s["wr_gross"],
-                     "pf_gross": s["pf_gross"], "avg_win_bars": s["hold_bars_winners_gross"]["mean"],
-                     "ev_gross_pips": s["ev_gross_pips"], "payoff": s["payoff"],
+        rows.append({"flip_def": name, "desc": desc, "n": s["n"], "wr_tv": s["wr_tv"],
+                     "pf_tv": s["pf_tv"], "avg_win_bars": s["hold_bars_winners_tv"]["mean"],
+                     "ev_tv_pips": s["ev_tv_pips"], "payoff": s["payoff"],
                      "exit_reasons": s["exit_reasons"], "harness_ok": chk["all_ok"],
                      "harness": chk})
     return rows
@@ -582,7 +601,7 @@ def run_all(data: pd.DataFrame, orders: tuple[str, ...] = ("adverse_first", "fav
             cfg = replace(cfg, order=order)
             trades = simulate(data, cfg)
             s = summarize(trades, cfg)
-            s.update(gross_stats(trades))
+            s.update(tv_stats(trades))
             out["walks"][order].append(s)
             if keep_trades:
                 out["trades"][f"{order}/{cfg.label}"] = [asdict(t) for t in trades]
@@ -629,7 +648,9 @@ def render_md(res: dict[str, Any], meta: dict[str, Any]) -> str:
     L.append("")
     L.append(f"- data: `{meta['data']}` (Massive USD_JPY M15、TV 側は OANDA feed = ベンダー差あり)")
     L.append(f"- window: {meta['start']} → {meta['end']} (warmup {meta['warmup']}), bars in window = {meta['bars']}")
-    L.append(f"- friction: {FRICTION_PIPS} pip / trade (USD_JPY RT)。WR / PF / EV は **net** (摩擦後)、harness 比較のみ gross")
+    L.append(f"- friction: {FRICTION_PIPS} pip / trade (USD_JPY RT)。WR / PF / EV は **net** (摩擦後)。harness 比較のみ **TV コスト基準** "
+             f"(commission {TV_COMMISSION_RATE*100:.3f}%×2 ≈ 0.6p + slippage 1 tick) — canon の数字は TV strategy() のコストを含む")
+    L.append("- `winner ≤8h` は **壁時計 hold_sec ≤ 28,800s** (live C1 と同基準。bars 数ではない — 週末跨ぎの bar は壁時計と乖離する)")
     L.append("- ラベル: 走 0 = 宣言 BT 再現 (2 変種) / 走 0′〜4 = **C0 近似 + intrabar 順序近似** / 走 5 = **C6 近似 (参考値)**")
     sg = res.get("signals", {})
     L.append(f"- window 内 raw entry signal = {sg.get('entry_signal_in_window')} (po_up_start {sg.get('po_up_start_in_window')})。"
@@ -652,14 +673,14 @@ def render_md(res: dict[str, Any], meta: dict[str, Any]) -> str:
             L.append(f"| {lab} | {k} | {_f(v['canon'], 4)} | {_f(v['port'], 4)} | {'✅' if v['ok'] else '❌'} |")
         L.append(f"| {lab} | **all** | | | {'✅' if chk['all_ok'] else '❌'} |")
     L.append("")
-    L.append("### flip exit 定義の識別 (canon Pine 不在のため。entry / SL 1.5×ATR / 480 cap は固定、gross)")
+    L.append("### flip exit 定義の識別 (canon Pine 不在のため。entry / SL 1.5×ATR / 480 cap は固定、TV コスト基準)")
     L.append("")
-    L.append("| flip 定義 | 説明 | N | WR | PF | avg win bars | EV gross | payoff | exits | harness |")
+    L.append("| flip 定義 | 説明 | N | WR (tv) | PF (tv) | avg win bars | EV tv p/t | payoff (net) | exits | harness |")
     L.append("|---|---|---|---|---|---|---|---|---|---|")
     for r in res["harness_identification"]:
         ex = ", ".join(f"{k} {v}" for k, v in r["exit_reasons"].items())
-        L.append(f"| {r['flip_def']} | {r['desc']} | {r['n']} | {_f(r['wr_gross']*100,1)}% | {_f(r['pf_gross'])} | "
-                 f"{_f(r['avg_win_bars'],0)} | {_f(r['ev_gross_pips'])} | {_f(r['payoff'])} | {ex} | {'✅' if r['harness_ok'] else '❌'} |")
+        L.append(f"| {r['flip_def']} | {r['desc']} | {r['n']} | {_f(r['wr_tv']*100,1)}% | {_f(r['pf_tv'])} | "
+                 f"{_f(r['avg_win_bars'],0)} | {_f(r['ev_tv_pips'])} | {_f(r['payoff'])} | {ex} | {'✅' if r['harness_ok'] else '❌'} |")
     L.append("")
     for order, rows in res["walks"].items():
         L.append(f"## 走 0〜5 — bar 内順序仮定 = `{order}`" + (" (既定・保守側)" if order == "adverse_first" else " (感度)"))
