@@ -125,9 +125,10 @@ class SimTrade:
     bars_held: int
     hold_sec: float
     exit_reason: str
-    gross_pips: float
-    net_pips: float
-    tv_net_pips: float
+    gross_pips: float      # TV 流 slippage 込み (entry +1 tick / 成行 exit −1 tick)
+    raw_pips: float        # slippage 無しの水準差 (live 摩擦 2.14p を引く土台)
+    net_pips: float        # raw − 2.14p (live 推定 net)
+    tv_net_pips: float     # gross − TV commission (harness 比較用)
     mfe_pips: float
     mae_pips: float
 
@@ -228,15 +229,34 @@ def apply_c0(entry: float, atr: float, entry_ts: pd.Timestamp, hist: pd.DataFram
 # simulation
 # ─────────────────────────────────────────────────────────────────────────────
 def _is_last_bar_before_weekend(idx: pd.DatetimeIndex, j: int) -> bool:
-    """bar j が金曜最終 bar (次 bar まで 6h 超のギャップ ∧ 金曜) なら True。
-    live は金曜 21:45Z 以降の最初の tick で全クローズ。Massive M15 の金曜最終 bar は 20:45 (close 21:00)
-    なので、その bar close で決済したと近似する (⚠️ 21:00→21:45 の値動きは未再現)。"""
+    """bar j が金曜最終 bar (次 bar まで 6h 超のギャップ ∧ 金曜) なら True。"""
     ts = idx[j]
     if ts.weekday() != 4:
         return False
     if j + 1 >= len(idx):
         return True
     return (idx[j + 1] - ts).total_seconds() > 6 * 3600
+
+
+def _c2_exit_at_open(idx: pd.DatetimeIndex, j: int) -> str | None:
+    """live の金曜 21:45Z 全クローズ (C2) が bar j の open で執行される場合に理由ラベルを返す。
+
+    OANDA の閉場は **冬時間 22:00Z / 夏時間 21:00Z** (Massive M15 の金曜最終 bar は 21:45 / 20:45、日曜初 bar は
+    22:00 / 21:00 — 2025-07〜2026-05 window で 18 / 28 週)。
+    - 冬: 21:45 の tick が存在 → 金曜 21:45 bar の open で成行決済 (`WEEKEND_CLOSE`)
+    - 夏: 21:45 には閉場済みで注文は執行できず、**日曜 open で fill** する (KB 実例: carry_dip #709598 の 21:45 クローズ
+      指示が日曜 21:04:58 に fill、[[carry-dip-broker-reconcile-2026-09-22]]) → 週末ギャップを跨いだ日曜初 bar の open で
+      決済 (`WEEKEND_CLOSE_SUNDAY_FILL`)。PR #302 review P2 4114026089 — 旧実装の「金曜最終 bar close で決済」は
+      夏時間では live が得られない fill を作っていた。
+    """
+    ts = idx[j]
+    if ts.weekday() == 4 and ts.hour == 21 and ts.minute == 45:
+        return "WEEKEND_CLOSE"
+    if j > 0 and _is_last_bar_before_weekend(idx, j - 1):
+        prev = idx[j - 1]
+        if prev.hour < 21 or (prev.hour == 21 and prev.minute < 45):
+            return "WEEKEND_CLOSE_SUNDAY_FILL"
+    return None
 
 
 def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
@@ -271,26 +291,10 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
         decl_sl = round(entry - DECL_SL_ATR * atr, 3)
         decl_tp = round(entry + DECL_TP_ATR * atr, 3)
         sl0, tp0 = sl, tp
-        # ── C2 at entry (PR #302 review P2 4113998538): signal が金曜最終 bar (20:45、close 21:00) なら live は
-        #    21:45Z の tick で全クローズする。ループは i+1 (日曜) から始まるので、ここで金曜クローズを合成する
-        #    (exit ≈ entry bar close − slippage、hold 45 分、bar は 1 本も進まない)。
-        if cfg.c2 and _is_last_bar_before_weekend(idx, i):
-            exit_px = c[i] - MINTICK
-            exit_ts = entry_ts + pd.Timedelta(minutes=45)
-            gross = (exit_px - entry) / PIP
-            trades.append(SimTrade(
-                signal_time=idx[i].isoformat(), entry_time=entry_ts.isoformat(), exit_time=exit_ts.isoformat(),
-                entry=round(entry, 3), exit=round(exit_px, 3), atr=round(atr, 4),
-                decl_sl=round(entry - DECL_SL_ATR * atr, 3), decl_tp=round(entry + DECL_TP_ATR * atr, 3),
-                sl0=sl0, tp0=tp0, sl_branch=branch, c0_flags=flags, bars_held=0,
-                hold_sec=float((exit_ts - entry_ts).total_seconds()), exit_reason="WEEKEND_CLOSE",
-                gross_pips=round(gross, 2), net_pips=round(gross - cfg.friction_pips, 2),
-                tv_net_pips=round(gross - tv_commission_pips(entry, exit_px), 2),
-                mfe_pips=0.0, mae_pips=0.0,
-            ))
-            i += 1
-            continue
+        # 金曜最終 bar の signal (PR #302 review P2 4113998538 / 4114026089) は特別扱いしない — ループ先頭の
+        # `_c2_exit_at_open` が「冬: 21:45 bar open / 夏: 日曜初 bar open (deferred fill)」を一律に扱う。
         sl_moved = None  # "BE" | "TRAIL"
+        exit_raw: float | None = None  # slippage 無しの約定水準 (live 摩擦 2.14p は slippage 込みなので二重計上を避ける)
         highest = entry
         lowest = entry
         exit_px: float | None = None
@@ -304,12 +308,18 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
             bars = j - i  # bars since signal bar (bar j is the bars-th bar held)
 
             # ── tick-based checks at bar open (live は毎 tick、ここでは open で近似) ──
+            if cfg.c2:
+                _c2 = _c2_exit_at_open(idx, j)
+                if _c2:
+                    exit_raw, exit_px, reason = o[j], o[j] - MINTICK, _c2
+                    exit_j, exit_ts = j, ts
+                    break
             if cfg.c1 and hold_open >= C1_MAX_HOLD_SEC:
-                exit_px, reason = o[j] - MINTICK, "MAX_HOLD_TIME"
+                exit_raw, exit_px, reason = o[j], o[j] - MINTICK, "MAX_HOLD_TIME"
                 exit_j, exit_ts = j, ts
                 break
             if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and o[j] < entry:
-                exit_px, reason = o[j] - MINTICK, "TIME_DECAY_EXIT"
+                exit_raw, exit_px, reason = o[j], o[j] - MINTICK, "TIME_DECAY_EXIT"
                 exit_j, exit_ts = j, ts
                 break
 
@@ -347,54 +357,54 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
             lowest = min(lowest, bar_lo)
 
             if hit_sl:
-                exit_px = sl - MINTICK
+                exit_raw, exit_px = sl, sl - MINTICK
                 reason = sl_moved or "SL_HIT"
                 exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
                 break
             if hit_tp:
-                exit_px, reason = tp, "TP_HIT"
+                exit_raw, exit_px, reason = tp, tp, "TP_HIT"  # 指値は slippage 無し
                 exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
                 break
 
             # ── C5 intrabar (open ≥ entry だが bar 内で entry を割った): 最初の tick で決済 ≈ entry ──
             if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and bar_lo < entry <= o[j]:
-                exit_px, reason = entry - MINTICK, "TIME_DECAY_EXIT"
+                exit_raw, exit_px, reason = entry, entry - MINTICK, "TIME_DECAY_EXIT"
                 exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
                 break
 
             # ── bar close checks ──
             if cfg.exit_mode == "flip" and pdn[j]:
-                exit_px, reason = c[j] - MINTICK, "PO_DN_FLIP"
+                exit_raw, exit_px, reason = c[j], c[j] - MINTICK, "PO_DN_FLIP"
                 exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
                 break
             if cfg.c6 and hold_open + 900 >= C6_MIN_HOLD_SEC and not pup[j] \
                     and (c[j] - entry) <= C6_PROFIT_GUARD_ATR * atr:
-                exit_px, reason = c[j] - MINTICK, "SIGNAL_REVERSE_APPROX"
-                exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
-                break
-            if cfg.c2 and _is_last_bar_before_weekend(idx, j):
-                exit_px, reason = c[j] - MINTICK, "WEEKEND_CLOSE"
+                exit_raw, exit_px, reason = c[j], c[j] - MINTICK, "SIGNAL_REVERSE_APPROX"
                 exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
                 break
             if cfg.canon_cap and bars >= CANON_MAX_BARS:
-                exit_px, reason = c[j] - MINTICK, "CANON_CAP_480"
+                exit_raw, exit_px, reason = c[j], c[j] - MINTICK, "CANON_CAP_480"
                 exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
                 break
 
         if exit_px is None:
             exit_j = n - 1
             exit_ts = idx[exit_j] + pd.Timedelta(minutes=15)
-            exit_px, reason = c[exit_j] - MINTICK, "EOD"
+            exit_raw, exit_px, reason = c[exit_j], c[exit_j] - MINTICK, "EOD"
 
+        # gross_pips = TV 流の約定 (entry +1 tick / 成行・stop exit −1 tick) → tv_net の土台。
+        # net_pips (live 推定) は **slippage 無しの水準差** から RT 摩擦 2.14p (spread 0.7 + slippage 0.5 ×2 込み、
+        # friction-analysis.md) を引く — slipped gross から引くと slippage が二重 (PR #302 review P2 4114026093)。
         gross = (exit_px - entry) / PIP
-        net = gross - cfg.friction_pips
+        raw = (exit_raw - c[i]) / PIP
+        net = raw - cfg.friction_pips
         trades.append(SimTrade(
             signal_time=idx[i].isoformat(), entry_time=entry_ts.isoformat(),
             exit_time=exit_ts.isoformat(), entry=round(entry, 3), exit=round(exit_px, 3),
             atr=round(atr, 4), decl_sl=decl_sl, decl_tp=decl_tp, sl0=sl0, tp0=tp0,
             sl_branch=branch, c0_flags=flags, bars_held=int(exit_j - i),
             hold_sec=float((exit_ts - entry_ts).total_seconds()), exit_reason=reason,
-            gross_pips=round(gross, 2), net_pips=round(net, 2),
+            gross_pips=round(gross, 2), raw_pips=round(raw, 2), net_pips=round(net, 2),
             tv_net_pips=round(gross - tv_commission_pips(entry, exit_px), 2),
             mfe_pips=round((highest - entry) / PIP, 2), mae_pips=round((entry - lowest) / PIP, 2),
         ))
@@ -505,15 +515,36 @@ def harness_check(s: dict[str, Any]) -> dict[str, Any]:
     return checks
 
 
+TV_INITIAL_EQUITY = 100_000.0   # v18e BACKUP Pine: initial_capital=100000 (JPY 建て口座想定)
+TV_QTY_PCT = 0.10               # default_qty_type=strategy.percent_of_equity, default_qty_value=10
+
+
 def tv_stats(trades: list[SimTrade]) -> dict[str, Any]:
-    """TV canon と同じコスト基準 (commission 0.002%×2 + slippage 1 tick) の WR / PF / winner bars。harness 比較専用。"""
+    """TV canon と同じ計算基準の WR / PF / winner bars。harness 比較専用。
+
+    PF は **逐次 equity 10% サイジングの cash PnL** で出す (PR #302 review P2 4114026095 — カードの PF 3.866 は
+    TV strategy() の monetary gross profit / gross loss。pips 合計 PF とは entry 価格・equity 変動の分だけずれる)。
+    cash PnL = qty × (exit − entry) − commission(entry, exit)、qty = equity × 10% / entry、equity は trade 毎に更新。
+    WR は cash PnL の符号 (tv_net_pips と同符号)。参考として pips 合計 PF も返す。"""
+    equity = TV_INITIAL_EQUITY
+    cash: list[float] = []
+    for t in sorted(trades, key=lambda x: x.entry_time):
+        qty = equity * TV_QTY_PCT / t.entry
+        pnl = qty * (t.exit - t.entry) - qty * (t.entry + t.exit) * TV_COMMISSION_RATE
+        cash.append(pnl)
+        equity += pnl
+    wins_c = [x for x in cash if x > 0]
+    losses_c = [x for x in cash if x <= 0]
+    gw_c, gl_c = sum(wins_c), -sum(losses_c)
+    pf_cash = (gw_c / gl_c) if gl_c > 0 else None
     wins = [t for t in trades if t.tv_net_pips > 0]
-    losses = [t for t in trades if t.tv_net_pips <= 0]
     gw = sum(t.tv_net_pips for t in wins)
-    gl = -sum(t.tv_net_pips for t in losses)
-    pf = (gw / gl) if gl > 0 else None
-    return {"wr_tv": (len(wins) / len(trades)) if trades else 0.0,
-            "pf_tv": pf,
+    gl = -sum(t.tv_net_pips for t in trades if t.tv_net_pips <= 0)
+    return {"wr_tv": (len(wins_c) / len(cash)) if cash else 0.0,
+            "pf_tv": pf_cash,
+            "pf_tv_pips": (gw / gl) if gl > 0 else None,
+            "net_tv_cash": sum(cash),
+            "ending_equity_tv": equity,
             "ev_tv_pips": (sum(t.tv_net_pips for t in trades) / len(trades)) if trades else 0.0,
             "hold_bars_winners_tv": _dist([t.bars_held for t in wins])}
 
@@ -667,8 +698,9 @@ def render_md(res: dict[str, Any], meta: dict[str, Any]) -> str:
     L.append("")
     L.append(f"- data: `{meta['data']}` (Massive USD_JPY M15、TV 側は OANDA feed = ベンダー差あり)")
     L.append(f"- window: {meta['start']} → {meta['end']} (warmup {meta['warmup']}), bars in window = {meta['bars']}")
-    L.append(f"- friction: {FRICTION_PIPS} pip / trade (USD_JPY RT)。WR / PF / EV は **net** (摩擦後)。harness 比較のみ **TV コスト基準** "
-             f"(commission {TV_COMMISSION_RATE*100:.3f}%×2 ≈ 0.6p + slippage 1 tick) — canon の数字は TV strategy() のコストを含む")
+    L.append(f"- friction: {FRICTION_PIPS} pip / trade (USD_JPY RT、spread + slippage 込み) を **slippage 無しの水準差**から引く。WR / PF / EV は **net** (摩擦後)。"
+             f"harness 比較のみ **TV 基準** (slippage 1 tick + commission {TV_COMMISSION_RATE*100:.3f}%×2、PF は equity 10% 逐次サイジングの cash)")
+    L.append("- C2 (金曜 21:45Z クローズ) は **冬時間 = 21:45 bar open で執行 / 夏時間 = 閉場後なので日曜初 bar open で fill (`WEEKEND_CLOSE_SUNDAY_FILL`、週末ギャップ込み)**")
     L.append("- `winner ≤8h` は **壁時計 hold_sec ≤ 28,800s** (live C1 と同基準。bars 数ではない — 週末跨ぎの bar は壁時計と乖離する)")
     L.append("- ラベル: 走 0 = 宣言 BT 再現 (2 変種) / 走 0′〜4 = **C0 近似 + intrabar 順序近似** / 走 5 = **C6 近似 (参考値)**")
     sg = res.get("signals", {})

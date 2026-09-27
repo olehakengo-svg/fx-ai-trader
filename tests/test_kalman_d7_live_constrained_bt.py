@@ -91,36 +91,59 @@ def test_c5_time_decay_only_when_in_loss_after_4h():
 
 
 # ── C2 weekend ───────────────────────────────────────────────────────────
-def test_c2_weekend_close_on_last_friday_bar_before_gap():
-    # 2025-09-19 は金曜。金曜 20:45 の後に 日曜 21:00 まで gap
+def _summer_weekend_frame(signal_at: int = 2, sunday_open: float = 150.0) -> pd.DataFrame:
+    """夏時間: 金曜最終 bar 20:45 (閉場 21:00Z)、日曜初 bar 21:00。2025-09-19 は金曜。"""
     fri = pd.date_range("2025-09-19 12:00", "2025-09-19 20:45", freq="15min", tz="UTC")
     sun = pd.date_range("2025-09-21 21:00", periods=40, freq="15min", tz="UTC")
     idx = fri.append(sun)
     df = pd.DataFrame({"Open": 150.0, "High": 150.002, "Low": 149.998, "Close": 150.0, "atr": 0.1,
                        "entry_signal": False, "perfect_up": True, "perfect_dn": False, "in_window": True}, index=idx)
-    df.iloc[2, df.columns.get_loc("entry_signal")] = True
+    df.iloc[signal_at, df.columns.get_loc("entry_signal")] = True
+    j = len(fri)
+    df.iloc[j, [df.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [sunday_open, sunday_open + 0.002, sunday_open - 0.002, sunday_open]
+    return df
+
+
+def test_c2_summer_close_is_deferred_to_sunday_open_with_gap():
+    """PR #302 review P2 4114026089: 夏時間は 21:00Z 閉場なので 21:45Z のクローズは執行できず、日曜 open で fill する
+    (KB 実例 carry_dip #709598)。金曜 close で決済したことにしてはいけない。"""
+    df = _summer_weekend_frame(sunday_open=149.700)   # 週末ギャップ −30p
     t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c2=True)))
-    assert t.exit_reason == "WEEKEND_CLOSE"
-    assert pd.Timestamp(t.exit_time) == pd.Timestamp("2025-09-19 21:00", tz="UTC")
+    assert t.exit_reason == "WEEKEND_CLOSE_SUNDAY_FILL"
+    assert pd.Timestamp(t.exit_time) == pd.Timestamp("2025-09-21 21:00", tz="UTC")
+    assert t.exit == pytest.approx(149.700 - K.MINTICK)      # 日曜 open − slippage、ギャップを食う
+    assert t.raw_pips == pytest.approx(-30.0, abs=0.01)
     t0 = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c2=False, canon_cap=False)))
-    assert t0.exit_reason == "EOD"
+    assert t0.exit_reason == "SL_HIT"  # C2 無しなら日曜 open のギャップで SL (15p) に掛かる
 
 
-def test_c2_entry_on_final_friday_bar_is_closed_at_friday_2145():
-    """PR #302 review P2 4113998538: 金曜 20:45 bar の signal (entry 21:00) は live では 21:45Z にクローズされる。
-    ループが日曜 bar から始まるため、entry 時点で金曜クローズを合成しないと週末を跨いで保持してしまう。"""
-    fri = pd.date_range("2025-09-19 18:00", "2025-09-19 20:45", freq="15min", tz="UTC")
-    sun = pd.date_range("2025-09-21 21:00", periods=40, freq="15min", tz="UTC")
+def test_c2_winter_close_executes_at_friday_2145_bar_open():
+    """冬時間 (22:00Z 閉場): 金曜 21:45 bar が存在し、live の 21:45Z クローズはその tick で執行される。"""
+    fri = pd.date_range("2025-12-05 12:00", "2025-12-05 21:45", freq="15min", tz="UTC")   # 12-05 は金曜
+    sun = pd.date_range("2025-12-07 22:00", periods=20, freq="15min", tz="UTC")
     idx = fri.append(sun)
     df = pd.DataFrame({"Open": 150.0, "High": 150.002, "Low": 149.998, "Close": 150.0, "atr": 0.1,
                        "entry_signal": False, "perfect_up": True, "perfect_dn": False, "in_window": True}, index=idx)
-    df.iloc[len(fri) - 1, df.columns.get_loc("entry_signal")] = True   # 20:45 bar
-    entry = 150.000 + K.MINTICK
-    df.iloc[len(fri) + 2, df.columns.get_loc("High")] = entry + 0.6   # 日曜に TP 水準 (跨げば勝ち)
+    df.iloc[2, df.columns.get_loc("entry_signal")] = True
+    k = list(idx).index(pd.Timestamp("2025-12-05 21:45", tz="UTC"))
+    df.iloc[k, df.columns.get_loc("Open")] = 150.120
     t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c2=True)))
-    assert t.exit_reason == "WEEKEND_CLOSE" and t.bars_held == 0
-    assert pd.Timestamp(t.exit_time) == pd.Timestamp("2025-09-19 21:45", tz="UTC")
-    assert t.hold_sec == 45 * 60 and t.gross_pips < 0  # slippage 分の小さな負け、週末の TP は取れない
+    assert t.exit_reason == "WEEKEND_CLOSE"
+    assert pd.Timestamp(t.exit_time) == pd.Timestamp("2025-12-05 21:45", tz="UTC")
+    assert t.exit == pytest.approx(150.120 - K.MINTICK)
+
+
+def test_c2_entry_on_final_summer_friday_bar_is_closed_at_sunday_open():
+    """PR #302 review P2 4113998538 / 4114026089: 夏時間の金曜 20:45 bar signal (entry 21:00) は live では 21:45Z の
+    クローズ指示が閉場後 → 日曜 open で fill。日曜 bar 内の TP は取れない (open で先に閉じる)。"""
+    df = _summer_weekend_frame(signal_at=35, sunday_open=150.050)   # 20:45 bar が index 35 (12:00 起点)
+    assert df.index[35] == pd.Timestamp("2025-09-19 20:45", tz="UTC")
+    entry = 150.000 + K.MINTICK
+    df.iloc[38, df.columns.get_loc("High")] = entry + 0.6           # 日曜 3 本目に TP 水準
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c2=True)))
+    assert t.exit_reason == "WEEKEND_CLOSE_SUNDAY_FILL" and t.bars_held == 1
+    assert pd.Timestamp(t.exit_time) == pd.Timestamp("2025-09-21 21:00", tz="UTC")
+    assert t.exit == pytest.approx(150.050 - K.MINTICK)
     t0 = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c2=False)))
     assert t0.exit_reason == "TP_HIT"  # C2 無しなら週末を跨いで TP
 
@@ -289,13 +312,40 @@ def test_harness_check_flags_mismatch_and_passes_canon():
     assert chk["all_ok"] is False and not chk["n"]["ok"] and not chk["pf"]["ok"]
 
 
-def test_friction_is_subtracted_once_per_trade():
+def test_friction_is_subtracted_from_unslipped_levels_once():
+    """PR #302 review P2 4114026093: RT 摩擦 2.14p は slippage 込みなので、slipped gross からではなく
+    slippage 無しの水準差 (raw) から引く。TV 側 gross は slippage 込みのまま。"""
     df = _bars(40)
     entry = 150.000 + K.MINTICK
     df.iloc[10, df.columns.get_loc("High")] = entry + 0.501
     t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5")))
-    assert t.net_pips == pytest.approx(t.gross_pips - K.FRICTION_PIPS, abs=1e-6)
-    assert t.gross_pips == pytest.approx(50.0, abs=0.01)
+    assert t.gross_pips == pytest.approx(50.0, abs=0.01)     # slipped: entry +1 tick、TP は指値で slippage 無し
+    assert t.raw_pips == pytest.approx(50.1, abs=0.01)       # 水準差: tp − signal close
+    assert t.net_pips == pytest.approx(t.raw_pips - K.FRICTION_PIPS, abs=1e-6)
+    # 成行 exit (flip) は exit 側にも slippage → raw と gross の差は 2 tick
+    df2 = _bars(40)
+    df2.iloc[10:, df2.columns.get_loc("perfect_dn")] = True
+    t2 = _one(K.simulate(df2, K.StackConfig(exit_mode="flip")))
+    assert t2.raw_pips - t2.gross_pips == pytest.approx(0.2, abs=1e-6)
+
+
+def test_tv_pf_is_cash_based_with_sequential_equity_sizing():
+    """PR #302 review P2 4114026095: TV の PF は 10% equity 逐次サイジングの cash PnL — entry 価格が違う trade は
+    pips 合計 PF と一致しない。"""
+    def mk(entry, exit_px, when):
+        return K.SimTrade(signal_time=when, entry_time=when, exit_time=when, entry=entry, exit=exit_px, atr=0.1,
+                          decl_sl=0, decl_tp=0, sl0=0, tp0=0, sl_branch="atr", c0_flags={}, bars_held=5, hold_sec=4500,
+                          exit_reason="TP_HIT", gross_pips=(exit_px - entry) / K.PIP, raw_pips=(exit_px - entry) / K.PIP,
+                          net_pips=0.0, tv_net_pips=(exit_px - entry) / K.PIP - K.tv_commission_pips(entry, exit_px),
+                          mfe_pips=0.0, mae_pips=0.0)
+    trades = [mk(100.001, 100.501, "2025-09-16T09:00:00+00:00"),   # +50p @100 → qty 100 → +50 JPY
+              mk(200.001, 199.751, "2025-09-16T12:00:00+00:00")]   # −25p @200 → qty 5.025 → −1.3 JPY
+    s = K.tv_stats(trades)
+    assert s["pf_tv_pips"] == pytest.approx(50.0 / 25.0, rel=0.05)
+    # cash: A qty≈100 → +49.6 JPY (commission 0.4) / B qty≈50 (equity 10% / 200) → −12.9 JPY ⇒ PF ≈ 3.84 ≠ 2.0
+    assert s["pf_tv"] == pytest.approx(49.6 / 12.9, rel=0.02)
+    assert abs(s["pf_tv"] - s["pf_tv_pips"]) > 1.0
+    assert s["wr_tv"] == 0.5 and s["ending_equity_tv"] > K.TV_INITIAL_EQUITY
 
 
 def test_wilson_lower_matches_known_value():

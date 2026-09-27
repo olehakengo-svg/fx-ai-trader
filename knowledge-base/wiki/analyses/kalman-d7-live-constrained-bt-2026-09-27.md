@@ -7,7 +7,7 @@
 - ツール: `tools/kalman_d7_live_constrained_bt.py` / pin: `tests/test_kalman_d7_live_constrained_bt.py` (17 本、各 overlay の発火 / 不発 両側 + 順序仮定で結果が変わる bar)
 - 生成物: `knowledge-base/raw/bt-results/kalman_d7_live_constrained_bt_2026_09_27.{json,md}` (全走の trade 明細付き)
 - データ: Massive USD_JPY M15 (`data/cache/massive/USD_JPY_15m.parquet`)、window 2025-07-01 → 2026-05-19 (canon と同じ)、warmup 2025-04-01、window 内 21,842 bars / raw entry signal 92 (po_up_start 712)
-- 摩擦: USD_JPY RT 2.14 pip / trade ([[friction-analysis]])。WR / PF / EV は net。harness 比較のみ **TV コスト基準** (commission 0.002%×2 ≈ 0.6p + slippage 1 tick)
+- 摩擦: USD_JPY RT 2.14 pip / trade ([[friction-analysis]]、spread 0.7 + slippage 0.5 込み) を **slippage 無しの水準差 (raw)** から引く (slipped gross から引くと slippage が二重 — review P2 4114026093)。WR / PF / EV は net。harness 比較のみ **TV 基準** (slippage 1 tick + commission 0.002%×2、PF は equity 10% 逐次サイジングの cash)
 - live 定数の出典: `modules/demo_trader.py` (origin/main a0614e42) — C0a `_atr_mult["daytrade"]=1.0` / `_sl_margin=0.3×ATR` / RR 床 1.0 / MIN_SL 0.050 / MAX_SL 0.200、C0c 低流動性 {0,1,18,19,20,21}Z +0.2×ATR / rn 0.5 刻み ±2p → 2.5p 外側、C0b ×0.85、C0d ×1.3、C1 28,800s、C2 金曜 21:45Z、C3 BE 0.8×ATR (+spread 0.008)、C4 trail 1.5×ATR 到達後 0.5×ATR、C5 14,400s 超で含み損、C6 hold ≥600s ∧ 含み益 ≤0.3×ATR ∧ PO 崩れ (サロゲート)
 
 ## §0 新規所見 — 宣言仕様 (TP 5×ATR / SL 1.5×ATR) は BT canon の exit ではない **可能性が高い** (aggregate payoff の算術 = 強い示唆、確定ではない)
@@ -27,14 +27,14 @@ PF = payoff × WR/(1−WR) ⇒ **aggregate payoff = 3.866 × 0.7609 / 0.2391 = 1
 ⇒ **決裁肢 (a)「live exit を宣言仕様に合わせる」の宣言 = TP 5×ATR が canon の exit である保証は無い**。(a) を定義する前に TV 再走で canon exit を確定する (flip なら (a) = flip exit + SL 1.5×ATR + 市場 bar 480 本、tp5 なら宣言のまま)。走 0 `tp5` 変種 (下記) は payoff ~3.0 / winner の 45–48% が 8h 以内に完結する形状で、canon の「458 bars 保持」と形が違う。
 ## §1 Harness 検証 = ❌ FAIL (走 0 の 2 変種 + flip 定義 5 候補のいずれも canon を ±10% で再現しない)
 
-比較基準 = **TV コスト後** (commission 0.002% × 2 order ≈ 0.6p + slippage 1 tick。PR #302 review P2 4113955123 — 旧「gross」は slippage 込み・commission 抜きで TV と基準不一致だった)。
+比較基準 = **TV 基準** (slippage 1 tick + commission 0.002% × 2 order ≈ 0.6p、**PF は equity 10% 逐次サイジングの cash PnL** — canon の PF 3.866 は TV strategy() の monetary gross profit / loss。PR #302 review P2 4113955123 / 4114026095: 旧「gross」は slippage 込み・commission 抜き、旧 PF は pips 合計で、いずれも TV と基準不一致だった)。
 
 | 走 0 変種 | N | WR (tv) | PF (tv) | avg winner bars | canon |
 |---|---|---|---|---|---|
-| `flip` (perfect_dn = EMA200 > EMA75 > EMA25、SL 1.5×ATR、480 cap) | 60 | 18.3% | 2.17 | 373 | 46 / 23.91% / 3.866 / 458 |
+| `flip` (perfect_dn = EMA200 > EMA75 > EMA25、SL 1.5×ATR、480 cap) | 60 | 18.3% | 2.21 | 373 | 46 / 23.91% / 3.866 / 458 |
 | `tp5` (TP 5×ATR、SL 1.5×ATR、480 cap) | 74 | 29.7% | 1.45 | 37 | 同上 |
 
-flip 定義の識別 (entry / SL / cap 固定、TV コスト基準): perfect_dn N=60 PF 2.17 avgWin 373 / not_perfect_up N=92 PF 0.89 avgWin 26 / close_lt_ema75 N=77 PF 2.20 avgWin 107 / close_lt_ema200 N=65 PF 2.45 avgWin 243 / ema25_lt_ema75 N=67 PF 2.74 avgWin 252。**形状 (payoff 8–9×、winner 250–470 bars、winner の 8h 内完結 0%) は flip 系だけが canon に近く、tp5 は形状ごと別物**。ただしどれも ±10% に入らない。
+flip 定義の識別 (entry / SL / cap 固定、TV 基準): perfect_dn N=60 PF 2.21 avgWin 373 / not_perfect_up N=92 PF 0.90 avgWin 26 / close_lt_ema75 N=77 PF 2.24 avgWin 107 / close_lt_ema200 N=65 PF 2.51 avgWin 243 / ema25_lt_ema75 N=67 PF 2.79 avgWin 252。**形状 (payoff 8–9×、winner 250–470 bars、winner の 8h 内完結 0%) は flip 系だけが canon に近く、tp5 は形状ごと別物**。ただしどれも ±10% に入らない。
 
 要因 (順不同、切り分け不能): (1) v17 Pine 不在で flip 条件・cap の実装が推定 / (2) Massive vs OANDA (TV) のベンダー差 — EMA 交差の 1 bar ずれで PO 遷移の有無が変わる / (3) percentile・EMA 初期化の実装差。**TV で canon を再走できるまで harness は未検証**。task 文書「走 0 が現行 BT を再現できないまま制約付きの数字を出さない」に従い、§2〜§4 の数値は**引用禁止** (packet に載せるのは順位・向き・構造のみ)。
 
@@ -42,28 +42,28 @@ flip 定義の識別 (entry / SL / cap 固定、TV コスト基準): perfect_dn 
 
 順序仮定 = adverse_first (既定・保守側: 同一 bar で BE/trail 発動と SL 到達が両方あり得るときは SL を先に処理)。`winner ≤8h` は **壁時計 hold_sec ≤ 28,800s** (PR #302 review P2 4113955120 — 旧 bars ≤32 は週末跨ぎ bar を誤分類していた):
 
-| 走 | N | WR | PF net | EV net p/t | payoff | winner ≤8h | winner hold bars med | exit 種別 (上位) |
-|---|---|---|---|---|---|---|---|---|
-| 走 0 flip (canon 形状) | 60 | 18.3% | 1.96 | +13.6 | 8.7 | **0%** | 330 | SL 48 / FLIP 9 / CAP480 3 |
-| 走 0 tp5 (宣言) | 74 | 29.7% | 1.28 | +3.4 | 3.0 | **45%** | 30 | SL 52 / TP 22 |
-| 走 0′ +C0 | 80 | 21.2% | 0.96 | -0.4 | 3.6 | **65%** | 18 | SL 63 / TP 17 |
-| 走 1 +C1 (8h) | 81 | 27.2% | 1.15 | +1.6 | 3.1 | **86%** | 26 | SL 56 / MAX_HOLD 14 / TP 11 |
-| 走 2 +C2 (金曜) | 81 | 25.9% | 0.98 | -0.1 | 2.8 | **100%** | 27 | SL 56 / TP 11 / MAX_HOLD 9 / WKND 5 |
-| 走 3 +C3C4 (BE/trail) | 85 | 23.5% | 0.63 | -2.7 | 2.0 | **100%** | 6 | SL 46 / TRAIL 17 / BE 17 / WKND 4 |
-| 走 4 +C5 (4h 含み損) | 85 | 23.5% | 0.63 | -2.7 | 2.0 | **100%** | 6 | SL 46 / TRAIL 17 / BE 17 / WKND 4 |
+| 走 | 走 0 flip (canon 形状) | 60 | 18.3% | 1.99 | +13.8 | 8.9 | **0%** | 330 | SL 48 / FLIP 9 / CAP480 3 |
+| 走 0 tp5 (宣言) | 74 | 29.7% | 1.30 | +3.6 | 3.1 | **45%** | 30 | SL 52 / TP 22 |
+| 走 0′ +C0 | 80 | 21.2% | 0.98 | -0.2 | 3.6 | **65%** | 18 | SL 63 / TP 17 |
+| 走 1 +C1 (8h) | 81 | 27.2% | 1.17 | +1.8 | 3.1 | **86%** | 26 | SL 56 / MAX_HOLD 14 / TP 11 |
+| 走 2 +C2 (金曜/日曜 fill) | 81 | 27.2% | 1.13 | +1.3 | 3.0 | **91%** | 25 | SL 56 / TP 11 / MAX_HOLD 9 / WKND_SUN 4 / WKND_FRI 1 |
+| 走 3 +C3C4 (BE/trail) | 85 | 23.5% | 0.55 | -3.7 | 1.8 | **95%** | 6 | SL 46 / TRAIL 17 / BE 17 / WKND_SUN 3 / TP 1 |
+| 走 4 +C5 (4h 含み損) | 85 | 23.5% | 0.55 | -3.7 | 1.8 | **95%** | 6 | SL 46 / TRAIL 17 / BE 17 / WKND_SUN 3 / TP 1 |
+| 走 5 +C6 近似 (参考) | 92 | 19.6% | 0.55 | -3.1 | 2.3 | **94%** | 5 | SR_APPROX 32 / SL 25 / TRAIL 15 / BE 15 / WKND_SUN 3 |
+7 / BE 17 / WKND 4 |
 | 走 5 +C6 近似 (参考) | 92 | 19.6% | 0.63 | -2.2 | 2.6 | **100%** | 6 | SR_APPROX 32 / SL 25 / TRAIL 15 / BE 15 |
 
-順序仮定 = favorable_first (感度): 走 0′ +0.2 / 走 1 +2.2 / 走 2 +0.4 / **走 3 -6.0 (PF 0.20、BE 26)** / 走 5 -5.0。winner ≤8h は走 3 で 100%。**分解の順位は両仮定で不変**、大きさは走 3 で 2 倍以上ぶれる (BE の同 bar 発動が多い) — packet にはこの幅を書く。
+順序仮定 = favorable_first (感度): 走 0′ +0.4 / 走 1 +2.3 / 走 2 +1.9 / **走 3 -5.9 (PF 0.21、BE 26)** / 走 5 -4.9。winner ≤8h は走 3 で 92%。**分解の順位は両仮定で不変**、大きさは走 3 で 1.6 倍ぶれる (BE の同 bar 発動が多い) — packet にはこの幅を書く。
 
-限界分解 (走 0′ に overlay を単独で載せる、adverse_first): C1 のみ **+1.6** / C2 のみ -0.8 (WEEKEND_CLOSE 5 本) / **C3C4 のみ -3.0** / C5 のみ -1.0 (TIME_DECAY 9 本) / C6 近似のみ -2.4 (SR_APPROX 49 本、参考) / C0+C1+C2+C5 (C3C4 抜き) +0.2。
+限界分解 (走 0′ に overlay を単独で載せる、adverse_first): C1 のみ **+1.8** / C2 のみ +0.7 (日曜 fill 4 + 金曜 21:45 1 本) / **C3C4 のみ -2.8** / C5 のみ -0.8 (TIME_DECAY 9 本) / C6 近似のみ -2.2 (SR_APPROX 49 本、参考) / C0+C1+C2+C5 (C3C4 抜き) +1.7。
 
 ### 読み (順位・向きのみ)
 
-1. **edge を最も削る overlay は C3/C4 (ATR BE 0.8 → trail 1.5/0.5)** — 単独でも累積でも最大の負の寄与で、両順序仮定で一貫。BE/trail は winner の hold を中央値 25 → 6 bars に潰し (winner の 100% が壁時計 8h 以内、両順序仮定)、payoff を 3 → 2 に落とす。「BE/Trail が Python BT の WR を +20pp 水増しする」([[project_be_trail_inflates_python_bt_wr]]) の鏡像で、**保持依存の TF 戦略では BE/trail が EV を削る側に出る**。
-2. **C0 (entry 時 SL/TP 置換) は 2 番目** — 宣言 tp5 の +3.4 を −0.4 へ。内訳は what-if (§3): broker TP ×0.85 (−1.2)、低流動性 +0.2×ATR バッファ (−0.5)、SL 1.5→1.0×ATR (主因、what-if (i) は base と同一なので差分は走 0 tp5 との比較で読む)。
-3. **C1 (8h cap) はこのデータでは正の寄与** (+1.6〜+2.2) — MAX_HOLD 14 本の PnL は [−86.6, −13.7, −3.0, +1.8, +15.5 … +203.3] で、8h で切られた建玉の大半は**その後 SL に落ちる負け候補**だった (tp5 exit 下では)。⚠️ これは「宣言 = tp5」上での話で、canon 形状 (flip 走) の winner は壁時計 8h 内完結 **0%** (11 本の hold は 65h〜168h) — **flip 形状の edge は C1 と両立しない**。
-4. **C2 (金曜クローズ) は小さな負** (-0.8〜-1.7、WEEKEND_CLOSE 5 本 — うち 1 本は金曜最終 bar の signal を entry 直後 21:45 で閉じる合成、review P2 4113998538)。flip 走の winner 11 本のうち hold 65h 超 = 全て = 少なくとも 1 回は週末を跨ぐ ⇒ canon 形状なら**大半が金曜に打ち切られる**。
-5. **C5 (4h 含み損) は単独で −1.0 (9 本) だが BE/trail の後ろでは 0 本** — 打ち切り経路の重複。「負け側も打ち切られる」(09-25 訂正) は実在するが、BE/trail が先に同じ建玉を処理する。
+1. **edge を最も削る overlay は C3/C4 (ATR BE 0.8 → trail 1.5/0.5)** — 単独でも累積でも最大の負の寄与で、両順序仮定で一貫。BE/trail は winner の hold を中央値 25 → 6 bars に潰し (winner の 100% が壁時計 8h 以内、両順序仮定)、payoff を 3 → 2 に落とす。両順序仮定で走 3 の EV は -3.7 / -5.9。「BE/Trail が Python BT の WR を +20pp 水増しする」([[project_be_trail_inflates_python_bt_wr]]) の鏡像で、**保持依存の TF 戦略では BE/trail が EV を削る側に出る**。
+2. **C0 (entry 時 SL/TP 置換) は 2 番目** — 宣言 tp5 の +3.6 を -0.2 へ。内訳は what-if (§3): broker TP ×0.85 (−1.2)、低流動性 +0.2×ATR バッファ (−0.5)、SL 1.5→1.0×ATR (主因、what-if (i) は base と同一なので差分は走 0 tp5 との比較で読む)。
+3. **C1 (8h cap) はこのデータでは正の寄与** (+1.8〜+2.3) — MAX_HOLD 14 本の PnL は [−86.6, −13.7, −3.0, +1.8, +15.5 … +203.3] で、8h で切られた建玉の大半は**その後 SL に落ちる負け候補**だった (tp5 exit 下では)。⚠️ これは「宣言 = tp5」上での話で、canon 形状 (flip 走) の winner は壁時計 8h 内完結 **0%** (11 本の hold は 65h〜168h) — **flip 形状の edge は C1 と両立しない**。
+4. **C2 (金曜 21:45Z クローズ) の寄与は小さく、符号は積み方で変わる (累積 走 1→走 2 で -0.4 / -0.4、走 0′ 単独では +0.7 / +1.3) — 週末ギャップの向きを含み性質ではない**: live の 21:45Z 指示は **冬時間 (22:00Z 閉場) は 21:45 bar で執行、夏時間 (21:00Z 閉場) は閉場後なので日曜 open で fill** (KB 実例 carry_dip #709598、review P2 4114026089)。本 window の C2 fill は日曜 4 本 + 金曜 21:45 1 本 = **5 件の週末ギャップ**で、その向きが偶然順行だった (前版の「金曜最終 bar close で決済」は夏時間で live が得られない fill を作っていて、C2 を −0.8〜−1.7 と読んでいた)。N=5 の符号を寄与の向きとして引用しない。**構造的な事実**は「C2 は建玉を週末に持ち越させない (日曜 open では即クローズ)」= flip 形状 (winner が必ず週末を跨ぐ) と両立しないこと (§2-3)。
+5. **C5 (4h 含み損) は単独で -0.8 (9 本) だが BE/trail の後ろでは 0 本** — 打ち切り経路の重複。「負け側も打ち切られる」(09-25 訂正) は実在するが、BE/trail が先に同じ建玉を処理する。
 6. **C6 近似は 32–49 本を早期に切り WR を 11–21% に落とす** — ただしサロゲート (conf/score/ADX/他戦略 stream 無し) なので**向きも大きさも判定に使わない**。
 7. **winner / loser 別 hold**: flip 走の loser は中央値 9 bars (p75 32) で 12/49 が 32 bars 超 — **C1 は canon 形状の loser も 1/4 切る**が、winner (100% が 8h 超) を全滅させる方が支配的。tp5 走の loser 中央値 5.5 bars。
 
@@ -71,26 +71,27 @@ flip 定義の識別 (entry / SL / cap 固定、TV コスト基準): perfect_dn 
 
 | what-if | 走 0′ EV | 走 1 | 走 2 | 走 3 | 走 4 | 順位が変わるか |
 |---|---|---|---|---|---|---|
-| base (ATR×1.0 / clamp / lowliq / rn / broker 0.85 / MTF 1.0) | **-0.4** | +1.6 | -0.1 | -2.7 | -2.7 | — |
+| base (ATR×1.0 / clamp / lowliq / rn / broker 0.85 / MTF 1.0) | **-0.2** | +1.8 | +1.3 | -3.7 | -3.7 | — |
 | (i) ATR のみ | = base (SR 未使用なので同一) | | | | | 変わらず |
-| (ii) SR 優先 (port A: `find_sr_levels_weighted` 直近 500 bars、⚠️ live の fetch 本数は未確認) | **+3.0** (N 68、sr 67 / clamp_max 32) | +2.3 | +0.5 | -2.7 | -2.3 | 走 0′/2 の符号が変わる、順位 (C3C4 最大) は不変 |
+| (ii) SR 優先 (port A: `find_sr_levels_weighted` 直近 500 bars、⚠️ live の fetch 本数は未確認) | **+3.1** (N 68、sr 67 / clamp_max 32) | +2.5 | +2.3 | -3.6 | -3.3 | 走 0′ の符号が変わる、順位 (C3C4 最大) は不変 |
 | (iii) clamp 無し | = base (ATR×1.0 ≈ 10p は 5–20p 帯内) | | | | | 変わらず |
-| (iv) 低流動性バッファ無し | **+0.2** | +2.1 | +0.2 | -2.6 | -2.6 | 走 0′/2 の符号が変わる、順位 (C3C4 最大) は不変 |
-| (v) MTF ×1.3 | **+2.1** | +2.5 | +0.8 | -2.7 | -2.7 | 走 0′/2 の符号が変わる、順位 (C3C4 最大) は不変 |
-| (vi) rn nudge 無し | **-0.2** | +1.8 | +0.0 | -2.8 | -2.8 | 走 2 の符号が変わる、順位 (C3C4 最大) は不変 |
-| (vii) broker TP 0.85 無し | **+0.8** | +2.0 | +0.2 | -2.7 | -2.7 | 走 0′/2 の符号が変わる、順位 (C3C4 最大) は不変 |
+| (iv) 低流動性バッファ無し | **+0.3** | +2.3 | +1.9 | -3.5 | -3.5 | 走 0′ の符号が変わる、順位 (C3C4 最大) は不変 |
+| (v) MTF ×1.3 | **+2.2** | +2.7 | +2.3 | -3.7 | -3.7 | 走 0′ の符号が変わる、順位 (C3C4 最大) は不変 |
+| (vi) rn nudge 無し | **-0.0** | +1.9 | +1.5 | -3.7 | -3.7 | 微小、順位不変 |
+| (vii) broker TP 0.85 無し | **+1.0** | +2.1 | +1.7 | -3.7 | -3.7 | 走 0′ の符号が変わる、順位 (C3C4 最大) は不変 |
 
 **分解の順位 (C3C4 ≫ C0 > C6近似 > C5 ≈ C2、C1 は正) はどの what-if でも変わらない。変わるのは走 0′〜2 の符号 (SR 優先 / MTF 1.3 / broker TP 無しで正)**。live 実測率 (SR 採用率 / lowliq / rn / MTF 一致率) は `[SLTP_CONSTRUCT]` marker (PR #300、09-26 デプロイ後の fill) が溜まってから差し替える — 現時点で 0 fill。fast-SL 拡幅は未再現。
 
 ## §4 packet 用の所見 (registry 10-08、判定は書かない)
 
-- **決裁肢 (a) は「宣言 = canon exit か」を TV 再走で確定してから定義する**: §0 の aggregate payoff は canon exit が flip であることの**強い示唆であって確定ではない** (review P1)。flip と確定した場合の (a) = flip exit (PO-DN、定義は TV canon で確定) + SL 1.5×ATR + 市場 bar 480 本 + C0〜C6 全免除 — **BE/trail 免除が最重要** (§2-1)、次に C0 免除、8h cap と金曜クローズは flip 形状と両立しない (§2-3,4)。週末ギャップ露出 + 1 建玉が最大 5 営業日拘束される。tp5 と確定した場合の (a) = 宣言のまま C0〜C6 免除 (この場合 走 0 tp5 の形状が対象)。
+- **決裁肢 (a) は「宣言 = canon exit か」を TV 再走で確定してから定義する**: §0 の aggregate payoff は canon exit が flip であることの**強い示唆であって確定ではない** (review P1)。flip と確定した場合の (a) = flip exit (PO-DN、定義は TV canon で確定) + SL 1.5×ATR + 市場 bar 480 本 + C0〜C6 全免除 — **BE/trail 免除が最重要** (§2-1)、次に C0 免除、8h cap と金曜クローズは flip 形状 (winner が必ず週末を跨ぐ) と両立しない (§2-3,4 — 本 window の C2 の符号はギャップ運で性質ではない)。週末ギャップ露出 + 1 建玉が最大 5 営業日拘束される。tp5 と確定した場合の (a) = 宣言のまま C0〜C6 免除 (この場合 走 0 tp5 の形状が対象)。
 - **(b) 現状維持 = 「BT の無い戦略」**: live の実効仕様は「SL ≈1×ATR (SR 優先時は広い) / broker TP ≈4.25×ATR / BE 0.8 / trail 1.5→0.5 / 8h / 金曜 / 4h 含み損 / SIGNAL_REVERSE」で、この形状の BT は harness 未検証の走 3〜5 しかない (向き = 負、大きさ不明)。fill を canon 検証の N に数えない規律は継続。
 - **(c) shadow 降格**: 本 BT は根拠にならない (task 規律)。通常の live 損失停止規律 (Rule 2、realized N ベース) のみ。
 - **harness を閉じる唯一の経路 = TV で v17 canon を再走** (Pine の再構築 → flip 定義の確定 → 同 feed で走 0 一致 → 制約付き走を Pine 側で再現)。Python 側は Massive でしか走れないので、**TV 接続が要る = 対話セッションでの user 操作 (TV desktop 起動) が前提**。それまで本頁の数字は「方向・構造のみ」。
 
 ## §5 ツール規律
 
+- **レビュー反映 (PR #302、3 巡目)**: P2 4114026089 — 夏時間 (21:00Z 閉場) の 21:45Z クローズは執行不能で日曜 open fill になる (KB 実例 #709598) → `_c2_exit_at_open` で冬 21:45 bar open / 夏 日曜初 bar open の 2 レジームに (2 巡目の「金曜 close 合成」は撤回)。C2 の符号が −0.8 → +0.7 (日曜 fill 4 件のギャップが順行) に変わったが、性質ではなく小 N のギャップ運として記載 / P2 4114026093 — RT 摩擦 2.14p (slippage 込み) を slipped gross から引いて 0.1–0.2p 二重計上 → `raw_pips` (水準差) から引く / P2 4114026095 — TV PF を pips 合計から **equity 10% 逐次サイジングの cash PnL** に (PF 2.17→2.21、判定不変)。pin: 夏 = 日曜 open fill でギャップを食う / 冬 = 21:45 bar open / raw と gross の差 = tick 数 / cash PF ≠ pips PF
 - **レビュー反映 (PR #302、2 巡目)**: P2 4113998538 — 金曜最終 bar (20:45) の signal は entry (21:00) 直後の 21:45Z に live がクローズするが、ループが日曜 bar から始まるため週末を跨いで保持していた → entry 時点で WEEKEND_CLOSE を合成 (hold 45 分、bars 0)。C2 の WEEKEND_CLOSE は 4→5 本、走 2 以降の EV は −0.05 程度動くが順位不変 (pin: 金曜 20:45 signal は c2 で WEEKEND_CLOSE / c2 無しで日曜 TP)
 - **レビュー反映 (PR #302、1 巡目)**: P1 4113955117 — §0「算術で確定」を「強い示唆」へ格下げ (ATR 異質性 + cap 早期クローズで aggregate payoff は 3.33× を超え得る、確定は TV 再走の per-trade ATR / exit 種別) / P2 4113955120 — `winner ≤8h` を bars ≤32 から `hold_sec ≤ 28,800` へ (pin: 週末跨ぎ 20 bars = 8h 外、32 bars = 8h 内、33 bars = 8h 外) / P2 4113955123 — harness 比較を TV コスト後 (`tv_net_pips`、commission 0.002%×2) に統一 (pin: gross +0.3p の winner は TV では loser)
 
