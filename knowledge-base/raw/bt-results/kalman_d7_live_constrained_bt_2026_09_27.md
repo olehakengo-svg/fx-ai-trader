@@ -1,4 +1,4 @@
-# kalman_d7_po_dn_flip — live 制約付き BT (Python port、診断専用) 2026-09-27
+# kalman_d7_po_dn_flip — live 制約付き BT (Python port、診断専用) 2026-09-28
 
 - data: `/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/USD_JPY_15m.parquet` (Massive USD_JPY M15、TV 側は OANDA feed = ベンダー差あり)
 - window: 2025-07-01 → 2026-05-19 23:59:59 (warmup 2025-04-01), bars in window = 21842
@@ -68,9 +68,9 @@ winner / loser 別 exit 種別:
 | marg_C1_only | 81 | 27.2% | 1.17 | 1.75 | 141.8 | 86% | SL_HIT 58, TP_HIT 13, MAX_HOLD_TIME 10 |
 | marg_C2_only | 80 | 22.5% | 1.06 | 0.67 | 53.4 | 67% | SL_HIT 62, TP_HIT 16, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 | marg_C3C4_only | 85 | 22.4% | 0.53 | -4.10 | -348.3 | 100% | SL_HIT 48, TRAIL 18, BE 18, TP_HIT 1 |
-| marg_C5_only | 84 | 20.2% | 1.15 | 1.50 | 125.6 | 76% | SL_HIT 57, TP_HIT 17, TIME_DECAY_EXIT 10 |
+| marg_C5_only | 84 | 17.9% | 1.01 | 0.07 | 5.7 | 73% | SL_HIT 57, TP_HIT 15, TIME_DECAY_EXIT 12 |
 | marg_C6approx_only | 92 | 10.9% | 0.62 | -3.19 | -293.9 | 80% | SIGNAL_REVERSE_APPROX 49, SL_HIT 33, TP_HIT 10 |
-| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 26.2% | 1.18 | 1.75 | 147.2 | 91% | SL_HIT 57, TP_HIT 14, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 5, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
+| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 23.8% | 1.03 | 0.33 | 27.3 | 90% | SL_HIT 57, TP_HIT 12, TIME_DECAY_EXIT 7, MAX_HOLD_TIME 6, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 
 ## 走 0〜5 — bar 内順序仮定 = `favorable_first` (感度)
 
@@ -105,9 +105,9 @@ winner / loser 別 exit 種別:
 | marg_C1_only | 81 | 28.4% | 1.24 | 2.33 | 188.8 | 87% | SL_HIT 57, TP_HIT 14, MAX_HOLD_TIME 10 |
 | marg_C2_only | 80 | 23.8% | 1.12 | 1.25 | 100.4 | 68% | SL_HIT 61, TP_HIT 17, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 | marg_C3C4_only | 85 | 12.9% | 0.20 | -6.26 | -532.3 | 100% | SL_HIT 48, BE 26, TRAIL 11 |
-| marg_C5_only | 84 | 21.4% | 1.21 | 2.06 | 172.6 | 78% | SL_HIT 56, TP_HIT 18, TIME_DECAY_EXIT 10 |
+| marg_C5_only | 84 | 19.0% | 1.06 | 0.63 | 52.7 | 75% | SL_HIT 56, TP_HIT 16, TIME_DECAY_EXIT 12 |
 | marg_C6approx_only | 92 | 12.0% | 0.67 | -2.68 | -246.9 | 82% | SIGNAL_REVERSE_APPROX 49, SL_HIT 32, TP_HIT 11 |
-| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 27.4% | 1.24 | 2.31 | 194.2 | 91% | SL_HIT 56, TP_HIT 15, MAX_HOLD_TIME 6, TIME_DECAY_EXIT 5, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
+| walk4b_C0+C1+C2+C5_noC3C4 | 84 | 25.0% | 1.09 | 0.89 | 74.3 | 90% | SL_HIT 56, TP_HIT 13, TIME_DECAY_EXIT 7, MAX_HOLD_TIME 6, WEEKEND_CLOSE 1, WEEKEND_CLOSE_SUNDAY_FILL 1 |
 
 ## C0 感度 (BT 側 what-if、走 0′〜4 を再集計。live 実測率は marker 付き live N 蓄積後に差し替え)
 
@@ -129,7 +129,7 @@ winner / loser 別 exit 種別:
 | ii_sr_priority | walk1_C0+C1 | 73 | 38.4% | 1.21 | 2.47 | 180.3 | 89% | {'sr': 72, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 34, 'lowliq': 25, 'rn': 10} |
 | ii_sr_priority | walk2_+C2 | 73 | 38.4% | 1.20 | 2.30 | 167.6 | 93% | {'sr': 72, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 34, 'lowliq': 25, 'rn': 10} |
 | ii_sr_priority | walk3_+C3C4 | 77 | 29.9% | 0.61 | -3.63 | -279.4 | 96% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
-| ii_sr_priority | walk4_+C5 | 77 | 29.9% | 0.63 | -3.28 | -252.8 | 96% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
+| ii_sr_priority | walk4_+C5 | 77 | 29.9% | 0.63 | -3.33 | -256.2 | 96% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
 | iii_no_clamp | walk0p_C0 | 80 | 21.2% | 1.06 | 0.67 | 53.3 | 65% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
 | iii_no_clamp | walk1_C0+C1 | 81 | 27.2% | 1.17 | 1.75 | 141.8 | 86% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
 | iii_no_clamp | walk2_+C2 | 81 | 27.2% | 1.13 | 1.34 | 108.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
@@ -174,7 +174,7 @@ winner / loser 別 exit 種別:
 | ii_sr_priority | walk1_C0+C1 | 73 | 39.7% | 1.27 | 3.13 | 228.8 | 90% | {'sr': 72, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 34, 'lowliq': 25, 'rn': 10} |
 | ii_sr_priority | walk2_+C2 | 73 | 39.7% | 1.26 | 2.96 | 216.1 | 93% | {'sr': 72, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 34, 'lowliq': 25, 'rn': 10} |
 | ii_sr_priority | walk3_+C3C4 | 77 | 14.3% | 0.19 | -6.78 | -522.2 | 91% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
-| ii_sr_priority | walk4_+C5 | 77 | 14.3% | 0.20 | -6.44 | -495.6 | 91% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
+| ii_sr_priority | walk4_+C5 | 77 | 14.3% | 0.20 | -6.48 | -499.0 | 91% | {'sr': 76, 'atr_rrlow': 1} | {'clamp_min': 3, 'clamp_max': 35, 'lowliq': 26, 'rn': 11} |
 | iii_no_clamp | walk0p_C0 | 80 | 22.5% | 1.11 | 1.25 | 100.3 | 67% | {'atr': 80} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
 | iii_no_clamp | walk1_C0+C1 | 81 | 28.4% | 1.24 | 2.33 | 188.8 | 87% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
 | iii_no_clamp | walk2_+C2 | 81 | 28.4% | 1.19 | 1.92 | 155.8 | 91% | {'atr': 81} | {'clamp_min': 0, 'clamp_max': 0, 'lowliq': 26, 'rn': 6} |
