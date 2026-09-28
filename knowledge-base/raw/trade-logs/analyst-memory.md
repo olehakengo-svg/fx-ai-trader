@@ -4862,6 +4862,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - `scalp:r2_shadow_demoted_cell`（11件）
 - RnB: USD_JPYのRANGINGが継続する限りno_signal多発は構造的。シグナル待ち継続。
 
+### 2026-09-28 (Pre-Tokyo Briefing)
+前日（2026-09-27）は**トレードゼロ**。PnL = ¥0、N = 0、WR = N/A。
+**全期間集計（N=6、WR=16.7%、PnL=−68.3）**
+| Strategy | Pair | N | WR% | EV（/trade） | PnL |
+**usdjpy_carry_dip_accumulator / kalman_d7_po_dn_flip**：USD_JPYのRANGING環境で、Cutoff後N=6（EV全面マイナス）。ボラ高レンジは「偽トレンド」発生リスクが高く、引き続き慎重。
+- **東京セッション（JST 09:00〜15:00）**：USD_JPY中心。RANGING継続ならrnb_usdjpyはno_signal優勢。EUR/GBPのTRENDING_DOWNが継続するか確認。
+- **ロンドンオープン（JST 16:00〜17:00）**：EUR/GBP系のATRスパイクに注意。TRENDING_DOWNの加速または反転の分岐点になりやすい。GBP_JPY ATR%ile=74%は高止まり——急伸後の押し目 or 継続に注意。
+- **NY前半（JST 21:00〜24:00）**：EUR_USD・GBP_USDの方向性確定局面。現在TRENDING_DOWNの継続 or 反発によりレジーム遷移リスクあり。
+- GBP_JPYはSlope=−0.00850（最大）+ ATR%ile=74%：急落後の自律反発リスクが高い。TRENDING_DOWNがRANGINGに転換した場合、daytrade_gbpjpyの条件変化に注意。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
