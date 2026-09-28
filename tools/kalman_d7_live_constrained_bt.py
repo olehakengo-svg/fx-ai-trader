@@ -366,6 +366,11 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
             #    C5 vs TP の同 bar 曖昧性は順序仮定に従う (PR #302 review P2 4114143809): favorable_first では
             #    bar high が TP に届いていれば TP を先に処理し、この分岐は使わない。
             _tp_first = cfg.order == "favorable_first" and cfg.exit_mode == "tp5" and bar_hi >= tp
+            # favorable_first (open→high→low) では high が先に BE/trail を発動し得る → その新 stop を C5 判定の前に反映
+            # (PR #305 review P2 4117916259: 旧 sl で `sl < entry` を評価すると、BE 後は stop が先に触れる bar を C5 に誤帰属)。
+            # adverse_first (open→low→high) は low が先なので prospective stop は無い。
+            if cfg.order == "favorable_first" and cfg.c3c4:
+                _update_be_trail(max(highest, bar_hi))
             if cfg.c5 and hold_open >= C5_HALF_HOLD_SEC and o[j] >= entry and bar_lo < entry and sl < entry and not _tp_first:
                 exit_raw, exit_px, reason = entry, entry - MINTICK, "TIME_DECAY_EXIT"
                 # MFE/MAE は模擬した bar 内 exit 点で打ち切る (PR #302 review P2 4114208147):

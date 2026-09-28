@@ -596,3 +596,17 @@ def test_open_time_exits_include_open_in_excursions_c1_and_c2():
     assert t2.exit_reason == "WEEKEND_CLOSE"
     assert t2.mae_pips == pytest.approx(3.0, abs=0.05)                 # 21:45 bar の open (−3p) まで
     assert t2.mfe_pips == pytest.approx(0.1, abs=0.05)
+
+
+def test_c5_boundary_bar_favorable_first_applies_be_before_time_decay():
+    """favorable_first (open→high→low) の境界 bar で high が BE を発動 (≥0.8×ATR) し low が entry を割る → 新 stop (entry+spread) が
+    entry より先に触れるので exit は BE (TIME_DECAY_EXIT ではない)。adverse_first (open→low→high) は low が先なので C5。
+    (PR #305 review P2 4117916259)"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(80, atr=0.100)
+    _set_bar(df, 22, entry + 0.010, entry + 0.090, entry - 0.010, entry - 0.005)   # high +9p ≥ 0.8×ATR、low −1p、SL −15p には届かない
+    fav = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c3c4=True, c5=True, canon_cap=False, order="favorable_first")))
+    assert fav.exit_reason == "BE"
+    assert fav.exit == pytest.approx(round(entry + K.C3_BE_SPREAD, 3) - K.MINTICK, abs=1e-6)
+    adv = _one(K.simulate(df.copy(), K.StackConfig(exit_mode="tp5", c3c4=True, c5=True, canon_cap=False, order="adverse_first")))
+    assert adv.exit_reason == "TIME_DECAY_EXIT" and adv.exit == pytest.approx(entry - K.MINTICK)
