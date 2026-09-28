@@ -11,7 +11,7 @@
 
 1. **何が起きたか**: 執行契約 (B) 発効 (09-10) 後の qualifying pair-event は **2 件とも `ABANDONED_DRIFT`** — 09-13 USD_JPY (gap −50.0p、drift +41.0p) / **09-27 USD_JPY (gap −22.0p、drift +18.4p)**。live fill は live 化 (07-25) 以降 **0/5 qualifying イベント**、契約 B 下 **0/2**。packet §6 の「2 連続不成立」が成立 = **G0' 終了・R1 再審発動**。
 2. **機構 (価格のみ、新所見)**: 2 件とも「drift」の実体は **開場後の値動きではなく、OOS estimand の entry 価格 (MASSIVE 日曜 21:00 バー open) と OANDA が提示した最初の価格との差 (basis)** — 09-13 basis **+41.0p** (live drift +41.0p)、09-27 basis **+19.3p** (live drift +18.4p)。OANDA 基準で測った gap は **−9.0p / −2.7p = どちらも qualify 閾値 21.4p 未満**。つまり OOS が PASS した「Sunday open で入る fade」の entry 価格は、**この 2 週末は執行 venue に存在しなかった**。契約 B の drift 境界 +8.0p を導出した実測 (MASSIVE 内部 +5m drift、qualifying 0/8 抵触) は **この basis 成分を含んでいない** = 見積り (fill 率 点 ~0.94) は測定基準の不一致で過大だった (§5)。
-3. **選択肢 (§3、user 決裁 W2)**: 09-13 / 09-27 型を live に到達させられるのは **(2d) drift 境界撤廃** か **(5/5′) シグナル基準の OANDA 化** のみで、どちらも **OOS PASS とは別の estimand** を live で始めることになる (F2 の趣旨「PASS→live 変換の実証」とは別の問い、W3)。起案者暫定推奨 = **(5′) LIVE 側 OANDA-basis 再 qualify (shadow 不変、4原則#3 の非対称)** を R1 全段 (pre-reg + fresh forward) で起案し、契約 B は据え置き。ただし 5′ は 09-13 / 09-27 を「分母外」にするだけで F2 の live fill を生まない (直近 19 週末で MASSIVE ∧ OANDA 両基準 qualify は **5/57 pair-weekend ≈ 1.1 event/月**) — **F2 (12-31) は 5′ でも回避見込み薄** (§5)。
+3. **選択肢 (§3、user 決裁 W2)**: 09-13 / 09-27 型を live に到達させられるのは **(2d) drift 境界撤廃** か **(5/5′) シグナル基準の OANDA 化** のみで、どちらも **OOS PASS とは別の estimand** を live で始めることになる (F2 の趣旨「PASS→live 変換の実証」とは別の問い、W3)。起案者推奨 = **W1 (3) 契約 B 継続を明示決裁** (packet §6「3 度目の観測はしない」の撤回を記録した上で) + 候補 6 の価格系 forward 観測、**11-15 checkpoint 付き** (§6)。理由: 契約 B の drift 境界は「venue に存在しない gap」を fade する entry を正しく止めており、estimand 乖離を 8p に上限した fill を **~0.55 × qualifying** で生む (F2 期待 fill ≈ 2.9 event / 12-31、N=0 確率 ≈ 5%、§5)。**(5′) LIVE 側 OANDA-basis 再 qualify** (shadow 不変、4原則#3 の非対称) は estimand 純度では優るが、機会 5/57 ≈ 1.1/月 → drift・cap 通過後の fill ≈ 0.75/月、Rule 1 リードタイム込みで 12-31 まで **実効 ~1.4 event** と F2 で劣後 → **後続 R1 候補** (checkpoint で契約 B が N=0 なら起案)。2d は estimand 変更 (W3)。
 
 ---
 
@@ -53,7 +53,7 @@
 ### 1.3 契約 B 導出時 (packet 2026-09-10 §5.2) の見積りとの突合
 
 - 導出は `wg_gap_drift-2026-09-10.json` の **MASSIVE 内部** adverse drift (+5m、MASSIVE 1m mid − MASSIVE open): 全 48 で +8.0p 抵触 3/48、qualifying・cap 通過 8 で 0/8。**basis (OANDA 初 M1 open − MASSIVE open) は別集計 (`oanda_vs_massive_open_basis_pips` mean 4.82 / p90 10.0 / max 24.6) で、境界判定に足していなかった。**
-- 同 json で **fade 方向 adverse basis** を取ると、qualifying 9 pair-weekend のうち **> +8.0p は 3/9** (06-07 AUD_USD +10.9 / 08-09 AUD_USD +24.6 / 09-06 USD_JPY +9.7)。basis + MASSIVE 内部 +5m drift (live drift の近似) なら **5/9 が > +8.0p**。契約 B 下の forward 2/2 と合わせ、**live 定義の drift で +8.0p を超える qualifying event は 7/11** — packet §5.2 の P(drift 放棄なし) 点 ~0.94 は **MASSIVE 内部 drift の定義でのみ成立する値**で、live の drift 定義では ~0.4 前後 (N=11、点推定のみ・区間は出さない)。
+- 同 json で **fade 方向 adverse basis** (= live drift の in-sample proxy: OANDA 初 M1 open − MASSIVE open。forward 2 件で live drift との差 0.0 / −0.9p) を取ると、qualifying 9 pair-weekend のうち **> +8.0p は 3/9** (06-07 AUD_USD +10.9 / 08-09 AUD_USD +24.6 / 09-06 USD_JPY +9.7)。契約 B 下の forward 2/2 と合わせ、**live 定義の drift で +8.0p を超える qualifying event は 5/11** — packet §5.2 の P(drift 放棄なし) 点 ~0.94 は **MASSIVE 内部 drift の定義でのみ成立する値**で、live の drift 定義では **~0.55** (N=11、点推定のみ・区間は出さない)。⚠️ 本 packet 初版は「basis + MASSIVE 内部 +5m drift」を足して 7/11 と書いたが、両者は同じ MASSIVE open から測った量で開場ジャンプを二重計上する (09-13 なら 41.0 + 39.3 = 80.3p vs live 41.0p、09-27 は 28.6p vs 18.4p) — Codex P1 4117843802 で撤回。MASSIVE 内部 drift は proxy に使わない (09-27 で 9.3p vs live 18.4p と過小)。
 - ⚠️ 注意: json の gap は MASSIVE 1m 近似で engine の 15m 値と乖離する (09-13 AUD_USD: json −27.2 / engine **−14.7 no-qualify**、08-02 AUD 25.7 / 23.0)。**qualify の確定源は engine の診断ログ**、json は basis / drift の計測にのみ使う。live 実測 drift (+41.0 / +18.4) が event の一次値。
 
 ---
@@ -80,14 +80,14 @@
 | # | 候補 | 触る凍結値 | 09-13 / 09-27 型への効果 (§1.2 の機構で再評価) | estimand | 起案者評価 |
 |---|---|---|---|---|---|
 | 1 | 打ち切り +15 分の変更 | `WEEKEND_GAP_HALT_ABANDON_MIN` | **なし** — 2 件とも tradeable 確認済み (開場 +4 分)、放棄理由は drift | 不変 | 据え置き。11-01 DST は `wg-dst-cutoff-basis-r3` (10-25) |
-| 2a | drift 境界 +8.0p 据え置き (契約 B 継続) | — | なし。live 定義の drift で qualifying の ~6 割が放棄され続ける (§1.3)。F2 (12-31) は N=0 で発動見込み | 不変 | packet §6 が「3 度目の観測はしない」と凍結 → **これを選ぶのは §6 の撤回 = 明示決裁 (W1 選択肢 3)** |
+| 2a | drift 境界 +8.0p 据え置き (契約 B 継続) | — | なし。live 定義の drift で qualifying の ~45% が放棄され続ける (§1.3) が、通過した event は estimand 乖離 ≤ 8p の fill になる。F2 期待 fill ≈ 2.9 event (N=0 確率 ≈ 5%、§5) | 不変 (basis ≤ 8p の event に選択される) | **起案者推奨** — ただし packet §6 が「3 度目の観測はしない」と凍結しているので **選ぶなら §6 の撤回を明示決裁 (W1 選択肢 3)** + 11-15 checkpoint (§6) で開放的な「待つ」にしない |
 | 2b | drift 境界の引き上げ (12p / 15p / 全 57 p90 12.1p) | `WEEKEND_GAP_DRIFT_ABANDON_PIPS` | 09-27 (+18.4) は 15p でも放棄、09-13 (+41.0) は不可。**救済は実質 2d** | 「venue に存在しない gap の残余」を fade する entry が live 母集団に入る | 中間案の合理性なし。不採用推奨 |
 | 2c | gap 比例境界 | 同上 | 0.4×22 = 8.8p → 09-27 も放棄 | packet §4-3 で不採用済み | 不採用維持 |
 | 2d | drift 境界の撤廃 (tradeable 確認のみで送信) | 同上 + packet §4-3 削除 | **送信適格化のみ**。09-13 なら OANDA 基準 gap −9.0p、09-27 なら −2.7p を fade する entry = **qualify 閾値 (21.4p) の 1/2〜1/8 の gap を fade** する。下流の cap / pre-send guard / cancel / 送信失敗は残る (DRAFT §3 2d) | **OOS PASS の estimand (Sunday open 価格 entry、gap ≥ 閾値) とは別物**。EV は凍結値から導けない (stressed-net +7.90p は gap ≥ 閾値の母集団の値) | F2 を最速で「live fill N≥1」にする唯一の案だが、**その fill は PASS→live 変換の実証にならない** (W3)。選ぶなら「F2 の解釈変更」を同時決裁 |
 | 3b/3c/3d | 送信 22:01 / poll 短縮 / 開場前 pending | packet §4-1 | なし (basis は送信タイミングと無関係)。3d は OANDA halt 中の pending 受理が未確認 | — | 不採用維持 |
 | 4 | 指値化 (Sunday open 価格 limit) | stage-2 §2.2 | **なし** — OANDA は MASSIVE open 価格を提示していないので limit は fill しない (09-13: 153.12 の BUY limit に対し OANDA 初値 153.53) | adverse selection | 不採用維持 |
 | 5 | シグナル基準の executable 化 (sunday_open = OANDA 初 tradeable mid、shadow も同基準) | シグナル定義 = OOS estimand | 09-13 / 09-27 は **NO-QUALIFY (分母外)** になる = 不成立が消える (救済ではない)。両基準 qualify は 5/57 | **新 family** (OOS verdict は適用不能、fresh forward OOS のみ、N floor 数年)。**shadow の MASSIVE 基準蓄積が止まる = 4原則#3 違反** | shadow まで変える形は **不採用推奨** |
-| **5′** | **LIVE 側 OANDA-basis 再 qualify** — shadow は MASSIVE 基準のまま (分母・OOS estimand 保存)、live 転送は「tradeable 確認時の OANDA mid − Fri close が同じ凍結閾値以上」のときのみ (drift 境界 +8.0p は不変) | 新フィルタ (LIVE 転送条件の追加) — qualify 閾値・cap・G1/G2/G3・1000u・4h は不変 | 09-13 / 09-27 は live 分母外 (放棄ではなく NO-QUALIFY(venue))。**fill を生むのは両基準 qualify のときだけ = 5/57 pair-weekend ≈ 1.1 event/月** (直近 19 週末、夏時間) | live 母集団 = 「MASSIVE で qualify ∧ venue でも gap が実在」= OOS estimand の **部分集合** (venue に存在した event に限る) — 変換係数の実証としては最も素直。**shadow 不変で 4原則#3 の非対称 (LIVE 側 winning-location フィルタ) に合致** | **起案者暫定推奨**。Rule 1 (新フィルタ) = pre-reg LOCK + 365d 相当の根拠。根拠は価格のみ (OANDA M1 の日曜初足 vs MASSIVE 15m open の basis 履歴) で可だが **OOS 窓 (2022〜2026-06) の価格再接触が要る → W6** |
+| **5′** | **LIVE 側 OANDA-basis 再 qualify** — shadow は MASSIVE 基準のまま (分母・OOS estimand 保存)、live 転送は「tradeable 確認時の OANDA mid − Fri close が同じ凍結閾値以上」のときのみ (drift 境界 +8.0p は不変) | 新フィルタ (LIVE 転送条件の追加) — qualify 閾値・cap・G1/G2/G3・1000u・4h は不変 | 09-13 / 09-27 は live 分母外 (放棄ではなく NO-QUALIFY(venue))。**fill を生むのは両基準 qualify のときだけ = 5/57 pair-weekend ≈ 1.1 event/月** (直近 19 週末、夏時間) | live 母集団 = 「MASSIVE で qualify ∧ venue でも gap が実在」= OOS estimand の **部分集合** (venue に存在した event に限る) — 変換係数の実証としては最も素直。**shadow 不変で 4原則#3 の非対称 (LIVE 側 winning-location フィルタ) に合致** | **後続 R1 候補** (checkpoint で契約 B が N=0 なら起案)。estimand 純度では最良だが F2 timing で 2a に劣後 (§5)。Rule 1 (新フィルタ) = pre-reg LOCK + 365d 相当の根拠。根拠は価格のみ (OANDA M1 の日曜初足 vs MASSIVE 15m open の basis 履歴) で可だが **OOS 窓 (2022〜2026-06) の価格再接触が要る → W6**。⚠️ 履歴は OANDA **M1 open** を proxy にするが、配備 gate は tradeable **初 tick** の mid で判定する (数秒〜60s の差) — 5/57 は proxy 基準の**機会率**であって配備 gate の率ではない (Codex P1 4117843807、§4-1・§5 の注意) |
 | 6 | 契約不変更の forward 観測 (放棄 event の価格系蓄積) | なし | 救済しない。本 PR の card 転記 + json がその第 2 行 | — | **実施済み (R3)**。継続 |
 | 7 | packet §6 文言整備 (「正当放棄」/ 単位) | なし | — | — | 本 packet §6 で文言確定 (下記) |
 
@@ -100,10 +100,10 @@
 **不変更**: シグナル定義 (MASSIVE 15m 日曜初バー open) / qualify 閾値 20.0 / 21.4 / 25.0p / 対象 3 ペア / fade 方向 / entry 窓 / spread cap 10.0p / 1000u / +4h horizon / disaster SL 150p / latch 永続 / shadow 全件記録 / 契約 B §4.1–4.6 (送信前置条件・打ち切り +15 分・drift 境界 +8.0p・halt-race 再送 1 回・slippage 基準・観測強化) / G0・G1・G2・G3 / GBP_USD 永久対象外。
 
 **追加条項 (契約 B §4.1 の直後、live 転送条件として)**:
-1. **venue 再 qualify (新設)**: tradeable 確認後の最初の評価 tick で、OANDA mid と金曜終値 (engine が gap 計算に用いた `fri_close` と同一値) の差 `gap_venue` を計算し、**|gap_venue| ≥ 当該ペアの凍結 qualify 閾値** かつ符号が MASSIVE gap と同じときのみ live 送信へ進む。満たさなければ latch=`NO_QUALIFY_VENUE`、shadow row は従来どおり記録 (分母保存、reasons に `[WG_VENUE] gap_venue=…p thr=…p` を永続)。
+1. **venue 再 qualify (新設)**: tradeable 確認後の最初の評価 tick で、**§4.3 の drift 判定と同一の quote** (同 tick の OANDA mid) と金曜終値 (engine が gap 計算に用いた `fri_close` と同一値) の差 `gap_venue` を計算し、**|gap_venue| ≥ 当該ペアの凍結 qualify 閾値** かつ符号が MASSIVE gap と同じときのみ live 送信へ進む。満たさなければ latch=`NO_QUALIFY_VENUE`、shadow row は従来どおり記録 (分母保存、reasons に `[WG_VENUE] gap_venue=…p thr=…p` を永続)。
 2. **drift 境界との関係**: §4.3 の +8.0p 判定は venue 再 qualify の**後**にそのまま適用 (両方通過で送信)。venue 再 qualify は drift 境界の代替ではない。
 3. **観測**: `NO_QUALIFY_VENUE` は G0''/G1/G2/G3 の分母外 (cap skip と同じ扱い)。EXEC_B ログに `gap_venue` を追加。
-4. **Rule 1 根拠 (LOCK 前に必須)**: OANDA M1 日曜初足 vs MASSIVE 15m open の basis 履歴を **価格のみ**で 365 日以上 (OOS 窓を含む → W6 で許可が要る) 計測し、(i) 両基準 qualify の event 頻度、(ii) 両基準 qualify event の凍結 stressed-net からの単純減算 EV (outcome 非結合、basis 分の減算のみ)、(iii) forward 期待 N を pre-reg に書く。**OOS 窓の outcome には触れない** (両基準 qualify event の 4h PnL を OOS で再集計するのは再接触 = 禁止)。
+4. **Rule 1 根拠 (LOCK 前に必須)**: OANDA M1 日曜初足 vs MASSIVE 15m open の basis 履歴を **価格のみ**で 365 日以上 (OOS 窓を含む → W6 で許可が要る) 計測し、(i) 両基準 qualify の event 頻度、(ii) 両基準 qualify event の凍結 stressed-net からの単純減算 EV (outcome 非結合、basis 分の減算のみ)、(iii) forward 期待 N を pre-reg に書く。**quote 基準の不一致を明示する**: 履歴の OANDA M1 **open** は proxy で、配備 gate は tradeable **初 tick** の mid (数秒〜≤60s 後) — 閾値近傍 (|gap_venue| が閾値 ±(spread/2 + 開場後 60s の p90 変動)) の event は proxy と gate で分類が入れ替わり得るので、頻度は感度帯付きで書き、**EXEC_B ログに tradeable 初 tick mid と当該 M1 open を両方永続**して forward で proxy 誤差を測る (forward 2 件の差は 0.0 / −0.9p)。履歴の 5/57 は「機会率」であって fill 率ではない (Codex P1 4117843807 / 4117843813)。**OOS 窓の outcome には触れない** (両基準 qualify event の 4h PnL を OOS で再集計するのは再接触 = 禁止)。
 5. **G0'' (forward、承認時に凍結)**: 5′ 発効後の最初の 2 「両基準 qualify」event で fill 成立 → 通常運用。2 連続不成立 → family live-execution 保留 (3 度目の再審はしない)。
 
 ---
@@ -113,10 +113,10 @@
 | 成分 | packet 2026-09-10 §5.2 | 本 packet (live 定義の drift で再評価) |
 |---|---|---|
 | P(実開場 ≤ open+15m) | 48/48 | **57/57** (09-13 / 09-20 / 09-27 も初 M1 21:04)。不変 |
-| P(drift 放棄なし \| qualifying) | 点 ~0.94 (MASSIVE 内部 +5m drift、qualifying 0/8 抵触) | **live 定義 (basis 込み) では qualifying 11 event 中 7 が > +8.0p → 点 ~0.36** (in-sample 近似 5/9 + forward 2/2、N=11、区間は出さない)。⚠️ 導出時の 0/8 は drift の定義が live と違っていた (§1.3) |
-| 総合 P(fill \| qualifying) | 点 ~0.94 / 保守 ~0.75 | **点 ~0.35** (× cap skip 10–20%) |
-| qualifying 頻度 (直近 19 週末、engine 確定分) | 3.3 event/月 (凍結 OOS report) | 契約 B 発効後 3 週末で qualifying 1 pair-event (09-27; 09-13 は発効前の同型) — 09-20 NO-QUALIFY。頻度の再推定はしない (N 小) |
-| **F2 (12-31 live N≥1) 見込み** | N≈8–11 | **契約 B 継続 (2a)**: 残 13 週末 × ~0.48 qualify × ~0.35 fill ≈ **2.2 event** — 0 で終わる確率は無視できない (Poisson で ~11%)、しかも fill した event は「basis ≤ 8p の event」に選択される / **5′**: 両基準 qualify ≈ 1.1/月 × 3 ヶ月 ≈ **3.3 event** 見込みだが Rule 1 全段 (pre-reg + 計測 + 実装 + review) に 3–4 週 → 実効 ~2 event / **2d**: 送信適格 event ≈ qualify 全件 × cap 通過 → 最速で N≥1 だが **その fill は OOS estimand の外** |
+| P(drift 放棄なし \| qualifying) | 点 ~0.94 (MASSIVE 内部 +5m drift、qualifying 0/8 抵触) | **live 定義 (basis proxy) では qualifying 11 event 中 5 が > +8.0p → 点 ~0.55** (in-sample 3/9 + forward 2/2、N=11、区間は出さない)。⚠️ 導出時の 0/8 は drift の定義が live と違っていた (§1.3)。初版の 7/11 (~0.36) は二重計上で撤回 |
+| 総合 P(fill \| qualifying) | 点 ~0.94 / 保守 ~0.75 | **点 ~0.45–0.5** = 0.55 (drift) × 0.8–0.9 (cap 通過) × ~1.0 (tradeable 確認済み + halt-race 再送、送信失敗は forward で計測) |
+| qualifying 頻度 (直近 19 週末、engine 確定分) | 3.3 event/月 (凍結 OOS report) | 契約 B 発効 (09-10) 後 3 週末 (09-13 / 09-20 / 09-27) で qualifying **2** pair-event (09-13 / 09-27 USD_JPY、いずれも G0' event)、09-20 は NO-QUALIFY。頻度の再推定はしない (N 小) |
+| **F2 (12-31 live N≥1) 見込み** | N≈8–11 | **契約 B 継続 (2a)**: 残 13 週末 × ~0.48 qualify × ~0.55 drift 通過 × ~0.85 cap 通過 ≈ **2.9 event**、N=0 で終わる確率 ≈ 5% (Poisson、qualify 率は凍結 OOS の 0.48/週末 — 契約 B 下 3 週末で 2 qualifying は整合)。fill する event は「basis ≤ 8p」に選択される (estimand 乖離の上限 = 8p) / **5′**: 両基準 qualify は**機会率** 5/57 ≈ 1.1/月 (proxy 基準)。§4 は +8.0p drift 境界 → cap → 送信を残すので fill はさらに掛かる: in-sample 両基準 5 件のうち adverse basis > 8p は 1 件 (09-06 USD_JPY +9.7) → drift 通過 ~0.8、cap ~0.85 → **fill ≈ 0.75/月**。3 ヶ月 ≈ 2.2 event から Rule 1 全段 (pre-reg + 計測 + 実装 + review) 3–4 週を引くと **実効 ~1.4 event**、N=0 確率 ≈ 25% (Codex P1 4117843813 で fill 率と機会率を分離) / **2d**: 送信適格 event ≈ qualify 全件 × cap 通過 → 最速で N≥1 だが **その fill は OOS estimand の外** |
 
 **estimand コスト (正直な会計)**: 契約 B の実効 EV は packet §5.3 の「+7.90p − 3.15p ≈ +4.75p/event」から **live 定義の drift 分布** で再計算が要る — ただし drift 放棄が working なので「fill する event」は basis ≤ 8p に条件付けられた母集団 = 凍結 stressed-net から最大 8p の減算 = **> −0.1p/event の下限** (mean ではなく worst-case 減算、outcome 非結合)。5′ の両基準 qualify event は定義上 basis が小さい側に寄る (両基準で閾値を超える = basis が gap を食っていない) ので減算は小さいが、**頻度が 1/3 になる**。2d は減算が定義できない (母集団が OOS の外)。
 
@@ -130,6 +130,7 @@
 |---|---|---|
 | **G0' (契約 B、改定後最初の 2 qualifying pair-event)** | **09-13 / 09-27 の 2 件とも不成立 → 終了・発動** (本 packet)。event #3 は存在しない | R1 再審 (本 packet)。**契約 B は決裁まで fail-closed で継続** (放棄は記録のみ、G0' には数えない、rolling gate は未承認) |
 | W1 決裁 | 不成立 2 件目 (09-27) + 7 日 = **2026-10-04** までに user 決裁 (registry `wg-execution-modality-r1-packet-v1-w1-decision`) | 未決なら契約 B 継続 + 週次 event 転記 (候補 6) のみ。**「観測して待つ」の 3 度目に当たるため、未決の継続は明示決裁 (W1 選択肢 3) として記録する** |
+| **W1 (3) 契約 B 継続 採用時の checkpoint (新設、承認時に凍結)** | **2026-11-15** までに契約 B 下の qualifying pair-event が ≥3 件追加 (累計 ≥5) で live fill N=0、または 12-31 F2 到来 | 5′ (venue 再 qualify) の R1 起案へ自動移行 (W6 の計測を先行して許可しておく) — 「待つ」に終端を付ける。fill N≥1 なら G0'' 相当の配管確認 (手順 (1)–(5)) を当該 fill で実施し F2 を明示 resolve |
 | 5′ 採用時 G0'' | 発効後最初の 2 両基準 qualify event | fill 成立 → 通常運用 / 2 連続不成立 → family live-execution 保留 (再審はしない) |
 | 冬時間初週末 2026-11-01 | 実開場 22:04–22:05 から >±10 分の乖離 | R3 打ち切り時刻再導出 (`wg-dst-cutoff-basis-r3`) |
 | G1/G2/G3 | 不変更 | 不変更 |
@@ -163,18 +164,18 @@
 
 | id | 問い | 選択肢 | 起案者推奨 |
 |---|---|---|---|
-| **W1** | R1 再審起案の承認 | (1) 起案する (本 packet を審議) / (2) family live-execution 保留 (shadow 蓄積のみ継続) / (3) 契約 B 継続で観測延長 = packet §6「3 度目はしない」の撤回 (明示決裁) | (1) |
-| **W2** | 候補の選択 (§3) | 2a / 2b / 2d / 5 / **5′** / 6 のみ (1・2c・3・4 は不採用維持) | **5′** (shadow 不変・4原則#3 整合・OOS estimand の部分集合)。ただし F2 回避見込みは薄いと承知の上で |
+| **W1** | R1 再審起案の承認 | (1) 起案する (本 packet §3 の候補を審議) / (2) family live-execution 保留 (shadow 蓄積のみ継続) / (3) 契約 B 継続 = packet §6「3 度目はしない」の撤回を明示決裁 + §6 の 11-15 checkpoint を凍結 | **(3)** — 契約 B は設計どおり作動し、不成立は modality ではなく estimand-venue basis の問題 (§1.2)。F2 期待 fill は 2a が最大 (§5) |
+| **W2** | 候補の選択 (§3、W1=(1) の場合) | 2a / 2b / 2d / 5 / 5′ / 6 のみ (1・2c・3・4 は不採用維持) | W1=(3) なら 2a + 6。W1=(1) なら **5′** (shadow 不変・4原則#3 整合・OOS estimand の部分集合) — ただし F2 timing では 2a に劣後 (実効 ~1.4 vs ~2.9 event、§5) |
 | **W3** | F2「PASS→live 変換の実証」の解釈 | (a) Sunday open 基準 (MASSIVE) estimand の live fill のみ / (b) venue で estimand が成立した event (5′) の fill を含む / (c) executable 基準 (2d) の fill も含む | (b)。(c) を選ぶなら F2 は別の命題になる |
 | **W4** | 4原則#3 の解釈 — drift 境界・venue 再 qualify は「勝てる場所で勝つ条件だけ転送する LIVE 側フィルタ」か | 裁定 | 該当する (shadow 不変が条件) |
 | **W5** | 混在週末の event #2 裁定 | — | **不要** (09-27 は単一クラス) |
-| **W6** | 5′ の Rule 1 根拠計測のための **OOS 窓 (2022-01〜2026-06) の価格再接触** (basis 履歴のみ、outcome 非読込) を許可するか | 許可 / 不許可 (forward のみで N を積む → LOCK まで数ヶ月) | 許可 (outcome 列を読まない実装 + 敵対的レビューで担保) |
+| **W6** | 5′ の Rule 1 根拠計測のための **OOS 窓 (2022-01〜2026-06) の価格再接触** (basis 履歴のみ、outcome 非読込) を許可するか | 許可 / 不許可 (forward のみで N を積む → LOCK まで数ヶ月) | 許可 (W1=(3) でも checkpoint 移行に備えて先行計測。outcome 列を読まない実装 + 敵対的レビューで担保) |
 
 ---
 
 ## 禁止事項 (継続)
 
-OOS 窓の outcome 再接触・再集計 / shadow outcome の転記 / G1・G2 の中間計算 / qualify 閾値・cap・G1/G2/G3・契約 B 凍結値の autopilot 変更 / near-miss を理由にした閾値再計算 / 「live fill 0/5 累計」型の改定前後混在カウントで契約 B を評価すること (契約 B 下は 0/2) / 本 packet を LOCK・決裁済みとして引用すること / watcher の `TRIGGERED` を F2 resolved と読むこと / G0' 終了後の放棄 event を G0' に数えること (rolling gate 未承認) / 5′ を「F2 を救う案」として引用すること (§5: 頻度 1/3、実効 ~2 event)。
+OOS 窓の outcome 再接触・再集計 / shadow outcome の転記 / G1・G2 の中間計算 / qualify 閾値・cap・G1/G2/G3・契約 B 凍結値の autopilot 変更 / near-miss を理由にした閾値再計算 / 「live fill 0/5 累計」型の改定前後混在カウントで契約 B を評価すること (契約 B 下は 0/2) / 本 packet を LOCK・決裁済みとして引用すること / watcher の `TRIGGERED` を F2 resolved と読むこと / G0' 終了後の放棄 event を G0' に数えること (rolling gate 未承認) / 5′ を「F2 を救う案」として引用すること (§5: 機会 1.1/月・fill ≈ 0.75/月、実効 ~1.4 event) / 5/57 を fill 率として引用すること (機会率、proxy 基準) / 「basis + MASSIVE 内部 drift」を live drift の近似として使うこと (二重計上、§1.3)。
 
 ## 参照
 
