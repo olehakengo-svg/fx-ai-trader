@@ -4852,6 +4852,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **Daytrade系（EUR/GBP）**: TRENDING_DOWNで高ATR。方向が整合していればDT系に追い風。ただしATR71-75%ile水準はSLが広くなる可能性。
 - **Scalp系**: EUR/GBPペアは方向性明確でScalpエントリー機会が存在するが、`r2_shadow_demoted_cell`によるブロックが多数（後述）。
 
+### 2026-09-28 (Pre-Tokyo Briefing)
+前日（2026-09-27）は全セッションを通じてトレード実行ゼロ。システムは稼働中であるが、シグナル生成・執行いずれの段階でも有効なエントリーが発生しなかった。Cutoff後累計トレードはN=4、PnL=−57.8（WR=0.0%）と極めて限定的。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計判定**: N=2×2戦略。いずれも「データなし」水準（N<10）。WR・EVは判断材料として不十分。ただし全4トレードが損失という事実は記録する。
+- `scalp_eur:r2_shadow_demoted_cell`（30件）
+- `daytrade_eur:order_bar_dedup`（30件）
+- `scalp_5m:r2_shadow_demoted_cell`（13件）
+- `scalp:r2_shadow_demoted_cell`（11件）
+- RnB: USD_JPYのRANGINGが継続する限りno_signal多発は構造的。シグナル待ち継続。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
