@@ -50,6 +50,15 @@
 - **隣接 ban / 凍結 frame**: `prereg-trigger-registry.json` を `bb_squeeze_breakout` / `agg_kelly` で検索 — **該当 family の事前コミット済み再審条件・監査 frame はヒットなし** ⇒ **独自 R1 マークでの前倒しはしない**
 - **経路**: 記録のみ。原因特定は次 run のコード読みへ
 
+### O-2026-09-28-1: weekend_gap の「drift 放棄」の実体 = MASSIVE 日曜 21:00 open と OANDA 初値の basis (執行 QA / データ基準)
+- **現象**: 契約 B 下の qualifying 2 event (09-13 / 09-27 USD_JPY) の live drift (**+41.0 / +18.4p**) は、OANDA 初 M1 (21:04) open mid − MASSIVE 21:00 open の basis (**+41.0 / +19.3p**) と **0.0 / −0.9p** しか違わない。OANDA 基準の gap は **−9.0 / −2.7p** (qualify 閾値 21.4p 未満)。57 pair-weekend (2026-05-24〜09-27、夏時間) の |basis| mean 6.3p / median 4.1 / max 41.0、USD_JPY は 09-06 以降 4 週末連続 **9.7 / 41.0 / 17.7 / 19.3p** (それ以前 15 週末は median 4.6 / max 13.5)。出所: `bt-results/wg_gap_drift-2026-09-28.json` + `wg_gap_drift-2026-09-10.json`、Render EXEC_B ログ
+- **トリガ日**: 2026-09-27 (event #2)、計測 2026-09-28
+- **想定メカニズム**: MASSIVE の日曜 21:00 バー open が pre-open の stale / 他 venue print で、OANDA は同価格を提示しない。MASSIVE 1m 系列自身も 21:00 open から +2m で +39.3 / +9.3p 跳んで以後一定 = 21:00 print の孤立と整合。MASSIVE 側の provenance 変化 (9 月の USD_JPY 拡大) か venue 側かは**未特定** (コード・データ provenance 未確認、断定しない)
+- **family 候補**: なし (新 family ではない) — 既存 weekend_gap の**執行 estimand 問題**。処置候補は [[weekend-gap-execution-modality-r1-packet-v1-2026-09-28]] §3 (5′ LIVE 側 venue 再 qualify、shadow 不変)。R1 + user
+- **反証可能な予測**: 今後の qualifying event で |live drift − basis| は 3p 以内に収まるはず (開場後の実 drift は小)。逆に drift ≫ basis の event が出れば「halt 窓で値動きが消費された」型が実在することになり、本観測は部分棄却 (価格のみで検証、outcome 不要、α 消費なし)
+- **隣接 ban / 凍結 frame**: registry 検索 (`basis` / `executable` / `sunday_open`) — ヒットは `weekend-gap-execution-amendment-g0prime` (本 event で resolved) と `wg-dst-cutoff-basis-r3` (10-25、DST の first_bar_ts) のみ。**qualify 閾値・OOS 窓の outcome には触れない**。OOS 窓の価格 basis 履歴の計測は packet v1 W6 (user 許可待ち)
+- **経路**: 記録 + packet v1 §1.2 / §2。凍結 look の outcome 量は記載なし
+
 ---
 
 ## 週次 rollup

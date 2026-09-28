@@ -1,5 +1,7 @@
 # 📝 DRAFT: weekend_gap 執行モダリティ R1 再審 — 骨子 (2026-09-22)
 
+> 🔔 **2026-09-28 発動**: G0' event #2 (2026-09-27 21:05Z USD_JPY、gap −22.0p) = `ABANDONED_DRIFT` (drift +18.4p) → 改定後 2 連続不成立 = packet §6 発動。本骨子は **[[weekend-gap-execution-modality-r1-packet-v1-2026-09-28]]** へ昇格した (一次データ・候補確定・W1〜W6 はそちら)。本文書は骨子として保存、§2/§3/§6/§7 の規則は packet v1 が引き継ぐ。archive しない。
+
 > **Status: 📝 DRAFT — LOCK ではない。R1 起案でもない。** 本文書は「packet §6 の事前コミット『改定後 qualifying イベント 2 連続で fill 不成立 → 執行モダリティ自体を再審 (R1 再起案)』が**発動した場合**に、その日から起案を始められるよう分岐と変更候補を事前固定した骨子」であり、凍結値 (§2/§3/§5 of [[weekend-gap-stage2-execution-prereg-2026-07-24]]、[[weekend-gap-execution-contract-r1-packet-2026-09-10]] §4) は**一切変更しない**。発動しなければ本文書は未発動として archive する。
 > rule:R3 (文書のみ、code / registry / live 経路 不変更)。R1 起案への昇格と候補の選択は **user 承認事項**。
 > 起点: [[path-to-win-reassessment-2026-09-22]] §3 Rank 6 (「次の qualifying 不成立 1 件で R1 再審発動 → 骨子 DRAFT を 09-27 前に用意」)。

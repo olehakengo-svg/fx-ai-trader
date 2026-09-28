@@ -1,6 +1,6 @@
 # weekend_gap_fade — 週末ギャップ・フェード
 
-- **Status**: 🟢 LIVE (固定 1000u sentinel) — rule:R1 pre-reg LOCK、user 最終承認 2026-07-24 (option (b) 直接 live MIN lot)
+- **Status**: 🟢 LIVE (固定 1000u sentinel) — rule:R1 pre-reg LOCK、user 最終承認 2026-07-24 (option (b) 直接 live MIN lot) — ⚠️ **2026-09-28: 契約 B 下の G0' 2 連続不成立 (09-13 / 09-27 `ABANDONED_DRIFT`) → 執行モダリティ R1 再審起案中 [[weekend-gap-execution-modality-r1-packet-v1-2026-09-28]] (user 決裁 W1〜W6、期日 10-04)。契約 B は fail-closed で継続、live fill 通算 0/5**
 - **Tier**: PAIR_PROMOTED (EUR_USD, USD_JPY, AUD_USD) + UNIVERSAL_SENTINEL 併存 (vix_carry_unwind と同型)。GBP_USD は永久対象外 (逆符号 family 用に OOS 清浄維持)
 - **実装**: 2026-07-24 (本カードと同一コミット)
 
@@ -148,6 +148,21 @@
 ### 分岐の事前固定 (2026-09-22、DRAFT) — 次の qualifying イベント (09-27 以降)
 
 **fill** → F2 resolve — **自動ではない**: watcher `tools/prereg_trigger_watch.py::evaluate_live_count_decision` は clean live N≥1 (registry `project-falsification-f2-wg-live-conversion`、n_decide=1) で `TRIGGERED` を返すだけで registry を書き換えない。24h 以内に registry 編集 PR (別担当) で `active:false` + `resolved` + `resolution` を明示記録、編集までは F2 active のまま (DRAFT §2 row 1) + **G0' 完了** (packet §6「改定後の最初の 2 qualifying イベント」で fill 成立 → 通常運用へ、連続不成立 trigger は終了 — 以後の放棄は記録のみ、rolling gate は未承認) + 改定後 fill 成立率の第 1 観測 (G0' 手順 (1)–(5)、slippage は当該 1 event の persisted 値の読み取りのみ・集計しない) / **`ABANDONED_*` または新種 cancel** → **G0' event #2** (09-13 USD_JPY = event #1 の次に qualify する pair-event、cap skip 除く) が不成立 (`ABANDONED_*` / SEND 後 2 回とも `MARKET_HALTED` cancel / 新種 cancel / SEND 後 fill も cancel tx も無し [`OPEN … FAILED` / `ok but no tradeID`、oanda_bridge.py:797–826、再送なし] = `oanda_trade_id` 空で終端) なら **改定後不成立 2 連続 = packet §6 発動 → 執行モダリティ R1 再審**。同一週末に複数 pair-event が qualify し結果が**混在**した場合、event #2 の順序付けは永続 first-qualification ts (未実装、R3 — 09-27 前の実装を推奨) が存在するまで運用に使わず、全時刻 (Render ログ初回発火 / latch `ts` / `entry_time` / 終端) を転記して **W5 で user 上程** — 終端時刻は halt-race 再送 +30s で反転、ログ発火は再発火・非永続、latch / entry_time は HOLD・guard・open_trade の後で qualification 順を保証しない (DRAFT §2 (β))。全て同一クラスなら順序不問。**G0' は 2 event で終了** — event #2 が fill なら後続の放棄は記録のみ (rolling gate は未承認) (骨子: [[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]] — DRAFT であり LOCK ではない、R1 起案への昇格は user 承認) / **`SKIPPED_SPREAD`** → 正当な未執行、G0' の 2 イベントに数えず繰越 / **NO-QUALIFY** → 分母外、次週へ繰越。**イベント後 24h 以内 (月曜 daily report と同時) に本カードへ転記する** (価格系・執行系のみ、shadow outcome は書かない) — 09-13 は 9 日遅延した (本節が是正)。冬時間初週末 2026-11-01 の打ち切り基準時刻 (first_bar_ts の冬解決) の R3 確認は 10-25 まで (DRAFT §5)。
+
+### 2026-09-27 (日) — 改定後第 2 回 qualifying イベント (G0' event #2) — live = ABANDONED_DRIFT → **改定後 2 連続不成立 = packet §6 発動、G0' 終了** (2026-09-28 01:10Z 転記、事象から 4h — 24h 規則内)
+
+| pair | gap | 判定 | 結果 | 備考 |
+|---|---|---|---|---|
+| USD_JPY | **−22.0p ≥ 21.4p** (Fri close 157.279 → Sun open 157.059) | qualify → BUY fade 発火 **21:05:13.36Z** (初回 1 回のみ、再発火なし)、shadow row **id 18538** (`entry_time` 21:05:14.74Z、spread_at_entry 6.1p、`[SLTP_CONSTRUCT] sl=preserve` 150p→155.4p) | **live 放棄 = `ABANDONED_DRIFT`**: tradeable 確認時 (quote_age **2.456s**) の drift **+18.40p > +8.0p** (send_mid 157.243 / sunday_open 157.059)、latch=`ABANDONED_DRIFT`。oanda_audit **17930** `skipped` `weekend_gap_exec_abandon(ABANDONED_DRIFT,drift=+18.40p)` 21:05:16.43Z | EXEC_B 遷移: `HOLD tradeable=False` **20 行 21:01:06.9–21:04:54.5Z** (poll 12–19s、quote_age ~172,9xx s = 金曜 quote) → `ABANDONED_DRIFT tradeable=True` 21:05:13.36Z → shadow record 21:05:14.0Z。OANDA 実開場は 21:04:54.5 < t ≤ 21:05:10.9 (初 M1 candle 21:04Z)。`[HALT_RACE]` なし (送信ゼロ)。**改定後 qualifying 不成立 2 件目** |
+| AUD_USD | **−12.8p < 25.0p** | no-qualify | 不発 (正常) | 診断ログ 21:01:10.3Z / 21:01:20.6Z (再評価の再ログ) |
+| EUR_USD | **−12.7p < 20.0p** | no-qualify | 不発 (正常) | 診断ログ 21:01:18.7Z / 21:01:29.1Z |
+
+- 出所: Render ログ API 実読 2026-09-28 (service `srv-d6va1of5r7bs73en10vg`、2026-09-27T20:58–21:12Z、text=`WEEKEND_GAP` **27 行・hasMore=false**) / 本番 `/api/demo/trades` / `/api/oanda/audit`。**shadow outcome は記載しない** (規律どおり)。
+- **分類 (DRAFT §2)**: 不成立 (i) `ABANDONED_DRIFT` (row + latch あり)。pair-event 列 = [USD_JPY ABANDONED_DRIFT] の 1 件 (他 2 ペアは診断行で no-qualify 確定 = 分母外) → 単一クラス、W5 不発生。**G0' = 09-13 / 09-27 の 2 件とも不成立 → packet §6 row 2「執行モダリティ自体を再審 (R1 再起案)」発動、G0' 終了 (event #3 は存在しない)**。
+- **R1 起案 packet v1 = [[weekend-gap-execution-modality-r1-packet-v1-2026-09-28]]** (user 決裁 W1〜W6、registry `wg-execution-modality-r1-packet-v1-w1-decision` 期日 10-04)。契約 B は決裁まで fail-closed で継続 (以後の放棄は記録のみ、G0' に数えない、rolling gate は未承認)。
+- 🔑 **機構の新所見 (価格のみ、packet §1.2)**: drift +18.4p の実体は開場後の値動きではなく **OANDA 初 M1 (21:04) open mid 157.252 − MASSIVE 21:00 open 157.059 = basis +19.3p** (差 −0.9p)。09-13 も basis +41.0p = drift +41.0p (差 0.0p)。**OANDA 基準の gap は −2.7p (09-13: −9.0p) = どちらも 21.4p 未満** — OOS estimand の entry 価格 (MASSIVE 日曜 21:00 open) はこの 2 週末、執行 venue に存在しなかった。契約 B の +8.0p 境界導出 (MASSIVE 内部 +5m drift、qualifying 0/8 抵触) は basis を含まない定義だった (導出と実装の estimand 不一致、packet §1.3・§5)。
+- live fill 通算: **0/5 qualifying イベント** (07-26 インフラ障害 / 08-02・09-06 MARKET_HALTED / 09-13・09-27 ABANDONED_DRIFT)。改定後 (契約 B) = **0/2**。G1/G2/G3 の live N は 0。F2 (12-31) は active のまま。
+- 価格系 forward 観測 (候補 6): (|gap|, live drift, basis) = 09-13 (50.0, +41.0, +41.0) / 09-27 (22.0, +18.4, +19.3)。O-2026-09-14-1 の予測「|gap| と drift は正相関、|gap|≥40p で drift>8p が常態」は N=2 で棄却されないが、**説明変数は |gap| ではなく basis** の可能性を O-2026-09-28-1 ([[daily-observations-2026-09]]) として登録。計測 json: `bt-results/wg_gap_drift-2026-09-28.json` (09-13 / 09-20 / 09-27 × 3 ペア)。
 
 ## テスト
 

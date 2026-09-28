@@ -78,6 +78,13 @@
 >
 > ⚠️ 併発リスク: この建玉の週末クローズ試行が **47 時間 / 64,170 回の `MARKET_HALTED` リトライ storm** (128,340 transactions) を引き起こし、OANDA Gold status = API アクセスを脅かした。hold ≤24 H1 は金曜クローズを日常的に跨ぐため **再発する**。詳細: [[2026-09-07]]
 
+## 🔑 2026-09-28 更新: **`[SLTP_CONSTRUCT]` marker 付き初 LIVE fill #893207 — 宣言 SL 150p → 実発注 25.8p の機構を fill 行で確定 (`atr_nosr` + lowliq +0.2×ATR、SR 不採用・clamp なし)**
+
+- **fill**: #893207 (09-28 **00:01:34Z**、USD_JPY BUY 1000u、signal 157.527 → entry **157.567** (entry drift +4.0p、spread 0.8p)、demo id 18540、`[EMIT_PROC] forked:statusheal`)。転記時点 OPEN (outcome は書かない)。oanda_audit 17932 `sent` → 17933 `filled` (0.1s)
+- **marker**: `sl=atr_nosr clamp=none lowliq=1 fastsl=0 ct=0 rn=0 mtf_tp=1.0 range_tp=0 decl_sl_p=150.0 sl_p=25.8 decl_tp_p=80.0 tp_p=76.0 entry_drift_p=4.0` / `[BROKER_TP] basis=qh mult=0.85 tp_p=64.0` ⇒ 09-26 code reading の予測どおり: (i) 宣言 150p は捨てられ **ATR fallback (SR 候補なし = `atr_nosr`)**、(ii) 0.8×ATR + C0c lowliq (00Z) 0.2×ATR = 1.0×ATR = 25.8p ⇒ **1h ATR ≈ 25.8p (含意、marker に ATR 値は無い)**、(iii) clamp 3–50p 非発動、fast-SL / CT / round-number nudge 非発動、(iv) TP は宣言 80p が entry drift 4.0p で 76.0p (sig.entry 基準 → current_price 基準) → broker TP ×0.85 = **64.0p**。live as-placed R:R = 64.0 / 25.8 = **2.48** (宣言 80/150 = 0.53) — 09-16 表の帯 (2.28–4.04) 内
+- **意味**: SL 契約破棄の機構は **16/16 復元不能 → 17 本目で fill 単位に確定**。「ボラ由来ブラケット混入説」は marker で直接確認された (仮説 → 観測)。**処置 (a) SL 契約の復元 / (b) breakeven trail は user 決裁事項 (08-07) のまま — 本更新は記録のみ、値は変えていない**。readout: `python3 tools/sltp_construct_readout.py --since 2026-09-26` (窓 7 行 / marker 7 行、live 1 = 本 fill)
+- 対照: 同窓の `weekend_gap_fade` shadow row 18538 は `sl=preserve` decl 150.0 → 155.4p (preserve 型は契約どおり広い SL — 09-07 の対照群観測を marker で再確認)
+
 ## 🔴 2026-09-25/26 更新: **LIVE fill #15・#16 (2 本とも SL_HIT、13.7 日ぶり) — N=16 で R2 不成立、SL 契約破棄の機構を code reading で特定し、fill 毎に確認できる計装を入れた**
 
 - **fill**: #893195 (09-25 04:02:39Z、entry 158.368、ON_FILL SL 158.207 = **−16.1p** / TP 159.047 = +67.9p) → 05:13:50 `STOP_LOSS_ORDER` **−¥161** (demo id 18464 −16.3 `SL_HIT`、hold 71m) ／ #893201 (06:03:15Z、entry 158.240、SL 158.071 = **−16.9p** / TP 158.858 = +61.8p) → 06:14:21 `STOP_LOSS_ORDER` **−¥171** (demo id 18467 −17.0、hold **11m**)。demo↔broker 差 +0.2 / −0.1p、REPLACEMENT tx 0 (storm なし)。詳細表: [[2026-09-25]] 発見 1
