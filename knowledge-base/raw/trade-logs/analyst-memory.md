@@ -4872,6 +4872,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **NY前半（JST 21:00〜24:00）**：EUR_USD・GBP_USDの方向性確定局面。現在TRENDING_DOWNの継続 or 反発によりレジーム遷移リスクあり。
 - GBP_JPYはSlope=−0.00850（最大）+ ATR%ile=74%：急落後の自律反発リスクが高い。TRENDING_DOWNがRANGINGに転換した場合、daytrade_gbpjpyの条件変化に注意。
 
+### 2026-09-28 (Post-NY Report)
+| PnL (pips) | **+0.0** |
+| WR | **—** |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) |
+> ※本日合計のN=2/WR=50%/PnL=-10.5pはシステム集計値をそのまま採用。セッション別はNY+Tokyoで0件のため、ロンドン1件(N=1、-20.0p)と合計(N=2、-10.5p)の差分はデータ集計上の時間境界の定義差と解釈。
+**最も成績が悪かったセッション**: **ロンドン** — N=1、WR=0%、PnL=-20.0pips。唯一の執行が損失。
+- **全50件がSKIP** — OANDA本番転送はゼロ。現行は完全デモ運用継続中。
+- `shadow_tracking`が支配的（16件）: シャドウセルが昇格基準未達のため追跡のみ、実弾不送信。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
