@@ -495,6 +495,7 @@ def test_c5_boundary_bar_exactly_4h_is_eligible_and_3h45_is_not():
     assert t.exit_reason == "TIME_DECAY_EXIT"
     assert t.hold_sec == pytest.approx(K.C5_HALF_HOLD_SEC)             # exit は境界 bar の open 時点
     assert t.bars_held == 22 - 5
+    assert t.mae_pips == pytest.approx(1.0, abs=0.05)                 # 決済価格 = 境界 bar の open (−1.0p) を MAE に含める (PR #305 review P2 4117870881)。bar low (−1.2p) は exit 後
     df2 = _bars(80)
     above = entry + 0.010
     for j in range(22, 80):                                            # 4h 以降は含み益側 (既定の 150.000 は entry より 1 tick 下で C5 が即発火する)
@@ -570,3 +571,28 @@ def test_excursions_same_bar_be_after_high_keeps_full_bar_range():
     assert t.exit_reason == "BE"
     assert t.mfe_pips == pytest.approx(9.0, abs=0.05)
     assert t.mae_pips == pytest.approx(5.0, abs=0.05)
+
+
+def test_open_time_exits_include_open_in_excursions_c1_and_c2():
+    """C1 (8h cap) / C2 (金曜クローズ) の open 時点 exit も決済価格 (open) を MFE/MAE に含め、同 bar の high/low は含めない (C5 と対称)。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(80)
+    j = 6 + 32                                                          # entry bar 6 + 32 bars = 8h ちょうど
+    _set_bar(df, j, entry - 0.020, entry + 0.500, entry - 0.400, entry)  # open −2p、bar 内は ±大きく振れる
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c1=True, canon_cap=False)))
+    assert t.exit_reason == "MAX_HOLD_TIME"
+    assert t.mae_pips == pytest.approx(2.0, abs=0.05)                  # open まで (bar low −40p は exit 後)
+    assert t.mfe_pips == pytest.approx(0.1, abs=0.05)                  # 保持中の High 150.002 のみ (bar high +50p は exit 後)
+    # 冬時間版: 金曜 21:45 bar が存在する frame を作る (C2 は 21:45 bar open で執行)
+    fri = pd.date_range("2025-11-21 12:00", "2025-11-21 21:45", freq="15min", tz="UTC")
+    sun = pd.date_range("2025-11-23 22:00", periods=20, freq="15min", tz="UTC")
+    idx = fri.append(sun)
+    df2 = pd.DataFrame({"Open": 150.0, "High": 150.002, "Low": 149.998, "Close": 150.0, "atr": 0.1,
+                        "entry_signal": False, "perfect_up": True, "perfect_dn": False, "in_window": True}, index=idx)
+    df2.iloc[2, df2.columns.get_loc("entry_signal")] = True
+    k = list(idx).index(pd.Timestamp("2025-11-21 21:45", tz="UTC"))
+    _set_bar(df2, k, entry - 0.030, entry + 0.500, entry - 0.400, entry)
+    t2 = _one(K.simulate(df2, K.StackConfig(exit_mode="tp5", c2=True, canon_cap=False)))
+    assert t2.exit_reason == "WEEKEND_CLOSE"
+    assert t2.mae_pips == pytest.approx(3.0, abs=0.05)                 # 21:45 bar の open (−3p) まで
+    assert t2.mfe_pips == pytest.approx(0.1, abs=0.05)

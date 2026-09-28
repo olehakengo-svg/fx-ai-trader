@@ -329,15 +329,18 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
                 _c2 = _c2_exit_at_open(idx, j)
                 if _c2:
                     exit_raw, exit_px, reason = o[j], o[j] - MINTICK, _c2
+                    highest = max(highest, o[j]); lowest = min(lowest, o[j])   # open 時点 exit: open は exit 前 (PR #305 review P2 4117870881)
                     exit_j, exit_ts = j, ts
                     break
             if cfg.c1 and hold_open >= C1_MAX_HOLD_SEC:
                 exit_raw, exit_px, reason = o[j], o[j] - MINTICK, "MAX_HOLD_TIME"
+                highest = max(highest, o[j]); lowest = min(lowest, o[j])
                 exit_j, exit_ts = j, ts
                 break
             # C5 は hold_open == 14,400s の境界 bar から eligible (PR #302 review P2 4114208143: `>` だと 15 分足整列で毎回 1 bar 遅れる)
             if cfg.c5 and hold_open >= C5_HALF_HOLD_SEC and o[j] < entry:
                 exit_raw, exit_px, reason = o[j], o[j] - MINTICK, "TIME_DECAY_EXIT"
+                highest = max(highest, o[j]); lowest = min(lowest, o[j])   # 決済価格 (open) を MAE に含める — 対称に C1/C2 の open exit も同じ
                 exit_j, exit_ts = j, ts
                 break
 
