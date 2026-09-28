@@ -80,7 +80,7 @@ def test_c5_time_decay_only_when_in_loss_after_4h():
         df.iloc[j, [df.columns.get_loc(c) for c in ("Open", "High", "Low", "Close")]] = [below, below + 0.002, below - 0.002, below]
     t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c5=True)))
     assert t.exit_reason == "TIME_DECAY_EXIT"
-    assert t.hold_sec > K.C5_HALF_HOLD_SEC
+    assert t.hold_sec >= K.C5_HALF_HOLD_SEC  # 境界 bar (== 14,400s) から eligible (review P2 4114208143)
     # 含み益側は C5 で切られない
     df2 = _bars(80)
     above = entry + 0.010
@@ -477,3 +477,96 @@ def test_gap_exit_excursions_exclude_post_exit_bar_range():
     assert t.exit_reason == "SL_HIT"
     assert t.mfe_pips == pytest.approx(0.1, abs=0.05)        # 保持中の High 150.002 − entry 150.001 のみ (bar high +90p は含めない)
     assert t.mae_pips == pytest.approx(70.0, abs=0.05)       # open までの逆行 (bar low −120p は含めない)
+
+
+# ── PR #302 繰延 P2 (registry review-backlog-pr302-p2-deferrals、2026-09-28) ──────────
+def _set_bar(df, j, o, h, l, c):
+    df.iloc[j, [df.columns.get_loc(x) for x in ("Open", "High", "Low", "Close")]] = [o, h, l, c]
+
+
+def test_c5_boundary_bar_exactly_4h_is_eligible_and_3h45_is_not():
+    """entry bar 6 (09:30) → bar 22 open = 13:30 = hold_open 14,400s ちょうど。live は 4h 到達直後の tick で eligible なので
+    この bar から C5 (review P2 4114208143: `>` だと 15 分足整列で毎回 1 bar 遅れていた)。bar 21 (3h45m) は eligible ではない。"""
+    entry = 150.000 + K.MINTICK
+    below = entry - 0.010
+    df = _bars(80)
+    _set_bar(df, 22, below, below + 0.002, below - 0.002, below)      # 境界 bar だけ含み損
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c5=True, canon_cap=False)))
+    assert t.exit_reason == "TIME_DECAY_EXIT"
+    assert t.hold_sec == pytest.approx(K.C5_HALF_HOLD_SEC)             # exit は境界 bar の open 時点
+    assert t.bars_held == 22 - 5
+    df2 = _bars(80)
+    above = entry + 0.010
+    for j in range(22, 80):                                            # 4h 以降は含み益側 (既定の 150.000 は entry より 1 tick 下で C5 が即発火する)
+        _set_bar(df2, j, above, above + 0.002, above - 0.002, above)
+    _set_bar(df2, 21, below, below + 0.002, below - 0.002, below)     # 3h45m の bar だけ含み損 → C5 不発
+    t2 = _one(K.simulate(df2, K.StackConfig(exit_mode="tp5", c5=True, canon_cap=False)))
+    assert t2.exit_reason == "EOD"
+
+
+def test_c5_intrabar_predicate_eligible_on_boundary_bar():
+    """bar 内交差の述語も同じ境界 (hold_open == 14,400s で open ≥ entry ∧ low < entry → entry 割れで決済)。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(80)
+    _set_bar(df, 22, entry + 0.010, entry + 0.040, entry - 0.010, entry - 0.005)   # SL (−15p) には届かない
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c5=True, canon_cap=False, order="adverse_first")))
+    assert t.exit_reason == "TIME_DECAY_EXIT" and t.exit == pytest.approx(entry - K.MINTICK)
+    assert t.hold_sec == pytest.approx(K.C5_HALF_HOLD_SEC + 900)     # bar 内 exit は bar close 時刻
+    # 同 bar の high (+4p) は adverse_first (open→low の脚で entry に触れる) では exit 後 → MFE は open (+1.0p) まで
+    assert t.mfe_pips == pytest.approx(1.0, abs=0.05)
+    assert t.mae_pips == pytest.approx(0.3, abs=0.05)                # 保持中の Low 149.998 のみ (entry 割れ点 = entry は 0p)
+    t2 = _one(K.simulate(df.copy(), K.StackConfig(exit_mode="tp5", c5=True, canon_cap=False, order="favorable_first")))
+    assert t2.exit_reason == "TIME_DECAY_EXIT"
+    assert t2.mfe_pips == pytest.approx(4.0, abs=0.05)               # favorable_first は open→high→low なので high は exit 前
+
+
+def test_excursions_truncate_at_intrabar_sl_adverse_first():
+    """adverse_first の SL は open→low の脚 → 同 bar の high (+90p) は exit 後で MFE に入れない。MAE は stop まで。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(40, atr=0.100)                                        # SL = entry − 0.150
+    _set_bar(df, 12, entry + 0.010, entry + 0.900, entry - 0.300, entry - 0.100)
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", order="adverse_first")))
+    assert t.exit_reason == "SL_HIT"
+    assert t.mfe_pips == pytest.approx(1.0, abs=0.05)                # open (+1.0p) まで — bar high +90p は含めない
+    assert t.mae_pips == pytest.approx(15.0, abs=0.05)               # stop (−15p) まで — bar low −30p は含めない
+
+
+def test_excursions_truncate_at_intrabar_tp_favorable_first():
+    """favorable_first の TP は open→high の脚 → 同 bar の low (−30p) は exit 後で MAE に入れない。MFE は TP まで。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(40, atr=0.100)                                        # TP = entry + 0.500
+    _set_bar(df, 12, entry + 0.010, entry + 0.900, entry - 0.300, entry + 0.200)
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", order="favorable_first")))
+    assert t.exit_reason == "TP_HIT"
+    assert t.mfe_pips == pytest.approx(50.0, abs=0.05)               # TP (+50p) まで — bar high +90p は含めない
+    assert t.mae_pips == pytest.approx(0.3, abs=0.05)                # 保持中の Low 149.998 のみ — bar low −30p は含めない
+
+
+def test_excursions_tp_adverse_first_includes_prior_low_and_sl_favorable_first_includes_prior_high():
+    """adverse_first の TP は low→high の脚 (low は exit 前 → MAE に入る、high の残りは exit 後)。
+    favorable_first の SL は high→low の脚 (high は exit 前 → MFE に入る、low の残りは exit 後)。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(40, atr=0.100)
+    _set_bar(df, 12, entry + 0.010, entry + 0.900, entry - 0.050, entry + 0.200)     # low は SL (−15p) の手前
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", order="adverse_first")))
+    assert t.exit_reason == "TP_HIT"
+    assert t.mae_pips == pytest.approx(5.0, abs=0.05)                # bar low (−5p) は TP 前
+    assert t.mfe_pips == pytest.approx(50.0, abs=0.05)               # TP まで (bar high +90p は exit 後)
+    df2 = _bars(40, atr=0.100)
+    _set_bar(df2, 12, entry + 0.010, entry + 0.200, entry - 0.300, entry - 0.100)    # high は TP (+50p) の手前
+    t2 = _one(K.simulate(df2, K.StackConfig(exit_mode="tp5", order="favorable_first")))
+    assert t2.exit_reason == "SL_HIT"
+    assert t2.mfe_pips == pytest.approx(20.0, abs=0.05)              # bar high (+20p) は SL 前
+    assert t2.mae_pips == pytest.approx(15.0, abs=0.05)              # stop まで (bar low −30p は exit 後)
+
+
+def test_excursions_same_bar_be_after_high_keeps_full_bar_range():
+    """adverse_first で high が BE を発動し close が新 stop を割る bar (review P1 4114171432) は、low → high → close の全脚が
+    exit 前 → MFE/MAE は bar 全体 (打ち切りはこの脚では起きない)。"""
+    entry = 150.000 + K.MINTICK
+    df = _bars(40, atr=0.100)
+    _set_bar(df, 12, entry + 0.010, entry + 0.090, entry - 0.050, entry - 0.040)
+    t = _one(K.simulate(df, K.StackConfig(exit_mode="tp5", c3c4=True, order="adverse_first")))
+    assert t.exit_reason == "BE"
+    assert t.mfe_pips == pytest.approx(9.0, abs=0.05)
+    assert t.mae_pips == pytest.approx(5.0, abs=0.05)

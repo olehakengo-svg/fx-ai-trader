@@ -1141,11 +1141,13 @@
     },
     {
       "id": "review-backlog-pr302-p2-deferrals",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-04",
       "doc": "knowledge-base/wiki/analyses/kalman-d7-live-constrained-bt-2026-09-27.md",
-      "message": "🟠 PR #302 (kalman_d7 live 制約付き BT、マージ ed227b37 2026-09-27) の Codex P2 繰延 2 件 — 8 巡目 (P2 巡目上限 6 超過) で review-ack 「未修正・繰延」にした ([[sprint-triage-pr-discipline-2026-09-22]] 運用)。(1) 4114208143 `tools/kalman_d7_live_constrained_bt.py` C5 の境界 bar: 15 分足整列で hold_open == 14,400s の bar が `>` で除外され C5 が 1 bar (15 分) 遅れる → `>=` へ (open 判定・intrabar 交差の両述語)。(2) 4114208147 同ファイル MFE/MAE: bar 内 exit 後の値動きを excursion に含めている (adverse_first の SL は open→low の脚まで / favorable_first の TP は high まで / BE・TRAIL は新 stop 到達まで) → exit 種別ごとの打ち切り点を定義。いずれも EV / WR / PF / exit 帰属 / 順位に影響しない (analyses 本文は MFE/MAE 分布を引用していない)。期日までに修正 PR (rule:R3、pin 併設、raw JSON 再生成) を積み、TV canon 再走 (queue 20260927-0300) の前に閉じる。期日は cron 判定が翌日 00:20Z なので前日 10-04 に置く。"
+      "message": "🟠 PR #302 (kalman_d7 live 制約付き BT、マージ ed227b37 2026-09-27) の Codex P2 繰延 2 件 — 8 巡目 (P2 巡目上限 6 超過) で review-ack 「未修正・繰延」にした ([[sprint-triage-pr-discipline-2026-09-22]] 運用)。(1) 4114208143 `tools/kalman_d7_live_constrained_bt.py` C5 の境界 bar: 15 分足整列で hold_open == 14,400s の bar が `>` で除外され C5 が 1 bar (15 分) 遅れる → `>=` へ (open 判定・intrabar 交差の両述語)。(2) 4114208147 同ファイル MFE/MAE: bar 内 exit 後の値動きを excursion に含めている (adverse_first の SL は open→low の脚まで / favorable_first の TP は high まで / BE・TRAIL は新 stop 到達まで) → exit 種別ごとの打ち切り点を定義。いずれも EV / WR / PF / exit 帰属 / 順位に影響しない (analyses 本文は MFE/MAE 分布を引用していない)。期日までに修正 PR (rule:R3、pin 併設、raw JSON 再生成) を積み、TV canon 再走 (queue 20260927-0300) の前に閉じる。期日は cron 判定が翌日 00:20Z なので前日 10-04 に置く。 ／ 2026-09-28 消化: 修正 PR (tools + tests + raw 再生成 + analyses 更新)。",
+      "resolved": "2026-09-28",
+      "resolution": "修正 PR (rule:R3、pin 6 本併設) で 2 件とも消化: (1) 4114208143 C5 両述語を `>=` — marg_C5_only TIME_DECAY 10→12 本、単独 EV +1.5/+2.1 → +0.1/+0.6、walk4b +1.8/+2.3 → +0.3/+0.9 (走 3 = 走 4 と順位 C3C4 ≫ C0 > C6 近似 > C5 ≈ C2 は不変。繰延時の「EV に影響しない」は C5 単独では誤りだった)。(2) 4114208147 MFE/MAE を exit 種別 × 順序仮定ごとの bar 内 exit 点で打ち切り (EV / WR / PF / 帰属 不変、winner MFE median 縮小)。raw JSON/MD 再生成 (meta.run_date 2026-09-28)。analyses §2 表 / §読み 5 / レビュー反映 を同 PR で更新。TV canon 再走 (queue 20260927-0300、user の TV 起動待ち) の前に閉じた。"
     }
   ]
 }
