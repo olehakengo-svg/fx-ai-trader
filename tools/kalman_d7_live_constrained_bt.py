@@ -329,19 +329,24 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
                 _c2 = _c2_exit_at_open(idx, j)
                 if _c2:
                     exit_raw, exit_px, reason = o[j], o[j] - MINTICK, _c2
+                    highest = max(highest, o[j]); lowest = min(lowest, o[j])   # open 時点 exit: open は exit 前 (PR #305 review P2 4117870881)
                     exit_j, exit_ts = j, ts
                     break
             if cfg.c1 and hold_open >= C1_MAX_HOLD_SEC:
                 exit_raw, exit_px, reason = o[j], o[j] - MINTICK, "MAX_HOLD_TIME"
+                highest = max(highest, o[j]); lowest = min(lowest, o[j])
                 exit_j, exit_ts = j, ts
                 break
-            if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and o[j] < entry:
+            # C5 は hold_open == 14,400s の境界 bar から eligible (PR #302 review P2 4114208143: `>` だと 15 分足整列で毎回 1 bar 遅れる)
+            if cfg.c5 and hold_open >= C5_HALF_HOLD_SEC and o[j] < entry:
                 exit_raw, exit_px, reason = o[j], o[j] - MINTICK, "TIME_DECAY_EXIT"
+                highest = max(highest, o[j]); lowest = min(lowest, o[j])   # 決済価格 (open) を MAE に含める — 対称に C1/C2 の open exit も同じ
                 exit_j, exit_ts = j, ts
                 break
 
             bar_hi, bar_lo = h[j], lo[j]
             hit_sl = hit_tp = False
+            sl_leg = ""  # adverse_first: "open_low" (SL は open→low の脚) | "high_close" (BE/trail 新 stop を close が割る)
 
             def _update_be_trail(mfe_px: float) -> None:
                 nonlocal sl, sl_moved
@@ -361,15 +366,23 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
             #    C5 vs TP の同 bar 曖昧性は順序仮定に従う (PR #302 review P2 4114143809): favorable_first では
             #    bar high が TP に届いていれば TP を先に処理し、この分岐は使わない。
             _tp_first = cfg.order == "favorable_first" and cfg.exit_mode == "tp5" and bar_hi >= tp
-            if cfg.c5 and hold_open > C5_HALF_HOLD_SEC and o[j] >= entry and bar_lo < entry and sl < entry and not _tp_first:
+            # favorable_first (open→high→low) では high が先に BE/trail を発動し得る → その新 stop を C5 判定の前に反映
+            # (PR #305 review P2 4117916259: 旧 sl で `sl < entry` を評価すると、BE 後は stop が先に触れる bar を C5 に誤帰属)。
+            # adverse_first (open→low→high) は low が先なので prospective stop は無い。
+            if cfg.order == "favorable_first" and cfg.c3c4:
+                _update_be_trail(max(highest, bar_hi))
+            if cfg.c5 and hold_open >= C5_HALF_HOLD_SEC and o[j] >= entry and bar_lo < entry and sl < entry and not _tp_first:
                 exit_raw, exit_px, reason = entry, entry - MINTICK, "TIME_DECAY_EXIT"
-                highest = max(highest, bar_hi); lowest = min(lowest, bar_lo)
+                # MFE/MAE は模擬した bar 内 exit 点で打ち切る (PR #302 review P2 4114208147):
+                # adverse_first = open→low の脚で entry に触れる (high は exit 後) / favorable_first = open→high→low (high は exit 前)
+                highest = max(highest, bar_hi if cfg.order == "favorable_first" else o[j]); lowest = min(lowest, entry)
                 exit_j, exit_ts = j, ts + pd.Timedelta(minutes=15)
                 break
 
             if cfg.order == "adverse_first":
                 if bar_lo <= sl:
                     hit_sl = True
+                    sl_leg = "open_low"
                 elif cfg.exit_mode == "tp5" and bar_hi >= tp:
                     hit_tp = True
                 if not hit_sl and not hit_tp and cfg.c3c4:
@@ -379,6 +392,7 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
                     # 新 stop を close が割っていれば high→close の脚で必ず触れる → 同 bar で決済 (次 bar 持ち越しは誤り)
                     if sl > _sl_before and c[j] <= sl:
                         hit_sl = True
+                        sl_leg = "high_close"
             else:  # favorable_first
                 if cfg.c3c4:
                     _update_be_trail(max(highest, bar_hi))
@@ -387,8 +401,21 @@ def simulate(data: pd.DataFrame, cfg: StackConfig) -> list[SimTrade]:
                 elif bar_lo <= sl:
                     hit_sl = True
 
-            highest = max(highest, bar_hi)
-            lowest = min(lowest, bar_lo)
+            # ── MFE/MAE は模擬した bar 内 exit 点で打ち切る (PR #302 review P2 4114208147) ──
+            # 連続パス: adverse_first = open→low→high→close / favorable_first = open→high→low→close。exit 後の脚は含めない。
+            if hit_sl and sl_leg == "open_low":            # adverse_first、open→low の脚で stop → high は exit 後
+                highest = max(highest, o[j]); lowest = min(lowest, sl)
+            elif hit_sl and sl_leg == "high_close":        # adverse_first、low → high の後に close で新 stop → 全脚が exit 前
+                highest = max(highest, bar_hi); lowest = min(lowest, bar_lo)
+            elif hit_sl:                                   # favorable_first、high の後の high→low の脚で stop → low の残りは exit 後
+                highest = max(highest, bar_hi); lowest = min(lowest, sl)
+            elif hit_tp and cfg.order == "adverse_first":  # low → high の脚で TP → high の残りは exit 後
+                highest = max(highest, tp); lowest = min(lowest, bar_lo)
+            elif hit_tp:                                   # favorable_first、open→high の脚で TP → low は exit 後
+                highest = max(highest, tp); lowest = min(lowest, o[j])
+            else:                                          # 保持継続: 全脚
+                highest = max(highest, bar_hi)
+                lowest = min(lowest, bar_lo)
 
             if hit_sl:
                 exit_raw, exit_px = sl, sl - MINTICK

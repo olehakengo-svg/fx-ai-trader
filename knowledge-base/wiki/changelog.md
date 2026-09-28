@@ -1,5 +1,11 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-28 — fix(bt): kalman_d7 制約付き BT の PR #302 繰延 P2 ×2 を消化 — C5 境界 bar (`>` → `>=`) + MFE/MAE の bar 内 exit 打ち切り (rule:R3、診断ツールのみ・取引挙動不変)
+
+- **P2 4114208143**: C5 (4h 含み損) の open 判定・bar 内交差の両述語を `hold_open >= 14,400s` に。15 分足整列では毎 trade が境界 bar ちょうどで eligible になるため `>` は常に 1 bar 遅れていた。marg_C5_only TIME_DECAY 10 → 12 本、単独 EV +1.5 / +2.1 → **+0.1 / +0.6**、walk4b (C3C4 抜き累積) +1.8 / +2.3 → **+0.3 / +0.9**。走 3 = 走 4 (BE/trail の後ろで C5 は 0 本) と **順位 (C3C4 ≫ C0 > C6 近似 > C5 ≈ C2) は不変**。⚠️ 繰延時の「EV に影響しない」は C5 単独では誤りだった — 数値は引用禁止のまま、順位のみ
+- **P2 4114208147**: MFE/MAE を模擬した bar 内 exit 点で打ち切り (adverse_first: SL は open→low の脚 = high を含めない / TP は low→high = low を含める; favorable_first: TP は open→high = low を含めない / SL は high→low = high を含める; C5 bar 内 exit も同規則; BE/trail 新 stop を close が割る bar は全脚)。winner MFE median 縮小 (tp5 65.3 → 56.7)、**EV / WR / PF / 帰属は不変**
+- pin 6 本 (`tests/test_kalman_d7_live_constrained_bt.py` 36 本 green): 境界 bar 4h00 eligible ∧ 3h45 不発 / bar 内述語の境界 + 順序別 MFE / 打ち切り 4 種 / BE 後 close 割れは全脚。raw `kalman_d7_live_constrained_bt_2026_09_27.{json,md}` 再生成 (meta.run_date 09-28)。analyses [[kalman-d7-live-constrained-bt-2026-09-27]] §2 表 / §読み 5 / レビュー反映 更新、registry `review-backlog-pr302-p2-deferrals` resolved (期日 10-04 の 6 日前)
+
 ## 2026-09-27 — research(bt): kalman_d7_po_dn_flip live 制約付き BT (C0〜C6) を Python port で実行 — harness 未検証 + 「宣言 TP 5×ATR は canon の exit ではない」を強く示唆 (確定は TV 再走) (rule:R3 診断のみ)
 
 - **実行**: Codex queue `20260925-0300-kalman-d7-live-constrained-bt` (P1、期日 10-08 の user 決裁 packet 供給) を Claude 自走で完遂 (PR #302) → `.ai/tasks/done/` (Claude Review 付き)。TV は CDP 接続不可、v17 canon Pine はリポジトリ不在 (TV slot 2026-05-21 上書き) ⇒ task 手順 2 の Python port 経路。ツール `tools/kalman_d7_live_constrained_bt.py` (standalone、live コード非 import)、pin `tests/test_kalman_d7_live_constrained_bt.py` (19)、生成物 `raw/bt-results/kalman_d7_live_constrained_bt_2026_09_27.{json,md}`、所見 [[kalman-d7-live-constrained-bt-2026-09-27]]
