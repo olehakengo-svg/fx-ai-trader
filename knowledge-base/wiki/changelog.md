@@ -6,6 +6,7 @@
 - **帰属**: 09-23〜09-29 の distinct signal-bar 11 本すべて order 送信前に block (spread_wide 21:00Z 5 / 08:00Z 1 / mtf_strong_bias 3 / velocity_down 2) — [[ps-seat-supply-remeasure-2026-09-10]] §11 の (B) 下流 100% を追認。席は是正後一度も律速していない
 - **resolve しない・期日据え置き**: entry は cell_deepdive の LOCK redaction 母集団を定義 (resolve で保留 EV look が露出、初版 resolve を `test_real_registry_preserves_prefix_match_flags` が検知)、かつ prefix プールの R2 条件を執行する唯一の主体 (watchdog はセル単位・全期間・`is_shadow` 基準で別母集団 — Codex P2)。期日 09-30 は動かさず (`today >= deadline` で発火、前日 roll は checkpoint を消す — Codex P2)、checkpoint 後に増分を数え直して roll
 -magnitude の disposition は `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は Rule 1 候補として記録のみ
+- 🔴 **発見 (Codex P1、コード確認済み)**: ps watchdog の auto-demote state は cron の一時 FS に書かれ、取引プロセス (web service) に届かない = DEMOTE でも live 発注は止まらない (Discord 通知のみ)。`limit=5000` ページングなしも併記。実害なし (全セル N<10・発火 0)。修復は registry `ps-watchdog-demotion-state-unreachable` (10-11、R3)
 - ⚠️ **訂正**: 09-26/09-28 session log の「clean live N since 08-11 = 0」は誤り (09-10 audit N=6 と本実測が一致)
 - 詳細: [[ps-carveout-firstweek-regate-disposition-2026-08-12]] §6。gate / tier / lot / live 経路 不変更
 

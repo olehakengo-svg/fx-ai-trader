@@ -153,9 +153,15 @@ spread_wide の 21:00Z 分 (5/11) は原則 2 (デスゾーン = スプレッド
   (`tests/test_cell_deepdive_lock_redaction.py::test_real_registry_preserves_prefix_match_flags` が初版の resolve で落ちて検知)。
   10-30 の再レビューは `ps-seat-spread-magnitude-readout` (10-19) の disposition を受けて決める (退役なら resolved / 継続なら N≥10 待ちで再 roll)。
 - ⚠️ **watchdog は本 entry の R2 条件の代替ではない** (PR #306 Codex P2): `tools/price_shock_rev_live_watchdog.py --apply` (Render cron、render.yaml:283) は
-  **exact セル単位** × **全期間** × `is_shadow=0` で N≥10 を数える。本 entry は **prefix プール** × **since 08-11** × canonical (`oanda_trade_id` ∧ dedup) で数える。
+  **exact セル単位** × **直近 closed 5,000 行の切り詰め窓** (`fetch_trades` は `limit=5000` の 1 回取得・ページングなし・新しい順 = 古い fill は窓から落ちる) × `is_shadow=0` で N≥10 を数える。本 entry は **prefix プール** × **since 08-11** × canonical (`oanda_trade_id` ∧ dedup) で数える。
   例: プール N=10 が複数セルに分散すればどのセルも watchdog に掛からない / 08-11 以前の行で watchdog だけが別母集団で発火しうる。
   ⇒ **プール条件 (N≥10 ∧ EV<−0.5p → R2 demote) を執行するのは本 entry だけ** — これも resolve しない理由の一つ (redaction と並ぶ)。
+- 🔴 **さらに watchdog の auto-demote は取引プロセスに届いていない** (PR #306 Codex P1、コードで確認済み): cron `fx-ai-price-shock-rev-watchdog` は
+  既定の相対パス `data/price_shock_rev_auto_demotions.json` に書くが、これは **cron 自身の一時ファイルシステム**。取引側 `DemoTrader._read_price_shock_rev_auto_demotions`
+  (modules/demo_trader.py:10302) は web service 内の同名相対パスを読む。render.yaml では disk (`/var/data`) を持つのは web service だけで、
+  `PRICE_SHOCK_REV_DEMOTION_STATE` はどちらの service にも設定されていない ⇒ **DEMOTE 判定が出ても後続の live 発注は止まらない** (届くのは `--to-discord` の通知のみ)。
+  現時点の実害はない (どの exact セルも N<10、09-03 以降 ps の発火は 0) が、**この watchdog を live 防御として数えない**。
+  修復 (R3 構造バグ、live 経路なので review gate 付きの単独 PR) は registry `ps-watchdog-demotion-state-unreachable` (期日 10-11) で追跡する。
   (registry 側の EV<−0.5p と watchdog の EV<0 は watchdog の方が厳しい = 保護側に倒れている)
 - 供給側の次の決裁点 = `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は R1 候補として記録のみ (起案は user 決裁の統合パケット経由)。
 - M1 への寄与: ps 席からの live N 供給は **09-03 以降ゼロ**。M1 見通しの供給源に ps を数えない (wg は G0' 終了・W1 決裁待ち、kalman / carry_dip が現行の live 供給)。
