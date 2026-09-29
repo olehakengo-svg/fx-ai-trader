@@ -93,3 +93,66 @@ Track C の主張は「ps×5 が発火可能になれば live N 蓄積が桁で�
 - [[track-c-capital-plumbing-decision-packet-2026-07-28]] (親決裁 D-c-1)
 - [[shortest-path-decision-memo-2026-07-10]] (トラック C)
 - MEMORY: `project_preserve_bug_fixed_10cells_live_2026_07_28` / `project_track_c_carveout_gap_and_gotobi_2026_07_28` / `project_549250_incident_mc_ruin_fix_2026_08_05`
+
+---
+
+## 6. 後継 `ps-carveout-regate-post-172` 期日 stale レビュー (2026-09-29、期日 09-30 の 1 日前)
+
+**rule**: R3 (件数の記録と帰属のみ。gate / tier / lot / 閾値 / live 経路は**一切不変更**)
+**判定**: **N<10 のまま期日 = stale。carve-out の EV 判定は保留** (pre-reg どおり、N ゲートは下げない)。entry は resolve せず **active のまま 10-30 へ roll** (§6.3)。
+EV / WR / PnL は本節で計算・転記していない — N≥10 到達時の判定 look を消費しないため。
+
+### 6.1 事実 (本番 `/api/demo/trades`、as-of 2026-09-29T01:20Z)
+
+`status=closed&date_from=2026-08-11` 全ページ (2,980 行、offset 500 刻み) + `status=open` (2 行) から
+`entry_type` 前方一致 `price_shock_rev` を抽出:
+
+| 区分 | 件数 |
+|---|---|
+| ps 行 (全経路) | **7** |
+| clean live (`oanda_trade_id != ''` ∧ `dedup_violation != 1`) | **6** (eur_gbp 4 / aud_jpy 2) |
+| shadow | 1 (eur_gbp、08-17) |
+| 他 3 席 (NZD_JPY / EUR_AUD / USD_CAD) | **0** |
+| 最終 ps 行 | **2026-09-03T15:08Z** (以後 26 日間 row ゼロ、live・shadow とも) |
+
+- watchdog (`tools/price_shock_rev_live_watchdog.py`、`is_shadow=0` 基準) でも 6 件全て `is_shadow=0` = canonical 定義と一致 (§2(c) の乖離は本窓でも 0)。
+- ⚠️ **訂正**: 2026-09-26 / 09-28 session log の未解決欄にあった「clean live N since 08-11 = 0 (09-26 実測)」は**誤り**。
+  09-10 の [[trigger-watch-gap-audit-2026-09-10]] は N=6/10 と記録しており、本実測 N=6 と一致する (09-03 以降 増分ゼロ)。
+
+### 6.2 帰属 — 「席が是正されても発火しない」の中身は **送信前 gate (下流) 100%**
+
+[[ps-seat-supply-remeasure-2026-09-10]] §11 (09-21、窓 09-07〜09-21) で「5 席の候補 141 行 = distinct bar 10 本が全て order 層到達前に block、
+席優先 select は 141/141 勝ち」= **(B) 下流で確定**済み。その後の窓を 2 面で追認した:
+
+**(a) Render ログ `[ORDER_BAR_DEDUP] first terminal block after reservation: price_shock_rev*`** (marker は PR #293 = 09-23 以降のみ存在、窓 09-23〜09-29T01:30Z、hasMore=false):
+distinct (seat, bar_ts) **11 本すべて block、order 送信 0**。
+
+| 終端 gate | distinct bar | 席 |
+|---|---|---|
+| `spread_wide` @ 21:00Z ロールオーバー | 5 | usd_cad ×2 (1.9 / 2.2p > 1.5) / eur_aud ×3 (19.7 / 18.5 / 8.4p > 2.0) |
+| `spread_wide` @ 08:00Z | 1 | nzd_jpy (3.0 / 3.3p > 3.0) |
+| `mtf_strong_bias` (SELL vs BUY) | 3 | eur_gbp (09-28 07/08/13 時台) |
+| `velocity_down` (44〜49p) | 2 | aud_jpy (09-25 13 時 / 09-28 08 時) |
+
+(同一 bar の first terminal 行が別 instance で 2 回出るのは二重エンジン — [[dual-engine-dup-rate-readout-2026-09-24]]。数えるのは distinct bar)
+
+**(b) `/api/demo/block-counts?days=28` の `persisted.per_cell_metrics`** (magnitude、per-tick 計上で bar 単位ではない):
+aud_jpy velocity_down n=6 (44〜49p) / eur_aud spread_wide n=6 (3.5〜35.4p、mean 14.9) / usd_cad spread_wide n=7 (1.9〜11.6p) /
+nzd_jpy spread_wide n=3 (3.0〜3.3p) / eur_gbp spread_wide n=1 (1.6p)。magnitude の disposition は registry `ps-seat-spread-magnitude-readout` (10-19) が持つ — **本節では判定しない**。
+
+**読み**: 「席」は是正後も一度も律速していない。N が 10 に届かない理由は **シグナル後段の防御 gate** であり、carve-out (agg-Kelly bypass) の成否とは独立。
+spread_wide の 21:00Z 分 (5/11) は原則 2 (デスゾーン = スプレッド異常の動的検出) どおりの正当な防御で、緩める対象ではない。
+`mtf_strong_bias` / `velocity_down` (5/11) は block されると **shadow row も書かれない** (shadow N も同時に死ぬ) — rnb レーンで同型を shadow 化した前例
+([[rnb-shadow-lane-health-precheck-2026-09-22]] → PR #290 の `[SHADOW_RELAX]` レーン) があるが、ps への汎用化は **Rule 1** (新フィルタ緩和・母集団変更) であり autopilot では執行しない。
+
+### 6.3 閉じ方と残る防御
+
+- registry `ps-carveout-regate-post-172` は **resolve せず active のまま期日 2026-10-30 へ roll** (stale レビュー執行を message に追記)。
+  理由: 本 entry は cell_deepdive の LOCK redaction 母集団 (`match=prefix`) を定義しており、resolve すると保留中の EV look が deepdive 出力に露出する
+  (`tests/test_cell_deepdive_lock_redaction.py::test_real_registry_preserves_prefix_match_flags` が初版の resolve で落ちて検知)。
+  10-30 の再レビューは `ps-seat-spread-magnitude-readout` (10-19) の disposition を受けて決める (退役なら resolved / 継続なら N≥10 待ちで再 roll)。
+- **N≥10 時の R2 demote 条件は registry とは独立に作動する** — 同条件 (N≥10 ∧ (EV<0 ∨ Wilson_lo<0.40)) を
+  `tools/price_shock_rev_live_watchdog.py --apply` が Render cron (render.yaml:283) で毎回評価している。
+  (registry 側の EV<−0.5p と watchdog の EV<0 は watchdog の方が厳しい = 保護側に倒れている)
+- 供給側の次の決裁点 = `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は R1 候補として記録のみ (起案は user 決裁の統合パケット経由)。
+- M1 への寄与: ps 席からの live N 供給は **09-03 以降ゼロ**。M1 見通しの供給源に ps を数えない (wg は G0' 終了・W1 決裁待ち、kalman / carry_dip が現行の live 供給)。

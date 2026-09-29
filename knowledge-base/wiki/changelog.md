@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-29 — docs(registry): `ps-carveout-regate-post-172` 期日 stale レビュー — clean live N=6 (<10) で EV 判定保留・10-30 へ roll、不足の帰属 = 送信前 gate 100% (rule:R3、記録のみ)
+
+- **実測** (本番 `/api/demo/trades` 08-11 以降 全ページ 2,982 行): ps 行 7 / clean live **6** (eur_gbp 4 / aud_jpy 2) / 他 3 席 0 / 最終 ps 行 09-03T15:08Z。pre-reg どおり N ゲートは下げず、EV/WR は計算していない (N≥10 look を消費しない)
+- **帰属**: 09-23〜09-29 の distinct signal-bar 11 本すべて order 送信前に block (spread_wide 21:00Z 5 / 08:00Z 1 / mtf_strong_bias 3 / velocity_down 2) — [[ps-seat-supply-remeasure-2026-09-10]] §11 の (B) 下流 100% を追認。席は是正後一度も律速していない
+- **resolve せず roll**: entry は cell_deepdive の LOCK redaction 母集団を定義 — resolve すると保留中 EV look が露出する (初版 resolve を `test_real_registry_preserves_prefix_match_flags` が検知)
+- **防御は失効しない**: N≥10 の R2 条件は `price_shock_rev_live_watchdog.py --apply` (Render cron) が継続執行。magnitude の disposition は `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は Rule 1 候補として記録のみ
+- ⚠️ **訂正**: 09-26/09-28 session log の「clean live N since 08-11 = 0」は誤り (09-10 audit N=6 と本実測が一致)
+- 詳細: [[ps-carveout-firstweek-regate-disposition-2026-08-12]] §6。gate / tier / lot / live 経路 不変更
+
 ## 2026-09-28 — docs(wg): G0' event #2 (09-27) = ABANDONED_DRIFT → 改定後 2 連続不成立で packet §6 発動、執行モダリティ R1 再審 packet v1 起案 (user 決裁 W1〜W6) + carry_dip `[SLTP_CONSTRUCT]` 初 fill 実測 (rule:R3 記録のみ)
 
 - **event #2 (一次データ)**: 2026-09-27 21:05:13Z USD_JPY gap −22.0p ≥ 21.4p → `ABANDONED_DRIFT` (tradeable 確認時 quote_age 2.456s、drift +18.40p > +8.0p、send_mid 157.243 / sunday_open 157.059)。EXEC_B `HOLD` 20 行 (21:01:06–21:04:54Z、poll 12–19s) → 放棄 → shadow row 18538 / oanda_audit 17930 `skipped`。AUD_USD −12.8p / EUR_USD −12.7p は no-qualify (診断行確定)。Render ログ 27 行・hasMore=false。shadow outcome 非転記。card 転記は事象から 4h (24h 規則内)
