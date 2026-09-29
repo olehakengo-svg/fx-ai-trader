@@ -1158,3 +1158,18 @@
 - **Lint**: (1) 数値整合 ✅ 3 系統一致、更新 2 ページ (index / carry_dip)。(2) wikilink 3 段解決 ([[feedback_wikilink_lint_basename_collapse]]): 2,350 md / ok 4,505 / MEMORY 217 / **破損 339 occ / 86 distinct (09-24: 132 / 62)** — 🔴 +207 の急増は PR #299・他セッションが 09-24 以降に更新した 42 md 由来 (`changelog.md` 19 / `log.md` 13)、**本 run 新規 0** (書き込み後再走査 2,359 md / 340 occ / 86 distinct、+1 occ は並行セッションの新規 md 由来)、index.md 5 件不変。(3) stale: tier-master 8.23 d 🟡 / learner 10.0 d 🔴
 - **未決 (user 決裁待ち)**: (1) 🔴 `main` 発生源の恒久対策 3 択 — PR #299 は救済で遮断ではない / (2) 🔴 carry_dip ブラケット SL 側の R3 決裁 (08-05〜、N=16、🆕 再エントリー機構) / (3) `price_shock_rev_aud_jpy_h1_long` de-risk (8 run 連続、book 損失の 25.1%) / (4) learner no-op 修復順序 / (5) 🆕 `sr_weighted_break` の emit 経路 (コード読み承認)
 
+
+## 2026-09-28 wiki-daily-update (**carry_dip #893207 で 5h46m / 55,424 tx の SL storm (族 A→B 相転移、+¥95 自己約定) / storm_guard が初めて実 storm を検知したが `enforce: false` で 0 block・計上は broker の ~40% / #948637 再エントリー SL_HIT −¥191 / ラベル欠陥 61.2% で過去最悪**)
+- **Daily trade log**: `raw/trade-logs/2026-09-28.md` 生成 (09-25T14:17Z→09-28T15:19Z の 3.04 日デルタ、市場オープンは 09-28 の約 15h)。8 endpoint を 2 秒以内に並列取得、`pgrep -f app.py` orphan なし。audit は `limit=30` (LIVE 窓外) + `limit=1500` (窓 09-04T17:33〜09-28T15:01、最終 LIVE fill 含む ✅)。09-26 の wiki-daily run は存在しない
+- **repo**: 開始時 `behind 7 / ahead 0` → `git pull --ff-only` (cloud docs 7 本のみ、ローカルは parquet 1 本で非衝突)。**ahead 0 = auto-save の main 直コミット再生産は本 run 時点で観測されず** (watch 継続、CLOSED にはしない)
+- 🔴🔴🔑 **発見 1 — storm**: `lastTransactionID` 893205→948641。storm 本体 893210〜948633 = 55,424 tx (≈27,712 REPLACEMENT、全て trade 893207)。broker endpoint は 100 tx/req 上限のため **1000 id 毎の 100 tx 窓 × 56 (5,600 tx) サンプリング**で特徴づけ (全量 555 req は本番負荷回避で不採用)。族 A (BE 157.575 同値ループ) → trail 追随 + BE への巻き戻し (単調性違反 3 回) → 族 B 振動で自己約定 @157.662。累計 storm tx 下限 ≈238,893
+- 🔑 **発見 2 — storm_guard**: evaluated 0 (09-25) → **11,180 / tripped / breaker 11,130、skipped 0** — 配線済みを確定 (09-25 未決を CLOSE)、しかし detect-only。🔴 guard 計上 11,180 vs broker ≈27,712 の乖離は未決 (restart リセット vs バイパス経路)
+- 🔴 **発見 3 — #948637** 07:01Z @157.556、SL 18.7p、54 分で SL_HIT −¥191 (demo −20.0)。再エントリー損失 2 例目。NAV −¥96 残差 0。carry_dip N 16→18 / WR 50.0 / +59.2 / EV +3.29、broker +¥365
+- 🟢 **発見 4 — ledger** +¥200 = SL_HIT のみ、`OANDA_SL_TP` +9.5 未計上 (非 SL 側 N=2)
+- ⚪ **発見 5** — book N 593 / −726.7 / EV −1.23、risk n=14 Kelly −0.321 (+20.1p の 1 本が窓外に抜けた window-roll を含む)
+- 🟡 **発見 6** — shadow 88 closed +95.9 / WR 53.4%、**SL_HIT∧pnl≥0 = 41/67 = 61.2% (7 標本目、過去最悪、pooled 276/560 = 49.3%)**
+- ⚪ **発見 7** — sent=filled=2 / false-sent 0、blocked 8 全て agg_kelly。learner 13.1 d stale、blacklist no-op 10 run 目
+- **Strategy pages**: [[usdjpy_carry_dip_accumulator]] に 09-28 wiki-daily 節を追加 (別セッションの OPEN 時点 marker 節の上に配置、既存節は不改変)
+- **index.md**: System State 見出し 09-25 14:17Z → **09-28 15:19Z**、1 エントリ prepend、ミッション行 NAV を ¥274,843.8319 に更新
+- **Lint**: (1) 数値整合 ✅ stats / broker / demo 行 (丸め 0.9p)、ledger は構造的 lossy。(2) wikilink: 本 run が追加したリンク 8 種を全件実在確認 (KB 3 / MEMORY 5)、**新規破損 0**。全 KB 走査は本 run では未実施 (09-25 時点 339 occ / 86 distinct)。(3) stale: learner 13.1 d 🔴 / tier-master 推定 11.3 d 🟡 (本 run 未取得) / 09-26 run 欠落 🟡
+- **未決 (user 決裁待ち)**: (1) 🆕 `STORM_GUARD_ENFORCE=1` — 前提として guard 計上乖離の原因をコードで確認 / (2) carry_dip ブラケット SL 側 R3 決裁 (N=18) / (3) 🆕 SL 目標の 2-writer 競合 (trail vs BE) / (4) `main` 発生源の恒久策 / (5) learner no-op 修復
