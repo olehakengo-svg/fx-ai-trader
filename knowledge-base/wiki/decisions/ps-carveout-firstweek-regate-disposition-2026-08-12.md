@@ -96,10 +96,10 @@ Track C の主張は「ps×5 が発火可能になれば live N 蓄積が桁で�
 
 ---
 
-## 6. 後継 `ps-carveout-regate-post-172` 期日 stale レビュー (2026-09-29、期日 09-30 の 1 日前)
+## 6. 後継 `ps-carveout-regate-post-172` 期日前 readout (2026-09-29、期日 09-30 の 1 日前)
 
 **rule**: R3 (件数の記録と帰属のみ。gate / tier / lot / 閾値 / live 経路は**一切不変更**)
-**判定**: **N<10 のまま期日 = stale。carve-out の EV 判定は保留** (pre-reg どおり、N ゲートは下げない)。entry は resolve せず **active のまま 10-30 へ roll** (§6.3)。
+**判定 (暫定、09-30 checkpoint で確定)**: **N<10 のまま期日を迎える見込み = stale。carve-out の EV 判定は保留** (pre-reg どおり、N ゲートは下げない)。entry は resolve しない。期日 09-30 は**動かさない** — 本節は as-of 09-29T01:20Z の**期日前 readout**であり、09-30 checkpoint 到達後に N を数え直してから 10-30 へ roll する (§6.3)。
 EV / WR / PnL は本節で計算・転記していない — N≥10 到達時の判定 look を消費しないため。
 
 ### 6.1 事実 (本番 `/api/demo/trades`、as-of 2026-09-29T01:20Z)
@@ -147,12 +147,15 @@ spread_wide の 21:00Z 分 (5/11) は原則 2 (デスゾーン = スプレッド
 
 ### 6.3 閉じ方と残る防御
 
-- registry `ps-carveout-regate-post-172` は **resolve せず active のまま期日 2026-10-30 へ roll** (stale レビュー執行を message に追記)。
+- registry `ps-carveout-regate-post-172` は **resolve しない・期日 09-30 は据え置き** (期日前 readout を message に追記)。`evaluate_live_count_decision` は `today >= deadline` で発火するので、
+  1 日前に roll すると 09-30 checkpoint が発火せず、残り窓の fill が N=6 の結論から漏れる (PR #306 Codex P2)。**09-30 以降のセッションで 09-29T01:20Z 以降の増分を数え直し、N<10 なら 10-30 へ roll** する。
   理由: 本 entry は cell_deepdive の LOCK redaction 母集団 (`match=prefix`) を定義しており、resolve すると保留中の EV look が deepdive 出力に露出する
   (`tests/test_cell_deepdive_lock_redaction.py::test_real_registry_preserves_prefix_match_flags` が初版の resolve で落ちて検知)。
   10-30 の再レビューは `ps-seat-spread-magnitude-readout` (10-19) の disposition を受けて決める (退役なら resolved / 継続なら N≥10 待ちで再 roll)。
-- **N≥10 時の R2 demote 条件は registry とは独立に作動する** — 同条件 (N≥10 ∧ (EV<0 ∨ Wilson_lo<0.40)) を
-  `tools/price_shock_rev_live_watchdog.py --apply` が Render cron (render.yaml:283) で毎回評価している。
+- ⚠️ **watchdog は本 entry の R2 条件の代替ではない** (PR #306 Codex P2): `tools/price_shock_rev_live_watchdog.py --apply` (Render cron、render.yaml:283) は
+  **exact セル単位** × **全期間** × `is_shadow=0` で N≥10 を数える。本 entry は **prefix プール** × **since 08-11** × canonical (`oanda_trade_id` ∧ dedup) で数える。
+  例: プール N=10 が複数セルに分散すればどのセルも watchdog に掛からない / 08-11 以前の行で watchdog だけが別母集団で発火しうる。
+  ⇒ **プール条件 (N≥10 ∧ EV<−0.5p → R2 demote) を執行するのは本 entry だけ** — これも resolve しない理由の一つ (redaction と並ぶ)。
   (registry 側の EV<−0.5p と watchdog の EV<0 は watchdog の方が厳しい = 保護側に倒れている)
 - 供給側の次の決裁点 = `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は R1 候補として記録のみ (起案は user 決裁の統合パケット経由)。
 - M1 への寄与: ps 席からの live N 供給は **09-03 以降ゼロ**。M1 見通しの供給源に ps を数えない (wg は G0' 終了・W1 決裁待ち、kalman / carry_dip が現行の live 供給)。

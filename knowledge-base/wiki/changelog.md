@@ -1,11 +1,11 @@
 # Changelog — バージョン別変更と評価基準日
 
-## 2026-09-29 — docs(registry): `ps-carveout-regate-post-172` 期日 stale レビュー — clean live N=6 (<10) で EV 判定保留・10-30 へ roll、不足の帰属 = 送信前 gate 100% (rule:R3、記録のみ)
+## 2026-09-29 — docs(registry): `ps-carveout-regate-post-172` 期日前 readout (stale 見込み) — clean live N=6 (<10) で EV 判定保留 (期日前 readout、09-30 checkpoint 後に 10-30 へ roll)、不足の帰属 = 送信前 gate 100% (rule:R3、記録のみ)
 
 - **実測** (本番 `/api/demo/trades` 08-11 以降 全ページ 2,982 行): ps 行 7 / clean live **6** (eur_gbp 4 / aud_jpy 2) / 他 3 席 0 / 最終 ps 行 09-03T15:08Z。pre-reg どおり N ゲートは下げず、EV/WR は計算していない (N≥10 look を消費しない)
 - **帰属**: 09-23〜09-29 の distinct signal-bar 11 本すべて order 送信前に block (spread_wide 21:00Z 5 / 08:00Z 1 / mtf_strong_bias 3 / velocity_down 2) — [[ps-seat-supply-remeasure-2026-09-10]] §11 の (B) 下流 100% を追認。席は是正後一度も律速していない
-- **resolve せず roll**: entry は cell_deepdive の LOCK redaction 母集団を定義 — resolve すると保留中 EV look が露出する (初版 resolve を `test_real_registry_preserves_prefix_match_flags` が検知)
-- **防御は失効しない**: N≥10 の R2 条件は `price_shock_rev_live_watchdog.py --apply` (Render cron) が継続執行。magnitude の disposition は `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は Rule 1 候補として記録のみ
+- **resolve しない・期日据え置き**: entry は cell_deepdive の LOCK redaction 母集団を定義 (resolve で保留 EV look が露出、初版 resolve を `test_real_registry_preserves_prefix_match_flags` が検知)、かつ prefix プールの R2 条件を執行する唯一の主体 (watchdog はセル単位・全期間・`is_shadow` 基準で別母集団 — Codex P2)。期日 09-30 は動かさず (`today >= deadline` で発火、前日 roll は checkpoint を消す — Codex P2)、checkpoint 後に増分を数え直して roll
+-magnitude の disposition は `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は Rule 1 候補として記録のみ
 - ⚠️ **訂正**: 09-26/09-28 session log の「clean live N since 08-11 = 0」は誤り (09-10 audit N=6 と本実測が一致)
 - 詳細: [[ps-carveout-firstweek-regate-disposition-2026-08-12]] §6。gate / tier / lot / live 経路 不変更
 
