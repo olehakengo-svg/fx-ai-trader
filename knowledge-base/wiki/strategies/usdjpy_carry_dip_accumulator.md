@@ -78,6 +78,19 @@
 >
 > ⚠️ 併発リスク: この建玉の週末クローズ試行が **47 時間 / 64,170 回の `MARKET_HALTED` リトライ storm** (128,340 transactions) を引き起こし、OANDA Gold status = API アクセスを脅かした。hold ≤24 H1 は金曜クローズを日常的に跨ぐため **再発する**。詳細: [[2026-09-07]]
 
+## 🔴🔴 2026-09-28 更新 (wiki-daily 15:19Z): **fill #17 #893207 の決着 = 5h46m / 55,424 tx の storm を経て +¥95 自己約定、fill #18 #948637 は再エントリーで SL_HIT −¥191 — N=18**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold |
+|---|---|---|---|---|---|---|---|
+| **#893207** | 09-28 00:01:35 | 157.567 | 157.309 (−25.8p) / 158.207 (+64.0p) | 06:07:35 SL fill @157.662 (storm で trail 後) | **+¥95** | +9.5 `OANDA_SL_TP` | 6h06m |
+| **#948637** | 09-28 07:01:49 | 157.556 | 157.369 (**−18.7p**) / 158.381 (+82.5p) | 07:55:34 `STOP_LOSS_ORDER` @157.365 | **−¥191** | −20.0 `SL_HIT` | 53m45s |
+
+- 🔴 **#893207 の storm**: 893210〜948633 = **55,424 tx (≈27,712 REPLACEMENT)**。00:19〜≈01:55Z は **族 A** (157.575 = BE への同値再送ループ)、以後は価格追随 trail だが **BE 157.575 への巻き戻し (単調性違反) が 04:35 / 05:37 / 05:59Z に発生** = trail 目標と BE 目標の 2 writer 競合の形、06:07Z に **族 B** 型の振動で価格を追い越し自己約定。**族 A → 族 B の相転移を 1 trade 内で観測したのは初** ([[project_weekend_market_halted_retry_storm_2026_09_07]])。storm 累計 tx 下限 ≈238,893
+- 🔑 **storm_guard 初観測**: evaluated 11,180 / `tripped: true` / breaker 検知 11,130 — **`enforce: false` (detect-only) のため 0 件 block**。guard 計上は broker replacement の ~40% のみ (restart リセット or バイパス経路、未決) ⇒ enforce 決裁の前提確認事項
+- 🔴 **#948637 は 09-25 と同型の再エントリー損失 2 例目** (前決済 54 分後、11.1p 下)。SL 契約破棄 **18/18**
+- **累計**: demo **N 18 / 9W / WR 50.0% / +59.2 / EV +3.29** (Wilson 29.0 / BF 19.4、wf_h1 +9.33 → **wf_h2 −2.76**)。broker **+¥365 = +36.5p / 18 = +2.0p/trade**。NAV −¥96 残差 0。R2 (N≥10 ∧ EV<0) 不成立だが両 estimand で逓減
+- ledger: SL_HIT の −20.0 のみ計上、`OANDA_SL_TP` +9.5 は未計上。詳細 [[2026-09-28]]
+
 ## 🔑 2026-09-28 更新: **`[SLTP_CONSTRUCT]` marker 付き初 LIVE fill #893207 — 宣言 SL 150p → 実発注 25.8p の機構を fill 行で確定 (`atr_nosr` + lowliq +0.2×ATR、SR 不採用・clamp なし)**
 
 - **fill**: #893207 (09-28 **00:01:34Z**、USD_JPY BUY 1000u、signal 157.527 → entry **157.567** (entry drift +4.0p、spread 0.8p)、demo id 18540、`[EMIT_PROC] forked:statusheal`)。転記時点 OPEN (outcome は書かない)。oanda_audit 17932 `sent` → 17933 `filled` (0.1s)
