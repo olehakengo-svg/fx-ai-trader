@@ -1173,3 +1173,17 @@
 - **index.md**: System State 見出し 09-25 14:17Z → **09-28 15:19Z**、1 エントリ prepend、ミッション行 NAV を ¥274,843.8319 に更新
 - **Lint**: (1) 数値整合 ✅ stats / broker / demo 行 (丸め 0.9p)、ledger は構造的 lossy。(2) wikilink: 本 run が追加したリンク 8 種を全件実在確認 (KB 3 / MEMORY 5)、**新規破損 0**。全 KB 走査は本 run では未実施 (09-25 時点 339 occ / 86 distinct)。(3) stale: learner 13.1 d 🔴 / tier-master 推定 11.3 d 🟡 (本 run 未取得) / 09-26 run 欠落 🟡
 - **未決 (user 決裁待ち)**: (1) 🆕 `STORM_GUARD_ENFORCE=1` — 前提として guard 計上乖離の原因をコードで確認 / (2) carry_dip ブラケット SL 側 R3 決裁 (N=18) / (3) 🆕 SL 目標の 2-writer 競合 (trail vs BE) / (4) `main` 発生源の恒久策 / (5) learner no-op 修復
+
+## 2026-09-29 wiki-daily-update (**LIVE/broker 完全凍結 (tx 948641 不変・fill 0) で realized / risk / DD は 09-28 とビット同一 / shadow −170.6 の 73% を `dual_sr_bounce` が占め AUD_JPY で両方向 SL 刈られ / auto-save の main 直コミットが ahead 1 で再生産**)
+- **Daily trade log**: `raw/trade-logs/2026-09-29.md` 生成 (09-28T15:19Z→09-29T12:00Z、0.86 日デルタ)。7 endpoint を 1 秒以内に並列取得 + `demo/trades?limit=400&include_shadow=true`。`pgrep -f app.py` orphan なし。audit `limit=1500` 窓 09-07T21:31〜09-29T11:51 (最終 LIVE fill #948637 含む ✅)
+- ⚪ **発見 1 — broker 凍結**: `lastTransactionID` 948641 / NAV ¥274,843.8319 が 09-28 と同一、open 0。storm 再発なし。sent 10 = filled 10 (旧 `weekend_gap_fade` 不一致は窓外に抜けただけで解消ではない)
+- 🔑 **発見 2 — storm_guard** カウンタ 09-28 値で凍結 (evaluated 11,180 / breaker 11,130 / `enforce: false`)、restart 1 不変。guard 計上乖離の原因は未確定のまま
+- ⚪ **発見 3** — stats N 593 / −726.7 / EV −1.23、risk n=14 gross −115.6 Kelly −0.3209、DD 1282.3 pip — 全て不変。実 DD (broker 基準) −23.47%
+- 🟡 **発見 4 — shadow 83 本 / WR 45.8% / −170.6**、SL_HIT 80.7% / TP_HIT 1。**ラベル欠陥 8 標本目 53.7% (pooled 312/627 = 49.8%)**。🆕 `dual_sr_bounce` n=23 −125.3 (73.4%)、AUD_JPY 13 本が SELL 8 / BUY 5 の両方向で SL_HIT ⇒ 1 ベットの重複ではなく SR 間の往復で刈られる形。1 日分なので観測のみ
+- ⚪ **発見 5** — blocked 1 (`dt_bb_rsi_mr` `agg_kelly` −0.361、悪化続く)、learner 14.0 d stale / no-op 11 run 目、freshness 全 `ok`
+- 🔴 **repo** — `main...origin/main [ahead 1]` = `ce10bca9 auto: KB session-end save (2026-09-29)` ⇒ **hook の main 直コミットが再生産** (09-28 ahead 0 は一時的だった)。[[project_fxai_main_stranded_staged_work_2026_09_01]] 判定規則に該当、本 run は解消を試みない
+- **Strategy pages**: [[dual-sr-bounce]] に 09-29 shadow 実測節を追加。carry_dip / kalman は新 fill なしのため更新不要
+- **index.md**: System State 見出し 09-28 15:19Z → **09-29 12:00Z**、1 エントリ prepend。⚠️ **lint 修正**: Defensive mode 行が 09-25 値 (1262.3 / ¥323,848.63) のまま残っていた (09-28 run の書き換え漏れ) ⇒ 09-29 実測 (1282.3 / ¥323,648.63 / 実 DD −23.47%) に置換
+- **Lint**: (1) 数値整合 ✅ stats / risk / DD / broker が全て 09-28 と一致、index 内部の不整合 1 件を修正。(2) wikilink: 本 run 追加リンク (`2026-09-29` / `2026-09-28` / `dual-sr-bounce` / `tokyo-nakane-momentum` / `project_fxai_main_stranded_staged_work_2026_09_01`) を実在確認、新規破損 0。全 KB 走査は未実施 (09-25 時点 339 occ / 86 distinct)。(3) stale: learner 14.0 d 🔴 / tier-master 推定 12.1 d 🟡
+- **未決 (user 決裁待ち)**: (1) `STORM_GUARD_ENFORCE=1` / (2) carry_dip ブラケット SL 側 R3 決裁 / (3) SL 2-writer 競合 / (4) `main` 発生源の恒久策 (再生産を再確認) / (5) learner no-op 修復
+- 詳細: [[2026-09-29]]

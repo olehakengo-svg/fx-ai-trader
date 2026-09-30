@@ -44,6 +44,18 @@ Dual support/resistance bounce strategy. Enters when price bounces off a conflue
 
 ⚠️ **上の BT / Live Performance / Current Configuration の 3 節は v9.1 以前の旧記述**で、この inline 稼働分は反映されていない (「FORCE_DEMOTED」表記も同様に未検証)。再計測するまで現況として引用しないこと。
 
+## 2026-09-29 wiki-daily — shadow 実測 (09-28T15:19Z→09-29T12:00Z)
+| 項目 | 値 |
+|---|---|
+| closed (全 `is_shadow=1`) | **23 本 / −125.3 pip** = 同期間 shadow 全損 (−170.6) の **73.4%** |
+| close_reason | SL_HIT 21 / SIGNAL_REVERSE 1 / TIME_DECAY_EXIT 1 |
+| pair × dir | **AUD_JPY SELL 8 / BUY 5** / USD_JPY BUY 5・SELL 1 / GBP_USD BUY 1・SELL 1 / EUR_JPY SELL 1 / EUR_USD SELL 1 |
+| mode | `daytrade_audjpy` 13 / `daytrade` 6 / 他 4 |
+| 取得範囲 (09-23T08:30〜) 累計 | n=67 / −185.1 pip |
+| `strategy_status` | `enabled: true` / `promotion: pending` / `promo_n` 0 (09-17 と同じく promotion ledger に未計上) |
+
+🔑 AUD_JPY で**両方向に発火し両方向とも SL で終わる** ⇒ 同一方向の重複ベット (cf. [[tokyo-nakane-momentum]]) ではなく、**SR 帯の内側で往復して SL を刈られている**形。SL_HIT ラベルには欠陥があるので (pooled 49.8% が pnl≥0)、21 本の SL_HIT の中身は pnl で読む必要がある — ただし合計 −125.3 は pnl 実額なので、負けていること自体は動かない。⚠️ 1 日分・レジーム依存の可能性があるため de-risk 提案はまだしない。観測を続ける。詳細: [[2026-09-29]]
+
 ## Related
 - [[index]] — Tier classification
 - [[roadmap-v2.1]] — Portfolio strategy
