@@ -155,6 +155,15 @@ EOF
 
 user 決裁は不要 (Rule 3 構造バグ、N 会計は §2/§4 で非膨張・非低下を確認済み)。統合決裁パケットには **record** として載せる (D16、返答不要)。
 
+### 6b. 実装 (2026-09-30、案 A の fork-hook 版)
+
+案 A の `gunicorn.conf.py` + `post_worker_init` は採らず、`os.register_at_fork(after_in_child=...)` にした。理由: Render の gunicorn (26.2.0、control socket 付き) が独自 config を渡しているかは外から見えず、`./gunicorn.conf.py` が読まれる保証が無い。fork hook なら gunicorn の設定に関係なく「import したプロセスでは起動せず、fork 子でだけ起動」が成り立つ。
+
+- `modules/engine_autostart.py`: `plan_autostart` (本番の既定 = fork_child / `ENGINE_AUTOSTART_IN_IMPORT=1` で旧挙動 / ローカル FORCE_AUTOSTART = import thread) と `install_fork_child_autostart`。孫 fork では起動しない (claimed フラグの継承 + 親 PID = import PID)
+- origin の新値 `forkchild` → row marker `[EMIT_PROC] forked:forkchild` が単一化後の一次キー
+- worker 再起動時は master の claimed が False のままなので、新 worker がエンジンを起こす
+- fork しないトポロジ (worker 自身が import) では autostart は起動せず、StatusHeal が worker 内で起こす = 単一のまま
+
 ## 7. 副産物 — 日報 commit が本番を 1 日 4 回再デプロイしている
 
 Render deploy 一覧 (09-23T05:27 → 09-24T03:02) の 5 件中 4 件が `docs(KB): daily report YYYY-MM-DD` (00:20Z / 03:02Z / 11:12Z / 19:22Z)。commit の内容は trade-logs / market-analysis (ignore 済み) + **`data/monitoring/nav_floor_projection.csv`** (F4 資金時計、`daily-report.yml` が `tools/nav_floor_projection.py --append` で追記) で、この 1 パスが `buildFilter.ignoredPaths` に無い。読み手は `tools/nav_floor_projection.py` / registry `project-falsification-f4-nav-floor-clock` (csv_row_match、cron 側) のみで、app.py / modules/ からの参照はゼロ (docstring 言及 2 箇所のみ)。

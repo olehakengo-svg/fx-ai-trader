@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-09-30 — fix(engine): 取引エンジンを fork された worker でだけ起動 = 二重エンジン (master+worker) の単一化 (rule:R3、regime break 記録付き)
+
+- **根拠**: [[dual-engine-dup-rate-readout-2026-09-24]] §5b (09-30 readout) — kept shadow N=360 の p_f=0.625 (分岐 c)、Render ログで pid 62 (master import:autostart) / 130 (worker forked:statusheal) の 2 系列、LIVE 送信も両プロセスから (master 4 / worker 2、twin 0)
+- **変更**: 本番 (RENDER) の既定では import したプロセス (gunicorn master) でエンジン thread を起こさず、`os.register_at_fork(after_in_child=...)` で fork 子 (worker) の中だけで `_auto_start_trader(origin="forkchild")` を起動 (`modules/engine_autostart.py`)。孫 fork では起動しない (claimed 継承 + 親 PID = import PID の二重ガード)。gunicorn config ファイルの読込みに依存しない。巻き戻し = env `ENGINE_AUTOSTART_IN_IMPORT=1`。ローカル `FORCE_AUTOSTART` は従来どおり import 時 thread
+- **regime break**: 以後の row marker は `[EMIT_PROC] forked:forkchild` (一次キー)、二次キー = 本 PR の deploy 時刻。pre-reg 窓を跨ぐ LOCK は before/after で層別 (§6-5)。`dedup_violation=0` の N は二重期も非膨張だったので N 会計の書き直しは不要見込み (未検証)
+- **失ったもの**: master のエンジンは HTTP 全盲 (worker hang) 中も取引を続けていた。master に thread が無くなるので fork poisoning 自体は構造的に起きなくなるが、worker が別原因で hang した場合のバックアップは無くなる
+- **検証 (deploy 後)**: `[AutoStart] deferred to forked worker` が 1 回、`[MainLoop] iter=` の pid が 1 種類、row marker が `forked:forkchild`、近接ペア (Δ≤45 s) が 0 へ — registry `dual-engine-master-worker-disposition`
+- pin: `tests/test_single_engine_fork_child_autostart.py` (12 本、実 fork で子 1 回 / 孫 0 回、claimed / ppid ガードをそれぞれ counterfactual で確認) + `tests/test_dual_engine_process_attribution.py` 追従
+
 ## 2026-09-28 — docs(wg): G0' event #2 (09-27) = ABANDONED_DRIFT → 改定後 2 連続不成立で packet §6 発動、執行モダリティ R1 再審 packet v1 起案 (user 決裁 W1〜W6) + carry_dip `[SLTP_CONSTRUCT]` 初 fill 実測 (rule:R3 記録のみ)
 
 - **event #2 (一次データ)**: 2026-09-27 21:05:13Z USD_JPY gap −22.0p ≥ 21.4p → `ABANDONED_DRIFT` (tradeable 確認時 quote_age 2.456s、drift +18.40p > +8.0p、send_mid 157.243 / sunday_open 157.059)。EXEC_B `HOLD` 20 行 (21:01:06–21:04:54Z、poll 12–19s) → 放棄 → shadow row 18538 / oanda_audit 17930 `skipped`。AUD_USD −12.8p / EUR_USD −12.7p は no-qualify (診断行確定)。Render ログ 27 行・hasMore=false。shadow outcome 非転記。card 転記は事象から 4h (24h 規則内)

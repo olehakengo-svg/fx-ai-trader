@@ -16222,8 +16222,11 @@ def api_risk_slippage():
 
 _auto_start_done = False  # 二重起動防止フラグ
 
-def _auto_start_trader():
-    """サーバー起動時に全モード自動起動（Render再起動対策）"""
+def _auto_start_trader(origin="autostart"):
+    """サーバー起動時に全モード自動起動（Render再起動対策）
+
+    origin: marker `[EMIT_PROC] <role>:<origin>` に刻む起動経路。import 時 thread =
+    "autostart" / fork された worker (modules.engine_autostart) = "forkchild"。"""
     global _auto_start_done
     if _auto_start_done:
         print("[AutoStart] Already executed — skipping duplicate", flush=True)
@@ -16241,7 +16244,7 @@ def _auto_start_trader():
 
     from modules.demo_trader import MODE_CONFIG as _mc
     # rule:R3 2026-09-24: このプロセスのエンジンを起こした経路 (import 時 autostart) を記録。
-    _demo_trader._engine_start_origin = "autostart"
+    _demo_trader._engine_start_origin = origin
     _all_modes = [m for m, c in _mc.items() if c.get("auto_start", True)]
     from modules.demo_trader import engine_process_role as _engine_process_role
     print(f"[AutoStart] Starting {len(_all_modes)} modes (pid={os.getpid()} role={_engine_process_role()}): {_all_modes}", flush=True)
@@ -16296,9 +16299,27 @@ _legacy_off = (
     or os.environ.get("TESTING")
     or os.environ.get("NO_AUTOSTART", "") == "1"
 )
-if (_is_prod or _force_local) and not _legacy_off:
-    _auto_start_thread = _threading_mod.Thread(target=_auto_start_trader, daemon=True)
-    _auto_start_thread.start()
+# 単一エンジン化 (rule:R3 2026-09-30、[[dual-engine-dup-rate-readout-2026-09-24]] §6):
+# 本番ではエンジンを import したプロセス (gunicorn master) で起こさず、fork された
+# worker の中だけで起こす。巻き戻し = env ENGINE_AUTOSTART_IN_IMPORT=1。
+from modules.engine_autostart import (
+    plan_autostart as _plan_autostart,
+    install_fork_child_autostart as _install_fork_child_autostart,
+    PLAN_FORK_CHILD as _PLAN_FORK_CHILD,
+    PLAN_IMPORT_THREAD as _PLAN_IMPORT_THREAD,
+    ORIGIN_FORK_CHILD as _ORIGIN_FORK_CHILD,
+)
+_autostart_plan = _plan_autostart(is_prod=_is_prod, force_local=_force_local,
+                                  legacy_off=bool(_legacy_off), env=os.environ)
+if _autostart_plan in (_PLAN_FORK_CHILD, _PLAN_IMPORT_THREAD):
+    if _autostart_plan == _PLAN_FORK_CHILD:
+        _install_fork_child_autostart(
+            lambda: _auto_start_trader(origin=_ORIGIN_FORK_CHILD))
+        print(f"[AutoStart] deferred to forked worker (import pid={os.getpid()}) — "
+              f"engine will start only in the fork child", flush=True)
+    else:
+        _auto_start_thread = _threading_mod.Thread(target=_auto_start_trader, daemon=True)
+        _auto_start_thread.start()
     # ── E1 positioning ingest (2026-07-14 user GO): OANDA position/order book
     #    の read-only snapshot 蓄積 thread。live 発注経路とは完全独立。
     #    env flag POSITIONING_INGEST_ENABLE (default "1") で無効化可。
