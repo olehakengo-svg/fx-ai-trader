@@ -4922,6 +4922,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **最悪セッション**: NY（唯一の執行でロス）
 - **最悪戦略**: `price_shock_rev_eur_gbp_h1_long`（本日唯一の執行、−1.6 pips）
 
+### 2026-09-30 (Pre-Tokyo Briefing)
+| 前日PnL | **−1.6 pip** |
+| 全体WR | **0.0%** (1敗) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体集計（Cutoff後）: N=8, WR=25.0%, PnL=−69.1 pip**
+> **注意**: 全戦略でN<10。統計的判断基準上、これらはすべて「データなし」扱い。WR・EVの数値は現時点で参考値にすぎず、昇格・降格の判断材料にはなり得ない。
+- `r2_shadow_demoted_cell`によるScalp系の大量ブロックはシステムが意図した安全機構として機能している。干渉不要。
+- `rnb_usdjpy:no_signal` 4912件はUSD_JPYがRANGINGレジームである点と整合。レジーム転換を待つ。
+- Cutoff後N=8という極端な低発火が継続している点を最重要課題として認識。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
