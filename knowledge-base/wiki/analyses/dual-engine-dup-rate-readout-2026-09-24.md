@@ -184,7 +184,8 @@ user 決裁は不要 (Rule 3 構造バグ、N 会計は §2/§4 で非膨張・�
 - `modules/engine_autostart.py`: `plan_autostart` (本番の既定 = fork_child / `ENGINE_AUTOSTART_IN_IMPORT=1` で旧挙動 / ローカル FORCE_AUTOSTART = import thread) と `install_fork_child_autostart`。孫 fork では起動しない (claimed フラグの継承 + 親 PID = import PID)
 - origin の新値 `forkchild` → row marker `[EMIT_PROC] forked:forkchild` が単一化後の一次キー
 - worker 再起動時は master の claimed が False のままなので、新 worker がエンジンを起こす
-- fork しないトポロジ (worker 自身が import) では autostart は起動せず、StatusHeal が worker 内で起こす = 単一のまま
+- fork 委譲は **gunicorn master で import されたと確定できた時だけ** (import 時の call stack に `gunicorn/` があり、かつ `gunicorn/workers/` が無い = arbiter の preload 経路)。worker が import する場合 (gunicorn 既定の preload_app=False) と gunicorn 外では import 時 thread で起こす。当初版は worker import でも fork 委譲して hook が発火せず、StatusHeal まで無エンジンになる欠陥があった (PR #308 Codex P1)
+- 実 gunicorn 23.0 で確認 (2026-09-30): preload なし → `ctx=gunicorn_worker plan=import_thread`、worker pid で 1 回起動 / `--preload` → `ctx=gunicorn_master plan=fork_child`、master では起動せず worker (ppid=master) で 1 回起動。起動時ログ `[AutoStart] plan=… import_context=…` で本番トポロジを deploy 後に確かめる
 
 ## 7. 副産物 — 日報 commit が本番を 1 日 4 回再デプロイしている
 

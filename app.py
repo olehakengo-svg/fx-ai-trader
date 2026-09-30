@@ -16300,17 +16300,22 @@ _legacy_off = (
     or os.environ.get("NO_AUTOSTART", "") == "1"
 )
 # 単一エンジン化 (rule:R3 2026-09-30、[[dual-engine-dup-rate-readout-2026-09-24]] §6):
-# 本番ではエンジンを import したプロセス (gunicorn master) で起こさず、fork された
-# worker の中だけで起こす。巻き戻し = env ENGINE_AUTOSTART_IN_IMPORT=1。
+# 本番で gunicorn master に import された (preload 経路) ときはエンジンを起こさず、fork
+# された worker の中だけで起こす。worker 自身が import する場合は従来どおり import 時
+# thread (そのプロセスが serving プロセス)。巻き戻し = env ENGINE_AUTOSTART_IN_IMPORT=1。
 from modules.engine_autostart import (
     plan_autostart as _plan_autostart,
     install_fork_child_autostart as _install_fork_child_autostart,
     PLAN_FORK_CHILD as _PLAN_FORK_CHILD,
     PLAN_IMPORT_THREAD as _PLAN_IMPORT_THREAD,
     ORIGIN_FORK_CHILD as _ORIGIN_FORK_CHILD,
+    detect_import_context as _detect_import_context,
 )
+_import_ctx = _detect_import_context()
 _autostart_plan = _plan_autostart(is_prod=_is_prod, force_local=_force_local,
-                                  legacy_off=bool(_legacy_off), env=os.environ)
+                                  legacy_off=bool(_legacy_off), env=os.environ,
+                                  import_context=_import_ctx)
+print(f"[AutoStart] plan={_autostart_plan} import_context={_import_ctx} pid={os.getpid()}", flush=True)
 if _autostart_plan in (_PLAN_FORK_CHILD, _PLAN_IMPORT_THREAD):
     if _autostart_plan == _PLAN_FORK_CHILD:
         _install_fork_child_autostart(

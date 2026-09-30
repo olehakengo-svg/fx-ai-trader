@@ -2,7 +2,8 @@
 (rule:R3, 2026-09-30、analyses/dual-engine-dup-rate-readout-2026-09-24.md §6/§5b)。
 
 固定する契約:
-- 本番 (RENDER) の既定は fork_child: import したプロセス (master) では thread を起こさない
+- 本番 (RENDER) で gunicorn master に import されたときだけ fork_child (master では thread を起こさない)。
+  worker 自身の import / gunicorn 外では import 時 thread (PR #308 Codex P1)
 - 巻き戻し env ENGINE_AUTOSTART_IN_IMPORT=1 で旧挙動 (import 時 thread)
 - ローカル FORCE_AUTOSTART は従来どおり import 時 thread (fork しない dev server 用)
 - 子では 1 回だけ起動、孫 (worker 内の os.fork) では起動しない — **実 fork** で検査
@@ -23,16 +24,40 @@ ROOT = Path(__file__).resolve().parent.parent
 APP_SRC = (ROOT / "app.py").read_text(encoding="utf-8")
 
 
-@pytest.mark.parametrize("kw,env,want", [
-    (dict(is_prod=True, force_local=False, legacy_off=False), {}, ea.PLAN_FORK_CHILD),
-    (dict(is_prod=True, force_local=False, legacy_off=False), {"ENGINE_AUTOSTART_IN_IMPORT": "1"}, ea.PLAN_IMPORT_THREAD),
-    (dict(is_prod=True, force_local=False, legacy_off=False), {"ENGINE_AUTOSTART_IN_IMPORT": "0"}, ea.PLAN_FORK_CHILD),
-    (dict(is_prod=False, force_local=True, legacy_off=False), {}, ea.PLAN_IMPORT_THREAD),
-    (dict(is_prod=True, force_local=False, legacy_off=True), {}, ea.PLAN_SKIP),
-    (dict(is_prod=False, force_local=False, legacy_off=False), {}, ea.PLAN_SKIP),
+M = ea.IMPORT_CTX_GUNICORN_MASTER
+W = ea.IMPORT_CTX_GUNICORN_WORKER
+O = ea.IMPORT_CTX_OTHER
+PROD = dict(is_prod=True, force_local=False, legacy_off=False)
+
+
+@pytest.mark.parametrize("kw,env,ctx,want", [
+    (PROD, {}, M, ea.PLAN_FORK_CHILD),
+    (PROD, {"ENGINE_AUTOSTART_IN_IMPORT": "1"}, M, ea.PLAN_IMPORT_THREAD),
+    (PROD, {"ENGINE_AUTOSTART_IN_IMPORT": "0"}, M, ea.PLAN_FORK_CHILD),
+    # worker 自身が import (gunicorn 既定 preload_app=False): fork hook は発火しないので
+    # import 時 thread で起こす — PR #308 Codex P1
+    (PROD, {}, W, ea.PLAN_IMPORT_THREAD),
+    (PROD, {}, O, ea.PLAN_IMPORT_THREAD),
+    (dict(is_prod=False, force_local=True, legacy_off=False), {}, M, ea.PLAN_IMPORT_THREAD),
+    (dict(is_prod=True, force_local=False, legacy_off=True), {}, M, ea.PLAN_SKIP),
+    (dict(is_prod=False, force_local=False, legacy_off=False), {}, M, ea.PLAN_SKIP),
 ])
-def test_plan_autostart(kw, env, want):
-    assert ea.plan_autostart(env=env, **kw) == want
+def test_plan_autostart(kw, env, ctx, want):
+    assert ea.plan_autostart(env=env, import_context=ctx, **kw) == want
+
+
+@pytest.mark.parametrize("stack,want", [
+    # arbiter の preload 経路 (fork 前の master)
+    (["/opt/render/.venv/bin/gunicorn", "/x/site-packages/gunicorn/app/base.py",
+      "/x/site-packages/gunicorn/arbiter.py", "/x/site-packages/gunicorn/util.py", "/repo/app.py"], M),
+    # worker の load_wsgi (fork 後)
+    (["/x/site-packages/gunicorn/arbiter.py", "/x/site-packages/gunicorn/workers/base.py",
+      "/x/site-packages/gunicorn/app/wsgiapp.py", "/repo/app.py"], W),
+    (["/repo/tools/some_bt.py", "/repo/app.py"], O),
+    (["C:\\py\\gunicorn\\workers\\gthread.py"], W),
+])
+def test_detect_import_context(stack, want):
+    assert ea.detect_import_context(stack) == want
 
 
 def test_install_registers_after_in_child_only_and_does_not_start_in_importer():

@@ -18,15 +18,19 @@ fork された worker は StatusHeal で 2 本目を起動していた = 同一�
 - master の claimed は常に False のまま (after_in_child は子でしか走らない) なので、
   worker が再起動されれば新しい worker がエンジンを起こす。
 - 巻き戻しは env `ENGINE_AUTOSTART_IN_IMPORT=1` (旧挙動 = import 時 thread)。
-- fork が起きないトポロジ (worker 自身が import する) では autostart は起動せず、
-  エンジンは StatusHeal (get_status の self-heal) が起こす — 単一エンジンは保たれる。
+- fork 委譲は **gunicorn master で import されたと確定できた時だけ** (import 時の
+  call stack に gunicorn があり、かつ gunicorn/workers/ が無い = arbiter の preload 経路)。
+  worker が import するトポロジ (gunicorn 既定の preload_app=False) や gunicorn 外では、
+  そのプロセスが serving プロセスなので従来どおり import 時 thread で起動する
+  (fork hook は既に fork 済みの worker では発火しない — PR #308 Codex P1)。
 """
 
 from __future__ import annotations
 
 import os
 import threading
-from typing import Callable, Mapping
+import traceback
+from typing import Callable, Iterable, Mapping, Optional
 
 PLAN_SKIP = "skip"
 PLAN_IMPORT_THREAD = "import_thread"
@@ -35,15 +39,38 @@ PLAN_FORK_CHILD = "fork_child"
 # marker `[EMIT_PROC] <role>:<origin>` の origin 値 (数字を含めない)。
 ORIGIN_FORK_CHILD = "forkchild"
 
+IMPORT_CTX_GUNICORN_MASTER = "gunicorn_master"
+IMPORT_CTX_GUNICORN_WORKER = "gunicorn_worker"
+IMPORT_CTX_OTHER = "other"
+
 _state: dict = {"claimed": False, "import_pid": None, "target": None}
 
 
+def detect_import_context(filenames: Optional[Iterable[str]] = None) -> str:
+    """app を import している call stack から実行文脈を判定する。
+
+    gunicorn/workers/ を経由 = worker の load_wsgi (fork 後の serving プロセス)。
+    gunicorn を経由するが workers/ を経由しない = arbiter の preload (fork 前の master)。
+    """
+    if filenames is None:
+        filenames = [f.filename for f in traceback.extract_stack()]
+    norm = [str(f).replace("\\", "/") for f in filenames]
+    in_gunicorn = any("/gunicorn/" in f for f in norm)
+    in_worker = any("/gunicorn/workers/" in f for f in norm)
+    if in_worker:
+        return IMPORT_CTX_GUNICORN_WORKER
+    if in_gunicorn:
+        return IMPORT_CTX_GUNICORN_MASTER
+    return IMPORT_CTX_OTHER
+
+
 def plan_autostart(*, is_prod: bool, force_local: bool, legacy_off: bool,
-                   env: Mapping[str, str]) -> str:
+                   env: Mapping[str, str], import_context: str) -> str:
     """import 時にどの経路でエンジンを起こすかを決める (副作用なし)。"""
     if not (is_prod or force_local) or legacy_off:
         return PLAN_SKIP
-    if is_prod and env.get("ENGINE_AUTOSTART_IN_IMPORT", "0") != "1":
+    if (is_prod and import_context == IMPORT_CTX_GUNICORN_MASTER
+            and env.get("ENGINE_AUTOSTART_IN_IMPORT", "0") != "1"):
         return PLAN_FORK_CHILD
     return PLAN_IMPORT_THREAD
 
