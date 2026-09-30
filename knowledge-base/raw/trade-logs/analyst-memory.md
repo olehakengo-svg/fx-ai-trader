@@ -4952,6 +4952,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 **レジーム遷移リスク**：月初の経済指標ラッシュにより、現在のTRENDING_DOWNから突発的なRANGINGまたはTRENDING_UP遷移が起きる可能性。特にGBP系（ATR72%）は急変に注意。
 **agg_kelly=−0.361<0（1件）**：Kelly基準がマイナスを示したケースが1件。期待値がネガティブと判定されてブロックされた正常動作。現在の全戦略EVがすべてマイナスである事実と整合的。
 
+### 2026-09-30 (Post-NY Report)
+| PnL | **+0.0 pips** |
+| 勝率 (WR) | **N/A（取引なし）** |
+- 主要5通貨ペア（EURJPY・EURUSD・GBPJPY・GBPUSD・USDJPY）は全てATR%ile 62–72%のやや高ボラティリティ帯に位置し、TRENDING_DOWN（USDJPY除く）。シグナル生成の機会は構造的に存在したが、以下のブロック要因により不発：
+- `daytrade_gbpusd:hedge_block` 195件 ← GBPUSD方向感の対立
+- `daytrade_gbpusd:order_bar_dedup` 217件 ← 重複発注抑制
+- `daytrade:score_gate` 260件 ← スコア閾値未到達
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
