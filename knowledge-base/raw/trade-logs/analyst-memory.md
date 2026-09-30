@@ -4942,6 +4942,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - 27モード中26がON稼働にもかかわらず、実執行は前日1件のみ
 - block_countsの大半（`r2_shadow_demoted_cell`・`order_bar_dedup`・`score_gate`）が信号を吸収している構造が継続
 
+### 2026-09-30 (Pre-Tokyo Briefing)
+前日（2026-09-29）のトレード数は **N=1**、PnL = **−1.6 pips**、WR = **0.0%**。
+| Strategy | Pair | N | WR% | EV（pips/t） | PnL |
+- `price_shock_rev_eur_gbp_h1_long` は現在 **TRENDING_DOWN レジーム**（GBP_USD −0.596）の影響圏。ロング方向エントリーと逆風の組み合わせが継続中か注視。
+- `rnb_usdjpy:no_signal`（797件ブロック）は依然主因。USD_JPYが **RANGING レジーム**に入っており、RnBがシグナル条件を満たせないことと整合的。
+| GBP_JPY | TRENDING_DOWN | 72% | −0.00913 | ATR%ile最高。`daytrade_gbpjpy` は方向性注意 |
+**総評**：主要5ペアすべてが下降トレンドまたはレンジ。ショート方向の DT 系に有利な地合いだが、`r2_shadow_demoted_cell` ブロックが多数発生しており、実際のエントリーは阻害されている。ATR%ile 69〜72% は「高ボラ気味」だが、方向性が一方向に揃っている点は通貨間リスク集中に注意が必要。
+**レジーム遷移リスク**：月初の経済指標ラッシュにより、現在のTRENDING_DOWNから突発的なRANGINGまたはTRENDING_UP遷移が起きる可能性。特にGBP系（ATR72%）は急変に注意。
+**agg_kelly=−0.361<0（1件）**：Kelly基準がマイナスを示したケースが1件。期待値がネガティブと判定されてブロックされた正常動作。現在の全戦略EVがすべてマイナスである事実と整合的。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
