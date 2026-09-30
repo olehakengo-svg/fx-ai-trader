@@ -70,14 +70,23 @@ def plan_autostart(*, is_prod: bool, force_local: bool, legacy_off: bool,
     if not (is_prod or force_local) or legacy_off:
         return PLAN_SKIP
     if (is_prod and import_context == IMPORT_CTX_GUNICORN_MASTER
+            and hasattr(os, "register_at_fork")
             and env.get("ENGINE_AUTOSTART_IN_IMPORT", "0") != "1"):
         return PLAN_FORK_CHILD
     return PLAN_IMPORT_THREAD
 
 
 def install_fork_child_autostart(target: Callable[[], None], *,
-                                 register: Callable[..., None] = os.register_at_fork) -> None:
-    """import したプロセスで呼ぶ。fork された子でだけ target を thread で起動する。"""
+                                 register: Optional[Callable[..., None]] = None) -> None:
+    """import したプロセスで呼ぶ。fork された子でだけ target を thread で起動する。
+
+    register は遅延解決 (os.register_at_fork は Unix のみ — Windows では module import
+    時に落とさない、PR #308 Codex P2)。fork 委譲は gunicorn master でしか選ばれないので
+    非 Unix でここに来ることは無いが、来たら明示的に失敗させる。"""
+    if register is None:
+        register = getattr(os, "register_at_fork", None)
+        if register is None:
+            raise RuntimeError("os.register_at_fork unavailable — fork_child plan requires a POSIX fork")
     _state["import_pid"] = os.getpid()
     _state["target"] = target
     _state["claimed"] = False

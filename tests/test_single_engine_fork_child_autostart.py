@@ -83,6 +83,7 @@ def _child_runs_hook(write_fd, *, grandchild: bool) -> None:
     os.write(write_fd, msg.encode())
 
 
+@pytest.mark.skipif(not hasattr(os, "fork"), reason="POSIX fork only")
 def test_real_fork_child_starts_once_and_grandchild_does_not():
     r, w = os.pipe()
     ea.install_fork_child_autostart(lambda: os.write(w, b"target;"), register=lambda **k: None)
@@ -144,3 +145,16 @@ def test_claimed_guard_alone_blocks_second_start(monkeypatch):
     time.sleep(0.05)
     assert ran == [1]
     monkeypatch.setitem(ea._state, "claimed", False)
+
+
+def test_module_import_and_plan_do_not_require_register_at_fork(monkeypatch):
+    """Windows 等 os.register_at_fork が無い環境で import / plan が落ちない (PR #308 Codex P2)。"""
+    monkeypatch.delattr(os, "register_at_fork", raising=False)
+    import importlib
+    mod = importlib.reload(ea)
+    assert mod.plan_autostart(is_prod=True, force_local=False, legacy_off=False, env={},
+                              import_context=mod.IMPORT_CTX_GUNICORN_MASTER) == mod.PLAN_IMPORT_THREAD
+    with pytest.raises(RuntimeError):
+        mod.install_fork_child_autostart(lambda: None)
+    monkeypatch.undo()
+    importlib.reload(ea)
