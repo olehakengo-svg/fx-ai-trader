@@ -140,7 +140,9 @@ EOF
 
 判定表: 2 本目のエンジン (role `forked` ≡ origin `statusheal`) の比率 p_f。(a) p_f ≈ 0.5 → 対称 race winner、単一化の生成率影響は §4 どおり小 / (b) p_f ≪ 0.5 (例 <0.2) → worker エンジンは殆ど emit しておらず単一化の影響ほぼゼロ / (c) p_f ≫ 0.5 → master エンジンが劣後 (HTTP 全盲時のみ稼ぐ) — いずれでも**単一化 PR は起案**、違うのは layered N の読み方だけ。
 
-### 5b. readout 執行 (2026-09-30T01:2xZ、registry `dual-engine-emit-proc-attribution-readout`、rule:R3)
+### 5b. 中間 readout (2026-09-30T01:2xZ、registry `dual-engine-emit-proc-attribution-readout`、rule:R3)
+
+⚠️ **中間値**。事前規定の窓は計装 deploy (09-24T04:43Z) から 7 日 = **2026-10-01T04:43Z まで**で、本読みは約 5 日 21 時間時点 (Codex review P2、PR #307)。本読みは窓終了後に同じ手順で行い、この節に追記してから registry を resolve する。**単一化 PR は窓終了まで deploy しない** (窓の残りを単一エンジンで汚さない)。
 
 件数のみ (EV/WR/outcome は読まない)。母集団 = `/api/demo/trades?date_from=2026-09-24` 全 399 行 (count=399、limit 未到達)。
 
@@ -148,14 +150,14 @@ EOF
 |---|---|
 | self-check | `engine_pid=130` ≠ `engine_import_pid=62` ∧ role `forked` ∧ origin `statusheal` → §1 トポロジどおり、role 軸有効 |
 | kept shadow (dv=0、entry ≥ 09-24T04:43Z) | **N=360**: `forked:statusheal` 225 / `import:autostart` 135 |
-| **p_f** | **0.625** (Wilson 95% [0.574, 0.673]) → 判定表 **(c) >0.5 = master 劣後** |
+| **p_f (中間)** | **0.625** (Wilson 95% [0.574, 0.673]) → 判定表なら **(c) >0.5 = master 劣後** (本読みで確定) |
 | 日別 p_f | 09-24 41/83 = 0.49 / 09-25 52/83 = 0.63 / 09-27 0/1 / 09-28 56/85 = 0.66 / 09-29 73/102 = 0.72 / 09-30 3/6 (途中) |
 | marker 前 kept (`none`) | 9 行 (別枠、混ぜない) |
 | Render ログ | 09-30T01:09–01:16Z に `iter=59310..59460 pid=62 role=import origin=autostart` と `iter=63330..63480 pid=130 role=forked origin=statusheal` が交互 = **二重稼働は継続中** (worker は 09-24 の pid 131 から 130 へ再起動済み、master 62 は同一) |
 | LIVE 行 (09-24〜) | 7: `import:autostart` 4 / `forked:statusheal` 2 / `none` 1 (#893189、deploy 前)。Δ≤120 s twin **0** |
 
 読み:
-- Wilson 区間は行を独立扱いしている。日内の行はクラスタ相関を持つので実効 N は小さく、区間は楽観側。ただし 5 日中 4 日が 0.63〜0.72 で、(a) ≈0.5 と読める日は計装直後の 09-24 だけ。
+- Wilson 区間は行を独立扱いしている。日内の行はクラスタ相関を持つので実効 N は小さく、区間は楽観側。完全な取引日 4 日 (09-24/25/28/29) のうち 3 日が 0.63〜0.72、(a) ≈0.5 と読めるのは計装直後の 09-24 (0.49) だけ。09-27 (N=1、週明け開場直後) と 09-30 (途中) は日別の読みから外す。
 - 日別の上昇 (0.49 → 0.72) の原因は未識別 (記述級)。worker の再起動 (pid 131→130) を挟んでおり、race の位相が boot ごとに変わる可能性がある。傾向として引用しない。
 - **LIVE 送信は両プロセスから出ている** (master 4 / worker 2)。§3 の「LIVE 二重送信 0」は維持 (twin 0) だが、単一化は LIVE 送信の発生元も 1 本にする。
 - 含意 (§5 判定表どおり): どの分岐でも単一化 PR (§6 案 A) は起案する。(c) では残す側 (worker) がすでに kept 行の 62.5% を持つので、race-winner モデル (§2 末尾) の下では単一化後の生成率低下は小さい見込み。**見込みであって検証ではない** — 検証は §6 の 4 (近接ペア 0 化) と before/after 層別で行う。
