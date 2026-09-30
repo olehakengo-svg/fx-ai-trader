@@ -4,6 +4,19 @@
 
 **Tier**: Tier 2 — Live MIN lot 1000u 固定 (Kelly half / DD multiplier / lot ramp bypass) | **Activation**: 2026-05-18 [[price-shock-rev-live-activation-2026-05-18]]
 
+## 🔴 2026-09-30 更新 (wiki-daily): **Live N 6 / 1W / WR 16.7% / −15.4 pip** — 1 日で 3 fill
+
+| broker id | entry (UTC) | entry | exit | demo | broker |
+|---|---|---|---|---|---|
+| #948643 | 09-29 16:48:23 | 0.85715 | 19:48:28 horizon @0.85699 | −1.6 | −¥33.36 |
+| #950002 | 09-30 07:24:47 | 0.85508 | 10:24:47 horizon @0.85438 | −7.0 | −¥146.34 |
+| #950010 | 09-30 10:33:28 | 0.85416 | **OPEN** (12:01Z 時点) | — | — |
+
+- demo↔broker 符号一致 (¥20.9/pip)。両決済とも 3-bar horizon exit (catastrophic SL 未到達) ⇒ **catastrophic SL 比率 0%** (棄却基準 >30% に非該当)
+- stats: N **6** / Wilson_lo 3.0 / wf_h1 −3.27 → wf_h2 −1.87。LOCK 棄却基準「N=15 で Wilson_lo<0.40」は **6/15**、watchdog (N≥10 ∧ EV<0) 未発火。BT EV +55.81 に対し live mean −2.57
+- #950002 決済 9 分後に #950010 を再エントリー (同方向、7.0p 下)。shared lock (同時 1 position) の範囲内
+- 詳細 [[2026-09-30]]
+
 ## 🔴 Live 実績 (post-cutoff 2026-04-08〜, is_shadow=0) — 2026-08-23 初計上
 | N | W/L | WR | PnL | Mean/trade | Wilson_lo | DSR |
 |---|---|---|---|---|---|---|
