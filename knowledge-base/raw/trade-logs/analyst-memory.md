@@ -4922,6 +4922,26 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **最悪セッション**: NY（唯一の執行でロス）
 - **最悪戦略**: `price_shock_rev_eur_gbp_h1_long`（本日唯一の執行、−1.6 pips）
 
+### 2026-09-30 (Pre-Tokyo Briefing)
+| 前日PnL | **−1.6 pip** |
+| 全体WR | **0.0%** (1敗) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体集計（Cutoff後）: N=8, WR=25.0%, PnL=−69.1 pip**
+> **注意**: 全戦略でN<10。統計的判断基準上、これらはすべて「データなし」扱い。WR・EVの数値は現時点で参考値にすぎず、昇格・降格の判断材料にはなり得ない。
+- `r2_shadow_demoted_cell`によるScalp系の大量ブロックはシステムが意図した安全機構として機能している。干渉不要。
+- `rnb_usdjpy:no_signal` 4912件はUSD_JPYがRANGINGレジームである点と整合。レジーム転換を待つ。
+- Cutoff後N=8という極端な低発火が継続している点を最重要課題として認識。
+
+### 2026-09-30 (Pre-Tokyo Briefing)
+前日（2026-09-29）はトレード1件のみ。`price_shock_rev_eur_gbp_h1_long` / EUR_GBP が LOSSで PnL = **−1.6p**、WR = **0.0%**。システム全体は事実上の稼働最小日であり、信号発生自体が極端に抑制された状態が続いている。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体集計（Cutoff後）: N=8, WR=25.0%, PnL=−69.1p**
+> **統計的判定**: 全3戦略ともN<10。いずれも「データなし」として扱う。EVの負値（特に `kalman_d7_po_dn_flip` の−12.25）は警戒水準だが、Nが極小のため判断保留。N=30到達までは傾向の記録に留める。
+- EUR_GBP BUY、spread=1.3p、horizon（時間切れ終了）でPnL=−1.6p
+- horizonクローズはTP/SL到達前に終了したケース。レジーム的にEUR_GBP系が現在トレンドダウン（後述）の環境でのBUYエントリーは逆風下の執行
+- 27モード中26がON稼働にもかかわらず、実執行は前日1件のみ
+- block_countsの大半（`r2_shadow_demoted_cell`・`order_bar_dedup`・`score_gate`）が信号を吸収している構造が継続
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

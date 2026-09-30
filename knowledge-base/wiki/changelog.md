@@ -2,7 +2,7 @@
 
 ## 2026-09-30 — fix(engine): 取引エンジンを fork された worker でだけ起動 = 二重エンジン (master+worker) の単一化 (rule:R3、regime break 記録付き)
 
-- **根拠**: [[dual-engine-dup-rate-readout-2026-09-24]] §5b (09-30 readout) — kept shadow N=360 の p_f=0.625 (分岐 c)、Render ログで pid 62 (master import:autostart) / 130 (worker forked:statusheal) の 2 系列、LIVE 送信も両プロセスから (master 4 / worker 2、twin 0)
+- **根拠**: [[dual-engine-dup-rate-readout-2026-09-24]] §5b (09-30 **中間** readout、7 日窓終了前 — 本読みは 10-01T04:43Z 以降、merge はその後) — kept shadow N=360 の p_f=0.625、Render ログで pid 62 (master import:autostart) / 130 (worker forked:statusheal) の 2 系列、LIVE 送信も両プロセスから (master 4 / worker 2、twin 0)
 - **変更**: 本番 (RENDER) の既定では import したプロセス (gunicorn master) でエンジン thread を起こさず、`os.register_at_fork(after_in_child=...)` で fork 子 (worker) の中だけで `_auto_start_trader(origin="forkchild")` を起動 (`modules/engine_autostart.py`)。孫 fork では起動しない (claimed 継承 + 親 PID = import PID の二重ガード)。gunicorn config ファイルの読込みに依存しない。巻き戻し = env `ENGINE_AUTOSTART_IN_IMPORT=1`。ローカル `FORCE_AUTOSTART` は従来どおり import 時 thread
 - **regime break**: 以後の row marker は `[EMIT_PROC] forked:forkchild` (一次キー)、二次キー = 本 PR の deploy 時刻。pre-reg 窓を跨ぐ LOCK は before/after で層別 (§6-5)。`dedup_violation=0` の N は二重期も非膨張だったので N 会計の書き直しは不要見込み (未検証)
 - **失ったもの**: master のエンジンは HTTP 全盲 (worker hang) 中も取引を続けていた。master に thread が無くなるので fork poisoning 自体は構造的に起きなくなるが、worker が別原因で hang した場合のバックアップは無くなる
