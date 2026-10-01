@@ -10,6 +10,14 @@
 - Codex 6 巡目 P2 4151937674: どちらかの群の日ブロックが 5 個未満なら bootstrap CI を出さず「算出不可」と表示する (ブロックが 1 個だと全 resample が同じになり、幅ゼロの CI が出てしまう)。本件の数値はどちらの群も日数 ≥18 なので変わらない
 - pin 22 本 (旧 6 本の改訂・置換 + 新規、各修正に既知 NG 入力)。修正を 1 つずつ戻す counterfactual は計 20 種 (初版 8 + Codex 2〜6 巡目 12) で、どれも対応する pin が落ちることを確認 (`python3 -B`)
 
+## 2026-10-01 — fix(e23): PR #257 review backlog 7 件を消化 + park 根拠の estimand 監査 — Gate B N 56 → 40 (UNDERPOWERED 維持)、Gate A の OOS 接触を explore 窓限定へ (rule:R3)
+
+- **対象**: registry `review-backlog-253-257-digest` の PR #257 群 (P1 ×3 / P2 ×4)。コード = `tools/e23_corpus_fetch.py` / `tools/e23_corpus_census.py` / `tools/e23_pass1_events.py`、pin = `tests/test_e23_review_backlog_257.py` (20 本、7 修正それぞれの counterfactual で落ちることを fresh pycache prefix で確認)
+- **修正**: (1) Fed は press release 表題 "Federal Reserve issues FOMC statement" で同定 — 混入 4 件 (2019-10-11 実施ノート / 2020-03-31 FIMA repo / 2020-08-27・2025-08-22 長期戦略声明) を loader で除外 (ファイル保持) / (2) BoJ V3 は印字日一致を gate に使わず `release_time_verified` のみ = **fail-closed** (公開時刻の検証経路なし: BoJ ページに時刻記載なし、Wayback 初回 capture は数年後) → BoJ 除外 / (3) `--refetch` を fetcher へ伝搬 / (4) EXPLORE_START..OOS_END 外を save・manifest・loader の 3 層で除外 (窓外 6 ファイル保持) / (5) Gate A を explore 窓限定 (候補ペア = 生存 CB の写像のみ、BoJ 除外後は EUR_USD / GBP_USD) / (6) pass-1 が census を価格を開く前に判定して生存 CB を強制 (DATA-BLOCKED は価格非接触・Gate B「未評価」表示) / (7) 凍結辞書 sha を辞書 import 前に実行時 assert
+- **park 根拠の監査 (オフライン、pass-2 未解錠・イベント×リターン非計算)**: Gate A 旧 71.45/95.0/81.85p → explore 限定 **73.0/100.4/76.9p** (3/3 通過不変、旧 move の約 20% が 2024 以降 = OOS 無条件集計に接触していた)。Gate B **N 56 → 40** (Fed 修正 −2 / BoJ fail-closed −14)、上界 100 → 72 で UNDERPOWERED が機械的に確定。**旧 N の 28.6% が汚染/未検証文書依存、向きは PASS 側への水増し = park 判定は保守側で反転なし**
+- **成果物**: `raw/analysis/e23-pass0-census-2026-10-01.*` / `e23-pass1-events-2026-10-01.*` (09-15 成果物は上書きせず保存)、`data/external/cb_statements/manifest.json` 再生成 (388 docs + `excluded` 10)、pre-reg §12 追記 (本文不改変)
+- **引用規律**: E23 N は 40 (旧 56 併記)。「BoJ 同時公表 93/93 確認」型の引用禁止 (確認したのは印字日のみ)。コーパス再利用は `load_corpus()` 経由に限る
+
 ## 2026-09-29 — docs(registry): `ps-carveout-regate-post-172` 期日前 readout (stale 見込み) — clean live N=6 (<10) で EV 判定保留 (期日前 readout、09-30 checkpoint 後に 10-30 へ roll)、不足の帰属 = 送信前 gate 100% (rule:R3、記録のみ)
 
 - **実測** (本番 `/api/demo/trades` 08-11 以降 全ページ 2,982 行): ps 行 7 / clean live **6** (eur_gbp 4 / aud_jpy 2) / 他 3 席 0 / 最終 ps 行 09-03T15:08Z。pre-reg どおり N ゲートは下げず、EV/WR は計算していない (N≥10 look を消費しない)

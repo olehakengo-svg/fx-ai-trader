@@ -50,7 +50,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
-from e23_corpus_fetch import EXPLORE_END, EXPLORE_START, load_corpus  # noqa: E402
+from e23_corpus_fetch import (  # noqa: E402
+    EXPLORE_END,
+    EXPLORE_START,
+    assert_frozen_lexicon,
+    load_corpus,
+)
+
+# pre-reg 冒頭: 「測定ハーネスは実行時に凍結辞書 sha を assert すること」。
+# 辞書を import する**前**に照合する (PR #257 review P2 — pytest の pin だけでは
+# CLI 直接実行の経路を守れない)。
+assert_frozen_lexicon()
+from e23_corpus_census import census as pass0_census  # noqa: E402
 from e23_lexicon_apel_grimaldi import net_hawkishness  # noqa: E402
 
 # pre-reg §2 凍結: CB → (pair, 方向係数)
@@ -75,8 +86,13 @@ PIP = {"EUR_USD": 0.0001, "GBP_USD": 0.0001, "USD_JPY": 0.01}
 PRICE_FILE_TMPL = "{pair}_15m_2014_2026.parquet"
 MANIFEST = ROOT / "knowledge-base" / "raw" / "bt-results" / "e23" / \
     "data_freeze_manifest_2026-09-15.json"
-OUT_MD = ROOT / "knowledge-base" / "raw" / "analysis" / "e23-pass1-events-2026-09-15.md"
-OUT_JSON = ROOT / "knowledge-base" / "raw" / "analysis" / "e23-pass1-events-2026-09-15.json"
+OUT_DIR = ROOT / "knowledge-base" / "raw" / "analysis"
+
+
+def out_paths(out_date: str) -> tuple[Path, Path]:
+    """成果物パス。日付付きで、過去の verdict 成果物 (2026-09-15) を上書きしない."""
+    return (OUT_DIR / f"e23-pass1-events-{out_date}.md",
+            OUT_DIR / f"e23-pass1-events-{out_date}.json")
 
 
 def _sha256(path: Path) -> str:
@@ -128,10 +144,17 @@ def build_d1(price_dir: Path, pair: str) -> tuple[list[date], dict[date, float],
 
 def unconditional_fwd5(valid: list[date], closes: dict[date, float],
                        pair: str) -> dict:
-    """Gate A 用の**シグナル非依存**な無条件 |fwd5| 分布 (集計値のみ)."""
+    """Gate A 用の**シグナル非依存**な無条件 |fwd5| 分布 (集計値のみ).
+
+    **explore 窓限定** (2026-10-01、PR #257 review P1): 両端 (t0 と t0+5) が
+    EXPLORE_START..EXPLORE_END に入る move のみを使う。2026-09-15 の実装は価格
+    ファイル全期間 (〜2026-07-02) の median を取り、凍結 OOS 窓 (2024-01-01〜) の
+    |fwd5| を集計値として接触していた。OOS 側の量は本関数では一切計算しない。
+    """
+    explore = [v for v in valid if EXPLORE_START <= v <= EXPLORE_END]
     moves = []
-    for i in range(len(valid) - HORIZON_D1):
-        a, b = valid[i], valid[i + HORIZON_D1]
+    for i in range(len(explore) - HORIZON_D1):
+        a, b = explore[i], explore[i + HORIZON_D1]
         if (b - a).days > 14:          # 長期休場跨ぎは void (family C の span 規約準拠)
             continue
         moves.append(abs(closes[b] - closes[a]) / PIP[pair])
@@ -139,6 +162,7 @@ def unconditional_fwd5(valid: list[date], closes: dict[date, float],
     if not moves:
         return {"n": 0}
     return {
+        "window": [EXPLORE_START.isoformat(), EXPLORE_END.isoformat()],
         "n": len(moves),
         "median_abs_fwd5_pips": round(statistics.median(moves), 2),
         "p25": round(moves[len(moves) // 4], 2),
@@ -149,19 +173,28 @@ def unconditional_fwd5(valid: list[date], closes: dict[date, float],
     }
 
 
-def enumerate_events(docs: list[dict], d1: dict[str, tuple[list[date], dict]]) -> dict:
+def enumerate_events(docs: list[dict], d1: dict[str, tuple[list[date], dict]],
+                     event_cbs: set[str] | None = None) -> dict:
+    """ΔNH != 0 イベントを列挙。event_cbs = イベントを生成する CB (pass-0 生存 CB).
+
+    同日衝突 (Fed x ECB) の判定日は **docs 全体** (生存 CB に限らない) から取る
+    (PR #309 review 3 巡目 P2): Fed が被覆不足で除外されても Fed の公表は同日の
+    EUR_USD を動かすので、凍結規則「Fed と ECB が同一 UTC 日 → void」は残す。
+    """
+    usable_all = [r for r in docs
+                  if EXPLORE_START <= _d(r["date"]) <= EXPLORE_END
+                  and r.get("n_chars", 0) > 0]
     explore = sorted(
-        (r for r in docs
-         if EXPLORE_START <= _d(r["date"]) <= EXPLORE_END and r.get("n_chars", 0) > 0),
+        (r for r in usable_all if event_cbs is None or r["cb"] in event_cbs),
         key=lambda r: (r["cb"], r["date"]),
     )
     by_cb: dict[str, list[dict]] = {}
     for r in explore:
         by_cb.setdefault(r["cb"], []).append(r)
 
-    # 同日衝突 (Fed x ECB) — 両イベント void
-    fed_days = {r["date"] for r in by_cb.get("fed", [])}
-    ecb_days = {r["date"] for r in by_cb.get("ecb", [])}
+    # 同日衝突 (Fed x ECB) — 両イベント void (判定日は除外 CB の文書も含む全体から)
+    fed_days = {r["date"] for r in usable_all if r["cb"] == "fed"}
+    ecb_days = {r["date"] for r in usable_all if r["cb"] == "ecb"}
     collision_days = fed_days & ecb_days
 
     events: list[dict] = []
@@ -226,6 +259,13 @@ def enumerate_events(docs: list[dict], d1: dict[str, tuple[list[date], dict]]) -
 
 
 def run(price_dir: Path, freeze: bool) -> dict:
+    assert_frozen_lexicon()              # import 後に差し替えられた場合も止める
+    docs = load_corpus()
+    # pass-0 census を価格を開く**前**に判定 (PR #309 review P2): DATA-BLOCKED は
+    # 「pass-1 非解錠」なので、価格ファイルにも Gate A 分布にも触れずに返す。
+    p0 = pass0_census(docs)
+    if p0["verdict"] != "PASS_TO_PASS1":
+        return _data_blocked(p0, gate_a={})
     d1: dict[str, tuple[list[date], dict]] = {}
     price_stats: dict[str, dict] = {}
     gate_a: dict[str, dict] = {}
@@ -254,10 +294,62 @@ def run(price_dir: Path, freeze: bool) -> dict:
         raise SystemExit(f"manifest が無い。初回は --freeze-manifest で pin を作る: "
                          f"{MANIFEST}")
 
-    enum = enumerate_events(load_corpus(), d1)
+    out = evaluate(docs, d1, gate_a)
+    out["price_sources"] = price_stats
+    return out
+
+
+def _data_blocked(p0: dict, gate_a: dict) -> dict:
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "prereg": "knowledge-base/wiki/decisions/"
+                  "e23-cb-text-explore-prereg-2026-09-10.md",
+        "pass": "pass-1 非解錠 (pass-0 DATA-BLOCKED — 価格・イベント未計算)",
+        "explore_window": [EXPLORE_START.isoformat(), EXPLORE_END.isoformat()],
+        "pass0": {"verdict": p0["verdict"], "surviving_cbs": p0["surviving_cbs"],
+                  "boj_v3": p0["boj_v3"]},
+        "gate_a": gate_a,
+        "gate_a_candidate_pairs": [],
+        "gate_a_surviving_pairs": [],
+        "gate_b": None,                  # 評価していない (UNDERPOWERED と混同させない)
+        "enumeration": None,
+        "price_sources": {},
+        "verdict": "DATA-BLOCKED",
+    }
+
+
+def evaluate(docs: list[dict], d1: dict[str, tuple[list[date], dict]],
+             gate_a: dict[str, dict]) -> dict:
+    """pass-0 census を再計算して生存 CB を強制し、その上でイベント列挙 + Gate A/B.
+
+    2026-10-01 (PR #257 review P2): pass-0 の verdict / 生存 CB を読まずに
+    load_corpus() の全 CB を列挙していた。census が除外した CB (被覆不足 / V3 未検証)
+    の文書が Gate B を水増しし得た。census は価格非接触の純関数なのでここで再計算する。
+    """
+    p0 = pass0_census(docs)
+    base = {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "prereg": "knowledge-base/wiki/decisions/"
+                  "e23-cb-text-explore-prereg-2026-09-10.md",
+        "pass": "pass-1 イベント列挙 (forward 非接触 — explore 窓の無条件 |fwd5| 集計のみ)",
+        "explore_window": [EXPLORE_START.isoformat(), EXPLORE_END.isoformat()],
+        "pass0": {"verdict": p0["verdict"], "surviving_cbs": p0["surviving_cbs"],
+                  "boj_v3": p0["boj_v3"]},
+        "gate_a": gate_a,
+    }
+    if p0["verdict"] != "PASS_TO_PASS1":
+        # pass-0 が DATA-BLOCKED なら pass-1 は解錠されない (列挙しない)
+        return _data_blocked(p0, gate_a={})   # 非解錠 = Gate A も報告しない
+
+    survivors = set(p0["surviving_cbs"])
+    enum = enumerate_events(docs, d1, event_cbs=survivors)
     n = len(enum["events"])
-    gate_a_pairs = {p: gate_a[p]["gate_a_pass"] for p in PAIRS}
-    surviving_pairs = [p for p, ok in gate_a_pairs.items() if ok]
+    # Gate A の候補ペアは生存 CB が写像するペアのみ (PR #309 review P2)。
+    # 生存 CB がイベントを作らないペアが Gate A を通っても「生存ペア」と数えない
+    # — さもないと §4「全滅なら FAMILY_KILL」が UNDERPOWERED にすり替わる。
+    candidate_pairs = {CB_MAP[cb][0] for cb in survivors}
+    surviving_pairs = [p for p in PAIRS
+                       if p in candidate_pairs and gate_a.get(p, {}).get("gate_a_pass")]
     n_after_gate_a = sum(1 for e in enum["events"] if e["pair"] in surviving_pairs)
 
     if not surviving_pairs:
@@ -268,13 +360,8 @@ def run(price_dir: Path, freeze: bool) -> dict:
         verdict = "UNDERPOWERED"
 
     return {
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "prereg": "knowledge-base/wiki/decisions/"
-                  "e23-cb-text-explore-prereg-2026-09-10.md",
-        "pass": "pass-1 イベント列挙 (forward 非接触 — 無条件 |fwd5| 集計のみ)",
-        "explore_window": [EXPLORE_START.isoformat(), EXPLORE_END.isoformat()],
-        "price_sources": price_stats,
-        "gate_a": gate_a,
+        **base,
+        "gate_a_candidate_pairs": [p for p in PAIRS if p in candidate_pairs],
         "gate_a_surviving_pairs": surviving_pairs,
         "gate_b": {"threshold": GATE_B_N, "n_events_all": n,
                    "n_events_after_gate_a": n_after_gate_a,
@@ -284,14 +371,29 @@ def run(price_dir: Path, freeze: bool) -> dict:
     }
 
 
-def render_md(c: dict) -> str:
-    enum = c["enumeration"]
+def _gate_b_line(c: dict) -> str:
+    """verdict ごとに Gate B 行を出す。未評価を「未達」と書かない (PR #309 review P2)."""
+    if c["verdict"] == "DATA-BLOCKED" or c["gate_b"] is None:
+        return ("- Gate B: **未評価** — pass-0 が DATA-BLOCKED (生存 CB < 2) のため "
+                "pass-1 は解錠されていない (UNDERPOWERED ではない)")
+    g = c["gate_b"]
+    if c["verdict"] == "FAMILY_KILL":
+        tail = "— Gate A で候補ペア全滅 = FAMILY_KILL (Gate B は判定に使わない)"
+    else:
+        tail = "→ " + ("✅ PASS" if g["pass"] else "❌ 未達 = UNDERPOWERED")
+    return (f"- Gate B: pooled イベント **N = {g['n_events_after_gate_a']}** "
+            f"(閾値 {g['threshold']}) {tail}")
+
+
+def render_md(c: dict, out_date: str = "") -> str:
+    enum = c["enumeration"] or {"events": [], "voids": {}, "collision_days": [],
+                                "n_docs_explore_usable": 0, "n_docs_nh_zero": 0}
     ev = enum["events"]
     per_cb = {}
     for e in ev:
         per_cb[e["cb"]] = per_cb.get(e["cb"], 0) + 1
     lines = [
-        "# E23 pass-1 イベント列挙 — 2026-09-15",
+        f"# E23 pass-1 イベント列挙 — {out_date or c['generated_at'][:10]}",
         "",
         "**pre-reg**: [[e23-cb-text-explore-prereg-2026-09-10]] 🔒 / **pass**: " + c["pass"],
         f"**生成**: `tools/e23_pass1_events.py` @ {c['generated_at']}",
@@ -302,19 +404,23 @@ def render_md(c: dict) -> str:
         "",
         f"## verdict: **{c['verdict']}**",
         "",
-        f"- Gate A 生存ペア: {', '.join(c['gate_a_surviving_pairs']) or 'なし'}",
-        f"- Gate B: pooled イベント **N = {c['gate_b']['n_events_after_gate_a']}** "
-        f"(閾値 {c['gate_b']['threshold']}) → "
-        f"{'✅ PASS' if c['gate_b']['pass'] else '❌ 未達 = UNDERPOWERED'}",
+        f"- pass-0 (再計算・強制): {c['pass0']['verdict']} / 生存 CB = "
+        f"{', '.join(c['pass0']['surviving_cbs']) or 'なし'} "
+        f"(BoJ V3 公開時刻検証 {c['pass0']['boj_v3']['release_time_verified']}/"
+        f"{c['pass0']['boj_v3']['n']})",
+        f"- Gate A 候補ペア (生存 CB の写像): "
+        f"{', '.join(c.get('gate_a_candidate_pairs', [])) or 'なし'} / 生存ペア: "
+        f"{', '.join(c['gate_a_surviving_pairs']) or 'なし'}",
+        _gate_b_line(c),
         "",
-        "## Gate A (headroom): 無条件 median |fwd5| ≥ 10 × RT",
+        "## Gate A (headroom): 無条件 median |fwd5| ≥ 10 × RT (**explore 窓限定**)",
         "",
-        "| pair | valid D1 | median \\|fwd5\\| (pips) | p25 / p75 | RT | 閾値 | gate |",
+        "| pair | explore 窓 move 数 | median \\|fwd5\\| (pips) | p25 / p75 | RT | 閾値 | gate |",
         "|---|---|---|---|---|---|---|",
     ]
     for pair, g in c["gate_a"].items():
         lines.append(
-            f"| {pair} | {c['price_sources'][pair]['valid_d1']} | "
+            f"| {pair} | {g['n']} | "
             f"{g['median_abs_fwd5_pips']} | {g['p25']} / {g['p75']} | "
             f"{g['rt_pips']} | {g['gate_a_threshold_pips']} | "
             f"{'✅' if g['gate_a_pass'] else '❌'} |")
@@ -324,7 +430,7 @@ def render_md(c: dict) -> str:
         "",
         f"- explore 窓の使用可能文書 {enum['n_docs_explore_usable']} 件 / "
         f"うち NH = 0 の文書 **{enum['n_docs_nh_zero']}** 件",
-        f"- 列挙イベント (全ペア) **{c['gate_b']['n_events_all']}** 件: "
+        f"- 列挙イベント (全ペア) **{len(ev)}** 件: "
         + (", ".join(f"{k} {v}" for k, v in sorted(per_cb.items())) or "なし"),
         f"- Fed/ECB 同日 (両 void): {len(enum['collision_days'])} 日",
         "",
@@ -360,12 +466,15 @@ def main(argv: list[str] | None = None) -> int:
                          "(bare *_15m.parquet は使用禁止)")
     ap.add_argument("--freeze-manifest", action="store_true")
     ap.add_argument("--write", action="store_true")
+    ap.add_argument("--out-date", default=datetime.now(timezone.utc).date().isoformat(),
+                    help="成果物ファイル名の日付 (既定 = 今日 UTC。過去成果物を上書きしない)")
     args = ap.parse_args(argv)
 
     c = run(args.price_dir, args.freeze_manifest)
-    md = render_md(c)
+    md = render_md(c, args.out_date)
     print(md)
     if args.write:
+        OUT_MD, OUT_JSON = out_paths(args.out_date)
         OUT_MD.parent.mkdir(parents=True, exist_ok=True)
         OUT_MD.write_text(md, encoding="utf-8")
         OUT_JSON.write_text(json.dumps(c, ensure_ascii=False, indent=1) + "\n",

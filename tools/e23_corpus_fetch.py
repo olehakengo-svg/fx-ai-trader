@@ -33,7 +33,21 @@ D1 設計なので時刻は使わない。
     python3 tools/e23_corpus_fetch.py --offline        # 取得せず manifest 再生成のみ
 
 出力: data/external/cb_statements/{cb}/{YYYY-MM-DD}.json + manifest.json
-既存ファイルは再取得しない (idempotent)。--refetch で上書き。
+既存ファイルは再取得しない (idempotent)。--refetch で discovery 段のキャッシュ判定も
+迂回して上書き (2026-10-01 PR #257 review 消化)。
+
+コーパス境界 (2026-10-01 追記、PR #257 review 消化 — rule:R3)
+------------------------------------------------------------
+- 窓: EXPLORE_START..OOS_END 外のレコードは **保存しない / manifest に載せない /
+  load_corpus() が返さない** (3 層で強制)。過去に保存済みの窓外ファイルは削除せず
+  loader で除外し、manifest の `excluded` に理由付きで列挙する。
+- Fed 文書種: discovery の URL 正規表現 (`monetaryYYYYMMDDa.htm`) は FOMC statement
+  以外 (実施ノート / FIMA repo / 長期戦略声明) も拾う。press release 表題が
+  "Federal Reserve issues FOMC statement" であるものだけを FOMC statement と同定し、
+  取得時に捨て、既存ファイルは loader で除外する。
+- BoJ V3: 印字日 == 会合日 は **英語版の公開時刻の証拠ではない**。公式公開時刻を
+  検証する経路が無い間は `release_time_verified=False` (fail-closed) とし、
+  census の V3 gate はこの値のみで判定する。印字日一致は記述量として残す。
 """
 from __future__ import annotations
 
@@ -54,6 +68,71 @@ EXPLORE_START, EXPLORE_END = date(2014, 1, 1), date(2023, 12, 31)
 OOS_START, OOS_END = date(2024, 1, 1), date(2026, 6, 30)
 
 CBS = ("fed", "ecb", "boe", "boj")
+
+# 凍結辞書 pin (pre-reg 冒頭「測定ハーネスは実行時にこの sha を assert すること」)。
+LEXICON_PATH = ROOT / "tools" / "e23_lexicon_apel_grimaldi.py"
+LEXICON_SHA256 = "f49586cad6e40e9c53e24adefeba78dcc5c9b925496c4b5b3808636c84b7bde8"
+
+
+def assert_frozen_lexicon(path: Path | None = None) -> str:
+    """凍結辞書ファイルの sha256 を実行時に照合。不一致なら SystemExit (fail-closed).
+
+    辞書を import する前に呼ぶこと。pytest の pin だけでは CLI の直接実行経路を
+    守れない (PR #257 review P2)。
+    """
+    path = path or LEXICON_PATH
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual != LEXICON_SHA256:
+        raise SystemExit(
+            f"凍結辞書の sha256 が pre-reg pin と不一致 — 測定を中止: {path}\n"
+            f"  expected={LEXICON_SHA256}\n  actual={actual}")
+    return actual
+
+
+def in_corpus_window(d: date | str) -> bool:
+    """pre-reg §2 凍結窓 (EXPLORE_START..OOS_END) の内側か."""
+    if isinstance(d, str):
+        d = datetime.strptime(d, "%Y-%m-%d").date()
+    return EXPLORE_START <= d <= OOS_END
+
+
+# Fed: press release 表題で FOMC statement を同定 (URL 正規表現は文書種を区別しない)。
+FED_STATEMENT_TITLE = "Federal Reserve issues FOMC statement"
+
+
+def is_fomc_statement(text: str) -> bool:
+    """本文コンテナ先頭の表題行が FOMC statement のものか.
+
+    コンテナは「日付行 → 表題行 → ...」の順。実施ノート ("Statement Regarding
+    Monetary Policy Implementation") / FIMA repo / 長期戦略声明は表題が異なる。
+    """
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()][:3]
+    return FED_STATEMENT_TITLE in lines
+
+
+def _recovered_months(docs: list[dict]) -> set[tuple[str, str]]:
+    """本文取得に成功したレコードがある (cb, YYYY-MM)."""
+    return {(r["cb"], r["date"][:7]) for r in docs if r.get("n_chars", 0) > 0}
+
+
+def exclusion_reason(rec: dict,
+                     recovered: set[tuple[str, str]] | None = None) -> str | None:
+    """loader が除外する理由 (None = 採用)。ファイルは削除しない (コーパスは再利用資産).
+
+    recovered: `_recovered_months()` の結果。BOE の欠測 placeholder (`YYYY-MM-01`、
+    n_chars=0) は同月に本文取得済みレコードがあれば除外する — `--refetch` で回復した
+    月を二重計上・欠測計上しない (PR #309 review 3 巡目 P2)。
+    """
+    if not in_corpus_window(rec["date"]):
+        return "outside_window_explore_start_to_oos_end"
+    if rec["cb"] == "fed" and rec.get("n_chars", 0) > 0 \
+            and not is_fomc_statement(rec.get("text", "")):
+        return "fed_not_fomc_statement"
+    if recovered is not None and rec.get("n_chars", 0) == 0 \
+            and rec.get("missing_reason") \
+            and (rec["cb"], rec["date"][:7]) in recovered:
+        return "placeholder_superseded_by_recovered_record"
+    return None
 
 UA = "Mozilla/5.0 (compatible; fx-ai-trader E23 research harness; contact via repo)"
 SLEEP_SEC = 0.4
@@ -279,7 +358,7 @@ def _cached_date(cb: str, d: date) -> bool:
 
 
 def _cached_urls() -> set[str]:
-    return {r.get("url", "") for r in load_corpus()}
+    return {r.get("url", "") for r in load_corpus(include_excluded=True)}
 
 
 def _record(cb: str, d: date, url: str, text: str, *, source_format: str,
@@ -304,22 +383,29 @@ def _record(cb: str, d: date, url: str, text: str, *, source_format: str,
     }
 
 
-def fetch_fed(year: int) -> list[dict]:
+def fetch_fed(year: int, *, refetch: bool = False) -> list[dict]:
     recs = []
     for d, url in discover_fed(year):
-        if _cached_date("fed", d):      # 既取得は再取得しない (idempotent)
+        if not in_corpus_window(d):
+            continue
+        if _cached_date("fed", d) and not refetch:  # 既取得は再取得しない (idempotent)
             continue
         text = extract_container(_fetch(url), FED_SELECTORS)
+        if text and not is_fomc_statement(text):
+            # monetaryYYYYMMDDa.htm は FOMC statement 以外も含む (PR #257 review P1)
+            continue
         recs.append(_record("fed", d, url, text, source_format="html",
                             published_raw=d.isoformat()))
         time.sleep(SLEEP_SEC)
     return recs
 
 
-def fetch_ecb(year: int) -> list[dict]:
+def fetch_ecb(year: int, *, refetch: bool = False) -> list[dict]:
     recs = []
     for d, url in discover_ecb(year):
-        if _cached_date("ecb", d):      # 既取得は再取得しない (idempotent)
+        if not in_corpus_window(d):
+            continue
+        if _cached_date("ecb", d) and not refetch:  # 既取得は再取得しない (idempotent)
             continue
         text = extract_container(_fetch(url), ECB_SELECTORS)
         recs.append(_record("ecb", d, url, text, source_format="html",
@@ -328,22 +414,27 @@ def fetch_ecb(year: int) -> list[dict]:
     return recs
 
 
-def fetch_boj(year: int) -> list[dict]:
+def fetch_boj(year: int, *, refetch: bool = False) -> list[dict]:
     recs = []
     for d, url in discover_boj(year):
-        if _cached_date("boj", d):       # 既取得は再取得しない (idempotent)
+        if not in_corpus_window(d):
+            continue
+        if _cached_date("boj", d) and not refetch:  # 既取得は再取得しない (idempotent)
             continue
         if url.lower().endswith(".pdf"):
             container, fmt = _fetch_pdf_text(url), "pdf"
         else:
             container, fmt = extract_container(_fetch(url), BOJ_SELECTORS), "html"
-        # V3 (lookahead): 英語版に印字された日付が会合日 (URL 日付) と一致するか
-        # を機械確認する。不一致は same_day_attested=False として census が数える。
+        # V3 (lookahead): 印字日 == 会合日 は「文書に会合日が書いてある」ことしか
+        # 示さず、英語版がいつ公開されたかの証拠ではない (PR #257 review P1)。
+        # 公式公開時刻を検証する経路が無いため release_time_verified=False で
+        # fail-closed とし、census の V3 gate はこの値のみで判定する。
         printed = _boj_printed_date(container)
         recs.append(_record(
             "boj", d, url, container, source_format=fmt,
             published_raw=printed.isoformat() if printed else "",
-            extra={"same_day_attested": bool(printed and printed == d)},
+            extra={"printed_date_matches_meeting": bool(printed and printed == d),
+                   "release_time_verified": False},
         ))
         time.sleep(SLEEP_SEC)
     return recs
@@ -389,7 +480,7 @@ def _fetch_pdf_text(url: str) -> str:
     return _norm("\n".join(pages))
 
 
-def fetch_boe(year: int) -> list[dict]:
+def fetch_boe(year: int, *, refetch: bool = False) -> list[dict]:
     """BOE MPS: 公式 HTML ページを一次、同月の公式 PDF を二次 (同一文書種).
 
     2020 年以前の公式ページは MPS 本文を HTML に載せず PDF のみで配布するため、
@@ -397,8 +488,10 @@ def fetch_boe(year: int) -> list[dict]:
     (MPS)**、境界語も同一 — 変えているのはコンテナだけで、シグナル DoF ではない。
     """
     recs = []
-    seen = _cached_urls()
+    seen = set() if refetch else _cached_urls()
     for month, url in discover_boe(year):
+        if date(year, MONTHS.index(month) + 1, 1) > OOS_END:
+            continue                      # 凍結窓 (OOS_END) より後の月は取得しない
         if url in seen or BOE_PDF_TMPL.format(year=year, month=month) in seen:
             continue                      # 既取得は再取得しない (idempotent)
         mps, pub, pub_raw, fmt, src = "", None, "", "html", url
@@ -443,6 +536,8 @@ def _doc_path(cb: str, d: str) -> Path:
 
 
 def save(rec: dict, *, refetch: bool) -> bool:
+    if not in_corpus_window(rec["date"]):
+        return False                     # 凍結窓外は保存しない (PR #257 review P2)
     path = _doc_path(rec["cb"], rec["date"])
     if path.exists() and not refetch:
         return False
@@ -452,12 +547,32 @@ def save(rec: dict, *, refetch: bool) -> bool:
     return True
 
 
-def load_corpus() -> list[dict]:
+def _load_all() -> list[dict]:
     out: list[dict] = []
     for cb in CBS:
         for path in sorted((CORPUS_DIR / cb).glob("*.json")):
             out.append(json.loads(path.read_text(encoding="utf-8")))
     return out
+
+
+def load_corpus(*, include_excluded: bool = False) -> list[dict]:
+    """コーパスを返す。既定で窓外・Fed 非 statement を除外 (境界は loader で強制).
+
+    include_excluded=True は取得経路のキャッシュ判定と監査専用 — 測定に使うな。
+    """
+    docs = _load_all()
+    if include_excluded:
+        return docs
+    rec_m = _recovered_months(docs)
+    return [r for r in docs if exclusion_reason(r, rec_m) is None]
+
+
+def corpus_exclusions() -> list[dict]:
+    docs = _load_all()
+    rec_m = _recovered_months(docs)
+    return [{"cb": r["cb"], "date": r["date"], "url": r.get("url", ""),
+             "reason": exclusion_reason(r, rec_m)}
+            for r in docs if exclusion_reason(r, rec_m) is not None]
 
 
 def write_manifest() -> dict:
@@ -481,6 +596,8 @@ def write_manifest() -> dict:
         "oos_window": [OOS_START.isoformat(), OOS_END.isoformat()],
         "n_docs_total": len(docs),
         "per_cb": per_cb,
+        # loader が除外したファイル (削除はしない — 再利用資産、監査可能性のため列挙)
+        "excluded": corpus_exclusions(),
     }
     path = CORPUS_DIR / "manifest.json"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -511,7 +628,7 @@ def main(argv: list[str] | None = None) -> int:
     for cb in args.cb:
         for year in years:
             try:
-                recs = FETCHERS[cb](year)
+                recs = FETCHERS[cb](year, refetch=args.refetch)
             except NotFound as exc:
                 print(f"[{cb} {year}] index absent ({exc}) — skip", file=sys.stderr)
                 continue

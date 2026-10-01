@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-15T03:24:58+00:00",
+ "generated_at": "2026-10-01T02:47:27+00:00",
  "prereg": "knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-10.md",
  "pass": "pass-0 (outcome 非接触)",
  "explore_window": [
@@ -10,10 +10,10 @@
   "2024-01-01",
   "2026-06-30"
  ],
- "n_docs_total": 398,
+ "n_docs_total": 388,
  "per_cb": {
   "fed": {
-   "n_docs": 107,
+   "n_docs": 102,
    "docs": {
     "2014-01-29": {
      "sha256": "569e0dd5ae60c4442a29f86b6c4ee7155b5013f5597dbad7cd137bca2d8f29e3",
@@ -245,11 +245,6 @@
      "n_chars": 2748,
      "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20190918a.htm"
     },
-    "2019-10-11": {
-     "sha256": "5a25d9a690f0ec2762fc9bd2794ebc5c6bbfc3d358c433c3c912e3aef799755b",
-     "n_chars": 5006,
-     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20191011a.htm"
-    },
     "2019-10-30": {
      "sha256": "29824071241131fd8b4d6267178d8febbb23244c6bf1a76b6af03e8318d59e9b",
      "n_chars": 2521,
@@ -280,11 +275,6 @@
      "n_chars": 4329,
      "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200323a.htm"
     },
-    "2020-03-31": {
-     "sha256": "7e07e942a828e2eda093104ac972002573a7444d024a9c37938ec8d83c5fee9c",
-     "n_chars": 1920,
-     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200331a.htm"
-    },
     "2020-04-29": {
      "sha256": "24a43694a49201619710491d53758789a5fc2110562198c9161f21e599230b41",
      "n_chars": 3028,
@@ -299,11 +289,6 @@
      "sha256": "282a8a5aacbb0f3294f348527c2d72fb3d7dd4353474c0ed81f582d499dcc0b2",
      "n_chars": 3163,
      "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200729a.htm"
-    },
-    "2020-08-27": {
-     "sha256": "cb211044965458484b4e62f883f56a7b88a6a4b195080b30865d701caa7e7aea",
-     "n_chars": 4543,
-     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200827a.htm"
     },
     "2020-09-16": {
      "sha256": "43a904e290d5f567dd5f23db86b7cba3966b4e9da7e28cfd226b461471f54052",
@@ -505,11 +490,6 @@
      "n_chars": 2398,
      "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250730a.htm"
     },
-    "2025-08-22": {
-     "sha256": "2f65629ff796e29af059f524db76d632438858ac9f861a55c360b0f6a3d70d65",
-     "n_chars": 1564,
-     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250822a.htm"
-    },
     "2025-09-17": {
      "sha256": "75bd2b48019ce8d5e067b3b8b826378486c4e8d5b2684dc86a9445b63d3d78e3",
      "n_chars": 2436,
@@ -544,11 +524,6 @@
      "sha256": "d1dbe8b3be7a767e92624631c2f075aec78a0495839965f12df1e44d1588742a",
      "n_chars": 1122,
      "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260617a.htm"
-    },
-    "2026-07-29": {
-     "sha256": "fcc1cebbdf0ecf2101c460fa8b4732ff27da15be43584f0b02415f6e4c40b775",
-     "n_chars": 1337,
-     "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260729a.htm"
     }
    }
   },
@@ -973,7 +948,7 @@
    }
   },
   "boe": {
-   "n_docs": 94,
+   "n_docs": 90,
    "docs": {
     "2015-09-01": {
      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -1424,31 +1399,11 @@
      "sha256": "212071f74cf31e8796249d772b758c558b9984a6861e6db6cf2c0581fa1e593c",
      "n_chars": 1805,
      "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/june-2026"
-    },
-    "2026-07-30": {
-     "sha256": "cd026be306f904f794229e613a1ba30fc0ebd258dbcd42619a34984af403cd61",
-     "n_chars": 1912,
-     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/july-2026"
-    },
-    "2026-09-01": {
-     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-     "n_chars": 0,
-     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/september-2026"
-    },
-    "2026-11-01": {
-     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-     "n_chars": 0,
-     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/november-2026"
-    },
-    "2026-12-01": {
-     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-     "n_chars": 0,
-     "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/december-2026"
     }
    }
   },
   "boj": {
-   "n_docs": 114,
+   "n_docs": 113,
    "docs": {
     "2014-01-22": {
      "sha256": "c6e3ab97531ded8eec0507a4a0a7f861563cbcbb8796615027d8bc90af3a40a8",
@@ -2014,13 +1969,70 @@
      "sha256": "905f95d712ed3eb4bd3274b38613201eadf692ecbcd7d9976fcb012cf2f850f4",
      "n_chars": 10859,
      "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2026/k260616a.pdf"
-    },
-    "2026-07-31": {
-     "sha256": "2bdc53c04edeb4336f2fb970a1d1e00d57b967d48c92ece25726e322d5357e47",
-     "n_chars": 2211,
-     "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2026/k260731a.pdf"
     }
    }
   }
- }
+ },
+ "excluded": [
+  {
+   "cb": "fed",
+   "date": "2019-10-11",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20191011a.htm",
+   "reason": "fed_not_fomc_statement"
+  },
+  {
+   "cb": "fed",
+   "date": "2020-03-31",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200331a.htm",
+   "reason": "fed_not_fomc_statement"
+  },
+  {
+   "cb": "fed",
+   "date": "2020-08-27",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20200827a.htm",
+   "reason": "fed_not_fomc_statement"
+  },
+  {
+   "cb": "fed",
+   "date": "2025-08-22",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20250822a.htm",
+   "reason": "fed_not_fomc_statement"
+  },
+  {
+   "cb": "fed",
+   "date": "2026-07-29",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20260729a.htm",
+   "reason": "outside_window_explore_start_to_oos_end"
+  },
+  {
+   "cb": "boe",
+   "date": "2026-07-30",
+   "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/july-2026",
+   "reason": "outside_window_explore_start_to_oos_end"
+  },
+  {
+   "cb": "boe",
+   "date": "2026-09-01",
+   "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/september-2026",
+   "reason": "outside_window_explore_start_to_oos_end"
+  },
+  {
+   "cb": "boe",
+   "date": "2026-11-01",
+   "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/november-2026",
+   "reason": "outside_window_explore_start_to_oos_end"
+  },
+  {
+   "cb": "boe",
+   "date": "2026-12-01",
+   "url": "https://www.bankofengland.co.uk/monetary-policy-summary-and-minutes/2026/december-2026",
+   "reason": "outside_window_explore_start_to_oos_end"
+  },
+  {
+   "cb": "boj",
+   "date": "2026-07-31",
+   "url": "https://www.boj.or.jp/en/mopo/mpmdeci/mpr_2026/k260731a.pdf",
+   "reason": "outside_window_explore_start_to_oos_end"
+  }
+ ]
 }

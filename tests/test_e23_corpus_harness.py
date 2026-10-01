@@ -182,7 +182,7 @@ def test_census_boj_excluded_when_same_day_not_attested():
     docs[-1]["same_day_attested"] = False  # V3 機械規則の発火
     c = census_mod.census(docs)
     assert "boj" not in c["surviving_cbs"]
-    assert c["boj_same_day_attested"]["attested"] < c["boj_same_day_attested"]["n"]
+    assert c["boj_v3"]["printed_date_match"] < c["boj_v3"]["n"]
 
 
 def test_census_counts_staleness_void():
@@ -228,32 +228,33 @@ def test_pass1_forbids_bare_rolling_parquet():
     assert pass1_mod.PRICE_FILE_TMPL == "{pair}_15m_2014_2026.parquet"
 
 
+PASS1_OUTPUTS = sorted((ROOT / "knowledge-base" / "raw" / "analysis").glob(
+    "e23-pass1-events-*.json"))
+
+
 def test_pass1_event_records_carry_no_forward_values():
     """firewall: pass-1 成果物の 1 イベントに forward 値を持たせない (構造 pin)."""
-    out = ROOT / "knowledge-base" / "raw" / "analysis" / \
-        "e23-pass1-events-2026-09-15.json"
-    if not out.exists():                       # 成果物未生成の環境では skip しない
-        return                                 # (CI は成果物を含むコミットで走る)
     import json
-    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert PASS1_OUTPUTS, "pass-1 成果物がコミットされていない"
     allowed = {"cb", "statement_date", "t0_d1", "pair", "d", "delta_nh_sign",
                "gap_days"}
     banned = re.compile(r"fwd|ret|pnl|pip|move|close", re.I)
-    for ev in payload["enumeration"]["events"]:
-        assert set(ev) <= allowed, f"未知のキー: {set(ev) - allowed}"
-        assert not any(banned.search(k) for k in ev)
+    for out in PASS1_OUTPUTS:
+        payload = json.loads(out.read_text(encoding="utf-8"))
+        for ev in (payload["enumeration"] or {"events": []})["events"]:
+            assert set(ev) <= allowed, f"{out.name} 未知のキー: {set(ev) - allowed}"
+            assert not any(banned.search(k) for k in ev)
 
 
 def test_pass1_events_arithmetic_is_closed():
     """列挙イベント + void + CB ごとの初回文書 = explore 使用可能文書数."""
-    out = ROOT / "knowledge-base" / "raw" / "analysis" / \
-        "e23-pass1-events-2026-09-15.json"
-    if not out.exists():
-        return
     import json
-    p = json.loads(out.read_text(encoding="utf-8"))["enumeration"]
-    n_cb = len({e["cb"] for e in p["events"]} | {k.split(":")[0] for k in p["voids"]})
-    total = len(p["events"]) + sum(p["voids"].values()) + n_cb
-    assert total == p["n_docs_explore_usable"], (
-        f"会計が閉じていない: events {len(p['events'])} + voids "
-        f"{sum(p['voids'].values())} + 初回 {n_cb} != {p['n_docs_explore_usable']}")
+    for out in PASS1_OUTPUTS:
+        p = json.loads(out.read_text(encoding="utf-8"))["enumeration"]
+        if p is None:
+            continue
+        n_cb = len({e["cb"] for e in p["events"]} | {k.split(":")[0] for k in p["voids"]})
+        total = len(p["events"]) + sum(p["voids"].values()) + n_cb
+        assert total == p["n_docs_explore_usable"], (
+            f"{out.name} 会計が閉じていない: events {len(p['events'])} + voids "
+            f"{sum(p['voids'].values())} + 初回 {n_cb} != {p['n_docs_explore_usable']}")
