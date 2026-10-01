@@ -4962,6 +4962,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 ### セッション別PnL比較
 | Session | N | WR% | PnL (pips) | 評価 |
 
+### 2026-10-01 (Pre-Tokyo Briefing)
+**2026-09-30 実績**: N=3、PnL=−0.7p、WR=66.7%
+勝率は高く見えるが、勝ち(+5.5p)が負け(−7.0p)に食われる典型的な**payoff非対称**パターン。`price_shock_rev_eur_gbp_h1_long`が2戦1勝1敗でPnL=−1.5p。`usdjpy_carry_dip_accumulator`の1勝(+0.8p)が唯一の救いだが焼石に水。トレード数は極端に少なく、実質的に「無活動日」に近い。
+| Strategy | Pair | N | WR% | EV | PnL |
+**総計: N=9、PnL=−66.1p**
+> ⚠️ **全戦略N<10**: 統計的には「データなし」扱い。EV数値は参考値に過ぎず、昇格/降格判断は保留。ただし方向性としては全戦略が負のEVを示しており、構造的懸念として記録。
+| Trade | Dir | Outcome | PnL | Spread |
+勝ち幅+5.5pに対し負け幅−7.0p。Spread=1.4pは同戦略のDT spread_guard閾値（20%相当）と照合すると許容範囲内だが、**payoff比=0.79（＜1.0）**は摩擦調整EV負の状態。同方向(BUY×2)で連続エントリーしており、シグナルの独立性も疑問。
+累積EV=−8.60、N=5で累積PnL=−43.0p。前日唯一の+0.8pは例外的な回復に過ぎない。`kalman_d7_po_dn_flip`はN=1でEV=−20.0（単発大敗）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
