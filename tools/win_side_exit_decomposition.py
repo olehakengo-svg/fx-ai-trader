@@ -361,7 +361,8 @@ def fixed_horizon_excursion(row: dict, bars, horizon_min: int, bar_minutes: int 
     ts = pd.Timestamp(en)
     step = pd.Timedelta(minutes=bar_minutes)
     start = ts.ceil(f"{bar_minutes}min")
-    last_start = ts + pd.Timedelta(minutes=horizon_min) - step
+    # 末尾の期待開始は選択した足のグリッド上で取る (非整列 entry × >1m 足で有効窓を欠落扱いしない、PR #310 review 4152127036)
+    last_start = (ts + pd.Timedelta(minutes=horizon_min)).floor(f"{bar_minutes}min") - step
     if last_start < start:
         return None
     lo_i = bars.index.searchsorted(start, side="left")

@@ -248,6 +248,22 @@ def test_fixed_horizon_excursion_clips_to_the_advertised_horizon(wsed, tmp_path)
     assert wsed.fixed_horizon_excursion(r2, pre_entry, 60)[0] == pytest.approx(1.0)
 
 
+def test_fixed_horizon_excursion_unaligned_entry_on_15m_grid_is_covered(wsed, tmp_path):
+    """非整列 entry × 15m 足でも、窓内に完結する足が揃っていれば有効 (PR #310 review 4152127036)。
+
+    entry 00:05 / horizon 60 分 / 15m 足 → 窓内に完結する足は 00:15, 00:30, 00:45 開始。
+    既知 NG: 末尾の期待開始を非整列の entry+H−15m = 00:50 で取り、00:45 との差 5 分 > edge 0 で None にしていた。
+    """
+    r = _rows(wsed, tmp_path, [_t("2026-07-01T00:05:00+00:00", "WIN", 2.0, "SL_HIT",
+                                  entry_price=150.00, instrument="USD_JPY")])[0]
+    bars = _bars("2026-07-01T00:00:00+00:00", [150.01, 150.20, 150.01, 150.01, 150.50, 150.01],
+                 [149.99] * 6, freq="15min")
+    fav, adv = wsed.fixed_horizon_excursion(r, bars, 60, bar_minutes=15, max_gap_min=15)
+    # 00:15 開始の +20p は窓内、01:00 開始の +50p (終了 01:15 > 01:05) は窓外
+    assert fav == pytest.approx(20.0)
+    assert adv == pytest.approx(1.0)
+
+
 def test_fixed_horizon_excursion_rejects_gapped_or_late_windows(wsed, tmp_path):
     """バー不足 / 窓の先頭・末尾が欠ける は None (週末跨ぎ等を黙って混ぜない)。"""
     r = _rows(wsed, tmp_path, [_t("2026-07-01T00:00:00+00:00", "WIN", 2.0, "SL_HIT",
