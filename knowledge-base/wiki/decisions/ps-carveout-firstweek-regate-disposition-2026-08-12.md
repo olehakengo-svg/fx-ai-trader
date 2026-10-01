@@ -147,6 +147,10 @@ spread_wide の 21:00Z 分 (5/11) は原則 2 (デスゾーン = スプレッド
 
 ### 6.3 閉じ方と残る防御
 
+> **2026-10-01 追記 (09-30 期日評価の確定、main 側 readout と統合)**: 09-30 checkpoint で本番 `/api/demo/trades` 全件 (3,090 行 since 08-11) から clean live `price_shock_rev*` **N=7** (eur_gbp_h1_long 5 / aud_jpy_h1_long 2、最新 09-29T16:48Z) < 10 → EV/Wilson 判定は保留、期日は **11-01** へ roll (下記の『10-30』は 11-01 に読み替え)。
+> 事前規定の読み「席が是正されても発火しない」は不成立 — 到着 ≈1.0/週で供給ゼロではない (遅いだけ)。本節の『watchdog は live 防御に数えない』は roll 後も有効。
+
+
 - registry `ps-carveout-regate-post-172` は **resolve しない・期日 09-30 は据え置き** (期日前 readout を message に追記)。`evaluate_live_count_decision` は `today >= deadline` で発火するので、
   1 日前に roll すると 09-30 checkpoint が発火せず、残り窓の fill が N=6 の結論から漏れる (PR #306 Codex P2)。**09-30 以降のセッションで 09-29T01:20Z 以降の増分を数え直し、N<10 なら 10-30 へ roll** する。
   理由: 本 entry は cell_deepdive の LOCK redaction 母集団 (`match=prefix`) を定義しており、resolve すると保留中の EV look が deepdive 出力に露出する

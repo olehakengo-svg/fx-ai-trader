@@ -4882,6 +4882,96 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **全50件がSKIP** — OANDA本番転送はゼロ。現行は完全デモ運用継続中。
 - `shadow_tracking`が支配的（16件）: シャドウセルが昇格基準未達のため追跡のみ、実弾不送信。
 
+### 2026-09-29 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **−¥10.5** |
+| 前日WR | **50.0%** |
+前日（2026-09-28）は `usdjpy_carry_dip_accumulator / USD_JPY` のみ2件。1勝1敗でWR=50%ながら、勝ちEV(+9.5p)が負けEV(−20.0p)を下回り、純PnL=−10.5pの赤字セッション。執行自体は正常だが非対称なペイオフ構造が再現している。
+| Strategy | Pair | N | WR% | EV (p/t) | PnL |
+- 両戦略ともEV大幅マイナス。ただしN<10のため「統計的傾向」として留保必須。
+- `kalman_d7_po_dn_flip` はN=2・WR=0%・EV=−12.25と全指標最悪だが、判断域には達していない。
+| トレード | Dir | Outcome | PnL | Reason |
+- N蓄積が最優先。現状N=6は「ノイズの中にある数字」であり、降格・昇格いずれの判断も不可。**N=30到達まで戦略変更の意思決定を凍結すること**を推奨。
+
+### 2026-09-29 (Post-Tokyo Report)
+| PnL | 0 pips / ¥0 |
+2. **block_counts は既存ガバナンスの正常作動** — `r2_shadow_demoted_cell` はシャドウ評価が低いセルを意図通り遮断している。デモーション解除の条件（N≥30 & EV≥1.0）を満たしていない限り、現状維持が規則に合致する。
+### 推奨戦略配分
+**NO ACTION推奨（積極的な配分変更は不要）**
+- **現在の遮断構造はシステムが正常判断した結果**。`r2_shadow_demoted_cell` が大量ブロックしている状況は、セルの期待値が低いことをシステム自身が認識しているサイン。外部からの上書き指示は統計的根拠を欠く。
+- **4通貨すべてTRENDING_DOWN** という均質なレジームは、DaytradeのLong側に構造的不利。Scalp系は`spread_guard`閾値との対比で評価が必要だが、shadow段階でデモート済みのため待機が適切。
+- **OANDA転送率0%** — shadow_trackingフェーズのセルが本番送信に達していない。デモ統計がN=30に満たない戦略を本番に押し込む理由はない。
+- **RnBはUSD/JPYがRANGINGにも関わらずno_signal** — シグナル生成ロジックが現在のATR水準（69%ile）に反応していない。これはロンドン移行後も同条件が続く限り変わらない。
+
+### 2026-09-29 (Pre-Tokyo Briefing)
+| 前日（09-28）PnL | **−10.5 JPY** |
+| 全体WR | **50.0%** |
+前日は `usdjpy_carry_dip_accumulator / USD_JPY` のみが稼働。2件中1勝1敗で、WIN +9.5 に対し LOSS −20.0 という非対称ペイオフにより、50%WRでも負収益。スプレッドは両件とも0.8pipと水準内。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的判断基準適用**：N<10は「データなし」扱い。両戦略ともEV/WRの解釈は保留。ただし方向性（EV負・WR低）はシグナルとして記録する。
+- WIN +9.5 vs LOSS −20.0 → ペイオフ比 **0.475**
+- WR=50%でも期待値は負（EV = 0.5×9.5 + 0.5×(−20.0) = **−5.25**）
+- Cutoff後全期間でも同構造（EV=−10.95）
+
+### 2026-09-29 (Post-NY Report)
+| 勝率（WR） | 0.0% |
+| PnL | −1.6 pips |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) |
+- **最良セッション**: 東京・ロンドン（引き分け扱い。損失ゼロ）
+- **最悪セッション**: NY（唯一の執行でロス）
+- **最悪戦略**: `price_shock_rev_eur_gbp_h1_long`（本日唯一の執行、−1.6 pips）
+
+### 2026-09-30 (Pre-Tokyo Briefing)
+| 前日PnL | **−1.6 pip** |
+| 全体WR | **0.0%** (1敗) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体集計（Cutoff後）: N=8, WR=25.0%, PnL=−69.1 pip**
+> **注意**: 全戦略でN<10。統計的判断基準上、これらはすべて「データなし」扱い。WR・EVの数値は現時点で参考値にすぎず、昇格・降格の判断材料にはなり得ない。
+- `r2_shadow_demoted_cell`によるScalp系の大量ブロックはシステムが意図した安全機構として機能している。干渉不要。
+- `rnb_usdjpy:no_signal` 4912件はUSD_JPYがRANGINGレジームである点と整合。レジーム転換を待つ。
+- Cutoff後N=8という極端な低発火が継続している点を最重要課題として認識。
+
+### 2026-09-30 (Pre-Tokyo Briefing)
+前日（2026-09-29）はトレード1件のみ。`price_shock_rev_eur_gbp_h1_long` / EUR_GBP が LOSSで PnL = **−1.6p**、WR = **0.0%**。システム全体は事実上の稼働最小日であり、信号発生自体が極端に抑制された状態が続いている。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体集計（Cutoff後）: N=8, WR=25.0%, PnL=−69.1p**
+> **統計的判定**: 全3戦略ともN<10。いずれも「データなし」として扱う。EVの負値（特に `kalman_d7_po_dn_flip` の−12.25）は警戒水準だが、Nが極小のため判断保留。N=30到達までは傾向の記録に留める。
+- EUR_GBP BUY、spread=1.3p、horizon（時間切れ終了）でPnL=−1.6p
+- horizonクローズはTP/SL到達前に終了したケース。レジーム的にEUR_GBP系が現在トレンドダウン（後述）の環境でのBUYエントリーは逆風下の執行
+- 27モード中26がON稼働にもかかわらず、実執行は前日1件のみ
+- block_countsの大半（`r2_shadow_demoted_cell`・`order_bar_dedup`・`score_gate`）が信号を吸収している構造が継続
+
+### 2026-09-30 (Pre-Tokyo Briefing)
+前日（2026-09-29）のトレード数は **N=1**、PnL = **−1.6 pips**、WR = **0.0%**。
+| Strategy | Pair | N | WR% | EV（pips/t） | PnL |
+- `price_shock_rev_eur_gbp_h1_long` は現在 **TRENDING_DOWN レジーム**（GBP_USD −0.596）の影響圏。ロング方向エントリーと逆風の組み合わせが継続中か注視。
+- `rnb_usdjpy:no_signal`（797件ブロック）は依然主因。USD_JPYが **RANGING レジーム**に入っており、RnBがシグナル条件を満たせないことと整合的。
+| GBP_JPY | TRENDING_DOWN | 72% | −0.00913 | ATR%ile最高。`daytrade_gbpjpy` は方向性注意 |
+**総評**：主要5ペアすべてが下降トレンドまたはレンジ。ショート方向の DT 系に有利な地合いだが、`r2_shadow_demoted_cell` ブロックが多数発生しており、実際のエントリーは阻害されている。ATR%ile 69〜72% は「高ボラ気味」だが、方向性が一方向に揃っている点は通貨間リスク集中に注意が必要。
+**レジーム遷移リスク**：月初の経済指標ラッシュにより、現在のTRENDING_DOWNから突発的なRANGINGまたはTRENDING_UP遷移が起きる可能性。特にGBP系（ATR72%）は急変に注意。
+**agg_kelly=−0.361<0（1件）**：Kelly基準がマイナスを示したケースが1件。期待値がネガティブと判定されてブロックされた正常動作。現在の全戦略EVがすべてマイナスである事実と整合的。
+
+### 2026-09-30 (Post-NY Report)
+| PnL | **+0.0 pips** |
+| 勝率 (WR) | **N/A（取引なし）** |
+- 主要5通貨ペア（EURJPY・EURUSD・GBPJPY・GBPUSD・USDJPY）は全てATR%ile 62–72%のやや高ボラティリティ帯に位置し、TRENDING_DOWN（USDJPY除く）。シグナル生成の機会は構造的に存在したが、以下のブロック要因により不発：
+- `daytrade_gbpusd:hedge_block` 195件 ← GBPUSD方向感の対立
+- `daytrade_gbpusd:order_bar_dedup` 217件 ← 重複発注抑制
+- `daytrade:score_gate` 260件 ← スコア閾値未到達
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+
+### 2026-10-01 (Pre-Tokyo Briefing)
+**2026-09-30 実績**: N=3、PnL=−0.7p、WR=66.7%
+勝率は高く見えるが、勝ち(+5.5p)が負け(−7.0p)に食われる典型的な**payoff非対称**パターン。`price_shock_rev_eur_gbp_h1_long`が2戦1勝1敗でPnL=−1.5p。`usdjpy_carry_dip_accumulator`の1勝(+0.8p)が唯一の救いだが焼石に水。トレード数は極端に少なく、実質的に「無活動日」に近い。
+| Strategy | Pair | N | WR% | EV | PnL |
+**総計: N=9、PnL=−66.1p**
+> ⚠️ **全戦略N<10**: 統計的には「データなし」扱い。EV数値は参考値に過ぎず、昇格/降格判断は保留。ただし方向性としては全戦略が負のEVを示しており、構造的懸念として記録。
+| Trade | Dir | Outcome | PnL | Spread |
+勝ち幅+5.5pに対し負け幅−7.0p。Spread=1.4pは同戦略のDT spread_guard閾値（20%相当）と照合すると許容範囲内だが、**payoff比=0.79（＜1.0）**は摩擦調整EV負の状態。同方向(BUY×2)で連続エントリーしており、シグナルの独立性も疑問。
+累積EV=−8.60、N=5で累積PnL=−43.0p。前日唯一の+0.8pは例外的な回復に過ぎない。`kalman_d7_po_dn_flip`はN=1でEV=−20.0（単発大敗）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
