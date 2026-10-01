@@ -12,6 +12,7 @@
 | 4011810503 | Gate A median が全期間 (OOS 接触)             | test_gate_a_* |
 | 4011810505 | pass-0 生存 CB を enumerate 前に強制しない     | test_evaluate_* |
 | 4011810507 | 凍結辞書 sha を harness 実行時に assert しない | test_lexicon_* |
+| PR #309 2 巡目 | census を価格前に / Gate A 候補ペア / DATA-BLOCKED 表示 | 末尾 3 本 |
 """
 import json
 import sys
@@ -271,7 +272,44 @@ def test_evaluate_data_blocked_does_not_enumerate(d1_flat):
     out = pass1_mod.evaluate(docs, d1_flat, GATE_A_ALL_PASS)
     assert out["verdict"] == "DATA-BLOCKED"
     assert out["enumeration"] is None
-    assert out["gate_b"]["n_events_after_gate_a"] == 0
+    assert out["gate_b"] is None                    # 未評価 (UNDERPOWERED と混同しない)
+
+
+# ── PR #309 review (2 巡目) ──────────────────────────────────────────────────
+
+
+def test_run_data_blocked_never_opens_prices(monkeypatch, tmp_path):
+    """P2 4151240546: DATA-BLOCKED は pass-1 非解錠 — 価格を開く前に返す."""
+    docs = _alt_docs("fed", range(2014, 2024), 6)          # 生存 1 CB
+    monkeypatch.setattr(pass1_mod, "load_corpus", lambda: docs)
+
+    def _boom(*a, **k):
+        raise AssertionError("DATA-BLOCKED なのに価格ファイルを開いた")
+    monkeypatch.setattr(pass1_mod, "build_d1", _boom)
+    out = pass1_mod.run(tmp_path, False)
+    assert out["verdict"] == "DATA-BLOCKED"
+    assert out["gate_a"] == {} and out["price_sources"] == {}
+
+
+def test_gate_a_candidate_pairs_come_from_surviving_cbs(d1_flat):
+    """P2 4151240550: fed+boe 生存で EUR/GBP が Gate A 不通過なら、JPY が通っても FAMILY_KILL."""
+    years = range(2014, 2024)
+    docs = _alt_docs("fed", years, 6) + _alt_docs("boe", years, 13)
+    gate_a = {"EUR_USD": {"gate_a_pass": False}, "GBP_USD": {"gate_a_pass": False},
+              "USD_JPY": {"gate_a_pass": True}}
+    out = pass1_mod.evaluate(docs, d1_flat, gate_a)
+    assert out["gate_a_candidate_pairs"] == ["EUR_USD", "GBP_USD"]
+    assert out["gate_a_surviving_pairs"] == []
+    assert out["verdict"] == "FAMILY_KILL"
+
+
+def test_render_data_blocked_does_not_claim_underpowered(d1_flat):
+    """P2 4151240553: DATA-BLOCKED の報告に「UNDERPOWERED」を併記しない."""
+    docs = _alt_docs("fed", range(2014, 2024), 6)
+    md = pass1_mod.render_md(pass1_mod.evaluate(docs, d1_flat, GATE_A_ALL_PASS), "x")
+    assert "DATA-BLOCKED" in md
+    assert "未達 = UNDERPOWERED" not in md
+    assert "未評価" in md
 
 
 # ─────────────────────────── 7. 凍結辞書 sha 実行時 assert (P2 4011810507) ──

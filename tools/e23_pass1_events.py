@@ -251,6 +251,12 @@ def enumerate_events(docs: list[dict], d1: dict[str, tuple[list[date], dict]]) -
 
 def run(price_dir: Path, freeze: bool) -> dict:
     assert_frozen_lexicon()              # import 後に差し替えられた場合も止める
+    docs = load_corpus()
+    # pass-0 census を価格を開く**前**に判定 (PR #309 review P2): DATA-BLOCKED は
+    # 「pass-1 非解錠」なので、価格ファイルにも Gate A 分布にも触れずに返す。
+    p0 = pass0_census(docs)
+    if p0["verdict"] != "PASS_TO_PASS1":
+        return _data_blocked(p0, gate_a={})
     d1: dict[str, tuple[list[date], dict]] = {}
     price_stats: dict[str, dict] = {}
     gate_a: dict[str, dict] = {}
@@ -279,9 +285,28 @@ def run(price_dir: Path, freeze: bool) -> dict:
         raise SystemExit(f"manifest が無い。初回は --freeze-manifest で pin を作る: "
                          f"{MANIFEST}")
 
-    out = evaluate(load_corpus(), d1, gate_a)
+    out = evaluate(docs, d1, gate_a)
     out["price_sources"] = price_stats
     return out
+
+
+def _data_blocked(p0: dict, gate_a: dict) -> dict:
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "prereg": "knowledge-base/wiki/decisions/"
+                  "e23-cb-text-explore-prereg-2026-09-10.md",
+        "pass": "pass-1 非解錠 (pass-0 DATA-BLOCKED — 価格・イベント未計算)",
+        "explore_window": [EXPLORE_START.isoformat(), EXPLORE_END.isoformat()],
+        "pass0": {"verdict": p0["verdict"], "surviving_cbs": p0["surviving_cbs"],
+                  "boj_v3": p0["boj_v3"]},
+        "gate_a": gate_a,
+        "gate_a_candidate_pairs": [],
+        "gate_a_surviving_pairs": [],
+        "gate_b": None,                  # 評価していない (UNDERPOWERED と混同させない)
+        "enumeration": None,
+        "price_sources": {},
+        "verdict": "DATA-BLOCKED",
+    }
 
 
 def evaluate(docs: list[dict], d1: dict[str, tuple[list[date], dict]],
@@ -305,16 +330,17 @@ def evaluate(docs: list[dict], d1: dict[str, tuple[list[date], dict]],
     }
     if p0["verdict"] != "PASS_TO_PASS1":
         # pass-0 が DATA-BLOCKED なら pass-1 は解錠されない (列挙しない)
-        return {**base, "gate_a_surviving_pairs": [],
-                "gate_b": {"threshold": GATE_B_N, "n_events_all": 0,
-                           "n_events_after_gate_a": 0, "pass": False},
-                "enumeration": None, "verdict": "DATA-BLOCKED"}
+        return _data_blocked(p0, gate_a={})   # 非解錠 = Gate A も報告しない
 
     survivors = set(p0["surviving_cbs"])
     enum = enumerate_events([r for r in docs if r["cb"] in survivors], d1)
     n = len(enum["events"])
-    gate_a_pairs = {p: gate_a[p]["gate_a_pass"] for p in PAIRS}
-    surviving_pairs = [p for p, ok in gate_a_pairs.items() if ok]
+    # Gate A の候補ペアは生存 CB が写像するペアのみ (PR #309 review P2)。
+    # 生存 CB がイベントを作らないペアが Gate A を通っても「生存ペア」と数えない
+    # — さもないと §4「全滅なら FAMILY_KILL」が UNDERPOWERED にすり替わる。
+    candidate_pairs = {CB_MAP[cb][0] for cb in survivors}
+    surviving_pairs = [p for p in PAIRS
+                       if p in candidate_pairs and gate_a.get(p, {}).get("gate_a_pass")]
     n_after_gate_a = sum(1 for e in enum["events"] if e["pair"] in surviving_pairs)
 
     if not surviving_pairs:
@@ -326,6 +352,7 @@ def evaluate(docs: list[dict], d1: dict[str, tuple[list[date], dict]],
 
     return {
         **base,
+        "gate_a_candidate_pairs": [p for p in PAIRS if p in candidate_pairs],
         "gate_a_surviving_pairs": surviving_pairs,
         "gate_b": {"threshold": GATE_B_N, "n_events_all": n,
                    "n_events_after_gate_a": n_after_gate_a,
@@ -333,6 +360,20 @@ def evaluate(docs: list[dict], d1: dict[str, tuple[list[date], dict]],
         "enumeration": enum,
         "verdict": verdict,
     }
+
+
+def _gate_b_line(c: dict) -> str:
+    """verdict ごとに Gate B 行を出す。未評価を「未達」と書かない (PR #309 review P2)."""
+    if c["verdict"] == "DATA-BLOCKED" or c["gate_b"] is None:
+        return ("- Gate B: **未評価** — pass-0 が DATA-BLOCKED (生存 CB < 2) のため "
+                "pass-1 は解錠されていない (UNDERPOWERED ではない)")
+    g = c["gate_b"]
+    if c["verdict"] == "FAMILY_KILL":
+        tail = "— Gate A で候補ペア全滅 = FAMILY_KILL (Gate B は判定に使わない)"
+    else:
+        tail = "→ " + ("✅ PASS" if g["pass"] else "❌ 未達 = UNDERPOWERED")
+    return (f"- Gate B: pooled イベント **N = {g['n_events_after_gate_a']}** "
+            f"(閾値 {g['threshold']}) {tail}")
 
 
 def render_md(c: dict, out_date: str = "") -> str:
@@ -358,10 +399,10 @@ def render_md(c: dict, out_date: str = "") -> str:
         f"{', '.join(c['pass0']['surviving_cbs']) or 'なし'} "
         f"(BoJ V3 公開時刻検証 {c['pass0']['boj_v3']['release_time_verified']}/"
         f"{c['pass0']['boj_v3']['n']})",
-        f"- Gate A 生存ペア: {', '.join(c['gate_a_surviving_pairs']) or 'なし'}",
-        f"- Gate B: pooled イベント **N = {c['gate_b']['n_events_after_gate_a']}** "
-        f"(閾値 {c['gate_b']['threshold']}) → "
-        f"{'✅ PASS' if c['gate_b']['pass'] else '❌ 未達 = UNDERPOWERED'}",
+        f"- Gate A 候補ペア (生存 CB の写像): "
+        f"{', '.join(c.get('gate_a_candidate_pairs', [])) or 'なし'} / 生存ペア: "
+        f"{', '.join(c['gate_a_surviving_pairs']) or 'なし'}",
+        _gate_b_line(c),
         "",
         "## Gate A (headroom): 無条件 median |fwd5| ≥ 10 × RT (**explore 窓限定**)",
         "",
@@ -380,7 +421,7 @@ def render_md(c: dict, out_date: str = "") -> str:
         "",
         f"- explore 窓の使用可能文書 {enum['n_docs_explore_usable']} 件 / "
         f"うち NH = 0 の文書 **{enum['n_docs_nh_zero']}** 件",
-        f"- 列挙イベント (全ペア) **{c['gate_b']['n_events_all']}** 件: "
+        f"- 列挙イベント (全ペア) **{len(ev)}** 件: "
         + (", ".join(f"{k} {v}" for k, v in sorted(per_cb.items())) or "なし"),
         f"- Fed/ECB 同日 (両 void): {len(enum['collision_days'])} 日",
         "",
