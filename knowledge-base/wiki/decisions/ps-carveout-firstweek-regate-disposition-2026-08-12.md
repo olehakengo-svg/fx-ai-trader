@@ -93,3 +93,79 @@ Track C の主張は「ps×5 が発火可能になれば live N 蓄積が桁で�
 - [[track-c-capital-plumbing-decision-packet-2026-07-28]] (親決裁 D-c-1)
 - [[shortest-path-decision-memo-2026-07-10]] (トラック C)
 - MEMORY: `project_preserve_bug_fixed_10cells_live_2026_07_28` / `project_track_c_carveout_gap_and_gotobi_2026_07_28` / `project_549250_incident_mc_ruin_fix_2026_08_05`
+
+---
+
+## 6. 後継 `ps-carveout-regate-post-172` 期日前 readout (2026-09-29、期日 09-30 の 1 日前)
+
+**rule**: R3 (件数の記録と帰属のみ。gate / tier / lot / 閾値 / live 経路は**一切不変更**)
+**判定 (暫定、09-30 checkpoint で確定)**: **N<10 のまま期日を迎える見込み = stale。carve-out の EV 判定は保留** (pre-reg どおり、N ゲートは下げない)。entry は resolve しない。期日 09-30 は**動かさない** — 本節は as-of 09-29T01:20Z の**期日前 readout**であり、09-30 checkpoint 到達後に N を数え直してから 10-30 へ roll する (§6.3)。
+EV / WR / PnL は本節で計算・転記していない — N≥10 到達時の判定 look を消費しないため。
+
+### 6.1 事実 (本番 `/api/demo/trades`、as-of 2026-09-29T01:20Z)
+
+`status=closed&date_from=2026-08-11` 全ページ (2,980 行、offset 500 刻み) + `status=open` (2 行) から
+`entry_type` 前方一致 `price_shock_rev` を抽出:
+
+| 区分 | 件数 |
+|---|---|
+| ps 行 (全経路) | **7** |
+| clean live (`oanda_trade_id != ''` ∧ `dedup_violation != 1`) | **6** (eur_gbp 4 / aud_jpy 2) |
+| shadow | 1 (eur_gbp、08-17) |
+| 他 3 席 (NZD_JPY / EUR_AUD / USD_CAD) | **0** |
+| 最終 ps 行 | **2026-09-03T15:08Z** (以後 26 日間 row ゼロ、live・shadow とも) |
+
+- watchdog (`tools/price_shock_rev_live_watchdog.py`、`is_shadow=0` 基準) でも 6 件全て `is_shadow=0` = canonical 定義と一致 (§2(c) の乖離は本窓でも 0)。
+- ⚠️ **訂正**: 2026-09-26 / 09-28 session log の未解決欄にあった「clean live N since 08-11 = 0 (09-26 実測)」は**誤り**。
+  09-10 の [[trigger-watch-gap-audit-2026-09-10]] は N=6/10 と記録しており、本実測 N=6 と一致する (09-03 以降 増分ゼロ)。
+
+### 6.2 帰属 — 「席が是正されても発火しない」の中身は **送信前 gate (下流) 100%**
+
+[[ps-seat-supply-remeasure-2026-09-10]] §11 (09-21、窓 09-07〜09-21) で「5 席の候補 141 行 = distinct bar 10 本が全て order 層到達前に block、
+席優先 select は 141/141 勝ち」= **(B) 下流で確定**済み。その後の窓を 2 面で追認した:
+
+**(a) Render ログ `[ORDER_BAR_DEDUP] first terminal block after reservation: price_shock_rev*`** (marker は PR #293 = 09-23 以降のみ存在、窓 09-23〜09-29T01:30Z、hasMore=false):
+distinct (seat, bar_ts) **11 本すべて block、order 送信 0**。
+
+| 終端 gate | distinct bar | 席 |
+|---|---|---|
+| `spread_wide` @ 21:00Z ロールオーバー | 5 | usd_cad ×2 (1.9 / 2.2p > 1.5) / eur_aud ×3 (19.7 / 18.5 / 8.4p > 2.0) |
+| `spread_wide` @ 08:00Z | 1 | nzd_jpy (3.0 / 3.3p > 3.0) |
+| `mtf_strong_bias` (SELL vs BUY) | 3 | eur_gbp (09-28 07/08/13 時台) |
+| `velocity_down` (44〜49p) | 2 | aud_jpy (09-25 13 時 / 09-28 08 時) |
+
+(同一 bar の first terminal 行が別 instance で 2 回出るのは二重エンジン — [[dual-engine-dup-rate-readout-2026-09-24]]。数えるのは distinct bar)
+
+**(b) `/api/demo/block-counts?days=28` の `persisted.per_cell_metrics`** (magnitude、per-tick 計上で bar 単位ではない):
+aud_jpy velocity_down n=6 (44〜49p) / eur_aud spread_wide n=6 (3.5〜35.4p、mean 14.9) / usd_cad spread_wide n=7 (1.9〜11.6p) /
+nzd_jpy spread_wide n=3 (3.0〜3.3p) / eur_gbp spread_wide n=1 (1.6p)。magnitude の disposition は registry `ps-seat-spread-magnitude-readout` (10-19) が持つ — **本節では判定しない**。
+
+**読み**: 「席」は是正後も一度も律速していない。N が 10 に届かない理由は **シグナル後段の防御 gate** であり、carve-out (agg-Kelly bypass) の成否とは独立。
+spread_wide の 21:00Z 分 (5/11) は原則 2 (デスゾーン = スプレッド異常の動的検出) どおりの正当な防御で、緩める対象ではない。
+`mtf_strong_bias` / `velocity_down` (5/11) は block されると **shadow row も書かれない** (shadow N も同時に死ぬ) — rnb レーンで同型を shadow 化した前例
+([[rnb-shadow-lane-health-precheck-2026-09-22]] → PR #290 の `[SHADOW_RELAX]` レーン) があるが、ps への汎用化は **Rule 1** (新フィルタ緩和・母集団変更) であり autopilot では執行しない。
+
+### 6.3 閉じ方と残る防御
+
+> **2026-10-01 追記 (09-30 期日評価の確定、main 側 readout と統合)**: 09-30 checkpoint で本番 `/api/demo/trades` 全件 (3,090 行 since 08-11) から clean live `price_shock_rev*` **N=7** (eur_gbp_h1_long 5 / aud_jpy_h1_long 2、最新 09-29T16:48Z) < 10 → EV/Wilson 判定は保留、期日は **11-01** へ roll (下記の『10-30』は 11-01 に読み替え)。
+> 事前規定の読み「席が是正されても発火しない」は不成立 — 到着 ≈1.0/週で供給ゼロではない (遅いだけ)。本節の『watchdog は live 防御に数えない』は roll 後も有効。
+
+
+- registry `ps-carveout-regate-post-172` は **resolve しない・期日 09-30 は据え置き** (期日前 readout を message に追記)。`evaluate_live_count_decision` は `today >= deadline` で発火するので、
+  1 日前に roll すると 09-30 checkpoint が発火せず、残り窓の fill が N=6 の結論から漏れる (PR #306 Codex P2)。**09-30 以降のセッションで 09-29T01:20Z 以降の増分を数え直し、N<10 なら 10-30 へ roll** する。
+  理由: 本 entry は cell_deepdive の LOCK redaction 母集団 (`match=prefix`) を定義しており、resolve すると保留中の EV look が deepdive 出力に露出する
+  (`tests/test_cell_deepdive_lock_redaction.py::test_real_registry_preserves_prefix_match_flags` が初版の resolve で落ちて検知)。
+  10-30 の再レビューは `ps-seat-spread-magnitude-readout` (10-19) の disposition を受けて決める (退役なら resolved / 継続なら N≥10 待ちで再 roll)。
+- ⚠️ **watchdog は本 entry の R2 条件の代替ではない** (PR #306 Codex P2): `tools/price_shock_rev_live_watchdog.py --apply` (Render cron、render.yaml:283) は
+  **exact セル単位** × **直近 closed 5,000 行の切り詰め窓** (`fetch_trades` は `limit=5000` の 1 回取得・ページングなし・新しい順 = 古い fill は窓から落ちる) × `is_shadow=0` で N≥10 を数える。本 entry は **prefix プール** × **since 08-11** × canonical (`oanda_trade_id` ∧ dedup) で数える。
+  例: プール N=10 が複数セルに分散すればどのセルも watchdog に掛からない / 08-11 以前の行で watchdog だけが別母集団で発火しうる。
+  ⇒ **プール条件 (N≥10 ∧ EV<−0.5p → R2 demote) を執行するのは本 entry だけ** — これも resolve しない理由の一つ (redaction と並ぶ)。
+- 🔴 **さらに watchdog の auto-demote は取引プロセスに届いていない** (PR #306 Codex P1、コードで確認済み): cron `fx-ai-price-shock-rev-watchdog` は
+  既定の相対パス `data/price_shock_rev_auto_demotions.json` に書くが、これは **cron 自身の一時ファイルシステム**。取引側 `DemoTrader._read_price_shock_rev_auto_demotions`
+  (modules/demo_trader.py:10302) は web service 内の同名相対パスを読む。render.yaml では disk (`/var/data`) を持つのは web service だけで、
+  `PRICE_SHOCK_REV_DEMOTION_STATE` はどちらの service にも設定されていない ⇒ **DEMOTE 判定が出ても後続の live 発注は止まらない** (届くのは `--to-discord` の通知のみ)。
+  現時点の実害はない (どの exact セルも N<10。as-of 09-29T01:20Z では 09-03 以降 ps の発火 0 だったが、09-30 期日評価で 09-29T16:48Z の新規 clean live fill を確認 = N=7) が、**この watchdog を live 防御として数えない**。
+  修復 (R3 構造バグ、live 経路なので review gate 付きの単独 PR) は registry `ps-watchdog-demotion-state-unreachable` (期日 10-11) で追跡する。
+  (registry 側の EV<−0.5p と watchdog の EV<0 は watchdog の方が厳しい = 保護側に倒れている)
+- 供給側の次の決裁点 = `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は R1 候補として記録のみ (起案は user 決裁の統合パケット経由)。
+- M1 への寄与 (2026-10-01 改訂、09-30 期日評価 N=7 を正とする): ps 席の live 供給は**ゼロではなく遅い** — 08-11 以降 7 件/50 日 ≈ 1.0/週 (最新 09-29T16:48Z)。as-of 09-29T01:20Z の『09-03 以降ゼロ』は 09-29T16:48Z の fill で失効 (引用禁止)。M1 見通しでは ps を **~1/週の低速供給源**として数える (n_decide 10 到達見込み ~10 月下旬、11-01 再判定)。wg は G0' 終了・W1 決裁待ち、kalman / carry_dip も現行の live 供給。
