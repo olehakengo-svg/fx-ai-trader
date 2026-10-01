@@ -294,3 +294,40 @@ def test_shift_share_is_reported_as_non_identified_when_groups_are_disjoint(wsed
         rows, wsed.SHADOW_EXIT_REGIME_BREAK, wsed.SHADOW_EXIT_REGIME_TRANSITION_END)
     _, mix, within = wsed.shift_share(a, b, "reason")
     assert mix + within == pytest.approx(4.0 - 20.0, abs=1e-6)
+
+
+def test_fixed_horizon_excursion_is_clamped_at_zero(wsed, tmp_path):
+    """窓全体が entry の片側にあっても excursion は負にならない (PR #310 review 4151271136)。
+
+    既知 NG: BUY で全バーが entry より上 → 不利幅が負 (例 −10p) になり平均・比を歪める。
+    """
+    r = _rows(wsed, tmp_path, [_t("2026-07-01T00:05:00+00:00", "WIN", 2.0, "SL_HIT",
+                                  entry_price=150.00, instrument="USD_JPY")])[0]
+    above = _bars("2026-07-01T00:15:00+00:00", [150.30] * 4, [150.10] * 4)
+    assert wsed.fixed_horizon_excursion(r, above, 4) == pytest.approx((30.0, 0.0))
+    r["direction"] = "SELL"
+    assert wsed.fixed_horizon_excursion(r, above, 4) == pytest.approx((0.0, 30.0))
+
+
+def test_control_cohort_is_not_selected_by_outcome_or_exit_time(wsed, tmp_path):
+    """§6 の母集団は outcome (BREAKEVEN 含む) でも exit_time でも選ばない (PR #310 review 4151271131)。
+
+    BE/trail は ±0.5p の決済 = BREAKEVEN を生むので、WIN/LOSS 限定は exit 機構による選別。
+    既知 NG: load_clean の既定 (WIN/LOSS) をそのまま対照に流す / exit_time で pre を切る。
+    """
+    trades = [
+        _t("2026-06-03T07:30:00+00:00", "BREAKEVEN", 0.2, "SL_HIT",
+           exit_time="2026-06-03T08:30:00+00:00"),
+        _t("2026-06-03T10:00:00+00:00", None, None, None, exit_time=None),
+        _t("2026-06-03T06:00:00+00:00", "WIN", 5.0, "TP_HIT",
+           exit_time="2026-06-03T07:00:00+00:00"),
+    ]
+    assert len(_rows(wsed, tmp_path, trades)) == 1  # payoff 用は WIN/LOSS のみ (不変)
+    p = tmp_path / "t.json"
+    p.write_text(json.dumps(_payload(trades)))
+    ent = wsed.load_clean(str(p), "s", outcomes=None)
+    assert len(ent) == 3
+    pre, post = wsed.split_entries(ent, wsed.SHADOW_EXIT_REGIME_BREAK,
+                                   wsed.SHADOW_EXIT_REGIME_TRANSITION_END)
+    assert sorted(r["entry_time"][11:16] for r in pre) == ["06:00", "07:30"]
+    assert [r["entry_time"][11:16] for r in post] == ["10:00"]

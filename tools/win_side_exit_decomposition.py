@@ -101,9 +101,15 @@ def stream_of(t: dict) -> str:
     return "ambiguous"
 
 
-def load_clean(path: str, strategy: str | None, stream: str = "shadow") -> list[dict]:
+def load_clean(path: str, strategy: str | None, stream: str = "shadow",
+               outcomes: tuple[str, ...] | None = ("WIN", "LOSS")) -> list[dict]:
     """stream ∈ {"shadow", "live"}。既定は shadow — ab7a4931 が変えたのは shadow 執行のみ
-    (PR #253 review 4002219365: live 行を混ぜると境界の比較が交絡する)。"""
+    (PR #253 review 4002219365: live 行を混ぜると境界の比較が交絡する)。
+
+    outcomes=None は outcome で選ばない (BREAKEVEN / 未決済も含む全 entry)。
+    exit 非依存の対照 (§6) はこちらを使う — BE/trail は ±0.5p 以内の決済 = BREAKEVEN を
+    生むので、WIN/LOSS 限定の母集団は exit 機構に選別されている (PR #310 review 4151271131)。
+    """
     if stream not in ("shadow", "live"):
         raise ValueError(f"stream must be 'shadow' or 'live', got {stream!r}")
     with open(path) as f:
@@ -118,7 +124,7 @@ def load_clean(path: str, strategy: str | None, stream: str = "shadow") -> list[
             continue
         if t.get("dedup_violation") == 1:
             continue
-        if t.get("outcome") not in ("WIN", "LOSS"):
+        if outcomes is not None and t.get("outcome") not in outcomes:
             continue
         out.append({
             "entry_type": t.get("entry_type"),
@@ -357,9 +363,10 @@ def fixed_horizon_excursion(row: dict, bars, horizon_bars: int,
         return None
     ps = pip_size(row.get("instrument"))
     hi, lo = float(w["High"].max()), float(w["Low"].min())
+    # 起点からの excursion は負にならない (本番 MAFE と同じく 0 で clamp、PR #310 review 4151271136)
     if d == "BUY":
-        return (hi - px) / ps, (px - lo) / ps
-    return (px - lo) / ps, (hi - px) / ps
+        return max(0.0, (hi - px) / ps), max(0.0, (px - lo) / ps)
+    return max(0.0, (px - lo) / ps), max(0.0, (hi - px) / ps)
 
 
 def boot_median_diff(a: list[float], b: list[float], n: int = 2000, seed: int = 0
@@ -396,6 +403,18 @@ def type_matched_means(pre: list[tuple[str, float]], post: list[tuple[str, float
     return (sum(w[k] * mean(ga[k]) for k in keys),
             sum(w[k] * mean(gb[k]) for k in keys),
             len(keys), n_common / len(pre))
+
+
+def split_entries(rows: list[dict], start: str, end: str) -> tuple[list[dict], list[dict]]:
+    """exit 非依存の対照用: entry 時刻だけで pre (< START) / post (>= END) に分ける。
+
+    固定ホライズン excursion は市場の性質で exit 機構を通らないので、exit_time を
+    分割に使わない (使うと「いつ決済されたか」= exit 機構で母集団が選ばれる)。
+    """
+    s, e = parse_ts(start), parse_ts(end)
+    pre = [r for r in rows if r.get("entry_dt") is not None and r["entry_dt"] < s]
+    post = [r for r in rows if r.get("entry_dt") is not None and r["entry_dt"] >= e]
+    return pre, post
 
 
 def common_coverage(pre: list[dict], post: list[dict], bar_end: dict[str, object],
@@ -562,7 +581,11 @@ def main() -> None:
 
     if args.bars_dir:
         print("## 6. exit 非依存の対照 — 固定ホライズン excursion (entry 以後の 15m バー H 本)\n")
-        print(excursion_control_table(a, b, args.bars_dir), "\n")
+        ent = load_clean(args.trades_json, strat, args.stream, outcomes=None)
+        ea, eb = split_entries(ent, args.split_at, args.transition_end)
+        print(f"> 母集団 = outcome を問わない全 entry (BREAKEVEN / 未決済を含む) N={len(ent)}、"
+              f"entry 時刻だけで分割 (pre {len(ea)} / post {len(eb)})。excursion は 0 で clamp。\n")
+        print(excursion_control_table(ea, eb, args.bars_dir), "\n")
 
 
 if __name__ == "__main__":
