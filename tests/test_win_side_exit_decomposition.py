@@ -184,10 +184,19 @@ def test_hold_time_median_is_the_true_median_for_even_cohorts(wsed, tmp_path):
     assert "| 2026-07 | 2 | 2.00 | 2.00 |" in table
 
 
-def _bars(start, highs, lows):
+def _bars(start, highs, lows, freq="1min"):
     import pandas as pd
-    idx = pd.date_range(start, periods=len(highs), freq="15min", tz="UTC")
+    idx = pd.date_range(start, periods=len(highs), freq=freq, tz="UTC")
     return pd.DataFrame({"Open": highs, "High": highs, "Low": lows, "Close": lows}, index=idx)
+
+
+def _minute_bars(start, n, spikes=None, base_hi=150.01, base_lo=149.99):
+    """n 本の 1m 足。spikes = {分 offset: (high, low)} で特定の分だけ値を変える。"""
+    hi = [base_hi] * n
+    lo = [base_lo] * n
+    for k, (h, l) in (spikes or {}).items():
+        hi[k], lo[k] = h, l
+    return _bars(start, hi, lo)
 
 
 def test_fixed_horizon_excursion_is_exit_independent(wsed, tmp_path):
@@ -196,50 +205,80 @@ def test_fixed_horizon_excursion_is_exit_independent(wsed, tmp_path):
     exit_time / close_reason / mafe_* を変えても値が変わらないこと、
     BUY/SELL の符号が正しいことを pin。既知 NG: mafe_favorable_pips を対照に使う実装。
     """
-    bars = _bars("2026-07-01T00:15:00+00:00",
-                 highs=[150.10, 150.30, 150.05, 150.20, 151.00],
-                 lows=[149.90, 149.95, 149.80, 149.85, 149.00])
-    base = dict(entry_type="s", instrument="USD_JPY", direction="BUY",
-                entry_time="2026-07-01T00:05:00+00:00", entry_price="150.00")
-    r1 = _rows(wsed, tmp_path, [_t(base["entry_time"], "WIN", 2.0, "SL_HIT",
+    bars = _minute_bars("2026-07-01T00:00:00+00:00", 120, {10: (150.30, 149.99), 30: (150.01, 149.80)})
+    r1 = _rows(wsed, tmp_path, [_t("2026-07-01T00:05:00+00:00", "WIN", 2.0, "SL_HIT",
                                    exit_time="2026-07-01T00:20:00+00:00",
                                    mafe_favorable_pips=2.0, entry_price=150.00)])[0]
-    r2 = _rows(wsed, tmp_path, [_t(base["entry_time"], "WIN", 30.0, "MAX_HOLD_TIME",
+    r2 = _rows(wsed, tmp_path, [_t("2026-07-01T00:05:00+00:00", "WIN", 30.0, "MAX_HOLD_TIME",
                                    exit_time="2026-07-01T08:00:00+00:00",
                                    mafe_favorable_pips=99.0, entry_price=150.00)])[0]
     for r in (r1, r2):
         r["instrument"] = "USD_JPY"
-    x1 = wsed.fixed_horizon_excursion(r1, bars, 4)
-    x2 = wsed.fixed_horizon_excursion(r2, bars, 4)
+    x1 = wsed.fixed_horizon_excursion(r1, bars, 60)
+    x2 = wsed.fixed_horizon_excursion(r2, bars, 60)
     assert x1 == x2
-    assert x1 == pytest.approx((30.0, 20.0))  # max High 150.30 / min Low 149.80 (5 本目は窓外)
+    assert x1 == pytest.approx((30.0, 20.0))
     r1["direction"] = "SELL"
-    assert wsed.fixed_horizon_excursion(r1, bars, 4) == pytest.approx((20.0, 30.0))
+    assert wsed.fixed_horizon_excursion(r1, bars, 60) == pytest.approx((20.0, 30.0))
+
+
+def test_fixed_horizon_excursion_clips_to_the_advertised_horizon(wsed, tmp_path):
+    """窓は [entry, entry + horizon] にクリップする (PR #310 review 4151347679)。
+
+    entry 00:05 / horizon 60 分 → 00:05〜01:04 開始の 1m 足のみ。
+    既知 NG (旧実装): 「entry 以後の最初の 15m バーから 4 本」= 00:15〜01:15 を測り、
+    先頭 10 分 (00:05〜00:15) を落とし、01:05〜01:15 を足していた。
+    """
+    r = _rows(wsed, tmp_path, [_t("2026-07-01T00:05:00+00:00", "WIN", 2.0, "SL_HIT",
+                                  entry_price=150.00, instrument="USD_JPY")])[0]
+    # 00:07 (窓内・旧実装では落ちる) に +50p、01:10 (窓外・旧実装では入る) に −70p
+    bars = _minute_bars("2026-07-01T00:00:00+00:00", 120, {7: (150.50, 149.99), 70: (150.01, 149.30)})
+    fav, adv = wsed.fixed_horizon_excursion(r, bars, 60)
+    assert fav == pytest.approx(50.0)
+    assert adv == pytest.approx(1.0)
+    # 01:04 開始の足は窓内 (終了 01:05 = entry + 60 分)、01:05 開始の足は窓外
+    edge_in = _minute_bars("2026-07-01T00:00:00+00:00", 120, {64: (150.40, 149.99)})
+    edge_out = _minute_bars("2026-07-01T00:00:00+00:00", 120, {65: (150.40, 149.99)})
+    assert wsed.fixed_horizon_excursion(r, edge_in, 60)[0] == pytest.approx(40.0)
+    assert wsed.fixed_horizon_excursion(r, edge_out, 60)[0] == pytest.approx(1.0)
+    # 秒単位の entry: 00:05:30 → 最初の足は 00:06 (00:05 開始の足は entry 前を含むので入れない)
+    r2 = _rows(wsed, tmp_path, [_t("2026-07-01T00:05:30+00:00", "WIN", 2.0, "SL_HIT",
+                                   entry_price=150.00, instrument="USD_JPY")])[0]
+    pre_entry = _minute_bars("2026-07-01T00:00:00+00:00", 120, {5: (150.60, 149.99)})
+    assert wsed.fixed_horizon_excursion(r2, pre_entry, 60)[0] == pytest.approx(1.0)
 
 
 def test_fixed_horizon_excursion_rejects_gapped_or_late_windows(wsed, tmp_path):
-    """バー不足 / entry から 1 本超遅れた最初のバー は None (週末跨ぎ等を黙って混ぜない)。"""
+    """バー不足 / 窓の先頭・末尾が欠ける は None (週末跨ぎ等を黙って混ぜない)。"""
     r = _rows(wsed, tmp_path, [_t("2026-07-01T00:00:00+00:00", "WIN", 2.0, "SL_HIT",
                                   entry_price=150.00, instrument="USD_JPY")])[0]
-    short = _bars("2026-07-01T00:15:00+00:00", [150.1, 150.2], [149.9, 149.8])
-    late = _bars("2026-07-01T03:00:00+00:00", [150.1] * 4, [149.9] * 4)
-    assert wsed.fixed_horizon_excursion(r, short, 4) is None
-    assert wsed.fixed_horizon_excursion(r, late, 4) is None
+    short = _minute_bars("2026-07-01T00:00:00+00:00", 30)
+    late = _minute_bars("2026-07-01T00:20:00+00:00", 120)
+    assert wsed.fixed_horizon_excursion(r, short, 60) is None
+    assert wsed.fixed_horizon_excursion(r, late, 60) is None
 
 
 def test_fixed_horizon_excursion_rejects_internal_gaps(wsed, tmp_path):
-    """窓の内部に 1 本でも欠落があれば None (PR #310 review 4151253825)。
+    """窓の内部に max_gap_min を超える欠落があれば None (PR #310 review 4151253825)。
 
-    既知 NG: 00:15/00:30/01:00/01:15 (00:45 欠落) は総 span 60 分で span 判定を通ってしまう。
+    既知 NG: 総 span だけ見る判定 — 15m 足 00:15/00:30/01:00/01:15 (00:45 欠落) を通す。
+    1m 足では 4 分以内の無約定分は許容し、6 分の欠落は落とす。
     """
     import pandas as pd
-    r = _rows(wsed, tmp_path, [_t("2026-07-01T00:05:00+00:00", "WIN", 2.0, "SL_HIT",
+    r = _rows(wsed, tmp_path, [_t("2026-07-01T00:15:00+00:00", "WIN", 2.0, "SL_HIT",
                                   entry_price=150.00, instrument="USD_JPY")])[0]
     idx = pd.DatetimeIndex(["2026-07-01T00:15", "2026-07-01T00:30",
                             "2026-07-01T01:00", "2026-07-01T01:15"], tz="UTC")
     gapped = pd.DataFrame({"Open": [150.1] * 4, "High": [150.2] * 4,
                            "Low": [149.9] * 4, "Close": [150.0] * 4}, index=idx)
-    assert wsed.fixed_horizon_excursion(r, gapped, 4) is None
+    assert wsed.fixed_horizon_excursion(r, gapped, 60, bar_minutes=15, max_gap_min=15) is None
+    full = _bars("2026-07-01T00:15:00+00:00", [150.2] * 4, [149.9] * 4, freq="15min")
+    assert wsed.fixed_horizon_excursion(r, full, 60, bar_minutes=15, max_gap_min=15) == pytest.approx((20.0, 10.0))
+    m = _minute_bars("2026-07-01T00:00:00+00:00", 120)
+    small_gap = m.drop(m.index[30:34])   # 4 分欠落 → 許容
+    big_gap = m.drop(m.index[30:36])     # 6 分欠落 → 却下
+    assert wsed.fixed_horizon_excursion(r, small_gap, 60) is not None
+    assert wsed.fixed_horizon_excursion(r, big_gap, 60) is None
 
 
 def test_common_coverage_drops_stale_instruments_from_both_cohorts(wsed):
@@ -256,13 +295,13 @@ def test_common_coverage_drops_stale_instruments_from_both_cohorts(wsed):
             row("USD_JPY", "2026-09-21T23:30:00")]
     ends = {"USD_JPY": datetime(2026, 9, 22, 6, 0, tzinfo=timezone.utc),
             "EUR_JPY": datetime(2026, 7, 21, 10, 45, tzinfo=timezone.utc)}
-    cpre, cpost, S, cutoff = wsed.common_coverage(pre, post, ends, horizon_bars=16)
+    cpre, cpost, S, cutoff = wsed.common_coverage(pre, post, ends, horizon_min=240)
     assert S == {"USD_JPY"}
     assert [r["instrument"] for r in cpre] == ["USD_JPY"]
     assert [r["instrument"] for r in cpost] == ["USD_JPY", "USD_JPY"]
     assert cutoff == datetime(2026, 9, 22, 2, 0, tzinfo=timezone.utc)
     late = [row("USD_JPY", "2026-09-22T03:00:00")]
-    assert wsed.common_coverage([], late, ends, horizon_bars=16)[1] == []
+    assert wsed.common_coverage([], late, ends, horizon_min=240)[1] == []
 
 
 def test_type_matched_means_restrict_both_sides_to_common_types(wsed):
@@ -303,10 +342,10 @@ def test_fixed_horizon_excursion_is_clamped_at_zero(wsed, tmp_path):
     """
     r = _rows(wsed, tmp_path, [_t("2026-07-01T00:05:00+00:00", "WIN", 2.0, "SL_HIT",
                                   entry_price=150.00, instrument="USD_JPY")])[0]
-    above = _bars("2026-07-01T00:15:00+00:00", [150.30] * 4, [150.10] * 4)
-    assert wsed.fixed_horizon_excursion(r, above, 4) == pytest.approx((30.0, 0.0))
+    above = _minute_bars("2026-07-01T00:00:00+00:00", 120, base_hi=150.30, base_lo=150.10)
+    assert wsed.fixed_horizon_excursion(r, above, 60) == pytest.approx((30.0, 0.0))
     r["direction"] = "SELL"
-    assert wsed.fixed_horizon_excursion(r, above, 4) == pytest.approx((0.0, 30.0))
+    assert wsed.fixed_horizon_excursion(r, above, 60) == pytest.approx((0.0, 30.0))
 
 
 def test_control_cohort_is_not_selected_by_outcome_or_exit_time(wsed, tmp_path):
@@ -346,3 +385,21 @@ def test_block_bootstrap_keeps_dependent_observations_together(wsed):
     lo_b, hi_b = wsed.boot_median_diff(a, b, n=400, a_blocks=ka, b_blocks=kb)
     lo_i, hi_i = wsed.boot_median_diff(a, b, n=400)
     assert (hi_b - lo_b) > 1.5 * (hi_i - lo_i)
+
+
+def test_common_coverage_drops_instruments_whose_cache_starts_late(wsed):
+    """キャッシュ始端が最早 entry より後の pair も両群から外す (pre だけ落ちる型の非対称を防ぐ)。"""
+    from datetime import datetime, timezone
+
+    def row(inst, iso):
+        return {"instrument": inst, "entry_dt": datetime.fromisoformat(iso).replace(tzinfo=timezone.utc)}
+
+    pre = [row("USD_JPY", "2026-04-02T00:00:00"), row("EUR_JPY", "2026-04-02T00:00:00")]
+    post = [row("USD_JPY", "2026-07-01T00:00:00"), row("EUR_JPY", "2026-07-01T00:00:00")]
+    end = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    ends = {"USD_JPY": end, "EUR_JPY": end}
+    starts = {"USD_JPY": datetime(2026, 3, 27, tzinfo=timezone.utc),
+              "EUR_JPY": datetime(2026, 4, 15, tzinfo=timezone.utc)}
+    cpre, cpost, S, _ = wsed.common_coverage(pre, post, ends, horizon_min=60, bar_start=starts)
+    assert S == {"USD_JPY"}
+    assert [r["instrument"] for r in cpre + cpost] == ["USD_JPY", "USD_JPY"]

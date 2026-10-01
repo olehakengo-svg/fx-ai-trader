@@ -23,7 +23,9 @@ Usage:
   curl -s "https://fx-ai-trader.onrender.com/api/demo/trades?limit=100000" -o /tmp/prod_trades.json
   python3 tools/win_side_exit_decomposition.py /tmp/prod_trades.json --strategy sr_anti_hunt_bounce
   python3 tools/win_side_exit_decomposition.py /tmp/prod_trades.json --strategy ALL \
-      --stream shadow --bars-dir data/cache/massive    # §6 exit 非依存対照つき
+      --stream shadow --bars-dir <{PAIR}_1m.parquet のディレクトリ>   # §6 exit 非依存対照つき
+  (data/cache/massive の 1m キャッシュは 2026-04-15 前後で終わるので、対象期間を覆う 1m を
+   MASSIVE から取得したディレクトリを渡すこと。被覆しない pair は common_coverage で落ちる)
 """
 from __future__ import annotations
 
@@ -316,16 +318,16 @@ def hold_hours(rows: list[dict], win: bool = True) -> str:
 # ── exit 非依存の対照: 固定ホライズン excursion ────────────────────────────
 # mafe_favorable_pips は全行で exit 時点に censored されるため、exit 機構が変わると
 # 機械的に動く (PR #253 review 4002255778)。entry 時刻・entry 価格・方向だけを使い、
-# 価格バーから「entry 以後の最初の 15m バーから H 本」の最大有利/不利幅を測れば、
+# 価格バー (既定 1m) で [entry, entry + H] にクリップした窓の最大有利/不利幅を測れば、
 # exit 機構に依存しない市場側の順行余地になる。
-# 注: バーは MASSIVE 15m (mid 系)、entry_price は OANDA 側の約定想定値で、
-# 半スプレッド程度の basis が両期間に対称に乗る。entry〜次バー開始 (<15 分) は窓外。
+# 注: バーは MASSIVE (mid 系)、entry_price は OANDA 側の約定想定値で、
+# 半スプレッド程度の basis が両期間に対称に乗る。1m 足なら窓の先頭・末尾のずれは各 ≤1 分。
 
 def pip_size(instrument: str | None) -> float:
     return PIP_JPY if "JPY" in (instrument or "") else PIP_OTHER
 
 
-def load_bars(bars_dir: str, instrument: str, tf: str = "15m"):
+def load_bars(bars_dir: str, instrument: str, tf: str = "1m"):
     import pandas as pd  # 遅延 import (§0-§5 は pandas 不要)
     p = Path(bars_dir) / f"{instrument}_{tf}.parquet"
     if not p.exists():
@@ -337,14 +339,19 @@ def load_bars(bars_dir: str, instrument: str, tf: str = "15m"):
     return df.sort_index()
 
 
-def fixed_horizon_excursion(row: dict, bars, horizon_bars: int,
-                            bar_minutes: int = 15) -> tuple[float, float] | None:
-    """(favorable_pips, adverse_pips) — entry 以後の最初のバーから horizon_bars 本。
+def fixed_horizon_excursion(row: dict, bars, horizon_min: int, bar_minutes: int = 1,
+                            max_gap_min: int = 5) -> tuple[float, float] | None:
+    """(favorable_pips, adverse_pips) — **[entry, entry + horizon_min] にクリップした窓**。
+
+    窓 = 開始が ceil(entry, bar) 以上 かつ 終了 (開始 + bar) が entry + horizon 以下の
+    バーだけ。1m 足なら測定窓は名目 horizon から先頭・末尾とも ≤1 分しかずれない。
+    旧実装 (entry 以後の最初の 15m バーから H 本) は非整列 entry で先頭最大 15 分を欠き
+    末尾に最大 15 分を足していた (PR #310 review 4151347679)。
 
     exit_time / close_reason / mafe_* は一切参照しない (exit 非依存)。
-    None = entry 情報欠損 / バー不足 / 最初のバーが entry から 1 本分以上遅い /
-    窓内に 1 本でも欠落 (連続バーの間隔が bar_minutes と一致しない — 週末・ベンダー欠損)。
-    総 span だけの判定は内部欠落を通してしまう (PR #310 review 4151253825)。
+    None = entry 情報欠損 / 窓にバー無し / 窓の先頭・末尾の欠落 > max_gap_min − bar_minutes /
+    内部の隣接バー間隔 > max_gap_min (週末・ベンダー欠損を跨ぐ窓を黙って混ぜない、
+    PR #310 review 4151253825)。15m 足で使う場合は max_gap_min=15 で厳密連続になる。
     """
     import pandas as pd
     en, px = row.get("entry_dt"), row.get("entry_price")
@@ -352,14 +359,20 @@ def fixed_horizon_excursion(row: dict, bars, horizon_bars: int,
     if bars is None or en is None or px is None or d not in ("BUY", "SELL"):
         return None
     ts = pd.Timestamp(en)
-    i = bars.index.searchsorted(ts, side="left")
-    w = bars.iloc[i:i + horizon_bars]
-    if len(w) < horizon_bars:
-        return None
-    if w.index[0] - ts > pd.Timedelta(minutes=bar_minutes):
-        return None
     step = pd.Timedelta(minutes=bar_minutes)
-    if horizon_bars > 1 and not (w.index[1:] - w.index[:-1] == step).all():
+    start = ts.ceil(f"{bar_minutes}min")
+    last_start = ts + pd.Timedelta(minutes=horizon_min) - step
+    if last_start < start:
+        return None
+    lo_i = bars.index.searchsorted(start, side="left")
+    hi_i = bars.index.searchsorted(last_start, side="right")
+    w = bars.iloc[lo_i:hi_i]
+    if len(w) == 0:
+        return None
+    edge = pd.Timedelta(minutes=max_gap_min) - step
+    if (w.index[0] - start) > edge or (last_start - w.index[-1]) > edge:
+        return None
+    if len(w) > 1 and ((w.index[1:] - w.index[:-1]) > pd.Timedelta(minutes=max_gap_min)).any():
         return None
     ps = pip_size(row.get("instrument"))
     hi, lo = float(w["High"].max()), float(w["Low"].min())
@@ -440,7 +453,8 @@ def split_entries(rows: list[dict], start: str, end: str) -> tuple[list[dict], l
 
 
 def common_coverage(pre: list[dict], post: list[dict], bar_end: dict[str, object],
-                    horizon_bars: int, bar_minutes: int = 15, fresh_slack_days: int = 7):
+                    horizon_min: int, fresh_slack_days: int = 7,
+                    bar_start: dict[str, object] | None = None):
     """pre/post を **同じ instrument 集合 × 同じ時間被覆** に揃える (PR #310 review 4151253820)。
 
     キャッシュ終端が pair ごとに違う (07-21 で切れる pair がある) と、post 側だけ一部 pair の
@@ -448,6 +462,8 @@ def common_coverage(pre: list[dict], post: list[dict], bar_end: dict[str, object
     S = キャッシュ終端が最新終端から fresh_slack_days 以内の instrument。
     cutoff = S の最短終端 − horizon。両群とも instrument ∈ S ∧ entry_dt ≤ cutoff に制限する。
     戻り値 = (pre', post', S, cutoff)。bar_end = {instrument: 最終バー時刻 or None}。
+    bar_start (任意) を渡すと、キャッシュ始端が両群の最早 entry より後の instrument も S から
+    外す (始端側の非対称 = pre だけが落ちる型を同様に防ぐ)。
     """
     from datetime import timedelta as _td
     ends = {k: v for k, v in bar_end.items() if v is not None}
@@ -455,7 +471,14 @@ def common_coverage(pre: list[dict], post: list[dict], bar_end: dict[str, object
         return [], [], set(), None
     latest = max(ends.values())
     S = {k for k, v in ends.items() if v >= latest - _td(days=fresh_slack_days)}
-    cutoff = min(ends[k] for k in S) - _td(minutes=bar_minutes * horizon_bars)
+    if bar_start is not None:
+        dts = [r["entry_dt"] for r in pre + post if r.get("entry_dt") is not None]
+        if dts:
+            first = min(dts)
+            S = {k for k in S if bar_start.get(k) is not None and bar_start[k] <= first}
+        if not S:
+            return [], [], set(), None
+    cutoff = min(ends[k] for k in S) - _td(minutes=horizon_min)
 
     def keep(r):
         return r["instrument"] in S and r.get("entry_dt") is not None and r["entry_dt"] <= cutoff
@@ -463,12 +486,15 @@ def common_coverage(pre: list[dict], post: list[dict], bar_end: dict[str, object
 
 
 def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
-                            horizons: tuple[int, ...] = (4, 16)) -> str:
+                            horizons: tuple[int, ...] = (60, 240), bars_tf: str = "1m") -> str:
+    """horizons は分。bars_tf の足で [entry, entry + horizon] にクリップして測る。"""
     cache: dict[str, object] = {}
+    bar_min = int(bars_tf.rstrip("m"))
+    max_gap = max(5, bar_min)
 
     def bars_for(inst):
         if inst not in cache:
-            cache[inst] = load_bars(bars_dir, inst)
+            cache[inst] = load_bars(bars_dir, inst, bars_tf)
         return cache[inst]
 
     lines = ["| horizon | 群 | N (被覆) | 被覆率 (共通被覆内) | median 有利幅 | mean 有利幅 | median 不利幅 | "
@@ -476,20 +502,22 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
              "|---|---|---|---|---|---|---|---|---|"]
     notes = []
     insts = {r["instrument"] for r in pre + post}
-    bar_end = {}
+    bar_end, bar_start = {}, {}
     for i in insts:
         b = bars_for(i)
-        bar_end[i] = b.index[-1].to_pydatetime() if b is not None and len(b) else None
+        ok = b is not None and len(b)
+        bar_end[i] = b.index[-1].to_pydatetime() if ok else None
+        bar_start[i] = b.index[0].to_pydatetime() if ok else None
     for h in horizons:
-        cpre, cpost, S, cutoff = common_coverage(pre, post, bar_end, h)
-        notes.append(f"- {h * 15} 分: 共通被覆 = instrument {sorted(S)} / entry ≤ "
+        cpre, cpost, S, cutoff = common_coverage(pre, post, bar_end, h, bar_start=bar_start)
+        notes.append(f"- {h} 分: 共通被覆 = instrument {sorted(S)} / entry ≤ "
                      f"{cutoff.isoformat() if cutoff else '—'} — 除外 pre {len(pre) - len(cpre)} 行 / "
                      f"post {len(post) - len(cpost)} 行")
         res = {}
         for lab, rows in (("pre", cpre), ("post", cpost)):
             fav, adv, tf, ta, days = [], [], [], [], []
             for r in rows:
-                x = fixed_horizon_excursion(r, bars_for(r["instrument"]), h)
+                x = fixed_horizon_excursion(r, bars_for(r["instrument"]), h, bar_min, max_gap)
                 if x is None:
                     continue
                 days.append(r["entry_dt"].date())
@@ -502,18 +530,18 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
         for lab in ("pre", "post"):
             fav, adv, _, _, n_all, _ = res[lab]
             if not fav:
-                lines.append(f"| {h * 15} 分 ({h} 本) | {lab} | 0 | — | — | — | — | — | — |")
+                lines.append(f"| {h} 分 | {lab} | 0 | — | — | — | — | — | — |")
                 continue
             ma = statistics.median(adv)
             lines.append(
-                f"| {h * 15} 分 ({h} 本) | {lab} | {len(fav)} | {len(fav) / n_all:.1%} | "
+                f"| {h} 分 | {lab} | {len(fav)} | {len(fav) / n_all:.1%} | "
                 f"{fmt(statistics.median(fav))} | {fmt(mean(fav))} | "
                 f"{fmt(ma)} | {fmt(mean(adv))} | "
                 f"{fmt(statistics.median(fav) / ma, 3) if ma > 0 else '—'} |")
         fa, fb = res["pre"][0], res["post"][0]
         if len(fa) >= 2 and len(fb) >= 2:
             lo, hi = boot_median_diff(fa, fb, a_blocks=res["pre"][5], b_blocks=res["post"][5])
-            notes.append(f"- {h * 15} 分: median 有利幅 post−pre = "
+            notes.append(f"- {h} 分: median 有利幅 post−pre = "
                          f"{statistics.median(fb) - statistics.median(fa):+.2f}p "
                          f"(UTC 日ブロック bootstrap 95% [{lo:+.2f}, {hi:+.2f}]、"
                          f"日数 pre {len(set(res['pre'][5]))} / post {len(set(res['post'][5]))})")
@@ -541,7 +569,9 @@ def main() -> None:
                     help="遷移窓 END。clean post = entry_time >= これ "
                          f"(既定 = 保守的除外窓 {SHADOW_EXIT_REGIME_TRANSITION_END})")
     ap.add_argument("--bars-dir", default=None,
-                    help="{PAIR}_15m.parquet のディレクトリ。指定時のみ §6 exit 非依存対照を出す")
+                    help="{PAIR}_{TF}.parquet のディレクトリ。指定時のみ §6 exit 非依存対照を出す")
+    ap.add_argument("--bars-tf", default="1m",
+                    help="§6 の足 (既定 1m — 窓を entry から ≤1 分精度でクリップできる)")
     args = ap.parse_args()
 
     strat = None if args.strategy == "ALL" else args.strategy
@@ -604,12 +634,12 @@ def main() -> None:
     print(hold_hours(clean, win=False), "\n")
 
     if args.bars_dir:
-        print("## 6. exit 非依存の対照 — 固定ホライズン excursion (entry 以後の 15m バー H 本)\n")
+        print(f"## 6. exit 非依存の対照 — 固定ホライズン excursion ([entry, entry+H] を {args.bars_tf} 足でクリップ)\n")
         ent = load_clean(args.trades_json, strat, args.stream, outcomes=None)
         ea, eb = split_entries(ent, args.split_at, args.transition_end)
         print(f"> 母集団 = outcome を問わない全 entry (BREAKEVEN / 未決済を含む) N={len(ent)}、"
               f"entry 時刻だけで分割 (pre {len(ea)} / post {len(eb)})。excursion は 0 で clamp。\n")
-        print(excursion_control_table(ea, eb, args.bars_dir), "\n")
+        print(excursion_control_table(ea, eb, args.bars_dir, bars_tf=args.bars_tf), "\n")
 
 
 if __name__ == "__main__":
