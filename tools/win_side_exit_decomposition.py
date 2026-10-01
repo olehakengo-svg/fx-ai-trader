@@ -481,6 +481,19 @@ def split_entries(rows: list[dict], start: str, end: str) -> tuple[list[dict], l
     return pre, post
 
 
+def drop_boundary_crossing(pre: list[dict], start: str, horizon_min: int) -> list[dict]:
+    """pre のうち excursion 窓 [entry, entry + horizon] が遷移窓 START を越える行を落とす。
+
+    越える pre 窓は、遷移窓 (~1 時間) の直後に建った post 窓と同じ価格バーを共有し得るので、
+    群ごとに別々に作ったブロックでは独立に resample されてしまう (PR #310 review 4152047567)。
+    pre 窓を START 以前で閉じれば、post 窓 (END 以降に開始) とは必ず交わらない。
+    """
+    from datetime import timedelta as _td
+    s = parse_ts(start)
+    return [r for r in pre if r.get("entry_dt") is not None
+            and r["entry_dt"] + _td(minutes=horizon_min) <= s]
+
+
 def common_coverage(pre: list[dict], post: list[dict], bar_end: dict[str, object],
                     horizon_min: int, fresh_slack_days: int = 7,
                     bar_start: dict[str, object] | None = None):
@@ -515,8 +528,13 @@ def common_coverage(pre: list[dict], post: list[dict], bar_end: dict[str, object
 
 
 def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
-                            horizons: tuple[int, ...] = (60, 240), bars_tf: str = "1m") -> str:
-    """horizons は分。bars_tf の足で [entry, entry + horizon] にクリップして測る。"""
+                            horizons: tuple[int, ...] = (60, 240), bars_tf: str = "1m",
+                            split_start: str | None = None) -> str:
+    """horizons は分。bars_tf の足で [entry, entry + horizon] にクリップして測る。
+
+    split_start を渡すと、窓が START を越える pre 行を horizon ごとに落とす
+    (drop_boundary_crossing — 群を跨ぐ窓の重なりを無くす)。
+    """
     cache: dict[str, object] = {}
     bar_min = int(bars_tf.rstrip("m"))
     max_gap = max(5, bar_min)
@@ -538,10 +556,11 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
         bar_end[i] = b.index[-1].to_pydatetime() if ok else None
         bar_start[i] = b.index[0].to_pydatetime() if ok else None
     for h in horizons:
-        cpre, cpost, S, cutoff = common_coverage(pre, post, bar_end, h, bar_start=bar_start)
+        hpre = drop_boundary_crossing(pre, split_start, h) if split_start else pre
+        cpre, cpost, S, cutoff = common_coverage(hpre, post, bar_end, h, bar_start=bar_start)
         notes.append(f"- {h} 分: 共通被覆 = instrument {sorted(S)} / entry ≤ "
-                     f"{cutoff.isoformat() if cutoff else '—'} — 除外 pre {len(pre) - len(cpre)} 行 / "
-                     f"post {len(post) - len(cpost)} 行")
+                     f"{cutoff.isoformat() if cutoff else '—'} — 除外 pre {len(hpre) - len(cpre)} 行 / "
+                     f"post {len(post) - len(cpost)} 行 / 窓が START を越える pre {len(pre) - len(hpre)} 行")
         res = {}
         for lab, rows in (("pre", cpre), ("post", cpost)):
             fav, adv, tf, ta, days = [], [], [], [], []
@@ -669,7 +688,8 @@ def main() -> None:
         ea, eb = split_entries(ent, args.split_at, args.transition_end)
         print(f"> 母集団 = outcome を問わない全 entry (BREAKEVEN / 未決済を含む) N={len(ent)}、"
               f"entry 時刻だけで分割 (pre {len(ea)} / post {len(eb)})。excursion は 0 で clamp。\n")
-        print(excursion_control_table(ea, eb, args.bars_dir, bars_tf=args.bars_tf), "\n")
+        print(excursion_control_table(ea, eb, args.bars_dir, bars_tf=args.bars_tf,
+                                      split_start=args.split_at), "\n")
 
 
 if __name__ == "__main__":

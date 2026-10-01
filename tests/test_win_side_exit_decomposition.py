@@ -407,6 +407,24 @@ def test_overlap_blocks_keep_cross_midnight_overlapping_windows_together(wsed):
     assert wsed.overlap_blocks(list(reversed(dts)), 240) == list(reversed(b))
 
 
+def test_pre_windows_crossing_the_transition_start_are_dropped(wsed):
+    """窓 [entry, entry+H] が START を越える pre 行は落とす (PR #310 review 4152047567)。
+
+    既知 NG: START 直前の pre 窓 (240 分) が遷移窓直後の post 窓と同じ価格バーを共有し、
+    群ごとに作ったブロックで独立に resample される。
+    """
+    from datetime import datetime, timezone
+
+    def row(iso):
+        return {"entry_dt": datetime.fromisoformat(iso).replace(tzinfo=timezone.utc)}
+
+    pre = [row("2026-06-03T03:00:00"), row("2026-06-03T03:58:28"), row("2026-06-03T05:00:00")]
+    kept = wsed.drop_boundary_crossing(pre, wsed.SHADOW_EXIT_REGIME_BREAK, 240)
+    assert [r["entry_dt"].strftime("%H:%M:%S") for r in kept] == ["03:00:00", "03:58:28"]
+    kept60 = wsed.drop_boundary_crossing(pre, wsed.SHADOW_EXIT_REGIME_BREAK, 60)
+    assert len(kept60) == 3
+
+
 def test_block_bootstrap_refuses_degenerate_single_block_cohorts(wsed):
     """ブロック数が足りない群があれば CI を出さない (PR #310 review 4151937674)。
 
