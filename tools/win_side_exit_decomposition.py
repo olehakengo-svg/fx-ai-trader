@@ -11,7 +11,7 @@ estimand (宣言):
   XAU 除外 / dedup_violation=1 除外 / outcome ∈ {WIN, LOSS}。
   avg_win = outcome=WIN 行の pnl_pips 平均 (pips)。
   比較は clean cohort のみ (pre = exit < 遷移窓 START / post = entry ≥ 遷移窓 END)。
-  「市場機会」の比較は exit 非依存の固定ホライズン excursion (§6, --bars-dir) でのみ行う。
+  「市場機会」の比較は固定ホライズン excursion (§6, --bars-dir) で行う — exit 非依存を意図するが、約定建玉ゆえ建玉ゲート経由の選別が残る (CONTROL_SELECTION_CAVEAT)。
   「勝ち側 capture」= WIN 行の pnl_pips / mafe_favorable_pips。
   ⚠️ close_reason="SL_HIT" は BE/トレール利確も含む混成ラベル
   (MEMORY project_sl_hit_label_collision)。よって全ての close_reason 分解は
@@ -315,7 +315,15 @@ def hold_hours(rows: list[dict], win: bool = True) -> str:
     return "\n".join(lines)
 
 
-# ── exit 非依存の対照: 固定ホライズン excursion ────────────────────────────
+# ── exit 非依存を意図した対照: 固定ホライズン excursion ──────────────────────
+
+# 生成レポートにも KB と同じ caveat を出す (PR #310 review 4152175652 / 4152231474)
+CONTROL_SELECTION_CAVEAT = (
+    "> ⚠️ **この対照は完全な exit 非依存ではない**: 母集団は約定した建玉であり、建玉上限 / "
+    "post-exit cooldown のゲートを経由するため、BE/trail で早く決済されると枠が空いて post 期に "
+    "別の entry が入りうる (= exit regime による選別)。点推定の大きさで市場寄与を上限評価する "
+    "解釈 (例: 『振幅縮小は avg_win の縮小を説明できない』) はしない。真の対照はゲート前の候補シグナル基準 (未実施)。"
+)
 # mafe_favorable_pips は全行で exit 時点に censored されるため、exit 機構が変わると
 # 機械的に動く (PR #253 review 4002255778)。entry 時刻・entry 価格・方向だけを使い、
 # 価格バー (既定 1m) で [entry, entry + H] にクリップした窓の最大有利/不利幅を測れば、
@@ -619,7 +627,7 @@ def main() -> None:
                     help="遷移窓 END。clean post = entry_time >= これ "
                          f"(既定 = 保守的除外窓 {SHADOW_EXIT_REGIME_TRANSITION_END})")
     ap.add_argument("--bars-dir", default=None,
-                    help="{PAIR}_{TF}.parquet のディレクトリ。指定時のみ §6 exit 非依存対照を出す")
+                    help="{PAIR}_{TF}.parquet のディレクトリ。指定時のみ §6 対照 (exit 非依存を意図、選別 caveat 付き) を出す")
     ap.add_argument("--bars-tf", default="1m",
                     help="§6 の足 (既定 1m — 窓を entry から ≤1 分精度でクリップできる)")
     args = ap.parse_args()
@@ -684,7 +692,8 @@ def main() -> None:
     print(hold_hours(clean, win=False), "\n")
 
     if args.bars_dir:
-        print(f"## 6. exit 非依存の対照 — 固定ホライズン excursion ([entry, entry+H] を {args.bars_tf} 足でクリップ)\n")
+        print(f"## 6. exit 非依存を意図した対照 (exit regime による選別あり) — 固定ホライズン excursion ([entry, entry+H] を {args.bars_tf} 足でクリップ)\n")
+        print(CONTROL_SELECTION_CAVEAT + "\n")
         ent = load_clean(args.trades_json, strat, args.stream, outcomes=None)
         ea, eb = split_entries(ent, args.split_at, args.transition_end)
         print(f"> 母集団 = outcome を問わない全 entry (BREAKEVEN / 未決済を含む) N={len(ent)}、"

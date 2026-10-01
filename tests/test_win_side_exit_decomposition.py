@@ -470,3 +470,16 @@ def test_common_coverage_drops_instruments_whose_cache_starts_late(wsed):
     cpre, cpost, S, _ = wsed.common_coverage(pre, post, ends, horizon_min=60, bar_start=starts)
     assert S == {"USD_JPY"}
     assert [r["instrument"] for r in cpre + cpost] == ["USD_JPY", "USD_JPY"]
+
+
+def test_generated_control_report_carries_the_selection_caveat(wsed):
+    """生成レポート §6 にも『exit regime による選別あり / 上限評価しない』を出す (PR #310 review 4152231474)。
+
+    既知 NG: 見出しが『exit 非依存の対照』のまま caveat を出さず、stdout 読者に撤回済みの解釈を残す。
+    """
+    import inspect
+    cav = wsed.CONTROL_SELECTION_CAVEAT
+    assert "cooldown" in cav and "上限評価" in cav and "完全な exit 非依存ではない" in cav
+    src = inspect.getsource(wsed.main)
+    assert "print(CONTROL_SELECTION_CAVEAT" in src
+    assert "## 6. exit 非依存の対照 —" not in src
