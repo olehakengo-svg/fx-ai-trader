@@ -340,3 +340,18 @@ def test_lexicon_assert_runs_before_price_load(monkeypatch, tmp_path):
 def test_lexicon_pin_matches_test_pin():
     from tests.test_e23_corpus_harness import PINNED_SHA
     assert fetch_mod.LEXICON_SHA256 == PINNED_SHA
+
+
+def test_collision_void_uses_excluded_cb_dates(d1_flat):
+    """PR #309 3 巡目 P2 4151283577: Fed が被覆不足で除外されても Fed/ECB 同日の ECB は void."""
+    years = range(2014, 2024)
+    ecb = _alt_docs("ecb", years, 6)
+    fed = _alt_docs("fed", [2023], 6)                      # 被覆 1/10 年 → 除外、日付は ECB と同日
+    boe = _alt_docs("boe", years, 13)
+    out = pass1_mod.evaluate(ecb + fed + boe, d1_flat, GATE_A_ALL_PASS)
+    assert out["pass0"]["surviving_cbs"] == ["ecb", "boe"]
+    ev = out["enumeration"]["events"]
+    assert not any(e["cb"] == "ecb" and e["statement_date"].startswith("2023") for e in ev)
+    # 2023 の ECB 8 本のうち 1 月分は前年 8 月から >120 日で staleness void が先に当たる
+    assert out["enumeration"]["voids"].get("ecb:fed_ecb_same_day") == 7
+    assert all(e["cb"] in {"ecb", "boe"} for e in ev)

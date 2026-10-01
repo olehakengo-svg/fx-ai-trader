@@ -173,19 +173,28 @@ def unconditional_fwd5(valid: list[date], closes: dict[date, float],
     }
 
 
-def enumerate_events(docs: list[dict], d1: dict[str, tuple[list[date], dict]]) -> dict:
+def enumerate_events(docs: list[dict], d1: dict[str, tuple[list[date], dict]],
+                     event_cbs: set[str] | None = None) -> dict:
+    """ΔNH != 0 イベントを列挙。event_cbs = イベントを生成する CB (pass-0 生存 CB).
+
+    同日衝突 (Fed x ECB) の判定日は **docs 全体** (生存 CB に限らない) から取る
+    (PR #309 review 3 巡目 P2): Fed が被覆不足で除外されても Fed の公表は同日の
+    EUR_USD を動かすので、凍結規則「Fed と ECB が同一 UTC 日 → void」は残す。
+    """
+    usable_all = [r for r in docs
+                  if EXPLORE_START <= _d(r["date"]) <= EXPLORE_END
+                  and r.get("n_chars", 0) > 0]
     explore = sorted(
-        (r for r in docs
-         if EXPLORE_START <= _d(r["date"]) <= EXPLORE_END and r.get("n_chars", 0) > 0),
+        (r for r in usable_all if event_cbs is None or r["cb"] in event_cbs),
         key=lambda r: (r["cb"], r["date"]),
     )
     by_cb: dict[str, list[dict]] = {}
     for r in explore:
         by_cb.setdefault(r["cb"], []).append(r)
 
-    # 同日衝突 (Fed x ECB) — 両イベント void
-    fed_days = {r["date"] for r in by_cb.get("fed", [])}
-    ecb_days = {r["date"] for r in by_cb.get("ecb", [])}
+    # 同日衝突 (Fed x ECB) — 両イベント void (判定日は除外 CB の文書も含む全体から)
+    fed_days = {r["date"] for r in usable_all if r["cb"] == "fed"}
+    ecb_days = {r["date"] for r in usable_all if r["cb"] == "ecb"}
     collision_days = fed_days & ecb_days
 
     events: list[dict] = []
@@ -333,7 +342,7 @@ def evaluate(docs: list[dict], d1: dict[str, tuple[list[date], dict]],
         return _data_blocked(p0, gate_a={})   # 非解錠 = Gate A も報告しない
 
     survivors = set(p0["surviving_cbs"])
-    enum = enumerate_events([r for r in docs if r["cb"] in survivors], d1)
+    enum = enumerate_events(docs, d1, event_cbs=survivors)
     n = len(enum["events"])
     # Gate A の候補ペアは生存 CB が写像するペアのみ (PR #309 review P2)。
     # 生存 CB がイベントを作らないペアが Gate A を通っても「生存ペア」と数えない
