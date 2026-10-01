@@ -428,7 +428,20 @@
       "n_decide": 10,
       "deadline": "2026-11-01",
       "doc": "knowledge-base/wiki/decisions/ps-carveout-firstweek-regate-disposition-2026-08-12.md",
-      "message": "ps carve-out 再ゲート (#172 席供給是正後の窓、since 2026-08-11)。clean live N>=10 到達で EV / Wilson_lo を再判定 — EV<-0.5p なら R2 demote (親決裁 D-c-1 の条件をそのまま継承、N ゲートは下げない)。期日 2026-09-30 に N<10 なら「席が是正されても発火しない」= 供給側の別問題として stale レビュー (carve-out の EV 判定は保留のまま)。初週窓 (07-28〜08-11) は席枯渇で無効と判定済み (ps-carveout-firstweek-regate の resolution) ／ 2026-09-30 期日評価 (rule:R2 手続き、本番 /api/demo/trades 全件 3,090 行 since 08-11 取得): clean live (oanda_trade_id 非空) price_shock_rev* **N=7** (eur_gbp_h1_long 5 / aud_jpy_h1_long 2、最新 09-29T16:48Z) < n_decide 10 → **EV/Wilson 判定は保留のまま (N ゲートは下げない、EV は読まない)**。stale レビュー: 事前規定の読み「席が是正されても発火しない」は **不成立** — 発火は 7 件/50 日 ≈ 1.0/週で到着しており、問題は供給ゼロではなく到着レートが n_decide 10 に対して遅いこと。⚠️ 09-26 セッションログの「clean live N since 08-11 = 0」は本 readout と不一致 (7 件中 6 件は 09-26 以前の fill) — 引用禁止。処置: deadline を 2026-11-01 へ roll (到着 ~1/週で N=10 到達見込み ~10 月下旬)。損失停止の一次は既存 cron fx-ai-price-shock-rev-watchdog (4h 毎 --apply) が担う。"
+      "message": "ps carve-out 再ゲート (#172 席供給是正後の窓、since 2026-08-11)。clean live N>=10 到達で EV / Wilson_lo を再判定 — EV<-0.5p なら R2 demote (親決裁 D-c-1 の条件をそのまま継承、N ゲートは下げない)。期日 2026-09-30 に N<10 なら「席が是正されても発火しない」= 供給側の別問題として stale レビュー (carve-out の EV 判定は保留のまま)。初週窓 (07-28〜08-11) は席枯渇で無効と判定済み (ps-carveout-firstweek-regate の resolution) ／ 2026-09-30 期日評価 (rule:R2 手続き、本番 /api/demo/trades 全件 3,090 行 since 08-11 取得): clean live (oanda_trade_id 非空) price_shock_rev* **N=7** (eur_gbp_h1_long 5 / aud_jpy_h1_long 2、最新 09-29T16:48Z) < n_decide 10 → **EV/Wilson 判定は保留のまま (N ゲートは下げない、EV は読まない)**。stale レビュー: 事前規定の読み「席が是正されても発火しない」は **不成立** — 発火は 7 件/50 日 ≈ 1.0/週で到着しており、問題は供給ゼロではなく到着レートが n_decide 10 に対して遅いこと。⚠️ 09-26 セッションログの「clean live N since 08-11 = 0」は本 readout と不一致 (7 件中 6 件は 09-26 以前の fill) — 引用禁止。処置: deadline を 2026-11-01 へ roll (到着 ~1/週で N=10 到達見込み ~10 月下旬)。損失停止の一次は既存 cron fx-ai-price-shock-rev-watchdog (4h 毎 --apply) が担う。 ／ 2026-10-01 統合 (PR #306 の 09-29 readout と union): ⚠️ 上の『損失停止の一次は既存 cron watchdog が担う』は **不成立** — watchdog の DEMOTE state は取引プロセスに届かない (cron 一時 FS vs web service、ps-watchdog-demotion-state-unreachable 10-11) ため live 防御に数えない。watchdog は exact セル × 直近 closed 5,000 行の切り詰め窓 × is_shadow=0 の別母集団で、本 entry のプール R2 条件 (prefix × since 08-11 × canonical) を代替しない = **プール R2 条件の執行主体は本 entry のみ**。09-23〜09-29 の distinct bar 11 本は送信前 gate で全 block (spread_wide 6 / mtf_strong_bias 3 / velocity_down 2) — 席は律速していない。resolve しない理由 = cell_deepdive の LOCK redaction 母集団 (match=prefix) を本 entry が定義 (tests/test_cell_deepdive_lock_redaction.py)。magnitude の disposition は ps-seat-spread-magnitude-readout (10-19)。"
+    },
+    {
+      "id": "ps-watchdog-demotion-state-unreachable",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-11",
+      "doc": "knowledge-base/wiki/decisions/ps-carveout-firstweek-regate-disposition-2026-08-12.md",
+      "message": "🔴 price_shock_rev live watchdog の auto-demote が取引プロセスに届かない (2026-09-29 PR #306 Codex P1、コード確認済み、rule:R3 構造バグ)。cron fx-ai-price-shock-rev-watchdog は相対パス data/price_shock_rev_auto_demotions.json (cron の一時 FS) に書き、DemoTrader (modules/demo_trader.py:10302) は web service 内の同名パスを読む。disk (/var/data) は web service のみ、PRICE_SHOCK_REV_DEMOTION_STATE は未設定 ⇒ DEMOTE 判定が live 発注を止めない (Discord 通知のみ)。併せて fetch_trades は limit=5000 の 1 回取得・ページングなし (古い fill が窓から落ちる、Codex P2)。現時点の実害なし (全 exact セル N<10 — 09-30 期日評価でプール clean live N=7、最新 fill 09-29T16:48Z、到着 ~1/週。as-of 09-29T01:20Z の『09-03 以降 0』は失効)。期日までに修復 PR を起案: 判定を web service プロセス内で読める経路に移す (例: 取引プロセス自身が同じ判定を in-process で評価 / 共有 disk・DB への永続化) + ページング + 『cron が DEMOTE を書いたら取引側がそのセルを block する』を end-to-end で pin (既知 NG 入力)。live 経路・monitoring に触るので tools/pr_review_gate.py 必須。",
+      "condition": "修復 PR がマージされ、DEMOTE state が取引プロセスの発注判定に反映されることを test pin + 本番 (status/ログ) で確認し、本 entry が resolved になっていること",
+      "reachability": "状態を進める主体 = Claude セッション (autopilot 可、R3)。評価主体 = tools/prereg_trigger_watch.py deadline_info (日次 Tier A cron、期日翌日 00:20Z)。",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
     },
     {
       "id": "e12-volume-prereg-staleness-review",
