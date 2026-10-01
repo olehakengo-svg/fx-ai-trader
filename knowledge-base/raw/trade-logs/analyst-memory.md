@@ -4982,6 +4982,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 | Trade | Dir | Outcome | PnL |
 - 逆張り戦略のBUYシグナルはGBP安レジームと真っ向対立しているため、本日もシグナルが出ても「レジームとの整合性なし」として記録すること
 
+### 2026-10-01 (Pre-Tokyo Briefing)
+**2026-09-30** の確定トレードは **3件**、PnL合計 **−0.7p**、WR **66.7%（2勝1敗）**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的警告**：両戦略ともN<10。「傾向」にもならない水準。EV・WRの数値はノイズとして扱う。
+| Strategy | Pair | Dir | Outcome | PnL | Spread | 備考 |
+- WIN+5.5 に対してLOSS−7.0。期待値ベースで構造的劣位。
+- spread 1.4p は scalp基準30%閾値には当たらないが、1Hスケールで見ると摩擦の比率は無視できない。
+- **本日の扱い**：N=3では統計的判断不可。ただし **N到達まで出口非対称に注目し続ける**こと。
+### 課題②：usdjpy_carry_dip_accumulator のEV −8.60（N=5）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
