@@ -164,8 +164,8 @@ spread_wide の 21:00Z 分 (5/11) は原則 2 (デスゾーン = スプレッド
   既定の相対パス `data/price_shock_rev_auto_demotions.json` に書くが、これは **cron 自身の一時ファイルシステム**。取引側 `DemoTrader._read_price_shock_rev_auto_demotions`
   (modules/demo_trader.py:10302) は web service 内の同名相対パスを読む。render.yaml では disk (`/var/data`) を持つのは web service だけで、
   `PRICE_SHOCK_REV_DEMOTION_STATE` はどちらの service にも設定されていない ⇒ **DEMOTE 判定が出ても後続の live 発注は止まらない** (届くのは `--to-discord` の通知のみ)。
-  現時点の実害はない (どの exact セルも N<10、09-03 以降 ps の発火は 0) が、**この watchdog を live 防御として数えない**。
+  現時点の実害はない (どの exact セルも N<10。as-of 09-29T01:20Z では 09-03 以降 ps の発火 0 だったが、09-30 期日評価で 09-29T16:48Z の新規 clean live fill を確認 = N=7) が、**この watchdog を live 防御として数えない**。
   修復 (R3 構造バグ、live 経路なので review gate 付きの単独 PR) は registry `ps-watchdog-demotion-state-unreachable` (期日 10-11) で追跡する。
   (registry 側の EV<−0.5p と watchdog の EV<0 は watchdog の方が厳しい = 保護側に倒れている)
 - 供給側の次の決裁点 = `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は R1 候補として記録のみ (起案は user 決裁の統合パケット経由)。
-- M1 への寄与: ps 席からの live N 供給は **09-03 以降ゼロ**。M1 見通しの供給源に ps を数えない (wg は G0' 終了・W1 決裁待ち、kalman / carry_dip が現行の live 供給)。
+- M1 への寄与 (2026-10-01 改訂、09-30 期日評価 N=7 を正とする): ps 席の live 供給は**ゼロではなく遅い** — 08-11 以降 7 件/50 日 ≈ 1.0/週 (最新 09-29T16:48Z)。as-of 09-29T01:20Z の『09-03 以降ゼロ』は 09-29T16:48Z の fill で失効 (引用禁止)。M1 見通しでは ps を **~1/週の低速供給源**として数える (n_decide 10 到達見込み ~10 月下旬、11-01 再判定)。wg は G0' 終了・W1 決裁待ち、kalman / carry_dip も現行の live 供給。

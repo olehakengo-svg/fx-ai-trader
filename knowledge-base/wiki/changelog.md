@@ -4,7 +4,7 @@
 
 - **実測** (本番 `/api/demo/trades` 08-11 以降 全ページ 2,982 行): ps 行 7 / clean live **6** (eur_gbp 4 / aud_jpy 2) / 他 3 席 0 / 最終 ps 行 09-03T15:08Z。pre-reg どおり N ゲートは下げず、EV/WR は計算していない (N≥10 look を消費しない)
 - **帰属**: 09-23〜09-29 の distinct signal-bar 11 本すべて order 送信前に block (spread_wide 21:00Z 5 / 08:00Z 1 / mtf_strong_bias 3 / velocity_down 2) — [[ps-seat-supply-remeasure-2026-09-10]] §11 の (B) 下流 100% を追認。席は是正後一度も律速していない
-- **resolve しない・期日据え置き**: entry は cell_deepdive の LOCK redaction 母集団を定義 (resolve で保留 EV look が露出、初版 resolve を `test_real_registry_preserves_prefix_match_flags` が検知)、かつ prefix プールの R2 条件を執行する唯一の主体 (watchdog はセル単位・全期間・`is_shadow` 基準で別母集団 — Codex P2)。期日 09-30 は動かさず (`today >= deadline` で発火、前日 roll は checkpoint を消す — Codex P2)、checkpoint 後に増分を数え直して roll
+- **resolve しない・期日据え置き**: entry は cell_deepdive の LOCK redaction 母集団を定義 (resolve で保留 EV look が露出、初版 resolve を `test_real_registry_preserves_prefix_match_flags` が検知)、かつ prefix プールの R2 条件を執行する唯一の主体 (watchdog はセル単位・直近 closed 5,000 行の切り詰め窓 (`limit=5000` 1 回取得・ページングなし)・`is_shadow` 基準で別母集団 — Codex P2)。期日 09-30 は動かさず (`today >= deadline` で発火、前日 roll は checkpoint を消す — Codex P2)、checkpoint 後に増分を数え直して roll
 -magnitude の disposition は `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は Rule 1 候補として記録のみ
 - 🔴 **発見 (Codex P1、コード確認済み)**: ps watchdog の auto-demote state は cron の一時 FS に書かれ、取引プロセス (web service) に届かない = DEMOTE でも live 発注は止まらない (Discord 通知のみ)。`limit=5000` ページングなしも併記。実害なし (全セル N<10・発火 0)。修復は registry `ps-watchdog-demotion-state-unreachable` (10-11、R3)
 - ⚠️ **訂正**: 09-26/09-28 session log の「clean live N since 08-11 = 0」は誤り (09-10 audit N=6 と本実測が一致)
