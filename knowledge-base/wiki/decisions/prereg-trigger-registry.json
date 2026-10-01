@@ -921,7 +921,7 @@
     },
     {
       "id": "review-backlog-253-257-digest",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-03",
       "doc": "knowledge-base/wiki/analyses/hunt-events-dataset-readout-2026-09-19.md",
@@ -933,7 +933,9 @@
         "pr_257": "7 件 (tools/e23_corpus_fetch.py ×4 + tools/e23_pass1_events.py ×3): P1 Fed discovery が FOMC statement 以外を混入 / P1 BoJ 英訳の公開時刻を検証せず 印字日で lookahead gate を名乗る / P1 Gate A が explore 窓でなく全期間で median を計算 = 凍結 OOS に接触していた / P2 --refetch がキャッシュを迂回しない / P2 OOS_END 越えのレコードを保存 / P2 pass-0 survivor を強制していない / P2 lexicon hash を実行時に assert していない。⚠️ Gate A の OOS 接触は E23 の『OOS 非接触』主張に直接効く — E23 は UNDERPOWERED park 済みだが、**park の根拠 (pass-1 の gate 判定) が 汚染されていた可能性**があるので、消化時は『park の再判定』ではなく 『park の根拠の estimand 監査』として扱う (救済禁止は維持) ／ 2026-10-01 追記: **消化済み (PR #309、fix/e23-review-backlog-257、rule:R3)** — 7 件全て修正 commit (BoJ V3 は公開時刻検証不能のため印字日 gate を撤回し fail-closed = BoJ 除外)。park 根拠の estimand 監査: Gate A explore 限定 73.0/100.4/76.9p (3/3 通過不変) / Gate B N 56 → 40 / UNDERPOWERED 維持 (pre-reg §12)。本 entry の resolve は #253 群の消化後に親セッションが行う",
         "why_deferred": "2026-09-19 セッションでは #261/#263/#264 と hunt_events 4 件を消化。本 2 群はいずれも分析の再実行 (前者) / 凍結境界の扱いの判断 (後者) を要し、同一セッションで急ぐと 09-18 に踏んだ『修正作業そのものが新しい欠陥の発生源になる』型の事故を再生産する。ack ではなく追跡エントリで next session に渡す。"
       },
-      "message": "未消化 connector レビュー指摘の残り 12 件 (PR #253 ×5 / PR #257 ×7) の消化期日。起点 = PR #267 (2026-09-18) が『マージゲートの findings 軸は導入以来恒真だった』と確定させ、過去 10 PR の inline P1/P2 29 件中 19 件が未消化と判明した件。2026-09-19 に 7 件消化 (hunt_events 4 / GDELT 1 / KB 整合 2、PR #272/#273)、残 12 件。TRIGGERED 時の手続き: 各指摘を (i) 実データで再現確認 → (ii) 修正 commit または `review-ack: <理由>` コメント → (iii) 完了を pr_review_gate で確認。⚠️ **『ack したから解決』ではない** — 指摘が実在の欠陥である以上、dismiss するなら estimand 上なぜ影響しないかを書くこと。⚠️ 消化前の引用規律は note の各群に記載 (MEMORY feedback_audit_past_verdicts_2026_08_05)。 ／ 2026-09-22 追記: #257 分の Fed discovery を FOMC statement 限定へ修正する manifest 変更は #29 S1 step 1 census ([[adhoc-scan-29-step0-2026-09-22]] §7) の前提 — 消化順序を先に (本 entry 10-03 → 第6次 10-18)。"
+      "message": "未消化 connector レビュー指摘の残り 12 件 (PR #253 ×5 / PR #257 ×7) の消化期日。起点 = PR #267 (2026-09-18) が『マージゲートの findings 軸は導入以来恒真だった』と確定させ、過去 10 PR の inline P1/P2 29 件中 19 件が未消化と判明した件。2026-09-19 に 7 件消化 (hunt_events 4 / GDELT 1 / KB 整合 2、PR #272/#273)、残 12 件。TRIGGERED 時の手続き: 各指摘を (i) 実データで再現確認 → (ii) 修正 commit または `review-ack: <理由>` コメント → (iii) 完了を pr_review_gate で確認。⚠️ **『ack したから解決』ではない** — 指摘が実在の欠陥である以上、dismiss するなら estimand 上なぜ影響しないかを書くこと。⚠️ 消化前の引用規律は note の各群に記載 (MEMORY feedback_audit_past_verdicts_2026_08_05)。 ／ 2026-09-22 追記: #257 分の Fed discovery を FOMC statement 限定へ修正する manifest 変更は #29 S1 step 1 census ([[adhoc-scan-29-step0-2026-09-22]] §7) の前提 — 消化順序を先に (本 entry 10-03 → 第6次 10-18)。",
+      "resolved": "2026-10-01",
+      "resolution": "12 件消化。#257 群 7 件 → PR #309 (2026-10-01 マージ、6 修正 + BoJ V3 は公開時刻検証不能で fail-closed に格下げ。park 根拠監査: Gate B N 56→40、Gate A は explore 窓限定で 3/3 通過不変、旧 N の 28.6% が汚染/未検証文書依存 = UNDERPOWERED park 維持)。#253 群 5 件 → PR #310 (2026-10-01 マージ、5 修正。shadow regime break は shadow 限定・境界跨ぎ除外で再現 WR 26.2→51.1% / R:R 1.91→0.56、『市場機会は劣化していない』撤回 = 市場側未識別、『avg_win 縮小の主因 = exit 機構』も『作動は確定・主因とは主張しない』に格下げ)。#310 の残 P2 2 件 (excursion 入力未凍結 / 構成揃えキーに direction 欠落) は review-backlog-310-p2-excursion-input-snapshot (10-14) へ繰延。"
     },
     {
       "id": "kb-session-log-postcommit-trailing-edit",
@@ -1180,8 +1182,8 @@
       "type": "deadline_info",
       "deadline": "2026-10-14",
       "doc": "knowledge-base/wiki/analyses/win-side-exit-regime-break-2026-06-03.md",
-      "message": "PR #310 Codex P2 4152277191「Preserve the inputs behind the excursion estimates」— P2 巡目上限 (≤6) 超過で**未修正・繰延** (実欠陥、review-ack は繰延の明示)。§6 固定ホライズン対照の入力 (MASSIVE 1m 足 13 pair × 2026-03-27〜10-01、scratchpad 取得でリポジトリ非保存) と trade 入力 (本番 /api/demo/trades = 可変 endpoint) が凍結されておらず、表と bootstrap CI を後日再現できない。処置案: per-entry の派生結果 (entry_id / pair / entry_dt / horizon / fav / adv / block_id) を raw/analysis に CSV で保存 + 入力 sha256 + 取得パラメータ (MASSIVE endpoint / 期間 / 取得時刻 / trades 取得時刻と行数) を記録。⚠️ それまで §6 の数値 (median −0.50p / −0.70p、CI) は『再現不能な一回限りの記述』として引用し、判定根拠に使わない。",
-      "condition": "per-entry 派生結果 + 入力ハッシュ + 取得パラメータがリポジトリに凍結され、doc §6 から参照されていること (または §6 の数値を doc から撤回して本 entry を resolve すること)",
+      "message": "PR #310 Codex P2 4152277191「Preserve the inputs behind the excursion estimates」— P2 巡目上限 (≤6) 超過で**未修正・繰延** (実欠陥、review-ack は繰延の明示)。§6 固定ホライズン対照の入力 (MASSIVE 1m 足 13 pair × 2026-03-27〜10-01、scratchpad 取得でリポジトリ非保存) と trade 入力 (本番 /api/demo/trades = 可変 endpoint) が凍結されておらず、表と bootstrap CI を後日再現できない。処置案: per-entry の派生結果 (entry_id / pair / entry_dt / horizon / fav / adv / block_id) を raw/analysis に CSV で保存 + 入力 sha256 + 取得パラメータ (MASSIVE endpoint / 期間 / 取得時刻 / trades 取得時刻と行数) を記録。⚠️ それまで §6 の数値 (median −0.50p / −0.70p、CI) は『再現不能な一回限りの記述』として引用し、判定根拠に使わない。 ／ 2026-10-01 追記: PR #310 Codex P2 4152312707「Include direction in the excursion matching key」も同じく巡目上限超過で**未修正・繰延**。構成揃え mean (instrument × entry_type) が direction を含まず、セル内の BUY/SELL 構成シフトで有利/不利幅の点推定 (有利 −7〜−8% / 不利 −10〜−17%) が動きうる ⇒ この点推定は**引用禁止** (結論 = 市場側未識別には影響しない)。修正 = マッチングキーに direction を追加 or 方向別再重み付け、入力凍結と同じ PR で行う。",
+      "condition": "(1) per-entry 派生結果 + 入力ハッシュ + 取得パラメータがリポジトリに凍結され doc §6 から参照されていること、かつ (2) 構成揃え mean のマッチングキーに direction が入っていること (または §6 の数値を doc から撤回して本 entry を resolve すること)",
       "reachability": "状態を進める主体 = Claude セッション (autopilot 可、R3、docs/tools のみ)。評価主体 = tools/prereg_trigger_watch.py deadline_info (日次 Tier A cron、期日翌日 00:20Z)。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
