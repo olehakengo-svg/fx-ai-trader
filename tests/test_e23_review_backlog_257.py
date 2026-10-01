@@ -355,3 +355,15 @@ def test_collision_void_uses_excluded_cb_dates(d1_flat):
     # 2023 の ECB 8 本のうち 1 月分は前年 8 月から >120 日で staleness void が先に当たる
     assert out["enumeration"]["voids"].get("ecb:fed_ecb_same_day") == 7
     assert all(e["cb"] in {"ecb", "boe"} for e in ev)
+
+
+def test_refetch_recovered_boe_month_supersedes_placeholder(tmp_corpus):
+    """PR #309 3 巡目 P2 4151331073: 回復した BOE 月の欠測 placeholder を二重計上しない."""
+    _write(tmp_corpus, _rec("boe", "2020-03-01", "", missing_reason="no_mps_boundary"))
+    _write(tmp_corpus, _rec("boe", "2020-03-11", "Monetary Policy Summary, March 2020 x"))
+    _write(tmp_corpus, _rec("boe", "2020-05-01", "", missing_reason="no_mps_boundary"))
+    got = [r["date"] for r in fetch_mod.load_corpus()]
+    assert got == ["2020-03-11", "2020-05-01"]          # 未回復の欠測は欠測として残す
+    assert (tmp_corpus / "boe" / "2020-03-01.json").exists()
+    assert {(e["date"], e["reason"]) for e in fetch_mod.corpus_exclusions()} == {
+        ("2020-03-01", "placeholder_superseded_by_recovered_record")}

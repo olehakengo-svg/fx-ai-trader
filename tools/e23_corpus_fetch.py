@@ -110,13 +110,28 @@ def is_fomc_statement(text: str) -> bool:
     return FED_STATEMENT_TITLE in lines
 
 
-def exclusion_reason(rec: dict) -> str | None:
-    """loader が除外する理由 (None = 採用)。ファイルは削除しない (コーパスは再利用資産)."""
+def _recovered_months(docs: list[dict]) -> set[tuple[str, str]]:
+    """本文取得に成功したレコードがある (cb, YYYY-MM)."""
+    return {(r["cb"], r["date"][:7]) for r in docs if r.get("n_chars", 0) > 0}
+
+
+def exclusion_reason(rec: dict,
+                     recovered: set[tuple[str, str]] | None = None) -> str | None:
+    """loader が除外する理由 (None = 採用)。ファイルは削除しない (コーパスは再利用資産).
+
+    recovered: `_recovered_months()` の結果。BOE の欠測 placeholder (`YYYY-MM-01`、
+    n_chars=0) は同月に本文取得済みレコードがあれば除外する — `--refetch` で回復した
+    月を二重計上・欠測計上しない (PR #309 review 3 巡目 P2)。
+    """
     if not in_corpus_window(rec["date"]):
         return "outside_window_explore_start_to_oos_end"
     if rec["cb"] == "fed" and rec.get("n_chars", 0) > 0 \
             and not is_fomc_statement(rec.get("text", "")):
         return "fed_not_fomc_statement"
+    if recovered is not None and rec.get("n_chars", 0) == 0 \
+            and rec.get("missing_reason") \
+            and (rec["cb"], rec["date"][:7]) in recovered:
+        return "placeholder_superseded_by_recovered_record"
     return None
 
 UA = "Mozilla/5.0 (compatible; fx-ai-trader E23 research harness; contact via repo)"
@@ -548,13 +563,16 @@ def load_corpus(*, include_excluded: bool = False) -> list[dict]:
     docs = _load_all()
     if include_excluded:
         return docs
-    return [r for r in docs if exclusion_reason(r) is None]
+    rec_m = _recovered_months(docs)
+    return [r for r in docs if exclusion_reason(r, rec_m) is None]
 
 
 def corpus_exclusions() -> list[dict]:
+    docs = _load_all()
+    rec_m = _recovered_months(docs)
     return [{"cb": r["cb"], "date": r["date"], "url": r.get("url", ""),
-             "reason": exclusion_reason(r)}
-            for r in _load_all() if exclusion_reason(r) is not None]
+             "reason": exclusion_reason(r, rec_m)}
+            for r in docs if exclusion_reason(r, rec_m) is not None]
 
 
 def write_manifest() -> dict:
