@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-01 — fix(e23): PR #257 review backlog 7 件を消化 + park 根拠の estimand 監査 — Gate B N 56 → 40 (UNDERPOWERED 維持)、Gate A の OOS 接触を explore 窓限定へ (rule:R3)
+
+- **対象**: registry `review-backlog-253-257-digest` の PR #257 群 (P1 ×3 / P2 ×4)。コード = `tools/e23_corpus_fetch.py` / `tools/e23_corpus_census.py` / `tools/e23_pass1_events.py`、pin = `tests/test_e23_review_backlog_257.py` (20 本、7 修正それぞれの counterfactual で落ちることを fresh pycache prefix で確認)
+- **修正**: (1) Fed は press release 表題 "Federal Reserve issues FOMC statement" で同定 — 混入 4 件 (2019-10-11 実施ノート / 2020-03-31 FIMA repo / 2020-08-27・2025-08-22 長期戦略声明) を loader で除外 (ファイル保持) / (2) BoJ V3 は印字日一致を gate に使わず `release_time_verified` のみ = **fail-closed** (公開時刻の検証経路なし: BoJ ページに時刻記載なし、Wayback 初回 capture は数年後) → BoJ 除外 / (3) `--refetch` を fetcher へ伝搬 / (4) EXPLORE_START..OOS_END 外を save・manifest・loader の 3 層で除外 (窓外 6 ファイル保持) / (5) Gate A を explore 窓限定 / (6) pass-1 が census を再計算して生存 CB を強制 / (7) 凍結辞書 sha を辞書 import 前に実行時 assert
+- **park 根拠の監査 (オフライン、pass-2 未解錠・イベント×リターン非計算)**: Gate A 旧 71.45/95.0/81.85p → explore 限定 **73.0/100.4/76.9p** (3/3 通過不変、旧 move の約 20% が 2024 以降 = OOS 無条件集計に接触していた)。Gate B **N 56 → 40** (Fed 修正 −2 / BoJ fail-closed −14)、上界 100 → 72 で UNDERPOWERED が機械的に確定。**旧 N の 28.6% が汚染/未検証文書依存、向きは PASS 側への水増し = park 判定は保守側で反転なし**
+- **成果物**: `raw/analysis/e23-pass0-census-2026-10-01.*` / `e23-pass1-events-2026-10-01.*` (09-15 成果物は上書きせず保存)、`data/external/cb_statements/manifest.json` 再生成 (388 docs + `excluded` 10)、pre-reg §12 追記 (本文不改変)
+- **引用規律**: E23 N は 40 (旧 56 併記)。「BoJ 同時公表 93/93 確認」型の引用禁止 (確認したのは印字日のみ)。コーパス再利用は `load_corpus()` 経由に限る
+
 ## 2026-09-28 — docs(wg): G0' event #2 (09-27) = ABANDONED_DRIFT → 改定後 2 連続不成立で packet §6 発動、執行モダリティ R1 再審 packet v1 起案 (user 決裁 W1〜W6) + carry_dip `[SLTP_CONSTRUCT]` 初 fill 実測 (rule:R3 記録のみ)
 
 - **event #2 (一次データ)**: 2026-09-27 21:05:13Z USD_JPY gap −22.0p ≥ 21.4p → `ABANDONED_DRIFT` (tradeable 確認時 quote_age 2.456s、drift +18.40p > +8.0p、send_mid 157.243 / sunday_open 157.059)。EXEC_B `HOLD` 20 行 (21:01:06–21:04:54Z、poll 12–19s) → 放棄 → shadow row 18538 / oanda_audit 17930 `skipped`。AUD_USD −12.8p / EUR_USD −12.7p は no-qualify (診断行確定)。Render ログ 27 行・hasMore=false。shadow outcome 非転記。card 転記は事象から 4h (24h 規則内)

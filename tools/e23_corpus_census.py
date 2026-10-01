@@ -14,8 +14,11 @@ pre-reg 🔒 `knowledge-base/wiki/decisions/e23-cb-text-explore-prereg-2026-09-1
 -------------------------------------------------------------------
 - V1: Fed/ECB 同一 UTC 日の衝突件数 (§2 両イベント void 規則の該当数)
 - V2: 声明間隔の分布 + 定例/非定例の目安 (<20 日間隔 = off-cycle 候補) 件数
-- V3: BoJ 英語版に印字された日付 == 会合日 (URL 日付) の一致率
-       (= 英語テキストが決定当日付で存在することの機械的確認)
+- V3: BoJ 英語版の **公開時刻の検証** (gate) と、印字日 == 会合日 の一致率 (記述のみ)。
+       ⚠️ 2026-10-01 訂正 (PR #257 review P1): 印字日一致は「文書に会合日が書いてある」
+       ことしか示さず、英語版が当日に公開された証拠ではない。公式公開時刻を検証する
+       経路が無いため、gate は `release_time_verified is True` のみで判定 = **fail-closed**
+       (未検証の BoJ は生存 CB から除外)。
 - V4: 極性反転名詞 (unemployment) に該当した bigram の件数
 - V5: 照合 bigram の頻度上位 (prefix wildcard の偽陽性を監査可能にする)
 - §3 staleness: 直前声明との間隔 > 120 暦日 (当該イベント void) の件数
@@ -47,6 +50,7 @@ from e23_corpus_fetch import (  # noqa: E402
     CBS,
     EXPLORE_END,
     EXPLORE_START,
+    assert_frozen_lexicon,
     load_corpus,
 )
 
@@ -57,8 +61,13 @@ MIN_SURVIVING_CBS = 2
 STALENESS_VOID_DAYS = 120
 OFF_CYCLE_HINT_DAYS = 20  # 記述のみ (判定不使用)
 
-OUT_MD = ROOT / "knowledge-base" / "raw" / "analysis" / "e23-pass0-census-2026-09-15.md"
-OUT_JSON = ROOT / "knowledge-base" / "raw" / "analysis" / "e23-pass0-census-2026-09-15.json"
+OUT_DIR = ROOT / "knowledge-base" / "raw" / "analysis"
+
+
+def out_paths(out_date: str) -> tuple[Path, Path]:
+    """成果物パス。日付付きで、過去の verdict 成果物 (2026-09-15) を上書きしない."""
+    return (OUT_DIR / f"e23-pass0-census-{out_date}.md",
+            OUT_DIR / f"e23-pass0-census-{out_date}.json")
 
 EXPLORE_YEARS = list(range(EXPLORE_START.year, EXPLORE_END.year + 1))
 
@@ -71,7 +80,14 @@ def _in_explore(rec: dict) -> bool:
     return EXPLORE_START <= _d(rec["date"]) <= EXPLORE_END
 
 
+def _boj_printed_date_match(rec: dict) -> bool:
+    """印字日 == 会合日 (記述量)。旧レコードのキー `same_day_attested` も同義で読む."""
+    v = rec.get("printed_date_matches_meeting", rec.get("same_day_attested"))
+    return v is True
+
+
 def census(docs: list[dict]) -> dict:
+    assert_frozen_lexicon()              # 凍結辞書を import する前に実行時照合
     from e23_lexicon_apel_grimaldi import count_bigrams
 
     explore = [r for r in docs if _in_explore(r)]
@@ -150,12 +166,14 @@ def census(docs: list[dict]) -> dict:
     ecb_days = {r["date"] for r in usable if r["cb"] == "ecb"}
     collisions = sorted(fed_days & ecb_days)
 
-    # V3: BoJ 英語版の当日付一致率
+    # V3: BoJ 英語版の同時公表。gate = 公開時刻の検証済み件数 (fail-closed)。
+    # 印字日一致は記述量 — gate に使わない (2026-10-01 PR #257 review P1)。
     boj = [r for r in usable if r["cb"] == "boj"]
-    boj_attested = sum(1 for r in boj if r.get("same_day_attested") is True)
+    boj_printed_match = sum(1 for r in boj if _boj_printed_date_match(r))
+    boj_release_verified = sum(1 for r in boj if r.get("release_time_verified") is True)
 
     survivors = [cb for cb in CBS if per_cb[cb]["coverage_gate_pass"]]
-    if "boj" in survivors and boj and boj_attested != len(boj):
+    if "boj" in survivors and boj and boj_release_verified != len(boj):
         # V3 機械規則: 同時性が確認できない期間があれば当該 CB を除外
         survivors = [cb for cb in survivors if cb != "boj"]
 
@@ -189,7 +207,13 @@ def census(docs: list[dict]) -> dict:
                                for (cb, why), n in sorted(mechanical_missing.items())},
         "per_cb": per_cb,
         "fed_ecb_same_day_collisions": collisions,
-        "boj_same_day_attested": {"n": len(boj), "attested": boj_attested},
+        "boj_v3": {
+            "n": len(boj),
+            "release_time_verified": boj_release_verified,
+            "printed_date_match": boj_printed_match,
+            "gate": "release_time_verified == n (fail-closed)",
+            "note": "印字日一致は公開時刻の証拠ではない (記述のみ、判定不使用)",
+        },
         "surviving_cbs": survivors,
         "verdict": verdict,
         "power_flag": {
@@ -202,9 +226,9 @@ def census(docs: list[dict]) -> dict:
     }
 
 
-def render_md(c: dict) -> str:
+def render_md(c: dict, out_date: str = "") -> str:
     lines = [
-        "# E23 pass-0 コーパス census — 2026-09-15",
+        f"# E23 pass-0 コーパス census — {out_date or c['generated_at'][:10]}",
         "",
         f"**pre-reg**: [[e23-cb-text-explore-prereg-2026-09-10]] 🔒 / **pass**: {c['pass']}",
         f"**生成**: `tools/e23_corpus_census.py` @ {c['generated_at']} / "
@@ -271,13 +295,16 @@ def render_md(c: dict) -> str:
         "",
     ]
     coll = c["fed_ecb_same_day_collisions"]
-    boj = c["boj_same_day_attested"]
+    boj = c["boj_v3"]
     lines += [
         "",
         f"- **V1 Fed/ECB 同日衝突 (両 void)**: {len(coll)} 件"
         + (f" — {', '.join(coll)}" if coll else ""),
-        f"- **V3 BoJ 英語版 当日付一致**: {boj['attested']}/{boj['n']}"
-        f" ({'全件一致' if boj['n'] and boj['attested'] == boj['n'] else '⚠️ 不一致あり'})",
+        f"- **V3 BoJ 英語版 公開時刻の検証 (gate)**: {boj['release_time_verified']}/"
+        f"{boj['n']}"
+        f" ({'✅ 全件検証' if boj['n'] and boj['release_time_verified'] == boj['n'] else '❌ 未検証あり → BoJ 除外 (fail-closed)'})",
+        f"- V3 記述量 (判定不使用): 印字日 == 会合日 {boj['printed_date_match']}/{boj['n']}"
+        " — **印字日一致は公開時刻の証拠ではない**",
         "",
         "### V5 照合 bigram 頻度上位 (prefix wildcard 偽陽性の監査用)",
         "",
@@ -306,6 +333,8 @@ def render_md(c: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--write", action="store_true", help="KB に census 成果物を書く")
+    ap.add_argument("--out-date", default=datetime.now(timezone.utc).date().isoformat(),
+                    help="成果物ファイル名の日付 (既定 = 今日 UTC。過去成果物を上書きしない)")
     args = ap.parse_args(argv)
 
     docs = load_corpus()
@@ -313,9 +342,10 @@ def main(argv: list[str] | None = None) -> int:
         print("corpus empty — run tools/e23_corpus_fetch.py first", file=sys.stderr)
         return 2
     c = census(docs)
-    md = render_md(c)
+    md = render_md(c, args.out_date)
     print(md)
     if args.write:
+        OUT_MD, OUT_JSON = out_paths(args.out_date)
         OUT_MD.parent.mkdir(parents=True, exist_ok=True)
         OUT_MD.write_text(md, encoding="utf-8")
         OUT_JSON.write_text(json.dumps(c, ensure_ascii=False, indent=1) + "\n",
