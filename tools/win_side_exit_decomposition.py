@@ -382,13 +382,36 @@ def fixed_horizon_excursion(row: dict, bars, horizon_min: int, bar_minutes: int 
     return max(0.0, (px - lo) / ps), max(0.0, (hi - px) / ps)
 
 
+def overlap_blocks(entry_dts: list, horizon_min: int) -> list[int]:
+    """excursion 窓 [entry, entry + horizon] が重なる (連鎖的に繋がる) 観測を同じブロックにする。
+
+    UTC 日でブロックを切ると、日付境界を跨いで重なる 240 分窓が別ブロックに分かれ、
+    従属な観測を独立に resample してしまう (PR #310 review 4152000632)。時刻順に並べ、
+    次の entry が現ブロック内の窓の最遅終端より後になった時点で新ブロックを開始する。
+    戻り値は入力と同順のブロック番号。
+    """
+    from datetime import timedelta as _td
+    order = sorted(range(len(entry_dts)), key=lambda i: entry_dts[i])
+    out = [0] * len(entry_dts)
+    blk, end = -1, None
+    for i in order:
+        t = entry_dts[i]
+        if end is None or t > end:
+            blk += 1
+            end = t + _td(minutes=horizon_min)
+        else:
+            end = max(end, t + _td(minutes=horizon_min))
+        out[i] = blk
+    return out
+
+
 def boot_median_diff(a: list[float], b: list[float], n: int = 2000, seed: int = 0,
                      a_blocks: list | None = None, b_blocks: list | None = None,
                      min_blocks: int = 5) -> tuple[float, float] | None:
     """median(b) − median(a) の percentile bootstrap 95% CI。
 
     a_blocks / b_blocks (値と同順のブロックキー) を渡すと **ブロック bootstrap**:
-    同じブロック (例: entry の UTC 日) の観測をまとめて復元抽出する。同時刻に複数の
+    同じブロック (例: overlap_blocks の重なり窓ブロック) の観測をまとめて復元抽出する。同時刻に複数の
     pair / 戦略が発火すると excursion 窓が重なり強く従属するので、行単位の i.i.d.
     resample は CI を不当に狭くする (PR #310 review 4151311925)。
 
@@ -526,13 +549,13 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
                 x = fixed_horizon_excursion(r, bars_for(r["instrument"]), h, bar_min, max_gap)
                 if x is None:
                     continue
-                days.append(r["entry_dt"].date())
+                days.append(r["entry_dt"])
                 fav.append(x[0])
                 adv.append(x[1])
                 key = f"{r['instrument']}|{r['entry_type']}"
                 tf.append((key, x[0]))
                 ta.append((key, x[1]))
-            res[lab] = (fav, adv, tf, ta, len(rows), days)
+            res[lab] = (fav, adv, tf, ta, len(rows), overlap_blocks(days, h))
         for lab in ("pre", "post"):
             fav, adv, _, _, n_all, _ = res[lab]
             if not fav:
@@ -547,11 +570,11 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
         fa, fb = res["pre"][0], res["post"][0]
         if len(fa) >= 2 and len(fb) >= 2:
             ci = boot_median_diff(fa, fb, a_blocks=res["pre"][5], b_blocks=res["post"][5])
-            ci_txt = (f"UTC 日ブロック bootstrap 95% [{ci[0]:+.2f}, {ci[1]:+.2f}]" if ci
-                      else "CI 算出不可 — 日ブロック不足")
+            ci_txt = (f"重なり窓ブロック bootstrap 95% [{ci[0]:+.2f}, {ci[1]:+.2f}]" if ci
+                      else "CI 算出不可 — ブロック不足")
             notes.append(f"- {h} 分: median 有利幅 post−pre = "
                          f"{statistics.median(fb) - statistics.median(fa):+.2f}p "
-                         f"({ci_txt}、日数 pre {len(set(res['pre'][5]))} / post {len(set(res['post'][5]))})")
+                         f"({ci_txt}、ブロック数 pre {len(set(res['pre'][5]))} / post {len(set(res['post'][5]))})")
             tmf = type_matched_means(res["pre"][2], res["post"][2])
             tma = type_matched_means(res["pre"][3], res["post"][3])
             if tmf and tma:

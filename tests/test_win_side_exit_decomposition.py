@@ -387,6 +387,26 @@ def test_block_bootstrap_keeps_dependent_observations_together(wsed):
     assert (hi_b - lo_b) > 1.5 * (hi_i - lo_i)
 
 
+def test_overlap_blocks_keep_cross_midnight_overlapping_windows_together(wsed):
+    """窓が重なる観測は日付を跨いでも同じブロック (PR #310 review 4152000632)。
+
+    既知 NG: UTC 日でブロックを切る — 23:30 と 00:30 の 240 分窓は 3 時間重なるのに別ブロック。
+    窓が重ならない観測 (前の窓終了後) は新しいブロックになる。連鎖的な重なりも 1 ブロック。
+    """
+    from datetime import datetime, timezone
+
+    def t(iso):
+        return datetime.fromisoformat(iso).replace(tzinfo=timezone.utc)
+
+    dts = [t("2026-07-01T23:30:00"), t("2026-07-02T00:30:00"), t("2026-07-02T04:00:00"),
+           t("2026-07-02T09:00:00")]
+    b = wsed.overlap_blocks(dts, 240)
+    assert b[0] == b[1] == b[2]          # 23:30〜03:30 と 00:30〜04:30 に 04:00 が連鎖
+    assert b[3] != b[0]                  # 09:00 は 08:00 の最遅終端より後
+    # 入力順に依存しない
+    assert wsed.overlap_blocks(list(reversed(dts)), 240) == list(reversed(b))
+
+
 def test_block_bootstrap_refuses_degenerate_single_block_cohorts(wsed):
     """ブロック数が足りない群があれば CI を出さない (PR #310 review 4151937674)。
 
