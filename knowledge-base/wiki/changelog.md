@@ -7,7 +7,8 @@
 - **再計算 (PROD 18,829 件、10-01 取得、全戦略 shadow)**: WR 26.3→51.5% は **26.2→51.1%** / R:R 1.90→0.55 は **1.91→0.56** / EV −1.45→−1.61 は **−1.47→−1.63** / WIN 行 SL_HIT 率 0.3→88.3% は **0.1→88.4%** — **regime break (計測の是正) は修正後も再現**
 - 🔴 **撤回**: 敵対的検証②「市場側の順行余地は劣化していない」。exit 非依存の対照 (outcome を問わない全 entry を entry 時刻で分割 × [entry, entry+H] を MASSIVE 1m 足でクリップ (13 pair、2026-03-27〜10-01 を取得) × 0 clamp) で median 有利幅 60 分 −0.50p / 240 分 −0.70p だが **UTC 日ブロック bootstrap CI は [−1.10, +0.20] / [−2.00, +0.80] で 0 を含む** ⇒ **市場側の変化は未識別** (点推定は有利 −7〜−8%・不利 −10〜−17% の振幅縮小、有利/不利 比ほぼ不変)。Codex 2 巡目 P1 (被覆非対称) / P2 (窓内部の欠落)、3 巡目 P1 ×2 (BREAKEVEN 除外 = exit 選別 / clamp 欠如)、4 巡目 P1 (重なる窓を i.i.d. bootstrap)、5 巡目 P1 (15m 非整列窓 = 名目 horizon を測っていない) を修正 — 初版の「有利幅 −19%・有意」は過大。avg_win −62% の主因が exit 機構である点は維持 (点推定の振幅縮小は −62% を説明する規模でない)、**市場寄与との配分は未識別**。sr_anti_hunt_bounce 単独の対照は検出力不足で未識別
 - **訂正**: sr_anti_hunt_bounce pre avg_win 19.42→19.03p (live 1 行除外) / PAIR_PROMOTED 候補 pre 14→12 行・EV +12.46→+12.96 (pre は LOCK since 08-05 より前)。🔴 **P-10 開示**: 同候補は LOCK `sr-anti-hunt-eurjpy-buy-forward-confirm` の refinement で、post 群は forward 行を含む — 09-14 版の post/全体行は既に露出、本 PR の再計算でも Claude が post outcome を観測 (Tokyo 定義の変種 2 本は新規観測) ⇒ post 側の数値は新たに記載せず、`sr-anti-hunt-eurjpy-lock-validity-disposition` の露出記録へ回付
-- pin 21 本 (旧 6 本の改訂・置換 + 新規、各修正に既知 NG 入力)。修正を 1 つずつ戻す counterfactual は計 19 種 (初版 8 + Codex 2〜5 巡目 11) で、どれも対応する pin が落ちることを確認 (`python3 -B`)
+- Codex 6 巡目 P2 4151937674: どちらかの群の日ブロックが 5 個未満なら bootstrap CI を出さず「算出不可」と表示する (ブロックが 1 個だと全 resample が同じになり、幅ゼロの CI が出てしまう)。本件の数値はどちらの群も日数 ≥18 なので変わらない
+- pin 22 本 (旧 6 本の改訂・置換 + 新規、各修正に既知 NG 入力)。修正を 1 つずつ戻す counterfactual は計 20 種 (初版 8 + Codex 2〜6 巡目 12) で、どれも対応する pin が落ちることを確認 (`python3 -B`)
 
 ## 2026-09-29 — docs(registry): `ps-carveout-regate-post-172` 期日前 readout (stale 見込み) — clean live N=6 (<10) で EV 判定保留 (期日前 readout、09-30 checkpoint 後に 10-30 へ roll)、不足の帰属 = 送信前 gate 100% (rule:R3、記録のみ)
 

@@ -387,6 +387,19 @@ def test_block_bootstrap_keeps_dependent_observations_together(wsed):
     assert (hi_b - lo_b) > 1.5 * (hi_i - lo_i)
 
 
+def test_block_bootstrap_refuses_degenerate_single_block_cohorts(wsed):
+    """ブロック数が足りない群があれば CI を出さない (PR #310 review 4151937674)。
+
+    既知 NG: 片群が 1 日に集中 → 全 resample が同一になり、幅ゼロの「95% CI」を報告する。
+    """
+    a = [1.0, 2.0, 3.0, 4.0]
+    b = [float(d) for d in range(20)]
+    one_day = ["d1"] * 4
+    many = [f"b{d}" for d in range(20)]
+    assert wsed.boot_median_diff(a, b, n=200, a_blocks=one_day, b_blocks=many) is None
+    assert wsed.boot_median_diff(b, b, n=200, a_blocks=many, b_blocks=many) is not None
+
+
 def test_common_coverage_drops_instruments_whose_cache_starts_late(wsed):
     """キャッシュ始端が最早 entry より後の pair も両群から外す (pre だけ落ちる型の非対称を防ぐ)。"""
     from datetime import datetime, timezone

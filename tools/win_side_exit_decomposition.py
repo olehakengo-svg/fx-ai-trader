@@ -383,14 +383,18 @@ def fixed_horizon_excursion(row: dict, bars, horizon_min: int, bar_minutes: int 
 
 
 def boot_median_diff(a: list[float], b: list[float], n: int = 2000, seed: int = 0,
-                     a_blocks: list | None = None, b_blocks: list | None = None
-                     ) -> tuple[float, float]:
+                     a_blocks: list | None = None, b_blocks: list | None = None,
+                     min_blocks: int = 5) -> tuple[float, float] | None:
     """median(b) − median(a) の percentile bootstrap 95% CI。
 
     a_blocks / b_blocks (値と同順のブロックキー) を渡すと **ブロック bootstrap**:
     同じブロック (例: entry の UTC 日) の観測をまとめて復元抽出する。同時刻に複数の
     pair / 戦略が発火すると excursion 窓が重なり強く従属するので、行単位の i.i.d.
     resample は CI を不当に狭くする (PR #310 review 4151311925)。
+
+    どちらかの群のブロック数が min_blocks 未満なら None (CI 算出不可) を返す —
+    ブロック 1 個では全 resample が同一になり、幅ゼロの退化した「95% CI」を出してしまう
+    (PR #310 review 4151937674)。
     """
     rng = random.Random(seed)
 
@@ -403,6 +407,8 @@ def boot_median_diff(a: list[float], b: list[float], n: int = 2000, seed: int = 
         return list(g.values())
 
     ga, gb = groups(a, a_blocks), groups(b, b_blocks)
+    if len(ga) < min_blocks or len(gb) < min_blocks:
+        return None
 
     def draw(gs):
         out = []
@@ -540,11 +546,12 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
                 f"{fmt(statistics.median(fav) / ma, 3) if ma > 0 else '—'} |")
         fa, fb = res["pre"][0], res["post"][0]
         if len(fa) >= 2 and len(fb) >= 2:
-            lo, hi = boot_median_diff(fa, fb, a_blocks=res["pre"][5], b_blocks=res["post"][5])
+            ci = boot_median_diff(fa, fb, a_blocks=res["pre"][5], b_blocks=res["post"][5])
+            ci_txt = (f"UTC 日ブロック bootstrap 95% [{ci[0]:+.2f}, {ci[1]:+.2f}]" if ci
+                      else "CI 算出不可 — 日ブロック不足")
             notes.append(f"- {h} 分: median 有利幅 post−pre = "
                          f"{statistics.median(fb) - statistics.median(fa):+.2f}p "
-                         f"(UTC 日ブロック bootstrap 95% [{lo:+.2f}, {hi:+.2f}]、"
-                         f"日数 pre {len(set(res['pre'][5]))} / post {len(set(res['post'][5]))})")
+                         f"({ci_txt}、日数 pre {len(set(res['pre'][5]))} / post {len(set(res['post'][5]))})")
             tmf = type_matched_means(res["pre"][2], res["post"][2])
             tma = type_matched_means(res["pre"][3], res["post"][3])
             if tmf and tma:
