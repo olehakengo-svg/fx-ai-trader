@@ -225,9 +225,20 @@ EV −0.74 → post N=137 WR 50.4% / R:R 0.41 / EV −3.57。live は ab7a4931 �
 境界跨ぎ 0 行。close_reason 軸 shift-share は引き続き非同定 (群が素に交わらない)。
 
 PAIR_PROMOTED 候補 (`× EUR_JPY × Tokyo(UTC 0–6) × BUY`, entry < 2026-09-14):
-掲載値 N=32 / EV +7.11 は live 2 行を含んでいた。**shadow 限定では N=30 / EV +6.96、
-pre N=12 / EV +12.96 / 総 pips +155.5 (総 pips の 74.5%)、post N=18 / EV +2.96 (不変)**。
-「現行体制単独では EV ≈ +2.96 / N=18 < MIN_N」の結論は不変。
+掲載値 N=32 は live 2 行を含んでいた。**shadow 限定の pre (clean、全行が LOCK since
+2026-08-05 より前) は N=12 / EV +12.96 / 総 pips +155.5** (旧 N=14 / EV +12.46 / +174.4)。
+post 側 (shadow 限定 N=18、境界跨ぎ 0) は本節では**数値を出さない** — 下記 P-10 注記。
+
+> 🔴 **P-10 開示 (2026-10-01)**: この sub-cell は LOCK `sr-anti-hunt-eurjpy-buy-forward-confirm`
+> (EUR_JPY × BUY、since 2026-08-05、fresh N≥40 で 1 回限り判定、中間再計算禁止) の
+> refinement であり、post 群 (06-03〜09-14) は forward 枠の行を含む。上の「決定への影響」表
+> (09-14 作成) の post 行・全体行は**既に forward 行を含む outcome 統計を公表していた**
+> (2026-09-20 changelog が記録した 5 週の systematic exposure と同型)。本 PR の再計算でも
+> Claude は post 群の outcome を観測した (shadow 限定の post は 09-14 掲載値と同一行集合 =
+> 新情報なし。ただし Tokyo 定義を UTC 0–7 / 0–8 に広げた変種で forward 行を含む集計を
+> 追加で 1 回ずつ観測)。⇒ registry `sr-anti-hunt-eurjpy-lock-validity-disposition` の
+> 露出記録に追加すべき事項として親セッションへ回付。本ページでは post 側・全体の
+> outcome 数値を新たに記載しない。
 
 ### (e) 三点確認の結論 — exit 非依存の固定ホライズン excursion
 

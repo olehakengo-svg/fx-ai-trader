@@ -2,11 +2,11 @@
 
 ## 2026-10-01 — fix(analysis): PR #253 review backlog 5 件を消化 — shadow exit regime break の estimand 修正 + 「市場機会は劣化していない」を撤回 (rule:R3、診断ツールのみ・取引挙動不変)
 
-- **対象**: registry `review-backlog-253-257-digest` (10-03) の PR #253 群。`tools/win_side_exit_decomposition.py` / pin / [[win-side-exit-regime-break-2026-06-03]]
+- **対象**: registry `review-backlog-253-257-digest` (10-03) の PR #253 群 (PR #310)。`tools/win_side_exit_decomposition.py` / pin / [[win-side-exit-regime-break-2026-06-03]]
 - **(a) P1 live/shadow 混在**: `load_clean(stream=)` 新設、既定 shadow = `oanda_trade_id` 無し ∧ `is_shadow=1`、live = `oanda_trade_id != ''`、is_shadow=0 ∧ id 無し (47 行) は ambiguous で除外。**(b) P2 境界跨ぎ**: `split_cohorts` — clean pre = `exit_time < START` / clean post = `entry_time ≥ END` / 跨ぎ・窓内は除外して別報告。**(c) P2 中央値**: `statistics.median`。**(d) P2 cutoff**: 遷移窓 [07:58:28Z (commit object 時刻), 09:00:00Z) — Render deploy 時刻は記録なしのため挙動 (shadow 初の WIN∧SL_HIT が exit 08:01:26Z) から上限を導出し保守的に除外、END 08:01:26 / 09:00 / 06-04T00:00 の感度で数値不変。**(e) P1 exit 依存の対照**: entry 以後の 15m バー 4/16 本の固定ホライズン excursion (`fixed_horizon_excursion`、exit_time/close_reason/mafe を参照しない) を新設
 - **再計算 (PROD 18,829 件、10-01 取得、全戦略 shadow)**: WR 26.3→51.5% は **26.2→51.1%** / R:R 1.90→0.55 は **1.91→0.56** / EV −1.45→−1.61 は **−1.47→−1.63** / WIN 行 SL_HIT 率 0.3→88.3% は **0.1→88.4%** — **regime break (計測の是正) は修正後も再現**
 - 🔴 **撤回**: 敵対的検証②「市場側の順行余地は劣化していない」。exit 非依存の対照で median 有利幅 60 分 −0.40p ([−0.73, −0.00]) / 240 分 −0.90p ([−1.50, −0.40])、entry_type 構成を揃えた mean で有利幅 −19%・不利幅 −21〜−29% (振幅縮小、有利/不利 比はむしろ上昇)。avg_win −62% の主因が exit 機構である点は維持、**市場寄与との配分は未識別**。sr_anti_hunt_bounce 単独の対照は検出力不足で未識別
-- **訂正**: sr_anti_hunt_bounce pre avg_win 19.42→19.03p (live 1 行除外) / PAIR_PROMOTED 候補 pre 14→12 行・EV +12.46→+12.96、総 pips 比 77%→74.5% (post は不変)
+- **訂正**: sr_anti_hunt_bounce pre avg_win 19.42→19.03p (live 1 行除外) / PAIR_PROMOTED 候補 pre 14→12 行・EV +12.46→+12.96 (pre は LOCK since 08-05 より前)。🔴 **P-10 開示**: 同候補は LOCK `sr-anti-hunt-eurjpy-buy-forward-confirm` の refinement で、post 群は forward 行を含む — 09-14 版の post/全体行は既に露出、本 PR の再計算でも Claude が post outcome を観測 (Tokyo 定義の変種 2 本は新規観測) ⇒ post 側の数値は新たに記載せず、`sr-anti-hunt-eurjpy-lock-validity-disposition` の露出記録へ回付
 - pin 14 本 (旧 6 本を改訂・置換 + 新規、各修正に既知 NG 入力)、修正を 1 つずつ戻す counterfactual 8 種で全て対応 pin が落ちることを確認 (`python3 -B`)
 
 ## 2026-09-28 — docs(wg): G0' event #2 (09-27) = ABANDONED_DRIFT → 改定後 2 連続不成立で packet §6 発動、執行モダリティ R1 再審 packet v1 起案 (user 決裁 W1〜W6) + carry_dip `[SLTP_CONSTRUCT]` 初 fill 実測 (rule:R3 記録のみ)
