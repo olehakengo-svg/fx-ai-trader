@@ -4992,6 +4992,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **本日の扱い**：N=3では統計的判断不可。ただし **N到達まで出口非対称に注目し続ける**こと。
 ### 課題②：usdjpy_carry_dip_accumulator のEV −8.60（N=5）
 
+### 2026-10-01 (Post-NY Report)
+| 勝率（WR） | 0.0% |
+| PnL | **−12.5 pips** |
+| 戦略 | ペア | PnL | 失敗要因 |
+### セッション別PnL比較
+| セッション | 時間（UTC） | N | WR% | PnL |
+- **最も成績が良かったセッション**: Tokyo / London（PnL=0、ドローダウンなし）
+- **最も成績が悪かったセッション**: NY — `price_shock_rev_eur_gbp_h1_long` の1敗のみ
+- **本日合計**: N=1 / WR=0.0% / PnL=**−12.5 pips**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
