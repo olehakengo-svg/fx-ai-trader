@@ -337,7 +337,8 @@ def fixed_horizon_excursion(row: dict, bars, horizon_bars: int,
 
     exit_time / close_reason / mafe_* は一切参照しない (exit 非依存)。
     None = entry 情報欠損 / バー不足 / 最初のバーが entry から 1 本分以上遅い /
-    窓内に欠落 (週末等で実時間が想定の 1.5 倍超)。
+    窓内に 1 本でも欠落 (連続バーの間隔が bar_minutes と一致しない — 週末・ベンダー欠損)。
+    総 span だけの判定は内部欠落を通してしまう (PR #310 review 4151253825)。
     """
     import pandas as pd
     en, px = row.get("entry_dt"), row.get("entry_price")
@@ -351,8 +352,8 @@ def fixed_horizon_excursion(row: dict, bars, horizon_bars: int,
         return None
     if w.index[0] - ts > pd.Timedelta(minutes=bar_minutes):
         return None
-    if (w.index[-1] - w.index[0]) > pd.Timedelta(
-            minutes=bar_minutes * (horizon_bars - 1) * 1.5 + bar_minutes):
+    step = pd.Timedelta(minutes=bar_minutes)
+    if horizon_bars > 1 and not (w.index[1:] - w.index[:-1] == step).all():
         return None
     ps = pip_size(row.get("instrument"))
     hi, lo = float(w["High"].max()), float(w["Low"].min())
@@ -397,6 +398,29 @@ def type_matched_means(pre: list[tuple[str, float]], post: list[tuple[str, float
             len(keys), n_common / len(pre))
 
 
+def common_coverage(pre: list[dict], post: list[dict], bar_end: dict[str, object],
+                    horizon_bars: int, bar_minutes: int = 15, fresh_slack_days: int = 7):
+    """pre/post を **同じ instrument 集合 × 同じ時間被覆** に揃える (PR #310 review 4151253820)。
+
+    キャッシュ終端が pair ごとに違う (07-21 で切れる pair がある) と、post 側だけ一部 pair の
+    行が黙って落ち、pre と post で instrument 構成が別物になる (cache-selection bias)。
+    S = キャッシュ終端が最新終端から fresh_slack_days 以内の instrument。
+    cutoff = S の最短終端 − horizon。両群とも instrument ∈ S ∧ entry_dt ≤ cutoff に制限する。
+    戻り値 = (pre', post', S, cutoff)。bar_end = {instrument: 最終バー時刻 or None}。
+    """
+    from datetime import timedelta as _td
+    ends = {k: v for k, v in bar_end.items() if v is not None}
+    if not ends:
+        return [], [], set(), None
+    latest = max(ends.values())
+    S = {k for k, v in ends.items() if v >= latest - _td(days=fresh_slack_days)}
+    cutoff = min(ends[k] for k in S) - _td(minutes=bar_minutes * horizon_bars)
+
+    def keep(r):
+        return r["instrument"] in S and r.get("entry_dt") is not None and r["entry_dt"] <= cutoff
+    return [r for r in pre if keep(r)], [r for r in post if keep(r)], S, cutoff
+
+
 def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
                             horizons: tuple[int, ...] = (4, 16)) -> str:
     cache: dict[str, object] = {}
@@ -406,13 +430,22 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
             cache[inst] = load_bars(bars_dir, inst)
         return cache[inst]
 
-    lines = ["| horizon | 群 | N (被覆) | 被覆率 | median 有利幅 | mean 有利幅 | median 不利幅 | "
+    lines = ["| horizon | 群 | N (被覆) | 被覆率 (共通被覆内) | median 有利幅 | mean 有利幅 | median 不利幅 | "
              "mean 不利幅 | median 有利/不利 比 |",
              "|---|---|---|---|---|---|---|---|---|"]
     notes = []
+    insts = {r["instrument"] for r in pre + post}
+    bar_end = {}
+    for i in insts:
+        b = bars_for(i)
+        bar_end[i] = b.index[-1].to_pydatetime() if b is not None and len(b) else None
     for h in horizons:
+        cpre, cpost, S, cutoff = common_coverage(pre, post, bar_end, h)
+        notes.append(f"- {h * 15} 分: 共通被覆 = instrument {sorted(S)} / entry ≤ "
+                     f"{cutoff.isoformat() if cutoff else '—'} — 除外 pre {len(pre) - len(cpre)} 行 / "
+                     f"post {len(post) - len(cpost)} 行")
         res = {}
-        for lab, rows in (("pre", pre), ("post", post)):
+        for lab, rows in (("pre", cpre), ("post", cpost)):
             fav, adv, tf, ta = [], [], [], []
             for r in rows:
                 x = fixed_horizon_excursion(r, bars_for(r["instrument"]), h)
@@ -420,8 +453,9 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
                     continue
                 fav.append(x[0])
                 adv.append(x[1])
-                tf.append((r["entry_type"], x[0]))
-                ta.append((r["entry_type"], x[1]))
+                key = f"{r['instrument']}|{r['entry_type']}"
+                tf.append((key, x[0]))
+                ta.append((key, x[1]))
             res[lab] = (fav, adv, tf, ta, len(rows))
         for lab in ("pre", "post"):
             fav, adv, _, _, n_all = res[lab]
@@ -443,7 +477,7 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
             tmf = type_matched_means(res["pre"][2], res["post"][2])
             tma = type_matched_means(res["pre"][3], res["post"][3])
             if tmf and tma:
-                notes.append(f"  - entry_type 構成を揃えた mean (共通 {tmf[2]} type, pre 行の "
+                notes.append(f"  - instrument×entry_type 構成を揃えた mean (共通 {tmf[2]} cell, pre 行の "
                              f"{tmf[3]:.1%}): 有利幅 pre {tmf[0]:.2f} → post {tmf[1]:.2f}p / "
                              f"不利幅 pre {tma[0]:.2f} → post {tma[1]:.2f}p")
     return "\n".join(lines) + ("\n\n" + "\n".join(notes) if notes else "")

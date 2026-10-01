@@ -227,6 +227,44 @@ def test_fixed_horizon_excursion_rejects_gapped_or_late_windows(wsed, tmp_path):
     assert wsed.fixed_horizon_excursion(r, late, 4) is None
 
 
+def test_fixed_horizon_excursion_rejects_internal_gaps(wsed, tmp_path):
+    """窓の内部に 1 本でも欠落があれば None (PR #310 review 4151253825)。
+
+    既知 NG: 00:15/00:30/01:00/01:15 (00:45 欠落) は総 span 60 分で span 判定を通ってしまう。
+    """
+    import pandas as pd
+    r = _rows(wsed, tmp_path, [_t("2026-07-01T00:05:00+00:00", "WIN", 2.0, "SL_HIT",
+                                  entry_price=150.00, instrument="USD_JPY")])[0]
+    idx = pd.DatetimeIndex(["2026-07-01T00:15", "2026-07-01T00:30",
+                            "2026-07-01T01:00", "2026-07-01T01:15"], tz="UTC")
+    gapped = pd.DataFrame({"Open": [150.1] * 4, "High": [150.2] * 4,
+                           "Low": [149.9] * 4, "Close": [150.0] * 4}, index=idx)
+    assert wsed.fixed_horizon_excursion(r, gapped, 4) is None
+
+
+def test_common_coverage_drops_stale_instruments_from_both_cohorts(wsed):
+    """キャッシュ終端が古い pair は pre/post の **両方** から外し、時間も共通終端で切る
+    (PR #310 review 4151253820)。既知 NG: post だけ黙って落ちて instrument 構成が非対称になる。
+    """
+    from datetime import datetime, timezone
+
+    def row(inst, iso):
+        return {"instrument": inst, "entry_dt": datetime.fromisoformat(iso).replace(tzinfo=timezone.utc)}
+
+    pre = [row("USD_JPY", "2026-05-01T00:00:00"), row("EUR_JPY", "2026-05-01T00:00:00")]
+    post = [row("USD_JPY", "2026-07-01T00:00:00"), row("EUR_JPY", "2026-07-01T00:00:00"),
+            row("USD_JPY", "2026-09-21T23:30:00")]
+    ends = {"USD_JPY": datetime(2026, 9, 22, 6, 0, tzinfo=timezone.utc),
+            "EUR_JPY": datetime(2026, 7, 21, 10, 45, tzinfo=timezone.utc)}
+    cpre, cpost, S, cutoff = wsed.common_coverage(pre, post, ends, horizon_bars=16)
+    assert S == {"USD_JPY"}
+    assert [r["instrument"] for r in cpre] == ["USD_JPY"]
+    assert [r["instrument"] for r in cpost] == ["USD_JPY", "USD_JPY"]
+    assert cutoff == datetime(2026, 9, 22, 2, 0, tzinfo=timezone.utc)
+    late = [row("USD_JPY", "2026-09-22T03:00:00")]
+    assert wsed.common_coverage([], late, ends, horizon_bars=16)[1] == []
+
+
 def test_type_matched_means_restrict_both_sides_to_common_types(wsed):
     """片側にしか無い entry_type は pre/post の両方から外す。
 
