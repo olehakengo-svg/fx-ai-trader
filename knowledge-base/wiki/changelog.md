@@ -1,5 +1,10 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-01 — docs(registry): review backlog #253/#257 消化完了 (PR #309 / #310) で `review-backlog-253-257-digest` resolve、#310 残 P2 2 件を繰延登録 (rule:R3)
+
+- `review-backlog-253-257-digest` → resolved (12 件消化)。#310 の残 P2 (excursion 入力未凍結 / 構成揃えキーに direction 欠落) は新 entry `review-backlog-310-p2-excursion-input-snapshot` (10-14) — それまで §6 の構成揃え点推定 (有利 −7〜−8% / 不利 −10〜−17%) は引用禁止
+- ⛔ `dual-engine-emit-proc-attribution-readout` の本読みは未実施 (autopilot で本番読み取りが拒否) → PR #308 は保留
+
 ## 2026-10-01 — fix(analysis): PR #253 review backlog 5 件を消化 — shadow exit regime break の estimand 修正 + 「市場機会は劣化していない」を撤回 (rule:R3、診断ツールのみ・取引挙動不変)
 
 - **対象**: registry `review-backlog-253-257-digest` (10-03) の PR #253 群 (PR #310)。`tools/win_side_exit_decomposition.py` / pin / [[win-side-exit-regime-break-2026-06-03]]
