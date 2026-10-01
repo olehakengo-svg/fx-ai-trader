@@ -331,3 +331,18 @@ def test_control_cohort_is_not_selected_by_outcome_or_exit_time(wsed, tmp_path):
                                    wsed.SHADOW_EXIT_REGIME_TRANSITION_END)
     assert sorted(r["entry_time"][11:16] for r in pre) == ["06:00", "07:30"]
     assert [r["entry_time"][11:16] for r in post] == ["10:00"]
+
+
+def test_block_bootstrap_keeps_dependent_observations_together(wsed):
+    """同ブロック (同じ日) の観測はまとめて復元抽出する (PR #310 review 4151311925)。
+
+    既知 NG: 行単位 i.i.d. resample — 1 日 20 本が日次効果で同値 (= 実質 20 日分の情報) なのに
+    400 観測として扱い CI を不当に狭くする。
+    """
+    a = [float(d) for d in range(20) for _ in range(20)]
+    b = [float(d) for d in range(20) for _ in range(20)]
+    ka = [f"a{d}" for d in range(20) for _ in range(20)]
+    kb = [f"b{d}" for d in range(20) for _ in range(20)]
+    lo_b, hi_b = wsed.boot_median_diff(a, b, n=400, a_blocks=ka, b_blocks=kb)
+    lo_i, hi_i = wsed.boot_median_diff(a, b, n=400)
+    assert (hi_b - lo_b) > 1.5 * (hi_i - lo_i)

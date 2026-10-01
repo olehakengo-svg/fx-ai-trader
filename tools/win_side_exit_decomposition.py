@@ -369,15 +369,37 @@ def fixed_horizon_excursion(row: dict, bars, horizon_bars: int,
     return max(0.0, (px - lo) / ps), max(0.0, (hi - px) / ps)
 
 
-def boot_median_diff(a: list[float], b: list[float], n: int = 2000, seed: int = 0
+def boot_median_diff(a: list[float], b: list[float], n: int = 2000, seed: int = 0,
+                     a_blocks: list | None = None, b_blocks: list | None = None
                      ) -> tuple[float, float]:
-    """median(b) − median(a) の percentile bootstrap 95% CI。"""
+    """median(b) − median(a) の percentile bootstrap 95% CI。
+
+    a_blocks / b_blocks (値と同順のブロックキー) を渡すと **ブロック bootstrap**:
+    同じブロック (例: entry の UTC 日) の観測をまとめて復元抽出する。同時刻に複数の
+    pair / 戦略が発火すると excursion 窓が重なり強く従属するので、行単位の i.i.d.
+    resample は CI を不当に狭くする (PR #310 review 4151311925)。
+    """
     rng = random.Random(seed)
+
+    def groups(vals, keys):
+        if keys is None:
+            return [[v] for v in vals]
+        g = defaultdict(list)
+        for v, k in zip(vals, keys):
+            g[k].append(v)
+        return list(g.values())
+
+    ga, gb = groups(a, a_blocks), groups(b, b_blocks)
+
+    def draw(gs):
+        out = []
+        for _ in range(len(gs)):
+            out.extend(gs[rng.randrange(len(gs))])
+        return out
+
     ds = []
     for _ in range(n):
-        ra = [a[rng.randrange(len(a))] for _ in a]
-        rb = [b[rng.randrange(len(b))] for _ in b]
-        ds.append(statistics.median(rb) - statistics.median(ra))
+        ds.append(statistics.median(draw(gb)) - statistics.median(draw(ga)))
     ds.sort()
     return ds[int(0.025 * n)], ds[int(0.975 * n) - 1]
 
@@ -465,19 +487,20 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
                      f"post {len(post) - len(cpost)} 行")
         res = {}
         for lab, rows in (("pre", cpre), ("post", cpost)):
-            fav, adv, tf, ta = [], [], [], []
+            fav, adv, tf, ta, days = [], [], [], [], []
             for r in rows:
                 x = fixed_horizon_excursion(r, bars_for(r["instrument"]), h)
                 if x is None:
                     continue
+                days.append(r["entry_dt"].date())
                 fav.append(x[0])
                 adv.append(x[1])
                 key = f"{r['instrument']}|{r['entry_type']}"
                 tf.append((key, x[0]))
                 ta.append((key, x[1]))
-            res[lab] = (fav, adv, tf, ta, len(rows))
+            res[lab] = (fav, adv, tf, ta, len(rows), days)
         for lab in ("pre", "post"):
-            fav, adv, _, _, n_all = res[lab]
+            fav, adv, _, _, n_all, _ = res[lab]
             if not fav:
                 lines.append(f"| {h * 15} 分 ({h} 本) | {lab} | 0 | — | — | — | — | — | — |")
                 continue
@@ -489,10 +512,11 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
                 f"{fmt(statistics.median(fav) / ma, 3) if ma > 0 else '—'} |")
         fa, fb = res["pre"][0], res["post"][0]
         if len(fa) >= 2 and len(fb) >= 2:
-            lo, hi = boot_median_diff(fa, fb)
+            lo, hi = boot_median_diff(fa, fb, a_blocks=res["pre"][5], b_blocks=res["post"][5])
             notes.append(f"- {h * 15} 分: median 有利幅 post−pre = "
                          f"{statistics.median(fb) - statistics.median(fa):+.2f}p "
-                         f"(bootstrap 95% [{lo:+.2f}, {hi:+.2f}])")
+                         f"(UTC 日ブロック bootstrap 95% [{lo:+.2f}, {hi:+.2f}]、"
+                         f"日数 pre {len(set(res['pre'][5]))} / post {len(set(res['post'][5]))})")
             tmf = type_matched_means(res["pre"][2], res["post"][2])
             tma = type_matched_means(res["pre"][3], res["post"][3])
             if tmf and tma:
