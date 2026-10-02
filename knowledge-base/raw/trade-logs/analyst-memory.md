@@ -5002,6 +5002,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **最も成績が悪かったセッション**: NY — `price_shock_rev_eur_gbp_h1_long` の1敗のみ
 - **本日合計**: N=1 / WR=0.0% / PnL=**−12.5 pips**
 
+### 2026-10-02 (Pre-Tokyo Briefing)
+| PnL合計（前日） | −12.5 pips |
+| 全体WR | 0.0%（1/1 LOSS） |
+> N=9 / 全体WR=33.3% / 累計PnL=−58.6p
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+両戦略ともN<10。EVは双方マイナスだが、**統計的判断には至らない段階**。
+| spread妥当性 | スプレッド1.4（EUR_GBP DT系の閾値20%基準では許容範囲内だが、EV既にマイナス） |
+- `price_shock_rev_eur_gbp_h1_long` のhorizon決済頻度を継続監視。N=4→30に向けEV推移を追う。
+- scalp系r2_shadow_demotion の恒常的支配が続くか、今日のblock countで確認。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
