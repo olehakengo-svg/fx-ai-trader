@@ -5012,6 +5012,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - `price_shock_rev_eur_gbp_h1_long` のhorizon決済頻度を継続監視。N=4→30に向けEV推移を追う。
 - scalp系r2_shadow_demotion の恒常的支配が続くか、今日のblock countで確認。
 
+### 2026-10-02 (Pre-Tokyo Briefing)
+前日（2026-10-01）は **N=1、PnL=−12.5 pips、WR=0%** と実質的に不活性なセッション。唯一約定した `price_shock_rev_eur_gbp_h1_long / EUR_GBP` がhorizonエグジット（時間切れ）で損切りとなった。スプレッドは1.4pip（閾値30%圏内、問題なし）。システム全体として新規シグナル発生が極めて限定的であった。
+| Strategy | Pair | N | WR% | EV | PnL | 統計ステータス |
+- **EV正戦略ゼロ**（`kalman_d7_po_dn_flip` のN=1唯一勝利は統計的無意味）
+- **昇格候補（N≥30 & EV≥1.0）**: 該当なし
+- **降格候補（N≥30 & EV<−0.5）**: N未到達のため降格判断保留
+- **発生事象**: BUY方向でhorizon（保有時間上限）によりエグジット → LOSS確定
+- **構造的示唆**: EUR_GBP はレジームデータ上に記載なし。本日のレジームから類推すると EUR系・GBP系はともにVOLATILE/TRENDING_DOWNバイアスがあり、BUYサイドの逆張りエントリーは順張り圧力に押し負けた可能性が高い
+- **本日の対処**: EUR_GBP のレジーム文脈を引き続き監視。TRENDING_DOWN継続中はロング逆張り系シグナルの品質が低い点を念頭に置く（判断のみ、コード変更不可）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
