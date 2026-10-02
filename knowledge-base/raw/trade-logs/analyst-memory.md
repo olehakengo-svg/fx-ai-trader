@@ -5022,6 +5022,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **構造的示唆**: EUR_GBP はレジームデータ上に記載なし。本日のレジームから類推すると EUR系・GBP系はともにVOLATILE/TRENDING_DOWNバイアスがあり、BUYサイドの逆張りエントリーは順張り圧力に押し負けた可能性が高い
 - **本日の対処**: EUR_GBP のレジーム文脈を引き続き監視。TRENDING_DOWN継続中はロング逆張り系シグナルの品質が低い点を念頭に置く（判断のみ、コード変更不可）
 
+### 2026-10-02 (Pre-Tokyo Briefing)
+| 前日 PnL | **−12.5 pip** |
+| 前日 WR | **0.0%** (1/1 LOSS) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体集計（Cutoff後）: N=8 / WR=50.0% / PnL=−24.5**
+> 注: 全戦略 N<10。統計的判断基準では「データなし」段階。EV値はすべてサンプルバイアスを含む暫定値として扱う。
+- EUR_GBP BUY → LOSS（horizon決済）。Cutoff後N=4でEV=−3.90と最悪水準。
+- GBP_USDは現在 `TRENDING_DOWN`（SMA20 slope=−0.00530）。GBP全面安の局面でEUR_GBPをLONG（GBP売り）するロジックの方向性自体は中立だが、EUR_USD も `VOLATILE`（slope=−0.00579）でEURも軟調。EUR/GBP相対強度が定まらない環境で逆張りプレミアムが出なかった。
+- 27モード中、前日発火したのは1モードのみ。signal生成の乾燥状態が続いている。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
