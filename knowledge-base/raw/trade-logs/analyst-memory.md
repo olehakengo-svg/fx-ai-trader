@@ -5042,6 +5042,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - OANDA側ブロックの**全件が`shadow_tracking`**。シャドートレードが本番昇格の壁として機能している。
 - システム全体SKIP率 **96%（48/50）**。本番稼働しているのは名目上のみであり、実質的にデモ観測フェーズが続いている。
 
+### 2026-10-03 (Pre-Tokyo Briefing)
+前日（2026-10-02）は **N=2、WR=100%、PnL=+3.8p**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> ただし `price_shock_rev_eur_gbp_h1_long`（EV=−3.90）と `usdjpy_carry_dip_accumulator`（EV=−3.23）はN=4・3と少数ながら損失の単価が大きく、N積み上げを注視するフラグ案件。
+- **課題なし（当日比較）**: 前日単独は N=2 WR=100% であり運用上の問題は発生していない。
+- **構造的課題（Cutoff後累積）**: 全体 PnL=**−21.5p**。特に `price_shock_rev_eur_gbp_h1_long` が EV=−3.90/trade と**単価損失が突出**しており、N=4 でも合計 −15.6p と累積損失の大半を占める。
+- Kalman 系 2 戦略は本日も USD_JPY RANGING レジームと親和性があり（後述）、シグナルが継続する場合は観察継続。
+- `price_shock_rev_eur_gbp_h1_long` は EUR/GBP ペアが今回のレジームデータに含まれていないため、ショックリバーサル系がどのレジーム環境で発火しているか確認が必要。N=30 まで積み上げ期間とみなし、現時点でのEV評価は参考値扱い。
+| USD_JPY | RANGING | 68% | −0.0009 | 157.874 | **Kalman系・carry_dip系の主戦場。レンジ環境はKalman平滑化との親和性高い。ただし carry_dip はEV=−3.23で要警戒** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
