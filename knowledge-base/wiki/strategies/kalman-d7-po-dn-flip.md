@@ -165,6 +165,6 @@ Entry filters (v16 forensic 導出):
 - 🔑 **42 秒の往復は未決「SL 目標の 2-writer 競合 (trail vs BE)」の初の秒単位証拠**。trail が 158.14x を書き、BE writer が 158.024 を書き戻す。09-25 節 3. の overlay (ATR×0.8 で BE / ATR×1.5 後 ATR×0.5 trail) が同時に走った形と整合
 - ⚪ 執行 QA (09-25 節「毎 fill で hold 時間・exit 種別・demo↔broker 差を追記」): hold 1h44m / `OANDA_SL_TP` (BE) / demo↔broker 差 0.2p (slippage 由来)。4 本の hold は 4h04m / 54m / 58m / **1h44m** — 全て 8h cap 内、BT の winner ride (~115h) はやはり発生していない。**本 fill も BT 検証の N には数えない** (estimand が違う)
 - 🔴 **DD ledger は本件の +0.8 を計上せず** (`OANDA_SL_TP` 経路の欠落 4 例目) — [[2026-10-02]] 発見 4
-- ⚠️ 09-26 の `[SLTP_CONSTRUCT]` マーカーは本 fill の demo 行 `reasons` に**含まれていない** (EUR_GBP #950030 には付いている) ⇒ `daytrade` モードの経路にマーカー計装が届いていない可能性。要コード確認 (観測のみ)
+- 🔑 **09-26 計装 `[SLTP_CONSTRUCT]` の本戦略 初 live 読み出し** (demo 行 `reasons`): `sl=atr_rrlow clamp=none lowliq=1 fastsl=0 ct=0 rn=0 mtf_tp=1.0 range_tp=0 decl_sl_p=19.0 sl_p=15.1 decl_tp_p=34.2 tp_p=34.4 entry_drift_p=0.2` + `[BROKER_TP] basis=qh mult=0.85 tp_p=29.3` ⇒ 09-25 節 4. の C0 分岐が実測で確定: **SR ベース SL は RR<1.0 で棄却され ATR×1.0 にフォールバック (`atr_rrlow`)、低流動性 +0.2×ATR (`lowliq=1`、0 UTC entry) が掛かり、宣言 SL 19.0p → 置かれた SL 15.1p**、MTF TP ×1.3 は非発動 (`mtf_tp=1.0`)、broker TP は quick-harvest ×0.85 で 29.3p (broker 実測 +29.1p と一致)。N=1 の分岐観測であり C0 感度の「率」はまだ出せない (marker 付き live N が溜まってから)
 
 詳細: [[2026-10-02]] 発見 1 / [[usdjpy_carry_dip_accumulator]] / [[project_weekend_market_halted_retry_storm_2026_09_07]]
