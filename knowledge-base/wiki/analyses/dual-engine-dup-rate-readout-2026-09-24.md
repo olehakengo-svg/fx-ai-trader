@@ -162,6 +162,28 @@ EOF
 - **LIVE 送信は両プロセスから出ている** (master 4 / worker 2)。§3 の「LIVE 二重送信 0」は維持 (twin 0) だが、単一化は LIVE 送信の発生元も 1 本にする。
 - 含意 (§5 判定表どおり): どの分岐でも単一化 PR (§6 案 A) は起案する。(c) では残す側 (worker) がすでに kept 行の 62.5% を持つので、race-winner モデル (§2 末尾) の下では単一化後の生成率低下は小さい見込み。**見込みであって検証ではない** — 検証は §6 の 4 (近接ペア 0 化) と before/after 層別で行う。
 
+### 5c. 本読み (2026-10-04T05:4xZ、窓終了後、registry `dual-engine-emit-proc-attribution-readout`、rule:R3)
+
+事前規定の窓 **[2026-09-24T04:43Z, 2026-10-01T04:43Z)** が完結した後の本読み。手順は §5 の snippet と同一 (件数のみ、EV/WR/outcome は読まない)。母集団 = `/api/demo/trades?status=all&limit=20000&date_from=2026-09-24` 全 687 行 (10-04T05:4xZ 取得、limit 未到達)。
+
+| 項目 | 値 |
+|---|---|
+| self-check | `engine_pid=130` ≠ `engine_import_pid=62` ∧ role `forked` ∧ origin `statusheal` → §1 トポロジどおり、role 軸有効 (中間 readout と同じ) |
+| kept shadow (dv=0、窓内) | **N=446**: `forked:statusheal` 265 / `import:autostart` 181 (他の marker 値 0) |
+| **p_f (本読み)** | **0.594** (Wilson 95% [0.548, 0.639]) → 判定表 **(c) p_f > 0.5 = master 劣後** (区間下端 0.548 > 0.5)。中間値 0.625 から低下 |
+| 日別 p_f | 09-24 41/83 = 0.49 / 09-25 52/83 = 0.63 / 09-27 0/1 / 09-28 56/85 = 0.66 / 09-29 73/102 = 0.72 / **09-30 41/85 = 0.48** / 10-01 (04:43Z まで) 2/7 |
+| marker 前 kept (`none`) | 9 行 (別枠、不変) |
+| 窓外 (参考、判定に使わない) | 10-01T04:43Z〜10-04T05:4xZ の kept 173 行: forked 72 / import 101 = **0.416** |
+| `dedup_violation=1` shadow 行 (deploy 以降) | 47 件 (件数のみ。単一化後に 0 近傍へ落ちるかが §6 の 4 の検証) |
+| Render ログ | 10-04T05:39–05:42Z に `[MainLoop] iter=156690..156840 pid=62 role=import origin=autostart` と `iter=160260..160380 pid=130 role=forked origin=statusheal` が交互 (instance `srv-d6va1of5r7bs73en10vg-7fsnh`) = **二重稼働は継続中** |
+| LIVE 行 (09-24〜10-02) | 12: `import:autostart` 6 / `forked:statusheal` 5 / `none` 1 (#18359、deploy 前)。同 pair×方向 Δ≤120 s twin **0** |
+
+読み:
+- 判定は **(c)**。ただし中間 readout の「日別 0.49 → 0.72 の上昇」は 09-30 (完全日、0.48) で崩れ、窓外 3 日では 0.416 と 0.5 を割った。**p_f は race の位相 (どちらのプロセスが先に row を書くか) であり、boot / 日によって 0.5 の両側に振れる**。どちらかのエンジンが emit「しない」ことは意味しない (§2: 両方 dv=0 のペアは 0 = 負け側は dv=1 で捕捉されている)。
+- したがって **単一化後の shadow 生成率を p_f から予測・補正してはならない** (「worker が 59% を既に稼いでいるから低下は 41% 以下」型の算術は禁止)。生成率の before/after は marker 一次キー (`forked:forkchild` vs それ以前) + deploy 時刻 二次キーで**実測**する (§6 の 4・5)。
+- LIVE 送信は本読みでも両プロセスから出ている (6/5)。twin 0 は維持。単一化で LIVE 送信元は 1 プロセスになる。
+- 結論: 単一化 PR #308 の merge 条件 (「本読みが済んでから」) 成立 → merge 執行。registry `dual-engine-emit-proc-attribution-readout` は本節で resolve。`dual-engine-master-worker-disposition` (10-06) は deploy 後検証 (i) `[AutoStart] deferred to forked worker` 1 回 (ii) `[MainLoop] iter=` pid 1 種類 (iii) 新規 row marker `forked:forkchild` (iv) 翌週の近接ペア 0 で resolve する。
+
 ## 6. 単一化の設計 (別 PR、R3 + deploy stamp)
 
 現状: master が app.py を import → `_auto_start_trader` thread が master で 24 mode 起動 → worker は StatusHeal (30 s cadence の self-heal) で 2 セット目。
@@ -199,6 +221,8 @@ Render deploy 一覧 (09-23T05:27 → 09-24T03:02) の 5 件中 4 件が `docs(K
 - §4 の自然実験は記述級 (N=2)。「regime break なし」の証明として引用しない。
 - 2026-09-24 以前の row には `[EMIT_PROC]` が無い (`none`)。marker で層別する分析は本 PR の deploy 時刻以降の行のみ。
 - LIVE 二重送信 0 件は「観測されていない」であって「起こり得ない」ではない (§3)。
+
+- 中間 readout の **p_f=0.625 は引用禁止** (窓終了前)。本読みは **0.594 [0.548, 0.639]** (§5c)。p_f を単一化後の生成率の補正係数に使わない (位相であって emit 能力ではない)
 
 ## 関連
 

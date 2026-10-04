@@ -1,5 +1,11 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-04 — docs(registry): 二重エンジン emit-proc 帰属の本読み (p_f 0.594 [0.548, 0.639]、判定 (c)) → `dual-engine-emit-proc-attribution-readout` resolve、PR #308 (単一化) の merge 条件成立 (rule:R3 記録のみ、autopilot)
+
+- 窓 [09-24T04:43Z, 10-01T04:43Z) 完結後に §5 snippet で再計算: kept shadow N=446 (forked 265 / import 181)。中間値 0.625 は引用禁止。**日別は 0.48〜0.72 を往復し窓外 3 日は 0.416** = p_f は race の位相で、単一化後の生成率を p_f で補正してはならない (marker 一次キー + deploy 時刻で実測)
+- LIVE 12 行は import 6 / forked 5 (両プロセスから送信)、twin 0。Render ログ 10-04T05:40Z で pid 62/130 の 2 系列交互 = 二重稼働継続を再確認
+- `dual-engine-master-worker-disposition` (10-06) は deploy 後検証 (i)〜(iv) で resolve。詳細: [[dual-engine-dup-rate-readout-2026-09-24]] §5c
+
 ## 2026-10-01 — docs(registry): review backlog #253/#257 消化完了 (PR #309 / #310) で `review-backlog-253-257-digest` resolve、#310 残 P2 2 件を繰延登録 (rule:R3)
 
 - `review-backlog-253-257-digest` → resolved (12 件消化)。#310 の残 P2 (excursion 入力未凍結 / 構成揃えキーに direction 欠落) は新 entry `review-backlog-310-p2-excursion-input-snapshot` (10-14) — それまで §6 の構成揃え点推定 (有利 −7〜−8% / 不利 −10〜−17%) は引用禁止
