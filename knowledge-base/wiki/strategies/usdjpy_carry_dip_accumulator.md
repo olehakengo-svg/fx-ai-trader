@@ -78,6 +78,19 @@
 >
 > ⚠️ 併発リスク: この建玉の週末クローズ試行が **47 時間 / 64,170 回の `MARKET_HALTED` リトライ storm** (128,340 transactions) を引き起こし、OANDA Gold status = API アクセスを脅かした。hold ≤24 H1 は金曜クローズを日常的に跨ぐため **再発する**。詳細: [[2026-09-07]]
 
+## 🔴 2026-09-30 更新 (wiki-daily 12:01Z): **fill #19 #948647 — 純族 A storm (672 回同値再送 / 16 分で自然停止) の後 BE+1 で SL 約定 +¥10 — N=19**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold |
+|---|---|---|---|---|---|---|---|
+| **#948647** | 09-29 19:03:09 | 157.224 | 156.957 (**−26.7p**) / 157.857 (+63.3p) | 09-30 00:55:02 `STOP_LOSS_ORDER` @157.234 (BE+1.0p) | **+¥10** | +0.8 `OANDA_SL_TP` | 5h52m |
+
+- 🔴 **storm**: 23:45:06〜00:01:12Z に `REPLACEMENT` **672 本 (計 1,344 tx)**、価格は **672/672 が 157.234** ⇒ **純族 A** (6 例目)。ループは自然停止し、54 分後に市場が SL に到達 = 自己約定ではない。停止が UTC 日付境界直後である点は 1 例のため主張しない
+- 🔴 **storm_guard は 0 計上** (totals 全 0、`main_loop_restarts` 1 不変) ⇒ guard 状態は process 内のみで **deploy でリセット**される可能性が高い (09-28 の「計上 ~40%」の有力説明、未確定)
+- ✅ SL 契約破棄 **19/19** (−26.7p、帯 9.8–28.5p 内)。broker TP = demo TP 157.970 × 0.851 ⇒ `_QUICK_HARVEST_MULT` 0.85 と整合。demo↔broker 0.2p 差 (entry 丸め)、符号一致
+- 🔴 DD ledger は `OANDA_SL_TP` の +0.8 を**未計上** (3 例目の非 SL_HIT 経路欠落)
+- **累計**: demo **N 19 / 10W / WR 52.6% / +60.0** (wf_h1 +9.33 / wf_h2 **−2.40**)、broker **+¥375 = +37.5p / 19 = +1.97p/trade**。R2 (N≥10 ∧ EV<0) 不成立。pre-reg N≥30 に対し 19/30
+- 詳細 [[2026-09-30]]
+
 ## 🔴🔴 2026-09-28 更新 (wiki-daily 15:19Z): **fill #17 #893207 の決着 = 5h46m / 55,424 tx の storm を経て +¥95 自己約定、fill #18 #948637 は再エントリーで SL_HIT −¥191 — N=18**
 
 | fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold |
