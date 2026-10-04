@@ -4942,6 +4942,116 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - 27モード中26がON稼働にもかかわらず、実執行は前日1件のみ
 - block_countsの大半（`r2_shadow_demoted_cell`・`order_bar_dedup`・`score_gate`）が信号を吸収している構造が継続
 
+### 2026-09-30 (Pre-Tokyo Briefing)
+前日（2026-09-29）のトレード数は **N=1**、PnL = **−1.6 pips**、WR = **0.0%**。
+| Strategy | Pair | N | WR% | EV（pips/t） | PnL |
+- `price_shock_rev_eur_gbp_h1_long` は現在 **TRENDING_DOWN レジーム**（GBP_USD −0.596）の影響圏。ロング方向エントリーと逆風の組み合わせが継続中か注視。
+- `rnb_usdjpy:no_signal`（797件ブロック）は依然主因。USD_JPYが **RANGING レジーム**に入っており、RnBがシグナル条件を満たせないことと整合的。
+| GBP_JPY | TRENDING_DOWN | 72% | −0.00913 | ATR%ile最高。`daytrade_gbpjpy` は方向性注意 |
+**総評**：主要5ペアすべてが下降トレンドまたはレンジ。ショート方向の DT 系に有利な地合いだが、`r2_shadow_demoted_cell` ブロックが多数発生しており、実際のエントリーは阻害されている。ATR%ile 69〜72% は「高ボラ気味」だが、方向性が一方向に揃っている点は通貨間リスク集中に注意が必要。
+**レジーム遷移リスク**：月初の経済指標ラッシュにより、現在のTRENDING_DOWNから突発的なRANGINGまたはTRENDING_UP遷移が起きる可能性。特にGBP系（ATR72%）は急変に注意。
+**agg_kelly=−0.361<0（1件）**：Kelly基準がマイナスを示したケースが1件。期待値がネガティブと判定されてブロックされた正常動作。現在の全戦略EVがすべてマイナスである事実と整合的。
+
+### 2026-09-30 (Post-NY Report)
+| PnL | **+0.0 pips** |
+| 勝率 (WR) | **N/A（取引なし）** |
+- 主要5通貨ペア（EURJPY・EURUSD・GBPJPY・GBPUSD・USDJPY）は全てATR%ile 62–72%のやや高ボラティリティ帯に位置し、TRENDING_DOWN（USDJPY除く）。シグナル生成の機会は構造的に存在したが、以下のブロック要因により不発：
+- `daytrade_gbpusd:hedge_block` 195件 ← GBPUSD方向感の対立
+- `daytrade_gbpusd:order_bar_dedup` 217件 ← 重複発注抑制
+- `daytrade:score_gate` 260件 ← スコア閾値未到達
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+
+### 2026-10-01 (Pre-Tokyo Briefing)
+**2026-09-30 実績**: N=3、PnL=−0.7p、WR=66.7%
+勝率は高く見えるが、勝ち(+5.5p)が負け(−7.0p)に食われる典型的な**payoff非対称**パターン。`price_shock_rev_eur_gbp_h1_long`が2戦1勝1敗でPnL=−1.5p。`usdjpy_carry_dip_accumulator`の1勝(+0.8p)が唯一の救いだが焼石に水。トレード数は極端に少なく、実質的に「無活動日」に近い。
+| Strategy | Pair | N | WR% | EV | PnL |
+**総計: N=9、PnL=−66.1p**
+> ⚠️ **全戦略N<10**: 統計的には「データなし」扱い。EV数値は参考値に過ぎず、昇格/降格判断は保留。ただし方向性としては全戦略が負のEVを示しており、構造的懸念として記録。
+| Trade | Dir | Outcome | PnL | Spread |
+勝ち幅+5.5pに対し負け幅−7.0p。Spread=1.4pは同戦略のDT spread_guard閾値（20%相当）と照合すると許容範囲内だが、**payoff比=0.79（＜1.0）**は摩擦調整EV負の状態。同方向(BUY×2)で連続エントリーしており、シグナルの独立性も疑問。
+累積EV=−8.60、N=5で累積PnL=−43.0p。前日唯一の+0.8pは例外的な回復に過ぎない。`kalman_d7_po_dn_flip`はN=1でEV=−20.0（単発大敗）。
+
+### 2026-10-01 (Pre-Tokyo Briefing)
+| PnL合計 | **−0.7 pip** |
+| 全体WR | **66.7%** (2W/1L) |
+前日は件数が極めて少なく、統計的に無意味なサンプル。PnLは辛うじてフラット近傍で着地したが、EURGBPの1Lが重く、USD_JPYの小幅勝ちで相殺した形。実質的に「稼げなかった日」と記録する。
+| Strategy | Pair | N | WR% | EV | 判定 |
+**全期間合計: N=9 / WR=33.3% / PnL=−66.1 pip**
+> **統計判定**: 全戦略ともN<10。「データなし」として扱う。EV数値はいずれも負だが、統計的判断を下せるフェーズに到達していない。N=30達成まで降格・昇格の判断は保留が原則。
+| Trade | Dir | Outcome | PnL |
+- 逆張り戦略のBUYシグナルはGBP安レジームと真っ向対立しているため、本日もシグナルが出ても「レジームとの整合性なし」として記録すること
+
+### 2026-10-01 (Pre-Tokyo Briefing)
+**2026-09-30** の確定トレードは **3件**、PnL合計 **−0.7p**、WR **66.7%（2勝1敗）**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的警告**：両戦略ともN<10。「傾向」にもならない水準。EV・WRの数値はノイズとして扱う。
+| Strategy | Pair | Dir | Outcome | PnL | Spread | 備考 |
+- WIN+5.5 に対してLOSS−7.0。期待値ベースで構造的劣位。
+- spread 1.4p は scalp基準30%閾値には当たらないが、1Hスケールで見ると摩擦の比率は無視できない。
+- **本日の扱い**：N=3では統計的判断不可。ただし **N到達まで出口非対称に注目し続ける**こと。
+### 課題②：usdjpy_carry_dip_accumulator のEV −8.60（N=5）
+
+### 2026-10-01 (Post-NY Report)
+| 勝率（WR） | 0.0% |
+| PnL | **−12.5 pips** |
+| 戦略 | ペア | PnL | 失敗要因 |
+### セッション別PnL比較
+| セッション | 時間（UTC） | N | WR% | PnL |
+- **最も成績が良かったセッション**: Tokyo / London（PnL=0、ドローダウンなし）
+- **最も成績が悪かったセッション**: NY — `price_shock_rev_eur_gbp_h1_long` の1敗のみ
+- **本日合計**: N=1 / WR=0.0% / PnL=**−12.5 pips**
+
+### 2026-10-02 (Pre-Tokyo Briefing)
+| PnL合計（前日） | −12.5 pips |
+| 全体WR | 0.0%（1/1 LOSS） |
+> N=9 / 全体WR=33.3% / 累計PnL=−58.6p
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+両戦略ともN<10。EVは双方マイナスだが、**統計的判断には至らない段階**。
+| spread妥当性 | スプレッド1.4（EUR_GBP DT系の閾値20%基準では許容範囲内だが、EV既にマイナス） |
+- `price_shock_rev_eur_gbp_h1_long` のhorizon決済頻度を継続監視。N=4→30に向けEV推移を追う。
+- scalp系r2_shadow_demotion の恒常的支配が続くか、今日のblock countで確認。
+
+### 2026-10-02 (Pre-Tokyo Briefing)
+前日（2026-10-01）は **N=1、PnL=−12.5 pips、WR=0%** と実質的に不活性なセッション。唯一約定した `price_shock_rev_eur_gbp_h1_long / EUR_GBP` がhorizonエグジット（時間切れ）で損切りとなった。スプレッドは1.4pip（閾値30%圏内、問題なし）。システム全体として新規シグナル発生が極めて限定的であった。
+| Strategy | Pair | N | WR% | EV | PnL | 統計ステータス |
+- **EV正戦略ゼロ**（`kalman_d7_po_dn_flip` のN=1唯一勝利は統計的無意味）
+- **昇格候補（N≥30 & EV≥1.0）**: 該当なし
+- **降格候補（N≥30 & EV<−0.5）**: N未到達のため降格判断保留
+- **発生事象**: BUY方向でhorizon（保有時間上限）によりエグジット → LOSS確定
+- **構造的示唆**: EUR_GBP はレジームデータ上に記載なし。本日のレジームから類推すると EUR系・GBP系はともにVOLATILE/TRENDING_DOWNバイアスがあり、BUYサイドの逆張りエントリーは順張り圧力に押し負けた可能性が高い
+- **本日の対処**: EUR_GBP のレジーム文脈を引き続き監視。TRENDING_DOWN継続中はロング逆張り系シグナルの品質が低い点を念頭に置く（判断のみ、コード変更不可）
+
+### 2026-10-02 (Pre-Tokyo Briefing)
+| 前日 PnL | **−12.5 pip** |
+| 前日 WR | **0.0%** (1/1 LOSS) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体集計（Cutoff後）: N=8 / WR=50.0% / PnL=−24.5**
+> 注: 全戦略 N<10。統計的判断基準では「データなし」段階。EV値はすべてサンプルバイアスを含む暫定値として扱う。
+- EUR_GBP BUY → LOSS（horizon決済）。Cutoff後N=4でEV=−3.90と最悪水準。
+- GBP_USDは現在 `TRENDING_DOWN`（SMA20 slope=−0.00530）。GBP全面安の局面でEUR_GBPをLONG（GBP売り）するロジックの方向性自体は中立だが、EUR_USD も `VOLATILE`（slope=−0.00579）でEURも軟調。EUR/GBP相対強度が定まらない環境で逆張りプレミアムが出なかった。
+- 27モード中、前日発火したのは1モードのみ。signal生成の乾燥状態が続いている。
+
+### 2026-10-02 (Post-NY Report)
+| WR | — |
+| PnL (pips) | +0.0 |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+- **最良**: 東京セッション（N=1 / +0.8p / WR 100%）― 唯一の執行が勝利
+- **最悪**: ロンドン・NY（構造的ノートレード、原因は下記分析参照）
+- OANDA側ブロックの**全件が`shadow_tracking`**。シャドートレードが本番昇格の壁として機能している。
+- システム全体SKIP率 **96%（48/50）**。本番稼働しているのは名目上のみであり、実質的にデモ観測フェーズが続いている。
+
+### 2026-10-03 (Pre-Tokyo Briefing)
+前日（2026-10-02）は **N=2、WR=100%、PnL=+3.8p**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> ただし `price_shock_rev_eur_gbp_h1_long`（EV=−3.90）と `usdjpy_carry_dip_accumulator`（EV=−3.23）はN=4・3と少数ながら損失の単価が大きく、N積み上げを注視するフラグ案件。
+- **課題なし（当日比較）**: 前日単独は N=2 WR=100% であり運用上の問題は発生していない。
+- **構造的課題（Cutoff後累積）**: 全体 PnL=**−21.5p**。特に `price_shock_rev_eur_gbp_h1_long` が EV=−3.90/trade と**単価損失が突出**しており、N=4 でも合計 −15.6p と累積損失の大半を占める。
+- Kalman 系 2 戦略は本日も USD_JPY RANGING レジームと親和性があり（後述）、シグナルが継続する場合は観察継続。
+- `price_shock_rev_eur_gbp_h1_long` は EUR/GBP ペアが今回のレジームデータに含まれていないため、ショックリバーサル系がどのレジーム環境で発火しているか確認が必要。N=30 まで積み上げ期間とみなし、現時点でのEV評価は参考値扱い。
+| USD_JPY | RANGING | 68% | −0.0009 | 157.874 | **Kalman系・carry_dip系の主戦場。レンジ環境はKalman平滑化との親和性高い。ただし carry_dip はEV=−3.23で要警戒** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

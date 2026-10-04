@@ -1,5 +1,30 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-01 — docs(registry): review backlog #253/#257 消化完了 (PR #309 / #310) で `review-backlog-253-257-digest` resolve、#310 残 P2 2 件を繰延登録 (rule:R3)
+
+- `review-backlog-253-257-digest` → resolved (12 件消化)。#310 の残 P2 (excursion 入力未凍結 / 構成揃えキーに direction 欠落) は新 entry `review-backlog-310-p2-excursion-input-snapshot` (10-14) — それまで §6 の構成揃え点推定 (有利 −7〜−8% / 不利 −10〜−17%) は引用禁止
+- ⛔ `dual-engine-emit-proc-attribution-readout` の本読みは未実施 (autopilot で本番読み取りが拒否) → PR #308 は保留
+
+## 2026-10-01 — fix(analysis): PR #253 review backlog 5 件を消化 — shadow exit regime break の estimand 修正 + 「市場機会は劣化していない」を撤回 (rule:R3、診断ツールのみ・取引挙動不変)
+
+- **対象**: registry `review-backlog-253-257-digest` (10-03) の PR #253 群 (PR #310)。`tools/win_side_exit_decomposition.py` / pin / [[win-side-exit-regime-break-2026-06-03]]
+- **(a) P1 live/shadow 混在**: `load_clean(stream=)` 新設、既定 shadow = `oanda_trade_id` 無し ∧ `is_shadow=1`、live = `oanda_trade_id != ''`、is_shadow=0 ∧ id 無し (47 行) は ambiguous で除外。**(b) P2 境界跨ぎ**: `split_cohorts` — clean pre = `exit_time < START` / clean post = `entry_time ≥ END` / 跨ぎ・窓内は除外して別報告。**(c) P2 中央値**: `statistics.median`。**(d) P2 cutoff**: 遷移窓 [07:58:28Z (commit object 時刻), 09:00:00Z) — Render deploy 時刻は記録なしのため挙動 (shadow 初の WIN∧SL_HIT が exit 08:01:26Z) から上限を導出し保守的に除外、END 08:01:26 / 09:00 / 06-04T00:00 の感度で数値不変。**(e) P1 exit 依存の対照**: 固定ホライズン excursion (`fixed_horizon_excursion`、exit_time/close_reason/mafe を参照しない、最終形は [entry, entry+H] を 1m 足でクリップ) を新設
+- **再計算 (PROD 18,829 件、10-01 取得、全戦略 shadow)**: WR 26.3→51.5% は **26.2→51.1%** / R:R 1.90→0.55 は **1.91→0.56** / EV −1.45→−1.61 は **−1.47→−1.63** / WIN 行 SL_HIT 率 0.3→88.3% は **0.1→88.4%** — **regime break (計測の是正) は修正後も再現**
+- 🔴 **撤回**: 敵対的検証②「市場側の順行余地は劣化していない」。exit 非依存を意図した対照 (outcome を問わない全 entry を entry 時刻で分割 × [entry, entry+H] を MASSIVE 1m 足でクリップ (13 pair、2026-03-27〜10-01 を取得) × 0 clamp) で median 有利幅 60 分 −0.50p / 240 分 −0.70p だが **重なり窓ブロック bootstrap CI は [−1.00, +0.24] / [−2.00, +1.40] で 0 を含む** ⇒ **市場側の変化は未識別** (点推定は有利 −7〜−8%・不利 −10〜−17% の振幅縮小、有利/不利 比ほぼ不変)。Codex 2 巡目 P1 (被覆非対称) / P2 (窓内部の欠落)、3 巡目 P1 ×2 (BREAKEVEN 除外 = exit 選別 / clamp 欠如)、4 巡目 P1 (重なる窓を i.i.d. bootstrap)、5 巡目 P1 (15m 非整列窓 = 名目 horizon を測っていない) を修正 — 初版の「有利幅 −19%・有意」は過大。exit 機構の**作動** (BE/trail が shadow で有効化された) は SL_HIT step function で確定、ただし avg_win −62% の**主因**とは言えない (同時期の市場側縮小とも両立、寄与の配分は未識別 — Codex P2 4152277183)、**市場寄与との配分は未識別** (~~点推定の振幅縮小は −62% を説明する規模でない~~ は撤回)。⚠️ ただし対照は約定建玉で、建玉上限 / post-exit cooldown 経由で exit regime に選別されうる = 完全な exit 非依存ではない (Codex P1 4152175652、ゲート前候補シグナル基準の対照は未実施)。sr_anti_hunt_bounce 単独の対照は検出力不足で未識別
+- **訂正**: sr_anti_hunt_bounce pre avg_win 19.42→19.03p (live 1 行除外) / PAIR_PROMOTED 候補 pre 14→12 行・EV +12.46→+12.96 (pre は LOCK since 08-05 より前)。🔴 **P-10 開示**: 同候補は LOCK `sr-anti-hunt-eurjpy-buy-forward-confirm` の refinement で、post 群は forward 行を含む — 09-14 版の post/全体行は既に露出、本 PR の再計算でも Claude が post outcome を観測 (Tokyo 定義の変種 2 本は新規観測) ⇒ post 側の数値は新たに記載せず、`sr-anti-hunt-eurjpy-lock-validity-disposition` の露出記録へ回付
+- Codex 8 巡目 P2 4152047567: 窓 [entry, entry+H] が START を越える pre 行 (60 分 14 / 240 分 30) を落とした (`drop_boundary_crossing`)。これで群を跨いで同じ価格バーを共有する窓が無くなる。60 分の CI 上端が +0.20 → +0.24 になったが、結論は変わらない
+- Codex 7 巡目 P2 4152000632: ブロックを UTC 日ではなく「excursion 窓が連鎖的に重なる観測の塊」(`overlap_blocks`) にした (日付を跨いで重なる 240 分窓が別ブロックに分かれていた)。CI は 60 分 [−1.10, +0.20] → [−1.00, +0.20]、240 分 [−2.00, +0.80] → [−2.00, +1.40] で、結論 (未識別) は変わらない
+- Codex 6 巡目 P2 4151937674: どちらかの群のブロックが 5 個未満なら bootstrap CI を出さず「算出不可」と表示する (ブロックが 1 個だと全 resample が同じになり、幅ゼロの CI が出てしまう)。本件の数値はどちらの群も日数 ≥18 なので変わらない
+- pin 24 本 (旧 6 本の改訂・置換 + 新規、各修正に既知 NG 入力)。修正を 1 つずつ戻す counterfactual は計 23 種 (初版 8 + Codex 2〜8 巡目 15) で、どれも対応する pin が落ちることを確認 (`python3 -B`)
+
+## 2026-10-01 — fix(e23): PR #257 review backlog 7 件を消化 + park 根拠の estimand 監査 — Gate B N 56 → 40 (UNDERPOWERED 維持)、Gate A の OOS 接触を explore 窓限定へ (rule:R3)
+
+- **対象**: registry `review-backlog-253-257-digest` の PR #257 群 (P1 ×3 / P2 ×4)。コード = `tools/e23_corpus_fetch.py` / `tools/e23_corpus_census.py` / `tools/e23_pass1_events.py`、pin = `tests/test_e23_review_backlog_257.py` (20 本、7 修正それぞれの counterfactual で落ちることを fresh pycache prefix で確認)
+- **修正**: (1) Fed は press release 表題 "Federal Reserve issues FOMC statement" で同定 — 混入 4 件 (2019-10-11 実施ノート / 2020-03-31 FIMA repo / 2020-08-27・2025-08-22 長期戦略声明) を loader で除外 (ファイル保持) / (2) BoJ V3 は印字日一致を gate に使わず `release_time_verified` のみ = **fail-closed** (公開時刻の検証経路なし: BoJ ページに時刻記載なし、Wayback 初回 capture は数年後) → BoJ 除外 / (3) `--refetch` を fetcher へ伝搬 / (4) EXPLORE_START..OOS_END 外を save・manifest・loader の 3 層で除外 (窓外 6 ファイル保持) / (5) Gate A を explore 窓限定 (候補ペア = 生存 CB の写像のみ、BoJ 除外後は EUR_USD / GBP_USD) / (6) pass-1 が census を価格を開く前に判定して生存 CB を強制 (DATA-BLOCKED は価格非接触・Gate B「未評価」表示) / (7) 凍結辞書 sha を辞書 import 前に実行時 assert
+- **park 根拠の監査 (オフライン、pass-2 未解錠・イベント×リターン非計算)**: Gate A 旧 71.45/95.0/81.85p → explore 限定 **73.0/100.4/76.9p** (3/3 通過不変、旧 move の約 20% が 2024 以降 = OOS 無条件集計に接触していた)。Gate B **N 56 → 40** (Fed 修正 −2 / BoJ fail-closed −14)、上界 100 → 72 で UNDERPOWERED が機械的に確定。**旧 N の 28.6% が汚染/未検証文書依存、向きは PASS 側への水増し = park 判定は保守側で反転なし**
+- **成果物**: `raw/analysis/e23-pass0-census-2026-10-01.*` / `e23-pass1-events-2026-10-01.*` (09-15 成果物は上書きせず保存)、`data/external/cb_statements/manifest.json` 再生成 (388 docs + `excluded` 10)、pre-reg §12 追記 (本文不改変)
+- **引用規律**: E23 N は 40 (旧 56 併記)。「BoJ 同時公表 93/93 確認」型の引用禁止 (確認したのは印字日のみ)。コーパス再利用は `load_corpus()` 経由に限る
+
 ## 2026-09-30 — fix(engine): 取引エンジンを fork された worker でだけ起動 = 二重エンジン (master+worker) の単一化 (rule:R3、regime break 記録付き)
 
 - **根拠**: [[dual-engine-dup-rate-readout-2026-09-24]] §5b (09-30 **中間** readout、7 日窓終了前 — 本読みは 10-01T04:43Z 以降、merge はその後) — kept shadow N=360 の p_f=0.625、Render ログで pid 62 (master import:autostart) / 130 (worker forked:statusheal) の 2 系列、LIVE 送信も両プロセスから (master 4 / worker 2、twin 0)
@@ -8,6 +33,16 @@
 - **失ったもの**: master のエンジンは HTTP 全盲 (worker hang) 中も取引を続けていた。master に thread が無くなるので fork poisoning 自体は構造的に起きなくなるが、worker が別原因で hang した場合のバックアップは無くなる
 - **検証 (deploy 後)**: `[AutoStart] deferred to forked worker` が 1 回、`[MainLoop] iter=` の pid が 1 種類、row marker が `forked:forkchild`、近接ペア (Δ≤45 s) が 0 へ — registry `dual-engine-master-worker-disposition`
 - pin: `tests/test_single_engine_fork_child_autostart.py` (12 本、実 fork で子 1 回 / 孫 0 回、claimed / ppid ガードをそれぞれ counterfactual で確認) + `tests/test_dual_engine_process_attribution.py` 追従
+
+## 2026-09-29 — docs(registry): `ps-carveout-regate-post-172` 期日前 readout (stale 見込み) — clean live N=6 (<10) で EV 判定保留 (期日前 readout、09-30 checkpoint 後に 10-30 へ roll)、不足の帰属 = 送信前 gate 100% (rule:R3、記録のみ)
+
+- **実測** (本番 `/api/demo/trades` 08-11 以降 全ページ 2,982 行): ps 行 7 / clean live **6** (eur_gbp 4 / aud_jpy 2) / 他 3 席 0 / 最終 ps 行 09-03T15:08Z。pre-reg どおり N ゲートは下げず、EV/WR は計算していない (N≥10 look を消費しない)
+- **帰属**: 09-23〜09-29 の distinct signal-bar 11 本すべて order 送信前に block (spread_wide 21:00Z 5 / 08:00Z 1 / mtf_strong_bias 3 / velocity_down 2) — [[ps-seat-supply-remeasure-2026-09-10]] §11 の (B) 下流 100% を追認。席は是正後一度も律速していない
+- **resolve しない・期日据え置き**: entry は cell_deepdive の LOCK redaction 母集団を定義 (resolve で保留 EV look が露出、初版 resolve を `test_real_registry_preserves_prefix_match_flags` が検知)、かつ prefix プールの R2 条件を執行する唯一の主体 (watchdog はセル単位・直近 closed 5,000 行の切り詰め窓 (`limit=5000` 1 回取得・ページングなし)・`is_shadow` 基準で別母集団 — Codex P2)。期日 09-30 は動かさず (`today >= deadline` で発火、前日 roll は checkpoint を消す — Codex P2)、checkpoint 後に増分を数え直して roll
+-magnitude の disposition は `ps-seat-spread-magnitude-readout` (10-19)。mtf/velocity の shadow 化は Rule 1 候補として記録のみ
+- 🔴 **発見 (Codex P1、コード確認済み)**: ps watchdog の auto-demote state は cron の一時 FS に書かれ、取引プロセス (web service) に届かない = DEMOTE でも live 発注は止まらない (Discord 通知のみ)。`limit=5000` ページングなしも併記。実害なし (全セル N<10・発火 0)。修復は registry `ps-watchdog-demotion-state-unreachable` (10-11、R3)
+- ⚠️ **訂正**: 09-26/09-28 session log の「clean live N since 08-11 = 0」は誤り (09-10 audit N=6 と本実測が一致)
+- 詳細: [[ps-carveout-firstweek-regate-disposition-2026-08-12]] §6。gate / tier / lot / live 経路 不変更
 
 ## 2026-09-28 — docs(wg): G0' event #2 (09-27) = ABANDONED_DRIFT → 改定後 2 連続不成立で packet §6 発動、執行モダリティ R1 再審 packet v1 起案 (user 決裁 W1〜W6) + carry_dip `[SLTP_CONSTRUCT]` 初 fill 実測 (rule:R3 記録のみ)
 
