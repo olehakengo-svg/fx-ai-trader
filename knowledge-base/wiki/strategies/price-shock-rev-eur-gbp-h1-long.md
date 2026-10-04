@@ -6,7 +6,7 @@
 
 ## 🔴 2026-10-02 更新 (wiki-daily): **Live N 8 / 2W / WR 25.0% / −22.4 pip** — #950030 (10-01 fill) が −12.5 で決済
 - #950030 (10-01 14:49:51 entry 0.85224 broker / 0.85227 demo、slippage 1.0p) → 17:49:55 horizon @0.85102 = **−12.5 pip (demo) / −¥254.52 (broker)**、符号一致 (¥20.4/pip)。MAFE favorable 5.0 / adverse 17.1 ⇒ 3 bar 中ほぼ一方向に逆行
-- ON_FILL bracket: SL 0.84729 (−49.5p) / broker TP 0.89367 (+414p) = demo TP 0.90100 (+487p) × 0.85 quick-harvest。`[SLTP_CONSTRUCT] sl=preserve clamp=none lowliq=0 fastsl=0 ct=0 rn=0 mtf_tp=1` = 09-26 計装の初 live 読み出し、宣言 SL が保持されている。storm なし (SL order 1 本のみ)、`storm_guard.trades` に `b92eed57-1b0` として登録 (sent_total 0)
+- ON_FILL bracket: SL 0.84729 (−49.5p) / broker TP 0.89367 (+414p) = demo TP 0.90100 (+487p) × 0.85 quick-harvest。`[SLTP_CONSTRUCT] sl=preserve clamp=none lowliq=0 fastsl=0 ct=0 rn=0 mtf_tp=1.0 range_tp=0 decl_sl_p=48.8 sl_p=49.8 decl_tp_p=488.3 tp_p=487.3 entry_drift_p=1.0` + `[BROKER_TP] basis=qh mult=0.85 tp_p=414.0` = 09-26 計装の初 live 読み出し、宣言 SL/TP が `_1H_PRESERVE_SLTP` で保持されている (差分は entry drift 1.0p のみ)。storm なし (SL order 1 本のみ)、`storm_guard.trades` に `b92eed57-1b0` として登録 (sent_total 0)
 - Wilson 7.1 / BF 3.5、wf_h1 −1.7 / wf_h2 −3.9、`promo_ev` −2.8。LOCK 棄却 (N=15 で Wilson_lo<0.40) まで **8/15**、watchdog auto-demote (N≥10 ∧ EV<0) まで **8/10** — あと 2 fill で自動発火圏。09-29→10-01 の 3 日で 4 fill (1W/3L)
 - 30d risk の EUR_GBP は n=5 / −12.6 (10-01 の −0.1 から悪化)、strategy DSR n=5 Sharpe −0.343。10-02 は新規 fill なし
 - 詳細 [[2026-10-02]]
