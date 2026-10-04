@@ -5,6 +5,7 @@
 - 窓 [09-24T04:43Z, 10-01T04:43Z) 完結後に §5 snippet で再計算: kept shadow N=446 (forked 265 / import 181)。中間値 0.625 は引用禁止。**日別は 0.48〜0.72 を往復し窓外 3 日は 0.416** = p_f は race の位相で、単一化後の生成率を p_f で補正してはならない (marker 一次キー + deploy 時刻で実測)
 - LIVE 12 行は import 6 / forked 5 (両プロセスから送信)、twin 0。Render ログ 10-04T05:40Z で pid 62/130 の 2 系列交互 = 二重稼働継続を再確認
 - `dual-engine-master-worker-disposition` (10-06) は deploy 後検証 (i)〜(iv) で resolve。詳細: [[dual-engine-dup-rate-readout-2026-09-24]] §5c
+- **PR #308 merge (95d58906) → deploy dep-db0unirtqb8s738pta40 live 2026-10-04T06:03:40Z = regime break 二次キー**。検証 (i) `[AutoStart] plan=fork_child … deferred to forked worker` 1 回 / (ii) `[MainLoop]` pid=129 のみ (旧 pid 62 系列消失) ✅、(iii) row marker `forked:forkchild` / (iv) 近接ペア 0 は市場再開後 (§6c)
 
 ## 2026-10-01 — docs(registry): review backlog #253/#257 消化完了 (PR #309 / #310) で `review-backlog-253-257-digest` resolve、#310 残 P2 2 件を繰延登録 (rule:R3)
 

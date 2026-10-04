@@ -209,6 +209,14 @@ user 決裁は不要 (Rule 3 構造バグ、N 会計は §2/§4 で非膨張・�
 - fork 委譲は **gunicorn master で import されたと確定できた時だけ** (import 時の call stack に `gunicorn/` があり、かつ `gunicorn/workers/` が無い = arbiter の preload 経路)。worker が import する場合 (gunicorn 既定の preload_app=False) と gunicorn 外では import 時 thread で起こす。当初版は worker import でも fork 委譲して hook が発火せず、StatusHeal まで無エンジンになる欠陥があった (PR #308 Codex P1)
 - 実 gunicorn 23.0 で確認 (2026-09-30): preload なし → `ctx=gunicorn_worker plan=import_thread`、worker pid で 1 回起動 / `--preload` → `ctx=gunicorn_master plan=fork_child`、master では起動せず worker (ppid=master) で 1 回起動。起動時ログ `[AutoStart] plan=… import_context=…` で本番トポロジを deploy 後に確かめる
 
+### 6c. deploy 実測 (2026-10-04T06:03:40Z、PR #308 merge 95d58906、deploy dep-db0unirtqb8s738pta40)
+
+- **regime break 二次キー = 2026-10-04T06:03:40Z** (Render deploy finishedAt)。一次キーは row marker `[EMIT_PROC] forked:forkchild`
+- (i) ✅ 起動ログ (instance `srv-d6va1of5r7bs73en10vg-x4zkp`): `[AutoStart] plan=fork_child import_context=gunicorn_master pid=63` → `[AutoStart] deferred to forked worker (import pid=63) — engine will start only in the fork child` (1 回) → `[AutoStart] Starting 24 modes (pid=129 role=forked)` = 本番トポロジは preload 経路 (master import → fork) で、fork hook が意図どおり発火
+- (ii) ✅ 06:04:35–06:05:44Z の `[MainLoop]` 行 40 本すべて `pid=129`、`[MainLoop] iter=60/90/120 pid=129 role=forked origin=forkchild`。旧インスタンス (7fsnh) で 30 s ごとに交互に出ていた pid=62 系列は新インスタンスに無い。`/api/demo/status`: `engine_pid=129` / `engine_import_pid=63` / `engine_process_role=forked` / `engine_start_origin=forkchild`
+- (iii) 新規 row marker / (iv) 近接ペア 0 は週末のため未測 (市場再開 10-04 21:00Z 以降)。(iii) は 10-06 までに、(iv) は 10-13 に翌週分 (Δ≤45 s ペア、§2 と同手順) を読む。LIVE 送信元も 1 プロセスになったはずだが、LIVE 行が出るまで未確認
+- 失ったもの (PR 本文どおり): worker hang 時に master のエンジンが取引を続けるバックアップ。代わりに fork poisoning の構造的原因 (master の thread) が消えた
+
 ## 7. 副産物 — 日報 commit が本番を 1 日 4 回再デプロイしている
 
 Render deploy 一覧 (09-23T05:27 → 09-24T03:02) の 5 件中 4 件が `docs(KB): daily report YYYY-MM-DD` (00:20Z / 03:02Z / 11:12Z / 19:22Z)。commit の内容は trade-logs / market-analysis (ignore 済み) + **`data/monitoring/nav_floor_projection.csv`** (F4 資金時計、`daily-report.yml` が `tools/nav_floor_projection.py --append` で追記) で、この 1 パスが `buildFilter.ignoredPaths` に無い。読み手は `tools/nav_floor_projection.py` / registry `project-falsification-f4-nav-floor-clock` (csv_row_match、cron 側) のみで、app.py / modules/ からの参照はゼロ (docstring 言及 2 箇所のみ)。
