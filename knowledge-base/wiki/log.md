@@ -1187,3 +1187,53 @@
 - **Lint**: (1) 数値整合 ✅ stats / risk / DD / broker が全て 09-28 と一致、index 内部の不整合 1 件を修正。(2) wikilink: 本 run 追加リンク (`2026-09-29` / `2026-09-28` / `dual-sr-bounce` / `tokyo-nakane-momentum` / `project_fxai_main_stranded_staged_work_2026_09_01`) を実在確認、新規破損 0。全 KB 走査は未実施 (09-25 時点 339 occ / 86 distinct)。(3) stale: learner 14.0 d 🔴 / tier-master 推定 12.1 d 🟡
 - **未決 (user 決裁待ち)**: (1) `STORM_GUARD_ENFORCE=1` / (2) carry_dip ブラケット SL 側 R3 決裁 / (3) SL 2-writer 競合 / (4) `main` 発生源の恒久策 (再生産を再確認) / (5) learner no-op 修復
 - 詳細: [[2026-09-29]]
+
+## 2026-09-30 wiki-daily-update (**carry_dip #948647 で純族 A storm (672 回同値再送 / 16 分で自然停止 / 自己約定なし、+¥10) を storm_guard が 0 計上 = guard 状態は deploy で消える疑い / EUR_GBP price_shock 3 fill で Live N 6 WR 16.7% / DD ledger の `OANDA_SL_TP` 欠落 3 例目 / ラベル欠陥 pooled 初の 5 割超**)
+- **Daily trade log**: `raw/trade-logs/2026-09-30.md` 生成 (09-29T12:00Z→09-30T12:01Z、1.00 日デルタ)。8 endpoint 並列取得 + `/api/oanda/transactions` 948642→950012 全 1,371 tx。`pgrep -f app.py` orphan なし。audit `limit=1500` 窓 09-09T06:05〜09-30T11:57 (最終 LIVE fill 含む ✅)
+- 🔴 **発見 1 — LIVE 4 fill** (carry_dip 1 / price_shock EUR_GBP 3、うち 1 open)。broker realized **−¥160.71** = −33.36 +10.00 −146.34 + financing 8.99、**残差 0**。demo↔broker 3/3 符号一致
+- 🔴🔑 **発見 2 — 純族 A storm**: #948647 に `REPLACEMENT` 672 本 (1,344 tx)、全て 157.234、23:45→00:01Z で自然停止 → 00:55Z に通常 SL 約定 (+1.0p)。純族 A 6 例目。SL 契約破棄 19/19、broker TP = demo TP × 0.851
+- 🔴 **発見 3 — storm_guard 全ゼロ**: 09-28 の 11,180 が消え、今回の 672 回も 0 計上。`main_loop_restarts` 1 不変 ⇒ **deploy (新 process) でリセット**が最有力、09-28「計上 ~40%」の説明候補 (未確定)。enforce 決裁の前提に「guard 状態が deploy を跨げない」を追加
+- 🔴 **発見 4 — DD ledger**: +8.6 pip = EUR_GBP horizon 2 本のみ、carry の `OANDA_SL_TP` +0.8 未計上 (非 SL_HIT 経路欠落 3 例目)。実 DD (broker) −23.51%
+- ⚪ **発見 5** — stats N 596 / −734.5 / EV −1.23、risk n=17 gross −123.4 Kelly **−0.3462** (悪化)。carry demo N 19 / +60.0 / broker +¥375、EUR_GBP N 6 / WR 16.7% / −15.4 (LOCK 6/15)
+- 🟡 **発見 6 — shadow 94 本 / WR 57.4% / −143.5**、TP_HIT 5。**ラベル欠陥 9 標本目 59.0% (pooled 361/710 = 50.8%、初の 5 割超)**。`dual_sr_bounce` n=9 −59.0 (EUR_JPY SELL 偏重へ)、`vix_carry_unwind` n=7 +56.4
+- ⚪ **発見 7** — blocked 3 (全 `agg_kelly` −0.361)、learner 15.0 d stale / no-op 12 run 目、freshness 全 `ok`
+- 🆕 **tooling**: `/api/oanda/transactions` は **1 call 最大 100 tx** (`range too wide (max 100)`) — reference memory に追記
+- 🔴 **repo** — `main...origin/main [ahead 1, behind 13]`、ahead = `72ab09a4 auto: KB session-end save (2026-09-30)` ⇒ **2 日連続の再生産**。09-29 の `ce10bca9` は `origin/kb-rescue/main-2026-09-29-…` に退避済。本 run は解消を試みない
+- **Strategy pages**: [[usdjpy_carry_dip_accumulator]] に fill #19 節、[[price-shock-rev-eur-gbp-h1-long]] に 09-30 Live 節を追加
+- **index.md**: System State 見出し → **09-30 12:01Z**、1 エントリ prepend、Defensive mode 行と mission NAV 行を 09-30 実測に置換
+- **Lint**: (1) 数値整合 ✅ stats ΔPnL −7.8 = demo 3 決済合計、risk Δgross −7.8 一致、broker ¥ と demo pip は ¥20.9/pip で整合。DD ledger のみ −8.6 (既知の lossy、発見 4)。(2) wikilink: 本 run 追加リンク 8 種を実在確認、新規破損 0。全 KB 走査は未実施。(3) stale: learner 15.0 d 🔴 / tier-master 推定 13.1 d 🟡
+- **未決 (user 決裁待ち)**: (1) `STORM_GUARD_ENFORCE=1` (+ guard 状態永続化) / (2) carry_dip ブラケット SL 側 R3 / (3) SL 2-writer 競合 / (4) `main` 発生源の恒久策 / (5) learner no-op 修復 / (6) 🆕 DD ledger `OANDA_SL_TP` 欠落
+- 詳細: [[2026-09-30]]
+
+## 2026-10-01 wiki-daily-update (**戦略 LIVE は EUR_GBP #950010 +5.5p / +¥114.43 の 1 決済のみ / USD_JPY 10,000u 即時往復 3 本 −¥250 は status volume keeper の 10 月再開 (`SVK` タグ、仕様通り) / DD ledger が決済額を +7.0p 超過して動く (#950002 の取り消し疑い、未確定) / ラベル欠陥 pooled 51.1%**)
+- **Daily trade log**: `raw/trade-logs/2026-10-01.md` 生成 (09-30T12:01Z→10-01T13:11Z、1.05 日デルタ)。8 endpoint 並列取得 + `/api/oanda/transactions` 950013→950028 全 16 tx。`pgrep -f app.py` orphan なし。audit `limit=1500` 窓 09-10T10:46〜10-01T12:49 (最終 LIVE fill 含む ✅)
+- ⚪ **発見 1 — 戦略 LIVE 1 決済**: `price_shock_rev_eur_gbp_h1_long` #950010 horizon +5.5 / +¥114.43、符号一致。新規 sent/filled 0、blocked 2 (`agg_kelly` −0.359)
+- ⚪🔑 **発見 2 — SVK**: 00:02/01:02/02:02Z の USD_JPY 10,000u 1 秒往復 3 本 (−¥80/−¥90/−¥80) は `tag=SVK` = [[status-volume-keeper-2026-09-01]]。audit / demo DB に出ないのは仕様。10 月 rt 3 / $60k / $520k、behind_pace false。broker 残差 0 (−¥135.57 = +114.43 − 250)、実 DD −23.55%
+- 🟡 **発見 3 — DD ledger 超過計上**: +12.5p / +¥260.71 動いたが、決済は +5.5 / +¥114.43 の 1 本だけ。超過 +7.0 / +¥146.28 ≈ 09-30 #950002 (−7.0 / −¥146.34) ⇒ 取り消しか符号反転した二重加算の疑い (1 標本、原因未確定)。既知の `OANDA_SL_TP` 欠落とは逆向き
+- ⚪ **発見 4** — stats N 597 / −729.0 / EV −1.22、risk n=18 gross −117.9 Kelly **−0.3124** (改善)。EUR_GBP N 7 / WR 28.6% / −9.9 (LOCK 7/15)
+- 🟡 **発見 5 — shadow 113 本 / WR 49.6% / −239.0**。**ラベル欠陥 10 標本目 53.1% (pooled 412/806 = 51.1%)**。`dt_sr_channel_reversal` n=21 −87.9 (2 日で −137.6)、`dual_sr_bounce` n=9 **+20.5** に反転
+- ⚪ **発見 6** — learner 16.0 d stale / no-op 13 run 目、freshness 全 `ok`
+- 🔴 **repo** — `main...origin/main [ahead 11, behind 75]`、ahead は全て auto-save (10-01 だけで 10 本、過去最多) ⇒ 再生産 3 日連続。本 run は解消を試みない
+- **Strategy pages**: [[price-shock-rev-eur-gbp-h1-long]] に 10-01 節を追加。carry_dip / kalman は新 fill なしのため更新しない
+- **index.md**: System State 見出し → **10-01 13:11Z**、1 エントリ prepend、Defensive mode 行と mission NAV 行を 10-01 実測に置換
+- **Lint**: (1) 数値整合 ✅ stats ΔPnL +5.5 = risk Δgross +5.5 = demo #950010、broker ¥ も残差 0 (SVK 分離後)。DD ledger のみ +12.5 で不一致 (発見 3)。(2) wikilink: 本 run で追加したリンク 6 種 (`2026-10-01` / `2026-09-30` / `status-volume-keeper-2026-09-01` / `price-shock-rev-eur-gbp-h1-long` / `reference_oanda_transactions_endpoint` / `project_fxai_main_stranded_staged_work_2026_09_01`) は全て実在、新しい破損 0。KB 全体の走査は未実施。(3) stale: learner 16.0 d 🔴 / tier-master 推定 14.1 d 🟡
+- **未決 (user 決裁待ち)**: (1) `STORM_GUARD_ENFORCE=1` (+ 永続化) / (2) carry_dip ブラケット SL 側 R3 / (3) SL 2-writer 競合 / (4) `main` 発生源の恒久策 / (5) learner no-op 修復 / (6) DD ledger (欠落 + 🆕 超過計上)
+- 詳細: [[2026-10-01]]
+
+## 2026-10-02 wiki-daily-update (**kalman_d7 fill #4 #950042 が族 A storm — 同一価格 158.024 を 3,571 回 / 63 分 / 自然停止 / +¥6、storm_guard は 0 計上かつ建玉が guard に未登録 = `daytrade` SL writer のバイパス (deploy リセット説は本件に不適合) / EUR_GBP price_shock −12.5 で Live N 8 WR 25.0% (watchdog 8/10) / learner 17 日ぶり発火 id 95 も no-op 14 run 目 / ラベル欠陥 61.3% 過去最悪**)
+- **Daily trade log**: `raw/trade-logs/2026-10-02.md` 生成 (10-01T13:11Z→10-02T21:29Z、1.34 日デルタ、金曜クローズ直後)。7 endpoint 取得 + `/api/oanda/transactions` 950029→957196 **全 7,168 tx を 100 件窓 × 72 call で全数取得**。`pgrep -f app.py` orphan なし。audit `limit=1500` 窓 09-11T15:18〜10-02T15:13 (最終 LIVE fill 10-02 00:20 含む ✅)
+- 🔴🔑 **発見 1 — kalman #950042 族 A storm**: entry 00:20:10 @158.018 (ON_FILL SL 157.865 / TP 158.309)、34 分の平常後 **00:54:46→01:57:46 に `REPLACEMENT` 3,571 本 (7,142 tx、median 0.79 s/cycle)、98.9% が 158.024 (= BE)**。01:22:10→01:22:52 の 42 秒だけ 158.14x⇄158.024 を 7 往復 (**2-writer 競合 trail vs BE の初の秒単位証拠**、158.151→158.024 = 12.7p 緩む単調性違反)、自己約定せず。ループ停止 6m39s 後の 02:04:25 に SL @158.024 = **+¥6 / demo +0.8** (MAFE favorable 19.8p を BE で返した)。本戦略 2 度目の storm (09-11 storm 4 は族 B)、**族 A も戦略非依存**と確定。累計 storm tx 下限 ≈247,379。09-26 計装の初 live 読み出し: `[SLTP_CONSTRUCT] sl=atr_rrlow lowliq=1 decl_sl_p=19.0 sl_p=15.1` / `[BROKER_TP] mult=0.85 tp_p=29.3` (kalman)、`sl=preserve decl_sl_p=48.8 sl_p=49.8` (EUR_GBP)
+- 🔴🔑 **発見 1b — storm_guard**: `totals` 全 0 **かつ** `storm_guard.trades` に kalman 建玉が一度も登録されず、**10-01 14:49 fill の EUR_GBP #950030 は 21:29Z でも残存** ⇒ 状態は消えていない ⇒ **`daytrade` モードの SL 書き換えは guard 経路をバイパス** (最有力)。09-30 の「deploy で消える」説は本件の説明にならない。**`STORM_GUARD_ENFORCE=1` でも本件型は止まらない** ⇒ 決裁 (1) の前提に「全モード SL writer の guard 経路集約」を追加
+- 🔴 **発見 2 — EUR_GBP #950030**: 10-01 14:49 entry 0.85224 → 17:49 horizon @0.85102 = **−12.5 / −¥254.52** (符号一致)。`[SLTP_CONSTRUCT] sl=preserve` = 09-26 計装の初 live 読み出し。Live **N 8 / WR 25.0% / −22.4** / Wilson 7.1 / BF 3.5。LOCK 8/15、**watchdog auto-demote (N≥10 ∧ EV<0) まで 2 fill**
+- ⚪ **発見 3 — broker 突合 残差 0**: ¥274,547.551 → **¥274,059.0317 (−¥488.52)** = −254.52 + 6.00 − SVK 3 RT 240.00。SVK は 00:01 / 02:06 / 03:06Z (01 時枠は kalman 建玉中にスキップ、推定)、10 月 rt 6 / $120k / $520k。実 DD **−23.68%**
+- 🟡 **発見 4 — DD ledger**: −12.5 (EUR_GBP) のみ計上、kalman `OANDA_SL_TP` +0.8 欠落 (**4 例目**)。09-30 12:01Z からの通算は実現 −6.2 vs ledger 0.0 ⇒ **+6.2 pip 良く見えている** (10-01 超過 +7.0 未解明)
+- ⚪ **発見 5** — stats N **599** / −740.7 / EV −1.24 (Δ −11.7 = −12.5 + 0.8 ✅)、risk n=20 gross −129.6 Kelly **−0.3221** (悪化)、MC `small_sample_lowconf` false に転換、carry_dip 戦略 Kelly 初 computable (n=10 edge −0.1229)。kalman demo N 4 / −15.5 / EV −3.88
+- 🟡 **発見 6 — shadow 128 本 / WR 55.5% / −267.6**、TP_HIT 2 (1.6%)。**ラベル欠陥 11 標本目 68/111 = 61.3% (過去最悪更新、pooled 480/917 = 52.3%)**。`vix_carry_unwind` n=8 −57.1 (09-30 +56.4 を吐き出し)、`orb_trap` n=3 +31.0、`dual_sr_bounce` n=12 +16.4 (2 日連続プラス)。⚠️ audit 行の書き込みに数時間遅延 (21:12Z 窓で 16Z 以降 0 行 → 21:29Z で 19:09Z 行出現)、shadow 集計は 17:19Z まで
+- ⚪🆕 **発見 7 — learner id 95 (10-02 13:49:59)**: 09-15 以来 17.0 日ぶりに発火、しかし id 91〜94 と reason / sample_size / ev_at がバイト同一、`entry_type_blacklist` [] / `blacklisted` 0/100、`sr_channel_reversal` は live WR 50 / EV +1.73 ⇒ **no-op 14 run 目、符号逆転も不変**。stale は 0.3 日に解消
+- ⚪ **発見 8** — blocked 1 (`ema200_trend_reversal` `agg_kelly` **−0.366**、過去最低)、1500 窓 sent 12 = filled 12 (09-06 不一致行は窓外へ)、freshness 全 `ok`、24 モード、tier-master **15.5 d** stale
+- 🔴🔑 **repo** — 21:29Z 時点 `[ahead 11, behind 94]` で 10-02 (UTC) の新規 auto-save は 0 本だったが、**本 run の実行中 (10-03 00:00Z `6d2dae3f` / 00:59Z `99b20d33`) に session-end hook が 2 回 local `main` へ直コミット** — `6d2dae3f` は本 run の KB 書き込み全部 + 10-01 run の未コミット `2026-10-01.md` を 8 files / +273 行で巻き込んだ ⇒ **04:02Z で ahead 13 / behind 95、generator は生存、wiki-daily の書き込み自体が payload**。「発生源閉鎖」とは書かない、watch day リセット。本 run は解消を試みず、自分では commit / push しない
+- **Strategy pages**: [[kalman-d7-po-dn-flip]] に 10-02 storm 節 (fill #4 全数表 + guard バイパス + 執行 QA)、[[price-shock-rev-eur-gbp-h1-long]] に 10-02 節を追加。carry_dip は新 fill なしのため更新しない
+- **index.md**: System State 見出し → **10-02 21:29Z**、1 エントリ prepend、Defensive mode 行と mission NAV 行を 10-02 実測に置換
+- **Lint**: (1) 数値整合 ✅ stats ΔPnL −11.7 = risk Δgross −11.7 = demo 2 決済、broker は SVK 分離後 残差 0。DD ledger のみ −12.5 で不一致 (発見 4)。(2) wikilink: 本 run 追加リンク (`2026-10-02` / `2026-10-01` / `status-volume-keeper-2026-09-01` / `kalman-d7-po-dn-flip` / `price-shock-rev-eur-gbp-h1-long` / `usdjpy_carry_dip_accumulator` / MEMORY 5 種) を実在確認、新規破損 0。KB 全体の走査は未実施。(3) stale: learner 0.3 d ✅ (no-op) / tier-master 15.5 d 🟡 / LIVE fill 2.3h ✅
+- **未決 (user 決裁待ち)**: (1) `STORM_GUARD_ENFORCE=1` — 🆕 前提に「全モード SL writer を guard 経路へ集約」追加 / (2) carry_dip ブラケット SL 側 R3 / (3) SL 2-writer 競合 — 🆕 秒単位証拠 / (4) `main` 発生源の恒久策 — 🆕 本 run 中に 2 回再生産 (ahead 11→13)、日次 run が payload になる / (5) learner no-op (発火は確認、証拠パス更新が先) / (6) DD ledger (欠落 4 例目 + 超過未解明) / (7) 🆕 EUR_GBP price_shock が watchdog auto-demote 圏まで 2 fill、family 単位判断 (AUD_JPY sibling −180.0 enabled) は未決
+- 詳細: [[2026-10-02]]

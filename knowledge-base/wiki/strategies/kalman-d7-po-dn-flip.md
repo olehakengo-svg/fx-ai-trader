@@ -145,3 +145,26 @@ Entry filters (v16 forensic 導出):
 - 順位 (両順序仮定・全 C0 what-if で不変): **C3/C4 (BE 0.8×ATR → trail 1.5/0.5) が edge を最も削る** (単独 -4.1 / -6.3、winner hold 中央値 25 → 6 bars、winner の 95% / 92% が壁時計 8h 内) ≫ C0 (SL 1.5→1.0×ATR / broker TP 0.85 / lowliq、Δ -3.8) > C6 近似 (参考)。**C1 (8h cap) は tp5 exit 上では正の寄与** (+1.8、切られた 10 本の大半が後で SL に落ちる) だが、**flip 形状の winner は壁時計 8h 内完結 0% (11 本の hold 65–168h) = flip edge は 8h cap・金曜クローズと両立しない**。C2 は小さく符号は積み方で変わる (累積 -0.4 / 単独 +0.7、C2 帰属は日曜 open fill 1 + 金曜 21:45 1 件のギャップ運、性質ではない — 夏時間は 21:00Z 閉場で 21:45Z クローズが日曜 open に deferred、日曜 open がギャップで stop を割れば SL_HIT に帰属)。C5 は連続パス近似で単独 +1.5 だが「SL 先」仮定では負 = **符号は順序仮定依存**、累積では BE/trail の後ろで 0 本
 - 決裁 packet (10-08) への含意: **(a) は宣言 (tp5) が canon exit かを TV 再走で確定してから定義する**。flip なら (a) = flip exit + SL 1.5×ATR + 市場 bar 480 本 + **BE/trail 免除が最重要**、次に C0 免除、8h/金曜は外す (週末ギャップ露出・1 建玉 5 営業日拘束。夏時間の金曜クローズは元々日曜 open fill = ギャップ露出済み) / (b) = 「BT の無い戦略」として執行 QA 継続 / (c) は本 BT を根拠にしない。**harness を閉じる唯一の経路 = TV で v17 canon 再走 (user 操作の TV desktop 起動が前提)**
 - 執行 QA: 09-26 デプロイ以降 LIVE fill 0 (週末)。`[SLTP_CONSTRUCT]` marker 付き fill が溜まったら C0 感度の live 実測率を差し替え
+
+## 🔴🔴 2026-10-02 更新 (wiki-daily): **LIVE fill #4 #950042 — 本戦略 2 度目の storm、今回は族 A (同一価格 3,571 回)、+¥6 で決済**
+
+| 項目 | 実測 (broker tx 950041〜957187、全数) |
+|---|---|
+| entry | 10-02 **00:20:10Z** USD_JPY BUY 1,000u @**158.018** (demo 158.016、slippage −0.2) |
+| ON_FILL bracket | SL **157.865** (−15.3p) / TP **158.309** (+29.1p) ⇒ R:R 1.90。demo TP 158.360 (+34.4p) ⇒ broker TP = ×0.85 quick-harvest (09-25 節 4. の通り) |
+| 平常 | 00:20→00:54 の 34 分は replacement 0 本 |
+| storm | **00:54:46→01:57:46Z (63 分)**、`REPLACEMENT` **3,571** (+ `ORDER_CANCEL` 3,571 = **7,142 tx**)、間隔 median **0.790 s** (≈1.27 cycle/s)。**3,533 本 (98.9%) が 158.024** = entry +0.6p = BE |
+| 2-writer 往復 | 01:22:10→01:22:52 の **42 秒**だけ 158.142–158.151 ⇄ 158.024 を 7 往復 (価格変化点 23 回)。158.151→158.024 は BUY の SL が **12.7p 下** = 単調性違反。自己約定はせず BE ループへ復帰 |
+| exit | 最終 replacement の **6m39s 後**、02:04:25 `STOP_LOSS_ORDER` @158.024 = **+¥6.00** / demo **+0.8** `OANDA_SL_TP`、hold **1h44m** |
+| MAFE | favorable **19.8p** / adverse 11.4p — +19.8p まで伸びた建玉を BE で返した (TP 29.1p 未達) |
+| demo 累計 | **N=4 / 2W-2L / WR 50.0% / PnL −15.5 / EV −3.88** (`promo_ev` −3.88 一致、`promotion: pending`、`enabled: true`)、wf_h1 +1.85 / wf_h2 −9.6 |
+
+- 🔑 **族 A が `daytrade` モードで出た** — 09-16 時点で族 A の観測 5 例は全て `usdjpy_carry_dip_accumulator` だった。本件で族 A も戦略非依存が確定し、09-11 節の「欠陥は戦略間で共有される trail / bracket 管理層にある」が族 A についても成立。純族 A の全数確定は #677402 (251 cycle) / #948647 (672) / **本件 (3,571、最大)** の 3 例
+- 🔑 **終わり方は族 A 型** (ループが止まり、建玉は開いたまま、6m39s 後に SL タッチ) で、09-14 節で確定した族 B の自己約定とは別。族 A の停止条件 (09-16 節で未着手) は本件でも**同定できていない** — 01:57:46 に止まった理由を示す tx は無い
+- 🔴🔑 **`storm_guard` は本件を 0 計上、かつ本建玉は `storm_guard.trades` に一度も登録されていない**。同じ map に 10-01 14:49 fill の EUR_GBP #950030 が 21:29Z 時点でも残っている ⇒ 状態は消えていない ⇒ **`daytrade` モードの SL 書き換えが guard の `modify_sl` 経路を通っていない (バイパス)** が最有力。09-30 の「deploy で guard 状態が消える」説は本件の説明にならない。**`STORM_GUARD_ENFORCE=1` にしても本件型は 1 本も止まらない**
+- 🔑 **42 秒の往復は未決「SL 目標の 2-writer 競合 (trail vs BE)」の初の秒単位証拠**。trail が 158.14x を書き、BE writer が 158.024 を書き戻す。09-25 節 3. の overlay (ATR×0.8 で BE / ATR×1.5 後 ATR×0.5 trail) が同時に走った形と整合
+- ⚪ 執行 QA (09-25 節「毎 fill で hold 時間・exit 種別・demo↔broker 差を追記」): hold 1h44m / `OANDA_SL_TP` (BE) / demo↔broker 差 0.2p (slippage 由来)。4 本の hold は 4h04m / 54m / 58m / **1h44m** — 全て 8h cap 内、BT の winner ride (~115h) はやはり発生していない。**本 fill も BT 検証の N には数えない** (estimand が違う)
+- 🔴 **DD ledger は本件の +0.8 を計上せず** (`OANDA_SL_TP` 経路の欠落 4 例目) — [[2026-10-02]] 発見 4
+- 🔑 **09-26 計装 `[SLTP_CONSTRUCT]` の本戦略 初 live 読み出し** (demo 行 `reasons`): `sl=atr_rrlow clamp=none lowliq=1 fastsl=0 ct=0 rn=0 mtf_tp=1.0 range_tp=0 decl_sl_p=19.0 sl_p=15.1 decl_tp_p=34.2 tp_p=34.4 entry_drift_p=0.2` + `[BROKER_TP] basis=qh mult=0.85 tp_p=29.3` ⇒ 09-25 節 4. の C0 分岐が実測で確定: **SR ベース SL は RR<1.0 で棄却され ATR×1.0 にフォールバック (`atr_rrlow`)、低流動性 +0.2×ATR (`lowliq=1`、0 UTC entry) が掛かり、宣言 SL 19.0p → 置かれた SL 15.1p**、MTF TP ×1.3 は非発動 (`mtf_tp=1.0`)、broker TP は quick-harvest ×0.85 で 29.3p (broker 実測 +29.1p と一致)。N=1 の分岐観測であり C0 感度の「率」はまだ出せない (marker 付き live N が溜まってから)
+
+詳細: [[2026-10-02]] 発見 1 / [[usdjpy_carry_dip_accumulator]] / [[project_weekend_market_halted_retry_storm_2026_09_07]]
