@@ -1,5 +1,11 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-04 — docs(registry): 二重エンジン emit-proc 帰属の本読み (p_f 0.594 [0.548, 0.639]、判定 (c)) → `dual-engine-emit-proc-attribution-readout` resolve、PR #308 (単一化) の merge 条件成立 (rule:R3 記録のみ、autopilot)
+
+- 窓 [09-24T04:43Z, 10-01T04:43Z) 完結後に §5 snippet で再計算: kept shadow N=446 (forked 265 / import 181)。中間値 0.625 は引用禁止。**日別は 0.48〜0.72 を往復し窓外 3 日は 0.416** = p_f は race の位相で、単一化後の生成率を p_f で補正してはならない (marker 一次キー + deploy 時刻で実測)
+- LIVE 12 行は import 6 / forked 5 (両プロセスから送信)、twin 0。Render ログ 10-04T05:40Z で pid 62/130 の 2 系列交互 = 二重稼働継続を再確認
+- `dual-engine-master-worker-disposition` (10-06) は deploy 後検証 (i)〜(iv) で resolve。詳細: [[dual-engine-dup-rate-readout-2026-09-24]] §5c
+
 ## 2026-10-01 — docs(registry): review backlog #253/#257 消化完了 (PR #309 / #310) で `review-backlog-253-257-digest` resolve、#310 残 P2 2 件を繰延登録 (rule:R3)
 
 - `review-backlog-253-257-digest` → resolved (12 件消化)。#310 の残 P2 (excursion 入力未凍結 / 構成揃えキーに direction 欠落) は新 entry `review-backlog-310-p2-excursion-input-snapshot` (10-14) — それまで §6 の構成揃え点推定 (有利 −7〜−8% / 不利 −10〜−17%) は引用禁止
@@ -24,6 +30,15 @@
 - **park 根拠の監査 (オフライン、pass-2 未解錠・イベント×リターン非計算)**: Gate A 旧 71.45/95.0/81.85p → explore 限定 **73.0/100.4/76.9p** (3/3 通過不変、旧 move の約 20% が 2024 以降 = OOS 無条件集計に接触していた)。Gate B **N 56 → 40** (Fed 修正 −2 / BoJ fail-closed −14)、上界 100 → 72 で UNDERPOWERED が機械的に確定。**旧 N の 28.6% が汚染/未検証文書依存、向きは PASS 側への水増し = park 判定は保守側で反転なし**
 - **成果物**: `raw/analysis/e23-pass0-census-2026-10-01.*` / `e23-pass1-events-2026-10-01.*` (09-15 成果物は上書きせず保存)、`data/external/cb_statements/manifest.json` 再生成 (388 docs + `excluded` 10)、pre-reg §12 追記 (本文不改変)
 - **引用規律**: E23 N は 40 (旧 56 併記)。「BoJ 同時公表 93/93 確認」型の引用禁止 (確認したのは印字日のみ)。コーパス再利用は `load_corpus()` 経由に限る
+
+## 2026-09-30 — fix(engine): 取引エンジンを fork された worker でだけ起動 = 二重エンジン (master+worker) の単一化 (rule:R3、regime break 記録付き)
+
+- **根拠**: [[dual-engine-dup-rate-readout-2026-09-24]] §5b (09-30 **中間** readout、7 日窓終了前 — 本読みは 10-01T04:43Z 以降、merge はその後) — kept shadow N=360 の p_f=0.625、Render ログで pid 62 (master import:autostart) / 130 (worker forked:statusheal) の 2 系列、LIVE 送信も両プロセスから (master 4 / worker 2、twin 0)
+- **変更**: 本番 (RENDER) で gunicorn master に import されたとき (call stack 判定、preload 経路) はエンジン thread を起こさず、`os.register_at_fork(after_in_child=...)` で fork 子 (worker) の中だけで `_auto_start_trader(origin="forkchild")` を起動 (`modules/engine_autostart.py`)。孫 fork では起動しない (claimed 継承 + 親 PID = import PID の二重ガード)。gunicorn config ファイルの読込みに依存しない。worker 自身の import (preload なし) / gunicorn 外では import 時 thread (PR #308 Codex P1、実 gunicorn で両トポロジ確認)。巻き戻し = env `ENGINE_AUTOSTART_IN_IMPORT=1`。ローカル `FORCE_AUTOSTART` は従来どおり import 時 thread
+- **regime break**: 以後の row marker は `[EMIT_PROC] forked:forkchild` (一次キー)、二次キー = 本 PR の deploy 時刻。pre-reg 窓を跨ぐ LOCK は before/after で層別 (§6-5)。`dedup_violation=0` の N は二重期も非膨張だったので N 会計の書き直しは不要見込み (未検証)
+- **失ったもの**: master のエンジンは HTTP 全盲 (worker hang) 中も取引を続けていた。master に thread が無くなるので fork poisoning 自体は構造的に起きなくなるが、worker が別原因で hang した場合のバックアップは無くなる
+- **検証 (deploy 後)**: `[AutoStart] deferred to forked worker` が 1 回、`[MainLoop] iter=` の pid が 1 種類、row marker が `forked:forkchild`、近接ペア (Δ≤45 s) が 0 へ — registry `dual-engine-master-worker-disposition`
+- pin: `tests/test_single_engine_fork_child_autostart.py` (12 本、実 fork で子 1 回 / 孫 0 回、claimed / ppid ガードをそれぞれ counterfactual で確認) + `tests/test_dual_engine_process_attribution.py` 追従
 
 ## 2026-09-29 — docs(registry): `ps-carveout-regate-post-172` 期日前 readout (stale 見込み) — clean live N=6 (<10) で EV 判定保留 (期日前 readout、09-30 checkpoint 後に 10-30 へ roll)、不足の帰属 = 送信前 gate 100% (rule:R3、記録のみ)
 

@@ -88,7 +88,7 @@ def test_real_fork_child_reports_forked_and_parent_reports_import():
 def test_marker_has_no_pid_digits():
     """row 側 marker に PID を入れると boot 毎に値が変わりラベル分析の
     cardinality が爆発する — role (2 値) × origin (3 値) の有限集合だけを許す。"""
-    for o in ("autostart", "statusheal", ENGINE_START_ORIGIN_UNKNOWN):
+    for o in ("autostart", "statusheal", "forkchild", ENGINE_START_ORIGIN_UNKNOWN):
         assert not re.search(r"\d", emit_proc_marker(o))
 
 
@@ -97,10 +97,10 @@ def test_marker_has_no_pid_digits():
 def test_autostart_path_stamps_origin_before_starting_modes():
     """app.py の import 時 autostart はモード起動の**前**に origin=autostart を刻む
     (後だと最初の tick の row が unknown になる)。"""
-    body = re.search(r"def _auto_start_trader\(\):(.*?)\n# Polarity-inverted", APP_SRC, re.S)
+    body = re.search(r"def _auto_start_trader\(origin=\"autostart\"\):(.*?)\n# Polarity-inverted", APP_SRC, re.S)
     assert body, "_auto_start_trader が見つからない"
     b = body.group(1)
-    i_stamp = b.find('_demo_trader._engine_start_origin = "autostart"')
+    i_stamp = b.find('_demo_trader._engine_start_origin = origin')
     i_start = b.find("_demo_trader.start(mode=_mode)")
     assert i_stamp != -1 and i_start != -1
     assert i_stamp < i_start, "origin の記録がモード起動より後ろにある"
