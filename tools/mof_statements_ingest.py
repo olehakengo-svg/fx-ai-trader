@@ -716,6 +716,14 @@ def run_gdelt() -> dict:
                     backup = os.path.join(staging, f"{slug}.backup.csv")
                     shutil.copyfile(path, backup)   # staging = system temp
                     backups.append((path, backup))
+                else:
+                    # Record prior NONEXISTENCE too (Codex P2 4180193798, PR #272
+                    # final-HEAD review 2026-10-05): on bootstrap / recovery from a
+                    # deleted file the destination is absent, and a rollback that
+                    # only restores `backups` would leave the newly created CSV of
+                    # an earlier slug in the staged tree = a PARTIAL generation that
+                    # the workflow commits.  `None` means "delete on rollback".
+                    backups.append((path, None))
                 staged = path + ".promoting"
                 promoting.append(staged)
                 shutil.copyfile(tmp, staged)    # same filesystem as `path`
@@ -724,6 +732,12 @@ def run_gdelt() -> dict:
                 print(f"[gdelt] wrote {path}: {out[slug]} datapoints")
         except BaseException:
             for path, backup in backups:
+                if backup is None:                  # did not exist before → remove
+                    try:
+                        os.unlink(path)
+                    except OSError:
+                        pass                        # never promoted = nothing to undo
+                    continue
                 restored = path + ".restoring"
                 promoting.append(restored)      # outer finally sweeps it
                 try:

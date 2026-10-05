@@ -243,3 +243,12 @@ verdict は M1 の**定義を変えない**。生の符号に「その符号が�
       `t9-kalman-d7-fire-info` が既に監視中。weekend_gap は次イベントで確認
 - [ ] 符号の durability 再判定 — registry `m1-sign-flip-durability`
       (2026-10-06、窓が完全に入れ替わった後に再読み)
+
+## 10. durability readout (2026-10-05、registry `m1-sign-flip-durability` resolve、rule:R3 観測のみ)
+
+`python3 tools/m1_clean_live_monitor.py --strong` (本番 API、10-05T01:4xZ):
+
+- **verdict = 🔴 NOT_MET** — N=18 / sum **−63.7p** / EV −3.54p/t / WR 50.0% / bootstrap 95% CI [−170.0, +49.9] / P(sum≤0) = **0.870**。09-04 の `MET_UNDERPOWERED` (+19.8p / N=15) は**維持されなかった** = (a) 否
+- (b) `flip_attribution` (lookback 7d、prev anchor 09-28): sign_flipped=False / mechanical_flip=False — 09-28 時点で既に −95.6p (N=13)。直近 7 日は新規 N=8 (−31.0p) / 窓外 N=3 (−62.9p: price_shock_rev_aud_jpy −77.5 / carry_dip +11.6 / ps_eur_gbp +3.0) で Δ=+31.9p だが符号は負のまま。09-04 → 09-28 の正→負転換は**新規約定による** (窓内セル: carry_dip×USD_JPY×BUY N=9 −35.6p / kalman_d7_po_dn_flip×USD_JPY×BUY N=4 −15.5p / ps_eur_gbp×EUR_GBP×BUY N=4 −15.6p / kalman_d7_ema75_break N=1 +3.0p) = **mechanical ではない**。ただし 09-04 の MET も「符号は未解決 (1 件抜くと消える約定 4 件)」と書いたとおり、09-04 → 10-05 の反転は 18 件の book の自然な揺らぎの範囲で、エッジの劣化と読む根拠も無い
+- M1_STRONG セル 0 (最接近 bb_rsi_reversion×USD_JPY×SELL N=44 EV +0.29 w_lo 0.36) / M3a 2/3 (bb_rsi_reversion×USD_JPY SELL N=44 / BUY N=32 — ともに直近 30d 稼働 0、3 本目 carry_dip N=19 ETA 11-10) / M3b −0.119%/月 (winner-selected 診断量)
+- 処置なし (lot / 昇格 / 降格はいずれも本 entry の範囲外)。§8 の定義提案は user 決裁のまま。roadmap v2.3 M1 行に転記

@@ -100,3 +100,18 @@ registry の前提「4 セルとも 2026-05-06 以降 LIVE/shadow 行ゼロ」�
 | ✅ 作成 | 本文書 (診断のみ) |
 | ❌ しない | live コード / env / tier / registry の変更 (全て提案として §2.4/§5/§6 に記載) |
 | ❌ しない | bb_squeeze v2 の修復実装 (user 決裁後の R3) |
+
+## 8. resolve 読み (2026-10-05、registry `roster-e2-silent-promoted-cells`)
+
+`tools/live_roster_attrition.py` (10-05T01:4xZ): **E2_SILENT = 2** だが構成は 09-10 の 4 セルと全て入れ替わった。
+
+| 09-10 の E2_SILENT 4 セル | 09-11 以降の行 (`/api/demo/trades?date_from=2026-09-10`、1,502 行) | 判定 |
+|---|---|---|
+| bb_squeeze_breakout × EUR_USD × BUY | **12** (shadow) | 配線修復 (942e3800 / PR #235) が本番で有効 ✅ |
+| bb_squeeze_breakout × EUR_USD × SELL | **20** (shadow) | 同上 ✅ |
+| ema200_trend_reversal × USD_JPY × SELL | 2 | E2 脱出 (§3 のとおりシグナル待ちだった) |
+| squeeze_release_momentum × GBP_USD × BUY | 0 (同 type は GBP_USD SELL 1 / EUR_USD SELL 1) | §4 の窓アーティファクト分類どおり供給あり・pair×dir 未発生 — tool は PR #235 の E1 再分類を取り込んでいないので E2 表示のまま |
+
+現在の E2_SILENT 2 セル = squeeze_release_momentum×GBP_USD×BUY (上記) と **新顔 doji_breakout×USD_JPY×BUY** (anchor N=2、同 type は EUR_USD 6 / GBP_USD 3 行 = 供給あり → 同じ E1 型)。原則 3 により未帰属 ≠ バグ、本 entry の対象外で記録のみ。
+
+**resolve 判定**: 条件文言「E2_SILENT が 0」は tool の分類器が 09-10 の再分類 (E1 = 供給あり・未発生) を反映しないため literal には不成立。条件の意図 = 「bb_squeeze 配線落ち 2 セルの修復が本番で shadow 行として現れる」は 32 行で充足 → **resolve**。follow-up (新 entry なし): tool に「同 type の他 pair/dir に現在窓の行があれば E1_SUPPLY_PRESENT」の副分類を足すと E2 が本来の「配線落ち疑い」だけになる — E クラスは観測のみなので優先度低。

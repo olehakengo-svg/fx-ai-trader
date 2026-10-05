@@ -129,7 +129,7 @@ gate 時点の評価は未確認の pending 値に対する **pre-filter** に�
 ---
 
 ## 3. 検知のみモードでの読み方 (有効化判断の材料)
-検知のみでは送信が続くため `last_sl` は毎回更新され、**family B の振動は 上=deadband / 下=monotonic (BUY) に交互分類される** (test `test_default_is_detect_only_storm_passes_but_is_counted`)。⇒ 検知のみモードで `detected.monotonic` が大きく出ても、その大半は「振動の下向き半分」であって 8 pip 級の単調性違反とは別。有効化前の読み手は `detected.breaker` (≥1 = storm 署名) と `trades[*].counts` を見る。enforce 後は `last_sl` が固定されるので分類は idempotent/deadband に収束する (test `test_a_all_four_enabled_stops_storm4_shape`: deadband 50 / idempotent 49 / monotonic 100)。
+検知のみでは送信が続くため `last_sl` は毎回更新され、**family B の振動は 上=deadband / 下=monotonic (BUY) に交互分類される** (test `test_default_is_detect_only_storm_passes_but_is_counted`)。⇒ 検知のみモードで `detected.monotonic` が大きく出ても、その大半は「振動の下向き半分」であって 8 pip 級の単調性違反とは別。有効化前の読み手は `detected.breaker` (≥1 = storm 署名) と `trades[*].counts` を見る。**検知のみでも breaker は送信直前に再評価する (2026-10-05、PR #287 review P2 4072595683 消化)**: fire-and-forget burst は worker が走る前に全件 gate を通るので gate 時点の窓 (実送信のみ) は空 = `detected.breaker` が 0 のまま N 件送られていた (例: 60 件 @50/h で `sent_total=60 / detected.breaker=0 / tripped=False`)。`_storm_send_decision` の検知のみ分岐が `_storm_detect_breaker_at_send` で窓入り直前に breaker を再評価・記録する (gate が同 token を breaker と記録済みなら数えない = 同期経路の二重計数なし)。送信は従来どおり止めない。enforce 後は `last_sl` が固定されるので分類は idempotent/deadband に収束する (test `test_a_all_four_enabled_stops_storm4_shape`: deadband 50 / idempotent 49 / monotonic 100)。
 
 ---
 
@@ -166,6 +166,7 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 | (v) | 畳み込みを「最新値で上書き」(15 巡目の形) | 待機中 154.450 が 154.300 に置換 → A 確認後 reject、154.450 は失われる | `test_p1_cf_coalesce_latest_discards_protective_queued_value` |
 | (w) | `_storm_progress` → no-op (15 巡目の形) | seed 0.25 + PUT 0.25 + 照会 0.25 の先頭の後ろで B が予算 0.4 s で drop | `test_p1_cf_no_phase_progress_drops_update_behind_three_phase_head` |
 | (x) | `_storm_pick_candidate` → 最新値 (16 巡目の方向不明 fallback) | restored 起動直後の A/B/C で seed 後に 154.300 が reject、154.450 は失われる | `test_p1_cf_latest_fallback_before_seed_loses_protective_update` |
+| (y) | `_storm_detect_breaker_at_send` → no-op (検知のみの送信直前再検知なし、2026-10-05 以前の形) | deferred burst 60 件 @50/h が `detected.breaker=0 / tripped=False` のまま 60 件送られる (telemetry が有限 storm を見落とす) | `test_p2_cf_no_send_time_recheck_misses_finite_storm` (正: `test_p2_detect_only_async_burst_reevaluates_breaker_at_send` = breaker 10 / trips 1 / sent 60、同期経路の非二重計数は `test_p2_detect_only_sync_path_does_not_double_count_breaker`) |
 | (r) | `_storm_wait_turn` → 絶対 deadline (12 巡目までの形) | 進捗している先行 3 件 (各 0.25 s) の後ろの D が予算 0.4 s で drop | `test_p1_cf_absolute_deadline_drops_protective_update_behind_progressing_chain` |
 | (s) | `_storm_network_refresh` → lock なし (12 巡目の形) | 未 seed trade への 5 worker burst で GET が 5 回 | `test_p2_cf_lockless_refresh_fires_get_per_worker` |
 | (g)-1 改 | 順番待ちなし + 再評価が常に冪等 True (未確認一致を即 True、2 巡目までの形) | worker 失敗前に sync が True を返し、confirmed_sl は原値のまま | `test_p1_cf_treating_pending_as_confirmed_returns_true_before_failure` |

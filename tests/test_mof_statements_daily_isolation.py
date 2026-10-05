@@ -421,3 +421,42 @@ def test_a_failed_promotion_rolls_back_the_earlier_slugs(tmp_path, monkeypatch):
                        if not p.name.endswith(".csv")
                        or ".promoting" in p.name or ".restoring" in p.name)
     assert leftovers == [], f"no promotion artifacts may survive: {leftovers}"
+
+
+def test_bootstrap_promotion_failure_removes_newly_created_destinations(tmp_path, monkeypatch):
+    """KNOWN-NG PATH (Codex P2 4180193798, PR #272 final-HEAD review 2026-10-05):
+    destination ABSENT (bootstrap / recovery from a deleted file), slug 1 is
+    promoted (= a brand-new CSV now exists), slug 2's promotion copy raises.
+
+    The rollback only restored entries in `backups`, which were appended only
+    inside `os.path.exists(path)` — so the newly created slug-1 CSV stayed in
+    the staged data directory and `mof-statements-daily.yml` (`if: ${{
+    !cancelled() }}`) committed a PARTIAL generation.  Prior nonexistence must
+    be recorded and newly created destinations deleted on rollback.
+    """
+    import datetime as dt
+    import shutil
+
+    monkeypatch.setattr(ing, "GDELT_DIR", str(tmp_path))
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    _stub_gdelt_fetch(monkeypatch, today, rows=3)
+    assert list(tmp_path.iterdir()) == []                 # bootstrap: nothing stored
+
+    real_copy = shutil.copyfile
+    promotions = {"n": 0}
+
+    def flaky_copy(src, dst, *a, **k):
+        if str(dst).endswith(".promoting"):
+            promotions["n"] += 1
+            if promotions["n"] == 2:                      # slug 2's promotion copy
+                raise OSError("disk full while promoting slug 2")
+        return real_copy(src, dst, *a, **k)
+
+    monkeypatch.setattr(shutil, "copyfile", flaky_copy)
+
+    with pytest.raises(OSError, match="disk full"):
+        ing.run_gdelt()
+
+    assert list(tmp_path.iterdir()) == [], (
+        "a failed bootstrap promotion must not leave a partial generation — "
+        f"found {[p.name for p in tmp_path.iterdir()]}")

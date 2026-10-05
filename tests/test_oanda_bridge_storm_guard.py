@@ -2029,3 +2029,55 @@ def test_p1_cf_latest_fallback_before_seed_loses_protective_update(monkeypatch):
     q[0](); q[1]()
     assert fake.calls == [(OANDA_ID, 154.400)]                      # ← 154.450 が失われる (旧形)
     assert b.get_storm_guard_status()["totals"]["skipped"]["monotonic"] == 1
+
+
+# ── (y) 検知のみモードでも breaker は送信直前に再評価する (PR #287 review P2 4072595683) ────
+
+def test_p2_detect_only_async_burst_reevaluates_breaker_at_send(monkeypatch):
+    """fire-and-forget burst: worker が 1 つも走る前に 60 件が gate を通る → gate の窓は空で
+    breaker 検知ゼロ。送信時 (窓 = 実送信のみ) に再評価すると 51 件目で trip し、以後 10 件が
+    detected.breaker に数わる。送信自体は止めない (既定契約 = 検知のみ)。"""
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)
+    b, fake = _bridge(monkeypatch, enforce=False, STORM_GUARD_MAX_TX_PER_HOUR=50)
+    q = _deferred_fire(b, monkeypatch)
+    for sl in legit_trail_buy(60):                                  # 全て正当 (2 pip 有利側)
+        b.modify_sl(DEMO, sl, instrument="USD_JPY")
+    t0 = b.get_storm_guard_status()["totals"]
+    assert len(q) == 60 and t0["detected"]["breaker"] == 0          # gate 時点の窓は空
+    for fn in q:
+        fn()
+    st = b.get_storm_guard_status()
+    t = st["totals"]
+    assert len(fake.calls) == 60                                    # 検知のみ: 送信は止めない
+    assert t["sent"] == 60 and sum(t["skipped"].values()) == 0
+    assert t["detected"]["breaker"] == 10                           # 51〜60 件目
+    assert t["breaker_trips"] == 1
+    assert st["trades"][DEMO]["tripped"] is True
+    assert st["trades"][DEMO]["counts"]["breaker"] == 10
+
+
+def test_p2_cf_no_send_time_recheck_misses_finite_storm(monkeypatch):
+    """CF pin: 送信直前の再検知を殺すと、同じ burst が detected.breaker=0 / tripped=False のまま
+    60 件送られる = 旧 bug の形 (telemetry が有限 storm を見落とす)。"""
+    monkeypatch.setattr(OandaBridge, "_storm_detect_breaker_at_send", lambda self, *a, **kw: None)
+    monkeypatch.setattr(OandaBridge, "STORM_COALESCE_ASYNC", False)
+    b, fake = _bridge(monkeypatch, enforce=False, STORM_GUARD_MAX_TX_PER_HOUR=50)
+    q = _deferred_fire(b, monkeypatch)
+    for sl in legit_trail_buy(60):
+        b.modify_sl(DEMO, sl, instrument="USD_JPY")
+    for fn in q:
+        fn()
+    st = b.get_storm_guard_status()
+    assert len(fake.calls) == 60
+    assert st["totals"]["detected"]["breaker"] == 0                 # ← 見落とし
+    assert st["trades"][DEMO]["tripped"] is False
+
+
+def test_p2_detect_only_sync_path_does_not_double_count_breaker(monkeypatch):
+    """同期経路では gate と送信が連続する (gate が breaker を記録済み) — 送信直前の再検知は
+    その token を数え直さない。既存 pin (N_STORM-50) と同じ値であること。"""
+    b, fake = _bridge(monkeypatch, enforce=False)
+    _run(b, storm_oscillation())
+    t = b.get_storm_guard_status()["totals"]
+    assert t["detected"]["breaker"] == N_STORM - 50
+    assert t["breaker_trips"] == 1 and t["sent"] == N_STORM
