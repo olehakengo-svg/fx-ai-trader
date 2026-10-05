@@ -1022,6 +1022,21 @@ def _attempts_head_guard(paths: Dict[str, str], attempts: List[Dict[str, Any]]) 
         if pn > n:
             raise RuntimeError(f"attempt 台帳が head より短い (head n={pn} > 台帳 {n}) — "
                                f"台帳が凍結後の版から切り詰められている。復元せず原因を調べる")
+        if pn < n:
+            # 再同期と同じ 1 段 + anchored prefix 検査 (PR #314 review P2 4180421469): head [A, B] に
+            # 対し再 hash した台帳 [A, C, D] は再同期では拒否されるが、--force の追記 E でここに
+            # pn=2 < n=4 で到達し head を [A, C, D, E] に上書きできてしまう (marker は A を anchor、
+            # --verify は OK) = B の証拠消去。writer が作れる先行は 1 段だけで、その位置の
+            # entry は旧 head と hash・identity が一致していなければならない。
+            anchored = (n == pn + 1 and (
+                (pn == 0 and prev["head_hash"] == _CHAIN_GENESIS)
+                or (pn > 0 and attempts[pn - 1].get("entry_hash") == prev["head_hash"]
+                    and _attempt_identity(attempts[pn - 1]) == prev.get("head_attempt_id", ""))))
+            if not anchored:
+                raise RuntimeError(f"attempt 台帳が head の prefix と一致しない (head n={pn} / 台帳 {n}) — "
+                                   f"head の位置 {pn} の試行が差し替わっているか、1 段を超えて先行"
+                                   f"している。再 hash した台帳の差し替えの形なので書込みを拒否する。"
+                                   f"`--verify` で状態を見て手で原因を調べる")
         # 同長で head_hash だけ変わるのは末尾エントリの状態更新 (in_progress → frozen/failed)
         # = 正常な前進 (started_at は不変)。started_at まで変わっていれば「切り詰め → 追記」
         # で別の試行が同じ位置に入った形なので fail-loud。

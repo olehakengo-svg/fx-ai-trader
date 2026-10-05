@@ -1595,6 +1595,39 @@ class TestAttemptsHeadAnchorAndVerifiedPostpone:
         assert len(api.calls) == n_calls and not os.path.exists(paths["attempts_head"])
         assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_MISSING"
 
+    def test_force_after_rehashed_ledger_is_rejected_by_write_guard(self, tmp_path, monkeypatch):
+        """PR #314 review P2 4180421469: head [A, B]、台帳を再 hash した [A, C, D] に差し替え → 再同期は
+        拒否 (既存 pin)。続く --force は追記 E で guard に pn=2 < n=4 で到達する — 1 段 + anchored prefix
+        検査で拒否し、head は上書きされず API にも触れない (--verify は HEAD_STALE のまま FAIL)。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_OK
+        real_write = fx.write_json_atomic
+
+        def lossy_write(path, obj):
+            if isinstance(obj, dict) and "snapshots" in obj:
+                obj = dict(obj, snapshots=obj["snapshots"][:-1])
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", lossy_write)
+        assert _run(tmp_path, api, force=True)[0] == fx.EXIT_FAIL          # B
+        monkeypatch.setattr(fx, "write_json_atomic", real_write)
+        j = json.load(open(paths["attempts"]))
+        head_before = open(paths["attempts_head"], encoding="utf-8").read()
+        a = j["attempts"][0]
+        fab = [dict(a, entry_hash=None, prev_hash=None)]
+        for k in ("C", "D"):
+            fab.append({"attempt_id": uuid_hex(k), "started_at": "2026-10-09T00:00:00Z", "status": "failed",
+                        "force": True, "api_queried": True, "api_base": "x", "reason": k})
+        fx.chain_attempts(fab)
+        json.dump(dict(j, attempts=fab), open(paths["attempts"], "w"))
+        n_calls = len(api.calls)
+        with pytest.raises(RuntimeError, match="prefix"):
+            _run(tmp_path, api, force=True)                                # E の追記が guard で止まる
+        assert len(api.calls) == n_calls                                  # API 非接触
+        assert open(paths["attempts_head"], encoding="utf-8").read() == head_before
+        assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_STALE"
+
 
 def uuid_hex(seed: str) -> str:
     import hashlib as _h

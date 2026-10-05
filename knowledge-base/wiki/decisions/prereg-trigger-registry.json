@@ -927,6 +927,19 @@
       "outcome_lock": false
     },
     {
+      "id": "review-backlog-314-final-head-review-2026-10-12",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-12",
+      "doc": "knowledge-base/wiki/decisions/e1-first-look-runbook-2026-09-22.md",
+      "message": "🟠 PR #314 (繰延 P2 消化 + E1 凍結 export 台帳 head) は Codex を 6 巡消化 (P1 0 / P2 11 件、全て実在の欠陥・誤検知ゼロ、全件修正 + pin) して P2 巡目上限 ≤6 に到達、**最終 HEAD (6 巡目 P2 4180421469 の修正 commit) に対するレビューは走らせずにマージ**した (CI green、gate は fixed thread の resolve + review-ack)。欠陥族は一貫して『head ↔ 台帳の 2 ファイル整合の境界ケース』(孤児 head / stale head の再同期条件 / identity / 不在 head / 書込み guard の prefix) で、各巡で一段狭い同型が出た。⇒ 期日までに最終 HEAD へ `@codex review` を 1 回走らせ、残 P1/P2 を triage (修正 or 理由付き繰延) する。E1 first look 凍結 (10-08) は本 tool で行うので、**10-08 より前 (10-06〜07) に走らせるのが望ましい**。引用規律: 凍結 export の `--verify` 出力は head 状態 (`head=`) を併記して読む。",
+      "condition": "PR #314 最終 HEAD に対する connector レビューを 1 回走らせ、残存 P1/P2 を triage し終えること (修正 commit or 理由付き繰延 sub-entry)",
+      "reachability": "Claude が `gh pr comment 314 --body '@codex review'` (merged PR でも応答する、10-05 実測) → inline thread を直読み → fix PR (tools/e1_positioning_frozen_export.py のみ、巡目上限宣言つき)。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
+    },
+    {
       "id": "hunt-events-labeler-disposition",
       "active": true,
       "type": "deadline_info",
