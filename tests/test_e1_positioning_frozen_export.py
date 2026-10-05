@@ -1291,3 +1291,68 @@ class TestAttemptsHeadAnchorAndVerifiedPostpone:
         monkeypatch.setattr(fx, "verify_record", lambda sha_path, root="": dict(real_verify(sha_path, root), ok=True))
         rc2, p1p, _ = _run(tmp_path, api, postponed=True)
         assert rc2 == fx.EXIT_OK and len(api.calls) > n_calls   # ← 素通し
+
+    def test_crash_between_ledger_and_head_write_is_self_healing(self, tmp_path, monkeypatch):
+        """PR #314 review P2 4180251653: head/台帳の 2 ファイル更新が途中で落ちても one-shot export が
+        永久に塞がらない。台帳先行なので到達し得る中断状態は『台帳あり・head なし/古い』だけで、
+        その間 --verify は FAIL (隠れない)、再実行 (--force、台帳に試行があるため) は head を前進させる。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        paths = fx.default_paths(1, str(tmp_path))
+        real_write = fx.write_json_atomic
+        state = {"armed": True}
+
+        def crash_on_head(path, obj):
+            if state["armed"] and str(path).endswith(".attempts.head.json"):
+                state["armed"] = False
+                raise OSError("simulated crash before head write")
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", crash_on_head)
+        with pytest.raises(OSError, match="simulated crash"):
+            _run(tmp_path, api)
+        monkeypatch.setattr(fx, "write_json_atomic", real_write)
+        # 中断状態: 台帳 1 件 (in_progress、API 要求前の記録) / head なし
+        j = json.load(open(paths["attempts"]))
+        assert len(j["attempts"]) == 1 and j["attempts"][0]["status"] == "in_progress"
+        assert not os.path.exists(paths["attempts_head"])
+        assert api.calls == []                      # 台帳書込みは最初の API 要求の前
+        assert not os.path.exists(paths["sha256"])
+        # 台帳に試行があるので --force 必須 (既存契約) — guard は孤児状態を拒否しない
+        rc, _, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_REFUSED_FROZEN
+        rc2, _, _ = _run(tmp_path, api, force=True)
+        assert rc2 == fx.EXIT_OK
+        head = json.load(open(paths["attempts_head"]))
+        j = json.load(open(paths["attempts"]))
+        assert head["n"] == 2 == len(j["attempts"])
+        assert [a["status"] for a in j["attempts"]] == ["in_progress", "frozen"]
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert res["ok"] and res["attempts_head"] == "OK" and res["attempts_after_freeze"] == 0
+
+    def test_cf_head_first_order_leaves_orphan_head_that_blocks_retry(self, tmp_path, monkeypatch):
+        """CF pin: head を先に書く順序 (10-05 初版の形) では、台帳書込みで落ちると孤児 head (n=1)
+        が残り、再実行が『同位置の差し替え』として guard に拒否される = 永久ブロック。"""
+        def head_first(paths, journal):
+            fx.chain_attempts(journal["attempts"])
+            fx._attempts_head_guard(paths, journal["attempts"])
+            fx._attempts_head_write(paths, journal["attempts"])
+            fx.write_json_atomic(paths["attempts"], journal)
+        monkeypatch.setattr(fx, "_journal_write", head_first)
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        paths = fx.default_paths(1, str(tmp_path))
+        real_write = fx.write_json_atomic
+        state = {"armed": True}
+
+        def crash_on_ledger(path, obj):
+            if state["armed"] and str(path).endswith(".attempts.json"):
+                state["armed"] = False
+                raise OSError("simulated crash before ledger write")
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", crash_on_ledger)
+        with pytest.raises(OSError):
+            _run(tmp_path, api)
+        monkeypatch.setattr(fx, "write_json_atomic", real_write)
+        assert os.path.exists(paths["attempts_head"]) and not os.path.exists(paths["attempts"])
+        with pytest.raises(RuntimeError, match="差し替わって"):
+            _run(tmp_path, api, now=CUTOFF1 + timedelta(hours=3))   # ← 永久ブロックの形

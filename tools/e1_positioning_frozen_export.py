@@ -912,13 +912,13 @@ def _attempts_head_check(att_path: str, ledger: List[Dict[str, Any]]) -> str:
     return "OK" if ledger[-1].get("entry_hash") == hh else "HEAD_MISMATCH"
 
 
-def _attempts_head_write(paths: Dict[str, str], attempts: List[Dict[str, Any]]) -> None:
-    """台帳の head を単調に前進させる。既存 head より短い台帳 (= 復元/切詰め) への書込みは
-    fail-loud — 台帳を戻した状態で再実行して「凍結後の試行ゼロ」に見せる経路を書込み時点で塞ぐ。"""
+def _attempts_head_guard(paths: Dict[str, str], attempts: List[Dict[str, Any]]) -> None:
+    """書込み前の切り詰め検出。既存 head より短い台帳 (= 復元/切詰め)、または同長で末尾の試行が
+    別物 (切り詰め → 追記) への書込みは fail-loud — 台帳を戻した状態で再実行して「凍結後の試行
+    ゼロ」に見せる経路を書込み時点で塞ぐ。"""
     head_path = paths.get("attempts_head") or _attempts_head_path(paths["attempts"])
     prev = _attempts_head_load(head_path)
     n = len(attempts)
-    hh = attempts[-1]["entry_hash"] if attempts else _CHAIN_GENESIS
     hs = str(attempts[-1].get("started_at", "")) if attempts else ""
     if prev:
         pn = prev.get("n")
@@ -933,15 +933,30 @@ def _attempts_head_write(paths: Dict[str, str], attempts: List[Dict[str, Any]]) 
                 raise RuntimeError(f"attempt 台帳の末尾 (n={n}) が head と別の試行に差し替わって"
                                    f"いる (head started_at={prev.get('head_started_at')!r} vs"
                                    f" 台帳 {hs!r}) — 切り詰め後の追記。復元せず原因を調べる")
+
+
+def _attempts_head_write(paths: Dict[str, str], attempts: List[Dict[str, Any]]) -> None:
+    """台帳の head を書く (caller が `_attempts_head_guard` を通し、台帳を**先に**書いた後)。"""
+    head_path = paths.get("attempts_head") or _attempts_head_path(paths["attempts"])
+    n = len(attempts)
+    hh = attempts[-1]["entry_hash"] if attempts else _CHAIN_GENESIS
+    hs = str(attempts[-1].get("started_at", "")) if attempts else ""
     write_json_atomic(head_path, {"n": n, "head_hash": hh, "head_started_at": hs,
                                   "digest": _attempts_head_digest(n, hh, hs),
                                   "updated_at": iso_sec(utc_now())})
 
 
 def _journal_write(paths: Dict[str, str], journal: Dict[str, Any]) -> None:
+    """guard → 台帳 → head の順。**台帳が先、head が後** (PR #314 review P2 4180251653):
+    head を先に書くと「head は書けたが台帳の書込みで落ちた」孤児 head (n=1、台帳なし) が残り、
+    API 未要求なのに次の試行が『同位置の差し替え』として guard に拒否され、手で消すまで
+    one-shot export が永久に塞がる。台帳先行なら到達し得る中断状態は『台帳が進んで head が
+    古い』だけで、次回の書込みが head を前進させて自己回復する (`--verify` はその間
+    HEAD_STALE / HEAD_MISSING で FAIL を返す = 中断は隠れない)。"""
     chain_attempts(journal["attempts"])
-    _attempts_head_write(paths, journal["attempts"])     # head を先に (切詰め検出は書込み前)
-    write_json_atomic(paths["attempts"], journal)
+    _attempts_head_guard(paths, journal["attempts"])     # 切詰め検出は書込み前
+    write_json_atomic(paths["attempts"], journal)        # 台帳が先
+    _attempts_head_write(paths, journal["attempts"])     # head が後
 
 
 def _journal_load(paths: Dict[str, str], spec: Dict[str, Any]) -> Dict[str, Any]:
