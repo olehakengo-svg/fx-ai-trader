@@ -5072,6 +5072,15 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **レジーム面：** EUR_JPY（VOLATILE 74%ile）・GBP_JPY（TRENDING_DOWN 71%ile）はロンドン終盤にかけてATRが高水準を維持。Trending/Volatile混在環境はDaytradeに有利な一方、Scalpのr2_shadow_demoted_cellによるブロックが大量発生しており（scalp系で計1,615件超）、スキャル戦略はロンドン帯でも実質的に発火抑制状態。
 - **USD_JPY（RANGING 67%ile）：** rnb_usdjpyが1,060件のno_signalを記録—レンジ認定ながらシグナル発火には至らない閾値未達状態が続いている。
 
+### 2026-10-05 (Post-NY Report)
+| PnL | **+0.0 pips** |
+| WR | — (対象トレードなし) |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+| 合計PnL | **+42.3 pips** |
+| WR | **66.7%** |
+> **NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
