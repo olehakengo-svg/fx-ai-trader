@@ -1435,8 +1435,13 @@ class TestAttemptsHeadAnchorAndVerifiedPostpone:
         assert rc == fx.EXIT_REFUSED_FROZEN and len(api.calls) == n_calls
         assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "TRUNCATED"
         os.remove(paths["attempts_head"])
-        rc, _, _ = _run(tmp_path, api)
-        assert rc == fx.EXIT_REFUSED_FROZEN
+        rc, _, _ = _run(tmp_path, api)                                     # 再同期は走らない (head 不在)
+        assert rc == fx.EXIT_REFUSED_FROZEN and len(api.calls) == n_calls
+        assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_MISSING"
+        # --force で書こうとしても guard が head 不在 (台帳あり・marker あり) を拒否 (P2 4180379640)
+        with pytest.raises(RuntimeError, match="head .* が無い"):
+            _run(tmp_path, api, force=True)
+        assert len(api.calls) == n_calls and not os.path.exists(paths["attempts_head"])
         assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_MISSING"
 
     def test_malformed_head_is_never_overwritten(self, tmp_path, capsys):
@@ -1532,6 +1537,63 @@ class TestAttemptsHeadAnchorAndVerifiedPostpone:
         with pytest.raises(RuntimeError, match="差し替わって"):
             fx._journal_write(paths, journal)
         assert json.load(open(paths["attempts_head"]))["head_attempt_id"] == removed["attempt_id"]
+
+    def test_reconcile_requires_the_writer_produced_predecessor_hash(self, tmp_path):
+        """PR #314 review P2 4180360549: 同長の再同期は旧 head_hash が『writer が作り得た直前状態
+        (in_progress 版) の hash』と一致するときだけ。identity が合うだけの任意 hash (digest は無鍵なので
+        再計算できる) は再同期せず、--verify は HEAD_MISMATCH のまま。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_OK
+        j = json.load(open(paths["attempts"]))
+        last = j["attempts"][-1]
+        n_calls = len(api.calls)
+        # (a) 任意 hash + 正しい identity → 再同期しない
+        fake = {"n": 1, "head_hash": "f" * 64, "head_started_at": last["started_at"],
+                "head_attempt_id": last["attempt_id"]}
+        fake["digest"] = fx._attempts_head_digest(1, fake["head_hash"], fake["head_attempt_id"])
+        json.dump(fake, open(paths["attempts_head"], "w"))
+        assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_MISMATCH"
+        rc, _, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_REFUSED_FROZEN and len(api.calls) == n_calls
+        assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_MISMATCH"   # ← 直さない
+        # (b) 正当な直前状態 (in_progress 版) の hash → 再同期する
+        pred = fx._attempt_in_progress_predecessor_hash(last)
+        assert pred != last["entry_hash"]
+        good = dict(fake, head_hash=pred)
+        good["digest"] = fx._attempts_head_digest(1, pred, good["head_attempt_id"])
+        json.dump(good, open(paths["attempts_head"], "w"))
+        assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_MISMATCH"
+        rc, _, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_REFUSED_FROZEN and len(api.calls) == n_calls
+        assert fx.verify_record(paths["sha256"], root="/")["ok"]
+
+    def test_missing_head_with_frozen_ledger_blocks_force_but_bootstrap_crash_recovers(self, tmp_path, monkeypatch):
+        """PR #314 review P2 4180379640: head 削除 + 台帳を凍結 prefix へ復元 + --force は guard が拒否
+        (B と切り詰めの証拠を消せない)。bootstrap 中断 (台帳 in_progress 1 件・marker なし) だけは通る
+        (= test_crash_between_ledger_and_head_write_is_self_healing と同じ経路)。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_OK
+        frozen_ledger = open(paths["attempts"], encoding="utf-8").read()
+        real_write = fx.write_json_atomic
+
+        def lossy_write(path, obj):
+            if isinstance(obj, dict) and "snapshots" in obj:
+                obj = dict(obj, snapshots=obj["snapshots"][:-1])
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", lossy_write)
+        assert _run(tmp_path, api, force=True)[0] == fx.EXIT_FAIL          # B
+        monkeypatch.setattr(fx, "write_json_atomic", real_write)
+        os.remove(paths["attempts_head"])
+        open(paths["attempts"], "w", encoding="utf-8").write(frozen_ledger)
+        n_calls = len(api.calls)
+        with pytest.raises(RuntimeError, match="head .* が無い"):
+            _run(tmp_path, api, force=True)
+        assert len(api.calls) == n_calls and not os.path.exists(paths["attempts_head"])
+        assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_MISSING"
 
 
 def uuid_hex(seed: str) -> str:
