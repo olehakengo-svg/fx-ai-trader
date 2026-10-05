@@ -862,13 +862,19 @@ def test_markdown_says_no_triggers_only_when_all_bins_empty():
 
 
 def test_e2_silent_entry_is_machine_watchable_with_reachability():
-    """2026-09-08 修復の pin: 型を conditional_info へ直し到達経路を明記した。"""
-    from tools.prereg_trigger_watch import lint_registry
-    trig = next(t for t in load_registry()
+    """2026-09-08 修復の pin: 型を conditional_info へ直し到達経路を明記した。
+    2026-10-05 に resolve (bb_squeeze×EUR_USD の shadow 行で配線修復を確認) したので
+    active フィルタ後には現れない — 性質 (型 / 到達経路) は raw 台帳で pin し続け、
+    resolve の記録 (resolved / resolution) も併せて固定する。"""
+    from tools.prereg_trigger_watch import lint_registry, load_registry_raw
+    trig = next(t for t in load_registry_raw()
                 if t["id"] == "roster-e2-silent-promoted-cells")
     assert trig["type"] == "conditional_info"
     assert trig["deadline"] == "2026-10-06"
     assert trig["reachability"].strip()
+    assert trig["active"] is False and trig["resolved"] == "2026-10-05"
+    assert "bb_squeeze" in trig["resolution"]
+    assert all(t["id"] != "roster-e2-silent-promoted-cells" for t in load_registry())
     assert lint_registry(load_registry()) == []
 
 

@@ -1779,7 +1779,9 @@ class OandaBridge:
                 return True, None, self._storm_reserve(st, new_sl)
             if not self._storm_enforce:
                 self._storm_record(demo_trade_id, st, reason, new_sl, enforced=False)
-                return True, None, self._storm_reserve(st, new_sl)
+                token = self._storm_reserve(st, new_sl)
+                token["gate_reason"] = reason        # 送信直前の breaker 再検知で二重計数しないため
+                return True, None, token
             if reason != "breaker" and st["pending"]:
                 # baseline は未確認 → 暫定予約、送信順到来時に確認済み値で再評価
                 token = self._storm_reserve(st, new_sl)
@@ -1789,6 +1791,18 @@ class OandaBridge:
                 return True, None, token
             self._storm_record(demo_trade_id, st, reason, new_sl, enforced=True)
             return False, (reason == "idempotent"), None
+
+    def _storm_detect_breaker_at_send(self, demo_trade_id: str, st: dict, token: dict,
+                                      new_sl: float) -> None:
+        """検知のみモードの送信直前 breaker 再検知 (caller が lock 保持)。gate が既に本 token を
+        breaker と記録していれば数えない (同期経路では gate と送信が連続するので二重計数になる)。
+        CF pin: これを no-op にすると deferred burst 60 件 @50/h で detected.breaker=0 のまま
+        60 件送られる = 旧 bug の形 (tests/test_oanda_bridge_storm_guard.py)。"""
+        if token.get("gate_reason") == "breaker":
+            return
+        if self._storm_check_breaker(st, _time.monotonic()) == "breaker":
+            self._storm_record(demo_trade_id, st, "breaker", new_sl, enforced=False,
+                               note="reevaluated_at_send")
 
     def _storm_send_decision(self, demo_trade_id: str, st: dict, token: dict | None,
                              new_sl: float, instrument: str) -> tuple[bool, bool]:
@@ -1810,6 +1824,12 @@ class OandaBridge:
             return True, False
         with self._storm_lock:
             if not self._storm_enforce:
+                # 検知のみでも breaker は**送信直前に再評価**する (PR #287 review P2 4072595683):
+                # fire-and-forget burst は worker が 1 つも走る前に全件 gate を通るので、gate 時点の
+                # 窓は空 = breaker 検知ゼロのまま N 件送られる。送信時の窓 (実送信のみ) で再評価
+                # しないと「有限の replacement storm」が telemetry から完全に欠落し、有効化判断の
+                # 材料 (`detected.breaker` / `tripped`) が偽陰性になる。送信は止めない (既定契約)。
+                self._storm_detect_breaker_at_send(demo_trade_id, st, token, new_sl)
                 self._storm_count_tx(st, token)
                 return True, False
             reason = self._storm_evaluate(demo_trade_id, st, new_sl, instrument,

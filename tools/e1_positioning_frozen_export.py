@@ -180,6 +180,10 @@ def default_paths(look: int, out_dir: str = "", postponed: bool = False) -> Dict
         "sha256": os.path.join(root, f"{base}.sha256"),      # = 凍結 marker
         "manifest": os.path.join(root, f"{base}.manifest.json"),
         "attempts": os.path.join(root, f"{base}.attempts.json"),   # 試行台帳 (API 要求前に書く)
+        # 台帳 head (versioned anchor): 台帳が伸びるたびに {n, head_hash} を別ファイルへ単調更新。
+        # 末尾エントリの削除 (= 台帳を凍結時点の版に戻す) は chain では検出できないが、head の
+        # n > len(台帳) で `--verify` が TRUNCATED を返す (PR #286 review P2 4071019581)
+        "attempts_head": os.path.join(root, f"{base}.attempts.head.json"),
         "lock": os.path.join(root, f"{base}.lock"),                # プロセス間排他 (O_EXCL)
     }
 
@@ -507,8 +511,17 @@ def verify_record(sha_path: str, root: str = "") -> Dict[str, Any]:
                      for a, b in zip(ledger, man_attempts))):
             res["attempts"] = "PREFIX_MISMATCH"
         else:
-            res["attempts"] = "OK"
-            res["attempts_after_freeze"] = len(ledger) - len(man_attempts)
+            # 末尾削除の検出: head (台帳が伸びるたびに単調更新される外部 anchor) と突合。
+            # 台帳を凍結時点の版 (= manifest snapshot と同一) に戻す操作は chain / prefix を
+            # 両方通過するので、head 無しでは「凍結後の本番問い合わせ」が消せてしまう
+            # (PR #286 review P2 4071019581)。
+            head_state = _attempts_head_check(att_path, ledger)
+            res["attempts_head"] = head_state
+            if head_state == "OK":
+                res["attempts"] = "OK"
+                res["attempts_after_freeze"] = len(ledger) - len(man_attempts)
+            else:
+                res["attempts"] = head_state
     res["ok"] = bool(ok and res["manifest"] == "OK" and res["marker"] == "OK"
                      and res["attempts"] == "OK")
     return res
@@ -856,8 +869,78 @@ def verify_attempts_chain(attempts: List[Dict[str, Any]]) -> bool:
     return True
 
 
+def _attempts_head_path(att_path: str) -> str:
+    return re.sub(r"\.attempts\.json$", ".attempts.head.json", att_path)
+
+
+def _attempts_head_digest(n: int, head_hash: str, head_started_at: str = "") -> str:
+    """head の自己整合 digest (n ‖ head_hash ‖ 末尾試行の started_at)。秘密鍵は無いので認証では
+    なく版の自己記述 — 外部 anchor の実体は「別ファイル + git 履歴」(手順書 §3)。"""
+    return hashlib.sha256(f"{n}\n{head_hash}\n{head_started_at}".encode("utf-8")).hexdigest()
+
+
+def _attempts_head_load(head_path: str) -> Optional[Dict[str, Any]]:
+    if not os.path.exists(head_path):
+        return None
+    try:
+        h = _load_json(head_path)
+    except (OSError, ValueError):
+        return {}
+    return h if isinstance(h, dict) else {}
+
+
+def _attempts_head_check(att_path: str, ledger: List[Dict[str, Any]]) -> str:
+    """台帳 vs head の突合。戻り値は状態名 (OK / HEAD_MISSING / HEAD_MALFORMED /
+    TRUNCATED / HEAD_MISMATCH / HEAD_STALE)。caller が chain 有効性は検査済み。"""
+    head = _attempts_head_load(_attempts_head_path(att_path))
+    if head is None:
+        return "HEAD_MISSING" if ledger else "OK"
+    n = head.get("n")
+    hh = head.get("head_hash")
+    hs = head.get("head_started_at", "")
+    if (not isinstance(n, int) or isinstance(n, bool) or n < 0 or not isinstance(hh, str)
+            or not isinstance(hs, str) or head.get("digest") != _attempts_head_digest(n, hh, hs)):
+        return "HEAD_MALFORMED"
+    if n > len(ledger):
+        return "TRUNCATED"                      # 台帳が head より短い = 末尾が消されている
+    if n < len(ledger):
+        return "HEAD_STALE"                     # 台帳だけ伸びた = writer を経ない追記
+    if n == 0:
+        return "OK" if hh == _CHAIN_GENESIS else "HEAD_MISMATCH"
+    if str(ledger[-1].get("started_at", "")) != hs:
+        return "HEAD_MISMATCH"                  # 同じ長さだが末尾が別の試行 (切り詰め後の追記)
+    return "OK" if ledger[-1].get("entry_hash") == hh else "HEAD_MISMATCH"
+
+
+def _attempts_head_write(paths: Dict[str, str], attempts: List[Dict[str, Any]]) -> None:
+    """台帳の head を単調に前進させる。既存 head より短い台帳 (= 復元/切詰め) への書込みは
+    fail-loud — 台帳を戻した状態で再実行して「凍結後の試行ゼロ」に見せる経路を書込み時点で塞ぐ。"""
+    head_path = paths.get("attempts_head") or _attempts_head_path(paths["attempts"])
+    prev = _attempts_head_load(head_path)
+    n = len(attempts)
+    hh = attempts[-1]["entry_hash"] if attempts else _CHAIN_GENESIS
+    hs = str(attempts[-1].get("started_at", "")) if attempts else ""
+    if prev:
+        pn = prev.get("n")
+        if isinstance(pn, int) and not isinstance(pn, bool):
+            if pn > n:
+                raise RuntimeError(f"attempt 台帳が head より短い (head n={pn} > 台帳 {n}) — "
+                                   f"台帳が凍結後の版から切り詰められている。復元せず原因を調べる")
+            # 同長で head_hash だけ変わるのは末尾エントリの状態更新 (in_progress → frozen/failed)
+            # = 正常な前進 (started_at は不変)。started_at まで変わっていれば「切り詰め → 追記」
+            # で別の試行が同じ位置に入った形なので fail-loud。
+            if pn == n and n > 0 and prev.get("head_started_at", "") != hs:
+                raise RuntimeError(f"attempt 台帳の末尾 (n={n}) が head と別の試行に差し替わって"
+                                   f"いる (head started_at={prev.get('head_started_at')!r} vs"
+                                   f" 台帳 {hs!r}) — 切り詰め後の追記。復元せず原因を調べる")
+    write_json_atomic(head_path, {"n": n, "head_hash": hh, "head_started_at": hs,
+                                  "digest": _attempts_head_digest(n, hh, hs),
+                                  "updated_at": iso_sec(utc_now())})
+
+
 def _journal_write(paths: Dict[str, str], journal: Dict[str, Any]) -> None:
     chain_attempts(journal["attempts"])
+    _attempts_head_write(paths, journal["attempts"])     # head を先に (切詰め検出は書込み前)
     write_json_atomic(paths["attempts"], journal)
 
 
@@ -933,6 +1016,19 @@ def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_b
                   f"({relpath_for_record(orig['sha256'], root)}) が前提 (§2.5-3 family gate は"
                   f" 元 artifact の判定器実行から生じる)。元凍結なしの postpone は不可。",
                   file=sys.stderr)
+            return EXIT_FAIL
+        # marker の存在だけでは足りない: 空 / 不完全 / 改変された元凍結からは POSTPONE 判定が
+        # 導けない (PR #286 review P2 4071019591)。`--verify` と同じ検査を通過した元凍結のみ前提
+        # として認め、通らなければ本番へ問い合わせずに停止する。
+        orig_verify = verify_record(orig["sha256"], root)
+        if not orig_verify.get("ok"):
+            bad_files = sorted(k for k, v in (orig_verify.get("files") or {}).items() if v != "OK")
+            print(f"REFUSED: --postponed の前提となる元 first look 凍結が検証を通らない"
+                  f" (marker={orig_verify.get('marker')} manifest={orig_verify.get('manifest')}"
+                  f" attempts={orig_verify.get('attempts')} files_ng={bad_files}) —"
+                  f" 元凍結を `--verify {relpath_for_record(orig['sha256'], root)}` で確認する。"
+                  f" 元 artifact の判定器実行 (POSTPONE 判定) が成立しないので postponed export は"
+                  f" 不可 (API へは問い合わせない)。", file=sys.stderr)
             return EXIT_FAIL
 
     # ── 「1 回だけ」ガード (marker + attempt 台帳) ─────────────────
@@ -1304,7 +1400,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                   f" health {rt['health_rows']}); manifest {res['manifest']}")
         print(f"  marker: {res['marker']}")
         print(f"  attempts ledger: {res.get('attempts')} (attempts after freeze:"
-              f" {res.get('attempts_after_freeze')} — 0 でなければ verdict に理由を併記)")
+              f" {res.get('attempts_after_freeze')} — 0 でなければ verdict に理由を併記;"
+              f" head={res.get('attempts_head', 'n/a')})")
         print(f"verify: {'OK' if res['ok'] else 'FAIL'} ({res['n']} files)")
         return EXIT_OK if res["ok"] else EXIT_FAIL
 
