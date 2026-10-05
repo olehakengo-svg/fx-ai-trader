@@ -5062,6 +5062,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **Volatile（EUR_JPY・EUR_USD）**: 高ATR%ileはDT系のエントリー条件を厳格化。Scalp系はspread_guardとの衝突でさらに抑制される。
 - **Trending_Down（GBP_JPY・GBP_USD）**: トレンドフォロー型には理論上有利だが、GBP asia保護が東京時間の機会を封鎖。ロンドン・NY時間に機会が集中する構造。
 
+### 2026-10-05 (Post-London Report)
+| 勝率（WR） | 100.0% |
+| セッションPnL | **+12.9 pips** |
+| 平均EV/trade | +12.90 |
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+データ上、本日累計N=3・WR=66.7%・PnL=+42.3 pipsから逆算すると：
+| セッション | 推定N | 推定PnL | WR |
+- **レジーム面：** EUR_JPY（VOLATILE 74%ile）・GBP_JPY（TRENDING_DOWN 71%ile）はロンドン終盤にかけてATRが高水準を維持。Trending/Volatile混在環境はDaytradeに有利な一方、Scalpのr2_shadow_demoted_cellによるブロックが大量発生しており（scalp系で計1,615件超）、スキャル戦略はロンドン帯でも実質的に発火抑制状態。
+- **USD_JPY（RANGING 67%ile）：** rnb_usdjpyが1,060件のno_signalを記録—レンジ認定ながらシグナル発火には至らない閾値未達状態が続いている。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
