@@ -69,6 +69,7 @@ import re
 import sys
 import urllib.parse
 import urllib.request
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -873,10 +874,17 @@ def _attempts_head_path(att_path: str) -> str:
     return re.sub(r"\.attempts\.json$", ".attempts.head.json", att_path)
 
 
-def _attempts_head_digest(n: int, head_hash: str, head_started_at: str = "") -> str:
-    """head の自己整合 digest (n ‖ head_hash ‖ 末尾試行の started_at)。秘密鍵は無いので認証では
+def _attempts_head_digest(n: int, head_hash: str, head_attempt_id: str = "") -> str:
+    """head の自己整合 digest (n ‖ head_hash ‖ 末尾試行の identity)。秘密鍵は無いので認証では
     なく版の自己記述 — 外部 anchor の実体は「別ファイル + git 履歴」(手順書 §3)。"""
-    return hashlib.sha256(f"{n}\n{head_hash}\n{head_started_at}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{n}\n{head_hash}\n{head_attempt_id}".encode("utf-8")).hexdigest()
+
+
+def _attempt_identity(entry: Dict[str, Any]) -> str:
+    """試行の安定な識別子。`attempt_id` (uuid4、試行作成時に付与、不変) を使い、無い古い形だけ
+    started_at に退避する。started_at は秒精度 (`iso_sec`) なので同一秒内の再試行を区別できない
+    (PR #314 review P2 4180330966) — identity に使わない。"""
+    return str(entry.get("attempt_id") or entry.get("started_at") or "")
 
 
 def _attempts_head_load(head_path: str) -> Optional[Dict[str, Any]]:
@@ -892,9 +900,10 @@ def _attempts_head_load(head_path: str) -> Optional[Dict[str, Any]]:
 def _attempts_head_is_wellformed(head: Dict[str, Any]) -> bool:
     n = head.get("n")
     hh = head.get("head_hash")
-    hs = head.get("head_started_at", "")
+    hid = head.get("head_attempt_id", "")
     return (isinstance(n, int) and not isinstance(n, bool) and n >= 0 and isinstance(hh, str)
-            and isinstance(hs, str) and head.get("digest") == _attempts_head_digest(n, hh, hs))
+            and isinstance(hid, str) and isinstance(head.get("head_started_at", ""), str)
+            and head.get("digest") == _attempts_head_digest(n, hh, hid))
 
 
 def _attempts_head_reconcile(paths: Dict[str, str], journal: Dict[str, Any]) -> Optional[str]:
@@ -914,10 +923,21 @@ def _attempts_head_reconcile(paths: Dict[str, str], journal: Dict[str, Any]) -> 
         return None
     n = len(att)
     pn = prev["n"]
-    hs = str(att[-1].get("started_at", ""))
+    hid = _attempt_identity(att[-1])
     if pn < n:
+        # 台帳が先行する形は writer が作れる 1 段 (append 1 件) だけ、かつ旧 head が台帳の
+        # 対応位置 (prefix) と hash・identity で一致していること (PR #314 review P2 4180330960):
+        # marker が A を anchor、head が [A, B] のとき、台帳を [A, C, D] に差し替えると chain も
+        # prefix も通るので、ここで B の痕跡 (head) を検査しないと再同期が証拠を上書きする。
+        if n != pn + 1:
+            return None
+        if pn > 0 and (att[pn - 1].get("entry_hash") != prev["head_hash"]
+                       or _attempt_identity(att[pn - 1]) != prev.get("head_attempt_id", "")):
+            return None
+        if pn == 0 and prev["head_hash"] != _CHAIN_GENESIS:
+            return None
         state = "HEAD_STALE"
-    elif pn == n and prev.get("head_started_at", "") == hs and prev["head_hash"] != att[-1].get("entry_hash"):
+    elif pn == n and prev.get("head_attempt_id", "") == hid and prev["head_hash"] != att[-1].get("entry_hash"):
         state = "HEAD_MISMATCH"
     else:
         return None
@@ -933,9 +953,8 @@ def _attempts_head_check(att_path: str, ledger: List[Dict[str, Any]]) -> str:
         return "HEAD_MISSING" if ledger else "OK"
     n = head.get("n")
     hh = head.get("head_hash")
-    hs = head.get("head_started_at", "")
-    if (not isinstance(n, int) or isinstance(n, bool) or n < 0 or not isinstance(hh, str)
-            or not isinstance(hs, str) or head.get("digest") != _attempts_head_digest(n, hh, hs)):
+    hid = head.get("head_attempt_id", "")
+    if not _attempts_head_is_wellformed(head):
         return "HEAD_MALFORMED"
     if n > len(ledger):
         return "TRUNCATED"                      # 台帳が head より短い = 末尾が消されている
@@ -943,7 +962,7 @@ def _attempts_head_check(att_path: str, ledger: List[Dict[str, Any]]) -> str:
         return "HEAD_STALE"                     # 台帳だけ伸びた = writer を経ない追記
     if n == 0:
         return "OK" if hh == _CHAIN_GENESIS else "HEAD_MISMATCH"
-    if str(ledger[-1].get("started_at", "")) != hs:
+    if _attempt_identity(ledger[-1]) != hid:
         return "HEAD_MISMATCH"                  # 同じ長さだが末尾が別の試行 (切り詰め後の追記)
     return "OK" if ledger[-1].get("entry_hash") == hh else "HEAD_MISMATCH"
 
@@ -955,7 +974,7 @@ def _attempts_head_guard(paths: Dict[str, str], attempts: List[Dict[str, Any]]) 
     head_path = paths.get("attempts_head") or _attempts_head_path(paths["attempts"])
     prev = _attempts_head_load(head_path)
     n = len(attempts)
-    hs = str(attempts[-1].get("started_at", "")) if attempts else ""
+    hid = _attempt_identity(attempts[-1]) if attempts else ""
     if prev is not None:
         # 「無い」と「壊れている」を区別する (PR #314 review P2 4180279440): 不正 JSON /
         # 欠落・非整数 n / digest 不一致の head を上書きすると `--verify` が HEAD_MALFORMED → OK
@@ -971,10 +990,10 @@ def _attempts_head_guard(paths: Dict[str, str], attempts: List[Dict[str, Any]]) 
         # 同長で head_hash だけ変わるのは末尾エントリの状態更新 (in_progress → frozen/failed)
         # = 正常な前進 (started_at は不変)。started_at まで変わっていれば「切り詰め → 追記」
         # で別の試行が同じ位置に入った形なので fail-loud。
-        if pn == n and n > 0 and prev.get("head_started_at", "") != hs:
+        if pn == n and n > 0 and prev.get("head_attempt_id", "") != hid:
             raise RuntimeError(f"attempt 台帳の末尾 (n={n}) が head と別の試行に差し替わって"
-                               f"いる (head started_at={prev.get('head_started_at')!r} vs"
-                               f" 台帳 {hs!r}) — 切り詰め後の追記。復元せず原因を調べる")
+                               f"いる (head attempt={prev.get('head_attempt_id')!r} vs"
+                               f" 台帳 {hid!r}) — 切り詰め後の追記。復元せず原因を調べる")
 
 
 def _attempts_head_write(paths: Dict[str, str], attempts: List[Dict[str, Any]]) -> None:
@@ -983,8 +1002,10 @@ def _attempts_head_write(paths: Dict[str, str], attempts: List[Dict[str, Any]]) 
     n = len(attempts)
     hh = attempts[-1]["entry_hash"] if attempts else _CHAIN_GENESIS
     hs = str(attempts[-1].get("started_at", "")) if attempts else ""
+    hid = _attempt_identity(attempts[-1]) if attempts else ""
     write_json_atomic(head_path, {"n": n, "head_hash": hh, "head_started_at": hs,
-                                  "digest": _attempts_head_digest(n, hh, hs),
+                                  "head_attempt_id": hid,
+                                  "digest": _attempts_head_digest(n, hh, hid),
                                   "updated_at": iso_sec(utc_now())})
 
 
@@ -1170,7 +1191,8 @@ def _run_freeze_locked(fetcher: Fetcher, look: int, paths: Dict[str, str], api_b
         ohlcv_coverage = {}
 
     # ── attempt 台帳: 最初の API 要求の前に「試行開始」を永続化 ─────────
-    attempt: Dict[str, Any] = {"started_at": iso_sec(now), "status": "in_progress",
+    attempt: Dict[str, Any] = {"attempt_id": uuid.uuid4().hex,     # 不変の識別子 (head の identity)
+                               "started_at": iso_sec(now), "status": "in_progress",
                                "force": bool(force), "api_queried": True,
                                "api_base": api_base}
     journal["attempts"].append(attempt)

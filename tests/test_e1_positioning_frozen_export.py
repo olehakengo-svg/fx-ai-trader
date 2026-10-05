@@ -1234,8 +1234,10 @@ class TestAttemptsHeadAnchorAndVerifiedPostpone:
         head = json.load(open(paths["attempts_head"]))
         j = json.load(open(paths["attempts"]))
         assert head["n"] == 1 and head["head_hash"] == j["attempts"][-1]["entry_hash"]
-        assert head["digest"] == fx._attempts_head_digest(1, head["head_hash"], head["head_started_at"])
+        assert head["digest"] == fx._attempts_head_digest(1, head["head_hash"], head["head_attempt_id"])
         assert head["head_started_at"] == j["attempts"][-1]["started_at"]
+        assert head["head_attempt_id"] == j["attempts"][-1]["attempt_id"]
+        assert len(j["attempts"][-1]["attempt_id"]) == 32
         assert j["attempts"][-1]["status"] == "frozen"      # in_progress → frozen で head_hash も更新済み
         # head は marker (sha256) に載せない — 凍結後も伸びる (凍結成果物の完全性とは別軸)
         assert not any(k.endswith(".attempts.head.json") for k in fx.read_sha256_record(paths["sha256"]))
@@ -1447,7 +1449,7 @@ class TestAttemptsHeadAnchorAndVerifiedPostpone:
         assert rc == fx.EXIT_OK
         n_calls = len(api.calls)
         for garbage in ("{not json", json.dumps({"n": "1", "head_hash": "x"}),
-                        json.dumps({"n": 1, "head_hash": "x", "head_started_at": "", "digest": "bad"})):
+                        json.dumps({"n": 1, "head_hash": "x", "head_started_at": "", "head_attempt_id": "", "digest": "bad"})):
             open(paths["attempts_head"], "w", encoding="utf-8").write(garbage)
             assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_MALFORMED"
             with pytest.raises(RuntimeError, match="壊れている"):
@@ -1455,3 +1457,83 @@ class TestAttemptsHeadAnchorAndVerifiedPostpone:
             assert open(paths["attempts_head"], encoding="utf-8").read() == garbage   # 上書きなし
             assert len(api.calls) == n_calls                                         # API 非接触
             assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_MALFORMED"
+
+    def test_reconcile_rejects_rehashed_ledger_that_drops_anchored_attempt(self, tmp_path, monkeypatch):
+        """PR #314 review P2 4180330960: marker が A を anchor、head が [A, B] (B = 凍結後の --force 失敗)。
+        台帳を再 hash した [A, C, D] に差し替えると chain も manifest prefix も通る — 再同期は head の
+        対応位置 (prefix) と hash・identity が一致し、かつ 1 段だけ先行する形にしか走らず、
+        B の痕跡 (head) は上書きされない (--verify は HEAD_STALE のまま FAIL)。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_OK
+        real_write = fx.write_json_atomic
+
+        def lossy_write(path, obj):
+            if isinstance(obj, dict) and "snapshots" in obj:
+                obj = dict(obj, snapshots=obj["snapshots"][:-1])
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", lossy_write)
+        assert _run(tmp_path, api, force=True)[0] == fx.EXIT_FAIL          # B
+        monkeypatch.setattr(fx, "write_json_atomic", real_write)
+        j = json.load(open(paths["attempts"]))
+        head_before = open(paths["attempts_head"], encoding="utf-8").read()
+        assert json.loads(head_before)["n"] == 2
+        a = j["attempts"][0]
+        fab = [dict(a, entry_hash=None, prev_hash=None)]
+        for k in ("C", "D"):
+            fab.append({"attempt_id": uuid_hex(k), "started_at": "2026-10-09T00:00:00Z", "status": "failed",
+                        "force": True, "api_queried": True, "api_base": "x", "reason": k})
+        fx.chain_attempts(fab)
+        json.dump(dict(j, attempts=fab), open(paths["attempts"], "w"))
+        assert fx.verify_attempts_chain(fab)
+        n_calls = len(api.calls)
+        rc, _, _ = _run(tmp_path, api)                                     # 通常再実行
+        assert rc == fx.EXIT_REFUSED_FROZEN and len(api.calls) == n_calls
+        assert open(paths["attempts_head"], encoding="utf-8").read() == head_before   # 上書きなし
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert not res["ok"] and res["attempts"] == "HEAD_STALE"
+        # 対照: 本物の 1 段先行 (head が [A] のまま台帳が [A, B]) は再同期される
+        json.dump(j, open(paths["attempts"], "w"))                         # 台帳を [A, B] に戻す
+        head1 = {"n": 1, "head_hash": a["entry_hash"], "head_started_at": a["started_at"],
+                 "head_attempt_id": a["attempt_id"]}
+        head1["digest"] = fx._attempts_head_digest(1, head1["head_hash"], head1["head_attempt_id"])
+        json.dump(head1, open(paths["attempts_head"], "w"))
+        assert fx.verify_record(paths["sha256"], root="/")["attempts"] == "HEAD_STALE"
+        rc, _, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_REFUSED_FROZEN and len(api.calls) == n_calls
+        res = fx.verify_record(paths["sha256"], root="/")
+        assert res["ok"] and res["attempts_after_freeze"] == 1
+
+    def test_same_second_retry_after_truncation_is_still_rejected(self, tmp_path, monkeypatch):
+        """PR #314 review P2 4180330966: identity は attempt_id (uuid4) であって秒精度の started_at
+        ではない — 台帳を prefix に戻し、消した試行と同じ started_at で追記しても guard は拒否する。"""
+        snaps, health = make_world(n_per_inst=3, n_after_cutoff=0)
+        api = FakeApi(snaps, health)
+        rc, paths, _ = _run(tmp_path, api)
+        assert rc == fx.EXIT_OK
+        frozen_ledger = open(paths["attempts"], encoding="utf-8").read()
+        real_write = fx.write_json_atomic
+
+        def lossy_write(path, obj):
+            if isinstance(obj, dict) and "snapshots" in obj:
+                obj = dict(obj, snapshots=obj["snapshots"][:-1])
+            real_write(path, obj)
+        monkeypatch.setattr(fx, "write_json_atomic", lossy_write)
+        assert _run(tmp_path, api, force=True)[0] == fx.EXIT_FAIL
+        monkeypatch.setattr(fx, "write_json_atomic", real_write)
+        removed = json.load(open(paths["attempts"]))["attempts"][1]
+        open(paths["attempts"], "w", encoding="utf-8").write(frozen_ledger)   # prefix に復元
+        journal = fx._journal_load(paths, fx.look_spec(1))
+        journal["attempts"].append({"attempt_id": uuid_hex("same-second"),
+                                    "started_at": removed["started_at"],          # 同一秒
+                                    "status": "in_progress", "force": True,
+                                    "api_queried": True, "api_base": "x"})
+        with pytest.raises(RuntimeError, match="差し替わって"):
+            fx._journal_write(paths, journal)
+        assert json.load(open(paths["attempts_head"]))["head_attempt_id"] == removed["attempt_id"]
+
+
+def uuid_hex(seed: str) -> str:
+    import hashlib as _h
+    return _h.sha256(seed.encode()).hexdigest()[:32]
