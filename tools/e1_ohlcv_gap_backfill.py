@@ -329,7 +329,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if src == dst:
         print("REFUSED: --dst は --src と別ディレクトリにすること (共有 cache は改変しない)", file=sys.stderr)
         return 2
-    slug = f"{spec['slug']}-postponed" if args.postponed else spec["slug"]
+    slug = spec["slug"]        # look_spec が postponed なら既に "-postponed" 付き (二重付与しない、Codex P2 4191189958)
     audit_out = Path(args.audit_out) if args.audit_out else (
         ROOT / "raw" / "bt-results" /
         f"e1-ohlcv-gap-backfill-{slug}-{datetime.now(timezone.utc):%Y-%m-%d}.json")

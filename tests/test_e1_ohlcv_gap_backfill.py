@@ -261,6 +261,8 @@ def test_postponed_uses_slid_cutoff_and_separate_dst(tmp_path, monkeypatch):
     assert captured["cutoff"] == CUTOFF + timedelta(weeks=4)
     assert captured["dst"] == gb.default_dst(1, postponed=True)
     assert "first-look-postponed" in captured["audit_out"].name
+    assert captured["audit_out"].name.count("postponed") == 1          # 二重付与しない (P2 4191189958)
+    assert captured["audit_out"].name.startswith("e1-ohlcv-gap-backfill-first-look-postponed-")
     assert gb.main(["--src", str(src), "--look", "1", "--dry-run"]) == 0
     assert captured["cutoff"] == CUTOFF and captured["dst"] == gb.DEFAULT_DST
     with pytest.raises(ValueError):
