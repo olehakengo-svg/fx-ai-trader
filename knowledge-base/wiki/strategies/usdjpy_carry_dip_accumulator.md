@@ -78,6 +78,20 @@
 >
 > ⚠️ 併発リスク: この建玉の週末クローズ試行が **47 時間 / 64,170 回の `MARKET_HALTED` リトライ storm** (128,340 transactions) を引き起こし、OANDA Gold status = API アクセスを脅かした。hold ≤24 H1 は金曜クローズを日常的に跨ぐため **再発する**。詳細: [[2026-09-07]]
 
+## 🟢🔴 2026-10-05 更新 (wiki-daily 12:05Z): **fill #20 #1022861 — 混合族 storm (14,676 回 / 3h40m、BE への reset 22 回) の末に trail SL で +¥290 = storm 下で trail が勝ちを確保した初例、N=20**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold |
+|---|---|---|---|---|---|---|---|
+| **#1022861** | 10-05 02:01:28 | 157.592 (signal 157.559、entry drift **3.4p**) | 157.397 (**−19.5p**) / 158.239 (+64.7p) | 05:56:56 `STOP_LOSS_ORDER` @157.882 (直前 trail SL 157.885) | **+¥290** | +28.9 `OANDA_SL_TP` | 3h56m |
+
+- 🔴 **storm**: 02:17:02〜05:56:56Z に `REPLACEMENT` **14,676 本 (29,352 tx)**、median 0.798 s。02:17→02:55 は 157.601 (= entry+0.9 = BE) の族 A ループ (最長同値 run 2,007)、02:55 以降は trail が **158.137** まで追従しながら **BE 157.601 へ 22 回リセット** (価格変化点 5,009 / 293 価格 / up 2,601 / down 2,408)。終端は市場が trail SL に到達した通常約定 — 自己約定 (族 B) でも自然停止 (族 A) でもない **3 つ目の終わり方「trail が機能したまま storm が続き、trail SL で利確」**
+- 🔑 `storm_guard` に `a65e02d9-289` として**初めて登録・計上** (`sent_total` 6,740 / breaker 6,690 / deadband 10 / idempotent 33 / monotonic 6 / `failed_total` 10 / `confirmed_sl` 157.885 / `tripped: true`) — ただし broker 実測 14,676 に対し **45.9%**。09-30 節の「deploy で guard 状態が消える」説は撤回 (`engine_pid` 130 不変のまま `evaluated` 0 → 10,041)。捕捉率 ~半分は **2-writer 構造** (guard 経路の writer + 外の writer) で説明され、同時刻の kalman #1027829 (63.5%) と合わせて 2 建玉の **trail 上限が 158.137 で一致** = trail 目標は USD_JPY の共有価格系列
+- ✅ SL 契約破棄 **20/20** (`[SLTP_CONSTRUCT] sl=atr_nosr clamp=none lowliq=0 … decl_sl_p=150.0 sl_p=19.6 entry_drift_p=3.4`、`[BROKER_TP] basis=qh mult=0.85 tp_p=64.6`)。MAFE favorable **57.9p** (本戦略 LIVE 最大) のうち trail が 28.9 を確保 — 宣言 TP 76.6 / broker TP 64.7 はどちらも未達。10-02 #950042 (19.8p 伸びて BE 返上) との差は、本件で trail writer が BE writer に 22 回負けても最終的に 157.885 に留まれた点
+- 🔴 DD ledger は +28.9 を**未計上** (`OANDA_SL_TP` 欠落 5 例目)
+- 🆕 `strategy_status.promotion` = **`demoted`** (`promo_n` 20 / `promo_ev` +4.45 / `promo_wr` 55.0)。R2 (N≥10 ∧ EV<0) は不成立なので経路不明 (pair_demoted / auto_demoted / watchdog のいずれか)。audit は本 fill を `sent`→`filled` で通しており Tier 2 LIVE 送信は続いている ⇒ **表示と送信の不整合**として観測のみ、次 run で追う
+- **累計**: demo **N 20 / 11W / WR 55.0% / +88.9 / EV +4.45** (wf_h1 +9.56 / wf_h2 −0.67)、broker **+¥665 = +66.5p / 20 = +3.33p/trade** (20/20 突合)、risk Kelly n=10 edge **−0.0343** (−0.1229 から、窓ロール込み)。pre-reg N≥30 に対し 20/30
+- 詳細 [[2026-10-05]] 発見 2
+
 ## 🔴 2026-09-30 更新 (wiki-daily 12:01Z): **fill #19 #948647 — 純族 A storm (672 回同値再送 / 16 分で自然停止) の後 BE+1 で SL 約定 +¥10 — N=19**
 
 | fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold |

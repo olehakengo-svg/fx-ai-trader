@@ -168,3 +168,23 @@ Entry filters (v16 forensic 導出):
 - 🔑 **09-26 計装 `[SLTP_CONSTRUCT]` の本戦略 初 live 読み出し** (demo 行 `reasons`): `sl=atr_rrlow clamp=none lowliq=1 fastsl=0 ct=0 rn=0 mtf_tp=1.0 range_tp=0 decl_sl_p=19.0 sl_p=15.1 decl_tp_p=34.2 tp_p=34.4 entry_drift_p=0.2` + `[BROKER_TP] basis=qh mult=0.85 tp_p=29.3` ⇒ 09-25 節 4. の C0 分岐が実測で確定: **SR ベース SL は RR<1.0 で棄却され ATR×1.0 にフォールバック (`atr_rrlow`)、低流動性 +0.2×ATR (`lowliq=1`、0 UTC entry) が掛かり、宣言 SL 19.0p → 置かれた SL 15.1p**、MTF TP ×1.3 は非発動 (`mtf_tp=1.0`)、broker TP は quick-harvest ×0.85 で 29.3p (broker 実測 +29.1p と一致)。N=1 の分岐観測であり C0 感度の「率」はまだ出せない (marker 付き live N が溜まってから)
 
 詳細: [[2026-10-02]] 発見 1 / [[usdjpy_carry_dip_accumulator]] / [[project_weekend_market_halted_retry_storm_2026_09_07]]
+
+## 🔴 2026-10-05 更新 (wiki-daily): **LIVE fill #5 #1027829 — 本戦略 3 度目の storm (族 A 主体、5,198 回 / 1h27m)、BE +¥6 で決済。`storm_guard` に初登録 (捕捉率 63.5%) ⇒ 10-02 節の「`daytrade` writer はバイパス」を訂正**
+
+| 項目 | 実測 (broker tx 1027828〜1056482、全数) |
+|---|---|
+| entry | 10-05 **03:01:58Z** USD_JPY BUY 1,000u @**157.960** (demo 157.961、slippage −1.0)。宣言 SL = entry − 1.5×ATR = 157.779 / TP = entry + 5.0×ATR = 158.610 |
+| ON_FILL bracket | SL **157.761** (−19.9p) / TP **158.514** (+55.4p)。broker TP = demo 158.610 × 0.85 |
+| 平常 | 03:01→03:44 の 42 分は replacement 0 本 |
+| storm | **03:44:03→05:11:07Z (87 分)**、`REPLACEMENT` **5,198** (10,396 tx)、median **0.881 s**。**1,897 本連続 + 計 2,434 本 (46.8%) が 157.969** = entry+0.9 = BE (族 A)、04:18 以降 trail が 158.067〜**158.137** を往復 (価格 103 種、変化点 1,304、up 693 / down 611、BE への reset 2 回) |
+| exit | ループ停止 (05:11:07) の **3m35s 後**、05:14:42 `STOP_LOSS_ORDER` @157.966 = **+¥6.00** / demo **+0.5** `OANDA_SL_TP` BE、hold **2h13m** |
+| MAFE | favorable **21.1p** / adverse 0.0 — +21.1 まで伸びた建玉を BE で返した (10-02 #950042 の 19.8p と同型、TP 55.4p 未達) |
+| 並行 | 同時刻に `usdjpy_carry_dip_accumulator` #1022861 も storm 中 (02:17→05:56)。**両建玉の trail 上限が 158.137 で一致** ⇒ trail 目標は USD_JPY の共有価格系列 (高値 − 固定オフセット) |
+| demo 累計 | **N=5 / 2W-2L-1BE / WR 40.0% / PnL −15.0 / EV −3.0** (`promo_ev` −3.0、`promotion: pending`、`enabled: true`)、wf_h1 +1.85 / wf_h2 −6.23 |
+
+- 🔴🔑 **10-02 節の訂正**: 本建玉は `storm_guard.trades` に `6f513c08-d21` として登録され (`sent_total` 3,301 / breaker 3,251 / deadband 10 / idempotent 33 / monotonic 6 / `tripped: true` / `confirmed_sl` 157.969)、`daytrade` モードの SL writer も guard 経路を**通っている**。10-02 の #950042 が未登録だったのは「バイパス」ではなく、guard が本件まで何も計上していなかった (`totals.evaluated` 0 → 10,041、`engine_pid` 130 不変) ため。ただし捕捉率は **63.5%** (5,198 中 3,301) で残り 36.5% は別 writer ⇒ **2-writer 競合の初の定量化**。`enforce: false` のため block 0
+- ⚪ 執行 QA (09-25 節): hold 2h13m / `OANDA_SL_TP` (BE) / demo↔broker 0.1p 差。5 本の hold は 4h04m / 54m / 58m / 1h44m / **2h13m** — 全て 8h cap 内、BT の winner ride (~115h) は依然未発生。本 fill も BT 検証の N には数えない
+- 🔴 DD ledger は +0.5 を**未計上** (`OANDA_SL_TP` 欠落 6 例目) — [[2026-10-05]] 発見 5
+- ⚪ 同日、本戦略が primary で勝った bar の secondary emit `kalman_d7_ema75_break` が初 LIVE fill #957198 (10-02 19:09Z) で**週末 `MARKET_HALTED` リトライ storm** (32,821 回 / 47h) を起こし、demo +3.0 ↔ broker −¥147 の符号反転 — [[kalman-d7-ema75-break]] / [[2026-10-05]] 発見 1
+
+詳細: [[2026-10-05]] 発見 2 / [[usdjpy_carry_dip_accumulator]] / [[project_weekend_market_halted_retry_storm_2026_09_07]]
