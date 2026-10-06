@@ -5101,6 +5101,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 ### 推奨戦略配分
 **NO ACTION推奨**
 
+### 2026-10-06 (Pre-Tokyo Briefing)
+前日（2026-10-05）は **3トレード、PnL +42.3 pips相当、WR 66.7%** で終了。`usdjpy_carry_dip_accumulator` が単独で+28.9を稼ぎ、`price_shock_rev_eur_gbp_h1_long` も+12.9と貢献。`kalman_d7_po_dn_flip` はブレークイーブン（+0.5）で実質ノーコスト。スプレッドは全件0.8〜1.4と正常水準内。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的位置づけ:** 全戦略でN<10。現時点では「データなし」領域。EV・WRの数値は参考値に過ぎず、判断の根拠にはなり得ない。Cutoff後N=10（全戦略合計）、昇格基準N≥30まで残り **20件**。
+| A | `price_shock_rev_eur_gbp_h1_long` がEV −0.54（N=5）で唯一のマイナスEV。N不足で降格判断には至らないが負の傾向 | 中 |
+- **A**: `price_shock_rev_eur_gbp_h1_long` は昇格/降格いずれの判断もN≥30到達まで保留。追加観察のみ。
+- **B**: r2セルのシャドウ降格状況はブロックカウントで継続モニタリング。本日も同傾向が続く場合、シャドウ昇格待ちの件数を次回確認。
+- **C**: OANDA転送状況に変化がないか本日中に再確認。
+| GBP_JPY | RANGING | 72% | −0.00434 | レンジ環境でDTシグナルは偽ブレイクリスク高。`daytrade_gbpjpy` は注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
