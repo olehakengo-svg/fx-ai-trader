@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-06 — feat(e1): first look 凍結準備 (手順書 §2) で MASSIVE M15 の窓内 vendor 欠落 1,125 本を検出 → `tools/e1_ohlcv_gap_backfill.py` (OANDA mid 補填の複製、共有 cache 不改変) + 手順書 §3 改訂 + ローカル main 座礁分救済 (rule:R3、autopilot、PR #315 / #316)
+
+- **E1 §2 準備 (10-06 期日)**: pin 165 green / self-check 7/7 / dry-run health OK。`--preflight-only` が **8/13 pair で評価窓内の内部欠落** (EUR_JPY 553 本 = 窓の 10.0% / AUD_USD 237 / GBP_JPY 194 / EUR_AUD 96 / EUR_GBP 30 / USD_CHF 7 / USD_JPY 4 / GBP_USD 4) を検出。MASSIVE へ 1m/15m/1h で直接問い合わせても run 内 0 本 = **vendor 本体の穴** (fetch artifact ではない、平日 00:00Z 起点のアジア時間帯・クロス通貨に集中)。判定器は horizon を配列位置で進めるので受容 (`--ohlcv-max-gap-bars`) は primary の推定量を歪める
+- **処置 (R3 data repair、07-29 `massive_gap_backfill.py` の先例)**: 共有 `data/cache/massive/` は改変せず、窓内の欠落スロットだけを OANDA v20 mid M15 (dailyAlignment=0) で埋めた複製 `data/cache/e1_ohlcv/` を凍結のスライス元にする — `tools/e1_ohlcv_gap_backfill.py` (既存行不改変 assert / 欠落外 bar 破棄 / unfilled は黙って受容しない / 件数・sha256 のみ出力、pin 9 本)。10-06 実行: filled 1,125 / unfilled 0、補填後 preflight は stale_tail のみ (cutoff 未到達)。audit `raw/bt-results/e1-ohlcv-gap-backfill-first-look-2026-10-06.json`
+- **手順書 §3 改訂**: (a) refresh → **(a″) backfill** → (a') preflight `--ohlcv-src data/cache/e1_ohlcv --ohlcv-drop-extra-bars` → (b) 同フラグで凍結。ファイル全体の extra (t0 以前 2014〜2021 年の閉場 bar、窓内 0) は drop で通す。⚠️ `bt_data_cache.py refresh` は delta 失敗 (10-06 実測 5/13 pair DNS/timeout) でも exit 0 — 末尾は preflight で確認
+- **estimand 開示 (verdict §8 へ転記)**: first look の価格列 = MASSIVE M15 mid + 窓内欠落 1,125 本の OANDA mid 補填 (pair 別割合は analyses §4)。補填方式は cutoff 前に固定、値は未閲覧
+- **ローカル main 座礁分救済 (PR #315)**: ahead 3 / behind 150 の auto-save 3 commit + 未コミット 1 行を union で統合 (PR #312 と同型)。後処理 = user による `reset --hard origin/main`
+- **rnb checkpoint-2 (10-08) 事前読み (count only)**: post-fix cohort (since 09-23) closed shadow N=15 (watcher 相当 / 厳格 shadow 15 / `[SHADOW_RELAX]` marker 付き 9) ≫ n_floor 3 — 期日判定 (cron 10-09 00:20Z) で resolve 見込み。outcome 非読
+- 詳細: [[e1-ohlcv-gap-backfill-2026-10-06]] / [[e1-first-look-runbook-2026-09-22]] §2・§3・§9 / [[2026-10-06-session]]
+
 ## 2026-10-05 — fix(review): 繰延 P2 5 件消化 (E1 凍結 export 台帳 head + verified postpone / storm guard 送信直前 breaker 再検知 / 決裁パケット pair 別導出・F4 再上程訂正) + 10-06 期日 5 件 readout (rule:R3、autopilot、PR #314)
 
 - **registry `review-backlog-sprint0922-p2-deferrals-1005` / `-1007` resolve** (E1 凍結準備 10-06 の前提): #286 4071019581 → 台帳 head `{base}.attempts.head.json` (単調更新、writer fail-loud) + `--verify` TRUNCATED/HEAD_* 検出 — 台帳を凍結時点の版に戻す (chain・prefix 通過) 操作が見えるように / #286 4071019591 → `--postponed` は元凍結の verify ok が前提 (不通過は API 非接触で REFUSED) / #287 4072595683 → 検知のみモードでも `_storm_send_decision` で breaker を送信直前に再評価 (deferred burst 60 件 @50/h が `detected.breaker=0` のまま送られる偽陰性を修復、送信は止めない) / #279 4070554154 → packet §3.4 に pair 別導出表 (N share × pair EV × 実効比例配分 × ¥/pip = ¥260.2/¥406.4、**B 4〜6 / A 9〜14 不変**、pair セル換算 B 12〜18 / A 27〜42) / #279 4070554161 → 「12-03 に record 再上程」→「F4 TRIGGERED 時」。pin E1 5 本 (CF 2) / storm 3 本 (CF 1)、full suite 4074 passed

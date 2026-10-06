@@ -45,6 +45,7 @@ python3 -B tools/e1_positioning_frozen_export.py --preflight-only
 
 - **禁止**: `/api/positioning/export` を snapshots table で叩くこと (limit=1 でも生 skew 1 行の閲覧 = §6-2 許可リスト外)。tool には snapshots の試走モードを**意図的に実装していない**。
 - **M15 parquet**: 判定器は `{PAIR}_15m.parquet` × 13 (primary 6 + confirmatory 7) の完備を `--verdict-run` で強制する (`tools/e1_positioning_prereg_eval.py` main、欠落 = exit 2)。`data/cache/massive/` のフル期間版は 2026-09-22 時点で末尾 2026-09-18T20:45Z (`EUR_GBP_15m.parquet` 実測) — cutoff まで届かせる更新は **cutoff 到達後** に `python3 tools/bt_data_cache.py refresh 15m USD_JPY,EUR_USD,GBP_USD,EUR_JPY,GBP_JPY,AUD_JPY,AUD_USD,NZD_USD,USD_CAD,USD_CHF,NZD_JPY,EUR_AUD,EUR_GBP` (差分更新、**13 pair 明示** — 既定 `PAIRS` は 6 pair しかない) で行い、`--preflight-only` で 13/13 OK を確認してからスライス。価格データは E1 の凍結対象 (signal×return) ではないので更新自体は peeking にならない。
+- **2026-10-06 §2 実行結果 (§9)**: pin 165 green / `--self-check` 7/7 pass / dry-run health_log 疎通 OK。`--preflight-only` は 13 pair 全てで **窓内の内部欠落** (8 pair、合計 1,125 本、EUR_JPY 553 / AUD_USD 237 / GBP_JPY 194 …) を検出 — MASSIVE 本体の穴 (1m/1h でも空) で refresh では埋まらない。処置 = 共有 cache は改変せず、欠落 bar だけを OANDA v20 mid で埋めた複製 `data/cache/e1_ohlcv/` を凍結のスライス元にする (`tools/e1_ohlcv_gap_backfill.py`、§3 (a″))。詳細・estimand 開示: [[e1-ohlcv-gap-backfill-2026-10-06]]。ファイル全体の `extra_off_grid_or_closed_bars` は t0 以前 (2014〜2021 年) の閉場 bar で窓内 extra は 13/13 で 0 → 凍結時は `--ohlcv-drop-extra-bars` を併記して通す (artifact 不変)。
 - **既知 debit (verdict に併記する材料、値ではなく欠測)**: Render Disk 満杯 2026-08-23→08-26 (71.3h、market-time ≈54.6h ≈ 評価窓の 5.7%) と Myfxbook 認証停止 2026-09-10 (≈5.78h) — registry `e1-positioning-ingest-freshness` message。coverage gate (≥90%) の判定は判定器の quality_gates が機械的に出す。2026-09-22 の本番 blackout の coverage 影響は未計算 ([[path-to-win-reassessment-2026-09-22]] §9)。
 
 ## §3 凍結 export (cutoff 到達後、1 回だけ)
@@ -52,11 +53,17 @@ python3 -B tools/e1_positioning_frozen_export.py --preflight-only
 ```bash
 # (a) フル期間 parquet を cutoff まで差分更新 (価格のみ、E1 値には触れない。13 pair 明示 — 既定は 6 pair)
 python3 tools/bt_data_cache.py refresh 15m USD_JPY,EUR_USD,GBP_USD,EUR_JPY,GBP_JPY,AUD_JPY,AUD_USD,NZD_USD,USD_CAD,USD_CHF,NZD_JPY,EUR_AUD,EUR_GBP
-# (a') 範囲/整合 preflight (API・台帳に触れない) — 13/13 OK、lag 0、gaps 0 を確認。欠落があれば理由を切り分け、
-#      受容するなら (b) に --ohlcv-max-gap-bars N / 余分な行は --ohlcv-drop-extra-bars を明示 (manifest に残り verdict に併記)
-python3 -B tools/e1_positioning_frozen_export.py --preflight-only
-# (b) 凍結 (snapshots 13 instrument outlook + health_log、M15 スライス込み)
-python3 -B tools/e1_positioning_frozen_export.py --look 1 --slice-ohlcv
+#     ⚠️ refresh は delta 失敗 (DNS / timeout) でも既存 bar を保持したまま exit 0 (10-06 実測 5/13 pair) — 末尾は必ず (a') で確認
+# (a″) vendor 欠落の補填 (2026-10-06 追加、[[e1-ohlcv-gap-backfill-2026-10-06]]): 共有 cache は改変せず、窓内の欠落 bar だけを
+#      OANDA v20 mid で埋めた複製を data/cache/e1_ohlcv/ に作り直す (件数・sha256 のみ出力、audit は raw/bt-results/ に commit)
+python3 -B tools/e1_ohlcv_gap_backfill.py --look 1 --audit-out raw/bt-results/e1-ohlcv-gap-backfill-first-look-2026-10-08.json
+# (a') 範囲/整合 preflight (API・台帳に触れない) — 補填済み複製に対して 13/13 OK、lag 0、gaps 0 を確認。--ohlcv-drop-extra-bars は
+#      t0 以前の履歴行 (2014〜2021 年の閉場 bar) を落とすだけ (窓内 extra は 10-06 実測 13/13 で 0)。埋め残し (unfilled_bars) が
+#      あれば理由を切り分け、受容するなら (b) に --ohlcv-max-gap-bars N を明示 (manifest に残り verdict に併記)
+python3 -B tools/e1_positioning_frozen_export.py --preflight-only --ohlcv-src data/cache/e1_ohlcv --ohlcv-drop-extra-bars
+# (b) 凍結 (snapshots 13 instrument outlook + health_log、M15 スライス込み — スライス元は補填済み複製)
+python3 -B tools/e1_positioning_frozen_export.py --look 1 --slice-ohlcv --ohlcv-src data/cache/e1_ohlcv --ohlcv-drop-extra-bars
+#     data/cache/ は gitignored — 共有 cache を持つ checkout (/Users/jg-n-012/test/fx-ai-trader) から実行するか --src/--dst/--ohlcv-src を絶対パスで渡す
 # (c) 直後にファイル完全性 + 凍結時 roundtrip 結果の表示 (§2.5-5(b) の API↔artifact 突合は (b) の中で実行・manifest に記録済み)
 python3 -B tools/e1_positioning_frozen_export.py --verify knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.sha256
 ```
@@ -103,7 +110,7 @@ python3 -B tools/e1_positioning_prereg_eval.py \
 - `--verdict-run` は (i) synthetic 宣言のない artifact の実行を許可、(ii) 13 pair parquet 完備を強制、(iii) stale cap 主モード (health verified 系列) を強制する。health 系列が欠けると fail-loud → `--fallback-mode` は §2.2 fallback 宣言の適用 (2 方向バイアスを estimand 制約として verdict に併記、閑散集中で DEFERRED 接続)。
 - 出力 JSON の `inputs` に artifact sha256 と parquet 別 sha256 が入る → §3 の `.sha256` と一致することを verdict に記録。
 - **seed は default 固定 (20261015)**。`--n-boot` default 10,000。変更禁止。
-- 判定器が `POSTPONE` を返したら §1 の 4 週スライド (look 非消費): 11-05T06:33:31Z 到達後に `tools/e1_positioning_frozen_export.py --look 1 --postponed --slice-ohlcv` → `--artifact knowledge-base/raw/bt-results/e1-first-look-postponed-freeze-2026-11-05/e1_prereg_frozen_export_look1_postponed.json --ohlcv-dir data/cache/e1_frozen_look1_2026-11-05 --cutoff 2026-11-05T06:33:31Z --look 1 --postponed-before --verdict-run`、verdict 期日 11-12。`DEFERRED` は user 裁定。
+- 判定器が `POSTPONE` を返したら §1 の 4 週スライド (look 非消費): 11-05T06:33:31Z 到達後に §3 と同じ順で **(a) refresh 13 pair → (a″) `tools/e1_ohlcv_gap_backfill.py --look 1 --postponed --audit-out raw/bt-results/e1-ohlcv-gap-backfill-first-look-postponed-2026-11-05.json` (cutoff 11-05、複製は別ディレクトリ `data/cache/e1_ohlcv_postponed/` — 10-08 の複製は不改変、10-08〜11-05 の新しい vendor 穴も埋める) → (a') `--preflight-only --ohlcv-src data/cache/e1_ohlcv_postponed --ohlcv-drop-extra-bars`** → `tools/e1_positioning_frozen_export.py --look 1 --postponed --slice-ohlcv --ohlcv-src data/cache/e1_ohlcv_postponed --ohlcv-drop-extra-bars` → `--artifact knowledge-base/raw/bt-results/e1-first-look-postponed-freeze-2026-11-05/e1_prereg_frozen_export_look1_postponed.json --ohlcv-dir data/cache/e1_frozen_look1_2026-11-05 --cutoff 2026-11-05T06:33:31Z --look 1 --postponed-before --verdict-run`、verdict 期日 11-12。`DEFERRED` は user 裁定。
 
 ## §6 verdict 追記 (2026-10-15)
 
@@ -134,6 +141,12 @@ pre-reg §8 placeholder に、判定器出力から**転記**する (解釈を�
 | 日時 (UTC) | 手順 | 結果 (件数・sha256・exit のみ。値は書かない) |
 |---|---|---|
 | 2026-09-22 | §2-3 dry-run health_log limit=5 | exit 0、`id 1..5`、first row 2026-07-17T08:40:27Z、keys = verified:{EUR_JPY,EUR_USD,GBP_JPY,GBP_USD,USD_JPY}:outlook、書込みなし |
+| 2026-10-06 ~02:1xZ | §2-1 pin / §2-2 self-check / §2-3 dry-run | pytest 165 passed (prereg_eval + frozen_export、-B) / self-check 7 checks 全 pass / dry-run health_log 5 rows `id 1..5` (09-22 と同一、書込みなし) |
+| 2026-10-06 02:2xZ | §2-3b preflight (refresh 前) | worktree 内 cache を見て 11/13 missing → `--ohlcv-src` で共有 cache を指定し再実行: 0/13 OK — stale_tail 13 (末尾 07-21 ×7 / 09-22 ×5 / 09-18 ×1)、interior_gaps 5、extra (ファイル全体) 13 |
+| 2026-10-06 02:3xZ | §3 (a) refresh 15m 13 pair (前倒し、価格のみ) | 1 回目: 8/13 到達、5 pair (USD_CAD/USD_CHF/NZD_JPY/EUR_AUD/EUR_GBP) が DNS 失敗/timeout で delta failed のまま **exit 0** → 再実行で 13/13 末尾 2026-10-06T02:15/02:30Z |
+| 2026-10-06 02:4xZ | §2-3b preflight (refresh 後) + 直接 probe | 0/13 OK: stale_tail 13 (lag 207–208) / **interior_gaps 8 pair 合計 1,125 本** (EUR_JPY 553・AUD_USD 237・GBP_JPY 194・EUR_AUD 96・EUR_GBP 30・USD_CHF 7・USD_JPY 4・GBP_USD 4) / extra 13 (全て t0 以前、窓内 0)。MASSIVE 直接 probe 1m/15m/1h で run 内 0/N = vendor 本体の穴 → [[e1-ohlcv-gap-backfill-2026-10-06]] |
+| 2026-10-06 02:50:09Z | §3 (a″) `tools/e1_ohlcv_gap_backfill.py` (新設) | 共有 cache → `data/cache/e1_ohlcv/` 複製: gap 1,125 / filled 1,125 / unfilled 0 (OANDA v20 mid、70 run)、gaps 0 の 5 pair は byte copy。audit `raw/bt-results/e1-ohlcv-gap-backfill-first-look-2026-10-06.json` (値なし) |
+| 2026-10-06 02:5xZ | §2-3b preflight (複製、`--ohlcv-drop-extra-bars`) | 0/13 OK だが残る理由は **stale_tail のみ** (cutoff 未到達、gaps 0 / dup 0) — 10-08 06:33Z 以降に (a)→(a″)→(a')→(b) |
 | | | |
 
 ## 引用禁止 / 禁止事項 (本稿固有)
