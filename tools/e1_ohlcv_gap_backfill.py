@@ -30,8 +30,10 @@
 
 Usage:
   python3 tools/e1_ohlcv_gap_backfill.py --dry-run                 # 計画のみ (ネットワーク・書込みなし)
-  python3 tools/e1_ohlcv_gap_backfill.py [--src DIR] [--dst DIR] [--look 1|2] \
+  python3 tools/e1_ohlcv_gap_backfill.py [--src DIR] [--dst DIR] [--look 1|2] [--postponed] \
       [--audit-out raw/bt-results/e1-ohlcv-gap-backfill-<slug>.json]
+  # --postponed (§2.5-3、first look のみ): cutoff 11-05T06:33:31Z、dst 既定 data/cache/e1_ohlcv_postponed/
+  # exit 2 = いずれかの pair が missing_src / refused_src_index (その pair の古い dst は削除済み)
   # 凍結手順 (手順書 §3): refresh 15m 13 pair → 本 tool → `--preflight-only --ohlcv-src <dst>`
   #   → `--look 1 --slice-ohlcv --ohlcv-src <dst> --ohlcv-drop-extra-bars [--ohlcv-max-gap-bars N]`
 """
@@ -53,11 +55,20 @@ if str(ROOT) not in sys.path:
 
 from tools.e1_positioning_frozen_export import (  # noqa: E402
     BAR_SEC, INSTRUMENTS, LOOKS, T0_ISO, _is_market_open, _on_grid_market_mask,
-    expected_last_bar_open, expected_market_slots, iso_sec, parse_utc,
+    expected_last_bar_open, expected_market_slots, iso_sec, look_spec, parse_utc,
 )
 
 DEFAULT_SRC = ROOT / "data" / "cache" / "massive"
-DEFAULT_DST = ROOT / "data" / "cache" / "e1_ohlcv"
+DEFAULT_DST = ROOT / "data" / "cache" / "e1_ohlcv"           # look 1 (first look)
+
+
+def default_dst(look: int, postponed: bool = False) -> Path:
+    """look / postponed ごとに別の複製ディレクトリ (first look の複製を postponed 再凍結で上書きしない)。
+    look 1 = data/cache/e1_ohlcv/ (手順書 §3)、postponed = …/e1_ohlcv_postponed/、look 2 = …/e1_ohlcv_look2/。"""
+    if look == 1 and not postponed:
+        return DEFAULT_DST
+    suffix = "postponed" if postponed else f"look{look}"
+    return ROOT / "data" / "cache" / f"e1_ohlcv_{suffix}"
 PROVENANCE = "oanda_v20 mid M15 (price=M, dailyAlignment=0, alignmentTimezone=UTC), complete candles only"
 
 # OANDA fetch は tools/massive_gap_backfill.py のものを再利用 (5000 本上限のスライス・retry 込み)。
@@ -94,6 +105,16 @@ def _runs(missing: Sequence[int]) -> List[Tuple[int, int, int]]:
         else:
             out.append([t, t, 1])
     return [tuple(r) for r in out]  # type: ignore[misc]
+
+
+def _remove_stale(dp: Path, dry_run: bool) -> bool:
+    """src が無い / 拒否された pair の古い dst を消す (前回成功分が今回の入力から作られたふりをして
+    preflight を通るのを防ぐ、Codex P2 4191149514)。dry-run は消さず有無だけ返す。"""
+    if not dp.exists():
+        return False
+    if not dry_run:
+        dp.unlink()
+    return True
 
 
 def plan_pair(df, t0: datetime, cutoff: datetime) -> Dict[str, Any]:
@@ -215,10 +236,12 @@ def run(src_dir: Path, dst_dir: Path, t0: datetime, cutoff: datetime, *,
     for pair in pairs:
         sp = src_dir / f"{pair}_15m.parquet"
         rec: Dict[str, Any] = {"src": str(sp)}
+        dp = dst_dir / f"{pair}_15m.parquet"
         if not sp.exists():
-            rec.update({"status": "missing_src"})
+            rec.update({"status": "missing_src", "dst_removed": _remove_stale(dp, dry_run)})
             audit["pairs"][pair] = rec
-            print(f"  MISSING {pair}: src parquet なし", file=out)
+            print(f"  MISSING {pair}: src parquet なし"
+                  f"{' (古い dst を削除)' if rec['dst_removed'] else ''}", file=out)
             continue
         df = pd.read_parquet(sp)
         plan = plan_pair(df, t0, cutoff)
@@ -229,11 +252,11 @@ def run(src_dir: Path, dst_dir: Path, t0: datetime, cutoff: datetime, *,
         rec["src_sha256"] = _sha256(sp)
         totals["gap_bars"] += plan["gap_bars"]
         if plan["duplicates"] or not plan["monotonic"]:
-            rec["status"] = "refused_src_index"
+            rec.update({"status": "refused_src_index", "dst_removed": _remove_stale(dp, dry_run)})
             audit["pairs"][pair] = rec
-            print(f"  REFUSED {pair}: src index が一意/単調でない (dup {plan['duplicates']})", file=out)
+            print(f"  REFUSED {pair}: src index が一意/単調でない (dup {plan['duplicates']})"
+                  f"{' (古い dst を削除)' if rec['dst_removed'] else ''}", file=out)
             continue
-        dp = dst_dir / f"{pair}_15m.parquet"
         if dry_run:
             rec["status"] = "planned"
             audit["pairs"][pair] = rec
@@ -267,9 +290,14 @@ def run(src_dir: Path, dst_dir: Path, t0: datetime, cutoff: datetime, *,
               f"{summ['filled_bars']}, unfilled {summ['unfilled_bars']}"
               f"{' (first ' + str(summ['unfilled_first']) + ')' if summ['unfilled_bars'] else ''}, "
               f"rows {len(df)} → {len(back)}", file=out)
+    failed = sorted(p for p, r in audit["pairs"].items()
+                    if r.get("status") in ("missing_src", "refused_src_index"))
     audit["totals"] = totals
+    audit["failed_pairs"] = failed
+    audit["ok"] = not failed
     print(f"  totals: gap_bars {totals['gap_bars']}, filled {totals['filled_bars']}, "
-          f"unfilled {totals['unfilled_bars']}", file=out)
+          f"unfilled {totals['unfilled_bars']}"
+          f"{'  FAILED pairs: ' + ','.join(failed) if failed else ''}", file=out)
     if audit_out is not None and not dry_run:
         audit_out.parent.mkdir(parents=True, exist_ok=True)
         with open(audit_out, "w", encoding="utf-8") as f:
@@ -281,25 +309,30 @@ def run(src_dir: Path, dst_dir: Path, t0: datetime, cutoff: datetime, *,
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--src", default=str(DEFAULT_SRC))
-    ap.add_argument("--dst", default=str(DEFAULT_DST))
+    ap.add_argument("--dst", default="", help="既定 = default_dst(--look, --postponed)")
     ap.add_argument("--look", type=int, default=1, choices=sorted(LOOKS))
-    ap.add_argument("--cutoff", default="", help="既定 = LOOKS[--look].cutoff")
+    ap.add_argument("--postponed", action="store_true",
+                    help="§2.5-3 の 4 週スライド (first look のみ): cutoff と既定 dst / audit 名を postponed 版にする")
+    ap.add_argument("--cutoff", default="", help="既定 = look_spec(--look, --postponed).cutoff")
     ap.add_argument("--t0", default=T0_ISO)
     ap.add_argument("--pairs", default="", help="カンマ区切り (既定 13 pair)")
     ap.add_argument("--audit-out", default="",
                     help="既定 raw/bt-results/e1-ohlcv-gap-backfill-<slug>-<date>.json")
     ap.add_argument("--dry-run", action="store_true", help="計画のみ (ネットワーク・書込みなし)")
     args = ap.parse_args(argv)
-    cutoff = parse_utc(args.cutoff or LOOKS[args.look]["cutoff"])
+    spec = look_spec(args.look, args.postponed)          # postponed は look 1 のみ (ValueError)
+    cutoff = parse_utc(args.cutoff or spec["cutoff"])
     t0 = parse_utc(args.t0)
     pairs = tuple(p for p in args.pairs.split(",") if p) if args.pairs else INSTRUMENTS
-    src, dst = Path(args.src).resolve(), Path(args.dst).resolve()
+    src = Path(args.src).resolve()
+    dst = Path(args.dst).resolve() if args.dst else default_dst(args.look, args.postponed)
     if src == dst:
         print("REFUSED: --dst は --src と別ディレクトリにすること (共有 cache は改変しない)", file=sys.stderr)
         return 2
+    slug = f"{spec['slug']}-postponed" if args.postponed else spec["slug"]
     audit_out = Path(args.audit_out) if args.audit_out else (
         ROOT / "raw" / "bt-results" /
-        f"e1-ohlcv-gap-backfill-{LOOKS[args.look]['slug']}-{datetime.now(timezone.utc):%Y-%m-%d}.json")
+        f"e1-ohlcv-gap-backfill-{slug}-{datetime.now(timezone.utc):%Y-%m-%d}.json")
     fetch_fn = None
     if not args.dry_run:
         try:
@@ -311,7 +344,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             pass
         from modules.oanda_client import OandaClient
         fetch_fn = default_fetch_fn(OandaClient())
-    run(src, dst, t0, cutoff, pairs=pairs, dry_run=args.dry_run, fetch_fn=fetch_fn, audit_out=audit_out)
+    audit = run(src, dst, t0, cutoff, pairs=pairs, dry_run=args.dry_run, fetch_fn=fetch_fn,
+                audit_out=audit_out)
+    if not audit["ok"]:
+        print(f"FAILED: {','.join(audit['failed_pairs'])} が missing_src / refused — 複製は不完全 "
+              f"(当該 pair の古い dst は削除済み)。凍結へ進まない", file=sys.stderr)
+        return 2
     return 0
 
 

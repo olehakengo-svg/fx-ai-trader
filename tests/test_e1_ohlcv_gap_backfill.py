@@ -209,6 +209,64 @@ def test_src_index_defects_are_refused(dirs):
     assert not (dst / "AUD_USD_15m.parquet").exists()
 
 
+def test_refusal_removes_stale_dst_and_main_exits_2(dirs, monkeypatch):
+    """Codex P2 4191149514: 前回成功分の dst が残ると、今回の入力から作られていない複製が
+    preflight を通って凍結される。missing_src / refused_src_index は古い dst を消し、main は exit 2。"""
+    src, dst = dirs
+    _write(src, "EUR_JPY", _src_with_holes([5]))
+    _write(src, "GBP_JPY", _src_with_holes([]))
+    gb.run(src, dst, T0, CUTOFF, pairs=("EUR_JPY", "GBP_JPY"), fetch_fn=FakeFetch(), out=io.StringIO())
+    assert (dst / "EUR_JPY_15m.parquet").exists() and (dst / "GBP_JPY_15m.parquet").exists()
+    # 2 回目: EUR_JPY の src が消え、GBP_JPY の src が壊れる
+    (src / "EUR_JPY_15m.parquet").unlink()
+    bad = _src_with_holes([])
+    _write(src, "GBP_JPY", pd.concat([bad, bad.iloc[[3]]]))
+    out = io.StringIO()
+    audit = gb.run(src, dst, T0, CUTOFF, pairs=("EUR_JPY", "GBP_JPY"), fetch_fn=FakeFetch(), out=out)
+    assert audit["pairs"]["EUR_JPY"]["status"] == "missing_src"
+    assert audit["pairs"]["EUR_JPY"]["dst_removed"] is True
+    assert audit["pairs"]["GBP_JPY"]["status"] == "refused_src_index"
+    assert audit["pairs"]["GBP_JPY"]["dst_removed"] is True
+    assert not (dst / "EUR_JPY_15m.parquet").exists()
+    assert not (dst / "GBP_JPY_15m.parquet").exists()
+    assert audit["ok"] is False and audit["failed_pairs"] == ["EUR_JPY", "GBP_JPY"]
+    assert "FAILED pairs" in out.getvalue()
+    # dry-run は消さない (有無だけ報告)
+    _write(src, "EUR_JPY", _src_with_holes([]))
+    gb.run(src, dst, T0, CUTOFF, pairs=("EUR_JPY",), fetch_fn=FakeFetch(), out=io.StringIO())
+    (src / "EUR_JPY_15m.parquet").unlink()
+    a2 = gb.run(src, dst, T0, CUTOFF, pairs=("EUR_JPY",), dry_run=True, out=io.StringIO())
+    assert a2["pairs"]["EUR_JPY"]["dst_removed"] is True and (dst / "EUR_JPY_15m.parquet").exists()
+    # main: 失敗 pair があれば exit 2 (dry-run でも)
+    rc = gb.main(["--src", str(src), "--dst", str(dst), "--pairs", "EUR_JPY", "--dry-run"])
+    assert rc == 2
+
+
+def test_postponed_uses_slid_cutoff_and_separate_dst(tmp_path, monkeypatch):
+    """Codex P2 4191149521: POSTPONE 時は cutoff が 4 週スライド (11-05) し、first look の複製を
+    上書きしない別 dst / 別 audit 名で作る。"""
+    from tools.e1_positioning_frozen_export import look_spec
+    assert gb.default_dst(1) == gb.DEFAULT_DST
+    assert gb.default_dst(1, postponed=True) != gb.DEFAULT_DST
+    assert gb.default_dst(2) not in (gb.DEFAULT_DST, gb.default_dst(1, postponed=True))
+    captured = {}
+
+    def fake_run(src, dst, t0, cutoff, **kw):
+        captured.update({"dst": dst, "cutoff": cutoff, "audit_out": kw.get("audit_out")})
+        return {"ok": True, "failed_pairs": []}
+    monkeypatch.setattr(gb, "run", fake_run)
+    src = tmp_path / "src"; src.mkdir()
+    assert gb.main(["--src", str(src), "--look", "1", "--postponed", "--dry-run"]) == 0
+    assert captured["cutoff"] == parse_utc(look_spec(1, True)["cutoff"])
+    assert captured["cutoff"] == CUTOFF + timedelta(weeks=4)
+    assert captured["dst"] == gb.default_dst(1, postponed=True)
+    assert "first-look-postponed" in captured["audit_out"].name
+    assert gb.main(["--src", str(src), "--look", "1", "--dry-run"]) == 0
+    assert captured["cutoff"] == CUTOFF and captured["dst"] == gb.DEFAULT_DST
+    with pytest.raises(ValueError):
+        gb.main(["--src", str(src), "--look", "2", "--postponed", "--dry-run"])
+
+
 def test_main_refuses_same_src_and_dst(tmp_path, capsys):
     rc = gb.main(["--src", str(tmp_path), "--dst", str(tmp_path), "--dry-run"])
     assert rc == 2

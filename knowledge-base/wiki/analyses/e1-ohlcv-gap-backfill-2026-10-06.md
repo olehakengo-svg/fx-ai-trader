@@ -85,6 +85,8 @@ pre-reg [[e1-positioning-contrarian-prereg-2026-07-16]] §2.1 の「ソース = 
 ```
 - `data/cache/` は gitignored なので、**凍結は共有 cache を持つ checkout (`/Users/jg-n-012/test/fx-ai-trader`) から実行するか、`--src/--dst/--ohlcv-src` を絶対パスで渡す** (10-06 は worktree から絶対パス指定で実行し、worktree 内の cache を見た初回 preflight は 11/13 missing で REFUSED だった — 配線の確認として記録)。
 - 補填後に `unfilled_bars > 0` が出たらその本数だけ `--ohlcv-max-gap-bars N` を明示し verdict に併記 (10-06 時点は 0)。
+- **POSTPONE 時** (§2.5-3、11-05 再凍結): `--postponed` で cutoff 11-05 / 別 dst `data/cache/e1_ohlcv_postponed/` / 別 audit 名。10-08 の複製は不改変で残し、postponed 凍結は `--ohlcv-src data/cache/e1_ohlcv_postponed` を読む (Codex P2 4191149521)。
+- **src が無い / index が壊れた pair** は複製側の古いファイルを削除して exit 2 (前回成功分が今回の入力から作られたふりをして preflight を通らないように、Codex P2 4191149514)。
 
 ## §7 引用規律
 
