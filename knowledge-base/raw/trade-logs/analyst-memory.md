@@ -5091,6 +5091,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 | 課題① | `price_shock_rev_eur_gbp_h1_long` がCutoff後N=5でEV=-0.54と負値傾向。前日は+12.9の勝利だが、累積EVが構造的に圧迫されている可能性 |
 - `price_shock_rev_eur_gbp_h1_long` はN=30到達まで降格判断を保留。ただし引き続きEV推移を監視
 
+### 2026-10-06 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | N/A |
+- 東京セッションN=0、統計的に戦略パラメータ変更の根拠となるデータが存在しない
+- ブロック理由の大半は設計通りの防衛機構（shadow降格、dedup、フラッシュクラッシュガード）
+- **OANDA転送率0%**（SENT=0 / SKIP=50）——全50件がshadow_tracking由来でデモ留まり、現状はシャドーモード運用継続中であり介入の余地なし
+- DD防御0.2xモード発動中（2026-07-08〜）：現局面でパラメータ緩和は方針違反
+### 推奨戦略配分
+**NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
