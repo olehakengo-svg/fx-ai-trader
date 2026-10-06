@@ -4,6 +4,13 @@
 
 **Tier**: Tier 2 — Live MIN lot 1000u 固定 (Kelly half / DD multiplier / lot ramp bypass) | **Activation**: 2026-05-18 [[price-shock-rev-live-activation-2026-05-18]]
 
+## 🟢 2026-10-05 更新 (wiki-daily): **Live N 9 / 3W / WR 33.3% / −9.5 pip** — #1062621 が +12.9 で決済、watchdog auto-demote まで**あと 1 fill**
+- #1062621 (10-05 06:36:23 entry 0.84615、signal 0.84575 = drift 4.0p) → 09:36:22 horizon @0.84744 = **+12.9 pip (demo) / +¥268.98 (broker)**、符号一致 (¥20.9/pip)。MAFE favorable 14.8 / adverse 3.0
+- ON_FILL bracket: SL 0.83972 (−64.3p) / broker TP 0.89490 (+487.5p) = demo TP 0.90358 × 0.85。`[SLTP_CONSTRUCT] sl=preserve clamp=none lowliq=0 fastsl=0 ct=0 rn=1 mtf_tp=1.0 range_tp=0 decl_sl_p=57.8 sl_p=64.3 decl_tp_p=578.3 tp_p=574.3 entry_drift_p=4.0` — `rn=1` (丸め分岐) が初出、SL が宣言より 6.5p 広い (10-01 fill は +1.0p) のは drift 4.0 + 丸め。storm なし、`storm_guard` 未登録 (replacement 0 本 = guard 経路を一度も通らない)
+- Wilson 12.1 / BF 6.4、wf_h1 −1.7 / wf_h2 −0.54、`promo_ev` −1.06。LOCK 棄却 (N=15 ∧ Wilson_lo<0.40) まで **9/15**、watchdog auto-demote (N≥10 ∧ EV<0) まで **9/10 — 次の 1 fill が +9.5 未満なら自動発火**。family 判断 (AUD_JPY sibling N 4 / −180.0 / `enabled: true`) は未決のまま
+- 30d risk の EUR_GBP n=5 / **−2.7** (−12.6 から改善 = +12.9 入 / +3.0 窓落ち)、相関 flag EUR_GBP↔carry_dip −0.6567 (n 5×10)
+- 詳細 [[2026-10-05]] 発見 3
+
 ## 🔴 2026-10-02 更新 (wiki-daily): **Live N 8 / 2W / WR 25.0% / −22.4 pip** — #950030 (10-01 fill) が −12.5 で決済
 - #950030 (10-01 14:49:51 entry 0.85224 broker / 0.85227 demo、slippage 1.0p) → 17:49:55 horizon @0.85102 = **−12.5 pip (demo) / −¥254.52 (broker)**、符号一致 (¥20.4/pip)。MAFE favorable 5.0 / adverse 17.1 ⇒ 3 bar 中ほぼ一方向に逆行
 - ON_FILL bracket: SL 0.84729 (−49.5p) / broker TP 0.89367 (+414p) = demo TP 0.90100 (+487p) × 0.85 quick-harvest。`[SLTP_CONSTRUCT] sl=preserve clamp=none lowliq=0 fastsl=0 ct=0 rn=0 mtf_tp=1.0 range_tp=0 decl_sl_p=48.8 sl_p=49.8 decl_tp_p=488.3 tp_p=487.3 entry_drift_p=1.0` + `[BROKER_TP] basis=qh mult=0.85 tp_p=414.0` = 09-26 計装の初 live 読み出し、宣言 SL/TP が `_1H_PRESERVE_SLTP` で保持されている (差分は entry drift 1.0p のみ)。storm なし (SL order 1 本のみ)、`storm_guard.trades` に `b92eed57-1b0` として登録 (sent_total 0)
