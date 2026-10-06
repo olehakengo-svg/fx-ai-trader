@@ -5081,6 +5081,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 | WR | **66.7%** |
 > **NO ACTION推奨**
 
+### 2026-10-06 (Pre-Tokyo Briefing)
+| PnL合計 | **+42.3 pip** |
+| 全体WR | **66.7%** (2W / 1BE) |
+| Strategy | Pair | N | WR% | EV | PnL | ステータス |
+| price_shock_rev_eur_gbp_h1_long | EUR_GBP | 5 | 40.0% | **-0.54** | -2.7 | ⚠️ 要注視（EV負・N不足） |
+**全体集計（Cutoff後）**: N=10 / WR=60.0% / PnL=+31.3pip
+> ⚠️ **重要**: 全戦略ともN<10（データなし〜傾向レベル）。昇格基準（N≥30 & EV≥1.0）を満たす戦略はゼロ。降格基準（N≥30 & EV<-0.5）を満たす戦略もゼロ（N不足）。現時点での戦略判定は留保。
+| 課題① | `price_shock_rev_eur_gbp_h1_long` がCutoff後N=5でEV=-0.54と負値傾向。前日は+12.9の勝利だが、累積EVが構造的に圧迫されている可能性 |
+- `price_shock_rev_eur_gbp_h1_long` はN=30到達まで降格判断を保留。ただし引き続きEV推移を監視
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
