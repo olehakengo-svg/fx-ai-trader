@@ -5121,6 +5121,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - **最も成績が悪かったセッション**: 該当なし（ゼロ統一）
 - **最も成績が良かった戦略**: 該当なし
 
+### 2026-10-07 (Pre-Tokyo Briefing)
+前日（2026-10-06）はトレード**ゼロ件**。PnL = ¥0、WR = N/A。
+> **有効データ警告**: 全戦略でN<10。統計的判断は不可能。以下は「傾向の記録」に留める。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| price_shock_rev_eur_gbp_h1_long | EUR_GBP | 5 | 40.0% | **-0.54** | -2.7 | 要観察（EV<0、N不足） |
+- **全戦略でN<10** → 昇格・降格いずれの判断基準（N≥30）にも未到達
+- 最大サンプルでも `price_shock_rev_eur_gbp_h1_long` N=5。N=30まで残り**25件**
+- `usdjpy_carry_dip_accumulator` のEV+14.85は2件の高EVトレードによるバイアス大。平均回帰を強く意識すべき
+- **今日やるべきこと**：無発注の主因が「レジーム不適合」か「demoted cell遮断」かを区別して監視。Block Countsの`r2_shadow_demoted_cell`がさらに増加していればdemoted cell主因と判断可能
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
