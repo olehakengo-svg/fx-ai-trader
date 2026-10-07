@@ -5141,6 +5141,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - DD防御モード（0.2x）継続中 — この状況下での積極的パラメータ操作はミッション基準外
 - **N=0セッション単体での判断変更はサンプルバイアスの典型** → 少なくともN=5以上のセッションデータ蓄積を待つべき
 
+### 2026-10-07 (Pre-Tokyo Briefing)
+Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| price_shock_rev_eur_gbp_h1_long | EUR_GBP | 5 | 40.0% | -0.54 | -2.7 | ⚠️ N不足・EV負 |
+- `rnb_usdjpy:no_signal` が 1,037 件と突出。RnBシステムはシグナル生成自体を抑制しており、実需の取引機会が存在しても約定に至っていない。
+- `r2_shadow_demoted_cell` が scalp/daytrade 各系列で計 1,400 件超。昇格基準未到達のシャドウ期間セルが広範にブロック中。
+- `price_shock_rev_eur_gbp_h1_long`（N=5, EV=-0.54）はN=10到達まで様子見。降格判断は早計。
+- `rnb_usdjpy` はno_signal頻度が異常水準。シグナル条件が現レジームに適合しているか本日レジーム観察で確認。
+- 引き続き **N=30 到達が唯一の昇格トリガー** であることを前提に判断。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
