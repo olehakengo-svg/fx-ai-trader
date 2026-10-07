@@ -5151,6 +5151,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 - `rnb_usdjpy` はno_signal頻度が異常水準。シグナル条件が現レジームに適合しているか本日レジーム観察で確認。
 - 引き続き **N=30 到達が唯一の昇格トリガー** であることを前提に判断。
 
+### 2026-10-07 (Post-NY Report)
+| PnL | **+0.0** |
+- レジームは EUR/JPY・EUR/USD・GBP/USD が **VOLATILE（ATR%ile 69-74%）** にもかかわらず、スキャルピング系戦略の大半が `r2_shadow_demoted_cell` で全ブロック済み。
+- `daytrade` 系は `order_bar_dedup` と `score_gate` の二重ブロックで抑制。
+### セッション別PnL
+| Session | N | WR% | PnL |
+| 本日合計PnL | **±0.0** |
+| 本日WR | **—** |
+**NO ACTION推奨** — 本日トレード実績ゼロにつき、戦略変更を判断する統計的根拠なし。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
