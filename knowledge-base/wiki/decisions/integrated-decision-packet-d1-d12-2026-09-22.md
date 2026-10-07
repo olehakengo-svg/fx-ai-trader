@@ -234,7 +234,7 @@ D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方
 
 ## 8. 確定版 v1.0 (2026-10-07) — §6 の消込と現況更新 (autopilot、rule:R3 文書のみ)
 
-> 期日 = 2026-10-08 (E1 cutoff)。autopilot run は毎日 ~02:00Z で、E1 cutoff 06:33:31Z は 10-08 run の後に来るため、確定版は 10-07 run で起票し、E1 凍結 export は 10-09 run で実行する (registry `e1-first-look-freeze-due` の期日を 10-08 → 10-09 に移動、理由付き — §8-10)。**本節は §0〜§7 を書き換えず追記のみ** (v0.6 の数字は 09-22 時点の一次値として残置、現況値は本節 §8-0 で併記)。凍結 look の outcome は計算していない。
+> 期日 = 2026-10-08 (E1 cutoff)。autopilot run は毎日 ~02:00Z で、E1 cutoff 06:33:31Z は 10-08 run の後に来るため、確定版は 10-07 run で起票し、E1 凍結 export は 10-09 run で実行する (registry `e1-first-look-freeze-due` の期日 **10-08 は据え置き** (凍結は 10-09 run で実行。cron は `today > deadline` で判定するので 10-08 のままなら **10-09 00:20Z に TRIGGERED** が出て同日 run の凍結実行を催促する = 前日規則の正しい適用。本 run で一度 10-09 に動かしたが、それだと初アラートが 10-10 になり 10-09 の空振りを検知できない — Codex P2 4202599693 で戻した) — §8-10)。**本節は §0〜§7 を書き換えず追記のみ** (v0.6 の数字は 09-22 時点の一次値として残置、現況値は本節 §8-0 で併記)。凍結 look の outcome は計算していない。
 
 ### 8-0. 現況一次値 (2026-10-07T02:23Z)
 
@@ -317,7 +317,7 @@ D3: 額 ¥__ と時点 __ ; 同時に D2(i)=(a) か 0.2x 解除のどちらか�
 ### 8-10. 期日運用の訂正 (記録)
 
 - REG `integrated-decision-packet-d1-d12` (10-08) → 本節で確定版着地 = resolved (10-07)。**user 返答期限 11-30 の読み手 = 後継 REG `integrated-decision-packet-d1-d12-user-response` (期日 11-29、D1〜D12/D15 全項目の返答有無を読む; TRIGGERED = 無回答項目の既定挙動を KB に明記して resolved、再上程はしない)** — `carry-dip-v3-revival-watch` は D5、`kalman-d7-live-exit-disposition-user-decision` は D7、F4 は D3 の再上程しか覆わないため (Codex P2 4202512699 / 4202548167)。固定日の**再上程** entry は置かない (PR #314 訂正に従う — 返答期限の読み手とは別物)。F4 TRIGGERED 時の record 再上程は REG `project-falsification-f4-nav-floor-clock` が読み手。
-- REG `e1-first-look-freeze-due` 10-08 → **10-09** (理由: cutoff 06:33:31Z は 10-08 autopilot run (~02:00Z) の後、凍結は 10-09 run で実行。cron 判定は翌日 00:20Z なので実行日に置く規則。黙った延長ではない — [[e1-first-look-runbook-2026-09-22]] §3 の手順は不変)。
+- REG `e1-first-look-freeze-due` の期日 **10-08 は据え置き** (凍結は 10-09 run で実行。cron は `today > deadline` で判定するので 10-08 のままなら **10-09 00:20Z に TRIGGERED** が出て同日 run の凍結実行を催促する = 前日規則の正しい適用。本 run で一度 10-09 に動かしたが、それだと初アラートが 10-10 になり 10-09 の空振りを検知できない — Codex P2 4202599693 で戻した)。[[e1-first-look-runbook-2026-09-22]] §3 改訂版の手順は不変。TRIGGERED は 10-09 run が凍結を終えて resolve するまで出続ける (設計どおり)。
 
 ### 8-11. caveat (v1.0 で増えたもの)
 
