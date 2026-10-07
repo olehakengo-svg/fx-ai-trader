@@ -39,7 +39,7 @@ C1 (8h cap) は tp5 変種上では正 (loser の早期打ち切り) — flip �
 
 - **推奨 = (b) を既定に、(a) は TV canon 再走が閉じた後に「exit 種別を確定した (a′)」として再起案**。理由: (1) (a) は今定義できない (§1 C1 の向きが canon exit に依存)、(2) (c) は実現損失の根拠が無い (6/10) のに原則 1 を破る、(3) (b) は決裁のみで estimand (broker realized net) を凍結でき、R2 の読み手 (registry 12-09) が既にある。
 - **TV 再走の実行は user 操作 (TV desktop 起動 + slot 再構築)** — 対話セッションで依頼する。再走が 11-30 までに無ければ (a′) は 12-09 R2 判定の後へ繰り延べ (期日は registry で管理)。
-- **(b) 下での追加義務 (R3、Claude 自走可)**: `[SLTP_CONSTRUCT]` marker 付き fill が N≥5 になった時点で C0 分岐率 (SR 採用 / lowliq / MTF ×1.3) を `tools/sltp_construct_readout.py --since 2026-09-26` で読み、analyses §3 の what-if 列を live 実測率に差し替える (件数・距離のみ、outcome 非読)。**読み手 = REG `kalman-d7-sltp-marker-c0-readout`** (live_count_decision、entry_type prefix `kalman_d7` × USD_JPY × `reasons_marker=[SLTP_CONSTRUCT]`、since 2026-09-26、n_decide 5、期日 2026-12-09 = R2 と同日; 10-07 時点 marker 付き kalman live fill **3 本** [po_dn_flip 2 / ema75_break 1] — Codex P2 4202640529)。
+- **(b) 下での追加義務 (R3、Claude 自走可)**: `[SLTP_CONSTRUCT]` marker 付き fill が N≥5 になった時点で C0 分岐率 (SR 採用 / lowliq / MTF ×1.3) を `tools/sltp_construct_readout.py --since 2026-09-26` で読み、analyses §3 の what-if 列を live 実測率に差し替える (件数・距離のみ、outcome 非読)。**読み手 = REG `kalman-d7-sltp-marker-c0-readout`** (live_count_decision、entry_type prefix `kalman_d7` × USD_JPY × `reasons_marker=[SLTP_CONSTRUCT]`、since 2026-09-26、n_decide 5、期日 2026-12-09 = R2 と同日; 母集団 = watcher `count_live_matching` と同一 (oanda_trade_id 非空 ∧ dedup_violation≠1 ∧ marker 付き)。`sltp_construct_readout.py` は trade_id で dedup するが **dedup_violation を filter しない**ので、`--json` 出力から dedup_violation=1 の行を除いてから率を出す (または `--file` に clean 行だけの trades JSON を渡す) — Codex P2 4202673544; 10-07 時点 marker 付き kalman live fill **3 本** [po_dn_flip 2 / ema75_break 1] — Codex P2 4202640529)。
 
 ## §4 無回答時の既定挙動
 
@@ -60,7 +60,7 @@ D7: 承認 + disposition (c)
 |---|---|---|
 | binding | registry `t9-kalman-d7-live-n10-ev-check` (live_count_decision、12-09) | R2。estimand = broker realized net (D7 承認で凍結) |
 | disposition | registry `kalman-d7-live-exit-disposition-user-decision` (新設、期日 2026-11-29 = 返答期限 11-30 の前日規則) | user 返答の有無。無回答 = (b) |
-| C0 実測率 | registry `kalman-d7-sltp-marker-c0-readout` (live_count_decision、marker `[SLTP_CONSTRUCT]`、n_decide 5、12-09) → 発火時に `tools/sltp_construct_readout.py --since 2026-09-26` | marker 付き kalman fill の分岐率 (件数・距離のみ)。10-07: 3/5 |
+| C0 実測率 | registry `kalman-d7-sltp-marker-c0-readout` (live_count_decision、marker `[SLTP_CONSTRUCT]`、n_decide 5、12-09) → 発火時に `tools/sltp_construct_readout.py --since 2026-09-26` | marker 付き kalman fill の分岐率 (件数・距離のみ、**dedup_violation=1 を除外 = watcher と同一母集団**)。10-07: 3/5 |
 | harness | Codex queue `20260927-0300-kalman-d7-v17-canon-tv-harness` | TV 再走 (user 操作待ち) |
 
 ## 関連

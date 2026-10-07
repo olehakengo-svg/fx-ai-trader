@@ -1258,7 +1258,7 @@
 ## 2026-10-07 — autopilot: 統合決裁パケット確定版 v1.0 + kalman disposition packet + registry 期日 3 件 (rule:R3、PR #317)
 - **統合パケット v1.0**: §8 追記で §6 の 9 欄を消込。D5 (c) 不発 (S3 20/20 両正) → (a)/(b)/(d) 三択 ((b) は推奨外)。wg 3 leg @L1 証拠金 ¥89,032 は非 binding (binding は 4.2 ¥473,826)。**F4 decomposed 推定器で 2026-11-11 発火見込み (fit 12-30) = U3 11-30 の前**。D10 台帳 [[fixed-cost-ledger-2026-10]] 新設
 - **kalman disposition packet**: [[kalman-d7-live-exit-disposition-packet-2026-10-07]] (順位のみ、推奨 (b)、(a) は TV canon 確定後)。registry 後継 11-29
-- **registry**: review-backlog-314 resolved (最終 HEAD は 10-05T03:59Z レビュー済み) / integrated-decision-packet resolved (後継 user-response 11-29 + D11 実装期限 11-09) / 🆕 kalman-d7-sltp-marker-c0-readout (marker 5 本で C0 readout、12-09) / kalman disposition resolved / e1-first-look-freeze-due 10-08 据え置き (凍結は 10-09 run、cron の TRIGGERED が催促; 一度動かして Codex P2 で戻した)
+- **registry**: review-backlog-314 resolved (最終 HEAD は 10-05T03:59Z レビュー済み) / integrated-decision-packet resolved (後継 user-response 11-29 + D11 実装期限 10-31) / 🆕 kalman-d7-sltp-marker-c0-readout (marker 5 本で C0 readout、12-09) / kalman disposition resolved / e1-first-look-freeze-due 10-08 据え置き (凍結は 10-09 run、cron の TRIGGERED が催促; 一度動かして Codex P2 で戻した)
 - **現況**: NAV ¥273,746 (10-07T02:23Z) / keeper 10 月 15 RT $300k / clean live 30d n=20 +3.4p 🟡 MET_UNDERPOWERED 🚨 MECHANICAL_FLIP / M1_STRONG 0 / M3a 2/3 (carry_dip N=20 → 11-09)
 - **未達 (user 専権)**: Gold 10 月画面 / wg W1〜W6 / TV 再走
 - 詳細: [[2026-10-07-session]]

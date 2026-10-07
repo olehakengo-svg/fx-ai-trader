@@ -942,6 +942,14 @@
       "resolution": "最終 HEAD e72956fb に対する connector レビューは**マージ前に既に走っていた**: `@codex review` (2026-10-05T03:55:48Z) → chatgpt-codex-connector 2026-10-05T03:59:31Z「Didn't find any major issues. Reviewed commit: e72956fb8d」(PR #314 comment、gh api で 10-07 確認)。review thread 10 件は全て resolved、P1/P2 残 0。本 entry の前提「最終 HEAD のレビューは走らせずにマージ」は、merge (04:16Z) の 17 分前にレビューが到着していたため stale — triage 対象なし。E1 凍結 (10-09 run) は本 tool で実行可。"
     },
     {
+      "id": "review-backlog-317-final-head-review-2026-10-07",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-07",
+      "doc": "knowledge-base/wiki/sessions/2026-10-07-session.md",
+      "message": "🟠 PR #317 (統合決裁パケット確定版 v1.0 + kalman disposition packet + registry readout、docs-only) は Codex を 6 巡消化 (P1 0 / P2 10 件、全て実在の欠陥、全件修正 + thread resolve) して P2 巡目上限 ≤6 に到達。最終 HEAD へ `@codex review` を投げた上で CI green で `--admin` マージ (PR #314 と同手順)。⇒ 次の autopilot run (10-08) が最終 HEAD のレビュー結果を読み、残 P1/P2 を triage (修正 PR or 理由付き繰延) して本 entry を resolved 化。期日 = 10-07 (cron 10-08 00:20Z で TRIGGERED = 翌 run の催促、前日規則)。欠陥族は一貫して『文書に書いた期日・N 閾値に registry の読み手が無い』『読み手の母集団が文書と違う』(T5 型) — 同型が出たら同 PR で entry を置く。"
+    },
+    {
       "id": "hunt-events-labeler-disposition",
       "active": true,
       "type": "deadline_info",
@@ -1038,15 +1046,15 @@
       "type": "deadline_info",
       "deadline": "2026-11-29",
       "doc": "knowledge-base/wiki/decisions/integrated-decision-packet-d1-d12-2026-09-22.md",
-      "message": "統合決裁パケット D1〜D12 (+D15) 確定版 v1.0 (2026-10-07) の **user 返答期限 2026-11-30** の読み手 (cron 判定は翌日 00:20Z なので前日 11-29 に置く規則)。対象 = 全項目 (D1 M2 会計 / D2(i)(ii) / D3 額・時点 [+ D2(i)=(a) or 0.2x 解除の同時返答] / D4 資本上限 / D5 (a)/(b)/(d) / D6 / D7 承認 + disposition / D8〜D12 / D15)。部分返答 (D1〜D4 のみ等) は返答済み項目を本 entry の message に転記し、未返答項目を残して deadline は動かさない。**TRIGGERED (期日超過 ∧ 未返答項目あり) = 各項目の「無回答時の既定」(packet §2 表 / §0) を KB に明記して resolved — 再上程はしない** (再上程は F4 TRIGGERED 時の record のみ、project-falsification-f4-nav-floor-clock が読み手、PR #314 訂正)。姉妹 entry: carry-dip-v3-revival-watch (D5 の R2 のみ) / kalman-d7-live-exit-disposition-user-decision (D7 の disposition のみ) — 本 entry は packet 全体の返答有無を読む (Codex P2 4202512699 / 4202548167、PR #317)。autopilot は返答の代行・既定の前倒し執行を行わない。 ／ D11 の両基準併記**実装期限 11-10** (packet §4 表) は本 entry (11-29) より早いので別 entry integrated-decision-packet-d11-both-basis-impl (11-09) が読む (Codex P2 4202640519)。"
+      "message": "統合決裁パケット D1〜D12 (+D15) 確定版 v1.0 (2026-10-07) の **user 返答期限 2026-11-30** の読み手 (cron 判定は翌日 00:20Z なので前日 11-29 に置く規則)。対象 = 全項目 (D1 M2 会計 / D2(i)(ii) / D3 額・時点 [+ D2(i)=(a) or 0.2x 解除の同時返答] / D4 資本上限 / D5 (a)/(b)/(d) / D6 / D7 承認 + disposition / D8〜D12 / D15)。部分返答 (D1〜D4 のみ等) は返答済み項目を本 entry の message に転記し、未返答項目を残して deadline は動かさない。**TRIGGERED (期日超過 ∧ 未返答項目あり) = 各項目の「無回答時の既定」(packet §2 表 / §0) を KB に明記して resolved — 再上程はしない** (再上程は F4 TRIGGERED 時の record のみ、project-falsification-f4-nav-floor-clock が読み手、PR #314 訂正)。姉妹 entry: carry-dip-v3-revival-watch (D5 の R2 のみ) / kalman-d7-live-exit-disposition-user-decision (D7 の disposition のみ) — 本 entry は packet 全体の返答有無を読む (Codex P2 4202512699 / 4202548167、PR #317)。autopilot は返答の代行・既定の前倒し執行を行わない。 ／ D11 の両基準併記**実装期限 11-10** (packet §4 表) は本 entry (11-29) より早いので別 entry integrated-decision-packet-d11-both-basis-impl (10-31) が読む (Codex P2 4202640519)。"
     },
     {
       "id": "integrated-decision-packet-d11-both-basis-impl",
       "active": true,
       "type": "deadline_info",
-      "deadline": "2026-11-09",
+      "deadline": "2026-10-31",
       "doc": "knowledge-base/wiki/decisions/integrated-decision-packet-d1-d12-2026-09-22.md",
-      "message": "統合パケット D11 (M1_STRONG / F3 の estimand) の **両基準併記の実装期限 2026-11-10** (packet §4 表、cron 前日規則で 11-09)。内容: (1) Claude 実装 (R3) — `tools/m1_clean_live_monitor.py --strong` に broker realized 列を追加し demo pnl_pips と並記 (母集団を片寄せしない、N≥30 到達後の基準選択禁止 = pre-reg 規律)。(2) user 決裁 — REG project-falsification-f3-m1-durable-cell の `condition` 字義 (clean live N≥30 ∧ PnL>0、demo 簿) を EV≥+1.0 ∧ Wilson_lo>0 へ改定するか (U7 2026-09-10 承認事項の変更、packet D11 推奨 = 改定 + 両基準併記)。改定前は REG 字義が判定 predicate。期限の根拠: carry_dip の clean live N≥30 最速到達が (b)/(d) 分岐で 2026-11-11 (packet §8-1) — その**前**に基準が凍結されていること。TRIGGERED (期日超過 ∧ (1) 未実装 or (2) 未返答) = (1) は Claude が即実装 PR、(2) は既定 (REG 字義のまま) を KB に明記して resolved。user-response entry (11-29) は本期限を覆わない (Codex P2 4202640519、PR #317)。"
+      "message": "統合パケット D11 (M1_STRONG / F3 の estimand) の **両基準併記の実装期限 2026-11-10** (packet §4 表) — registry 期日は **10-31** (初版 11-09 を 6 巡目で前倒し)。内容: (1) Claude 実装 (R3) — `tools/m1_clean_live_monitor.py --strong` に broker realized 列を追加し demo pnl_pips と並記 (母集団を片寄せしない、N≥30 到達後の基準選択禁止 = pre-reg 規律)。(2) user 決裁 — REG project-falsification-f3-m1-durable-cell の `condition` 字義 (clean live N≥30 ∧ PnL>0、demo 簿) を EV≥+1.0 ∧ Wilson_lo>0 へ改定するか (U7 2026-09-10 承認事項の変更、packet D11 推奨 = 改定 + 両基準併記)。改定前は REG 字義が判定 predicate。期限の根拠: carry_dip の clean live N≥30 最速到達 = 2 推定の早い方 **2026-11-09** (packet §8-0 monitor M3a 線形外挿) / 11-11 (§8-1 0.282/日) — その**前**に基準が凍結されていること。deadline_info は today > deadline で発火するため 11-09 期日では初アラート 11-10 が N≥30 と同時になり得る → 実装 + 既定確定の余裕 ≥8 日を取り 10-31 (Codex P2 4202673535)。TRIGGERED (期日超過 ∧ (1) 未実装 or (2) 未返答) = (1) は Claude が即実装 PR、(2) は既定 (REG 字義のまま) を KB に明記して resolved。user-response entry (11-29) は本期限を覆わない (Codex P2 4202640519、PR #317)。"
     },
     {
       "id": "e1-frozen-export-tool",
@@ -1255,7 +1263,7 @@
       "n_decide": 5,
       "deadline": "2026-12-09",
       "doc": "knowledge-base/wiki/decisions/kalman-d7-live-exit-disposition-packet-2026-10-07.md",
-      "message": "kalman_d7 disposition packet §3「(b) 下での追加義務」の読み手 (rule:R3、件数のみ): `[SLTP_CONSTRUCT]` marker 付き (PR #300、2026-09-26 デプロイ以降) の kalman 3 variant LIVE fill (oanda_trade_id 非空、USD_JPY) が **N≥5** に到達したら `tools/sltp_construct_readout.py --since 2026-09-26` で C0 分岐率 (SR 採用 / lowliq / MTF ×1.3 / clamp) を読み、kalman-d7-live-constrained-bt-2026-09-27 §3 の what-if 列を live 実測率に差し替える (件数・距離のみ、outcome 非読 — EV は R2 t9-kalman-d7-live-n10-ev-check の estimand 凍結 (D7) 承認後のみ)。到達 = 判定ではなく readout の起動。2026-10-07 時点 3/5 (po_dn_flip 2 / ema75_break 1)。期日 12-09 (R2 と同日) に N<5 なら stale review (頻度前提 ~2/月 の再監査)。gate・値・lot には触れない (Codex P2 4202640529、PR #317)。"
+      "message": "kalman_d7 disposition packet §3「(b) 下での追加義務」の読み手 (rule:R3、件数のみ): `[SLTP_CONSTRUCT]` marker 付き (PR #300、2026-09-26 デプロイ以降) の kalman 3 variant LIVE fill (oanda_trade_id 非空、USD_JPY) が **N≥5** に到達したら `tools/sltp_construct_readout.py --since 2026-09-26` で C0 分岐率 (SR 採用 / lowliq / MTF ×1.3 / clamp) を読み、kalman-d7-live-constrained-bt-2026-09-27 §3 の what-if 列を live 実測率に差し替える (件数・距離のみ、outcome 非読; 母集団 = watcher `count_live_matching` と同一 (oanda_trade_id 非空 ∧ dedup_violation≠1 ∧ marker 付き)。`sltp_construct_readout.py` は trade_id で dedup するが **dedup_violation を filter しない**ので、`--json` 出力から dedup_violation=1 の行を除いてから率を出す (または `--file` に clean 行だけの trades JSON を渡す) — Codex P2 4202673544 — EV は R2 t9-kalman-d7-live-n10-ev-check の estimand 凍結 (D7) 承認後のみ)。到達 = 判定ではなく readout の起動。2026-10-07 時点 3/5 (po_dn_flip 2 / ema75_break 1)。期日 12-09 (R2 と同日) に N<5 なら stale review (頻度前提 ~2/月 の再監査)。gate・値・lot には触れない (Codex P2 4202640529、PR #317)。"
     },
     {
       "id": "review-backlog-pr302-p2-deferrals",
