@@ -317,6 +317,7 @@ D3: 額 ¥__ と時点 __ ; 同時に D2(i)=(a) か 0.2x 解除のどちらか�
 ### 8-10. 期日運用の訂正 (記録)
 
 - REG `integrated-decision-packet-d1-d12` (10-08) → 本節で確定版着地 = resolved (10-07)。**user 返答期限 11-30 の読み手 = 後継 REG `integrated-decision-packet-d1-d12-user-response` (期日 11-29、D1〜D12/D15 全項目の返答有無を読む; TRIGGERED = 無回答項目の既定挙動を KB に明記して resolved、再上程はしない)** — `carry-dip-v3-revival-watch` は D5、`kalman-d7-live-exit-disposition-user-decision` は D7、F4 は D3 の再上程しか覆わないため (Codex P2 4202512699 / 4202548167)。固定日の**再上程** entry は置かない (PR #314 訂正に従う — 返答期限の読み手とは別物)。F4 TRIGGERED 時の record 再上程は REG `project-falsification-f4-nav-floor-clock` が読み手。
+- **D11 の実装期限 11-10 (§4 表) の読み手 = REG `integrated-decision-packet-d11-both-basis-impl` (期日 11-09、前日規則)** — `m1_clean_live_monitor.py --strong` への broker realized 列 (Claude 実装、R3) と REG F3 `condition` 字義の改定可否 (U7 user 承認事項) を、carry_dip N≥30 の最速到達 (§8-1: (b)/(d) で 11-11) の**前**に閉じる。user-response entry (11-29) は D11 の 11-10 を覆わないため別 entry (Codex P2 4202640519)。
 - REG `e1-first-look-freeze-due` の期日 **10-08 は据え置き** (凍結は 10-09 run で実行。cron は `today > deadline` で判定するので 10-08 のままなら **10-09 00:20Z に TRIGGERED** が出て同日 run の凍結実行を催促する = 前日規則の正しい適用。本 run で一度 10-09 に動かしたが、それだと初アラートが 10-10 になり 10-09 の空振りを検知できない — Codex P2 4202599693 で戻した)。[[e1-first-look-runbook-2026-09-22]] §3 改訂版の手順は不変。TRIGGERED は 10-09 run が凍結を終えて resolve するまで出続ける (設計どおり)。
 
 ### 8-11. caveat (v1.0 で増えたもの)
