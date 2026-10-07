@@ -189,7 +189,7 @@
 
 ```
 UD1: GOLD (09-23 確認済み) / UD3: 回答不要 (09-24 廃止)
-D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方向 (i) 入金は 09-24 確定; 補項: 単 leg、入金日基準) / D4: ¥1,000,000 / D5: (a) 復元起案 or (d) 現状維持 [S3 14/14 → 20/20 両正で (c) 不発、§8-1] / D6: 09-30 委任 / D7: 承認 / D8: 容認+shadow 保存 / D9: 四半期 / D10: Render ¥__ MASSIVE ¥__ Claude ¥__ / D11: EV≥1.0∧Wilson 両基準 / D12: (ii) / D15: 維持
+D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方向 (i) 入金は 09-24 確定; 補項: 単 leg、入金日基準) / D4: ¥1,000,000 / D5: (a) 復元起案 / (b) as-placed 新宣言 [Rule 1 例外再承認、推奨外] / (d) 現状維持 [(c) は S3 14/14 → 20/20 両正で不発、§8-1] / D6: 09-30 委任 / D7: 承認 / D8: 容認+shadow 保存 / D9: 四半期 / D10: Render ¥__ MASSIVE ¥__ Claude ¥__ / D11: EV≥1.0∧Wilson 両基準 / D12: (ii) / D15: 維持
 ```
 
 「推奨どおり」と 1 語で返された場合の解釈 = 上記例の **D3 の額と D4 の数字と D10 の金額を除く全項目**を Claude 推奨で確定し、D3 額 / D4 / D10 は user の数字を別途待つ (額の推奨はしない — user 専権)。
@@ -256,7 +256,7 @@ D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方
 ### 8-1. §6-1 S3 carry_dip 突合 → D5 分岐の確定
 
 - S3 = [[carry-dip-broker-reconcile-2026-09-22]]: **14/14 突合 (09-22)** demo +103.0p / broker +¥793 = +79.3p、以降の fill も全数突合で **20/20** (card 10-05 節: demo N 20 / 11W / WR 55.0% / +88.9 / EV +4.45、broker **+¥665 = +66.5p / EV +3.33p**)。符号不一致 1 本 (#709598、既知の halted-exit 族) のみ。
-- **帰結: 分岐 (c) [両 estimand で deduped LIVE EV<0] は不発** — REG `carry-dip-v3-revival-watch` R2 は両基準で不成立 (autopilot 執行なし)。D5 は **(a) 宣言契約復元の起案 / (d) 現状維持 の二択**に縮約 ((b) as-placed 新宣言は BT 根拠なしで Rule 1 例外再承認が要るため推奨外のまま)。
+- **帰結: 分岐 (c) [両 estimand で deduped LIVE EV<0] は不発** — REG `carry-dip-v3-revival-watch` R2 は両基準で不成立 (autopilot 執行なし)。D5 は **(a) 宣言契約復元の起案 / (b) as-placed 新宣言 / (d) 現状維持 の三択**に縮約 ((b) は BT 根拠なしで Rule 1 例外再承認が要るため**推奨外だが、§2 表で宣言した user 専権の選択肢として残す** — Codex P2 4202548187: S3 が消すのは負 EV 分岐 (c) だけ)。
 - Claude 推奨は **(a)** に据え置き。根拠は出所を 2 層に分ける (Codex P2 4202487398): (i) **観測層 = 20/20** — broker tx の ON_FILL SL 距離が全 fill で宣言 150p と乖離 (9.8〜28.5p 帯、[[carry-dip-broker-reconcile-2026-09-22]] §2 + card 09-25〜10-05 節) と TP ×0.85 短縮 (broker TP / demo TP = 0.841〜0.867) — **分岐の機構は fill #1〜#16 では復元不能** (marker 以前)。(ii) **機構層 = marker 付き 4/4** — `[SLTP_CONSTRUCT]` は PR #300 (09-26 デプロイ) 以降の fill #17 (#893207、09-28) 〜 #20 のみに付き、4 本とも `sl=atr_nosr clamp=none` / `[BROKER_TP] basis=qh mult=0.85` (`tools/sltp_construct_readout.py --since 2026-09-26`: decl 150.0 → 実 SL mean 22.7p、件数・距離のみ)。∴ 現 N=20 は宣言セルの N ではない (観測層で全件)、機構の確定は 4 本 (機構層)。**(a) は Rule 1 (user 決裁)、autopilot は執行しない**。
 - G3 到達日 (§3.4 末尾の再計算): (b)/(d) なら現 N=20 から **N≥30 = 2026-11-11 (0.282/日) 〜 12-05 (0.167/日)** (09-22 の 11-18〜02-07 を置換)、(a) なら復元日 + 107〜180 日 (不変)。⚠️ (d) の N は宣言と別戦略の N で G3 に使えない (D5 根拠 (2))。
 
@@ -308,7 +308,7 @@ D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方
 ### 8-9. 返答書式 (v1.0 補訂)
 
 ```
-D5: (a) 復元起案 / (d) 現状維持   ← (c) は S3 20/20 両正で不発
+D5: (a) 復元起案 / (b) as-placed 新宣言 [推奨外] / (d) 現状維持   ← (c) のみ S3 20/20 両正で不発
 D7: 承認 + disposition (a)/(b)/(c)  ← kalman-d7-live-exit-disposition-packet-2026-10-07
 D3: 額 ¥__ と時点 __ ; 同時に D2(i)=(a) か 0.2x 解除のどちらかを明記 (§8-6)
 ```
@@ -316,7 +316,7 @@ D3: 額 ¥__ と時点 __ ; 同時に D2(i)=(a) か 0.2x 解除のどちらか�
 
 ### 8-10. 期日運用の訂正 (記録)
 
-- REG `integrated-decision-packet-d1-d12` (10-08) → 本節で確定版着地 = resolved (10-07)。user 返答期限 11-30 は REG `carry-dip-v3-revival-watch` 等の既存 11-30 期日群が読む (新 entry は置かない — 固定日の再上程を増やさない PR #314 訂正に従う)。F4 TRIGGERED 時の record 再上程は REG `project-falsification-f4-nav-floor-clock` が読み手。
+- REG `integrated-decision-packet-d1-d12` (10-08) → 本節で確定版着地 = resolved (10-07)。**user 返答期限 11-30 の読み手 = 後継 REG `integrated-decision-packet-d1-d12-user-response` (期日 11-29、D1〜D12/D15 全項目の返答有無を読む; TRIGGERED = 無回答項目の既定挙動を KB に明記して resolved、再上程はしない)** — `carry-dip-v3-revival-watch` は D5、`kalman-d7-live-exit-disposition-user-decision` は D7、F4 は D3 の再上程しか覆わないため (Codex P2 4202512699 / 4202548167)。固定日の**再上程** entry は置かない (PR #314 訂正に従う — 返答期限の読み手とは別物)。F4 TRIGGERED 時の record 再上程は REG `project-falsification-f4-nav-floor-clock` が読み手。
 - REG `e1-first-look-freeze-due` 10-08 → **10-09** (理由: cutoff 06:33:31Z は 10-08 autopilot run (~02:00Z) の後、凍結は 10-09 run で実行。cron 判定は翌日 00:20Z なので実行日に置く規則。黙った延長ではない — [[e1-first-look-runbook-2026-09-22]] §3 の手順は不変)。
 
 ### 8-11. caveat (v1.0 で増えたもの)
