@@ -188,3 +188,9 @@ Entry filters (v16 forensic 導出):
 - ⚪ 同日、本戦略が primary で勝った bar の secondary emit `kalman_d7_ema75_break` が初 LIVE fill #957198 (10-02 19:09Z) で**週末 `MARKET_HALTED` リトライ storm** (32,821 回 / 47h) を起こし、demo +3.0 ↔ broker −¥147 の符号反転 — [[kalman-d7-ema75-break]] / [[2026-10-05]] 発見 1
 
 詳細: [[2026-10-05]] 発見 2 / [[usdjpy_carry_dip_accumulator]] / [[project_weekend_market_halted_retry_storm_2026_09_07]]
+
+## 📋 2026-10-07 更新: **disposition packet 起票 (registry 10-08 期日の成果物) — [[kalman-d7-live-exit-disposition-packet-2026-10-07]]**
+
+- harness FAIL のため数値はゼロ、順位のみ (C3/C4 ≫ C0 > C6 近似 > C5 ≈ C2、C1 は canon exit 形状に依存)。決裁肢 (a) 宣言復元 [TV canon 再走で exit 種別確定が先、Rule 1] / **(b) 現状維持 + 執行 QA + R2 [推奨・既定]** / (c) shadow 降格 [実現損失根拠なし]。
+- live fill 3 variant **6 本** (po_dn_flip 5 / ema75_break 1、09-10〜10-05) = R2 6/10。winner ride 形状の fill 0 (8h cap で構造的に不可能)。
+- user 返答期限 11-30 (統合パケット D7 と同時)。registry: `kalman-d7-live-exit-spec-mismatch-disposition` resolved → 後継 `kalman-d7-live-exit-disposition-user-decision` (11-29)。

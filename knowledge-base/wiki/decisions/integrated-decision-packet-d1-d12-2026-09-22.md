@@ -1,7 +1,7 @@
-# 統合決裁パケット D1〜D12 (+D15) — DRAFT v0 (2026-09-22)
+# 統合決裁パケット D1〜D12 (+D15) — 確定版 v1.0 (2026-10-07、起票 2026-09-22)
 
 > **種別**: user 決裁パケット (rule:R3 文書 — Claude は起票・推奨・既定挙動の明示まで。D1/D3/D4/D5 の選択そのものは user 専権で、推奨は決裁の代替ではない)
-> **Status: DRAFT v0.6** (2026-09-22 起票、同日 PR #279 レビュー消化で 13 点訂正 — 1 巡目: D5 既定の R2 predicate を REG 凍結値に戻す [P1] / carry_dip N≥30 ETA を D5 分岐で条件付け [P2] / floor ¥262,000 到達 ≠ API 停止 を明記 [P2]; 2 巡目: D3 補項 (b) の 3 leg 同時損失を quote 通貨別 pip 値で再計算 ¥22,500→¥31,140、L1 開通 NAV ¥900k→¥1,245,600 [P1] / 「∞→有限は D3 ∧ D1」を「前提は D3、D1 はサイズ」に訂正 [P2]; 3 巡目: D11 無回答の既定を REG F3 `condition` 字義 (N≥30 ∧ PnL>0) に戻す — 強定義 primary の採用は REG 改定を伴う [P2]; 4 巡目: D3 補項 (a) 単 leg 読みでも wg の L1 開通 NAV は binding leg (USD-quote) の ¥472,800 — ¥300,000 は JPY leg 単独 rung (per-leg rung 実装 R1 前提) に限る、D3 参照点を 2 値化 [P1] / kill 順序で floor 幅 03-04〜04-07 と F3 03-31 の重なりを表記 [P2]; 5 巡目: 有限化前提に D2(i)=(a) を併記 — 無回答なら code が L1 5000u × 0.2 → 1000u に潰し入金しても容量が出ない [P2] / §3.4 の「本」= wg 級 3 leg 一括ストリーム (pooled 率) と明示、type×pair×dir 単位では約 3 倍の pair セル換算列を追加 [P2]; 6 巡目: ¥300k 分岐は混合 rung (USD_JPY のみ L1) でストリーム平均 ¥27.17/pip → B 4〜6 / A 9〜14 に再計算、¥472.8k 分岐は ¥69.2/pip → B 3〜4 / A 5〜7 [P1] / D3 参照点を入金日 NAV で再基準化 (11-30 入金なら ≈¥53,600 / ≈¥226,400) [P2] / 定義 A の読み手を入出金調整後 NAV Δ に限定 [P2])。**確定版 = 2026-10-08 (E1 cutoff)**。user 返答期限 = **2026-11-30** (E1 verdict 10-15 後の返答を推奨)。D1〜D4 のみ先行返答でも分母は有限化できる。
+> **Status: ✅ 確定版 v1.0 (2026-10-07、autopilot 起票 — §6 の 9 欄を §8 で消込、user 返答期限 2026-11-30 は不変)**。旧 Status (履歴): DRAFT v0.6 (2026-09-22 起票、同日 PR #279 レビュー消化で 13 点訂正 — 1 巡目: D5 既定の R2 predicate を REG 凍結値に戻す [P1] / carry_dip N≥30 ETA を D5 分岐で条件付け [P2] / floor ¥262,000 到達 ≠ API 停止 を明記 [P2]; 2 巡目: D3 補項 (b) の 3 leg 同時損失を quote 通貨別 pip 値で再計算 ¥22,500→¥31,140、L1 開通 NAV ¥900k→¥1,245,600 [P1] / 「∞→有限は D3 ∧ D1」を「前提は D3、D1 はサイズ」に訂正 [P2]; 3 巡目: D11 無回答の既定を REG F3 `condition` 字義 (N≥30 ∧ PnL>0) に戻す — 強定義 primary の採用は REG 改定を伴う [P2]; 4 巡目: D3 補項 (a) 単 leg 読みでも wg の L1 開通 NAV は binding leg (USD-quote) の ¥472,800 — ¥300,000 は JPY leg 単独 rung (per-leg rung 実装 R1 前提) に限る、D3 参照点を 2 値化 [P1] / kill 順序で floor 幅 03-04〜04-07 と F3 03-31 の重なりを表記 [P2]; 5 巡目: 有限化前提に D2(i)=(a) を併記 — 無回答なら code が L1 5000u × 0.2 → 1000u に潰し入金しても容量が出ない [P2] / §3.4 の「本」= wg 級 3 leg 一括ストリーム (pooled 率) と明示、type×pair×dir 単位では約 3 倍の pair セル換算列を追加 [P2]; 6 巡目: ¥300k 分岐は混合 rung (USD_JPY のみ L1) でストリーム平均 ¥27.17/pip → B 4〜6 / A 9〜14 に再計算、¥472.8k 分岐は ¥69.2/pip → B 3〜4 / A 5〜7 [P1] / D3 参照点を入金日 NAV で再基準化 (11-30 入金なら ≈¥53,600 / ≈¥226,400) [P2] / 定義 A の読み手を入出金調整後 NAV Δ に限定 [P2])。**確定版 = 2026-10-08 (E1 cutoff)**。user 返答期限 = **2026-11-30** (E1 verdict 10-15 後の返答を推奨)。D1〜D4 のみ先行返答でも分母は有限化できる。
 > **起点**: [[path-to-win-decision-memo-2026-09-20]] §3 Rank 1 / §4.1 末尾 D1〜D12 (L128–140) → 再評価 [[path-to-win-reassessment-2026-09-22]] §1–§4 (訂正一覧・UD1〜UD7) → user 2026-09-22「推奨で任せるから進めて、勝てるまで行こう、ただしとにかくペースアップしたい」。
 > **前版パケット**: [[mission-capital-redecision-packet-2026-09-10]] (U1 は [[u1-mission-redecision-2026-09-17]] で決裁済み。U2 = 本稿 D4、U3 = D3、U5 = D10 に吸収)。
 > **記述規律**: 数字は出所併記。凍結 look (E1/ECG/E12/wg G1・G2/rnb forward/sr_anti_hunt forward/E23 OOS) の outcome は計算していない。引用禁止値 (nav_floor fit 現況値 / L1 5000u 前提の現 NAV での M2 寄与 / keeper 控除前 M2 算数 / P5 確率 / 「carry_dip 符号逆」/ 「F4 12-03 確定」/ 「33 分」/ 「agg_kelly block (carry_dip)」) は使わない。Live = `oanda_trade_id != ''` のみ。
@@ -189,7 +189,7 @@
 
 ```
 UD1: GOLD (09-23 確認済み) / UD3: 回答不要 (09-24 廃止)
-D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方向 (i) 入金は 09-24 確定; 補項: 単 leg、入金日基準) / D4: ¥1,000,000 / D5: S3 待ち→分岐どおり / D6: 09-30 委任 / D7: 承認 / D8: 容認+shadow 保存 / D9: 四半期 / D10: Render ¥__ MASSIVE ¥__ Claude ¥__ / D11: EV≥1.0∧Wilson 両基準 / D12: (ii) / D15: 維持
+D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方向 (i) 入金は 09-24 確定; 補項: 単 leg、入金日基準) / D4: ¥1,000,000 / D5: (a) 復元起案 / (b) as-placed 新宣言 [Rule 1 例外再承認、推奨外] / (d) 現状維持 [(c) は S3 14/14 → 20/20 両正で不発、§8-1] / D6: 09-30 委任 / D7: 承認 / D8: 容認+shadow 保存 / D9: 四半期 / D10: Render ¥__ MASSIVE ¥__ Claude ¥__ / D11: EV≥1.0∧Wilson 両基準 / D12: (ii) / D15: 維持
 ```
 
 「推奨どおり」と 1 語で返された場合の解釈 = 上記例の **D3 の額と D4 の数字と D10 の金額を除く全項目**を Claude 推奨で確定し、D3 額 / D4 / D10 は user の数字を別途待つ (額の推奨はしない — user 専権)。
@@ -229,3 +229,100 @@ D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方
 - user 画面確認 (2026-09-23 JST 午前): OANDA status 画面「今月の取引額」に 9 月 keeper 26 RT ($520k) が算入され **GOLD** 表示。
 - 帰結: §1 UD1 の SILVER 分岐 (v0.1 書き直し、D5/D6/D7 前提消滅、D3 縮約、Rank 5・7 前提消滅) は**不発**。v0 の前提はそのまま確定版 (10-08) へ。keeper は 10 月も設計どおり run (¥2,080/月)。
 - registry `ud1-gold-screen-check` resolved (2026-09-23)。10 月の月次判定 (Gold 維持) は**新規** registry entry `oanda-gold-monthly-status-record-2026-10` (期日 09-30、cron 判定 10-01 00:20Z、Gold 画面は user 専権で Claude は依頼と記録のみ) が読む — 旧記述「既存の 10-01 項目」は存在しなかった (PR #292 Codex P2 4078219840 で訂正)。
+
+---
+
+## 8. 確定版 v1.0 (2026-10-07) — §6 の消込と現況更新 (autopilot、rule:R3 文書のみ)
+
+> 期日 = 2026-10-08 (E1 cutoff)。autopilot run は毎日 ~02:00Z で、E1 cutoff 06:33:31Z は 10-08 run の後に来るため、確定版は 10-07 run で起票し、E1 凍結 export は 10-09 run で実行する (registry `e1-first-look-freeze-due` の期日 **10-08 は据え置き** (凍結は 10-09 run で実行。cron は `today > deadline` で判定するので 10-08 のままなら **10-09 00:20Z に TRIGGERED** が出て同日 run の凍結実行を催促する = 前日規則の正しい適用。本 run で一度 10-09 に動かしたが、それだと初アラートが 10-10 になり 10-09 の空振りを検知できない — Codex P2 4202599693 で戻した) — §8-10)。**本節は §0〜§7 を書き換えず追記のみ** (v0.6 の数字は 09-22 時点の一次値として残置、現況値は本節 §8-0 で併記)。凍結 look の outcome は計算していない。
+
+### 8-0. 現況一次値 (2026-10-07T02:23Z)
+
+| 量 | 09-22 (v0.6) | 10-07 (v1.0) | 出所 |
+|---|---|---|---|
+| NAV = balance | ¥275,516.83 | **¥273,746.16** (margin_used 0 / open 0) | `GET /api/oanda/heartbeat` nav_at 2026-10-07T02:23:29Z |
+| Δ NAV 15 日 | — | **−¥1,770.67** = keeper 10 月 15 RT × ¥80 = −¥1,200 + edge 残差 **−¥570.67** | 算数 (入出金 0: `GET /api/oanda/transfers?from=2026-08-08&to=2026-10-07` count 0) |
+| keeper 10 月 | 0 RT | **15 RT / $300k of $520k**、behind_pace=false、last_rt 10-07T02:02Z | `GET /api/demo/status`.status_volume_keeper |
+| keeper % | 0.7550% | **0.7598%/月** (2,080 / 273,746) | 算数 |
+| floor 余裕 | ¥13,516.83 | **¥11,746.16** → keeper-only runway **5.65 ヶ月** | 算数 (floor ¥262,000 不変) |
+| M2 net (定義 B) | ¥1,377.58 / 137.8p @1000u | **¥1,368.73 / 136.9p** | 算数 |
+| M2 gross (定義 A) | ¥3,457.58 = 1.2550% | **¥3,448.73 = 1.2598%** | 算数 |
+| 30d clean live | n=9 / −27.2p | **n=20 / +3.4p / WR 60% / EV +0.17p** — 🟡 MET_UNDERPOWERED、bootstrap CI [−112.6, +127.9]、P(sum≤0)=0.492、🚨 MECHANICAL_FLIP (符号は 09-03 ps_aud_jpy −77.5p の窓外脱落) | `tools/m1_clean_live_monitor.py --strong` 10-07 |
+| M1_STRONG | 0 セル | **0 セル** (最接近 bb_rsi×USD_JPY×SELL N=44 / EV +0.29 / w_lo 0.36) | 同上 |
+| M3a / M3b | — | **2/3 セル** (bb_rsi ×2 到達済み・30d 稼働 0、3 本目 carry_dip N=20 → ETA 2026-11-09) / **+0.077%/月** | 同上 |
+| 4.2 cap | ¥6,887.92 | **¥6,843.65** | 0.025 × NAV |
+| USD_JPY / USD-quote ¥/pip @1000u | 157.6 / ¥15.76 | **157.94 / ¥15.79** | MASSIVE 15m 最終 close (10-07) |
+
+### 8-1. §6-1 S3 carry_dip 突合 → D5 分岐の確定
+
+- S3 = [[carry-dip-broker-reconcile-2026-09-22]]: **14/14 突合 (09-22)** demo +103.0p / broker +¥793 = +79.3p、以降の fill も全数突合で **20/20** (card 10-05 節: demo N 20 / 11W / WR 55.0% / +88.9 / EV +4.45、broker **+¥665 = +66.5p / EV +3.33p**)。符号不一致 1 本 (#709598、既知の halted-exit 族) のみ。
+- **帰結: 分岐 (c) [両 estimand で deduped LIVE EV<0] は不発** — REG `carry-dip-v3-revival-watch` R2 は両基準で不成立 (autopilot 執行なし)。D5 は **(a) 宣言契約復元の起案 / (b) as-placed 新宣言 / (d) 現状維持 の三択**に縮約 ((b) は BT 根拠なしで Rule 1 例外再承認が要るため**推奨外だが、§2 表で宣言した user 専権の選択肢として残す** — Codex P2 4202548187: S3 が消すのは負 EV 分岐 (c) だけ)。
+- Claude 推奨は **(a)** に据え置き。根拠は出所を 2 層に分ける (Codex P2 4202487398): (i) **観測層 = 20/20** — broker tx の ON_FILL SL 距離が全 fill で宣言 150p と乖離 (9.8〜28.5p 帯、[[carry-dip-broker-reconcile-2026-09-22]] §2 + card 09-25〜10-05 節) と TP ×0.85 短縮 (broker TP / demo TP = 0.841〜0.867) — **分岐の機構は fill #1〜#16 では復元不能** (marker 以前)。(ii) **機構層 = marker 付き 4/4** — `[SLTP_CONSTRUCT]` は PR #300 (09-26 デプロイ) 以降の fill #17 (#893207、09-28) 〜 #20 のみに付き、4 本とも `sl=atr_nosr clamp=none` / `[BROKER_TP] basis=qh mult=0.85` (`tools/sltp_construct_readout.py --since 2026-09-26`: decl 150.0 → 実 SL mean 22.7p、件数・距離のみ)。∴ 現 N=20 は宣言セルの N ではない (観測層で全件)、機構の確定は 4 本 (機構層)。**(a) は Rule 1 (user 決裁)、autopilot は執行しない**。
+- G3 到達日 (§3.4 末尾の再計算): (b)/(d) なら現 N=20 から **N≥30 = 2026-11-11 (0.282/日) 〜 12-05 (0.167/日)** (09-22 の 11-18〜02-07 を置換)、(a) なら復元日 + 107〜180 日 (不変)。⚠️ (d) の N は宣言と別戦略の N で G3 に使えない (D5 根拠 (2))。
+
+### 8-2. §6-2 / §6-7 D3 補項 — wg 3 leg @L1 の証拠金・exposure cap (reassess §9-15) と per-leg rung 可否
+
+| 量 | 式 (`tools/lot_ladder_calc.py` LEVERAGE 25 / MARGIN_CAP_PCT 0.40 / exposure 20k) | 値 |
+|---|---|---|
+| L1 5000u 証拠金 (各 leg) | notional/25、USD-quote は ×157.94 | USD_JPY **¥31,588** / AUD_USD **¥22,015** / EUR_USD **¥35,429** |
+| 3 leg 同時 L1 証拠金 | 合計 | **¥89,032** → 40% cap を満たす NAV ≥ **¥222,580** (現 NAV で既に満たす = **4.4 は非 binding、binding は 4.2**) |
+| 3 leg 同時 L1 exposure | 3 × 5000u | **15,000u ≤ 20k cap** (非 binding) |
+| 混合 rung @¥300k (USD_JPY L1 + 2 leg L0) | 31,588 + 4,403 + 7,086 | **¥43,077 = 14.4% NAV** (非 binding) |
+| L0 3 leg 同時 (現状) | 1000u × 3 | **¥17,806 = 6.50% NAV**、3,000u |
+| 4.2 の binding 値 (再掲、10-07 価格) | 5 × ¥15.79 × 150p / 0.025 | **L1 開通 NAV (3 leg 一律) = ¥473,826** (09-22 の ¥472,800 と ±0.2% = 為替) / JPY leg 単独 ¥300,000 (不変) |
+
+- **per-leg rung 可否 (§6-7)**: `WEEKEND_GAP_FADE_MIN_LOT` は `modules/demo_trader.py:7662` の `_tick_entry` sentinel で **単一定数・pair 非依存**、template L114 は「L1 適用時は固定 units の値を上げるのではなく edge_cell 経路へ載せ替えるか、wg 専用 rung 定数 + §6 gate 群を同一 PR で実装」と規定 ⇒ **per-leg rung (USD_JPY のみ L1) は現 code に存在せず、wg 専用の pair 別 rung 定数 + gate 群の新設 = Rule 1 (user 決裁) が必要**。D2(ii)=(c) の帰結としての per-leg rung は「実装 R1 を伴う選択肢」であって既定ではない。
+- **D3 参照点の一本化**: (i) **3 leg 一律 L1 (現契約・実装変更なし)** = 開通 NAV ¥473,826 → 入金日 NAV 基準の差 **≈ ¥200,080** (10-07 NAV) / (ii) **per-leg rung (R1 実装後)** = ¥300,000 → 差 **≈ ¥26,254**。いずれも + keeper 12 ヶ月 ¥24,960 を乗せた最小参照点 = **(i) ≈ ¥225,040 / (ii) ≈ ¥51,214**。入金日の NAV で再計算 (11-30 なら keeper 11 月分 ¥2,080 と edge 残差 (10-07 実測 −¥570/15 日) の分だけ差が広がる)。**額は user 専権 — 推奨しない**。
+
+### 8-3. §6-3 UD1 → GOLD (09-23 確認済み)、10 月記録は未達
+
+- SILVER 分岐 (v0.1 書き直し) は不発、v0.6 の前提をそのまま確定版に継承。
+- ⚠️ REG `oanda-gold-monthly-status-record-2026-10` (10 月ランク画面) は **10-01〜10-07 に対話セッションが無く user への確認依頼が未達** (TRIGGERED 継続 = 設計どおりの検知)。10 月 keeper は 15 RT / $300k で進行中 (behind_pace=false)。次の対話セッション冒頭で依頼し、結果を本節に転記する。
+
+### 8-4. §6-4 F4 推定器分解 (sprint S-F4) 着地後の発火日幅 — **順序が変わる**
+
+- 分解推定器は着地済み (`tools/nav_floor_projection.py` primary=`decomposed`、PR #285 + 入出金調整 PR #295)。10-07 行 (`data/monitoring/nav_floor_projection.csv`): NAV ¥273,826 / burn **94.3 円/日** (keeper 68.3 + edge 25.9、窓 09-15→10-07 22 日、transfers 0) / **days_to_floor 125 → floor 2027-02-09** / 参考 fit burn 67.8 → 174 日 → 2027-03-30。
+- **F4 (days_to_floor ≤ 90) の発火見込み**: decomposed **2026-11-11** (NAV ≤ ¥270,487 で成立) / fit 参考 **2026-12-30**。v0.6 §3.5 の「12-04〜01-08」を **「11-11 (decomposed、現 edge 残差込み) 〜 12-30 (keeper のみ相当)」に置換**。
+- **帰結 (§4 順序の訂正)**: F4 が **U3 期限 11-30 の前**に来る (decomposed 側)。F4 TRIGGERED 時の Claude の動作 = 本パケットの record 再上程 (執行なし、PR #314 訂正どおり固定日は置かない) — つまり **11-11 頃に user へ再上程が 1 回入り、11-30 が返答期限** の順になる。F2 (12-31) → E1 2nd (01-06) より先。edge 残差が 0 に戻れば fit 側 (12-30) に寄る — 幅で引用。
+- ⚠️ edge 25.9 円/日は 22 日窓の実測 (clean live −¥570/15 日と同符号) で、v0.6 §7 の「drift 13.7 円/日は仮定」は **実測に置換された** (仮定ではなくなった)。
+
+### 8-5. §6-6 D10 固定費台帳の器
+
+- 作成: [[fixed-cost-ledger-2026-10]] (`knowledge-base/wiki/analyses/fixed-cost-ledger-2026-10.md`) — 項目 = Render Pro / MASSIVE / Claude / codex-runner (¥0、09-10 suspend 済み) / TradingView / その他、**金額欄は空欄 (user 入力)**。M3 完全達成の月次期待 (¥5,475〜8,212 @現 NAV = 2〜3% × ¥273,746) を対照列に置いた。
+
+### 8-6. §6-8 D2(i) 無回答時の L1 潰れと D3 入金の同時性
+
+- 無回答 (= code 現状 `edge-cell lot × _dd_lot_mult`、floor 1000u) のまま D3 入金で NAV ≥ 開通 NAV に達しても **L1 5000u × 0.2 = 1000u = L0 と同値で容量は出ない**。解消経路は 2 つ: **(a) D2(i)=(a) の決裁 (template L73 を SSOT、carve-out rung に DD lever 非乗算 = code 1 行 + pin、R1)** / **(b) JPY 台帳の 0.2x defensive 解除 (DD 防御モードの出口条件 = 別の user 決裁、[[fable5-system-audit-2026-07-02]] 系)**。**D3 の入金は (a) or (b) と同じ返答で返す**こと (片方だけでは time-to-M2 は ∞ のまま)。
+- §3.4 pair セル単位の再計算 (pair 別 event 実測 N): wg の live event 台帳は **G0' 系 (09-20 / 09-27 の 2 event = ABANDONED_DRIFT、10-04 event #3 = 3 pair no-qualify)** で、**fill 0 / qualifying pair-event の実測は engine 確定 5 event (packet §1.3)** — pair 別の実測率 (N share) を置換できる N ではない (3 pair × 数 event)。**10-05 追記の OOS N share (0.260/0.367/0.373) 加重を据え置く** (forward 実測で置換するのは F2 判定 12-31 以降)。
+
+### 8-7. §6-9 D16 (record) — 単一化 PR の着地
+
+- 単一化 PR #308 → Render deploy **2026-10-04T06:03:40Z** (= regime break 二次キー)。検証 (i) `[AutoStart] plan=fork_child import_context=gunicorn_master` → `Starting 24 modes (pid=129 role=forked)` ✅ / (ii) `[MainLoop]` 全行 pid 129 (2 系列目なし) ✅ / (iii) deploy 後の新規 row 8/8 が `[EMIT_PROC] forked:forkchild` ✅ (10-05) / (iv) 近接ペア (Δ≤45s) 0 は N=8 の予備値、確定は 10-13 の翌週 readout → REG `dual-engine-master-worker-disposition` (期日 10-12) で resolve。10-07T02:23Z status: engine_pid 130 (10-07 docs deploy で instance 再生成)。
+- 本読み p_f = 0.594 [0.548, 0.639] は位相で不安定 (窓外 0.416) — **補正係数に使わない** (MEMORY `project_single_engine_deploy_regime_break_2026_10_04`)。pre-reg 窓を跨ぐ LOCK は marker (一次) + deploy 時刻 (二次) で層別。
+
+### 8-8. D7 (kalman) の入力更新
+
+- kalman 3 variant の LIVE fill は **6 本 (po_dn_flip 5 / ema75_break 1、09-10〜10-05、clean)** = R2 `t9-kalman-d7-live-n10-ev-check` (n_decide 10、期日 12-09) に対し 6/10。EV は書かない (estimand 凍結が D7 承認待ち — 承認前に N=10 到達なら判定保留、packet §3)。
+- live exit 仕様非同期の disposition packet を **[[kalman-d7-live-exit-disposition-packet-2026-10-07]]** として起票 (harness 未検証・順位のみ、決裁肢 (a)(b)(c))。D7 の返答は **「postfill packet 承認」+「disposition (a)/(b)/(c)」の 2 項目**になる (返答書式 §5 の D7 欄に併記して読む)。
+
+### 8-9. 返答書式 (v1.0 補訂)
+
+```
+D5: (a) 復元起案 / (b) as-placed 新宣言 [推奨外] / (d) 現状維持   ← (c) のみ S3 20/20 両正で不発
+D7: 承認 + disposition (a)/(b)/(c)  ← kalman-d7-live-exit-disposition-packet-2026-10-07
+D3: 額 ¥__ と時点 __ ; 同時に D2(i)=(a) か 0.2x 解除のどちらかを明記 (§8-6)
+```
+他の項目は §5 のまま。「推奨どおり」1 語の解釈も §5 のまま (D3 額 / D4 / D10 金額は user の数字待ち)。
+
+### 8-10. 期日運用の訂正 (記録)
+
+- REG `integrated-decision-packet-d1-d12` (10-08) → 本節で確定版着地 = resolved (10-07)。**user 返答期限 11-30 の読み手 = 後継 REG `integrated-decision-packet-d1-d12-user-response` (期日 11-29、D1〜D12/D15 全項目の返答有無を読む; TRIGGERED = 無回答項目の既定挙動を KB に明記して resolved、再上程はしない)** — `carry-dip-v3-revival-watch` は D5、`kalman-d7-live-exit-disposition-user-decision` は D7、F4 は D3 の再上程しか覆わないため (Codex P2 4202512699 / 4202548167)。固定日の**再上程** entry は置かない (PR #314 訂正に従う — 返答期限の読み手とは別物)。F4 TRIGGERED 時の record 再上程は REG `project-falsification-f4-nav-floor-clock` が読み手。
+- **D11 の実装期限 11-10 (§4 表) の読み手 = REG `integrated-decision-packet-d11-both-basis-impl` (期日 **10-31**)** — `m1_clean_live_monitor.py --strong` への broker realized 列 (Claude 実装、R3) と REG F3 `condition` 字義の改定可否 (U7 user 承認事項) を、carry_dip N≥30 の最速到達の**前**に閉じる。最速到達は 2 推定の早い方 = **11-09** (§8-0 monitor M3a の線形外挿) / 11-11 (§8-1 0.282/日) — 11-09 期日では初アラートが 11-10 で N≥30 と同時になり得るため、実装 + 既定確定の余裕 ≥8 日を取って 10-31 (Codex P2 4202673535)。user-response entry (11-29) は D11 の 11-10 を覆わないため別 entry (Codex P2 4202640519)。
+- REG `e1-first-look-freeze-due` の期日 **10-08 は据え置き** (凍結は 10-09 run で実行。cron は `today > deadline` で判定するので 10-08 のままなら **10-09 00:20Z に TRIGGERED** が出て同日 run の凍結実行を催促する = 前日規則の正しい適用。本 run で一度 10-09 に動かしたが、それだと初アラートが 10-10 になり 10-09 の空振りを検知できない — Codex P2 4202599693 で戻した)。[[e1-first-look-runbook-2026-09-22]] §3 改訂版の手順は不変。TRIGGERED は 10-09 run が凍結を終えて resolve するまで出続ける (設計どおり)。
+
+### 8-11. caveat (v1.0 で増えたもの)
+
+- 8-4 の F4 発火日は 22 日窓の edge 残差に依存 (window roll で ±数週動く) — 幅で引用、点推定を KPI に書かない。
+- 8-2 の為替換算は MASSIVE 15m 最終 close (10-07、mid) — OANDA 実レートとの差は証拠金で ±0.5% 程度、binding 判定を変えない。
+- 8-1 の carry_dip broker EV +3.33p は N=20 の点推定で CI 未算出 (D5 の判断材料は「両正・R2 不成立」の符号のみ)。
+- 本節も文書のみ (価格・DB の outcome 計算ゼロ。clean live 30d の値は既存 monitor の出力を転記)。
