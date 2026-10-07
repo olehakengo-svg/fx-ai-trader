@@ -257,7 +257,7 @@ D1: B / D2: (i) L73 (ii) type×pair×dir / D3: 額 ¥__ と時点 __ のみ (方
 
 - S3 = [[carry-dip-broker-reconcile-2026-09-22]]: **14/14 突合 (09-22)** demo +103.0p / broker +¥793 = +79.3p、以降の fill も全数突合で **20/20** (card 10-05 節: demo N 20 / 11W / WR 55.0% / +88.9 / EV +4.45、broker **+¥665 = +66.5p / EV +3.33p**)。符号不一致 1 本 (#709598、既知の halted-exit 族) のみ。
 - **帰結: 分岐 (c) [両 estimand で deduped LIVE EV<0] は不発** — REG `carry-dip-v3-revival-watch` R2 は両基準で不成立 (autopilot 執行なし)。D5 は **(a) 宣言契約復元の起案 / (d) 現状維持 の二択**に縮約 ((b) as-placed 新宣言は BT 根拠なしで Rule 1 例外再承認が要るため推奨外のまま)。
-- Claude 推奨は **(a)** に据え置き (根拠: 09-22〜10-05 の `[SLTP_CONSTRUCT]` marker で SL 契約破棄 **20/20** (宣言 150p → 9.8〜28.5p、`atr_nosr`)・TP ×0.85 短縮が fill 行単位で確定 — 現 N=20 は宣言セルの N ではない)。**(a) は Rule 1 (user 決裁)、autopilot は執行しない**。
+- Claude 推奨は **(a)** に据え置き。根拠は出所を 2 層に分ける (Codex P2 4202487398): (i) **観測層 = 20/20** — broker tx の ON_FILL SL 距離が全 fill で宣言 150p と乖離 (9.8〜28.5p 帯、[[carry-dip-broker-reconcile-2026-09-22]] §2 + card 09-25〜10-05 節) と TP ×0.85 短縮 (broker TP / demo TP = 0.841〜0.867) — **分岐の機構は fill #1〜#16 では復元不能** (marker 以前)。(ii) **機構層 = marker 付き 4/4** — `[SLTP_CONSTRUCT]` は PR #300 (09-26 デプロイ) 以降の fill #17 (#893207、09-28) 〜 #20 のみに付き、4 本とも `sl=atr_nosr clamp=none` / `[BROKER_TP] basis=qh mult=0.85` (`tools/sltp_construct_readout.py --since 2026-09-26`: decl 150.0 → 実 SL mean 22.7p、件数・距離のみ)。∴ 現 N=20 は宣言セルの N ではない (観測層で全件)、機構の確定は 4 本 (機構層)。**(a) は Rule 1 (user 決裁)、autopilot は執行しない**。
 - G3 到達日 (§3.4 末尾の再計算): (b)/(d) なら現 N=20 から **N≥30 = 2026-11-11 (0.282/日) 〜 12-05 (0.167/日)** (09-22 の 11-18〜02-07 を置換)、(a) なら復元日 + 107〜180 日 (不変)。⚠️ (d) の N は宣言と別戦略の N で G3 に使えない (D5 根拠 (2))。
 
 ### 8-2. §6-2 / §6-7 D3 補項 — wg 3 leg @L1 の証拠金・exposure cap (reassess §9-15) と per-leg rung 可否
