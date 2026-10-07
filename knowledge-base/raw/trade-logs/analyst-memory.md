@@ -5131,6 +5131,16 @@ Cutoff後全期間累積でも N=2、PnL=-24.5p、EV=-12.25 — データとし�
 - `usdjpy_carry_dip_accumulator` のEV+14.85は2件の高EVトレードによるバイアス大。平均回帰を強く意識すべき
 - **今日やるべきこと**：無発注の主因が「レジーム不適合」か「demoted cell遮断」かを区別して監視。Block Countsの`r2_shadow_demoted_cell`がさらに増加していればdemoted cell主因と判断可能
 
+### 2026-10-07 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | N/A |
+- 10-05: kalman #1027829 +¥6 / carry_dip #1022861 +¥290（東京時間帯での小幅プラス実績あり）
+- ただし本日は完全な無発砲 — シグナル抑制要因が支配的
+- 本日の無発砲はコード設計通りの動作（Shadow降格ガード、dedup、no_signal）
+- OANDA Bridge側も `shadow_tracking` 16件 + `agg_kelly=-0.325<0` 1件でKelly負値によるブロックが確認 → リスクフィルターが正常機能
+- DD防御モード（0.2x）継続中 — この状況下での積極的パラメータ操作はミッション基準外
+- **N=0セッション単体での判断変更はサンプルバイアスの典型** → 少なくともN=5以上のセッションデータ蓄積を待つべき
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
