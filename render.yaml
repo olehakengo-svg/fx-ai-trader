@@ -275,6 +275,10 @@ services:
   # Live N>=10 で EV<0 or Wilson<0.40 なら auto demote state file 書込 → DemoTrader 次起動で反映
   # Live N>=30 で Bonferroni m=5 p<0.01 + 6 週 EV>0 なら lot ramp 提案 (Discord 通知のみ)
   # 関連: knowledge-base/wiki/decisions/price-shock-rev-live-activation-2026-05-18.md
+  # ⚠️ (rule:R3 2026-10-08) この cron の --apply が書く data/price_shock_rev_auto_demotions.json は
+  #    cron 自身の一時 FS にあり web service からは読めない。DEMOTE の binding 経路は
+  #    DemoTrader の in-process 評価 (modules/price_shock_rev_watchdog_core.py、同一 predicate)。
+  #    ここは Discord 通知の readout のみ。registry: ps-watchdog-demotion-state-unreachable
   - type: cron
     name: fx-ai-price-shock-rev-watchdog
     runtime: python

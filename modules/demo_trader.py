@@ -991,6 +991,13 @@ class _NoPriceError(Exception):
 class DemoTrader:
     def __init__(self, db: DemoDB):
         self._db = db
+        # price_shock_rev watchdog verdict must be loaded before the startup
+        # resend path (and any classmethod gate) runs — the class-level set
+        # starts empty on every restart (Codex P1 4214808057).
+        try:
+            self._refresh_price_shock_rev_in_process_demotions(force=True)
+        except Exception:
+            pass
         self._engine = LearningEngine(db)
         self._daily_review = DailyReviewEngine(db, self._engine)
         self._oanda = OandaBridge(db=self._db)
@@ -1923,6 +1930,12 @@ class DemoTrader:
     def _resend_pending_oanda_trades(self):
         """デプロイ中にOANDA未連携だったOPENトレードを補完送信.
         5分以上前のトレードはスキップ（価格乖離が大きいため）."""
+        # resend gate は _is_force_demoted_entry (classmethod) を直接読むので、
+        # ここで watchdog verdict を強制 refresh してから判定する (Codex P1 4214808057)。
+        try:
+            self._refresh_price_shock_rev_in_process_demotions(force=True)
+        except Exception:
+            pass
         if not self._oanda.active:
             return
         try:
@@ -2422,6 +2435,25 @@ class DemoTrader:
             "sltp_checker_active": bool(self._sltp_thread and self._sltp_thread.is_alive()),
             "tick_counts": getattr(self, '_tick_counts', None),
             "main_loop_restarts": getattr(self, '_main_loop_restart_count', 0),
+            # price_shock_rev watchdog verdict as seen by THIS process (rule:R3 2026-10-08,
+            # registry ps-watchdog-demotion-state-unreachable) — the readout that proves
+            # a DEMOTE reaches the order gate. `in_process` = DB evaluation, `effective`
+            # = in_process ∪ state file (what `_is_promoted_ex` actually consults).
+            "price_shock_rev_auto_demotions": {
+                "in_process": sorted(list(c) for c in type(self)._PS_REV_INPROCESS_DEMOTIONS),
+                "effective": sorted(list(c) for c in self._read_price_shock_rev_auto_demotions()),
+                "persisted": (lambda s: None if s is None else sorted(list(c) for c in s))(
+                    self._load_persisted_price_shock_rev_demotions()),
+                "latch_loaded": type(self)._PS_REV_LATCH_LOADED,
+                "fail_closed": type(self)._PS_REV_FAIL_CLOSED,
+                "persist_pending": type(self)._PS_REV_PERSIST_PENDING,
+                "refreshed_at": (
+                    datetime.fromtimestamp(type(self)._PS_REV_INPROCESS_REFRESHED_AT, tz=timezone.utc).isoformat()
+                    if type(self)._PS_REV_INPROCESS_REFRESHED_AT else None
+                ),
+                "ttl_sec": type(self).PRICE_SHOCK_REV_INPROCESS_TTL_SEC,
+                "last_error": type(self)._PS_REV_INPROCESS_LAST_ERROR or None,
+            },
             # ── プロセス帰属 (rule:R3, 2026-09-24): この payload を返した
             #    エンジンの PID / role。gunicorn では常に worker (forked) 側 —
             #    master のエンジンは API から不可視 (二重起動 §1)。
@@ -10304,17 +10336,207 @@ class DemoTrader:
             )
         )
 
+    # ── price_shock_rev live watchdog: in-process evaluation (rule:R3, 2026-10-08) ──
+    # Registry `ps-watchdog-demotion-state-unreachable` (PR #306 Codex P1): the Render
+    # cron wrote the DEMOTE state file on its *own* filesystem, so the file read
+    # above never existed in the web service — a DEMOTE verdict could not reach
+    # `_is_promoted_ex`. The trading process now evaluates the identical predicate
+    # (modules/price_shock_rev_watchdog_core.py = the cron's own functions) from
+    # its SQLite every PRICE_SHOCK_REV_INPROCESS_TTL_SEC and keeps the result at
+    # class level so the classmethod readers (`_is_force_demoted_entry` callers at
+    # the final gate / resend gate) see the same set. The state file stays as a
+    # secondary source (manual override / local dev). Population is the 05-18
+    # declaration (is_shadow=0 ∧ CLOSED per cell) — unchanged.
+    PRICE_SHOCK_REV_INPROCESS_TTL_SEC = 600
+    # Latched DEMOTE set is persisted here (system_kv, JSON list of [entry_type,
+    # instrument]) so a Render restart cannot clear it (Codex P1 4214808052):
+    # the predicate is evaluated on an aggregate that a later profitable close can
+    # flip back to HOLD, so the in-process set must only grow (like the old
+    # write_state() accumulation) until an explicit operator reset.
+    PRICE_SHOCK_REV_DEMOTION_KV_KEY = "price_shock_rev_auto_demotions_v1"
+    _PS_REV_INPROCESS_DEMOTIONS: set[tuple[str, str]] = set()
+    _PS_REV_INPROCESS_REFRESHED_AT: float = 0.0
+    _PS_REV_INPROCESS_LAST_ERROR: str = ""
+    # Fail-closed latch state (Codex P1 4214970031): until this process has read
+    # the persisted latch successfully at least once, a refresh failure (system_kv
+    # unreadable / malformed JSON / DB locked) must NOT be read as "no demotions"
+    # — all watched cells stay blocked and the refresh retries after
+    # PRICE_SHOCK_REV_INPROCESS_RETRY_SEC. After a successful load, a transient
+    # failure keeps the known (latched) set and retries.
+    PRICE_SHOCK_REV_INPROCESS_RETRY_SEC = 30
+    _PS_REV_LATCH_LOADED: bool = False
+    _PS_REV_FAIL_CLOSED: bool = False
+    # A latch write that failed (SQLite lock / disk) is NOT persisted: keep the
+    # in-memory block, remember the pending write and retry it on the next refresh
+    # (Codex P1 4215037466) — otherwise a restart after the aggregate recovered
+    # to HOLD would silently resume live orders.
+    _PS_REV_PERSIST_PENDING: bool = False
+    # One lock for the whole read → evaluate → union → persist → publish sequence:
+    # the worker runs 8 threads, so two strategy runners can pass the TTL check
+    # together and a stale union could overwrite the other thread's larger set
+    # (Codex P1 4215106664). RLock so a nested call (e.g. from _add_log) cannot
+    # deadlock.
+    _PS_REV_REFRESH_LOCK = threading.RLock()
+
+    def _refresh_price_shock_rev_in_process_demotions(self, force: bool = False) -> set[tuple[str, str]]:
+        """Re-evaluate the watchdog predicate from this process's DB (TTL-cached).
+
+        Never raises: a DB failure keeps the previous set (fail-closed for a cell
+        that was already DEMOTE, no new block for the others) and records the error
+        for the status payload. The whole sequence runs under
+        ``_PS_REV_REFRESH_LOCK`` (TTL check included, so a thread that waited on
+        the lock re-checks the TTL and does not redo the work).
+        """
+        with type(self)._PS_REV_REFRESH_LOCK:
+            return self._refresh_price_shock_rev_in_process_demotions_locked(force=force)
+
+    def _refresh_price_shock_rev_in_process_demotions_locked(self, force: bool = False) -> set[tuple[str, str]]:
+        cls = type(self)
+        now = time.time()
+        if not force and (now - cls._PS_REV_INPROCESS_REFRESHED_AT) < cls.PRICE_SHOCK_REV_INPROCESS_TTL_SEC:
+            return cls._PS_REV_INPROCESS_DEMOTIONS
+        db = getattr(self, "_db", None)
+        if db is None or not hasattr(db, "_safe_conn"):
+            return cls._PS_REV_INPROCESS_DEMOTIONS
+        try:
+            from modules.price_shock_rev_watchdog_core import WATCHED_CELLS, demoted_cells
+            types = sorted({et for et, _inst in WATCHED_CELLS})
+            placeholders = ",".join("?" for _ in types)
+            with db._safe_conn() as conn:
+                rows = conn.execute(
+                    "SELECT entry_type, instrument, is_shadow, status, pnl_pips "
+                    "FROM demo_trades WHERE status='CLOSED' "
+                    f"AND entry_type IN ({placeholders})",
+                    types,
+                ).fetchall()
+            before = set(cls._PS_REV_INPROCESS_DEMOTIONS)
+            fresh = demoted_cells(dict(r) for r in rows)
+            fresh = {cell for cell in fresh if cell in PRICE_SHOCK_REV_TIER1_PAIRS}
+            # Publish the successfully evaluated predicate into the in-memory latch
+            # BEFORE anything below can fail: a cell that newly crossed DEMOTE must
+            # block the next order even if the system_kv read/write fails
+            # (Codex P1 4215165224). The in-memory set only grows.
+            if fresh - cls._PS_REV_INPROCESS_DEMOTIONS:
+                cls._PS_REV_INPROCESS_DEMOTIONS = set(cls._PS_REV_INPROCESS_DEMOTIONS) | fresh
+                cls._PS_REV_PERSIST_PENDING = True  # until the write below succeeds
+            persisted = self._load_persisted_price_shock_rev_demotions()
+            if persisted is None:
+                raise RuntimeError("persisted latch unreadable (system_kv)")
+            # LATCH: never shrink. A cell demoted at N=10 stays demoted even if a
+            # later profitable close lifts the aggregate above the predicate
+            # (Codex P1 4214808052). Release = explicit operator reset only.
+            latched = set(cls._PS_REV_INPROCESS_DEMOTIONS) | persisted | fresh
+            if latched != before:
+                try:
+                    self._add_log(
+                        "[PS_WATCHDOG] in-process DEMOTE set latched: "
+                        f"{sorted(before)} -> {sorted(latched)} "
+                        f"(fresh={sorted(fresh)}, persisted={sorted(persisted)})"
+                    )
+                except Exception:
+                    pass
+            # in-memory block first: it must hold even if the write below fails
+            cls._PS_REV_INPROCESS_DEMOTIONS = latched
+            cls._PS_REV_LATCH_LOADED = True
+            if (latched - persisted) or cls._PS_REV_PERSIST_PENDING:
+                if not self._persist_price_shock_rev_demotions(latched):
+                    cls._PS_REV_PERSIST_PENDING = True
+                    raise RuntimeError(
+                        f"latch write failed, retry pending: {cls._PS_REV_INPROCESS_LAST_ERROR}"
+                    )
+                cls._PS_REV_PERSIST_PENDING = False
+            cls._PS_REV_INPROCESS_LAST_ERROR = ""
+            if cls._PS_REV_FAIL_CLOSED:
+                try:
+                    self._add_log("[PS_WATCHDOG] latch readable again — fail-closed block released")
+                except Exception:
+                    pass
+            cls._PS_REV_FAIL_CLOSED = False
+            cls._PS_REV_INPROCESS_REFRESHED_AT = now
+        except Exception as exc:  # DB locked / kv unreadable / schema drift
+            cls._PS_REV_INPROCESS_LAST_ERROR = f"{type(exc).__name__}: {exc}"[:200]
+            if not cls._PS_REV_LATCH_LOADED:
+                # Never loaded in this process: an unreadable latch is NOT an empty
+                # latch. Block every watched cell until it can be read.
+                if not cls._PS_REV_FAIL_CLOSED:
+                    try:
+                        self._add_log(
+                            "[PS_WATCHDOG] persisted latch unreadable before first load — "
+                            f"fail-closed: all price_shock_rev cells blocked ({cls._PS_REV_INPROCESS_LAST_ERROR})"
+                        )
+                    except Exception:
+                        pass
+                cls._PS_REV_FAIL_CLOSED = True
+            # keep the last known (latched) set; retry soon instead of waiting a full TTL
+            cls._PS_REV_INPROCESS_REFRESHED_AT = (
+                now - cls.PRICE_SHOCK_REV_INPROCESS_TTL_SEC + cls.PRICE_SHOCK_REV_INPROCESS_RETRY_SEC
+            )
+        return cls._PS_REV_INPROCESS_DEMOTIONS
+
+    def _load_persisted_price_shock_rev_demotions(self) -> set[tuple[str, str]] | None:
+        """Persisted latch, or **None when it cannot be read** (kv error / malformed
+        JSON / not a list). None is a failure the caller must treat as fail-closed —
+        never as an empty latch (Codex P1 4214970031)."""
+        db = getattr(self, "_db", None)
+        if db is None or not hasattr(db, "get_system_kv"):
+            return None
+        try:
+            raw = db.get_system_kv(type(self).PRICE_SHOCK_REV_DEMOTION_KV_KEY, "[]")
+            rows = json.loads(raw or "[]")
+        except Exception:
+            return None
+        if not isinstance(rows, list):
+            return None
+        out: set[tuple[str, str]] = set()
+        for row in rows:
+            if isinstance(row, (list, tuple)) and len(row) == 2:
+                cell = (str(row[0]), str(row[1]))
+                if cell in PRICE_SHOCK_REV_TIER1_PAIRS:
+                    out.add(cell)
+        return out
+
+    def _persist_price_shock_rev_demotions(self, cells: set[tuple[str, str]]) -> bool:
+        """Write the latch. Returns False (and records last_error) on failure —
+        the caller keeps the in-memory block and retries (Codex P1 4215037466)."""
+        db = getattr(self, "_db", None)
+        if db is None or not hasattr(db, "set_system_kv"):
+            type(self)._PS_REV_INPROCESS_LAST_ERROR = "persist: no db"
+            return False
+        try:
+            db.set_system_kv(
+                type(self).PRICE_SHOCK_REV_DEMOTION_KV_KEY,
+                json.dumps(sorted(list(c) for c in cells)),
+            )
+            return True
+        except Exception as exc:
+            type(self)._PS_REV_INPROCESS_LAST_ERROR = f"persist: {type(exc).__name__}: {exc}"[:200]
+            return False
+
+    def _reset_price_shock_rev_in_process_demotions(self) -> None:
+        """Operator-only release of the latch (R1: re-live of a demoted cell needs
+        its own decision). Not called anywhere automatically."""
+        cls = type(self)
+        with cls._PS_REV_REFRESH_LOCK:
+            cls._PS_REV_INPROCESS_DEMOTIONS = set()
+            cls._PS_REV_INPROCESS_REFRESHED_AT = 0.0
+            self._persist_price_shock_rev_demotions(set())
+            cls._PS_REV_LATCH_LOADED = False
+            cls._PS_REV_FAIL_CLOSED = False
+            cls._PS_REV_PERSIST_PENDING = False
+
     @classmethod
     def _read_price_shock_rev_auto_demotions(cls) -> set[tuple[str, str]]:
+        """Union of the in-process verdict (binding on Render) and the state file
+        (secondary: manual override / local dev / legacy cron output)."""
+        demotions: set[tuple[str, str]] = set(cls._PS_REV_INPROCESS_DEMOTIONS)
         path = cls._price_shock_rev_demotion_state_path()
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
-            return set()
+            return demotions
         except Exception:
-            return set()
+            return demotions
         rows = payload.get("demotions", []) if isinstance(payload, dict) else []
-        demotions: set[tuple[str, str]] = set()
         for row in rows:
             if not isinstance(row, dict):
                 continue
@@ -10328,6 +10550,9 @@ class DemoTrader:
     def _is_price_shock_rev_auto_demoted(cls, entry_type: str, instrument: str = "") -> bool:
         if entry_type not in PRICE_SHOCK_REV_TIER1_TYPES:
             return False
+        if cls._PS_REV_FAIL_CLOSED:
+            # persisted latch unreadable before first successful load → block
+            return True
         demotions = cls._read_price_shock_rev_auto_demotions()
         return (entry_type, instrument) in demotions or (entry_type, "") in demotions
 
@@ -10901,6 +11126,10 @@ class DemoTrader:
         if _mode == "off":
             return False, "mode_off"  # 手動停止
 
+        # watchdog verdict is evaluated in-process (TTL-cached) — the cron's
+        # state file never reaches this process on Render (rule:R3 2026-10-08).
+        if entry_type in PRICE_SHOCK_REV_TIER1_TYPES:
+            self._refresh_price_shock_rev_in_process_demotions()
         if self._is_price_shock_rev_auto_demoted(entry_type, instrument):
             return False, "price_shock_rev_auto_demoted"
 

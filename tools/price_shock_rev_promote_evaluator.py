@@ -20,8 +20,10 @@ from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 DEFAULT_API = "https://fx-ai-trader.onrender.com"
-DEFAULT_LIMIT = 10000
+DEFAULT_LIMIT = 2000  # per-page size; fetch_trades pages through all closed trades
 MIN_LIVE_N = 30
 WILSON_MIN = 0.50
 BONFERRONI_M = 5
@@ -75,20 +77,17 @@ def binomial_p_greater_or_equal(wins: int, n: int, p: float = 0.5) -> float:
 
 
 def fetch_trades(api: str, limit: int = DEFAULT_LIMIT) -> list[dict[str, Any]]:
-    url = f"{api.rstrip('/')}/api/demo/trades?status=closed&limit={int(limit)}"
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
-        raise ValueError(f"refusing invalid API URL: {url!r}")
-    req = urllib.request.Request(
-        url, headers={"User-Agent": "price-shock-rev-promote-evaluator/1.0"}
+    """All closed trades, paged by `limit` (sibling of the watchdog single-page
+    defect — one page of 10000 is not guaranteed to reach 2026-05-18; rule:R3
+    2026-10-08, registry ps-watchdog-demotion-state-unreachable)."""
+    from modules.price_shock_rev_watchdog_core import fetch_closed_trades_paged
+
+    return fetch_closed_trades_paged(
+        api,
+        opener=lambda req, timeout: _SAFE_OPENER.open(req, timeout=timeout),
+        user_agent="price-shock-rev-promote-evaluator/1.1",
+        page_size=int(limit),
     )
-    with _SAFE_OPENER.open(req, timeout=30) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
-    if isinstance(payload, dict):
-        return payload.get("trades", []) or []
-    if isinstance(payload, list):
-        return payload
-    return []
 
 
 def load_trades_from_sqlite(db_path: Path) -> list[dict[str, Any]]:
