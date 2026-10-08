@@ -188,6 +188,61 @@ def test_status_payload_exposes_in_process_verdict(trader):
     assert '"price_shock_rev_auto_demotions": {' in src  # key wired into get_status()
 
 
+def test_demotion_is_latched_and_persisted_across_restart(trader, tmp_path):
+    """Codex P1 4214808052: a later profitable close must not un-demote a cell,
+    and a process restart (empty class set) must not either."""
+    for i in range(10):
+        _insert_closed(trader._db, trade_id=f"l{i}", cell=USD_CAD, pnl_pips=-1.0)
+    trader._refresh_price_shock_rev_in_process_demotions(force=True)
+    assert DemoTrader._PS_REV_INPROCESS_DEMOTIONS == {USD_CAD}
+    assert trader._load_persisted_price_shock_rev_demotions() == {USD_CAD}
+
+    # aggregate flips back to HOLD (a run of winners: N=40, WR 0.75, Wilson_lo>0.40,
+    # EV>0) → predicate no longer true
+    for i in range(30):
+        _insert_closed(trader._db, trade_id=f"win-{i}", cell=USD_CAD, pnl_pips=+1.0)
+    assert core.demoted_cells(core.filter_live_cell(
+        [dict(r) for r in trader._db._safe_conn().__enter__().execute(
+            "SELECT entry_type, instrument, is_shadow, status, pnl_pips FROM demo_trades").fetchall()],
+        *USD_CAD)) == set()
+    trader._refresh_price_shock_rev_in_process_demotions(force=True)
+    assert DemoTrader._PS_REV_INPROCESS_DEMOTIONS == {USD_CAD}  # latched
+
+    # restart: fresh class set, same DB → restored from system_kv even though
+    # the live predicate is now HOLD
+    DemoTrader._PS_REV_INPROCESS_DEMOTIONS = set()
+    DemoTrader._PS_REV_INPROCESS_REFRESHED_AT = 0.0
+    t2 = DemoTrader.__new__(DemoTrader)
+    t2._db = trader._db
+    t2._add_log = lambda m: None
+    t2._refresh_price_shock_rev_in_process_demotions(force=True)
+    assert DemoTrader._PS_REV_INPROCESS_DEMOTIONS == {USD_CAD}
+    assert DemoTrader._is_force_demoted_entry(*USD_CAD) is True
+
+    # explicit operator reset is the only release
+    t2._reset_price_shock_rev_in_process_demotions()
+    assert DemoTrader._PS_REV_INPROCESS_DEMOTIONS == set()
+    assert t2._load_persisted_price_shock_rev_demotions() == set()
+
+
+def test_startup_resend_path_refreshes_before_its_gate(trader):
+    """Codex P1 4214808057: _resend_pending_oanda_trades consults
+    _is_force_demoted_entry (classmethod) directly; after a restart the class set
+    is empty, so the resend path must refresh first."""
+    for i in range(10):
+        _insert_closed(trader._db, trade_id=f"l{i}", cell=USD_CAD, pnl_pips=-1.0)
+    DemoTrader._PS_REV_INPROCESS_DEMOTIONS = set()
+    DemoTrader._PS_REV_INPROCESS_REFRESHED_AT = 0.0
+    assert DemoTrader._is_force_demoted_entry(*USD_CAD) is False  # restart state
+
+    class _InactiveOanda(_OandaStub):
+        active = False
+
+    trader._oanda = _InactiveOanda()
+    trader._resend_pending_oanda_trades()
+    assert DemoTrader._is_force_demoted_entry(*USD_CAD) is True
+
+
 # ---------------- API paging ----------------
 
 class _Resp(io.BytesIO):

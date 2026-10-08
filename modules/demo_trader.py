@@ -991,6 +991,13 @@ class _NoPriceError(Exception):
 class DemoTrader:
     def __init__(self, db: DemoDB):
         self._db = db
+        # price_shock_rev watchdog verdict must be loaded before the startup
+        # resend path (and any classmethod gate) runs — the class-level set
+        # starts empty on every restart (Codex P1 4214808057).
+        try:
+            self._refresh_price_shock_rev_in_process_demotions(force=True)
+        except Exception:
+            pass
         self._engine = LearningEngine(db)
         self._daily_review = DailyReviewEngine(db, self._engine)
         self._oanda = OandaBridge(db=self._db)
@@ -1923,6 +1930,12 @@ class DemoTrader:
     def _resend_pending_oanda_trades(self):
         """デプロイ中にOANDA未連携だったOPENトレードを補完送信.
         5分以上前のトレードはスキップ（価格乖離が大きいため）."""
+        # resend gate は _is_force_demoted_entry (classmethod) を直接読むので、
+        # ここで watchdog verdict を強制 refresh してから判定する (Codex P1 4214808057)。
+        try:
+            self._refresh_price_shock_rev_in_process_demotions(force=True)
+        except Exception:
+            pass
         if not self._oanda.active:
             return
         try:
@@ -2429,6 +2442,7 @@ class DemoTrader:
             "price_shock_rev_auto_demotions": {
                 "in_process": sorted(list(c) for c in type(self)._PS_REV_INPROCESS_DEMOTIONS),
                 "effective": sorted(list(c) for c in self._read_price_shock_rev_auto_demotions()),
+                "persisted": sorted(list(c) for c in self._load_persisted_price_shock_rev_demotions()),
                 "refreshed_at": (
                     datetime.fromtimestamp(type(self)._PS_REV_INPROCESS_REFRESHED_AT, tz=timezone.utc).isoformat()
                     if type(self)._PS_REV_INPROCESS_REFRESHED_AT else None
@@ -10330,6 +10344,12 @@ class DemoTrader:
     # secondary source (manual override / local dev). Population is the 05-18
     # declaration (is_shadow=0 ∧ CLOSED per cell) — unchanged.
     PRICE_SHOCK_REV_INPROCESS_TTL_SEC = 600
+    # Latched DEMOTE set is persisted here (system_kv, JSON list of [entry_type,
+    # instrument]) so a Render restart cannot clear it (Codex P1 4214808052):
+    # the predicate is evaluated on an aggregate that a later profitable close can
+    # flip back to HOLD, so the in-process set must only grow (like the old
+    # write_state() accumulation) until an explicit operator reset.
+    PRICE_SHOCK_REV_DEMOTION_KV_KEY = "price_shock_rev_auto_demotions_v1"
     _PS_REV_INPROCESS_DEMOTIONS: set[tuple[str, str]] = set()
     _PS_REV_INPROCESS_REFRESHED_AT: float = 0.0
     _PS_REV_INPROCESS_LAST_ERROR: str = ""
@@ -10359,22 +10379,67 @@ class DemoTrader:
                     f"AND entry_type IN ({placeholders})",
                     types,
                 ).fetchall()
-            demoted = demoted_cells(dict(r) for r in rows)
-            demoted = {cell for cell in demoted if cell in PRICE_SHOCK_REV_TIER1_PAIRS}
-            if demoted != cls._PS_REV_INPROCESS_DEMOTIONS:
+            fresh = demoted_cells(dict(r) for r in rows)
+            fresh = {cell for cell in fresh if cell in PRICE_SHOCK_REV_TIER1_PAIRS}
+            persisted = self._load_persisted_price_shock_rev_demotions()
+            # LATCH: never shrink. A cell demoted at N=10 stays demoted even if a
+            # later profitable close lifts the aggregate above the predicate
+            # (Codex P1 4214808052). Release = explicit operator reset only.
+            latched = set(cls._PS_REV_INPROCESS_DEMOTIONS) | persisted | fresh
+            if latched != cls._PS_REV_INPROCESS_DEMOTIONS:
                 try:
                     self._add_log(
-                        "[PS_WATCHDOG] in-process DEMOTE set changed: "
-                        f"{sorted(cls._PS_REV_INPROCESS_DEMOTIONS)} -> {sorted(demoted)}"
+                        "[PS_WATCHDOG] in-process DEMOTE set latched: "
+                        f"{sorted(cls._PS_REV_INPROCESS_DEMOTIONS)} -> {sorted(latched)} "
+                        f"(fresh={sorted(fresh)}, persisted={sorted(persisted)})"
                     )
                 except Exception:
                     pass
-            cls._PS_REV_INPROCESS_DEMOTIONS = demoted
+            if latched - persisted:
+                self._persist_price_shock_rev_demotions(latched)
+            cls._PS_REV_INPROCESS_DEMOTIONS = latched
             cls._PS_REV_INPROCESS_LAST_ERROR = ""
         except Exception as exc:  # DB locked / schema drift: keep last known set
             cls._PS_REV_INPROCESS_LAST_ERROR = f"{type(exc).__name__}: {exc}"[:200]
         cls._PS_REV_INPROCESS_REFRESHED_AT = now
         return cls._PS_REV_INPROCESS_DEMOTIONS
+
+    def _load_persisted_price_shock_rev_demotions(self) -> set[tuple[str, str]]:
+        db = getattr(self, "_db", None)
+        if db is None or not hasattr(db, "get_system_kv"):
+            return set()
+        try:
+            raw = db.get_system_kv(type(self).PRICE_SHOCK_REV_DEMOTION_KV_KEY, "[]")
+            rows = json.loads(raw or "[]")
+        except Exception:
+            return set()
+        out: set[tuple[str, str]] = set()
+        for row in rows if isinstance(rows, list) else []:
+            if isinstance(row, (list, tuple)) and len(row) == 2:
+                cell = (str(row[0]), str(row[1]))
+                if cell in PRICE_SHOCK_REV_TIER1_PAIRS:
+                    out.add(cell)
+        return out
+
+    def _persist_price_shock_rev_demotions(self, cells: set[tuple[str, str]]) -> None:
+        db = getattr(self, "_db", None)
+        if db is None or not hasattr(db, "set_system_kv"):
+            return
+        try:
+            db.set_system_kv(
+                type(self).PRICE_SHOCK_REV_DEMOTION_KV_KEY,
+                json.dumps(sorted(list(c) for c in cells)),
+            )
+        except Exception as exc:
+            type(self)._PS_REV_INPROCESS_LAST_ERROR = f"persist: {type(exc).__name__}: {exc}"[:200]
+
+    def _reset_price_shock_rev_in_process_demotions(self) -> None:
+        """Operator-only release of the latch (R1: re-live of a demoted cell needs
+        its own decision). Not called anywhere automatically."""
+        cls = type(self)
+        cls._PS_REV_INPROCESS_DEMOTIONS = set()
+        cls._PS_REV_INPROCESS_REFRESHED_AT = 0.0
+        self._persist_price_shock_rev_demotions(set())
 
     @classmethod
     def _read_price_shock_rev_auto_demotions(cls) -> set[tuple[str, str]]:
