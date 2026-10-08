@@ -340,6 +340,37 @@ def test_failed_latch_write_keeps_block_and_retries(trader, monkeypatch):
     assert trader._load_persisted_price_shock_rev_demotions() == {USD_CAD}
 
 
+def test_refresh_is_serialized_across_threads(trader, monkeypatch):
+    """Codex P1 4215106664: two runner threads passing the TTL check together must
+    not interleave read/union/persist/publish — the second waits for the first."""
+    import threading
+    for i in range(10):
+        _insert_closed(trader._db, trade_id=f"l{i}", cell=USD_CAD, pnl_pips=-1.0)
+    gate = threading.Event()
+    entered = threading.Event()
+    real_load = trader._load_persisted_price_shock_rev_demotions
+    calls = {"n": 0}
+
+    def slow_load():
+        calls["n"] += 1
+        if calls["n"] == 1:
+            entered.set()
+            gate.wait(5)  # hold the lock mid-sequence
+        return real_load()
+
+    monkeypatch.setattr(trader, "_load_persisted_price_shock_rev_demotions", slow_load)
+    a = threading.Thread(target=lambda: trader._refresh_price_shock_rev_in_process_demotions(force=True))
+    b = threading.Thread(target=lambda: trader._refresh_price_shock_rev_in_process_demotions(force=True))
+    a.start(); assert entered.wait(5)
+    b.start(); b.join(0.3)
+    assert b.is_alive(), "second refresh ran concurrently instead of waiting on the lock"
+    assert calls["n"] == 1
+    gate.set(); a.join(5); b.join(5)
+    assert not a.is_alive() and not b.is_alive()
+    assert DemoTrader._PS_REV_INPROCESS_DEMOTIONS == {USD_CAD}
+    assert trader._load_persisted_price_shock_rev_demotions() == {USD_CAD}
+
+
 # ---------------- API paging ----------------
 
 class _Resp(io.BytesIO):

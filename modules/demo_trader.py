@@ -10371,14 +10371,26 @@ class DemoTrader:
     # (Codex P1 4215037466) — otherwise a restart after the aggregate recovered
     # to HOLD would silently resume live orders.
     _PS_REV_PERSIST_PENDING: bool = False
+    # One lock for the whole read → evaluate → union → persist → publish sequence:
+    # the worker runs 8 threads, so two strategy runners can pass the TTL check
+    # together and a stale union could overwrite the other thread's larger set
+    # (Codex P1 4215106664). RLock so a nested call (e.g. from _add_log) cannot
+    # deadlock.
+    _PS_REV_REFRESH_LOCK = threading.RLock()
 
     def _refresh_price_shock_rev_in_process_demotions(self, force: bool = False) -> set[tuple[str, str]]:
         """Re-evaluate the watchdog predicate from this process's DB (TTL-cached).
 
         Never raises: a DB failure keeps the previous set (fail-closed for a cell
         that was already DEMOTE, no new block for the others) and records the error
-        for the status payload.
+        for the status payload. The whole sequence runs under
+        ``_PS_REV_REFRESH_LOCK`` (TTL check included, so a thread that waited on
+        the lock re-checks the TTL and does not redo the work).
         """
+        with type(self)._PS_REV_REFRESH_LOCK:
+            return self._refresh_price_shock_rev_in_process_demotions_locked(force=force)
+
+    def _refresh_price_shock_rev_in_process_demotions_locked(self, force: bool = False) -> set[tuple[str, str]]:
         cls = type(self)
         now = time.time()
         if not force and (now - cls._PS_REV_INPROCESS_REFRESHED_AT) < cls.PRICE_SHOCK_REV_INPROCESS_TTL_SEC:
@@ -10496,12 +10508,13 @@ class DemoTrader:
         """Operator-only release of the latch (R1: re-live of a demoted cell needs
         its own decision). Not called anywhere automatically."""
         cls = type(self)
-        cls._PS_REV_INPROCESS_DEMOTIONS = set()
-        cls._PS_REV_INPROCESS_REFRESHED_AT = 0.0
-        self._persist_price_shock_rev_demotions(set())
-        cls._PS_REV_LATCH_LOADED = False
-        cls._PS_REV_FAIL_CLOSED = False
-        cls._PS_REV_PERSIST_PENDING = False
+        with cls._PS_REV_REFRESH_LOCK:
+            cls._PS_REV_INPROCESS_DEMOTIONS = set()
+            cls._PS_REV_INPROCESS_REFRESHED_AT = 0.0
+            self._persist_price_shock_rev_demotions(set())
+            cls._PS_REV_LATCH_LOADED = False
+            cls._PS_REV_FAIL_CLOSED = False
+            cls._PS_REV_PERSIST_PENDING = False
 
     @classmethod
     def _read_price_shock_rev_auto_demotions(cls) -> set[tuple[str, str]]:
