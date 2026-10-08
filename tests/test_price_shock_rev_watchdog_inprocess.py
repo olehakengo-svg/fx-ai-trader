@@ -371,6 +371,36 @@ def test_refresh_is_serialized_across_threads(trader, monkeypatch):
     assert trader._load_persisted_price_shock_rev_demotions() == {USD_CAD}
 
 
+def test_fresh_demote_is_published_even_if_latch_read_fails_after_first_load(trader, monkeypatch):
+    """Codex P1 4215165224: after a successful first load, a cell that newly
+    crosses DEMOTE while the system_kv read transiently fails must block
+    immediately (not after the 30s retry), and be persisted on recovery."""
+    import modules.demo_trader as dt
+    clock = {"t": 9_000_000.0}
+    monkeypatch.setattr(dt.time, "time", lambda: clock["t"])
+    trader._refresh_price_shock_rev_in_process_demotions(force=True)
+    assert DemoTrader._PS_REV_LATCH_LOADED is True and DemoTrader._PS_REV_INPROCESS_DEMOTIONS == set()
+
+    for i in range(10):
+        _insert_closed(trader._db, trade_id=f"l{i}", cell=USD_CAD, pnl_pips=-1.0)
+    real_get = trader._db.get_system_kv
+    monkeypatch.setattr(trader._db, "get_system_kv", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("database is locked")))
+    trader._refresh_price_shock_rev_in_process_demotions(force=True)
+
+    assert DemoTrader._PS_REV_INPROCESS_DEMOTIONS == {USD_CAD}          # published immediately
+    assert trader._is_promoted_ex(*USD_CAD) == (False, "price_shock_rev_auto_demoted")
+    assert DemoTrader._PS_REV_FAIL_CLOSED is False                       # loaded earlier → no global block
+    assert DemoTrader._is_price_shock_rev_auto_demoted(*EUR_GBP) is False
+    assert DemoTrader._PS_REV_PERSIST_PENDING is True
+    assert "RuntimeError" in DemoTrader._PS_REV_INPROCESS_LAST_ERROR
+
+    monkeypatch.setattr(trader._db, "get_system_kv", real_get)
+    clock["t"] += DemoTrader.PRICE_SHOCK_REV_INPROCESS_RETRY_SEC + 1
+    trader._refresh_price_shock_rev_in_process_demotions()
+    assert DemoTrader._PS_REV_PERSIST_PENDING is False
+    assert trader._load_persisted_price_shock_rev_demotions() == {USD_CAD}
+
+
 # ---------------- API paging ----------------
 
 class _Resp(io.BytesIO):

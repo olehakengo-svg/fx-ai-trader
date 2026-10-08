@@ -10409,8 +10409,16 @@ class DemoTrader:
                     f"AND entry_type IN ({placeholders})",
                     types,
                 ).fetchall()
+            before = set(cls._PS_REV_INPROCESS_DEMOTIONS)
             fresh = demoted_cells(dict(r) for r in rows)
             fresh = {cell for cell in fresh if cell in PRICE_SHOCK_REV_TIER1_PAIRS}
+            # Publish the successfully evaluated predicate into the in-memory latch
+            # BEFORE anything below can fail: a cell that newly crossed DEMOTE must
+            # block the next order even if the system_kv read/write fails
+            # (Codex P1 4215165224). The in-memory set only grows.
+            if fresh - cls._PS_REV_INPROCESS_DEMOTIONS:
+                cls._PS_REV_INPROCESS_DEMOTIONS = set(cls._PS_REV_INPROCESS_DEMOTIONS) | fresh
+                cls._PS_REV_PERSIST_PENDING = True  # until the write below succeeds
             persisted = self._load_persisted_price_shock_rev_demotions()
             if persisted is None:
                 raise RuntimeError("persisted latch unreadable (system_kv)")
@@ -10418,11 +10426,11 @@ class DemoTrader:
             # later profitable close lifts the aggregate above the predicate
             # (Codex P1 4214808052). Release = explicit operator reset only.
             latched = set(cls._PS_REV_INPROCESS_DEMOTIONS) | persisted | fresh
-            if latched != cls._PS_REV_INPROCESS_DEMOTIONS:
+            if latched != before:
                 try:
                     self._add_log(
                         "[PS_WATCHDOG] in-process DEMOTE set latched: "
-                        f"{sorted(cls._PS_REV_INPROCESS_DEMOTIONS)} -> {sorted(latched)} "
+                        f"{sorted(before)} -> {sorted(latched)} "
                         f"(fresh={sorted(fresh)}, persisted={sorted(persisted)})"
                     )
                 except Exception:
