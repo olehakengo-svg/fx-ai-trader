@@ -5191,6 +5191,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 - **kalman_d7_po_dn_flip**: EV=+0.70はポジティブだがN=3。KBでは×2 -¥245という連敗記録もあり、現時点で傾向と断言できない。
 - **price_shock_rev_eur_gbp_h1_long**: EV=-0.27、N=4。降格基準（N≥30 & EV<-0.5）には未達だが、唯一のマイナスEV戦略。注視継続。
 
+### 2026-10-08 (Post-NY Report)
+| 勝率 (WR) | 100.0% |
+| PnL | **+41.3 pips** |
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+| Session | N | WR% | PnL (pips) | 評価 |
+- **最良セッション**: NY — `usdjpy_carry_dip_accumulator` が+41.3pipsで牽引
+- **最悪セッション**: Tokyo — 単独の敗北（−12.1pips）。レジーム詳細は未明だが、本日の通貨環境（EUR/JPY VOLATILE、GBP/JPY RANGING）の中で東京早朝のダイレクショナル判断が外れた形
+- **総評**: 本日は極めて低トレード日（N=3）。システムの選別機能が機能しており、信号品質を重視した結果。PnLはNYの単発大勝ちに依存しており構造的安定ではない点に注意
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
