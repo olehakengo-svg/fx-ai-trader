@@ -455,8 +455,17 @@ def paginate_closed_trades(fetch_page, page_size: int = 500,
 
 def count_live_matching(trades: list, entry_type: str, instrument: str,
                         direction: str, prefix: bool = False,
-                        reasons_marker: str = "") -> int:
+                        reasons_marker: str = "",
+                        closed_only: bool = False) -> int:
     """clean live 件数: oanda_trade_id 非空 ∧ dedup_violation != 1 ∧ セル一致。
+
+    closed_only=True で tools/m1_clean_live_monitor.py ``is_clean_live`` と同じ
+    決済済み母集団 = status=CLOSED ∧ pnl_pips 非 null (2026-10-08、Codex P2
+    4214799283 / 4214874490): 「clean live N>=30 到達」で窓を閉じる entry は
+    open 行 (N=29+open で早期 TRIGGERED) も、pnl_pips が null の reconcile 崩れ
+    CLOSED 行も数えてはならない。既定 False は既存 entry (open 込みの到達性
+    監視) の挙動を変えないため。oanda_trade_id は monitor と同じく strip 後に
+    非空を要求する (空白だけの id は fill ではない)。
 
     prefix=True で entry_type を前方一致にする (kalman_d7 の 3 variant 等、
     1 セル = 複数 entry_type の合算監視用)。shadow 側 count_matching と同じ契約。
@@ -483,10 +492,15 @@ def count_live_matching(trades: list, entry_type: str, instrument: str,
                 _r = " | ".join(str(x) for x in _r)
             if reasons_marker not in _r:
                 continue
-        if not (t.get("oanda_trade_id") or ""):
+        if not str(t.get("oanda_trade_id") or "").strip():
             continue
         if (t.get("dedup_violation") or 0) == 1:
             continue
+        if closed_only:
+            if str(t.get("status") or "").upper() != "CLOSED":
+                continue
+            if t.get("pnl_pips") is None:
+                continue
         n += 1
     return n
 
@@ -540,14 +554,16 @@ def fetch_trades_window(since: str, app_base: str, mode: str = "") -> list | Non
 
 def fetch_live_count(entry_type: str, instrument: str, direction: str,
                      since: str, app_base: str, prefix: bool = False,
-                     reasons_marker: str = "") -> int | None:
+                     reasons_marker: str = "",
+                     closed_only: bool = False) -> int | None:
     # 2026-07-24: 単発 limit=8000 (2026-07-07 の暫定拡大) を pagination 全量取得に
     # 置換 — emit 量が伸びると同じ undercount が再発するため。
     trades = fetch_trades_window(since, app_base)
     if trades is None:
         return None
     return count_live_matching(trades, entry_type, instrument, direction,
-                               prefix=prefix, reasons_marker=reasons_marker)
+                               prefix=prefix, reasons_marker=reasons_marker,
+                               closed_only=closed_only)
 
 
 def fetch_shadow_count(entry_type: str, since: str, app_base: str,
@@ -679,7 +695,8 @@ def _evaluate_trigger_impl(
             fetch_live_count(trig["entry_type"], trig.get("instrument", ""),
                              trig.get("direction", ""), trig["since"], app_base,
                              prefix=trig.get("match") == "prefix",
-                             reasons_marker=trig.get("reasons_marker", "")),
+                             reasons_marker=trig.get("reasons_marker", ""),
+                             closed_only=bool(trig.get("closed_only"))),
             int(trig["n_decide"]), trig["deadline"], today)
     elif ttype == "deadline_info":
         res = evaluate_deadline_info(trig["deadline"], today)
@@ -1022,7 +1039,7 @@ OPTIONAL_FIELDS_BY_TYPE: dict[str, frozenset[str]] = {
     "shadow_count_info": frozenset({"instrument", "direction", "match", "mode",
                                     "count_basis"}),
     "live_count_decision": frozenset({"instrument", "direction", "match",
-                                      "reasons_marker"}),
+                                      "reasons_marker", "closed_only"}),
     "deadline_info": frozenset(),
     "ingest_freshness": frozenset({"endpoint"}),
     "artifact_presence": frozenset({"deadline"}),

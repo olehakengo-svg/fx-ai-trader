@@ -132,6 +132,68 @@ def test_count_live_matching_filters_cell_and_dedup():
     assert count_live_matching(trades, "vix_carry_unwind", "USD_JPY", "SELL") == 1
 
 
+def test_count_live_matching_closed_only_excludes_open_rows():
+    """2026-10-08 (Codex P2 4214799283, PR #318): 「clean live N>=30 到達」で
+    user の返答窓を閉じる entry は monitor (決済済み行) と同じ母集団でなければ
+    ならない — open 1 本が長く残ると N=29+open で早期 TRIGGERED になる。"""
+    from tools.prereg_trigger_watch import count_live_matching
+    trades = [
+        {"entry_type": "usdjpy_carry_dip_accumulator", "instrument": "USD_JPY",
+         "direction": "BUY", "oanda_trade_id": "1", "dedup_violation": 0,
+         "status": "CLOSED", "pnl_pips": 1.0},
+        {"entry_type": "usdjpy_carry_dip_accumulator", "instrument": "USD_JPY",
+         "direction": "BUY", "oanda_trade_id": "2", "dedup_violation": 0,
+         "status": "OPEN", "pnl_pips": None},
+        # reconcile 崩れ: CLOSED だが pnl_pips が null → monitor は数えない
+        {"entry_type": "usdjpy_carry_dip_accumulator", "instrument": "USD_JPY",
+         "direction": "BUY", "oanda_trade_id": "3", "dedup_violation": 0,
+         "status": "CLOSED", "pnl_pips": None},
+        # 空白だけの oanda_trade_id は fill ではない (monitor と同じ strip 判定)
+        {"entry_type": "usdjpy_carry_dip_accumulator", "instrument": "USD_JPY",
+         "direction": "BUY", "oanda_trade_id": "   ", "dedup_violation": 0,
+         "status": "CLOSED", "pnl_pips": 2.0},
+    ]
+    cell = ("usdjpy_carry_dip_accumulator", "USD_JPY", "BUY")
+    assert count_live_matching(trades, *cell) == 3  # 既定: 到達性監視は open 込み
+    assert count_live_matching(trades, *cell, closed_only=True) == 1
+    # monitor の is_clean_live と同じ行を数える (推移律で母集団一致を pin)
+    from tools.m1_clean_live_monitor import is_clean_live
+    assert sum(1 for r in trades if is_clean_live(r)) == 1
+
+
+def test_registry_d11_user_decision_entry_counts_closed_only(monkeypatch):
+    """D11 user-decision entry (live_count_decision) は closed_only=True を
+    fetch_live_count へ実際に渡す (性質 pin: 配線が届くか)。"""
+    import json
+    from pathlib import Path
+    p = (Path(__file__).resolve().parents[1]
+         / "knowledge-base/wiki/decisions/prereg-trigger-registry.json")
+    reg = json.loads(p.read_text())
+    hit = [x for x in reg["triggers"]
+           if x["id"] == "integrated-decision-packet-d11-user-decision"]
+    assert hit and hit[0]["active"] is True
+    trig = hit[0]
+    assert trig["type"] == "live_count_decision"
+    assert trig.get("closed_only") is True
+    assert trig["deadline"] == "2026-11-10"  # inclusive evaluator (today >= deadline)
+
+    from tools import prereg_trigger_watch as w
+    seen = {}
+
+    def fake_fetch(entry_type, instrument, direction, since, app_base,
+                   prefix=False, reasons_marker="", closed_only=False):
+        seen.update(entry_type=entry_type, instrument=instrument,
+                    direction=direction, since=since, closed_only=closed_only)
+        return 0
+
+    monkeypatch.setattr(w, "fetch_live_count", fake_fetch)
+    res = w.evaluate_trigger(trig, today="2026-10-08", app_base="http://t")
+    assert seen == {"entry_type": "usdjpy_carry_dip_accumulator",
+                    "instrument": "USD_JPY", "direction": "BUY",
+                    "since": "2026-04-08", "closed_only": True}
+    assert res["state"] == w.STATE_WATCHING
+
+
 def test_count_live_matching_prefix_for_multi_variant_cell():
     """t9-kalman-d7-live-n10-ev-check (2026-08-09): live 側も match=prefix を
     honor すること。
@@ -188,7 +250,7 @@ def test_registry_kalman_live_check_entry_is_wired(monkeypatch):
     seen = {}
 
     def fake_fetch(entry_type, instrument, direction, since, app_base,
-                   prefix=False, reasons_marker=""):
+                   prefix=False, reasons_marker="", **kw):
         seen["prefix"] = prefix
         return []
 

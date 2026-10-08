@@ -43,7 +43,7 @@ C1 (8h cap) は tp5 変種上では正 (loser の早期打ち切り) — flip �
 
 ## §4 無回答時の既定挙動
 
-- (b) 現状維持。R2 `t9-kalman-d7-live-n10-ev-check` (期日 2026-12-09、n_decide 10) は **D7 未承認なら N=10 到達時に判定保留 → user 再決裁** (postfill packet §3)。連続 3 SL (3 variant 合算) は即時 user review (不変)。
+- (b) 現状維持。R2 `t9-kalman-d7-live-n10-ev-check` (期日 2026-12-09、n_decide 10) は **D7 未承認なら N=10 到達時に判定保留 → user 再決裁** (postfill packet §3)。連続 3 SL (3 variant 合算) は即時 user review (不変)。統合パケット D7 行の既定欄 (旧「demo 簿で読まれる」) は 2026-10-08 に本文言へ統一 (Codex P2 4202714076 — 2 本の 11-29 読み手が同一シナリオで逆の行動にならないよう registry t9 文言を binding とする)。
 - 損失停止以外の変更 (hold / exit / SL / TP / lot / variant / pair) は行わない。storm 拡張凍結 (postfill packet §3) は guard 4 点セットの main 着地まで継続。
 
 ## §5 返答書式
