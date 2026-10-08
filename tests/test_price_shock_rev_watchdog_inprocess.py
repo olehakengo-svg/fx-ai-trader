@@ -56,6 +56,8 @@ def trader(tmp_path, monkeypatch):
     DemoTrader._PS_REV_INPROCESS_DEMOTIONS = set()
     DemoTrader._PS_REV_INPROCESS_REFRESHED_AT = 0.0
     DemoTrader._PS_REV_INPROCESS_LAST_ERROR = ""
+    DemoTrader._PS_REV_LATCH_LOADED = False
+    DemoTrader._PS_REV_FAIL_CLOSED = False
     db = DemoDB(str(tmp_path / "ps.db"))
     t = DemoTrader.__new__(DemoTrader)
     t._db = db
@@ -66,6 +68,8 @@ def trader(tmp_path, monkeypatch):
     DemoTrader._PS_REV_INPROCESS_DEMOTIONS = set()
     DemoTrader._PS_REV_INPROCESS_REFRESHED_AT = 0.0
     DemoTrader._PS_REV_INPROCESS_LAST_ERROR = ""
+    DemoTrader._PS_REV_LATCH_LOADED = False
+    DemoTrader._PS_REV_FAIL_CLOSED = False
 
 
 def test_core_is_the_single_predicate_used_by_the_cron_tool():
@@ -212,6 +216,7 @@ def test_demotion_is_latched_and_persisted_across_restart(trader, tmp_path):
     # the live predicate is now HOLD
     DemoTrader._PS_REV_INPROCESS_DEMOTIONS = set()
     DemoTrader._PS_REV_INPROCESS_REFRESHED_AT = 0.0
+    DemoTrader._PS_REV_LATCH_LOADED = False
     t2 = DemoTrader.__new__(DemoTrader)
     t2._db = trader._db
     t2._add_log = lambda m: None
@@ -241,6 +246,66 @@ def test_startup_resend_path_refreshes_before_its_gate(trader):
     trader._oanda = _InactiveOanda()
     trader._resend_pending_oanda_trades()
     assert DemoTrader._is_force_demoted_entry(*USD_CAD) is True
+
+
+def test_unreadable_latch_on_restart_fails_closed_then_recovers(trader, monkeypatch):
+    """Codex P1 4214970031: after a restart (empty class set) with the aggregate
+    back at HOLD, an unreadable / malformed persisted latch must block every
+    watched cell (not be read as 'no demotions'), retry soon, and release only
+    once the latch is readable again."""
+    import modules.demo_trader as dt
+    # 1) demote + persist, then aggregate returns to HOLD
+    for i in range(10):
+        _insert_closed(trader._db, trade_id=f"l{i}", cell=USD_CAD, pnl_pips=-1.0)
+    trader._refresh_price_shock_rev_in_process_demotions(force=True)
+    for i in range(30):
+        _insert_closed(trader._db, trade_id=f"w{i}", cell=USD_CAD, pnl_pips=+1.0)
+    assert trader._load_persisted_price_shock_rev_demotions() == {USD_CAD}
+
+    # 2) restart: class set empty, kv read fails
+    DemoTrader._PS_REV_INPROCESS_DEMOTIONS = set()
+    DemoTrader._PS_REV_INPROCESS_REFRESHED_AT = 0.0
+    DemoTrader._PS_REV_LATCH_LOADED = False
+    real_get = trader._db.get_system_kv
+    monkeypatch.setattr(trader._db, "get_system_kv", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("database is locked")))
+    clock = {"t": 5_000_000.0}
+    monkeypatch.setattr(dt.time, "time", lambda: clock["t"])
+    trader._refresh_price_shock_rev_in_process_demotions(force=True)
+    assert DemoTrader._PS_REV_FAIL_CLOSED is True
+    assert DemoTrader._PS_REV_LATCH_LOADED is False
+    assert "RuntimeError" in DemoTrader._PS_REV_INPROCESS_LAST_ERROR
+    assert DemoTrader._is_price_shock_rev_auto_demoted(*USD_CAD) is True
+    assert DemoTrader._is_price_shock_rev_auto_demoted(*EUR_GBP) is True  # every watched cell
+    assert DemoTrader._is_price_shock_rev_auto_demoted("usdjpy_carry_dip_accumulator", "USD_JPY") is False
+    assert trader._is_promoted_ex(*EUR_GBP) == (False, "price_shock_rev_auto_demoted")
+    assert any("fail-closed" in m for m in trader._logs)
+
+    # 3) malformed JSON is also unreadable (not an empty latch)
+    monkeypatch.setattr(trader._db, "get_system_kv", lambda *a, **k: "{not json")
+    clock["t"] += DemoTrader.PRICE_SHOCK_REV_INPROCESS_RETRY_SEC + 1
+    trader._refresh_price_shock_rev_in_process_demotions()  # retry fires (not a full TTL)
+    assert DemoTrader._PS_REV_FAIL_CLOSED is True
+
+    # 4) latch readable again → latched cell restored, others released
+    monkeypatch.setattr(trader._db, "get_system_kv", real_get)
+    clock["t"] += DemoTrader.PRICE_SHOCK_REV_INPROCESS_RETRY_SEC + 1
+    trader._refresh_price_shock_rev_in_process_demotions()
+    assert DemoTrader._PS_REV_FAIL_CLOSED is False
+    assert DemoTrader._PS_REV_LATCH_LOADED is True
+    assert DemoTrader._is_price_shock_rev_auto_demoted(*USD_CAD) is True   # latched
+    assert DemoTrader._is_price_shock_rev_auto_demoted(*EUR_GBP) is False  # released
+
+
+def test_transient_failure_after_successful_load_keeps_set_without_global_block(trader, monkeypatch):
+    for i in range(10):
+        _insert_closed(trader._db, trade_id=f"l{i}", cell=USD_CAD, pnl_pips=-1.0)
+    trader._refresh_price_shock_rev_in_process_demotions(force=True)
+    assert DemoTrader._PS_REV_LATCH_LOADED is True
+    monkeypatch.setattr(trader._db, "get_system_kv", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("locked")))
+    trader._refresh_price_shock_rev_in_process_demotions(force=True)
+    assert DemoTrader._PS_REV_FAIL_CLOSED is False          # already loaded once
+    assert DemoTrader._PS_REV_INPROCESS_DEMOTIONS == {USD_CAD}  # known set kept
+    assert DemoTrader._is_price_shock_rev_auto_demoted(*EUR_GBP) is False
 
 
 # ---------------- API paging ----------------

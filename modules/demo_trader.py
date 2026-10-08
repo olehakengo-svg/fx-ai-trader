@@ -2442,7 +2442,10 @@ class DemoTrader:
             "price_shock_rev_auto_demotions": {
                 "in_process": sorted(list(c) for c in type(self)._PS_REV_INPROCESS_DEMOTIONS),
                 "effective": sorted(list(c) for c in self._read_price_shock_rev_auto_demotions()),
-                "persisted": sorted(list(c) for c in self._load_persisted_price_shock_rev_demotions()),
+                "persisted": (lambda s: None if s is None else sorted(list(c) for c in s))(
+                    self._load_persisted_price_shock_rev_demotions()),
+                "latch_loaded": type(self)._PS_REV_LATCH_LOADED,
+                "fail_closed": type(self)._PS_REV_FAIL_CLOSED,
                 "refreshed_at": (
                     datetime.fromtimestamp(type(self)._PS_REV_INPROCESS_REFRESHED_AT, tz=timezone.utc).isoformat()
                     if type(self)._PS_REV_INPROCESS_REFRESHED_AT else None
@@ -10353,6 +10356,15 @@ class DemoTrader:
     _PS_REV_INPROCESS_DEMOTIONS: set[tuple[str, str]] = set()
     _PS_REV_INPROCESS_REFRESHED_AT: float = 0.0
     _PS_REV_INPROCESS_LAST_ERROR: str = ""
+    # Fail-closed latch state (Codex P1 4214970031): until this process has read
+    # the persisted latch successfully at least once, a refresh failure (system_kv
+    # unreadable / malformed JSON / DB locked) must NOT be read as "no demotions"
+    # — all watched cells stay blocked and the refresh retries after
+    # PRICE_SHOCK_REV_INPROCESS_RETRY_SEC. After a successful load, a transient
+    # failure keeps the known (latched) set and retries.
+    PRICE_SHOCK_REV_INPROCESS_RETRY_SEC = 30
+    _PS_REV_LATCH_LOADED: bool = False
+    _PS_REV_FAIL_CLOSED: bool = False
 
     def _refresh_price_shock_rev_in_process_demotions(self, force: bool = False) -> set[tuple[str, str]]:
         """Re-evaluate the watchdog predicate from this process's DB (TTL-cached).
@@ -10382,6 +10394,8 @@ class DemoTrader:
             fresh = demoted_cells(dict(r) for r in rows)
             fresh = {cell for cell in fresh if cell in PRICE_SHOCK_REV_TIER1_PAIRS}
             persisted = self._load_persisted_price_shock_rev_demotions()
+            if persisted is None:
+                raise RuntimeError("persisted latch unreadable (system_kv)")
             # LATCH: never shrink. A cell demoted at N=10 stays demoted even if a
             # later profitable close lifts the aggregate above the predicate
             # (Codex P1 4214808052). Release = explicit operator reset only.
@@ -10399,22 +10413,50 @@ class DemoTrader:
                 self._persist_price_shock_rev_demotions(latched)
             cls._PS_REV_INPROCESS_DEMOTIONS = latched
             cls._PS_REV_INPROCESS_LAST_ERROR = ""
-        except Exception as exc:  # DB locked / schema drift: keep last known set
+            cls._PS_REV_LATCH_LOADED = True
+            if cls._PS_REV_FAIL_CLOSED:
+                try:
+                    self._add_log("[PS_WATCHDOG] latch readable again — fail-closed block released")
+                except Exception:
+                    pass
+            cls._PS_REV_FAIL_CLOSED = False
+            cls._PS_REV_INPROCESS_REFRESHED_AT = now
+        except Exception as exc:  # DB locked / kv unreadable / schema drift
             cls._PS_REV_INPROCESS_LAST_ERROR = f"{type(exc).__name__}: {exc}"[:200]
-        cls._PS_REV_INPROCESS_REFRESHED_AT = now
+            if not cls._PS_REV_LATCH_LOADED:
+                # Never loaded in this process: an unreadable latch is NOT an empty
+                # latch. Block every watched cell until it can be read.
+                if not cls._PS_REV_FAIL_CLOSED:
+                    try:
+                        self._add_log(
+                            "[PS_WATCHDOG] persisted latch unreadable before first load — "
+                            f"fail-closed: all price_shock_rev cells blocked ({cls._PS_REV_INPROCESS_LAST_ERROR})"
+                        )
+                    except Exception:
+                        pass
+                cls._PS_REV_FAIL_CLOSED = True
+            # keep the last known (latched) set; retry soon instead of waiting a full TTL
+            cls._PS_REV_INPROCESS_REFRESHED_AT = (
+                now - cls.PRICE_SHOCK_REV_INPROCESS_TTL_SEC + cls.PRICE_SHOCK_REV_INPROCESS_RETRY_SEC
+            )
         return cls._PS_REV_INPROCESS_DEMOTIONS
 
-    def _load_persisted_price_shock_rev_demotions(self) -> set[tuple[str, str]]:
+    def _load_persisted_price_shock_rev_demotions(self) -> set[tuple[str, str]] | None:
+        """Persisted latch, or **None when it cannot be read** (kv error / malformed
+        JSON / not a list). None is a failure the caller must treat as fail-closed —
+        never as an empty latch (Codex P1 4214970031)."""
         db = getattr(self, "_db", None)
         if db is None or not hasattr(db, "get_system_kv"):
-            return set()
+            return None
         try:
             raw = db.get_system_kv(type(self).PRICE_SHOCK_REV_DEMOTION_KV_KEY, "[]")
             rows = json.loads(raw or "[]")
         except Exception:
-            return set()
+            return None
+        if not isinstance(rows, list):
+            return None
         out: set[tuple[str, str]] = set()
-        for row in rows if isinstance(rows, list) else []:
+        for row in rows:
             if isinstance(row, (list, tuple)) and len(row) == 2:
                 cell = (str(row[0]), str(row[1]))
                 if cell in PRICE_SHOCK_REV_TIER1_PAIRS:
@@ -10440,6 +10482,8 @@ class DemoTrader:
         cls._PS_REV_INPROCESS_DEMOTIONS = set()
         cls._PS_REV_INPROCESS_REFRESHED_AT = 0.0
         self._persist_price_shock_rev_demotions(set())
+        cls._PS_REV_LATCH_LOADED = False
+        cls._PS_REV_FAIL_CLOSED = False
 
     @classmethod
     def _read_price_shock_rev_auto_demotions(cls) -> set[tuple[str, str]]:
@@ -10467,6 +10511,9 @@ class DemoTrader:
     def _is_price_shock_rev_auto_demoted(cls, entry_type: str, instrument: str = "") -> bool:
         if entry_type not in PRICE_SHOCK_REV_TIER1_TYPES:
             return False
+        if cls._PS_REV_FAIL_CLOSED:
+            # persisted latch unreadable before first successful load → block
+            return True
         demotions = cls._read_price_shock_rev_auto_demotions()
         return (entry_type, instrument) in demotions or (entry_type, "") in demotions
 
