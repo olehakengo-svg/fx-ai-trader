@@ -5171,6 +5171,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 - `price_shock_rev_eur_gbp_h1_long` は EV=-0.54 かつ N=5 → 降格基準（N≥30 & EV<-0.5）には未達だが、**方向性として最も懸念**。
 - **課題A**: レジーム状況（後述）を踏まえ、Volatile環境でDaytradeシグナルが出るか監視継続。市場参加者の復帰（東京勢入りのUSDJPY動向）が鍵。
 
+### 2026-10-08 (Post-Tokyo Report)
+| 勝率 WR | 0.0% |
+| PnL | −12.1 pips |
+- carry_dip_accumulatorのN蓄積状況が不明（Cutoff後の累積Nをセッション外で別途確認要）
+- SL_HIT 1件でパラメータ調整を示唆する統計的根拠なし
+- 現在のDD防御0.2xモードを維持。追加変更を行う閾値には到達していない
+| GBP_USD | VOLATILE | 69% | ロンドン主導通貨ペア。BOE関連ニュース注意 |
+| USD_JPY | TRENDING_UP | 60% | 上昇トレンド継続。carry系に追い風も過熱注意 |
+**全ペアATR%ile ≥60%** — 摩擦（スプレッド拡大）リスクが高い環境。Scalp系はspread_guard閾値抵触に注意。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
