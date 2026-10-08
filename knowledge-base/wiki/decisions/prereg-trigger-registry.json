@@ -943,11 +943,13 @@
     },
     {
       "id": "review-backlog-317-final-head-review-2026-10-07",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-07",
       "doc": "knowledge-base/wiki/sessions/2026-10-07-session.md",
-      "message": "🟠 PR #317 (統合決裁パケット確定版 v1.0 + kalman disposition packet + registry readout、docs-only) は Codex を 6 巡消化 (P1 0 / P2 10 件、全て実在の欠陥、全件修正 + thread resolve) して P2 巡目上限 ≤6 に到達。最終 HEAD へ `@codex review` を投げた上で CI green で `--admin` マージ (PR #314 と同手順)。⇒ 次の autopilot run (10-08) が最終 HEAD のレビュー結果を読み、残 P1/P2 を triage (修正 PR or 理由付き繰延) して本 entry を resolved 化。期日 = 10-07 (cron 10-08 00:20Z で TRIGGERED = 翌 run の催促、前日規則)。欠陥族は一貫して『文書に書いた期日・N 閾値に registry の読み手が無い』『読み手の母集団が文書と違う』(T5 型) — 同型が出たら同 PR で entry を置く。"
+      "message": "🟠 PR #317 (統合決裁パケット確定版 v1.0 + kalman disposition packet + registry readout、docs-only) は Codex を 6 巡消化 (P1 0 / P2 10 件、全て実在の欠陥、全件修正 + thread resolve) して P2 巡目上限 ≤6 に到達。最終 HEAD へ `@codex review` を投げた上で CI green で `--admin` マージ (PR #314 と同手順)。⇒ 次の autopilot run (10-08) が最終 HEAD のレビュー結果を読み、残 P1/P2 を triage (修正 PR or 理由付き繰延) して本 entry を resolved 化。期日 = 10-07 (cron 10-08 00:20Z で TRIGGERED = 翌 run の催促、前日規則)。欠陥族は一貫して『文書に書いた期日・N 閾値に registry の読み手が無い』『読み手の母集団が文書と違う』(T5 型) — 同型が出たら同 PR で entry を置く。",
+      "resolved": "2026-10-08",
+      "resolution": "最終 HEAD 245d9cb5 の connector レビュー (2026-10-07T03:16:39Z、merge 03:18:06Z の 87 秒前に到着) は P2 ×2・P1 0 — 4202714073 (D11: 10-31 entry の 11-01 TRIGGERED が user に約束した 11-10 の返答窓を先に閉じる) / 4202714076 (D7 無回答時の R2 fallback が統合パケット D7 行「demo 簿で読まれる」と kalman packet §4 / REG t9「判定保留 → user 再決裁」で逆向き)。両件とも実在の欠陥、autopilot 2026-10-08 run で修正: D11 は実装 entry (10-31、(1) のみ) と user 決裁 fallback entry integrated-decision-packet-d11-user-decision (11-09) に分離 / D7 は統合パケット D7 行の既定欄を REG t9 文言 (09-17 LOCK 追補) に揃え、demo 簿での自動判定を撤回 (損失停止の保護は連続 3 SL 即時 user review で維持)。thread は GraphQL resolveReviewThread で閉じた。残 P1/P2 0。"
     },
     {
       "id": "hunt-events-labeler-disposition",
@@ -1046,7 +1048,7 @@
       "type": "deadline_info",
       "deadline": "2026-11-29",
       "doc": "knowledge-base/wiki/decisions/integrated-decision-packet-d1-d12-2026-09-22.md",
-      "message": "統合決裁パケット D1〜D12 (+D15) 確定版 v1.0 (2026-10-07) の **user 返答期限 2026-11-30** の読み手 (cron 判定は翌日 00:20Z なので前日 11-29 に置く規則)。対象 = 全項目 (D1 M2 会計 / D2(i)(ii) / D3 額・時点 [+ D2(i)=(a) or 0.2x 解除の同時返答] / D4 資本上限 / D5 (a)/(b)/(d) / D6 / D7 承認 + disposition / D8〜D12 / D15)。部分返答 (D1〜D4 のみ等) は返答済み項目を本 entry の message に転記し、未返答項目を残して deadline は動かさない。**TRIGGERED (期日超過 ∧ 未返答項目あり) = 各項目の「無回答時の既定」(packet §2 表 / §0) を KB に明記して resolved — 再上程はしない** (再上程は F4 TRIGGERED 時の record のみ、project-falsification-f4-nav-floor-clock が読み手、PR #314 訂正)。姉妹 entry: carry-dip-v3-revival-watch (D5 の R2 のみ) / kalman-d7-live-exit-disposition-user-decision (D7 の disposition のみ) — 本 entry は packet 全体の返答有無を読む (Codex P2 4202512699 / 4202548167、PR #317)。autopilot は返答の代行・既定の前倒し執行を行わない。 ／ D11 の両基準併記**実装期限 11-10** (packet §4 表) は本 entry (11-29) より早いので別 entry integrated-decision-packet-d11-both-basis-impl (10-31) が読む (Codex P2 4202640519)。"
+      "message": "統合決裁パケット D1〜D12 (+D15) 確定版 v1.0 (2026-10-07) の **user 返答期限 2026-11-30** の読み手 (cron 判定は翌日 00:20Z なので前日 11-29 に置く規則)。対象 = 全項目 (D1 M2 会計 / D2(i)(ii) / D3 額・時点 [+ D2(i)=(a) or 0.2x 解除の同時返答] / D4 資本上限 / D5 (a)/(b)/(d) / D6 / D7 承認 + disposition / D8〜D12 / D15)。部分返答 (D1〜D4 のみ等) は返答済み項目を本 entry の message に転記し、未返答項目を残して deadline は動かさない。**TRIGGERED (期日超過 ∧ 未返答項目あり) = 各項目の「無回答時の既定」(packet §2 表 / §0) を KB に明記して resolved — 再上程はしない** (再上程は F4 TRIGGERED 時の record のみ、project-falsification-f4-nav-floor-clock が読み手、PR #314 訂正)。姉妹 entry: carry-dip-v3-revival-watch (D5 の R2 のみ) / kalman-d7-live-exit-disposition-user-decision (D7 の disposition のみ) — 本 entry は packet 全体の返答有無を読む (Codex P2 4202512699 / 4202548167、PR #317)。autopilot は返答の代行・既定の前倒し執行を行わない。 ／ D11 の両基準併記**実装期限 11-10** (packet §4 表) は本 entry (11-29) より早いので別 entry が読む: Claude 実装 = integrated-decision-packet-d11-both-basis-impl (10-31) / user 決裁 fallback = integrated-decision-packet-d11-user-decision (11-09) (Codex P2 4202640519 / 4202714073)。"
     },
     {
       "id": "integrated-decision-packet-d11-both-basis-impl",
@@ -1054,7 +1056,20 @@
       "type": "deadline_info",
       "deadline": "2026-10-31",
       "doc": "knowledge-base/wiki/decisions/integrated-decision-packet-d1-d12-2026-09-22.md",
-      "message": "統合パケット D11 (M1_STRONG / F3 の estimand) の **両基準併記の実装期限 2026-11-10** (packet §4 表) — registry 期日は **10-31** (初版 11-09 を 6 巡目で前倒し)。内容: (1) Claude 実装 (R3) — `tools/m1_clean_live_monitor.py --strong` に broker realized 列を追加し demo pnl_pips と並記 (母集団を片寄せしない、N≥30 到達後の基準選択禁止 = pre-reg 規律)。(2) user 決裁 — REG project-falsification-f3-m1-durable-cell の `condition` 字義 (clean live N≥30 ∧ PnL>0、demo 簿) を EV≥+1.0 ∧ Wilson_lo>0 へ改定するか (U7 2026-09-10 承認事項の変更、packet D11 推奨 = 改定 + 両基準併記)。改定前は REG 字義が判定 predicate。期限の根拠: carry_dip の clean live N≥30 最速到達 = 2 推定の早い方 **2026-11-09** (packet §8-0 monitor M3a 線形外挿) / 11-11 (§8-1 0.282/日) — その**前**に基準が凍結されていること。deadline_info は today > deadline で発火するため 11-09 期日では初アラート 11-10 が N≥30 と同時になり得る → 実装 + 既定確定の余裕 ≥8 日を取り 10-31 (Codex P2 4202673535)。TRIGGERED (期日超過 ∧ (1) 未実装 or (2) 未返答) = (1) は Claude が即実装 PR、(2) は既定 (REG 字義のまま) を KB に明記して resolved。user-response entry (11-29) は本期限を覆わない (Codex P2 4202640519、PR #317)。"
+      "message": "統合パケット D11 (M1_STRONG / F3 の estimand) の **両基準併記の実装期限 2026-11-10** (packet §4 表) — registry 期日は **10-31** (初版 11-09 を 6 巡目で前倒し)。内容: (1) Claude 実装 (R3) — `tools/m1_clean_live_monitor.py --strong` に broker realized 列を追加し demo pnl_pips と並記 (母集団を片寄せしない、N≥30 到達後の基準選択禁止 = pre-reg 規律)。(2) user 決裁 — REG project-falsification-f3-m1-durable-cell の `condition` 字義 (clean live N≥30 ∧ PnL>0、demo 簿) を EV≥+1.0 ∧ Wilson_lo>0 へ改定するか (U7 2026-09-10 承認事項の変更、packet D11 推奨 = 改定 + 両基準併記)。改定前は REG 字義が判定 predicate。期限の根拠: carry_dip の clean live N≥30 最速到達 = 2 推定の早い方 **2026-11-09** (packet §8-0 monitor M3a 線形外挿) / 11-11 (§8-1 0.282/日) — その**前**に基準が凍結されていること。deadline_info は today > deadline で発火するため 11-09 期日では初アラート 11-10 が N≥30 と同時になり得る → 実装 + 既定確定の余裕 ≥8 日を取り 10-31 (Codex P2 4202673535)。**本 entry の読み対象は (1) Claude 実装のみ** (2026-10-08 改訂、Codex P2 4202714073 PR #317 最終 HEAD): TRIGGERED (期日超過 ∧ (1) 未実装) = Claude が即実装 PR (R3)。(2) user 決裁は本 entry では**確定しない** — packet D11 行が user に約束した返答窓は 2026-11-10 までで、10-31 起点の 11-01 TRIGGERED で既定確定すると 11-01〜11-10 の返答が registry 側で先に閉じられる (Codex P2 4202714073)。(2) の読み手は別 entry integrated-decision-packet-d11-user-decision (期日 11-09 = 11-10 の前日規則)。user-response entry (11-29) は本期限を覆わない (Codex P2 4202640519、PR #317)。"
+    },
+    {
+      "id": "integrated-decision-packet-d11-user-decision",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-09",
+      "doc": "knowledge-base/wiki/decisions/integrated-decision-packet-d1-d12-2026-09-22.md",
+      "message": "統合パケット D11 (M1_STRONG / F3 の estimand) の **user 決裁の返答期限 2026-11-10** (packet D11 行・§4 表) の読み手 (cron 判定は翌日 00:20Z なので前日 11-09 に置く規則)。決裁内容 = REG project-falsification-f3-m1-durable-cell の `condition` 字義 (clean live N≥30 ∧ PnL>0、demo 簿) を EV≥+1.0 ∧ Wilson_lo>0 へ改定するか (U7 2026-09-10 承認事項の変更、packet 推奨 = 改定 + 両基準併記)。改定前は REG 字義が判定 predicate (既定)。Claude 実装 (両基準併記列) は姉妹 entry integrated-decision-packet-d11-both-basis-impl (10-31) が読む — 実装期限と user 決裁 fallback を分離 (Codex P2 4202714073、PR #317 最終 HEAD、2026-10-08)。**TRIGGERED (期日超過 ∧ 未返答) = 既定 (REG 字義のまま・改定なし) を KB (packet §8 / F3 entry message) に明記して resolved、再上程はしない**。⚠️ 期日前でも carry_dip の clean live N≥30 到達 (最速 11-09、packet §8-0) が返答より先なら pre-reg 規律 (N≥30 到達後の基準選択禁止、packet D11 行) により REG 字義で凍結 = 到達後の返答は F3 (2027-03-31) の判定 predicate を変えない (次サイクルの改定提案として記録のみ)。到達の読み手は tools/m1_clean_live_monitor.py (M3a 行)。autopilot は返答の代行・既定の前倒し執行を行わない。",
+      "condition": "user が D11 の返答 (改定可否) を 2026-11-10 までに返す、または期日超過で既定 (REG 字義) を KB に明記して resolved になっていること",
+      "reachability": "状態を進める主体 = user (対話セッションで返答) → Claude が KB 反映。評価主体 = tools/prereg_trigger_watch.py deadline_info (日次 Tier A cron、期日翌日 00:20Z)。判定 = Claude (autopilot)。",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
     },
     {
       "id": "e1-frozen-export-tool",
