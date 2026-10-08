@@ -5181,6 +5181,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 | USD_JPY | TRENDING_UP | 60% | 上昇トレンド継続。carry系に追い風も過熱注意 |
 **全ペアATR%ile ≥60%** — 摩擦（スプレッド拡大）リスクが高い環境。Scalp系はspread_guard閾値抵触に注意。
 
+### 2026-10-08 (Pre-Tokyo Briefing)
+前日（2026-10-07）はトレードゼロ。PnL = ¥0、N = 0、WR = N/A。
+> **注意**: 全体N=10（集計済み数値をそのまま使用）。N<30は全戦略「傾向観察中」ステータス。
+| Strategy | Pair | N | WR% | EV | PnL | 統計ステータス |
+**全体集計（N=10）**: WR 60.0%、累積PnL +20.8
+- **usdjpy_carry_dip_accumulator**: EV=+8.40は突出した数値だが、N=2のため「1件の大勝が統計を歪めている」状態。KB記録でも carry_dip は +¥95/−¥191/-¥332など振れ幅が大きく、期待値の安定性は未検証。
+- **kalman_d7_ema75_break**: N=1のため評価不能。KB記録ではWEEKEND_CLOSE経由でLIVE/Demoの符号反転（demo +3.0 / live -¥147）が確認されており、実態EVは数値より悪い可能性がある。
+- **kalman_d7_po_dn_flip**: EV=+0.70はポジティブだがN=3。KBでは×2 -¥245という連敗記録もあり、現時点で傾向と断言できない。
+- **price_shock_rev_eur_gbp_h1_long**: EV=-0.27、N=4。降格基準（N≥30 & EV<-0.5）には未達だが、唯一のマイナスEV戦略。注視継続。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
