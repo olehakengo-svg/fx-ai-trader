@@ -144,10 +144,21 @@ def test_count_live_matching_closed_only_excludes_open_rows():
         {"entry_type": "usdjpy_carry_dip_accumulator", "instrument": "USD_JPY",
          "direction": "BUY", "oanda_trade_id": "2", "dedup_violation": 0,
          "status": "OPEN", "pnl_pips": None},
+        # reconcile 崩れ: CLOSED だが pnl_pips が null → monitor は数えない
+        {"entry_type": "usdjpy_carry_dip_accumulator", "instrument": "USD_JPY",
+         "direction": "BUY", "oanda_trade_id": "3", "dedup_violation": 0,
+         "status": "CLOSED", "pnl_pips": None},
+        # 空白だけの oanda_trade_id は fill ではない (monitor と同じ strip 判定)
+        {"entry_type": "usdjpy_carry_dip_accumulator", "instrument": "USD_JPY",
+         "direction": "BUY", "oanda_trade_id": "   ", "dedup_violation": 0,
+         "status": "CLOSED", "pnl_pips": 2.0},
     ]
     cell = ("usdjpy_carry_dip_accumulator", "USD_JPY", "BUY")
-    assert count_live_matching(trades, *cell) == 2  # 既定: 到達性監視は open 込み
+    assert count_live_matching(trades, *cell) == 3  # 既定: 到達性監視は open 込み
     assert count_live_matching(trades, *cell, closed_only=True) == 1
+    # monitor の is_clean_live と同じ行を数える (推移律で母集団一致を pin)
+    from tools.m1_clean_live_monitor import is_clean_live
+    assert sum(1 for r in trades if is_clean_live(r)) == 1
 
 
 def test_registry_d11_user_decision_entry_counts_closed_only(monkeypatch):

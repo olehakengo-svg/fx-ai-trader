@@ -459,11 +459,13 @@ def count_live_matching(trades: list, entry_type: str, instrument: str,
                         closed_only: bool = False) -> int:
     """clean live 件数: oanda_trade_id 非空 ∧ dedup_violation != 1 ∧ セル一致。
 
-    closed_only=True で status=CLOSED 行のみ (2026-10-08、Codex P2 4214799283):
-    tools/m1_clean_live_monitor.py の M1/F3 母集団は決済済み行なので、
-    「clean live N>=30 到達」で窓を閉じる entry は open 行を数えてはならない
-    (open 1 本が長く残ると N=29+open で早期 TRIGGERED になる)。既定 False は
-    既存 entry (open 込みの到達性監視) の挙動を変えないため。
+    closed_only=True で tools/m1_clean_live_monitor.py ``is_clean_live`` と同じ
+    決済済み母集団 = status=CLOSED ∧ pnl_pips 非 null (2026-10-08、Codex P2
+    4214799283 / 4214874490): 「clean live N>=30 到達」で窓を閉じる entry は
+    open 行 (N=29+open で早期 TRIGGERED) も、pnl_pips が null の reconcile 崩れ
+    CLOSED 行も数えてはならない。既定 False は既存 entry (open 込みの到達性
+    監視) の挙動を変えないため。oanda_trade_id は monitor と同じく strip 後に
+    非空を要求する (空白だけの id は fill ではない)。
 
     prefix=True で entry_type を前方一致にする (kalman_d7 の 3 variant 等、
     1 セル = 複数 entry_type の合算監視用)。shadow 側 count_matching と同じ契約。
@@ -490,12 +492,15 @@ def count_live_matching(trades: list, entry_type: str, instrument: str,
                 _r = " | ".join(str(x) for x in _r)
             if reasons_marker not in _r:
                 continue
-        if not (t.get("oanda_trade_id") or ""):
+        if not str(t.get("oanda_trade_id") or "").strip():
             continue
         if (t.get("dedup_violation") or 0) == 1:
             continue
-        if closed_only and str(t.get("status") or "").upper() != "CLOSED":
-            continue
+        if closed_only:
+            if str(t.get("status") or "").upper() != "CLOSED":
+                continue
+            if t.get("pnl_pips") is None:
+                continue
         n += 1
     return n
 
