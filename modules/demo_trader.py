@@ -2422,6 +2422,20 @@ class DemoTrader:
             "sltp_checker_active": bool(self._sltp_thread and self._sltp_thread.is_alive()),
             "tick_counts": getattr(self, '_tick_counts', None),
             "main_loop_restarts": getattr(self, '_main_loop_restart_count', 0),
+            # price_shock_rev watchdog verdict as seen by THIS process (rule:R3 2026-10-08,
+            # registry ps-watchdog-demotion-state-unreachable) — the readout that proves
+            # a DEMOTE reaches the order gate. `in_process` = DB evaluation, `effective`
+            # = in_process ∪ state file (what `_is_promoted_ex` actually consults).
+            "price_shock_rev_auto_demotions": {
+                "in_process": sorted(list(c) for c in type(self)._PS_REV_INPROCESS_DEMOTIONS),
+                "effective": sorted(list(c) for c in self._read_price_shock_rev_auto_demotions()),
+                "refreshed_at": (
+                    datetime.fromtimestamp(type(self)._PS_REV_INPROCESS_REFRESHED_AT, tz=timezone.utc).isoformat()
+                    if type(self)._PS_REV_INPROCESS_REFRESHED_AT else None
+                ),
+                "ttl_sec": type(self).PRICE_SHOCK_REV_INPROCESS_TTL_SEC,
+                "last_error": type(self)._PS_REV_INPROCESS_LAST_ERROR or None,
+            },
             # ── プロセス帰属 (rule:R3, 2026-09-24): この payload を返した
             #    エンジンの PID / role。gunicorn では常に worker (forked) 側 —
             #    master のエンジンは API から不可視 (二重起動 §1)。
@@ -10304,17 +10318,77 @@ class DemoTrader:
             )
         )
 
+    # ── price_shock_rev live watchdog: in-process evaluation (rule:R3, 2026-10-08) ──
+    # Registry `ps-watchdog-demotion-state-unreachable` (PR #306 Codex P1): the Render
+    # cron wrote the DEMOTE state file on its *own* filesystem, so the file read
+    # above never existed in the web service — a DEMOTE verdict could not reach
+    # `_is_promoted_ex`. The trading process now evaluates the identical predicate
+    # (modules/price_shock_rev_watchdog_core.py = the cron's own functions) from
+    # its SQLite every PRICE_SHOCK_REV_INPROCESS_TTL_SEC and keeps the result at
+    # class level so the classmethod readers (`_is_force_demoted_entry` callers at
+    # the final gate / resend gate) see the same set. The state file stays as a
+    # secondary source (manual override / local dev). Population is the 05-18
+    # declaration (is_shadow=0 ∧ CLOSED per cell) — unchanged.
+    PRICE_SHOCK_REV_INPROCESS_TTL_SEC = 600
+    _PS_REV_INPROCESS_DEMOTIONS: set[tuple[str, str]] = set()
+    _PS_REV_INPROCESS_REFRESHED_AT: float = 0.0
+    _PS_REV_INPROCESS_LAST_ERROR: str = ""
+
+    def _refresh_price_shock_rev_in_process_demotions(self, force: bool = False) -> set[tuple[str, str]]:
+        """Re-evaluate the watchdog predicate from this process's DB (TTL-cached).
+
+        Never raises: a DB failure keeps the previous set (fail-closed for a cell
+        that was already DEMOTE, no new block for the others) and records the error
+        for the status payload.
+        """
+        cls = type(self)
+        now = time.time()
+        if not force and (now - cls._PS_REV_INPROCESS_REFRESHED_AT) < cls.PRICE_SHOCK_REV_INPROCESS_TTL_SEC:
+            return cls._PS_REV_INPROCESS_DEMOTIONS
+        db = getattr(self, "_db", None)
+        if db is None or not hasattr(db, "_safe_conn"):
+            return cls._PS_REV_INPROCESS_DEMOTIONS
+        try:
+            from modules.price_shock_rev_watchdog_core import WATCHED_CELLS, demoted_cells
+            types = sorted({et for et, _inst in WATCHED_CELLS})
+            placeholders = ",".join("?" for _ in types)
+            with db._safe_conn() as conn:
+                rows = conn.execute(
+                    "SELECT entry_type, instrument, is_shadow, status, pnl_pips "
+                    "FROM demo_trades WHERE status='CLOSED' "
+                    f"AND entry_type IN ({placeholders})",
+                    types,
+                ).fetchall()
+            demoted = demoted_cells(dict(r) for r in rows)
+            demoted = {cell for cell in demoted if cell in PRICE_SHOCK_REV_TIER1_PAIRS}
+            if demoted != cls._PS_REV_INPROCESS_DEMOTIONS:
+                try:
+                    self._add_log(
+                        "[PS_WATCHDOG] in-process DEMOTE set changed: "
+                        f"{sorted(cls._PS_REV_INPROCESS_DEMOTIONS)} -> {sorted(demoted)}"
+                    )
+                except Exception:
+                    pass
+            cls._PS_REV_INPROCESS_DEMOTIONS = demoted
+            cls._PS_REV_INPROCESS_LAST_ERROR = ""
+        except Exception as exc:  # DB locked / schema drift: keep last known set
+            cls._PS_REV_INPROCESS_LAST_ERROR = f"{type(exc).__name__}: {exc}"[:200]
+        cls._PS_REV_INPROCESS_REFRESHED_AT = now
+        return cls._PS_REV_INPROCESS_DEMOTIONS
+
     @classmethod
     def _read_price_shock_rev_auto_demotions(cls) -> set[tuple[str, str]]:
+        """Union of the in-process verdict (binding on Render) and the state file
+        (secondary: manual override / local dev / legacy cron output)."""
+        demotions: set[tuple[str, str]] = set(cls._PS_REV_INPROCESS_DEMOTIONS)
         path = cls._price_shock_rev_demotion_state_path()
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
-            return set()
+            return demotions
         except Exception:
-            return set()
+            return demotions
         rows = payload.get("demotions", []) if isinstance(payload, dict) else []
-        demotions: set[tuple[str, str]] = set()
         for row in rows:
             if not isinstance(row, dict):
                 continue
@@ -10901,6 +10975,10 @@ class DemoTrader:
         if _mode == "off":
             return False, "mode_off"  # 手動停止
 
+        # watchdog verdict is evaluated in-process (TTL-cached) — the cron's
+        # state file never reaches this process on Render (rule:R3 2026-10-08).
+        if entry_type in PRICE_SHOCK_REV_TIER1_TYPES:
+            self._refresh_price_shock_rev_in_process_demotions()
         if self._is_price_shock_rev_auto_demoted(entry_type, instrument):
             return False, "price_shock_rev_auto_demoted"
 

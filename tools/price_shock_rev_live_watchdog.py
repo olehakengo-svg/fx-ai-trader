@@ -3,13 +3,19 @@
 
 Fetches or reads closed demo trades, isolates the five Price-Shock Rev Live
 rows (is_shadow=0), and writes an auto-demotion state file when N>=10 and
-either EV<0 or Wilson lower<0.40. The state file is consumed by DemoTrader.
+either EV<0 or Wilson lower<0.40.
+
+NOTE (rule:R3 2026-10-08, registry ps-watchdog-demotion-state-unreachable):
+on Render this runs as a cron with its *own* filesystem, so the state file it
+writes is NOT visible to the web service. The binding DEMOTE path is the
+in-process evaluation inside DemoTrader (same predicate via
+modules/price_shock_rev_watchdog_core.py). This tool is the Discord readout
++ a local/manual override writer; its output is advisory on Render.
 """
 from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import sqlite3
 import ssl
@@ -22,19 +28,35 @@ from pathlib import Path
 from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_API = "https://fx-ai-trader.onrender.com"
-DEFAULT_LIMIT = 5000
-DEFAULT_STATE = PROJECT_ROOT / "data" / "price_shock_rev_auto_demotions.json"
-MIN_LIVE_N = 10
-WILSON_MIN = 0.40
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-WATCHED_CELLS: tuple[tuple[str, str], ...] = (
-    ("price_shock_rev_eur_gbp_h1_long", "EUR_GBP"),
-    ("price_shock_rev_eur_aud_h1_long", "EUR_AUD"),
-    ("price_shock_rev_usd_cad_h1_long", "USD_CAD"),
-    ("price_shock_rev_nzd_jpy_h1_long", "NZD_JPY"),
-    ("price_shock_rev_aud_jpy_h1_long", "AUD_JPY"),
+# Single source of truth for the predicate — the trading process evaluates the
+# same functions in-process (DemoTrader._refresh_price_shock_rev_in_process_demotions),
+# so cron and engine can never disagree on N / EV / Wilson / population
+# (registry ps-watchdog-demotion-state-unreachable, rule:R3 2026-10-08).
+from modules.price_shock_rev_watchdog_core import (  # noqa: E402
+    DEFAULT_PAGE_SIZE,
+    MIN_LIVE_N,
+    WATCHED_CELLS,
+    WILSON_MIN,
+    fetch_closed_trades_paged,
+    filter_live_cell,
+    metrics_for,
+    run,
+    verdict_for,
+    wilson_lower,
 )
+
+__all__ = [
+    "DEFAULT_PAGE_SIZE", "MIN_LIVE_N", "WATCHED_CELLS", "WILSON_MIN",
+    "fetch_trades", "filter_live_cell", "load_trades_from_sqlite", "metrics_for",
+    "run", "verdict_for", "wilson_lower", "write_state", "notify_discord", "parse_iso",
+]
+
+DEFAULT_API = "https://fx-ai-trader.onrender.com"
+DEFAULT_LIMIT = DEFAULT_PAGE_SIZE  # per-page size (all pages are fetched)
+DEFAULT_STATE = PROJECT_ROOT / "data" / "price_shock_rev_auto_demotions.json"
 
 _SSL_CTX = ssl.create_default_context()
 _SAFE_OPENER = urllib.request.build_opener(
@@ -55,31 +77,16 @@ def parse_iso(ts: str) -> datetime | None:
         return None
 
 
-def wilson_lower(wins: int, n: int, z: float = 1.959963984540054) -> float:
-    if n <= 0:
-        return 0.0
-    phat = wins / n
-    denom = 1.0 + z * z / n
-    centre = phat + z * z / (2 * n)
-    margin = z * math.sqrt((phat * (1 - phat) + z * z / (4 * n)) / n)
-    return max(0.0, (centre - margin) / denom)
-
-
 def fetch_trades(api: str, limit: int = DEFAULT_LIMIT) -> list[dict[str, Any]]:
-    url = f"{api.rstrip('/')}/api/demo/trades?status=closed&limit={int(limit)}"
-    parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
-        raise ValueError(f"refusing invalid API URL: {url!r}")
-    req = urllib.request.Request(
-        url, headers={"User-Agent": "price-shock-rev-live-watchdog/1.0"}
+    """All closed trades, paged by `limit` (was: one page of 5000 — on 2026-10-08
+    that reached back only to 2026-07-27 while ps live activation is 2026-05-18,
+    so older fills silently dropped out of N; Codex P2 PR #306)."""
+    return fetch_closed_trades_paged(
+        api,
+        opener=lambda req, timeout: _SAFE_OPENER.open(req, timeout=timeout),
+        user_agent="price-shock-rev-live-watchdog/1.1",
+        page_size=int(limit),
     )
-    with _SAFE_OPENER.open(req, timeout=30) as resp:
-        payload = json.loads(resp.read().decode("utf-8"))
-    if isinstance(payload, dict):
-        return payload.get("trades", []) or []
-    if isinstance(payload, list):
-        return payload
-    return []
 
 
 def load_trades_from_sqlite(db_path: Path) -> list[dict[str, Any]]:
@@ -95,73 +102,6 @@ def load_trades_from_sqlite(db_path: Path) -> list[dict[str, Any]]:
         return [dict(row) for row in rows]
     finally:
         conn.close()
-
-
-def filter_live_cell(
-    trades: list[dict[str, Any]], entry_type: str, instrument: str
-) -> list[dict[str, Any]]:
-    kept = []
-    for trade in trades:
-        if str(trade.get("entry_type") or "") != entry_type:
-            continue
-        if str(trade.get("instrument") or "") != instrument:
-            continue
-        if int(trade.get("is_shadow") or 0) != 0:
-            continue
-        if str(trade.get("status") or "").upper() != "CLOSED":
-            continue
-        kept.append(trade)
-    return kept
-
-
-def metrics_for(trades: list[dict[str, Any]]) -> dict[str, Any]:
-    pnls = [float(t.get("pnl_pips") or 0.0) for t in trades]
-    n = len(pnls)
-    wins = sum(1 for p in pnls if p > 0)
-    return {
-        "n": n,
-        "wins": wins,
-        "losses": n - wins,
-        "wr": (wins / n) if n else 0.0,
-        "wilson_lower": wilson_lower(wins, n),
-        "ev_pips": (sum(pnls) / n) if n else 0.0,
-        "cumulative_pnl_pips": sum(pnls),
-    }
-
-
-def verdict_for(metrics: dict[str, Any]) -> str:
-    if metrics["n"] < MIN_LIVE_N:
-        return "WATCH"
-    if metrics["ev_pips"] < 0 or metrics["wilson_lower"] < WILSON_MIN:
-        return "DEMOTE"
-    return "HOLD"
-
-
-def run(trades: list[dict[str, Any]]) -> tuple[dict[str, Any], list[dict[str, Any]], int]:
-    cells: dict[str, Any] = {}
-    demotions: list[dict[str, Any]] = []
-    for entry_type, instrument in WATCHED_CELLS:
-        cell_trades = filter_live_cell(trades, entry_type, instrument)
-        metrics = metrics_for(cell_trades)
-        verdict = verdict_for(metrics)
-        key = f"{entry_type} x {instrument}"
-        cell = {
-            "entry_type": entry_type,
-            "instrument": instrument,
-            "metrics": metrics,
-            "verdict": verdict,
-        }
-        cells[key] = cell
-        if verdict == "DEMOTE":
-            demotions.append({
-                "entry_type": entry_type,
-                "instrument": instrument,
-                "n": metrics["n"],
-                "ev_pips": metrics["ev_pips"],
-                "wilson_lower": metrics["wilson_lower"],
-                "demoted_at": datetime.now(timezone.utc).isoformat(),
-            })
-    return cells, demotions, 1 if demotions else 0
 
 
 def write_state(path: Path, demotions: list[dict[str, Any]]) -> None:
@@ -227,7 +167,8 @@ def notify_discord(results: dict[str, Any], webhook: str | None) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--api", default=DEFAULT_API)
-    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT)
+    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT,
+                        help="page size for /api/demo/trades (all pages are fetched)")
     parser.add_argument("--db", type=Path, help="Read closed trades from SQLite instead of Render API")
     parser.add_argument("--apply", action="store_true", help="Write auto-demotion state file")
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
