@@ -432,7 +432,7 @@
     },
     {
       "id": "ps-watchdog-demotion-state-unreachable",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-11",
       "doc": "knowledge-base/wiki/decisions/ps-carveout-firstweek-regate-disposition-2026-08-12.md",
@@ -441,7 +441,9 @@
       "reachability": "状態を進める主体 = Claude セッション (autopilot 可、R3)。評価主体 = tools/prereg_trigger_watch.py deadline_info (日次 Tier A cron、期日翌日 00:20Z)。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
-      "outcome_lock": false
+      "outcome_lock": false,
+      "resolved": "2026-10-08",
+      "resolution": "修復 PR #319 (merge bac749d9、2026-10-08T05:47Z、Codex 5 巡 P1 ×6 全件修正・thread 全 resolve、最終 HEAD dea1a400 を connector が「major issues なし」で承認) をマージし Render deploy 後に本番 `/api/demo/status` で確認: engine_pid 94 (forked) / price_shock_rev_auto_demotions = in_process [] / effective [] / persisted [] / refreshed_at 2026-10-08T05:48:56.690863+00:00 / latch_loaded True / fail_closed False / persist_pending False / last_error None / ttl 600s。= 取引プロセス自身が 05-18 LOCK の predicate を自 DB から評価しラッチを永続している (DEMOTE が発注 gate に届く経路が存在する)。test pin tests/test_price_shock_rev_watchdog_inprocess.py (19、counterfactual 確認済み)。現時点の DEMOTE 0 (EUR_GBP N=9 EV −1.06 Wilson_lo 0.121 WATCH / AUD_JPY N=4 / 他 0) — EUR_GBP は次 fill で N=10、EV<0 なら本修復後に初めて実効する auto-demote (R2) が発火し `[PS_WATCHDOG]` ログ + status `in_process` に現れる。解除は operator の `_reset_price_shock_rev_in_process_demotions` のみ (再 live 化は R1)。fetch_trades ページング (watchdog / promote_evaluator) も同 PR。残 R3: tools/alpha_scan_block_recalibration.py / tools/h1_hour_bucket_counterfactual.py の 1 ページ取得 (分析ツール、live 経路外)。"
     },
     {
       "id": "e12-volume-prereg-staleness-review",
