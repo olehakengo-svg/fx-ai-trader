@@ -2446,6 +2446,7 @@ class DemoTrader:
                     self._load_persisted_price_shock_rev_demotions()),
                 "latch_loaded": type(self)._PS_REV_LATCH_LOADED,
                 "fail_closed": type(self)._PS_REV_FAIL_CLOSED,
+                "persist_pending": type(self)._PS_REV_PERSIST_PENDING,
                 "refreshed_at": (
                     datetime.fromtimestamp(type(self)._PS_REV_INPROCESS_REFRESHED_AT, tz=timezone.utc).isoformat()
                     if type(self)._PS_REV_INPROCESS_REFRESHED_AT else None
@@ -10365,6 +10366,11 @@ class DemoTrader:
     PRICE_SHOCK_REV_INPROCESS_RETRY_SEC = 30
     _PS_REV_LATCH_LOADED: bool = False
     _PS_REV_FAIL_CLOSED: bool = False
+    # A latch write that failed (SQLite lock / disk) is NOT persisted: keep the
+    # in-memory block, remember the pending write and retry it on the next refresh
+    # (Codex P1 4215037466) — otherwise a restart after the aggregate recovered
+    # to HOLD would silently resume live orders.
+    _PS_REV_PERSIST_PENDING: bool = False
 
     def _refresh_price_shock_rev_in_process_demotions(self, force: bool = False) -> set[tuple[str, str]]:
         """Re-evaluate the watchdog predicate from this process's DB (TTL-cached).
@@ -10409,11 +10415,17 @@ class DemoTrader:
                     )
                 except Exception:
                     pass
-            if latched - persisted:
-                self._persist_price_shock_rev_demotions(latched)
+            # in-memory block first: it must hold even if the write below fails
             cls._PS_REV_INPROCESS_DEMOTIONS = latched
-            cls._PS_REV_INPROCESS_LAST_ERROR = ""
             cls._PS_REV_LATCH_LOADED = True
+            if (latched - persisted) or cls._PS_REV_PERSIST_PENDING:
+                if not self._persist_price_shock_rev_demotions(latched):
+                    cls._PS_REV_PERSIST_PENDING = True
+                    raise RuntimeError(
+                        f"latch write failed, retry pending: {cls._PS_REV_INPROCESS_LAST_ERROR}"
+                    )
+                cls._PS_REV_PERSIST_PENDING = False
+            cls._PS_REV_INPROCESS_LAST_ERROR = ""
             if cls._PS_REV_FAIL_CLOSED:
                 try:
                     self._add_log("[PS_WATCHDOG] latch readable again — fail-closed block released")
@@ -10463,17 +10475,22 @@ class DemoTrader:
                     out.add(cell)
         return out
 
-    def _persist_price_shock_rev_demotions(self, cells: set[tuple[str, str]]) -> None:
+    def _persist_price_shock_rev_demotions(self, cells: set[tuple[str, str]]) -> bool:
+        """Write the latch. Returns False (and records last_error) on failure —
+        the caller keeps the in-memory block and retries (Codex P1 4215037466)."""
         db = getattr(self, "_db", None)
         if db is None or not hasattr(db, "set_system_kv"):
-            return
+            type(self)._PS_REV_INPROCESS_LAST_ERROR = "persist: no db"
+            return False
         try:
             db.set_system_kv(
                 type(self).PRICE_SHOCK_REV_DEMOTION_KV_KEY,
                 json.dumps(sorted(list(c) for c in cells)),
             )
+            return True
         except Exception as exc:
             type(self)._PS_REV_INPROCESS_LAST_ERROR = f"persist: {type(exc).__name__}: {exc}"[:200]
+            return False
 
     def _reset_price_shock_rev_in_process_demotions(self) -> None:
         """Operator-only release of the latch (R1: re-live of a demoted cell needs
@@ -10484,6 +10501,7 @@ class DemoTrader:
         self._persist_price_shock_rev_demotions(set())
         cls._PS_REV_LATCH_LOADED = False
         cls._PS_REV_FAIL_CLOSED = False
+        cls._PS_REV_PERSIST_PENDING = False
 
     @classmethod
     def _read_price_shock_rev_auto_demotions(cls) -> set[tuple[str, str]]:

@@ -58,6 +58,7 @@ def trader(tmp_path, monkeypatch):
     DemoTrader._PS_REV_INPROCESS_LAST_ERROR = ""
     DemoTrader._PS_REV_LATCH_LOADED = False
     DemoTrader._PS_REV_FAIL_CLOSED = False
+    DemoTrader._PS_REV_PERSIST_PENDING = False
     db = DemoDB(str(tmp_path / "ps.db"))
     t = DemoTrader.__new__(DemoTrader)
     t._db = db
@@ -70,6 +71,7 @@ def trader(tmp_path, monkeypatch):
     DemoTrader._PS_REV_INPROCESS_LAST_ERROR = ""
     DemoTrader._PS_REV_LATCH_LOADED = False
     DemoTrader._PS_REV_FAIL_CLOSED = False
+    DemoTrader._PS_REV_PERSIST_PENDING = False
 
 
 def test_core_is_the_single_predicate_used_by_the_cron_tool():
@@ -306,6 +308,36 @@ def test_transient_failure_after_successful_load_keeps_set_without_global_block(
     assert DemoTrader._PS_REV_FAIL_CLOSED is False          # already loaded once
     assert DemoTrader._PS_REV_INPROCESS_DEMOTIONS == {USD_CAD}  # known set kept
     assert DemoTrader._is_price_shock_rev_auto_demoted(*EUR_GBP) is False
+
+
+def test_failed_latch_write_keeps_block_and_retries(trader, monkeypatch):
+    """Codex P1 4215037466: when the first DEMOTE's system_kv write fails, the
+    cell must stay blocked in memory, the failure must be visible (last_error,
+    persist_pending) and the write must be retried — not cached as done for 600s."""
+    import modules.demo_trader as dt
+    clock = {"t": 7_000_000.0}
+    monkeypatch.setattr(dt.time, "time", lambda: clock["t"])
+    for i in range(10):
+        _insert_closed(trader._db, trade_id=f"l{i}", cell=USD_CAD, pnl_pips=-1.0)
+    real_set = trader._db.set_system_kv
+    monkeypatch.setattr(trader._db, "set_system_kv", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("database is locked")))
+
+    trader._refresh_price_shock_rev_in_process_demotions(force=True)
+    assert DemoTrader._PS_REV_INPROCESS_DEMOTIONS == {USD_CAD}      # in-memory block holds
+    assert DemoTrader._is_price_shock_rev_auto_demoted(*USD_CAD) is True
+    assert DemoTrader._PS_REV_PERSIST_PENDING is True
+    assert "persist" in DemoTrader._PS_REV_INPROCESS_LAST_ERROR
+    assert trader._load_persisted_price_shock_rev_demotions() == set()  # not written yet
+
+    # within the retry window nothing happens; after it the write is retried
+    assert trader._refresh_price_shock_rev_in_process_demotions() == {USD_CAD}
+    assert DemoTrader._PS_REV_PERSIST_PENDING is True
+    monkeypatch.setattr(trader._db, "set_system_kv", real_set)
+    clock["t"] += DemoTrader.PRICE_SHOCK_REV_INPROCESS_RETRY_SEC + 1
+    trader._refresh_price_shock_rev_in_process_demotions()
+    assert DemoTrader._PS_REV_PERSIST_PENDING is False
+    assert DemoTrader._PS_REV_INPROCESS_LAST_ERROR == ""
+    assert trader._load_persisted_price_shock_rev_demotions() == {USD_CAD}
 
 
 # ---------------- API paging ----------------
