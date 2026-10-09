@@ -5231,6 +5231,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 - `price_shock_rev_eur_gbp_h1_long`: 2/30（**残28件**）
 - `kalman_d7_ema75_break`: 1/30（**残29件**）
 
+### 2026-10-09 (Post-NY Report)
+| セッション PnL | **+5.1 pips** |
+| 戦略 | ペア | 結果 | PnL | 成功要因 |
+**補足**: spread 0.8 pips（DT閾値20%に対し gross PnL +5.1 = 摩擦比率 ≈15.7%、閾値内）。レジーム適合は良好。
+| 戦略 | ペア | 結果 | PnL |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+| London (07-16 UTC) | 2 | 50.0% | +2.2 | 平凡（EV +1.1/trade） |
+| NY (16-22 UTC) | 1 | 100.0% | +5.1 | 本日最良（EV +5.1/trade） |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
