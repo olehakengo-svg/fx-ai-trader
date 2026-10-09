@@ -5201,6 +5201,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 - **最悪セッション**: Tokyo — 単独の敗北（−12.1pips）。レジーム詳細は未明だが、本日の通貨環境（EUR/JPY VOLATILE、GBP/JPY RANGING）の中で東京早朝のダイレクショナル判断が外れた形
 - **総評**: 本日は極めて低トレード日（N=3）。システムの選別機能が機能しており、信号品質を重視した結果。PnLはNYの単発大勝ちに依存しており構造的安定ではない点に注意
 
+### 2026-10-09 (Pre-Tokyo Briefing)
+前日（2026-10-08）は**3トレード、PnL +30.0、WR 66.7%**。
+スプレッドはすべて0.8pipで正常範囲内。Cutoff後累積はN=10、PnL +69.1と引き続き極小サンプル水準。
+| Strategy | Pair | N | WR% | EV | PnL | 判断フェーズ |
+> **全戦略N<10。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）いずれも判定不能。現時点は「観察継続」フェーズ。**
+- 前日3件、Cutoff後累積10件。N=30到達まで**残り20件**（30まで）。
+- `order_bar_dedup`ブロックが多数（daytrade_eurjpy:483件、daytrade_eur:359件、daytrade:332件）。バー内重複排除が機能しており設計通りだが、結果として有効シグナル数が抑制されている。
+- `r2_shadow_demoted_cell`がscalpファミリー全体で合計2,867件（scalp+scalp_eur+scalp_5m_gbp+scalp_5m_eur+scalp_5m）。ScalpのR2セルがdemoted状態のまま常態化している。
+- 全50件がshadow_tracking（17件）または関連理由でブロック。**本番口座への送信は1件も発生していない。**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
