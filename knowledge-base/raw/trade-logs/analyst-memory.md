@@ -5211,6 +5211,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 - `r2_shadow_demoted_cell`がscalpファミリー全体で合計2,867件（scalp+scalp_eur+scalp_5m_gbp+scalp_5m_eur+scalp_5m）。ScalpのR2セルがdemoted状態のまま常態化している。
 - 全50件がshadow_tracking（17件）または関連理由でブロック。**本番口座への送信は1件も発生していない。**
 
+### 2026-10-09 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | N/A |
+- ブロック要因はすべてルール通りの正常動作（降格セル・重複排除・エクスポージャー制限）
+- トレードゼロはシグナル環境の問題であり、パラメータ調整で解決する性質ではない
+- `daytrade_xau`・`scalp_xau`・`scalp_eurjpy` はOFF継続が適切（現状維持）
+- DD防御 0.2x モード中につき、パラメータ感度を上げる方向の変更は禁止
+| GBP_JPY | RANGING | 71% | レンジだがATR高め。ブレイクアウト型には注意 |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
