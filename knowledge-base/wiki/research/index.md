@@ -93,12 +93,13 @@ WS3 内部母集団探索 2 周 FAIL → 外部仮説転進。スクリーン + 
 - **E20 金利差方向バイアス × テクニカル entry (user 仮説 2026-07-22)**: [[e20-rate-differential-feasibility-2026-07-22]] — **S1 条件付き採用 (S2 GO)**。政策金利差 8/8 (BIS keyless) + 2y 国債差 6/8 現行を実 fetch 確認、第 4 モダリティ (rates)。
 - **EA Landscape Sweep (user 指示 2026-07-31)**: [[ea-landscape-sweep-2026-07-31]] — 「勝てている EA」13 ソース大規模調査 (31-agent、113 findings → 18 敵対的検証)。**multi-year verified の勝者は 2 アーキタイプに収斂** (ナイトスキャル MR = ブローカー回収済みで移植不能 / コモディティ三角クロス = per-position 核が未検証)。GO 2 family → 台帳 #21 commodity_cross_range_mr / #22 equity_curve_shadow_gating (queued)。副産物 = 生存率ベースレート割引関数 + THA→E7 prior 加点。
 - **臨時スキャン #29 S1 step 0 (2026-09-22、WIP 規則「着手可能 0 本なら期日を待たない」の発動)**: [[adhoc-scan-29-step0-2026-09-22]] — license-free × dense × 凍結可能な中銀声明 stance モデルの候補同定 (記述級、モデル DL・推論・census は未実行)。**無条件候補 0 / 条件付き 2** (WCB pooled = ライセンス不整合で記述 secondary 固定 / ABGH-2019 FOMC 辞書 = primary 候補・再利用許諾未確認・密度未測定)。LLM zero-shot / frozen-LLM 表現採点は知識カットオフ汚染で恒久除外 (C5 text 規律の提案)。step 1 census の実行可否は第6次スキャン (10-18) で裁定、registry `edge-supply-scan-monthly` 追記済み。前回: [[external-hypothesis-scan-round5-2026-09-17]] / [[external-hypothesis-scan-round4-2026-09-10]]。
+- **user 質問 (2026-10-09)「TradingView で全相場が見える → 為替との連動を導いてエッジ化できるか」**: [[query-2026-10-09-crossasset-tv-edge]] — KB 横断 (5 レンズ統合台帳 70 行 → 反証 3 本/候補 → 審査 → 完全性批評、第 2 パス 23 候補)。結論: 連動の導出は済 (ZN↔USD_JPY 同時刻 IC −0.585 / 先行 IC 0.0075)、エッジ化の 4 構成 (lead-lag / divergence-reversion / VIX event / 月末 equity flow) は全て pre-reg 済み FAIL or BAN、TradingView は律速ではない (fetch 工数のみ削減、prior/C1 不変)。生存 2 本は scan #6 (10-18) 裁定に上程、E1 verdict (10-15) を displace しない。副産物: 本番 app.py の DXY/VIX/TNX/6J overlay (master_bias / fundamental_score / news) が未検証のまま稼働 = R3 ablation 候補。
 
 ## Still Unexplored
 - [x] ~~High-frequency lead-lag between FX pairs (Hasbrouck 2003)~~ → **CLOSED 2026-07-13**: OHLCV 内部 + cross-asset とも ≥1h で裁定消滅 (実証 probe、[[external-hypothesis-scan-2026-07-13]] §3)。naive の有意は Lo-MacKinlay 非同期取引 artifact
 - [~] FX term structure predictability (forward rate bias) → **不能**: spot only、forward/swap curve データなし。**部分的復活 2026-07-22**: CIP proxy (国債利回り差/政策金利差、keyless 実確認) により日次粒度の carry 系構成は C1 解消 → [[e20-rate-differential-feasibility-2026-07-22]]
 - [~] Machine learning ensemble (Gu, Kelly & Xiu 2020) → **原則棄却**: データ蓄積フェーズでの curve-fit + complex-gate-edge-destruction 教訓に反
-- [ ] Cross-asset (equity ES→FX) divergence — E3 の rates 版で PASS≥1 なら equity へ拡張
+- [~] Cross-asset (equity ES→FX) divergence — E3 の rates 版で PASS≥1 なら equity へ拡張 → **条件は 2026-07-14 の E3 FAIL で永久不成立** (equity 版は E3 family の asset-swap = copper-china ban 同型、反証 3/3)。cross-asset→FX 構成の全体台帳 (70 行: FAIL 14 / BAN 12 / 条件付き 7 / 未着手 25 …) と生存候補 2 本 (round-4 EUR divergence 条件付き / catalog idx 19 research-only) は [[query-2026-10-09-crossasset-tv-edge]] (2026-10-09、user 質問「TradingView で全相場が見える → 為替連動をエッジ化できるか」への回答)
 
 ## Templates
 - [[edge-hypothesis]] -- エッジ仮説テンプレート
