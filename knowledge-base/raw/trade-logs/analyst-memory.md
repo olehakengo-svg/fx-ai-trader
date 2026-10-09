@@ -5221,6 +5221,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 | GBP_JPY | RANGING | 71% | レンジだがATR高め。ブレイクアウト型には注意 |
 ### 推奨戦略配分
 
+### 2026-10-09 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **+30.0 pip** |
+| 全体WR | 66.7%（2勝1敗） |
+> ⚠️ **注意**: 全戦略合計N=11。N≥30の判断閾値に達しておらず、全数値は「傾向」段階。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- `usdjpy_carry_dip_accumulator`: 4/30（**残26件**）
+- `kalman_d7_po_dn_flip`: 4/30（**残26件**）
+- `price_shock_rev_eur_gbp_h1_long`: 2/30（**残28件**）
+- `kalman_d7_ema75_break`: 1/30（**残29件**）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
