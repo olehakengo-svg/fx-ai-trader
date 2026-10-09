@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-09 — docs(E1+registry): E1 first look 凍結 export 実行 (cutoff 10-08T06:33:31Z、1 回・roundtrip OK・verify OK) + rnb lane-health checkpoint-2 通過 resolve (rule:R3、autopilot、record-only)
+
+- **E1 凍結** ([[e1-first-look-runbook-2026-09-22]] §3 改訂版、registry `e1-first-look-freeze-due` → resolved): (a) refresh 13 pair → (a″) OANDA mid backfill **gap 1,131 / filled 1,131 / unfilled 0** ([[e1-ohlcv-gap-backfill-2026-10-06]] §8) → (a') preflight **13/13 OK** (lag 0 / gaps 0) → (b) export **1 回** (snapshots 48,582 行 13/13、health_log 76,499 行、M15 slice 13 parquet、roundtrip API→artifact OK、attempts 1 `frozen`、force_history []) → (c) `--verify` **OK (15 files)**。commit = marker `.sha256` / manifest / attempts 台帳 + head / backfill audit。artifact (30.9 MB、sha256 `172cfe54…`) は手順書規則で commit せず worktree + 共有 cache backup に保持 (.gitignore に明示)。値は誰も見ていない (P-10 維持)。次 = §5 判定器 `--verdict-run` (10-09〜10-14) → §6 verdict 追記 (10-15)
+- **rnb checkpoint-2** (registry `rnb-shadow-lane-health-checkpoint-2`、期日 10-08 → resolved): cron 判定 N=19/41 (TRIGGERED せず) を本番 `/api/demo/trades?mode=rnb_usdjpy` で再計数 — post-fix cohort (since 09-23) closed **N=19**、厳格 shadow 19/19、dedup 0、`[SHADOW_RELAX]` marker **有 11 / 無 8**、旧レーン 2 行は cohort 外。件数のみ (outcome 不読)。lane-health cadence 監視は完了、以後は demote gate + LOCK 本体 (2027-01-15) が担う。precheck §7 の頻度前提下方修正案はクローズ
+- 観測: ps in-process watchdog `refreshed_at` は 10-08T05:52Z のまま = refresh は ps Tier1 signal 到達時の lazy 評価 (600s TTL) で、以降 ps signal が gate に来ていないだけ (設計どおり、欠陥ではない)。EUR_GBP ps live closed N は 9 のまま (10-08 以降 fill なし)
+- 詳細: [[2026-10-09-session]]
+
 ## 2026-10-08 — fix(engine): price_shock_rev live watchdog DEMOTE の到達性修復 (in-process 評価) + `/api/demo/trades` ページング (rule:R3、autopilot)
 
 - **構造バグ** (registry `ps-watchdog-demotion-state-unreachable`、期日 10-11、PR #306 Codex P1 で発見・[[ps-carveout-firstweek-regate-disposition-2026-08-12]] §8 で追跡): Render の cron `fx-ai-price-shock-rev-watchdog` (render.yaml:283、4h ごと) は `tools/price_shock_rev_live_watchdog.py --apply` で `data/price_shock_rev_auto_demotions.json` を書くが、cron は web service と **別のファイルシステム** (disk `/var/data` は web service のみ、`PRICE_SHOCK_REV_DEMOTION_STATE` 未設定) ⇒ `DemoTrader._read_price_shock_rev_auto_demotions` (demo_trader.py) は常に FileNotFound = 空集合。[[price-shock-rev-live-activation-2026-05-18]] の R2 契約「live N≥10 ∧ (EV<0 ∨ Wilson_lo<0.40) → auto DEMOTE」は Discord 通知のみで、発注 gate には届いていなかった

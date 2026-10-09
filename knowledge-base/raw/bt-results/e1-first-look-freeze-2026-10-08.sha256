@@ -1,0 +1,15 @@
+ab75dff9ff7177a70f44da70bafae80ce09a44356e09a3e59f6c5f6b5eae4794  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/AUD_JPY_15m.parquet
+2d6e61a9ac0a3cd76ac78c8b8bf62dba32777043c61c72e04476fccea9687973  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/AUD_USD_15m.parquet
+8e0569627a6766079a4c4a75f9a334965a65063b16259d97f71923ae3141f636  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_AUD_15m.parquet
+46468b0188a1972a66bb5e78a98d92205fab5e67c8c4a5bfb31a1ccea609eb4b  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_GBP_15m.parquet
+ace4496b9bf704495e00b215776d5de2c8a92572195b4d553b34befad69c880d  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_JPY_15m.parquet
+7d68a32990213a5e26ad2d10591f91a11e47bf45c9734160d312a0c0cb8cd46f  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_USD_15m.parquet
+f63974769375c365d15b947a0567dd70f4ae80cd207ed462a9d14fee17837096  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/GBP_JPY_15m.parquet
+cfaf7c06dedfde494f7c3a1836ecb6daeff80f677edb2a8da6e7804f5854fac7  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/GBP_USD_15m.parquet
+b32693b8cc87050d55afd98e2dbceec7c8c329b66108a1afe9770c96c2064b9d  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/NZD_JPY_15m.parquet
+285dbd06b22b376d8b94cb70df398c1785fc1bcff0e498f934034480c5ab4564  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/NZD_USD_15m.parquet
+24e7ffbe15333b049a5062ef185366065713dfa68a1fa366bcac957eff8847d4  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/USD_CAD_15m.parquet
+d171a63d4b73d4172bbdad17ba9bf95832db3f979d0bb9982f6ea1e4c48d79c2  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/USD_CHF_15m.parquet
+2bb8352d11829f164e4238a9696b2ce2f042baf06588dd55138392b079494004  /Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/USD_JPY_15m.parquet
+fae1f0ab522567922880d9f9ef4a70a8c93ca7641b516da6e65dcfc21abf832e  knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.manifest.json
+172cfe54584bfbdbe500749f27c2be514c9383d54b9ca62808a2311d850f5dd5  knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08/e1_prereg_frozen_export_look1.json

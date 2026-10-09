@@ -1,0 +1,659 @@
+{
+"api_base": "https://fx-ai-trader.onrender.com",
+"artifact": "knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08/e1_prereg_frozen_export_look1.json",
+"artifact_bytes": 30914209,
+"attempts": [
+{
+"api_base": "https://fx-ai-trader.onrender.com",
+"api_queried": true,
+"artifact_sha256": "172cfe54584bfbdbe500749f27c2be514c9383d54b9ca62808a2311d850f5dd5",
+"attempt_id": "549be0af78af48b580fb70c312824679",
+"entry_hash": "1dc6aaaa5c0fc10d6ce81207cbc50ec5385faa37350cbd61a90272af59a91351",
+"finished_at": "2026-10-09T04:28:50Z",
+"force": false,
+"health_rows": 76499,
+"prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+"snapshots_rows": 48582,
+"started_at": "2026-10-09T04:27:28Z",
+"status": "frozen"
+}
+],
+"attempts_record": "knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.attempts.json",
+"cutoff": "2026-10-08T06:33:31Z",
+"force_history": [],
+"frozen_at": "2026-10-09T04:27:28Z",
+"health_summary": {
+"first": "2026-07-17T08:40:27Z",
+"id_max": 76499,
+"id_min": 1,
+"keys": {
+"last_cycle_at": 5792,
+"verified:AUD_JPY:outlook": 5439,
+"verified:AUD_USD:outlook": 5439,
+"verified:EUR_AUD:outlook": 5439,
+"verified:EUR_GBP:outlook": 5439,
+"verified:EUR_JPY:outlook": 5439,
+"verified:EUR_USD:outlook": 5439,
+"verified:GBP_JPY:outlook": 5439,
+"verified:GBP_USD:outlook": 5439,
+"verified:NZD_JPY:outlook": 5439,
+"verified:NZD_USD:outlook": 5439,
+"verified:USD_CAD:outlook": 5439,
+"verified:USD_CHF:outlook": 5439,
+"verified:USD_JPY:outlook": 5439
+},
+"last": "2026-10-08T06:32:34Z",
+"rows_total": 76499
+},
+"look": 1,
+"ohlcv_coverage": {
+"AUD_JPY": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 13487,
+"extra_dropped_at_slice": true,
+"extra_first": "2014-08-23T03:45:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 333442
+},
+"AUD_USD": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 1969,
+"extra_dropped_at_slice": true,
+"extra_first": "2020-11-15T17:00:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 320373
+},
+"EUR_AUD": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 5294,
+"extra_dropped_at_slice": true,
+"extra_first": "2020-11-15T17:00:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 324399
+},
+"EUR_GBP": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 2120,
+"extra_dropped_at_slice": true,
+"extra_first": "2020-11-15T17:00:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 321127
+},
+"EUR_JPY": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 13236,
+"extra_dropped_at_slice": true,
+"extra_first": "2020-09-18T21:00:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 331176
+},
+"EUR_USD": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 1587,
+"extra_dropped_at_slice": true,
+"extra_first": "2020-11-15T17:00:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 322184
+},
+"GBP_JPY": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 13888,
+"extra_dropped_at_slice": true,
+"extra_first": "2014-08-23T03:45:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 330600
+},
+"GBP_USD": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 1456,
+"extra_dropped_at_slice": true,
+"extra_first": "2020-11-15T17:00:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 320167
+},
+"NZD_JPY": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 26159,
+"extra_dropped_at_slice": true,
+"extra_first": "2014-08-23T03:45:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 341564
+},
+"NZD_USD": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 1593,
+"extra_dropped_at_slice": true,
+"extra_first": "2021-01-08T22:00:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 316810
+},
+"USD_CAD": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 1687,
+"extra_dropped_at_slice": true,
+"extra_first": "2020-11-15T17:00:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 318754
+},
+"USD_CHF": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 11403,
+"extra_dropped_at_slice": true,
+"extra_first": "2018-08-10T21:00:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 325701
+},
+"USD_JPY": {
+"duplicates": 0,
+"expected_last_bar_open": "2026-10-08T06:15:00Z",
+"expected_market_slots": 5760,
+"extra_bars": 1545,
+"extra_dropped_at_slice": true,
+"extra_first": "2014-08-23T03:45:00Z",
+"first_bar_open": "2013-10-24T00:00:00Z",
+"gap_bars": 0,
+"gap_first": null,
+"gap_max_run_bars": 0,
+"gap_runs": 0,
+"lag_bars": 0,
+"last_complete_bar_open": "2026-10-08T06:15:00Z",
+"ok": true,
+"reason": null,
+"rows": 318024
+}
+},
+"ohlcv_drop_extra_bars": true,
+"ohlcv_dst": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08",
+"ohlcv_max_gap_bars": 0,
+"ohlcv_max_lag_bars": 0,
+"ohlcv_slice": {
+"AUD_JPY": {
+"bytes": 8703137,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/AUD_JPY_15m.parquet",
+"rows": 319867,
+"rows_dropped": 13575,
+"rows_dropped_extra": 13487,
+"sha256": "ab75dff9ff7177a70f44da70bafae80ce09a44356e09a3e59f6c5f6b5eae4794",
+"source_sha256": "03d011c77986a9173462a783600482ae34a8b0526522806af96089205892300a"
+},
+"AUD_USD": {
+"bytes": 7082734,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/AUD_USD_15m.parquet",
+"rows": 318316,
+"rows_dropped": 2057,
+"rows_dropped_extra": 1969,
+"sha256": "2d6e61a9ac0a3cd76ac78c8b8bf62dba32777043c61c72e04476fccea9687973",
+"source_sha256": "12662ee3edaf848cc3187c827ce82875e008a3836e0e263fb5fcfa537137ca87"
+},
+"EUR_AUD": {
+"bytes": 7726019,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_AUD_15m.parquet",
+"rows": 319017,
+"rows_dropped": 5382,
+"rows_dropped_extra": 5294,
+"sha256": "8e0569627a6766079a4c4a75f9a334965a65063b16259d97f71923ae3141f636",
+"source_sha256": "2743375082329a4cb200169476063eaf190e0256cfaa6ac51f695cbbb3423c11"
+},
+"EUR_GBP": {
+"bytes": 6801918,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_GBP_15m.parquet",
+"rows": 318919,
+"rows_dropped": 2208,
+"rows_dropped_extra": 2120,
+"sha256": "46468b0188a1972a66bb5e78a98d92205fab5e67c8c4a5bfb31a1ccea609eb4b",
+"source_sha256": "312d0821728b6feedb748c8bf439cdfb5eddb7954e617b9e10a4a4a64a02035c"
+},
+"EUR_JPY": {
+"bytes": 9107707,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_JPY_15m.parquet",
+"rows": 317852,
+"rows_dropped": 13324,
+"rows_dropped_extra": 13236,
+"sha256": "ace4496b9bf704495e00b215776d5de2c8a92572195b4d553b34befad69c880d",
+"source_sha256": "4140babb23c447004b91148fe3dbbfc9e56028f443f24b7e531aeb1083ba5787"
+},
+"EUR_USD": {
+"bytes": 7459458,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_USD_15m.parquet",
+"rows": 320509,
+"rows_dropped": 1675,
+"rows_dropped_extra": 1587,
+"sha256": "7d68a32990213a5e26ad2d10591f91a11e47bf45c9734160d312a0c0cb8cd46f",
+"source_sha256": "8c860d6d5953cf586f3bfff6a4911b13e15fd523013eb07ad979549bbdfef6b5"
+},
+"GBP_JPY": {
+"bytes": 9676672,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/GBP_JPY_15m.parquet",
+"rows": 316624,
+"rows_dropped": 13976,
+"rows_dropped_extra": 13888,
+"sha256": "f63974769375c365d15b947a0567dd70f4ae80cd207ed462a9d14fee17837096",
+"source_sha256": "ea944b7b0feceafda670ab9ad37a1ed9724e732fbbca4fbbf93eec1c32ecbd20"
+},
+"GBP_USD": {
+"bytes": 7972141,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/GBP_USD_15m.parquet",
+"rows": 318623,
+"rows_dropped": 1544,
+"rows_dropped_extra": 1456,
+"sha256": "cfaf7c06dedfde494f7c3a1836ecb6daeff80f677edb2a8da6e7804f5854fac7",
+"source_sha256": "bcdd5df28108f63356cd8f53daab5cd8401ecb9113ddf134a7b42008f7397f85"
+},
+"NZD_JPY": {
+"bytes": 8831471,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/NZD_JPY_15m.parquet",
+"rows": 315317,
+"rows_dropped": 26247,
+"rows_dropped_extra": 26159,
+"sha256": "b32693b8cc87050d55afd98e2dbceec7c8c329b66108a1afe9770c96c2064b9d",
+"source_sha256": "e549a52951de57c1352460d3654a53c26647161bf2506bd7e102c683efb1a6c5"
+},
+"NZD_USD": {
+"bytes": 7006931,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/NZD_USD_15m.parquet",
+"rows": 315129,
+"rows_dropped": 1681,
+"rows_dropped_extra": 1593,
+"sha256": "285dbd06b22b376d8b94cb70df398c1785fc1bcff0e498f934034480c5ab4564",
+"source_sha256": "e65d2e3855d489dae8d12022bbb434ce8d4031315d9bd6d63da3a7dc0b5ee9b6"
+},
+"USD_CAD": {
+"bytes": 7388978,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/USD_CAD_15m.parquet",
+"rows": 316979,
+"rows_dropped": 1775,
+"rows_dropped_extra": 1687,
+"sha256": "24e7ffbe15333b049a5062ef185366065713dfa68a1fa366bcac957eff8847d4",
+"source_sha256": "37307fe9840954a6deaa3b98dc52b678f6f41e62a039d3bf095606c188c4cd4f"
+},
+"USD_CHF": {
+"bytes": 6917463,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/USD_CHF_15m.parquet",
+"rows": 314210,
+"rows_dropped": 11491,
+"rows_dropped_extra": 11403,
+"sha256": "d171a63d4b73d4172bbdad17ba9bf95832db3f979d0bb9982f6ea1e4c48d79c2",
+"source_sha256": "0252eb08caadb167448756f123897b95c446701eb60801ce775d125d0bd25a70"
+},
+"USD_JPY": {
+"bytes": 8586511,
+"last_bar_open": "2026-10-08T06:15:00Z",
+"path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/USD_JPY_15m.parquet",
+"rows": 316391,
+"rows_dropped": 1633,
+"rows_dropped_extra": 1545,
+"sha256": "2bb8352d11829f164e4238a9696b2ce2f042baf06588dd55138392b079494004",
+"source_sha256": "6917c32be066ff9229d7ed0fda9f11c0044c5f4ea102b3f61441254bdc54ae10"
+}
+},
+"original_cutoff": "2026-10-08T06:33:31Z",
+"peeking_note": "§6-2: artifact の値 (skew/avg 価格/buckets) を verdict 期日前に 開く・集計する・プロットすることは禁止。この manifest は 件数/時刻範囲/sha256 のみ",
+"postpone_weeks": 0,
+"postponed": false,
+"roundtrip_check": {
+"fetch_ledger": {
+"AUD_JPY": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 30,
+"rows_dedup": 0,
+"rows_kept": 3525,
+"rows_returned": 3555
+},
+"AUD_USD": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 38,
+"rows_dedup": 0,
+"rows_kept": 3797,
+"rows_returned": 3835
+},
+"EUR_AUD": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 26,
+"rows_dedup": 0,
+"rows_kept": 3642,
+"rows_returned": 3668
+},
+"EUR_GBP": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 38,
+"rows_dedup": 0,
+"rows_kept": 3624,
+"rows_returned": 3662
+},
+"EUR_JPY": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 42,
+"rows_dedup": 0,
+"rows_kept": 3782,
+"rows_returned": 3824
+},
+"EUR_USD": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 62,
+"rows_dedup": 0,
+"rows_kept": 3999,
+"rows_returned": 4061
+},
+"GBP_JPY": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 41,
+"rows_dedup": 0,
+"rows_kept": 3757,
+"rows_returned": 3798
+},
+"GBP_USD": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 54,
+"rows_dedup": 0,
+"rows_kept": 3948,
+"rows_returned": 4002
+},
+"NZD_JPY": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 16,
+"rows_dedup": 0,
+"rows_kept": 3263,
+"rows_returned": 3279
+},
+"NZD_USD": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 36,
+"rows_dedup": 0,
+"rows_kept": 3727,
+"rows_returned": 3763
+},
+"USD_CAD": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 47,
+"rows_dedup": 0,
+"rows_kept": 3823,
+"rows_returned": 3870
+},
+"USD_CHF": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 36,
+"rows_dedup": 0,
+"rows_kept": 3757,
+"rows_returned": 3793
+},
+"USD_JPY": {
+"from_first": "2026-07-16T06:33:31",
+"pages": 1,
+"rows_before_t0": 0,
+"rows_beyond_cutoff": 59,
+"rows_dedup": 0,
+"rows_kept": 3938,
+"rows_returned": 3997
+}
+},
+"fetch_ledger_consistent": true,
+"health": {
+"api_digest": "713312d207dc1db7de7f3d66fa5654bf2100a6ed37735e1071d40ba5c007c703",
+"api_rows": 76499,
+"artifact_digest": "713312d207dc1db7de7f3d66fa5654bf2100a6ed37735e1071d40ba5c007c703",
+"artifact_rows": 76499,
+"digest_match": true
+},
+"method": "artifact re-read from disk vs in-memory export response; counts + key set + canonical row digests; no second API query",
+"ok": true,
+"snapshots": {
+"api_digest": "efda6fc1e56613d54eb48da8e1c7d495247ef94537c88089795ffa131377e766",
+"api_rows": 48582,
+"api_unique_keys": 48582,
+"artifact_digest": "efda6fc1e56613d54eb48da8e1c7d495247ef94537c88089795ffa131377e766",
+"artifact_rows": 48582,
+"artifact_unique_keys": 48582,
+"digest_match": true,
+"keys_extra_in_artifact": 0,
+"keys_match": true,
+"keys_missing_in_artifact": 0
+},
+"synthetic_flag_false": true
+},
+"sha256_record": "knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.sha256",
+"slug": "first-look",
+"snapshots_summary": {
+"instruments_missing": [],
+"instruments_present": [
+"AUD_JPY",
+"AUD_USD",
+"EUR_AUD",
+"EUR_GBP",
+"EUR_JPY",
+"EUR_USD",
+"GBP_JPY",
+"GBP_USD",
+"NZD_JPY",
+"NZD_USD",
+"USD_CAD",
+"USD_CHF",
+"USD_JPY"
+],
+"per_instrument": {
+"AUD_JPY": {
+"first": "2026-07-16T06:33:31Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3525
+},
+"AUD_USD": {
+"first": "2026-07-16T07:51:18Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3797
+},
+"EUR_AUD": {
+"first": "2026-07-16T07:51:18Z",
+"last": "2026-10-08T05:38:30Z",
+"rows": 3642
+},
+"EUR_GBP": {
+"first": "2026-07-16T07:51:18Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3624
+},
+"EUR_JPY": {
+"first": "2026-07-16T06:33:31Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3782
+},
+"EUR_USD": {
+"first": "2026-07-16T06:33:31Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3999
+},
+"GBP_JPY": {
+"first": "2026-07-16T06:33:31Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3757
+},
+"GBP_USD": {
+"first": "2026-07-16T06:33:31Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3948
+},
+"NZD_JPY": {
+"first": "2026-07-16T07:51:18Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3263
+},
+"NZD_USD": {
+"first": "2026-07-16T07:51:18Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3727
+},
+"USD_CAD": {
+"first": "2026-07-16T07:51:18Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3823
+},
+"USD_CHF": {
+"first": "2026-07-16T07:51:18Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3757
+},
+"USD_JPY": {
+"first": "2026-07-16T06:33:31Z",
+"last": "2026-10-08T06:32:34Z",
+"rows": 3938
+}
+},
+"rows_total": 48582
+},
+"tool": "tools/e1_positioning_frozen_export.py",
+"verdict_deadline": "2026-10-15"
+}

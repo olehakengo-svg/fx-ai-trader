@@ -147,6 +147,11 @@ pre-reg §8 placeholder に、判定器出力から**転記**する (解釈を�
 | 2026-10-06 02:4xZ | §2-3b preflight (refresh 後) + 直接 probe | 0/13 OK: stale_tail 13 (lag 207–208) / **interior_gaps 8 pair 合計 1,125 本** (EUR_JPY 553・AUD_USD 237・GBP_JPY 194・EUR_AUD 96・EUR_GBP 30・USD_CHF 7・USD_JPY 4・GBP_USD 4) / extra 13 (全て t0 以前、窓内 0)。MASSIVE 直接 probe 1m/15m/1h で run 内 0/N = vendor 本体の穴 → [[e1-ohlcv-gap-backfill-2026-10-06]] |
 | 2026-10-06 02:50:09Z | §3 (a″) `tools/e1_ohlcv_gap_backfill.py` (新設) | 共有 cache → `data/cache/e1_ohlcv/` 複製: gap 1,125 / filled 1,125 / unfilled 0 (OANDA v20 mid、70 run)、gaps 0 の 5 pair は byte copy。audit `raw/bt-results/e1-ohlcv-gap-backfill-first-look-2026-10-06.json` (値なし) |
 | 2026-10-06 02:5xZ | §2-3b preflight (複製、`--ohlcv-drop-extra-bars`) | 0/13 OK だが残る理由は **stale_tail のみ** (cutoff 未到達、gaps 0 / dup 0) — 10-08 06:33Z 以降に (a)→(a″)→(a')→(b) |
+| 2026-10-09 04:22Z | §3 (a) refresh 15m 13 pair (共有 checkout の tool、cutoff 後) | 1 回で 13/13 末尾 2026-10-09 (delta +400〜498 本/pair)、delta 失敗 0。worktree `autopilot-1009` から絶対パスで以降を実行 |
+| 2026-10-09 04:25Z | §3 (a″) `e1_ohlcv_gap_backfill.py --look 1` (src/dst 絶対パス) | gap **1,131** / filled 1,131 / unfilled 0 (10-06 比 +6 = GBP_JPY 197・AUD_USD 240 の末尾分)、byte copy 5 pair。audit `raw/bt-results/e1-ohlcv-gap-backfill-first-look-2026-10-08.json` |
+| 2026-10-09 04:26Z | §3 (a') preflight (複製、`--ohlcv-drop-extra-bars`) | **13/13 OK** — lag 0 / gaps 0 / dup 0、extra はファイル全体 (t0 以前) のみ、expected last 2026-10-08T06:15:00Z |
+| 2026-10-09 04:27:28Z→04:28:50Z | §3 (b) `--look 1 --slice-ohlcv --ohlcv-src <複製> --ohlcv-drop-extra-bars` (**1 回だけ**) | exit 0。snapshots 48,582 行 13/13 (pages 1、rows_before_t0 0)、health_log 76,499 行 id 1..76499 (14 keys)、M15 slice 13 parquet (last open 06:15Z)、roundtrip API→artifact **OK**、attempts 1 (`frozen`、force false)、force_history []。artifact sha256 `172cfe54…5fdd5` (30.9 MB、commit せず = 手順書規則)、manifest `fae1f0ab…`、marker `e1-first-look-freeze-2026-10-08.sha256` |
+| 2026-10-09 04:29Z | §3 (c) `--verify` | **OK (15 files)**、roundtrip OK、marker OK、attempts after freeze 0、head OK。registry `e1-first-look-freeze-due` resolved。次 = §5 判定器 (10-09〜10-14、実行直前に `--verify` 再実行) |
 | | | |
 
 ## 引用禁止 / 禁止事項 (本稿固有)
