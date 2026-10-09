@@ -27,6 +27,7 @@ Detects proximity to round number barriers on USD_JPY and generates signals base
 **履歴**: 2026-04-05〜09-10 は QUALIFIED_TYPES 未登録の dead mode で shadow 行ゼロだった ([[../analyses/rnb-dead-mode-and-block-estimand-2026-09-05]])。
 **2026-09-10 登録執行** (user 決裁 GO、[[../decisions/rnb-support-bounce-r1-packet-2026-09-10]] §9): stage-1 構造的 shadow-only — shadow 行の蓄積はここから開始。LIVE 発火は `shadow_only: True` で構造的にゼロ。
 forward 判定は 🔒 LOCK `rnb-support-bounce-shadow-forward` (first look shadow N≥41 or 2027-01-15) に凍結 — 中間読み禁止 (P-10)。
+**lane-health checkpoint (件数のみ)**: checkpoint-1 (09-25) N=2 TRIGGERED → PR #290 で 3 gate shadow 化 / **checkpoint-2 (10-08 期日、10-09 resolve) 通過**: post-fix cohort (since 09-23) closed shadow **N=19** (厳格 shadow 19/19、dedup 0、`[SHADOW_RELAX]` marker 有 11 / 無 8)。cadence 主張の根拠には引用しない (09-23 追補)。以後の dead-lane 検知は demote gate + LOCK 本体 stale 期日。
 
 ## Related
 - [[rnb-support-bounce]] — 戦略カード (BT 実測 / LOCK / R2 gate)

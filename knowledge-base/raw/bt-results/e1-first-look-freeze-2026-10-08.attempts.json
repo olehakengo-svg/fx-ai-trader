@@ -1,0 +1,22 @@
+{
+"attempts": [
+{
+"api_base": "https://fx-ai-trader.onrender.com",
+"api_queried": true,
+"artifact_sha256": "172cfe54584bfbdbe500749f27c2be514c9383d54b9ca62808a2311d850f5dd5",
+"attempt_id": "549be0af78af48b580fb70c312824679",
+"entry_hash": "1dc6aaaa5c0fc10d6ce81207cbc50ec5385faa37350cbd61a90272af59a91351",
+"finished_at": "2026-10-09T04:28:50Z",
+"force": false,
+"health_rows": 76499,
+"prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+"snapshots_rows": 48582,
+"started_at": "2026-10-09T04:27:28Z",
+"status": "frozen"
+}
+],
+"cutoff": "2026-10-08T06:33:31Z",
+"look": 1,
+"postponed": false,
+"slug": "first-look"
+}

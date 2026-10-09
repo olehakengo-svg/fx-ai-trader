@@ -93,3 +93,9 @@ pre-reg [[e1-positioning-contrarian-prereg-2026-07-16]] §2.1 の「ソース = 
 - 本稿の件数は **2026-10-06T02:50Z 時点の [t0, 2026-10-06T02:15/02:30Z] 窓**の値。cutoff 到達後の再実行で窓が伸び件数は変わる — 凍結時の値は 10-08 の audit JSON と manifest `ohlcv_coverage` を引く。
 - 価格値・skew・return は本稿にも audit にも無い。first look の値は判定器 `--verdict-run` (10-09〜10-14) まで誰も見ていない。
 - 「MASSIVE に欠落がある」は **2026-07〜10 のクロス通貨 M15/1m/1h** について確認した事実で、他の期間・pair への一般化は probe が必要 (2019/2020 窓は 07-29 に別途確認済み)。
+
+## §8 凍結時の再実行 (2026-10-09、autopilot)
+
+- cutoff 到達後 (10-09T04:25Z) に同 tool を `--look 1` で再実行 (src/dst 絶対パス、共有 cache は不改変): 窓 [t0, 2026-10-08T06:15Z] で **gap 1,131 / filled 1,131 / unfilled 0**。10-06 (1,125) からの差 +6 は 10-06→10-08 の末尾区間に新たに現れた vendor 欠落 (GBP_JPY 194→197、AUD_USD 237→240)、他 6 pair は不変 (EUR_JPY 553 / EUR_AUD 96 / EUR_GBP 30 / USD_CHF 7 / USD_JPY 4 / GBP_USD 4)。gaps 0 の 5 pair は byte copy。
+- 補填後 preflight **13/13 OK** (lag 0 / gaps 0 / dup 0) → 凍結 export は複製を `--ohlcv-src` に読み、manifest `ohlcv_coverage` 13/13 `ok` (gap_bars 0)。`--ohlcv-max-gap-bars` は不使用 (unfilled 0)。
+- audit: `raw/bt-results/e1-ohlcv-gap-backfill-first-look-2026-10-08.json` (値なし)。凍結の記録は [[e1-first-look-runbook-2026-09-22]] §9、registry `e1-first-look-freeze-due` resolution。verdict §8 に「MASSIVE 同一ソースからの逸脱 = 窓内 1,131 本の OANDA mid 補填」を転記する。
