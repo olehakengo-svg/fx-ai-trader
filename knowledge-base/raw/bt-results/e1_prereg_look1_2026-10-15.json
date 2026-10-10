@@ -342,6 +342,11 @@
     "ui_vs_api_latest_row": "3/3 (0.0pp)",
     "api_vs_artifact": "roundtrip digest OK at freeze (§2.5-5(b))",
     "ingest_code_unchanged_across_cutoff": "modules/positioning_ingest.py last change 2026-09-11 a6659043"
+   },
+   "ordering_violation": {
+    "evaluator_run_utc": "2026-10-10T08:59:30Z",
+    "ui_check_utc": "2026-10-10T09:05Z",
+    "disclosure": "§2.5-5 は spot check を verdict 直前に置くが (c) は判定器の 6 分後に実施 — (c) 不成立でも本評価を gate できなかった。実害なし (判定器は品質 gate で停止・統計未計算、(c) は 3/3 一致)。postponed look は (c) を判定器直前の同 run で実施"
    }
   },
   "d_unit_tests": {
