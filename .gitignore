@@ -86,3 +86,4 @@ data/external/cot_raw/
 
 # E1 first-look frozen artifact (30.9 MB, 2026-10-09): sha256 is in the committed .sha256 marker; file kept in worktree + data/cache backup (runbook §3)
 knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08/e1_prereg_frozen_export_look1.json
+knowledge-base/raw/bt-results/e1-first-look-postponed-freeze-2026-11-05/e1_prereg_frozen_export_look1_postponed.json

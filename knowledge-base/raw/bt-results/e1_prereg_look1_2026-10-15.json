@@ -1,0 +1,397 @@
+{
+ "prereg": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md (LOCKED)",
+ "harness": "tools/e1_positioning_prereg_eval.py (§7 成果物)",
+ "generated_utc": "2026-10-10T08:59:30Z",
+ "look": 1,
+ "cutoff": "2026-10-08T06:33:31Z",
+ "seed": 20261015,
+ "n_boot": 10000,
+ "inputs": {
+  "artifact": "/Users/jg-n-012/test/fx-ai-trader/.worktrees/autopilot-1009/knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08/e1_prereg_frozen_export_look1.json",
+  "artifact_sha256": "172cfe54584bfbdbe500749f27c2be514c9383d54b9ca62808a2311d850f5dd5",
+  "health": null,
+  "ohlcv": {
+   "USD_JPY": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/USD_JPY_15m.parquet",
+    "sha256": "2bb8352d11829f164e4238a9696b2ce2f042baf06588dd55138392b079494004"
+   },
+   "EUR_USD": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_USD_15m.parquet",
+    "sha256": "7d68a32990213a5e26ad2d10591f91a11e47bf45c9734160d312a0c0cb8cd46f"
+   },
+   "GBP_USD": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/GBP_USD_15m.parquet",
+    "sha256": "cfaf7c06dedfde494f7c3a1836ecb6daeff80f677edb2a8da6e7804f5854fac7"
+   },
+   "EUR_JPY": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_JPY_15m.parquet",
+    "sha256": "ace4496b9bf704495e00b215776d5de2c8a92572195b4d553b34befad69c880d"
+   },
+   "GBP_JPY": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/GBP_JPY_15m.parquet",
+    "sha256": "f63974769375c365d15b947a0567dd70f4ae80cd207ed462a9d14fee17837096"
+   },
+   "AUD_JPY": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/AUD_JPY_15m.parquet",
+    "sha256": "ab75dff9ff7177a70f44da70bafae80ce09a44356e09a3e59f6c5f6b5eae4794"
+   },
+   "AUD_USD": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/AUD_USD_15m.parquet",
+    "sha256": "2d6e61a9ac0a3cd76ac78c8b8bf62dba32777043c61c72e04476fccea9687973"
+   },
+   "NZD_USD": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/NZD_USD_15m.parquet",
+    "sha256": "285dbd06b22b376d8b94cb70df398c1785fc1bcff0e498f934034480c5ab4564"
+   },
+   "USD_CAD": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/USD_CAD_15m.parquet",
+    "sha256": "24e7ffbe15333b049a5062ef185366065713dfa68a1fa366bcac957eff8847d4"
+   },
+   "USD_CHF": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/USD_CHF_15m.parquet",
+    "sha256": "d171a63d4b73d4172bbdad17ba9bf95832db3f979d0bb9982f6ea1e4c48d79c2"
+   },
+   "NZD_JPY": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/NZD_JPY_15m.parquet",
+    "sha256": "b32693b8cc87050d55afd98e2dbceec7c8c329b66108a1afe9770c96c2064b9d"
+   },
+   "EUR_AUD": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_AUD_15m.parquet",
+    "sha256": "8e0569627a6766079a4c4a75f9a334965a65063b16259d97f71923ae3141f636"
+   },
+   "EUR_GBP": {
+    "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/e1_frozen_look1_2026-10-08/EUR_GBP_15m.parquet",
+    "sha256": "46468b0188a1972a66bb5e78a98d92205fab5e67c8c4a5bfb31a1ccea609eb4b"
+   }
+  },
+  "bars_clipped_beyond_cutoff": {}
+ },
+ "synthetic": false,
+ "stale_cap_mode": "primary",
+ "missing_parquet": {
+  "primary": [],
+  "confirmatory": []
+ },
+ "canary": {
+  "pass": true,
+  "checks": {
+   "locf_future_injection": {
+    "pass": true,
+    "detail": "clean=60.0 poisoned=60.0 (expected 60.0)"
+   },
+   "atr_future_injection": {
+    "pass": true,
+    "detail": "clean=0.6814213412267094 poisoned=0.6814213412267094"
+   },
+   "fwd_return_window": {
+    "pass": true,
+    "detail": "clean=-0.08456226932582922 past-poisoned=-0.08456226932582922"
+   },
+   "signal_future_value_injection": {
+    "pass": true,
+    "detail": "future-timestamped snapshot must not move any slot value"
+   },
+   "rank_trailing_window": {
+    "pass": true,
+    "detail": "future_inject_ok=True self_max_rank=1.0 (expected 1.0)"
+   },
+   "mid_completed_bar_only": {
+    "pass": true,
+    "detail": "clean=149.294643517876 in-progress-poisoned=149.294643517876"
+   },
+   "leak_passthrough_detection": {
+    "pass": true,
+    "detail": "pooled_ic=-0.9494303939969935 n=278 (|IC|>=0.8 required)"
+   }
+  },
+  "summary": "7/7 pass"
+ },
+ "quality_gates": {
+  "pairs": {
+   "USD_JPY": {
+    "coverage": {
+     "4h": 0.8856,
+     "24h": 0.8832
+    },
+    "stale_gap": {
+     "excluded_days": 4.39,
+     "eval_days": 40.0,
+     "frac": 0.1097
+    },
+    "skew_distinct_in_W": 41,
+    "pass": false,
+    "fail_reason": "coverage<90%"
+   },
+   "EUR_USD": {
+    "coverage": {
+     "4h": 0.8856,
+     "24h": 0.8832
+    },
+    "stale_gap": {
+     "excluded_days": 4.39,
+     "eval_days": 40.0,
+     "frac": 0.1097
+    },
+    "skew_distinct_in_W": 41,
+    "pass": false,
+    "fail_reason": "coverage<90%"
+   },
+   "GBP_USD": {
+    "coverage": {
+     "4h": 0.8856,
+     "24h": 0.8832
+    },
+    "stale_gap": {
+     "excluded_days": 4.39,
+     "eval_days": 40.0,
+     "frac": 0.1097
+    },
+    "skew_distinct_in_W": 37,
+    "pass": false,
+    "fail_reason": "coverage<90%"
+   },
+   "EUR_JPY": {
+    "coverage": {
+     "4h": 0.8856,
+     "24h": 0.8832
+    },
+    "stale_gap": {
+     "excluded_days": 4.39,
+     "eval_days": 40.0,
+     "frac": 0.1097
+    },
+    "skew_distinct_in_W": 37,
+    "pass": false,
+    "fail_reason": "coverage<90%"
+   },
+   "GBP_JPY": {
+    "coverage": {
+     "4h": 0.8856,
+     "24h": 0.8832
+    },
+    "stale_gap": {
+     "excluded_days": 4.39,
+     "eval_days": 40.0,
+     "frac": 0.1097
+    },
+    "skew_distinct_in_W": 26,
+    "pass": false,
+    "fail_reason": "coverage<90%"
+   },
+   "AUD_JPY": {
+    "coverage": {
+     "4h": 0.8856,
+     "24h": 0.8832
+    },
+    "stale_gap": {
+     "excluded_days": 4.39,
+     "eval_days": 40.0,
+     "frac": 0.1097
+    },
+    "skew_distinct_in_W": 37,
+    "pass": false,
+    "fail_reason": "coverage<90%"
+   }
+  },
+  "excluded_pairs": [
+   "USD_JPY",
+   "EUR_USD",
+   "GBP_USD",
+   "EUR_JPY",
+   "GBP_JPY",
+   "AUD_JPY"
+  ],
+  "sanity": {
+   "rows_total": 48582,
+   "excluded_pct_sum": 0,
+   "excluded_avg_range": 0,
+   "avg_range_uncheckable": 108,
+   "monotonicity_violations": 0,
+   "rows_kept": 48582,
+   "investigate_flag": false
+  },
+  "surviving_pairs": [],
+  "family_gate_pass": false,
+  "postpone": true,
+  "jump_events": [],
+  "resample_na_stats": {
+   "USD_JPY": {
+    "na_no_row": 0,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3992
+   },
+   "EUR_USD": {
+    "na_no_row": 0,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3992
+   },
+   "GBP_USD": {
+    "na_no_row": 0,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3992
+   },
+   "EUR_JPY": {
+    "na_no_row": 0,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3992
+   },
+   "GBP_JPY": {
+    "na_no_row": 0,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3992
+   },
+   "AUD_JPY": {
+    "na_no_row": 0,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3992
+   },
+   "AUD_USD": {
+    "na_no_row": 4,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3988
+   },
+   "NZD_USD": {
+    "na_no_row": 4,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3988
+   },
+   "USD_CAD": {
+    "na_no_row": 4,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3988
+   },
+   "USD_CHF": {
+    "na_no_row": 4,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3988
+   },
+   "NZD_JPY": {
+    "na_no_row": 4,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3988
+   },
+   "EUR_AUD": {
+    "na_no_row": 4,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3988
+   },
+   "EUR_GBP": {
+    "na_no_row": 4,
+    "na_stale": 157,
+    "na_cycle": 171,
+    "valid": 3988
+   }
+  }
+ },
+ "verdict": {
+  "overall": "POSTPONE",
+  "reason": "family gate 不成立 (残存 0 < 4)",
+  "action": "cutoff・verdict 期日・評価窓終端を 4 週スライド (burn-in と評価窓開始は不変、§2.5-3/§7)"
+ },
+ "marker_crosscheck_2_5_6": {
+  "marker": "knowledge-base/raw/bt-results/e1-first-look-freeze-2026-10-08.sha256",
+  "artifact_sha256_match": true,
+  "parquet_sha256_match": 13,
+  "parquet_sha256_mismatch": 0,
+  "verify_rerun_utc": "2026-10-10T08:4xZ",
+  "verify_result": "OK (15 files), roundtrip OK, marker OK, attempts after freeze 0, head OK",
+  "attempts_ledger": {
+   "attempts": 1,
+   "status": "frozen",
+   "force": false,
+   "force_history": []
+  }
+ },
+ "spot_check_2_5_5": {
+  "a_content_hash": {
+   "sampled": 20,
+   "seed": 20261015,
+   "missing_buckets": 0,
+   "deterministic_ok": 20,
+   "adjacent_pairs_checked": 40,
+   "adjacent_distinct_ok": 40,
+   "note": "本番 schema に hash 列は無いため決定性と隣接非重複のみ (手順書 §4(a))"
+  },
+  "b_roundtrip": {
+   "recorded_at_freeze": true,
+   "ok": true,
+   "snapshots": 48582,
+   "health": 76499,
+   "verify_rerun_before_eval": "OK (15 files)"
+  },
+  "c_myfxbook_ui": {
+   "checked_utc": "2026-10-10T09:05Z",
+   "pairs": 3,
+   "within_0_5pp": 3,
+   "max_abs_diff_pp": 0.0,
+   "note": "UI (community/outlook progress-bar width %) と本番 /api/positioning/export の cutoff 後 最新行 (10-09T20:30〜21:11Z、市場閉場後で内容 dedup により新規行なし) の pct_long/short 突合。UI は履歴を持たず凍結 run に UI 観測を記録していないため、凍結 artifact 行との同時刻突合は不可 (PR #323 Codex P2)。担保は推移的: UI≡API 最新行 ∧ API≡artifact (b roundtrip digest) ∧ modules/positioning_ingest.py が cutoff 跨ぎで不変 (最終変更 2026-09-11 a6659043)。artifact 行との直接突合は UI 履歴不在で構造的に不可 (cutoff 前の pct 観測は S1 skew の peeking = §6-2 違反のため採らない、PR #323 Codex 3 巡目)。(c) の estimand = cutoff 後の UI → ingest 写像の忠実性",
+   "artifact_rows_compared": 0,
+   "transitive_guarantee": {
+    "ui_vs_api_latest_row": "3/3 (0.0pp)",
+    "api_vs_artifact": "roundtrip digest OK at freeze (§2.5-5(b))",
+    "ingest_code_unchanged_across_cutoff": "modules/positioning_ingest.py last change 2026-09-11 a6659043"
+   },
+   "ordering_violation": {
+    "evaluator_run_utc": "2026-10-10T08:59:30Z",
+    "ui_check_utc": "2026-10-10T09:05Z",
+    "disclosure": "§2.5-5 は spot check を verdict 直前に置くが (c) は判定器の 6 分後に実施 — (c) 不成立でも本評価を gate できなかった。実害なし (判定器は品質 gate で停止・統計未計算、(c) は 3/3 一致)。postponed look は (c) を判定器直前の同 run で実施"
+   }
+  },
+  "d_unit_tests": {
+   "pytest": "tests/test_e1_prereg_eval.py + tests/test_e1_positioning_frozen_export.py",
+   "passed": 165,
+   "failed": 0,
+   "run_utc": "2026-10-10T08:3xZ"
+  }
+ },
+ "na_attribution_timestamps_only": {
+  "note": "resample NA (na_stale 157 + na_cycle 171 = 328 slot、全 13 pair 同一) の由来を artifact の snapshot_time / health verified 系列の間隔 (>3h、週末除外) で特定。値は読んでいない",
+  "gaps_utc": [
+   {
+    "from": "2026-08-21T21:14Z",
+    "to": "2026-08-26T03:39Z",
+    "hours": 102.4,
+    "known_incident": "Render Disk 満杯で全 DB 書込み停止 (render-disk-full-write-outage-2026-08-25)"
+   },
+   {
+    "from": "2026-09-10T06:58Z",
+    "to": "2026-09-14T13:19Z",
+    "hours": 102.4,
+    "known_incident": "E1 ingest 認証停止 (e1-ingest-auth-outage-2026-09-10、09-16 復旧確認)"
+   },
+   {
+    "from": "2026-09-15T00:14Z",
+    "to": "2026-09-15T03:51Z",
+    "hours": 3.6
+   },
+   {
+    "from": "2026-09-21T23:53Z",
+    "to": "2026-09-22T03:35Z",
+    "hours": 3.7,
+    "known_incident": "本番 HTTP 全盲 3h18m (http-blind-fork-poisoning-2026-09-22)"
+   }
+  ],
+  "excluded_days_reported_by_gate": 4.39,
+  "eval_days": 40.0
+ },
+ "postpone_schedule": {
+  "rule": "pre-reg §2.5-3 / §7: cutoff・verdict 期日・評価窓終端を 4 週スライド、burn-in と評価窓開始 (08-13) は不変、look 非消費、1 回限り",
+  "cutoff_postponed": "2026-11-05T06:33:31Z",
+  "verdict_postponed": "2026-11-12",
+  "eval_window_end_postponed": "2026-11-05",
+  "second_failure": "DEFERRED (明示フラグ + user 裁定)",
+  "arithmetic_projection_only": "同じ 4.39 除外日が 60 営業日窓に占める比は 7.3% → 新規障害ゼロなら coverage ≈ 92.4% (>90%) の算術見込み。データの値ではない"
+ }
+}
