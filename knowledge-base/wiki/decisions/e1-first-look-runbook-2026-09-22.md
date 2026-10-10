@@ -152,6 +152,12 @@ pre-reg §8 placeholder に、判定器出力から**転記**する (解釈を�
 | 2026-10-09 04:26Z | §3 (a') preflight (複製、`--ohlcv-drop-extra-bars`) | **13/13 OK** — lag 0 / gaps 0 / dup 0、extra はファイル全体 (t0 以前) のみ、expected last 2026-10-08T06:15:00Z |
 | 2026-10-09 04:27:28Z→04:28:50Z | §3 (b) `--look 1 --slice-ohlcv --ohlcv-src <複製> --ohlcv-drop-extra-bars` (**1 回だけ**) | exit 0。snapshots 48,582 行 13/13 (pages 1、rows_before_t0 0)、health_log 76,499 行 id 1..76499 (14 keys)、M15 slice 13 parquet (last open 06:15Z)、roundtrip API→artifact **OK**、attempts 1 (`frozen`、force false)、force_history []。artifact sha256 `172cfe54…5fdd5` (30.9 MB、commit せず = 手順書規則)、manifest `fae1f0ab…`、marker `e1-first-look-freeze-2026-10-08.sha256` |
 | 2026-10-09 04:29Z | §3 (c) `--verify` | **OK (15 files)**、roundtrip OK、marker OK、attempts after freeze 0、head OK。registry `e1-first-look-freeze-due` resolved。次 = §5 判定器 (10-09〜10-14、実行直前に `--verify` 再実行) |
+| 2026-10-10 08:3xZ | §4 (d) pytest | prereg_eval + frozen_export **165 passed** (-B、-p no:cacheprovider) |
+| 2026-10-10 08:4xZ | §4 (b) `--verify` 再実行 (worktree autopilot-1009、判定器直前) | **OK (15 files)**、roundtrip OK (48,582 / 76,499)、marker OK、attempts after freeze 0、head OK |
+| 2026-10-10 08:5xZ | §4 (a) content-hash spot check (無作為 20 行、seed 20261015) | 決定性 20/20、同 instrument 隣接非重複 40/40、buckets 欠落 0 (結果は raw JSON `spot_check_2_5_5`) |
+| 2026-10-10 08:59:30Z | **§5 判定器 `--look 1 --verdict-run`** (seed / n-boot 既定、artifact = worktree autopilot-1009 の凍結本体、ohlcv = 共有 cache の凍結スライス) | exit 0。**verdict = `POSTPONE`** (family gate 不成立: 残存 0 < 4 — primary 6 ペア全てが coverage 88.56% (4h) / 88.32% (24h) < 90%、stale gap 4.39 / 40.0 日 = 10.97%)。統計は未計算。canary 6/6 pass、stale cap 主モード、sanity 除外 0 / 単調性違反 0 / jump 0。inputs の artifact sha256 + parquet 13 sha256 は marker と一致。raw = `raw/bt-results/e1_prereg_look1_2026-10-15.json` (8 KB、commit) |
+| 2026-10-10 09:05Z | §4 (c) Myfxbook web UI 突合 (EUR_USD / GBP_USD / USD_JPY × 1 時点) | UI progress-bar % vs 本番 export の cutoff 後最新行 (10-09T20:30〜21:11Z): **3/3 一致 (max |Δ| 0.0pp)**。凍結 artifact の値には触れていない |
+| 2026-10-10 | NA 由来 (timestamps のみ) | 全 13 ペア同時刻の NA 328 slot = 08-21T21:14Z→08-26T03:39Z (Render Disk 満杯) + 09-10T06:58Z→09-14T13:19Z (E1 ingest 認証停止) 各 102.4h、従 09-15 3.6h / 09-22 3.7h (HTTP 全盲)。§1 の 4 週スライド発動: cutoff **11-05T06:33:31Z** / verdict **11-12** / 評価窓終端 11-05。registry `e1-first-look-postponed-freeze-due` (11-05) 新設、`e1-prereg-verdict-deadline` → 11-11 (前日規則) |
 | | | |
 
 ## 引用禁止 / 禁止事項 (本稿固有)

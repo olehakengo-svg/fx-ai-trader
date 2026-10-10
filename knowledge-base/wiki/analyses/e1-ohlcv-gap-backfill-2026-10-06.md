@@ -99,3 +99,8 @@ pre-reg [[e1-positioning-contrarian-prereg-2026-07-16]] §2.1 の「ソース = 
 - cutoff 到達後 (10-09T04:25Z) に同 tool を `--look 1` で再実行 (src/dst 絶対パス、共有 cache は不改変): 窓 [t0, 2026-10-08T06:15Z] で **gap 1,131 / filled 1,131 / unfilled 0**。10-06 (1,125) からの差 +6 は 10-06→10-08 の末尾区間に新たに現れた vendor 欠落 (GBP_JPY 194→197、AUD_USD 237→240)、他 6 pair は不変 (EUR_JPY 553 / EUR_AUD 96 / EUR_GBP 30 / USD_CHF 7 / USD_JPY 4 / GBP_USD 4)。gaps 0 の 5 pair は byte copy。
 - 補填後 preflight **13/13 OK** (lag 0 / gaps 0 / dup 0) → 凍結 export は複製を `--ohlcv-src` に読み、manifest `ohlcv_coverage` 13/13 `ok` (gap_bars 0)。`--ohlcv-max-gap-bars` は不使用 (unfilled 0)。
 - audit: `raw/bt-results/e1-ohlcv-gap-backfill-first-look-2026-10-08.json` (値なし)。凍結の記録は [[e1-first-look-runbook-2026-09-22]] §9、registry `e1-first-look-freeze-due` resolution。verdict §8 に「MASSIVE 同一ソースからの逸脱 = 窓内 1,131 本の OANDA mid 補填」を転記する。
+
+## §9 判定器 POSTPONE 後の扱い (2026-10-10、autopilot)
+
+- first look #1 の判定器は品質 gate (coverage 88.6% < 90%、ingest 停止 2 件由来) で `POSTPONE` — **OHLCV 側 (本稿の補填) は無関係** (preflight 13/13 OK、parquet sha256 13/13 一致、`bars_clipped_beyond_cutoff` 空)。estimand 開示 (窓内 1,131 本 OANDA mid 補填) は pre-reg §8-1 に転記済み。
+- postpone 後の再凍結 (cutoff 11-05T06:33:31Z) では **複製を別ディレクトリ `data/cache/e1_ohlcv_postponed/` に作る** (`--postponed`、audit `raw/bt-results/e1-ohlcv-gap-backfill-first-look-postponed-2026-11-05.json`)。10-08 複製 `data/cache/e1_ohlcv/` と凍結スライス `data/cache/e1_frozen_look1_2026-10-08/` は不改変。10-08〜11-05 に新たに生じる vendor 穴も同手順で埋める (filled / unfilled を audit に、値は書かない)。
