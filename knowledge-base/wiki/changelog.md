@@ -6,6 +6,7 @@
 - **執行** (code + tests + KB 同一 PR): `_PAIR_PROMOTED` から ps ×5 除去 → `_PAIR_DEMOTED` (block reason `pair_demoted`、shadow tracking 継続 = 4原則 #3) / `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` から除去 (eligible vs effective)。`PRICE_SHOCK_REV_TIER1_*` / MIN lot literal / seat priority / shared lock / in-process watchdog `WATCHED_CELLS` は不変。tests: live_activation_v2 / track_c_plumbing の pin を反転 + 新規 `test_ps_carveout_pool_r2_demote_2026_10_10.py` (16 pin)。関連 15 ファイル 246 passed。
 - **KB**: strategies ×5 Status → `PAIR_DEMOTED` + family card / tier-master 再生成 (PAIR_PROMOTED 21 → 16) / registry `ps-carveout-regate-post-172` を **resolved** (執行済み live_count_decision は active だと N=11 ≥ 10 で毎日 TRIGGERED — PR #324 Codex P2。redaction test の pin を「resolved lock は母集団外」に反転) / `ps-seat-spread-magnitude-readout` (10-19) と `ps-watchdog-demotion-state-unreachable` に降格済みを追記。**再 live 化は R1 = user 決裁** (365d BT 再走 or shadow N≥30 + Bonferroni + pre-reg LOCK)。
 - M1 への寄与: 席供給 ~1/週 × EV −6p の負 EV 源を live から除去 (月次 clean live PnL 期待値 ≈ +25p、幅広)。shadow 蓄積は継続。
+- **デプロイ確認**: merge 62d88ed4 (12:15Z) → Render dep-db52omfavr4c73emaq1g **live 12:17:12Z**、engine pid 95 → 96、tick ok。`pair_demoted` block reason は次の ps signal で block_counts に現れる (観測は次 run)。
 - 詳細: [[2026-10-10-session]]
 
 ## 2026-10-10 — docs(E1+registry): E1 first look #1 判定器実行 → `POSTPONE` (品質 gate、coverage 88.6% < 90%、統計未計算) → cutoff 11-05 / verdict 11-12 へ 4 週スライド (rule:R3、autopilot、record-only)
