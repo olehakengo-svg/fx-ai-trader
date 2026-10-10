@@ -482,7 +482,12 @@ def test_real_registry_preserves_prefix_match_flags():
     locked = load_locked_cells()
     by_id = {lk["registry_id"]: lk for lk in locked}
     assert by_id["t9-kalman-d7-live-n10-ev-check"]["match"] == "prefix"
-    assert by_id["ps-carveout-regate-post-172"]["match"] == "prefix"
+    # ps-carveout-regate-post-172 (prefix) was RESOLVED on 2026-10-10 once its
+    # pooled R2 decision executed (N=11, EV<-0.5p -> _PAIR_DEMOTED, PR #324):
+    # an executed decision no longer freezes an outcome look, and keeping it
+    # active would raise a stale TRIGGERED on every daily run (Codex P2).
+    # Resolved locks must drop out of the redaction population.
+    assert "ps-carveout-regate-post-172" not in by_id
     # ...and a non-prefix lock is not silently widened.
     assert by_id["sr-anti-hunt-eurjpy-buy-forward-confirm"]["match"] == "exact"
 
@@ -1017,9 +1022,10 @@ def test_real_registry_classification_of_outcome_locks():
                          "rnb-support-bounce-shadow-forward",
                          "t9-kalman-d7-live-n10-ev-check",
                          "hourblock-class-exempt-r2-rollback",
-                         "ps-carveout-regate-post-172",
                          "ws3-stage2-underpowered-recheck"):
         assert outcome_lock in ids, outcome_lock
+    # Executed + resolved outcome LOCK (2026-10-10, PR #324) is out.
+    assert "ps-carveout-regate-post-172" not in ids
 
 
 def test_locked_cells_are_reported_below_the_audit_minimum_n():

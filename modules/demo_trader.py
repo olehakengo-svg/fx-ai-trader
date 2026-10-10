@@ -9688,6 +9688,17 @@ class DemoTrader:
 
     # ペア別降格: 特定ペアでのみEVマイナスの組み合わせを狙い撃ちで実弾除外
     _PAIR_DEMOTED = {
+        # 2026-10-10 (rule:R2, registry ps-carveout-regate-post-172 pool
+        # condition N>=10 ∧ EV<-0.5p): price_shock_rev ×5 carve-out (Track C
+        # D-c-1, 2026-07-28) を降格。clean live since 08-11: N=11 EV=-6.08p
+        # WR=36.4% Wilson_lo=0.152 (eur_gbp N=9 EV=-1.06 / aud_jpy N=2
+        # EV=-28.7 / 他 3 セル live N=0)。BT 主張 Wilson_lo>=0.58 は live で
+        # 不成立。shadow 蓄積は継続 (原則 3)、再 live 化は R1 (user 決裁)。
+        ("price_shock_rev_eur_gbp_h1_long", "EUR_GBP"),
+        ("price_shock_rev_eur_aud_h1_long", "EUR_AUD"),
+        ("price_shock_rev_usd_cad_h1_long", "USD_CAD"),
+        ("price_shock_rev_nzd_jpy_h1_long", "NZD_JPY"),
+        ("price_shock_rev_aud_jpy_h1_long", "AUD_JPY"),
         ("bb_rsi_reversion", "EUR_USD"),    # WR=20% EV=-1.500 (14d BT)
         ("macdh_reversal", "GBP_USD"),      # WR=40% EV=-0.818 (14d BT)
         ("ema_cross", "USD_JPY"),           # 本番N=41 WR=34.1% -67.4pip
@@ -9851,11 +9862,13 @@ class DemoTrader:
         # BT Wilson_lo>=0.58 for all 5 families, Bonf-passing cells=9-28/family,
         # 12.3y MASSIVE + BH-FDR m=3744. Live starts at 1000u MIN lot only;
         # lot ramp remains commander-approved after Live N>=30 pre-reg gates.
-        ("price_shock_rev_eur_gbp_h1_long", "EUR_GBP"),
-        ("price_shock_rev_eur_aud_h1_long", "EUR_AUD"),
-        ("price_shock_rev_usd_cad_h1_long", "USD_CAD"),
-        ("price_shock_rev_nzd_jpy_h1_long", "NZD_JPY"),
-        ("price_shock_rev_aud_jpy_h1_long", "AUD_JPY"),
+        # REMOVED 2026-10-10 (rule:R2, registry ps-carveout-regate-post-172):
+        # pooled clean live (prefix price_shock_rev, since 2026-08-11,
+        # oanda_trade_id != '' ∧ dedup_violation != 1, CLOSED) N=11 EV=-6.08p
+        # WR=36.4% Wilson_lo=0.152 → pre-registered R2 condition (N>=10 ∧
+        # EV<-0.5p) met → ps ×5 を _PAIR_DEMOTED へ (shadow 蓄積は継続、
+        # 再 live 化は R1 = user 決裁)。knowledge-base/wiki/decisions/
+        # ps-carveout-pool-r2-demote-2026-10-10.md
         # REMOVED: bb_rsi_reversion×USD_JPY → PAIR_DEMOTED (v8.9: Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5%)
         # REMOVED v9.1: orb_trap PAIR_PROMOTED削除 — 365d BT全ペア負EV (JPY=-0.854, EUR=-0.488, GBP=-0.258)
         # 旧BT(60d): WR=79%/71%/64% → 365d: WR=42%/37%/56% — 劇的悪化、FORCE_DEMOTED
@@ -11289,11 +11302,10 @@ class DemoTrader:
         # 07-28「7席再武装」決裁の実効化 — carve-out 欠落により code 上無効化されていた
         # (track-c-plumbing-audit-2026-07-28 発見1)。donchian×NZD ×2 は D-c-2 選択肢(ii)
         # 採択で意図的に対象外 (365d BT FAIL → gate block のまま shadow N 蓄積)。
-        "price_shock_rev_eur_gbp_h1_long",
-        "price_shock_rev_eur_aud_h1_long",
-        "price_shock_rev_usd_cad_h1_long",
-        "price_shock_rev_nzd_jpy_h1_long",
-        "price_shock_rev_aud_jpy_h1_long",
+        # REMOVED 2026-10-10 (rule:R2): price_shock_rev ×5 は _PAIR_DEMOTED へ
+        # 降格 (registry ps-carveout-regate-post-172 pool N=11 EV=-6.08p)。
+        # eligible vs effective 教訓: live 不適格のセルを bypass に残さない。
+        # 再 live 化 (R1) 時は _PAIR_PROMOTED と同じ PR で本 set にも戻す。
         # 2026-09-01 LOCK (user 承認同日): kalman_d7 ×3 — 05-28 決裁の live 化
         # (SUCCESS = OANDA fill >=1) が本 set 非所属 + FLAT 5000u の二重不適格で
         # 96 日 fill ゼロだった carve-out。MIN lot 1000u 契約 (KALMAN_D7_MIN_LOT)

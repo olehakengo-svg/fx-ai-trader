@@ -68,9 +68,13 @@ def test_price_shock_rev_force_demote_removed_and_final_gate_keeps_live():
         assert shadow_at_open is False
 
 
-def test_price_shock_rev_pair_promoted_and_min_lot_literal():
+def test_price_shock_rev_pair_demoted_2026_10_10_and_min_lot_literal():
+    # 2026-10-10 rule:R2 (registry ps-carveout-regate-post-172): pool N=11
+    # EV=-6.08p → ps ×5 は _PAIR_PROMOTED → _PAIR_DEMOTED。MIN lot literal は
+    # 再 live 化 (R1) 時の契約として不変。
     for entry_type, instrument in PRICE_SHOCK_CASES:
-        assert (entry_type, instrument) in DemoTrader._PAIR_PROMOTED
+        assert (entry_type, instrument) not in DemoTrader._PAIR_PROMOTED
+        assert (entry_type, instrument) in DemoTrader._PAIR_DEMOTED
         assert DemoTrader._price_shock_rev_min_units(entry_type, instrument) == PRICE_SHOCK_REV_MIN_UNITS
         assert DemoTrader._lot_floor_ratio_for(
             entry_type=entry_type,
