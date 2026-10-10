@@ -35,7 +35,7 @@
 
 1. `modules/demo_trader.py`: `_PAIR_PROMOTED` から ps ×5 を除去 → `_PAIR_DEMOTED` へ追加 (block reason `pair_demoted(<inst>)`、shadow tracking は継続 = 4原則 #3) / `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` から ps ×5 を除去 (eligible vs effective 教訓)。`PRICE_SHOCK_REV_TIER1_*` / MIN lot literal / seat priority / `_eur_base_shock_lock` / in-process watchdog `WATCHED_CELLS` は不変 (family 識別子・shadow 経路・再 live 化契約)。
 2. tests: `test_price_shock_rev_live_activation_v2.py` (membership pin 反転) / `test_track_c_plumbing.py` (bypass pin 反転) / 新規 `tests/test_ps_carveout_pool_r2_demote_2026_10_10.py` (5 セル × demoted / not promoted / bypass 外 / runtime predicate / family 識別子不変)。
-3. KB: 本 doc / strategies ×5 Status → `PAIR_DEMOTED` + family card / registry `ps-carveout-regate-post-172` に執行記録 (entry は **resolve しない** — `tests/test_cell_deepdive_lock_redaction.py::test_real_registry_preserves_prefix_match_flags` が prefix LOCK 母集団として参照、10-30 再レビューで disposition) / `ps-seat-spread-magnitude-readout` (10-19) と `ps-watchdog-demotion-state-unreachable` (10-11) に「live 送信は降格済み」を追記 / tier-master 再生成 / changelog / index / session log。
+3. KB: 本 doc / strategies ×5 Status → `PAIR_DEMOTED` + family card / registry `ps-carveout-regate-post-172` を **resolved** 化 (執行済み live_count_decision を active のままにすると N=11 ≥ 10 で毎日 TRIGGERED を出し続ける — PR #324 Codex P2。cell_deepdive の LOCK redaction は「決定が執行済み = 凍結 look なし」なので母集団から外れるのが正しく、`tests/test_cell_deepdive_lock_redaction.py` の pin を「resolved lock は含まれない」に反転) / `ps-seat-spread-magnitude-readout` (10-19) と `ps-watchdog-demotion-state-unreachable` (10-11) に「live 送信は降格済み」を追記 / tier-master 再生成 / changelog / index / session log。
 
 ## 4. 影響と M1/M2 への寄与
 
