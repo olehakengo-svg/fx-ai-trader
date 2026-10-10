@@ -16,7 +16,7 @@
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-10-07)
+## Current Portfolio (auto-synced, 2026-10-10)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -32,11 +32,6 @@
 | [[ema200-trend-reversal]] | USD_JPY | EUR_USD: EV=+0.410 WR=75.0%; USD_JPY: EV=-0.183 WR=56.2% | PAIR_PROMOTED |
 | [[mqe-gbpusd-fix]] | GBP_USD | no BT data | PAIR_PROMOTED |
 | [[pivot-detector-v2-5]] | EUR_USD | no BT data | PAIR_PROMOTED |
-| [[price-shock-rev-aud-jpy-h1-long]] | AUD_JPY | no BT data | PAIR_PROMOTED |
-| [[price-shock-rev-eur-aud-h1-long]] | EUR_AUD | no BT data | PAIR_PROMOTED |
-| [[price-shock-rev-eur-gbp-h1-long]] | EUR_GBP | no BT data | PAIR_PROMOTED |
-| [[price-shock-rev-nzd-jpy-h1-long]] | NZD_JPY | no BT data | PAIR_PROMOTED |
-| [[price-shock-rev-usd-cad-h1-long]] | USD_CAD | no BT data | PAIR_PROMOTED |
 | [[squeeze-release-momentum]] | EUR_USD | EUR_USD: EV=+0.656 WR=73.3% | PAIR_PROMOTED |
 | [[vol-momentum-scalp]] | EUR_JPY | no BT data | PAIR_PROMOTED |
 | [[vsg-jpy-reversal]] | EUR_JPY | no BT data | PAIR_PROMOTED |
@@ -70,6 +65,11 @@
 | [[mtf-reversal-confluence]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[mtf-trend-follow-scalp]] | no BT data | SCALP_SENTINEL |
 | [[pd-eurjpy-h20-bbpb3-sell]] | no BT data | UNIVERSAL_SENTINEL |
+| [[price-shock-rev-aud-jpy-h1-long]] | no BT data | shadow only |
+| [[price-shock-rev-eur-aud-h1-long]] | no BT data | shadow only |
+| [[price-shock-rev-eur-gbp-h1-long]] | no BT data | shadow only |
+| [[price-shock-rev-nzd-jpy-h1-long]] | no BT data | shadow only |
+| [[price-shock-rev-usd-cad-h1-long]] | no BT data | shadow only |
 | [[price-shock-reversion]] | no BT data | UNIVERSAL_SENTINEL |
 | [[session-time-bias]] | EUR_USD: EV=+0.215 WR=69.6%; GBP_USD: EV=+0.113 WR=67.1%; USD_JPY: EV=+0.580 WR=79.0% | UNIVERSAL_SENTINEL |
 | [[sr-weighted-bounce]] | no BT data | UNIVERSAL_SENTINEL |

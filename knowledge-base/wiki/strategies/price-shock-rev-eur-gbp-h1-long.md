@@ -1,6 +1,8 @@
 # price_shock_rev_eur_gbp_h1_long
 
-## Status: PAIR_PROMOTED (EUR_GBP)
+## Status: PAIR_DEMOTED (EUR_GBP) — 2026-10-10 rule:R2 (shadow 蓄積継続、再 live 化は R1)
+
+## 🔻 2026-10-10 R2 demote (autopilot): registry `ps-carveout-regate-post-172` の pool 条件 (prefix price_shock_rev × since 08-11 × clean live closed) **N=11 / EV −6.08p / WR 36.4% / Wilson_lo 0.152** が成立 → ps ×5 carve-out を `_PAIR_DEMOTED` へ。本セルの live 実績 (since 08-11): N 9 / 3W / WR 33.3% / −9.5p (EV −1.06p、最新 10-05 +12.9)。決裁記録 [[ps-carveout-pool-r2-demote-2026-10-10]]。MIN lot 1000u 契約・family 識別子は不変 (再 live 化時の契約)。
 
 **Tier**: Tier 2 — Live MIN lot 1000u 固定 (Kelly half / DD multiplier / lot ramp bypass) | **Activation**: 2026-05-18 [[price-shock-rev-live-activation-2026-05-18]]
 

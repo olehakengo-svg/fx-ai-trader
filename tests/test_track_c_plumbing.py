@@ -45,20 +45,20 @@ def _bypass(entry_type, units, is_xau=False):
 
 # ── D-c-1: carve-out ──
 
-@pytest.mark.parametrize("et", PS_TYPES)
-def test_ps_in_agg_kelly_bypass_frozenset(et):
-    assert et in DemoTrader._AGG_KELLY_GATE_MINLOT_BYPASS_TYPES
-
-
-@pytest.mark.parametrize("et", PS_TYPES)
-def test_ps_bypass_at_min_lot(et):
-    assert _bypass(et, 1000) is True
-    assert _bypass(et, -1000) is True   # SELL units
-
+# 2026-10-10 rule:R2 (registry ps-carveout-regate-post-172): pool clean live
+# N=11 EV=-6.08p → ps ×5 を _PAIR_DEMOTED へ降格、bypass からも除去 (eligible
+# vs effective 教訓: live 不適格セルを bypass に残さない)。D-c-1 の bypass pin は
+# 反転して保持する (再 live 化 = R1 で戻す時に同じ PR で両方戻す契約)。
 
 @pytest.mark.parametrize("et", PS_TYPES)
-def test_ps_bypass_expires_above_min_lot(et):
-    # eligible vs effective 教訓: lot 昇格したら bypass は自動失効する
+def test_ps_removed_from_agg_kelly_bypass_frozenset_2026_10_10(et):
+    assert et not in DemoTrader._AGG_KELLY_GATE_MINLOT_BYPASS_TYPES
+
+
+@pytest.mark.parametrize("et", PS_TYPES)
+def test_ps_no_bypass_even_at_min_lot_2026_10_10(et):
+    assert _bypass(et, 1000) is False
+    assert _bypass(et, -1000) is False   # SELL units
     assert _bypass(et, 1001) is False
     assert _bypass(et, 5000) is False
 
