@@ -336,7 +336,7 @@
    "pairs": 3,
    "within_0_5pp": 3,
    "max_abs_diff_pp": 0.0,
-   "note": "UI (community/outlook progress-bar width %) と本番 /api/positioning/export の cutoff 後 最新行 (10-09T20:30〜21:11Z、市場閉場後で内容 dedup により新規行なし) の pct_long/short 突合。UI は履歴を持たず凍結 run に UI 観測を記録していないため、凍結 artifact 行との同時刻突合は不可 (PR #323 Codex P2)。担保は推移的: UI≡API 最新行 ∧ API≡artifact (b roundtrip digest) ∧ modules/positioning_ingest.py が cutoff 跨ぎで不変 (最終変更 2026-09-11 a6659043)。postponed 凍結からは手順書 §3(b′) で凍結時に UI 観測を記録する",
+   "note": "UI (community/outlook progress-bar width %) と本番 /api/positioning/export の cutoff 後 最新行 (10-09T20:30〜21:11Z、市場閉場後で内容 dedup により新規行なし) の pct_long/short 突合。UI は履歴を持たず凍結 run に UI 観測を記録していないため、凍結 artifact 行との同時刻突合は不可 (PR #323 Codex P2)。担保は推移的: UI≡API 最新行 ∧ API≡artifact (b roundtrip digest) ∧ modules/positioning_ingest.py が cutoff 跨ぎで不変 (最終変更 2026-09-11 a6659043)。postponed look では cutoff 前 (11-05 run) に UI 観測を記録し、判定日に artifact の「観測時刻に有効だった行」と突合する (registry e1-first-look-postponed-ui-sample-due)",
    "artifact_rows_compared": 0,
    "transitive_guarantee": {
     "ui_vs_api_latest_row": "3/3 (0.0pp)",
