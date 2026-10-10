@@ -103,7 +103,8 @@
     "pass": true,
     "detail": "pooled_ic=-0.9494303939969935 n=278 (|IC|>=0.8 required)"
    }
-  }
+  },
+  "summary": "7/7 pass"
  },
  "quality_gates": {
   "pairs": {
@@ -335,7 +336,13 @@
    "pairs": 3,
    "within_0_5pp": 3,
    "max_abs_diff_pp": 0.0,
-   "note": "UI (community/outlook progress-bar width %) と本番 /api/positioning/export の cutoff 後 最新行 (10-09T20:30〜21:11Z、市場閉場後で内容 dedup により新規行なし) の pct_long/short 突合。凍結 artifact の値には触れていない"
+   "note": "UI (community/outlook progress-bar width %) と本番 /api/positioning/export の cutoff 後 最新行 (10-09T20:30〜21:11Z、市場閉場後で内容 dedup により新規行なし) の pct_long/short 突合。UI は履歴を持たず凍結 run に UI 観測を記録していないため、凍結 artifact 行との同時刻突合は不可 (PR #323 Codex P2)。担保は推移的: UI≡API 最新行 ∧ API≡artifact (b roundtrip digest) ∧ modules/positioning_ingest.py が cutoff 跨ぎで不変 (最終変更 2026-09-11 a6659043)。postponed 凍結からは手順書 §3(b′) で凍結時に UI 観測を記録する",
+   "artifact_rows_compared": 0,
+   "transitive_guarantee": {
+    "ui_vs_api_latest_row": "3/3 (0.0pp)",
+    "api_vs_artifact": "roundtrip digest OK at freeze (§2.5-5(b))",
+    "ingest_code_unchanged_across_cutoff": "modules/positioning_ingest.py last change 2026-09-11 a6659043"
+   }
   },
   "d_unit_tests": {
    "pytest": "tests/test_e1_prereg_eval.py + tests/test_e1_positioning_frozen_export.py",

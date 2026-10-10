@@ -88,6 +88,8 @@ python3 -B tools/e1_positioning_frozen_export.py --verify knowledge-base/raw/bt-
 - **health_log の範囲**: value ≤ cutoff の全行。本番の `positioning_health_log` は **2026-07-17T08:40:27Z から** (dry-run 実測 id 1) — それ以前の verified 証跡は artifact の行 snapshot_time を判定器が union する (§2.2、`load_artifact` docstring)。
 - **再実行が本当に必要なとき** (例: export 中の 5xx、0 行 instrument、roundtrip 不一致): `--force` を付ける。台帳 `attempts` に全試行 (失敗含む)、marker があった場合は manifest `force_history` に前回 sha256 と時刻が残る (fail-loud)。`--force` 中に検証で落ちても前回凍結は不改変 (staging → 一括公開)。**試行回数と理由を verdict §8 に併記する** (台帳から転記)。値を見た後の再 export は §6-2 違反。
 
+**§3(b′) 追補 (2026-10-10、PR #323 Codex P2 — postponed 凍結以降に適用)**: (b) export の**同じ run・直後**に Myfxbook web UI (`/community/outlook`、progress-bar width % = short/long) の 3 ペア (EUR_USD / GBP_USD / USD_JPY) pct と観測時刻を `raw/bt-results/<freeze-slug>.ui-sample.json` に記録する (値は pct のみ、skew/IC は含まないので §6-2 非抵触)。判定日の §4(c) は **この記録と凍結 artifact の同時刻 (直近 ≤ 観測時刻) 行を ±0.5pp で突合**する。UI は現在値しか持たないため、観測を凍結時に残さないと artifact 行との直接突合が不可能になる (first look #1 で発生)。
+
 ## §4 品質 gate spot check (§2.5-5、結果は raw/ へ)
 
 | 項目 | やり方 | 注意 |
@@ -155,8 +157,8 @@ pre-reg §8 placeholder に、判定器出力から**転記**する (解釈を�
 | 2026-10-10 08:3xZ | §4 (d) pytest | prereg_eval + frozen_export **165 passed** (-B、-p no:cacheprovider) |
 | 2026-10-10 08:4xZ | §4 (b) `--verify` 再実行 (worktree autopilot-1009、判定器直前) | **OK (15 files)**、roundtrip OK (48,582 / 76,499)、marker OK、attempts after freeze 0、head OK |
 | 2026-10-10 08:5xZ | §4 (a) content-hash spot check (無作為 20 行、seed 20261015) | 決定性 20/20、同 instrument 隣接非重複 40/40、buckets 欠落 0 (結果は raw JSON `spot_check_2_5_5`) |
-| 2026-10-10 08:59:30Z | **§5 判定器 `--look 1 --verdict-run`** (seed / n-boot 既定、artifact = worktree autopilot-1009 の凍結本体、ohlcv = 共有 cache の凍結スライス) | exit 0。**verdict = `POSTPONE`** (family gate 不成立: 残存 0 < 4 — primary 6 ペア全てが coverage 88.56% (4h) / 88.32% (24h) < 90%、stale gap 4.39 / 40.0 日 = 10.97%)。統計は未計算。canary 6/6 pass、stale cap 主モード、sanity 除外 0 / 単調性違反 0 / jump 0。inputs の artifact sha256 + parquet 13 sha256 は marker と一致。raw = `raw/bt-results/e1_prereg_look1_2026-10-15.json` (8 KB、commit) |
-| 2026-10-10 09:05Z | §4 (c) Myfxbook web UI 突合 (EUR_USD / GBP_USD / USD_JPY × 1 時点) | UI progress-bar % vs 本番 export の cutoff 後最新行 (10-09T20:30〜21:11Z): **3/3 一致 (max |Δ| 0.0pp)**。凍結 artifact の値には触れていない |
+| 2026-10-10 08:59:30Z | **§5 判定器 `--look 1 --verdict-run`** (seed / n-boot 既定、artifact = worktree autopilot-1009 の凍結本体、ohlcv = 共有 cache の凍結スライス) | exit 0。**verdict = `POSTPONE`** (family gate 不成立: 残存 0 < 4 — primary 6 ペア全てが coverage 88.56% (4h) / 88.32% (24h) < 90%、stale gap 4.39 / 40.0 日 = 10.97%)。統計は未計算。canary 7/7 pass、stale cap 主モード、sanity 除外 0 / 単調性違反 0 / jump 0。inputs の artifact sha256 + parquet 13 sha256 は marker と一致。raw = `raw/bt-results/e1_prereg_look1_2026-10-15.json` (8 KB、commit) |
+| 2026-10-10 09:05Z | §4 (c) Myfxbook web UI 突合 (EUR_USD / GBP_USD / USD_JPY × 1 時点) | UI progress-bar % vs 本番 export の cutoff 後最新行 (10-09T20:30〜21:11Z): **3/3 一致 (max |Δ| 0.0pp)**。⚠️ UI は履歴を持たず、凍結 run (10-09) に UI 観測を記録していなかったため **artifact 行との同時刻突合は不可** — 担保は推移的 (UI ≡ API 最新行 ∧ API ≡ artifact [roundtrip digest] ∧ ingest コード cutoff 跨ぎ不変 a6659043)。PR #323 Codex P2 で手順の欠落として記録、§3(b′) を追補 |
 | 2026-10-10 | NA 由来 (timestamps のみ) | 全 13 ペア同時刻の NA 328 slot = 08-21T21:14Z→08-26T03:39Z (Render Disk 満杯) + 09-10T06:58Z→09-14T13:19Z (E1 ingest 認証停止) 各 102.4h、従 09-15 3.6h / 09-22 3.7h (HTTP 全盲)。§1 の 4 週スライド発動: cutoff **11-05T06:33:31Z** / verdict **11-12** / 評価窓終端 11-05。registry `e1-first-look-postponed-freeze-due` (11-05) 新設、`e1-prereg-verdict-deadline` → 11-11 (前日規則) |
 | | | |
 
