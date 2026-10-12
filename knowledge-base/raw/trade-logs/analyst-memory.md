@@ -5261,6 +5261,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 - トレードゼロはシステム異常ではなく、ガード群（spread_guard / shadow demote / flash_crash / dedup）が設計通りに機能した結果。
 - scalp系の shadow_demote は評価プロセス中であり、N蓄積途上での介入はデータ汚染を招く。
 
+### 2026-10-12 (Post-London Report)
+| PnL | **¥0** |
+| WR | **N/A** |
+| PnL | ¥0 | ¥0 |
+| WR | N/A | N/A |
+- `EUR_USD VOLATILE(78%)`はscalp系に不利（spread_guard発動リスク高）
+- `GBP_USD TRENDING_DOWN(71%)`はdaytrade方向性戦略に本来有利なはずだが、`order_bar_dedup`と`gbp_asia_flash_crash`ブロックが機会を消去
+### 推奨戦略配分
+**NO ACTION推奨（実質的に）**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
