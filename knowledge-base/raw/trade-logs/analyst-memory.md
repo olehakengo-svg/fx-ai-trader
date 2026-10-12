@@ -5251,6 +5251,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 - **東京セッション（JST 09:00〜15:00）**：USD_JPYの上昇トレンド継続判断。158.3近辺でのモメンタム持続可否が`carry_dip_accumulator`の発動条件を左右する。
 - **ロンドン・オープン（JST 16:00〜17:00）**：EUR_USDのVOLATILE環境において、欧州時間開始直後のスプレッド拡大に注意。`scalp_eur`系のspread_guard発動（閾値30%）が増加する可能性。
 
+### 2026-10-12 (Post-Tokyo Report)
+| セッション PnL | ¥0 |
+| WR | N/A |
+- **scalp系の完全封鎖**: `r2_shadow_demoted_cell` が677件。Shadow demoteされたセルが東京時間帯のscalp系を実質的にシャットアウト。シャドウ追跡中（OANDA Block Reasons: shadow_tracking 18件）と整合的であり、構造的ブロックであって一時的ノイズではない。
+- **GBP系の`gbp_asia_flash_crash`**: 213件。東京時間帯のGBPボラティリティ防御が継続的に発動。EUR_GBP(71% ATR%ile, RANGING)・GBP_JPY(71%)・GBP_USD(TRENDING_DOWN)のATRレジームが高めに推移しており、ガード発動継続は合理的。
+- **`order_bar_dedup`**: 228件。EUR_JPY / EUR / AUD_JPY / GBP_USDで重複発注排除が多数。シグナル自体は生成されているが、bar内重複として棄却されており、シグナル生成器は機能している証拠でもある。
+- **`rnb_usdjpy:no_signal`**: 668件。USD_JPY(TRENDING_UP, 57%ile)のレジームでRnBがシグナルを出せないのは、レンジ戻りストラテジーとしてトレンド相場に適応できていない構造的問題。
+- トレードゼロはシステム異常ではなく、ガード群（spread_guard / shadow demote / flash_crash / dedup）が設計通りに機能した結果。
+- scalp系の shadow_demote は評価プロセス中であり、N蓄積途上での介入はデータ汚染を招く。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
