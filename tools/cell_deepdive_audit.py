@@ -1302,12 +1302,16 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     clock comparison is client UTC vs server `entry_time` — stated, not
     hidden, in `_fetch_meta.as_of_clock`.
 
-    VALUES are a separate instant from membership: a row's attributes are
-    the newest read (`open_after` for open rows, the confirming pass for
-    closed rows) so the async OANDA callback (`set_oanda_trade_id()`, flips
-    is_shadow) is not reported stale.  `_fetch_meta.values_as_of_open` /
-    `values_as_of_closed` carry those instants.  The trailing open read is
-    otherwise used only for the hole check.
+    VALUES are separate from membership: a row's attributes are the newest
+    read (`open_after` for open rows, the confirming pass for closed rows)
+    so the async OANDA callback (`set_oanda_trade_id()`, flips is_shadow)
+    is reported as late as this client can see it.  That is NOT an as-of
+    guarantee (Codex P2, PR #326 round 3): a mutation landing between the
+    server's query and the response arriving here is invisible, so the
+    instants exported as `_fetch_meta.observed_through_open` /
+    `observed_through_closed` are client observation-COMPLETION times — the
+    values are at least as old as the query behind them, never newer.  The
+    trailing open read is otherwise used only for the hole check.
 
     Completeness rests on TWO checks, because one of them cannot see the other
     one's hazard (Codex P2, PR #273, three rounds):
@@ -1415,17 +1419,22 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] = closed_after
         payload["_fetch_meta"]["closed_entries_unjudged"] = closed_unjudged
         # The completeness point, stated in the artifact (not only in prose):
-        # membership is AS OF `as_of` (before the first request); values are
-        # as of the newest read of each row.  The later instants are recorded
-        # so a reader can see they are NOT the snapshot time.
+        # membership is AS OF `as_of` (before the first request).  The later
+        # instants are client observation-completion times (when each
+        # response had been read) — they bound how LATE a value can be, not
+        # how fresh it is, and they are NOT the snapshot time.
         payload["_fetch_meta"]["as_of"] = as_of
         payload["_fetch_meta"]["as_of_basis"] = "open_before_request_start"
         payload["_fetch_meta"]["as_of_clock"] = (
             "client UTC at request start vs server entry_time; skew not measured")
         payload["_fetch_meta"]["confirm_pass_end_at"] = confirm_pass_end_at
         payload["_fetch_meta"]["open_after_at"] = open_after_at
-        payload["_fetch_meta"]["values_as_of_closed"] = confirm_pass_end_at
-        payload["_fetch_meta"]["values_as_of_open"] = open_after_at
+        payload["_fetch_meta"]["observed_through_closed"] = confirm_pass_end_at
+        payload["_fetch_meta"]["observed_through_open"] = open_after_at
+        payload["_fetch_meta"]["observed_through_note"] = (
+            "client observation-completion instants, not value as-of "
+            "guarantees: a mutation between the server query and the response "
+            "arriving is not visible, so values are at least this old")
         # Keep BOTH passes' drift evidence; the confirming pass is part of the
         # completeness argument, so its own retries must stay visible.
         payload["_fetch_meta"]["confirm_pass"] = {

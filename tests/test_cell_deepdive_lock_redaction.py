@@ -2061,8 +2061,9 @@ def test_snapshot_as_of_is_captured_before_the_first_read_and_values_are_newest(
     by the transit latency, and a cutoff inside the bracket leaves a trade
     that opened after it and closed before the trailing read in no read at
     all.  Membership is as of that first instant; VALUES are the newest read
-    of each row (so the async live flip is not reported stale), and both
-    instants are named in the artifact.
+    of each row (so the async live flip is reported as late as the client can
+    see it), and the later instants are named as observation-completion
+    times, not as value as-of guarantees.
     """
     import time
 
@@ -2090,8 +2091,12 @@ def test_snapshot_as_of_is_captured_before_the_first_read_and_values_are_newest(
     assert meta["as_of"] <= meta["confirm_pass_end_at"] <= meta["open_after_at"], (
         "the later instants are recorded as value/hole-check instants, never "
         "as the snapshot time")
-    assert meta["values_as_of_closed"] == meta["confirm_pass_end_at"]
-    assert meta["values_as_of_open"] == meta["open_after_at"]
+    assert meta["observed_through_closed"] == meta["confirm_pass_end_at"]
+    assert meta["observed_through_open"] == meta["open_after_at"]
+    assert "not value as-of" in meta["observed_through_note"], (
+        "the later instants are observation-COMPLETION times: a mutation "
+        "between the server query and the response arriving is invisible, so "
+        "the artifact must not advertise them as value as-of guarantees")
     assert payload["trades"] == closed_confirm, (
         "values are the newest read — the live flip must not be reported stale")
     assert meta["closed_mutated_midfetch"] == 1
