@@ -1258,6 +1258,21 @@ def _http_fetch_open(limit: int = 100000) -> list:
     return _http_fetch("open", limit, 0)
 
 
+def _opened_after(row: dict, as_of_dt: datetime):
+    """True if the row's server `entry_time` is after `as_of_dt`, False if at
+    or before, None if it cannot be judged (missing / unparseable)."""
+    raw = row.get("entry_time")
+    if not raw:
+        return None
+    try:
+        ts = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts > as_of_dt
+
+
 def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     """open -> closed pages -> open, retried until no row fell in a hole.
 
@@ -1266,16 +1281,33 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     present even though it never appears in the closed pages.
 
     Read order is open → closed → closed(confirm) → open.  The snapshot's
-    AS-OF instant is the END OF THE CONFIRMING CLOSED PASS, not the trailing
-    open read (Codex P2 ×2, PR #273 final-HEAD review, registry
-    `review-backlog-273-p2-snapshot-asof-2026-10-12`).  The trailing open
-    read is strictly LATER than as-of and serves one purpose: detecting an
-    open row that vanished inside the bracket (hole check).  Anything that
-    happens in the window (confirm end, open_after] — a trade that opens AND
-    closes there, or a closed row that `DemoDB.set_oanda_trade_id()` mutates
-    there — is AFTER as-of by definition, so it is outside the snapshot, not
-    missing from it.  `_fetch_meta.as_of` / `as_of_basis` state this so the
-    reader never cites the open_after instant as the completeness point.
+    MEMBERSHIP as-of instant is captured BEFORE the first request is sent
+    (`as_of`, `as_of_basis = open_before_request_start`) — the only instant
+    these four non-atomic reads can vouch for (Codex P2 ×2 on PR #273's final
+    HEAD + P2 ×2 on PR #326: a cutoff stamped after a response is read lies by
+    the serialization/transit latency, and a cutoff anywhere inside the
+    bracket leaves a trade that opened after it and closed before the
+    trailing read in no read at all).  What is provable as of `as_of`:
+
+      * every trade open at `as_of` is in `open_before` (the request was
+        sent at `as_of`; a row open then is served), and if it closed later
+        it is in the confirming closed pass (append-only, queried after);
+      * every trade closed by `as_of` is in both closed passes.
+
+    Rows that OPENED after `as_of` are outside the snapshot by definition.
+    They are excluded from membership when their `entry_time` says so
+    (counted in `opened_after_as_of` / `closed_entries_after_as_of_excluded`);
+    a row without a parseable `entry_time` cannot be judged and is kept and
+    counted (`open_after_only_unjudged`) rather than silently dropped.  The
+    clock comparison is client UTC vs server `entry_time` — stated, not
+    hidden, in `_fetch_meta.as_of_clock`.
+
+    VALUES are a separate instant from membership: a row's attributes are
+    the newest read (`open_after` for open rows, the confirming pass for
+    closed rows) so the async OANDA callback (`set_oanda_trade_id()`, flips
+    is_shadow) is not reported stale.  `_fetch_meta.values_as_of_open` /
+    `values_as_of_closed` carry those instants.  The trailing open read is
+    otherwise used only for the hole check.
 
     Completeness rests on TWO checks, because one of them cannot see the other
     one's hazard (Codex P2, PR #273, three rounds):
@@ -1301,22 +1333,22 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # middle just moves that window again, so the order is what fixes it,
         # not the count of reads.
         #
-        # SNAPSHOT BOUNDARY (stated, because it is not a defect): the as-of
-        # instant is `as_of` = the moment the CONFIRMING closed pass returned.
-        # A trade that opens after it and never closes, one whose whole
-        # lifecycle falls between `as_of` and `open_after`, or a closed row
-        # mutated in that same window, is not in this snapshot and is not
-        # "missing" — the completeness claim is relative to `as_of`, and no
-        # later read is part of the claim.  What WOULD be a defect is a row
-        # that existed before `as_of` and is absent, and that is exactly what
-        # the two checks below cover.  `open_after` is read AFTER as-of on
-        # purpose: an open row that closes between the two instants shows up
-        # as `missed` (in neither `open_after` nor the closed pages) and
-        # forces a retry — a conservative false hole, never a silent gap.
+        # SNAPSHOT BOUNDARY (stated, because it is not a defect): membership
+        # is as of `as_of`, captured BEFORE the first request leaves.  A trade
+        # that opens after it is not in this snapshot and is not "missing";
+        # a row that existed at `as_of` and is absent IS a defect, and that is
+        # exactly what the two hole checks below cover.  Capturing the cutoff
+        # after a response is read would overstate it by the serialization /
+        # transit latency (Codex P2, PR #326), and any cutoff inside the
+        # bracket leaves a trade that opened after it and closed before the
+        # trailing read in no read at all — so the cutoff is the first
+        # instant, where both halves of the claim are provable.
+        as_of_dt = datetime.now(timezone.utc)
+        as_of = as_of_dt.isoformat(timespec="seconds")
         open_before = _http_fetch_open()
         payload = paginate_trades(_http_fetch_closed_page)
         confirm = paginate_trades(_http_fetch_closed_page)
-        as_of = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        confirm_pass_end_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         open_after = _http_fetch_open()
         open_after_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -1358,15 +1390,38 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         by_id_first = {_row_identity(r): r for r in payload["trades"]}
         closed_mutated = sum(1 for r in confirm["trades"]
                              if by_id_first.get(_row_identity(r)) != r)
-        payload["trades"] = confirm["trades"]          # newer values win
+        # MEMBERSHIP filter (Codex P2, PR #326): a closed row that OPENED
+        # after `as_of` (opened and closed inside the bracket) is after the
+        # cutoff and must not be counted as existing at `as_of`.  Judged on
+        # the server's `entry_time`; unjudgeable rows are kept and counted.
+        kept_closed: list = []
+        closed_after = 0
+        closed_unjudged = 0
+        for r in confirm["trades"]:                  # newer values win
+            verdict = _opened_after(r, as_of_dt)
+            if verdict is True:
+                closed_after += 1
+            else:
+                if verdict is None:
+                    closed_unjudged += 1
+                kept_closed.append(r)
+        payload["trades"] = kept_closed
+        payload["count"] = len(kept_closed)
         payload["_fetch_meta"]["closed_mutated_midfetch"] = closed_mutated
+        payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] = closed_after
+        payload["_fetch_meta"]["closed_entries_unjudged"] = closed_unjudged
         # The completeness point, stated in the artifact (not only in prose):
-        # `complete=true` is AS OF the confirming pass's end.  `open_after_at`
-        # is recorded so a reader can see the hole-check instant is later and
-        # must not be quoted as the snapshot time.
+        # membership is AS OF `as_of` (before the first request); values are
+        # as of the newest read of each row.  The later instants are recorded
+        # so a reader can see they are NOT the snapshot time.
         payload["_fetch_meta"]["as_of"] = as_of
-        payload["_fetch_meta"]["as_of_basis"] = "confirm_pass_end"
+        payload["_fetch_meta"]["as_of_basis"] = "open_before_request_start"
+        payload["_fetch_meta"]["as_of_clock"] = (
+            "client UTC at request start vs server entry_time; skew not measured")
+        payload["_fetch_meta"]["confirm_pass_end_at"] = confirm_pass_end_at
         payload["_fetch_meta"]["open_after_at"] = open_after_at
+        payload["_fetch_meta"]["values_as_of_closed"] = confirm_pass_end_at
+        payload["_fetch_meta"]["values_as_of_open"] = open_after_at
         # Keep BOTH passes' drift evidence; the confirming pass is part of the
         # completeness argument, so its own retries must stay visible.
         payload["_fetch_meta"]["confirm_pass"] = {
@@ -1388,17 +1443,29 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # The newer read is strictly closer to the truth at snapshot time.
         by_key = {_row_identity(r): r for r in open_before}
         opened_midfetch = 0
+        opened_after_as_of = 0
         mutated_midfetch = 0
         for r in open_after:
             k = _row_identity(r)
             if k not in by_key:
-                opened_midfetch += 1           # opened during the pass
+                # Not open at `as_of`.  If its entry_time proves it opened
+                # after the cutoff it is outside the snapshot (Codex P2,
+                # PR #326: the trailing read is for hole detection, not
+                # membership).  Unjudgeable → kept and counted, never
+                # dropped silently.
+                if _opened_after(r, as_of_dt) is True:
+                    opened_after_as_of += 1
+                    continue
+                opened_midfetch += 1           # unjudged (no entry_time)
             elif by_key[k] != r:
                 mutated_midfetch += 1         # e.g. shadow -> live
             by_key[k] = r
         return (list(by_key.values()), payload,
                 {"attempts": attempt, "opened_midfetch": opened_midfetch,
+                 "open_after_only_unjudged": opened_midfetch,
+                 "opened_after_as_of": opened_after_as_of,
                  "mutated_midfetch": mutated_midfetch,
+                 "as_of": as_of,
                  "holes_observed": holes})
     raise SystemExit(
         f"the book moved inside the fetch window on all {max_attempts} "

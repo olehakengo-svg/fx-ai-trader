@@ -9,10 +9,10 @@
 - 観測: ps `pair_demoted` は block_counts 未出現 (10-10 deploy 以降 ps signal が pair gate まで未到達) / 10-12 月曜 LIVE fill 0 / E1 ingest fresh 13 keys
 - 詳細: [[2026-10-13-session]]
 
-## 2026-10-13 — fix(tools): `cell_deepdive_audit._fetch_bracketed` の snapshot as-of を confirming closed pass 終了時点と定義 (`_fetch_meta.as_of` / `as_of_basis` / `open_after_at`) — PR #273 繰延 P2 ×2 消化 (rule:R3、autopilot、tools + pin のみ)
+## 2026-10-13 — fix(tools): `cell_deepdive_audit._fetch_bracketed` の snapshot membership as-of を**最初の request 送信前の時刻**と定義 (`_fetch_meta.as_of` / `as_of_basis=open_before_request_start`、as-of 後に open した行は除外+カウント、値は最新読み) — PR #273 繰延 P2 ×2 + PR #326 Codex P2 ×2 消化 (rule:R3、autopilot、tools + pin のみ)
 
 - **欠陥**: 2 件 (4180187039 / 4180187042) はともに「`complete=true` の as-of = `open_after` 時点」という主張を前提に、(confirm 終了, open_after] 窓で open→close した trade の欠落 / `set_oanda_trade_id()` による closed 行の stale 値を指摘していた。
-- **修正**: as-of を confirming closed pass 終了時点と定義し artifact に刻む。`open_after` は open 行消失の hole check 専用 (as-of より後)。as-of 以後に閉じた open 行は `missed` → retry (保守的)。挙動変更は meta 3 キーの追加のみ、母集団計数は不変。
+- **修正**: membership as-of = 最初の request 送信前の時刻 (4 読みが保証できる唯一の時点)。初版「confirm pass 終了時点」は PR #326 Codex P2 で棄却 (response 読了後の時刻は latency 分遅い / bracket 内部の cutoff は cutoff 後 open → open_after 前 close の trade を取りこぼす)。as-of 後に open した行 (`entry_time > as_of`) は membership から除外しカウント、判定不能行は保持+カウント。値は各行の最新読み (`values_as_of_open` / `values_as_of_closed`)。`open_after` は hole check + 値更新のみ。pin ×2
 - **KB**: registry `review-backlog-273-p2-snapshot-asof-2026-10-12` resolved / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] §5。引用規律: 週次 deepdive の LOCK 母集団 N / LIVE-shadow 比は `_fetch_meta.as_of` 時点の値。
 - 詳細: [[2026-10-13-session]]
 

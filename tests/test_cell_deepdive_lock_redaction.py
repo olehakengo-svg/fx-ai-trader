@@ -2052,36 +2052,31 @@ def test_a_trade_that_closes_inside_the_window_is_a_hole_and_forces_a_retry(monk
     assert ids == [1, 9], "the retry must collect the row that fell in the hole"
 
 
-def test_snapshot_as_of_is_the_confirming_pass_end_not_the_trailing_open_read(monkeypatch):
-    """PIN (Codex P2 ×2, PR #273 final HEAD; registry
+def test_snapshot_as_of_is_captured_before_the_first_read_and_values_are_newest(monkeypatch):
+    """PIN (Codex P2 ×2 on PR #273 final HEAD + P2 ×2 on PR #326; registry
     review-backlog-273-p2-snapshot-asof-2026-10-12).
 
-    Two hazards live in the window between the confirming closed pass and the
-    trailing open read: a trade whose whole lifecycle falls there is in none
-    of the four reads, and a closed row `set_oanda_trade_id()` mutates there
-    keeps its pre-mutation values.  Both are only defects if the snapshot
-    claims completeness AS OF `open_after`.  The fix is definitional and must
-    be stated in the artifact, not only in prose: `_fetch_meta.as_of` is the
-    confirming pass's end, `open_after_at` is strictly later, and the payload
-    carries the confirming pass's values (nothing read after as-of is
-    represented).
+    The only instant four non-atomic reads can vouch for is the one BEFORE
+    the first request leaves: a cutoff stamped after a response is read lies
+    by the transit latency, and a cutoff inside the bracket leaves a trade
+    that opened after it and closed before the trailing read in no read at
+    all.  Membership is as of that first instant; VALUES are the newest read
+    of each row (so the async live flip is not reported stale), and both
+    instants are named in the artifact.
     """
     import time
 
     closed_first = [{"id": 1, "status": "CLOSED", "is_shadow": 1,
+                     "entry_time": "2000-01-01T00:00:00+00:00",
                      "exit_time": "2026-09-19T00:00:00"}]
-    # The confirming pass sees the live flip; a THIRD pass (never read) would
-    # see a further mutation — it is after as-of, so it must not be in the
-    # payload and must not be claimed.
     closed_confirm = [{"id": 1, "status": "CLOSED", "is_shadow": 0,
                        "oanda_trade_id": "42",
+                       "entry_time": "2000-01-01T00:00:00+00:00",
                        "exit_time": "2026-09-19T00:00:00"}]
-    seen = {"open": 0}
 
     def script(kind, n):
+        time.sleep(0.01)                    # every later instant is measurably later
         if kind == "open":
-            seen["open"] = n
-            time.sleep(0.01)                # open_after is measurably later
             return []
         return list(closed_confirm if n >= 1 else closed_first)
 
@@ -2090,16 +2085,57 @@ def test_snapshot_as_of_is_the_confirming_pass_end_not_the_trailing_open_read(mo
 
     meta = payload["_fetch_meta"]
     assert meta["complete"] is True
-    assert meta["as_of_basis"] == "confirm_pass_end", (
-        "the completeness point must be named in the artifact so a reader "
-        "cannot cite the open_after instant as the snapshot time")
-    assert meta["as_of"] <= meta["open_after_at"], (
-        "open_after is the hole-check read and is strictly later than as-of")
+    assert meta["as_of_basis"] == "open_before_request_start", (
+        "the membership cutoff must be the instant BEFORE the first read")
+    assert meta["as_of"] <= meta["confirm_pass_end_at"] <= meta["open_after_at"], (
+        "the later instants are recorded as value/hole-check instants, never "
+        "as the snapshot time")
+    assert meta["values_as_of_closed"] == meta["confirm_pass_end_at"]
+    assert meta["values_as_of_open"] == meta["open_after_at"]
     assert payload["trades"] == closed_confirm, (
-        "the payload is the confirming pass's representation — the values "
-        "as of `as_of`, never a read taken after it")
+        "values are the newest read — the live flip must not be reported stale")
     assert meta["closed_mutated_midfetch"] == 1
+    assert meta["closed_entries_after_as_of_excluded"] == 0
+    assert ev["as_of"] == meta["as_of"]
     assert ev["holes_observed"] == [] and ev["attempts"] == 1
+
+
+def test_rows_that_opened_after_the_cutoff_are_outside_the_snapshot(monkeypatch):
+    """KNOWN-NG INPUT (Codex P2, PR #326): the trailing open read returns a
+    trade that opened after `as_of`, and the confirming pass returns a trade
+    that opened AND closed after it.  Both are after the cutoff: they must
+    not be members, and the exclusion must be COUNTED.  A row the tool cannot
+    judge (no entry_time) is kept and counted, never dropped silently.
+    """
+    future = "2999-01-01T00:00:00+00:00"
+    past = "2000-01-01T00:00:00+00:00"
+    closed = [{"id": 1, "status": "CLOSED", "entry_time": past,
+               "exit_time": "2026-09-19T00:00:00"}]
+    closed_with_late = closed + [{"id": 5, "status": "CLOSED", "entry_time": future,
+                                  "exit_time": "2999-01-01T00:00:01"}]
+
+    def script(kind, n):
+        if kind == "closed":
+            # The late row is in BOTH passes so the closed_during check does
+            # not fire — this pins the membership filter, not the hole check.
+            return list(closed_with_late)
+        if n == 0:
+            return []                                       # open_before: nothing
+        return [{"id": 7, "status": "OPEN", "entry_time": future},
+                {"id": 8, "status": "OPEN"}]                # 8: unjudgeable
+
+    m = _bracket_stub(monkeypatch, script)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert [r["id"] for r in open_rows] == [8], (
+        "a trade that provably opened after as_of is not a member; one that "
+        "cannot be judged is kept (superset, never a silent drop)")
+    assert ev["opened_after_as_of"] == 1 and ev["open_after_only_unjudged"] == 1
+    assert [r["id"] for r in payload["trades"]] == [1], (
+        "a closed row that opened after as_of is after the cutoff too")
+    assert payload["count"] == 1
+    assert payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] == 1
+    assert payload["_fetch_meta"]["closed_entries_unjudged"] == 0
 
 
 def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkeypatch):
