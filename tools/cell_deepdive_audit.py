@@ -1331,10 +1331,11 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
       * every trade closed by `as_of` is in both closed passes.
 
     Rows that OPENED after `as_of` are outside the snapshot by definition.
-    `entry_time` is the SERVER's clock, so a row is excluded only when it is
-    after the cutoff by more than the measured skew tolerance
-    (`_server_clock_offset`: Date-header offset + rtt + 1 s); rows inside the
-    band are ambiguous and are KEPT and counted, and when the server clock
+    `entry_time` is the SERVER's clock, so the cutoff is re-expressed on it
+    (`server_cutoff = as_of + measured Date-header offset`) and a row is
+    excluded only when it is after that by more than the measurement radius
+    (rtt + 1 s Date granularity); rows inside the radius are ambiguous and
+    are KEPT and counted, and when the server clock
     cannot be measured nothing is excluded at all (superset mode) — both
     stated in `_fetch_meta.membership_basis` (Codex P2, PR #326 round 4).  A
     row without a parseable `entry_time` is kept and counted
@@ -1387,22 +1388,33 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # trailing read in no read at all — so the cutoff is the first
         # instant, where both halves of the claim are provable.
         clock = _server_clock_offset()
-        tol = (abs(clock[0]) + clock[1] + 1.0) if clock else None
         as_of_dt = datetime.now(timezone.utc)
+        # The cutoff expressed on the SERVER's clock (Codex P2, PR #326
+        # round 5): `entry_time` is server time, so the comparison point is
+        # `as_of + offset`, and only the measurement uncertainty (rtt + the
+        # Date header's 1 s granularity) is a band around it — not |offset|,
+        # which would leave a server-behind skew unapplied and keep rows that
+        # provably opened after the cutoff.
+        if clock:
+            server_cutoff = as_of_dt + timedelta(seconds=clock[0])
+            radius = clock[1] + 1.0
+        else:
+            server_cutoff = None
+            radius = None
 
         def _judge(row):
-            """'after' (provably opened after the cutoff even under the
-            measured skew → excluded) / 'ambiguous' (inside the skew band,
-            or exact-clock-after in superset mode → kept + counted) /
-            'member' / None (unjudgeable → kept + counted)."""
+            """'after' (provably opened after the cutoff on the server's own
+            clock, beyond the uncertainty radius → excluded) / 'ambiguous'
+            (inside the radius, or client-clock-after in superset mode →
+            kept + counted) / 'member' / None (unjudgeable → kept + counted)."""
             exact = _opened_after(row, as_of_dt)
             if exact is None:
                 return None
-            if tol is None:
+            if server_cutoff is None:
                 return "ambiguous" if exact else "member"
-            if _opened_after(row, as_of_dt + timedelta(seconds=tol)) is True:
+            if _opened_after(row, server_cutoff + timedelta(seconds=radius)) is True:
                 return "after"
-            if _opened_after(row, as_of_dt - timedelta(seconds=tol)) is True:
+            if _opened_after(row, server_cutoff - timedelta(seconds=radius)) is True:
                 return "ambiguous"
             return "member"
         # Full precision: the exported instant must be the SAME instant the
@@ -1475,6 +1487,11 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
             kept_closed.append(r)
         payload["trades"] = kept_closed
         payload["count"] = len(kept_closed)
+        # `rows` is what the artifact HOLDS; the pre-filter pagination count
+        # moves to its own field so `main()` cannot print a closed population
+        # larger than the retained one (Codex P2, PR #326 round 5).
+        payload["_fetch_meta"]["rows_fetched_closed"] = payload["_fetch_meta"]["rows"]
+        payload["_fetch_meta"]["rows"] = len(kept_closed)
         payload["_fetch_meta"]["closed_mutated_midfetch"] = closed_mutated
         payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] = closed_after
         payload["_fetch_meta"]["closed_membership_ambiguous_kept"] = closed_ambiguous
@@ -1484,11 +1501,14 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         payload["_fetch_meta"]["server_clock_rtt_s"] = (
             round(clock[1], 3) if clock else None)
         payload["_fetch_meta"]["membership_tolerance_s"] = (
-            round(tol, 3) if tol is not None else None)
+            round(radius, 3) if radius is not None else None)
+        payload["_fetch_meta"]["server_cutoff"] = (
+            server_cutoff.isoformat() if server_cutoff is not None else None)
         payload["_fetch_meta"]["membership_basis"] = (
-            "as_of ± tolerance (server Date header skew + rtt + 1 s); rows "
-            "inside the band are kept and counted as ambiguous"
-            if tol is not None else
+            "server_cutoff = as_of + measured Date-header offset; rows beyond "
+            "server_cutoff + (rtt + 1 s) are excluded, rows inside that radius "
+            "are kept and counted as ambiguous"
+            if server_cutoff is not None else
             "superset: server clock unmeasured, nothing excluded; rows with "
             "entry_time > as_of are kept and counted as ambiguous")
         # The completeness point, stated in the artifact (not only in prose):

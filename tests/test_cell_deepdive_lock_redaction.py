@@ -2209,8 +2209,12 @@ def test_rows_inside_the_skew_band_are_kept_as_ambiguous_not_excluded(monkeypatc
     def script(kind, n):
         if kind == "closed":
             return []
-        # a few hundred ms after the cutoff: inside the ≥1 s tolerance band
-        near = (datetime.now(timezone.utc) + timedelta(milliseconds=200)).isoformat()
+        # 100 ms BEFORE the client cutoff.  The Date header is second-granular,
+        # so the measured offset is in (-(1 s + rtt), 0]: on the server's
+        # clock this row is between -0.1 s and +0.9 s + rtt/2 from the cutoff
+        # — always inside the radius (rtt + 1 s), never 'after', never a
+        # clean 'member'.  (+200 ms was timing-flaky under the full suite.)
+        near = (datetime.now(timezone.utc) - timedelta(milliseconds=100)).isoformat()
         return [{"id": 9, "status": "OPEN", "entry_time": near}]
 
     now_hdr = format_datetime(datetime.now(timezone.utc), usegmt=True)
@@ -2220,6 +2224,44 @@ def test_rows_inside_the_skew_band_are_kept_as_ambiguous_not_excluded(monkeypatc
     assert payload["_fetch_meta"]["membership_tolerance_s"] >= 1.0
     assert [r["id"] for r in open_rows] == [9]
     assert ev["opened_after_as_of"] == 0 and ev["open_membership_ambiguous_kept"] == 1
+
+
+def test_skew_band_is_centred_on_the_measured_offset_not_widened_by_it(monkeypatch):
+    """PIN (Codex P2, PR #326 round 5): with the server clock BEHIND the
+    client by 10 s, an entry stamped 5 s before the client `as_of` opened
+    5 s AFTER the cutoff on the server's clock — provably outside.  Taking
+    |offset| as a band around the client instant would keep it.  The cutoff
+    must be re-expressed as `as_of + offset`, with only rtt + 1 s as radius.
+    Also pins that `_fetch_meta.rows` is the RETAINED closed count.
+    """
+    from email.utils import format_datetime
+    from datetime import datetime, timezone, timedelta
+
+    def script(kind, n):
+        if kind == "closed":
+            # stamped 5 s before the client cutoff, on a server 10 s behind
+            late = (datetime.now(timezone.utc) - timedelta(seconds=5)).isoformat()
+            return [{"id": 1, "status": "CLOSED", "entry_time": late,
+                     "exit_time": "2026-09-19T00:00:00"},
+                    {"id": 2, "status": "CLOSED",
+                     "entry_time": "2000-01-01T00:00:00+00:00",
+                     "exit_time": "2026-09-19T00:00:00"}]
+        return []
+
+    behind = format_datetime(datetime.now(timezone.utc) - timedelta(seconds=10),
+                             usegmt=True)
+    m = _bracket_stub(monkeypatch, script, server_date=behind)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    meta = payload["_fetch_meta"]
+    assert meta["server_clock_offset_s"] < -8
+    assert [r["id"] for r in payload["trades"]] == [2], (
+        "on the server's clock that row opened after the cutoff — it must "
+        "not survive as 'ambiguous' because |offset| widened the band")
+    assert meta["closed_entries_after_as_of_excluded"] == 1
+    assert meta["rows"] == 1 and meta["rows_fetched_closed"] == 2, (
+        "`rows` is what the artifact holds; the pre-filter count has its own field")
+    assert payload["count"] == 1
 
 
 def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkeypatch):
