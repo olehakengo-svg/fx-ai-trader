@@ -5301,6 +5301,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 | scalp_eur / scalp_5m_eur | EUR/USD・EUR系 | **待機推奨** | r2_shadow_demoted_cell ブロックが37+8=45件と全体最多。デモ環境でのシャドウ降格セルが多く、シグナル品質に疑義 |
 **総括推奨: NO ACTION（積極的配置変更なし）**
 
+### 2026-10-13 (Pre-Tokyo Briefing)
+前日（2026-10-12）はトレード**ゼロ**。PnL = ¥0、WR = N/A。
+Cutoff後累計は N=11、WR=72.7%、PnL=+¥83.4 という水準にとどまる。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| kalman_d7_po_dn_flip | USD_JPY | 5 | 60.0% | **-2.56** | -12.8 | 🔴 負EV（N不足） |
+> 昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）いずれも未到達。
+- `r2_shadow_demoted_cell` の蓄積度合いを継続モニタリング。降格セルの回復を待つのみ——介入不要。
+- `gbp_asia_flash_crash`（56件）はGBP系へのリスク管理ガード。GBP_USD TRENDING_DOWN環境下では合理的。
+- **USD_JPY（TRENDING_UP / ATR55%ile）**：Cutoff後で唯一PnLを稼いでいる戦略群（carry_dip / kalman）の地合い。本日最も注目すべきペア。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
