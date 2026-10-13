@@ -5311,6 +5311,16 @@ Cutoff後累計は N=11、WR=72.7%、PnL=+¥83.4 という水準にとどまる�
 - `gbp_asia_flash_crash`（56件）はGBP系へのリスク管理ガード。GBP_USD TRENDING_DOWN環境下では合理的。
 - **USD_JPY（TRENDING_UP / ATR55%ile）**：Cutoff後で唯一PnLを稼いでいる戦略群（carry_dip / kalman）の地合い。本日最も注目すべきペア。
 
+### 2026-10-13 (Post-NY Report)
+| PnL | **+0.0 pips** |
+| WR | **— (N=0)** |
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **本日合計PnL**: ±0.0
+- **本日合計トレード数**: 0
+- **本日WR**: 算出不能（N=0）
+- **最良セッション**: 該当なし（全セッション無取引）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
