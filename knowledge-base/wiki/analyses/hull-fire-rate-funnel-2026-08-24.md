@@ -257,6 +257,8 @@ hull は `_SILENT_DROP_DIAG_TYPES` 登録済みのため、`_block()` 発火は�
 session_pair(Tokyo) 3 / score_gate 2 / hedge_block 2** (+二次死因として
 score_gate 3、mtf_strong_bias 1)。
 
+⚠️ **WAIT 汚染 caveat (2026-10-13 追記、registry `block-counter-wait-contamination-recite-audit`)**: 本節の `hedge_block` / `max_open` の**件数**は 2026-09-23 修理前の counter 由来で WAIT tick 汚染込み (30d 実測 hedge_block 92.2% / max_open 91.2%、[[wait-tick-block-attribution-2026-09-23]])。WAIT を除いた再計算なしに件数を引用しない。他 reason の件数は汚染ゼロでそのまま引用可。 本節の hedge_block 2 本は個別 trade の block 理由列 (reasons) からの帰属で counter 件数ではない — caveat の対象は §8 で併記した counter 由来の件数のみ。
+
 ### 8.3 構造的読み (挙動変更はしない — 記録と帰属のみ)
 
 1. **order 層は無実**。ガードチェーンを通過した唯一の 1 件 (09-01 08:15) は

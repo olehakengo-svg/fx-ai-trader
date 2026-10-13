@@ -203,6 +203,8 @@ pre-reg は REJECT 時に §8 (hedge_block 寄与 / 再起動 blackout 床 / 未
 `daytrade_1h_euraud` / `_usdcad` / `_nzdjpy` / `_audjpy` の hedge_block は**全て 0**、
 3 桁 (129 / 109) が立つのは 15m 側の `daytrade_eurgbp` / `daytrade_audjpy` のみ。
 
+⚠️ **WAIT 汚染 caveat (2026-10-13 追記、registry `block-counter-wait-contamination-recite-audit`)**: 本節の `hedge_block` / `max_open` の**件数**は 2026-09-23 修理前の counter 由来で WAIT tick 汚染込み (30d 実測 hedge_block 92.2% / max_open 91.2%、[[wait-tick-block-attribution-2026-09-23]])。WAIT を除いた再計算なしに件数を引用しない。他 reason の件数は汚染ゼロでそのまま引用可。 本節の **結論 (3 席の hedge_block 寄与 = 0 本)** は MODE_CONFIG の構造 (対向 mode 不在で原理的に bind 不能) から導かれており汚染で覆らない — 覆るのは「129 / 109」「AUD_JPY 固有」の**件数**の読みのみ。
+
 → 親監査 §3 が AUD_JPY について挙げた hedge_block は **AUD_JPY 固有**であり、
 family 全体の供給抑制要因ではなかった。**3 席の 17 本に対する寄与 = 0。**
 

@@ -103,6 +103,24 @@ flip 定義の識別 (entry / SL / cap 固定、TV 基準): perfect_dn N=60 PF 1
 
 **分解の順位 (C3C4 ≫ C0 > C6近似 > C5 ≈ C2、C1 は正) はどの what-if でも変わらない。変わるのは走 0′〜2 の符号 (SR 優先 / MTF 1.3 / broker TP 無しで正)**。live 実測率 (SR 採用率 / lowliq / rn / MTF 一致率) は `[SLTP_CONSTRUCT]` marker (PR #300、09-26 デプロイ後の fill) が溜まってから差し替える — 現時点で 0 fill。fast-SL 拡幅は未再現。
 
+### §3′ C0 live 実測率 (2026-10-13、`[SLTP_CONSTRUCT]` marker、clean live N=6、件数・距離のみ)
+
+registry `kalman-d7-sltp-marker-c0-readout` (n_decide 5) 発火 → `tools/sltp_construct_readout.py --file <outcome 列を除去した clean JSON>` (母集団 = watcher と同一: oanda_trade_id 非空 ∧ dedup_violation≠1 ∧ marker 付き、since 09-26、USD_JPY)。po_dn_flip 5 / ema75_break 1。
+
+| C0 分岐 | §3 what-if の仮定 | live 実測 (N=6) | 読み |
+|---|---|---|---|
+| SL 選択 | base = ATR のみ (SR 未使用) / (ii) = SR 優先 sr 67/68 | **sr 4 / atr_rrlow 2 (SR 採用 67%)**、po_dn_flip は 4/5 | live は (ii) 側に近い (base の「SR 未使用」は live と不一致) |
+| clamp | (ii) で clamp_max 32/68 = 47% | **max 3/6 (50%)**、全て po_dn_flip | 一致 |
+| 低流動性バッファ | (iv) = 無し vs base = 有り | **lowliq 2/6 (33%)** (po 1/5、ema75 1/1) | base 側だが発動率は 1/3 |
+| rn nudge | (vi) | **1/6** | 低頻度 |
+| MTF ×1.3 | (v) = 全件 ×1.3 | **1/6 (17%)** | (v) の「全件」は過大、base の 1.0 が主 |
+| broker TP 0.85 | (vii) | broker basis **qh 6/6**、broker TP / tp 中央値 = 29.3 / 34.4 (po) = 0.85 | 一致 |
+| fastsl / ct / range_tp | — | 0 / 0 / 0 | 未発動 |
+| 宣言→発注距離 (中央値) | 宣言 SL 1.5×ATR / TP 5×ATR | po_dn_flip: **decl_sl 14.0p → 20.0p** (SR 採用で拡幅) / decl_tp 34.2 → 34.4 / drift 0.7p; ema75 (N=1): decl_sl 28.8 → 13.8 (atr_rrlow 縮小) / tp 28.8 → 29.0 | SL は宣言どおりではなく SR 由来 (po) / rr-low 由来 (ema75) |
+
+- **what-if 列の再計算 (live 率での重み付け) は harness FAIL (§1) のため不可** — TV canon 再走 (Codex queue `20260927-0300`、waiver 11-30) で harness が閉じた後に走 0′〜4 を live 率で再構成する。現時点では「live は (ii) SR 優先 + clamp 50% + lowliq 33% + MTF 17%」の事実のみ
+- outcome / EV は読んでいない (R2 `t9-kalman-d7-live-n10-ev-check` N=9/10、12-09、D7 承認後のみ)。⚠️ 同日の別 readout で kalman live 4 行の outcome 列を 1 回印字した開示: [[single-engine-shadow-rate-readout-2026-10-13]] §5
+
 ## §4 packet 用の所見 (registry 10-08、判定は書かない)
 
 - **決裁肢 (a) は「宣言 = canon exit か」を TV 再走で確定してから定義する**: §0 の aggregate payoff は canon exit が flip であることの**強い示唆であって確定ではない** (review P1)。flip と確定した場合の (a) = flip exit (PO-DN、定義は TV canon で確定) + SL 1.5×ATR + 市場 bar 480 本 + C0〜C6 全免除 — **BE/trail 免除が最重要** (§2-1)、次に C0 免除、8h cap と金曜クローズは flip 形状 (winner が必ず週末を跨ぐ) と両立しない (§2-3,4 — 本 window の C2 の符号はギャップ運で性質ではない、C5 の符号は順序仮定依存 §2-5)。週末ギャップ露出 + 1 建玉が最大 5 営業日拘束される。tp5 と確定した場合の (a) = 宣言のまま C0〜C6 免除 (この場合 走 0 tp5 の形状が対象)。

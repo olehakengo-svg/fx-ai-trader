@@ -1258,6 +1258,57 @@ def _http_fetch_open(limit: int = 100000) -> list:
     return _http_fetch("open", limit, 0)
 
 
+def _server_clock_offset():
+    """Estimate (server_minus_client_seconds, rtt_seconds) from the `Date`
+    header of one cheap request, or None when it cannot be measured.
+
+    The membership cutoff is a CLIENT instant but `entry_time` is written by
+    the SERVER clock (Codex P2, PR #326 round 4): an unmeasured skew would
+    silently move rows across the cutoff under a `complete=true` stamp.  The
+    `Date` header is set by gunicorn on the app host (second granularity), so
+    offset ± (rtt + 1 s) bounds the skew; rows inside that band are AMBIGUOUS
+    and are kept + counted, never excluded.  No header → no exclusion at all
+    (superset mode), stated in `_fetch_meta.membership_basis`.
+    """
+    from email.utils import parsedate_to_datetime
+    from urllib.request import urlopen
+    url = "https://fx-ai-trader.onrender.com/healthz/http"
+    t0 = datetime.now(timezone.utc)
+    try:
+        with urlopen(url, timeout=60) as r:    # noqa: S310 (fixed PROD host)
+            headers = getattr(r, "headers", None)
+            hdr = headers.get("Date") if headers is not None else None
+            r.read()
+    except Exception:                          # measured or not — never raise
+        return None
+    t1 = datetime.now(timezone.utc)
+    if not hdr:
+        return None
+    try:
+        srv = parsedate_to_datetime(hdr)
+    except Exception:
+        return None
+    if srv.tzinfo is None:
+        srv = srv.replace(tzinfo=timezone.utc)
+    mid = t0 + (t1 - t0) / 2
+    return ((srv - mid).total_seconds(), (t1 - t0).total_seconds())
+
+
+def _opened_after(row: dict, as_of_dt: datetime):
+    """True if the row's server `entry_time` is after `as_of_dt`, False if at
+    or before, None if it cannot be judged (missing / unparseable)."""
+    raw = row.get("entry_time")
+    if not raw:
+        return None
+    try:
+        ts = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts > as_of_dt
+
+
 def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     """open -> closed pages -> open, retried until no row fell in a hole.
 
@@ -1265,11 +1316,42 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     the two open reads, so a trade that opened during the closed pass is
     present even though it never appears in the closed pages.
 
-    Read order is open → closed → closed(confirm) → open, and the trailing
-    open read is what bounds the snapshot: its instant IS the snapshot's
-    as-of.  A trade opening after it and never closing is outside the
-    snapshot, not missing from it (no non-atomic read sequence can include
-    it); the claim is completeness AS OF that instant.
+    Read order is open → closed → closed(confirm) → open.  The snapshot's
+    MEMBERSHIP as-of instant is captured BEFORE the first request is sent
+    (`as_of`, `as_of_basis = open_before_request_start`) — the only instant
+    these four non-atomic reads can vouch for (Codex P2 ×2 on PR #273's final
+    HEAD + P2 ×2 on PR #326: a cutoff stamped after a response is read lies by
+    the serialization/transit latency, and a cutoff anywhere inside the
+    bracket leaves a trade that opened after it and closed before the
+    trailing read in no read at all).  What is provable as of `as_of`:
+
+      * every trade open at `as_of` is in `open_before` (the request was
+        sent at `as_of`; a row open then is served), and if it closed later
+        it is in the confirming closed pass (append-only, queried after);
+      * every trade closed by `as_of` is in both closed passes.
+
+    Rows that OPENED after `as_of` are outside the snapshot by definition.
+    `entry_time` is the SERVER's clock, so the cutoff is re-expressed on it
+    (`server_cutoff = as_of + measured Date-header offset`) and a row is
+    excluded only when it is after that by more than the measurement radius
+    (rtt + 1 s Date granularity); rows inside the radius are ambiguous and
+    are KEPT and counted, and when the server clock
+    cannot be measured nothing is excluded at all (superset mode) — both
+    stated in `_fetch_meta.membership_basis` (Codex P2, PR #326 round 4).  A
+    row without a parseable `entry_time` is kept and counted
+    (`open_after_only_unjudged` / `closed_entries_unjudged`), never dropped
+    silently.
+
+    VALUES are separate from membership: a row's attributes are the newest
+    read (`open_after` for open rows, the confirming pass for closed rows)
+    so the async OANDA callback (`set_oanda_trade_id()`, flips is_shadow)
+    is reported as late as this client can see it.  That is NOT an as-of
+    guarantee (Codex P2, PR #326 round 3): a mutation landing between the
+    server's query and the response arriving here is invisible, so the
+    instants exported as `_fetch_meta.observed_through_open` /
+    `observed_through_closed` are client observation-COMPLETION times — the
+    values are at least as old as the query behind them, never newer.  The
+    trailing open read is otherwise used only for the hole check.
 
     Completeness rests on TWO checks, because one of them cannot see the other
     one's hazard (Codex P2, PR #273, three rounds):
@@ -1295,17 +1377,57 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # middle just moves that window again, so the order is what fixes it,
         # not the count of reads.
         #
-        # SNAPSHOT BOUNDARY (stated, because it is not a defect): a trade that
-        # opens after `open_last` and never closes is not in this snapshot.
-        # No sequence of non-atomic reads can include it, and it is not
-        # "missing" — the snapshot's as-of instant is `open_last`, and the
-        # completeness claim is relative to that instant.  What WOULD be a
-        # defect is a row that existed before the as-of instant and is absent,
-        # and that is exactly what the two checks below cover.
+        # SNAPSHOT BOUNDARY (stated, because it is not a defect): membership
+        # is as of `as_of`, captured BEFORE the first request leaves.  A trade
+        # that opens after it is not in this snapshot and is not "missing";
+        # a row that existed at `as_of` and is absent IS a defect, and that is
+        # exactly what the two hole checks below cover.  Capturing the cutoff
+        # after a response is read would overstate it by the serialization /
+        # transit latency (Codex P2, PR #326), and any cutoff inside the
+        # bracket leaves a trade that opened after it and closed before the
+        # trailing read in no read at all — so the cutoff is the first
+        # instant, where both halves of the claim are provable.
+        clock = _server_clock_offset()
+        as_of_dt = datetime.now(timezone.utc)
+        # The cutoff expressed on the SERVER's clock (Codex P2, PR #326
+        # round 5): `entry_time` is server time, so the comparison point is
+        # `as_of + offset`, and only the measurement uncertainty (rtt + the
+        # Date header's 1 s granularity) is a band around it — not |offset|,
+        # which would leave a server-behind skew unapplied and keep rows that
+        # provably opened after the cutoff.
+        if clock:
+            server_cutoff = as_of_dt + timedelta(seconds=clock[0])
+            radius = clock[1] + 1.0
+        else:
+            server_cutoff = None
+            radius = None
+
+        def _judge(row):
+            """'after' (provably opened after the cutoff on the server's own
+            clock, beyond the uncertainty radius → excluded) / 'ambiguous'
+            (inside the radius, or client-clock-after in superset mode →
+            kept + counted) / 'member' / None (unjudgeable → kept + counted)."""
+            exact = _opened_after(row, as_of_dt)
+            if exact is None:
+                return None
+            if server_cutoff is None:
+                return "ambiguous" if exact else "member"
+            if _opened_after(row, server_cutoff + timedelta(seconds=radius)) is True:
+                return "after"
+            if _opened_after(row, server_cutoff - timedelta(seconds=radius)) is True:
+                return "ambiguous"
+            return "member"
+        # Full precision: the exported instant must be the SAME instant the
+        # membership filter compares against (Codex P2, PR #326 round 2) —
+        # truncating to seconds would move the advertised cutoff back by up
+        # to a second relative to the one actually applied.
+        as_of = as_of_dt.isoformat()
         open_before = _http_fetch_open()
         payload = paginate_trades(_http_fetch_closed_page)
         confirm = paginate_trades(_http_fetch_closed_page)
+        confirm_pass_end_at = datetime.now(timezone.utc).isoformat()
         open_after = _http_fetch_open()
+        open_after_at = datetime.now(timezone.utc).isoformat()
 
         closed_keys = {_row_identity(r) for r in payload["trades"]}
         confirm_keys = {_row_identity(r) for r in confirm["trades"]}
@@ -1320,10 +1442,19 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # the set of trades that closed during the bracket, whatever they were
         # doing beforehand.  Equality is therefore a PROOF that nothing closed
         # inside the window — not a heuristic.
-        closed_during = confirm_keys - closed_keys
+        # A trade proven to have opened AFTER the cutoff is outside the
+        # snapshot, so its lifecycle inside the bracket is not a hole
+        # (Codex P2, PR #326 round 6): without this, sustained post-cutoff
+        # activity would exhaust every attempt and abort a fetch that is
+        # complete as of `as_of`.  Only rows that are (or may be) members
+        # can trip the hole checks.
+        confirm_by_key = {_row_identity(r): r for r in confirm["trades"]}
+        closed_during = {k for k in confirm_keys - closed_keys
+                         if _judge(confirm_by_key[k]) != "after"}
         missed = [r for r in open_before
                   if _row_identity(r) not in after_keys
-                  and _row_identity(r) not in closed_keys]
+                  and _row_identity(r) not in closed_keys
+                  and _judge(r) != "after"]
         if missed or closed_during:
             # Report the two signals SEPARATELY: the same trade can trip both
             # (it was open before AND closed during), and summing them would
@@ -1343,10 +1474,74 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # below, which the previous round fixed; the symmetric side has to be
         # checked on the fix itself, not only on the original code.
         by_id_first = {_row_identity(r): r for r in payload["trades"]}
+        # Only an identity present in BOTH closed passes can have mutated; a
+        # post-cutoff trade that appears only in the confirming pass is an
+        # exclusion, not a mutation (Codex P2, PR #326 round 7).
         closed_mutated = sum(1 for r in confirm["trades"]
-                             if by_id_first.get(_row_identity(r)) != r)
-        payload["trades"] = confirm["trades"]          # newer values win
+                             if _row_identity(r) in by_id_first
+                             and by_id_first[_row_identity(r)] != r)
+        # MEMBERSHIP filter (Codex P2, PR #326): a closed row that OPENED
+        # after `as_of` (opened and closed inside the bracket) is after the
+        # cutoff and must not be counted as existing at `as_of`.  Judged on
+        # the server's `entry_time`; unjudgeable rows are kept and counted.
+        kept_closed: list = []
+        closed_after = 0
+        closed_ambiguous = 0
+        closed_unjudged = 0
+        for r in confirm["trades"]:                  # newer values win
+            verdict = _judge(r)
+            if verdict == "after":
+                closed_after += 1
+                continue
+            if verdict == "ambiguous":
+                closed_ambiguous += 1
+            elif verdict is None:
+                closed_unjudged += 1
+            kept_closed.append(r)
+        payload["trades"] = kept_closed
+        payload["count"] = len(kept_closed)
+        # `rows` is what the artifact HOLDS; the pre-filter pagination count
+        # moves to its own field so `main()` cannot print a closed population
+        # larger than the retained one (Codex P2, PR #326 round 5).
+        payload["_fetch_meta"]["rows_fetched_closed"] = payload["_fetch_meta"]["rows"]
+        payload["_fetch_meta"]["rows"] = len(kept_closed)
         payload["_fetch_meta"]["closed_mutated_midfetch"] = closed_mutated
+        payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] = closed_after
+        payload["_fetch_meta"]["closed_membership_ambiguous_kept"] = closed_ambiguous
+        payload["_fetch_meta"]["closed_entries_unjudged"] = closed_unjudged
+        payload["_fetch_meta"]["server_clock_offset_s"] = (
+            round(clock[0], 3) if clock else None)
+        payload["_fetch_meta"]["server_clock_rtt_s"] = (
+            round(clock[1], 3) if clock else None)
+        payload["_fetch_meta"]["membership_tolerance_s"] = (
+            round(radius, 3) if radius is not None else None)
+        payload["_fetch_meta"]["server_cutoff"] = (
+            server_cutoff.isoformat() if server_cutoff is not None else None)
+        payload["_fetch_meta"]["membership_basis"] = (
+            "server_cutoff = as_of + measured Date-header offset; rows beyond "
+            "server_cutoff + (rtt + 1 s) are excluded, rows inside that radius "
+            "are kept and counted as ambiguous"
+            if server_cutoff is not None else
+            "superset: server clock unmeasured, nothing excluded; rows with "
+            "entry_time > as_of are kept and counted as ambiguous")
+        # The completeness point, stated in the artifact (not only in prose):
+        # membership is AS OF `as_of` (before the first request).  The later
+        # instants are client observation-completion times (when each
+        # response had been read) — they bound how LATE a value can be, not
+        # how fresh it is, and they are NOT the snapshot time.
+        payload["_fetch_meta"]["as_of"] = as_of
+        payload["_fetch_meta"]["as_of_basis"] = "open_before_request_start"
+        payload["_fetch_meta"]["as_of_clock"] = (
+            "client UTC at request start; server entry_time compared with the "
+            "measured skew tolerance above")
+        payload["_fetch_meta"]["confirm_pass_end_at"] = confirm_pass_end_at
+        payload["_fetch_meta"]["open_after_at"] = open_after_at
+        payload["_fetch_meta"]["observed_through_closed"] = confirm_pass_end_at
+        payload["_fetch_meta"]["observed_through_open"] = open_after_at
+        payload["_fetch_meta"]["observed_through_note"] = (
+            "client observation-completion instants, not value as-of "
+            "guarantees: a mutation between the server query and the response "
+            "arriving is not visible, so values are at least this old")
         # Keep BOTH passes' drift evidence; the confirming pass is part of the
         # completeness argument, so its own retries must stay visible.
         payload["_fetch_meta"]["confirm_pass"] = {
@@ -1366,19 +1561,55 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # ([[feedback_live_vs_shadow_strict_separation]], and the conflation
         # incident [[project_live_fill_estimand_shadow_conflation_2026_09_03]]).
         # The newer read is strictly closer to the truth at snapshot time.
-        by_key = {_row_identity(r): r for r in open_before}
+        # The membership filter applies to the FIRST open read too (Codex
+        # P2, PR #326 round 2): a trade can open after `as_of_dt` but before
+        # the server executes `open_before`, and its entry_time then proves
+        # it did not exist at the advertised instant.
+        by_key: dict = {}
+        before_keys = {_row_identity(r) for r in open_before}
+        excluded_after: set = set()          # identities, so a row seen in
+        ambiguous_open: set = set()          # both reads is counted once
+        for r in open_before:
+            verdict = _judge(r)
+            if verdict == "after":
+                excluded_after.add(_row_identity(r))
+                continue
+            if verdict == "ambiguous":
+                ambiguous_open.add(_row_identity(r))
+            by_key[_row_identity(r)] = r
         opened_midfetch = 0
+        open_after_only_unjudged = 0
         mutated_midfetch = 0
         for r in open_after:
             k = _row_identity(r)
-            if k not in by_key:
-                opened_midfetch += 1           # opened during the pass
+            if k in excluded_after:
+                continue                       # judged post-cutoff on read 1
+            if k not in before_keys:
+                # Every trailing-only row opened during the fetch and is
+                # COUNTED as such, independently of the membership verdict
+                # that follows (Codex P2, PR #326 round 6).  If its
+                # entry_time proves it opened after the cutoff it is outside
+                # the snapshot; unjudgeable → kept and counted separately,
+                # never dropped silently.
+                opened_midfetch += 1
+                verdict = _judge(r)
+                if verdict == "after":
+                    excluded_after.add(k)
+                    continue
+                if verdict == "ambiguous":
+                    ambiguous_open.add(k)
+                elif verdict is None:
+                    open_after_only_unjudged += 1
             elif by_key[k] != r:
                 mutated_midfetch += 1         # e.g. shadow -> live
             by_key[k] = r
         return (list(by_key.values()), payload,
                 {"attempts": attempt, "opened_midfetch": opened_midfetch,
+                 "open_after_only_unjudged": open_after_only_unjudged,
+                 "opened_after_as_of": len(excluded_after),
+                 "open_membership_ambiguous_kept": len(ambiguous_open),
                  "mutated_midfetch": mutated_midfetch,
+                 "as_of": as_of,
                  "holes_observed": holes})
     raise SystemExit(
         f"the book moved inside the fetch window on all {max_attempts} "
@@ -1421,6 +1652,17 @@ def main(argv=None) -> int:
                                            brackets["opened_midfetch"],
                                        "open_mutated_midfetch":
                                            brackets["mutated_midfetch"],
+                                       # Persist the exclusions the contract
+                                       # promises to count (Codex P2, PR #326
+                                       # round 2): a reader of the artifact
+                                       # must see how many open rows were
+                                       # dropped as post-cutoff, not infer it.
+                                       "open_opened_after_as_of_excluded":
+                                           brackets["opened_after_as_of"],
+                                       "open_after_only_unjudged":
+                                           brackets["open_after_only_unjudged"],
+                                       "open_membership_ambiguous_kept":
+                                           brackets["open_membership_ambiguous_kept"],
                                        "holes_observed":
                                            brackets["holes_observed"]})
         with open(args.fetch_to, "w") as f:

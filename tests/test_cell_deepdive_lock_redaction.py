@@ -1837,6 +1837,8 @@ def test_open_rows_are_fetched_before_the_closed_pages(monkeypatch):
     #   open-first   -> open=[9], closed=[9,8]  => overlap, reconciled to {8,9}
     #   closed-first -> closed=[8], open=[]     => id 9 in NEITHER set
     def urlopen(url, timeout=None):
+        if "healthz" in url:                 # clock probe: unmeasured here
+            raise OSError("no clock probe in this stub")
         first = not order
         if "status=open" in url:
             order.append("open")
@@ -1957,8 +1959,14 @@ def test_lock_with_only_dedup_repeats_still_gets_a_population_record():
     assert rec2["n_lock_population"] == 12
 
 
-def _bracket_stub(monkeypatch, script):
-    """Drive _fetch_bracketed with a per-request script of row lists."""
+def _bracket_stub(monkeypatch, script, server_date=None):
+    """Drive _fetch_bracketed with a per-request script of row lists.
+
+    `server_date`: an RFC-1123 `Date` header value to serve on the clock
+    probe (`/healthz/http`).  None → no header → superset mode (nothing is
+    excluded on membership), which is what the real tool does when the
+    server clock cannot be measured.
+    """
     import json
     import urllib.request
     import tools.cell_deepdive_audit as m
@@ -1966,8 +1974,9 @@ def _bracket_stub(monkeypatch, script):
     calls = {"open": 0, "closed": 0}
 
     class FakeResp:
-        def __init__(self, body):
+        def __init__(self, body, date=None):
             self.body = body.encode()
+            self.headers = {"Date": date} if date else {}
 
         def read(self):
             return self.body
@@ -1979,6 +1988,8 @@ def _bracket_stub(monkeypatch, script):
             return False
 
     def urlopen(url, timeout=None):
+        if "healthz" in url:                     # clock probe, not a read
+            return FakeResp("{}", server_date)
         if "status=open" in url:
             rows = script("open", calls["open"])
             calls["open"] += 1
@@ -2052,6 +2063,248 @@ def test_a_trade_that_closes_inside_the_window_is_a_hole_and_forces_a_retry(monk
     assert ids == [1, 9], "the retry must collect the row that fell in the hole"
 
 
+def test_snapshot_as_of_is_captured_before_the_first_read_and_values_are_newest(monkeypatch):
+    """PIN (Codex P2 ×2 on PR #273 final HEAD + P2 ×2 on PR #326; registry
+    review-backlog-273-p2-snapshot-asof-2026-10-12).
+
+    The only instant four non-atomic reads can vouch for is the one BEFORE
+    the first request leaves: a cutoff stamped after a response is read lies
+    by the transit latency, and a cutoff inside the bracket leaves a trade
+    that opened after it and closed before the trailing read in no read at
+    all.  Membership is as of that first instant; VALUES are the newest read
+    of each row (so the async live flip is reported as late as the client can
+    see it), and the later instants are named as observation-completion
+    times, not as value as-of guarantees.
+    """
+    import time
+
+    closed_first = [{"id": 1, "status": "CLOSED", "is_shadow": 1,
+                     "entry_time": "2000-01-01T00:00:00+00:00",
+                     "exit_time": "2026-09-19T00:00:00"}]
+    closed_confirm = [{"id": 1, "status": "CLOSED", "is_shadow": 0,
+                       "oanda_trade_id": "42",
+                       "entry_time": "2000-01-01T00:00:00+00:00",
+                       "exit_time": "2026-09-19T00:00:00"}]
+
+    def script(kind, n):
+        time.sleep(0.01)                    # every later instant is measurably later
+        if kind == "open":
+            return []
+        return list(closed_confirm if n >= 1 else closed_first)
+
+    m = _bracket_stub(monkeypatch, script)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    meta = payload["_fetch_meta"]
+    assert meta["complete"] is True
+    assert meta["as_of_basis"] == "open_before_request_start", (
+        "the membership cutoff must be the instant BEFORE the first read")
+    assert meta["as_of"] <= meta["confirm_pass_end_at"] <= meta["open_after_at"], (
+        "the later instants are recorded as value/hole-check instants, never "
+        "as the snapshot time")
+    assert meta["observed_through_closed"] == meta["confirm_pass_end_at"]
+    assert meta["observed_through_open"] == meta["open_after_at"]
+    assert "not value as-of" in meta["observed_through_note"], (
+        "the later instants are observation-COMPLETION times: a mutation "
+        "between the server query and the response arriving is invisible, so "
+        "the artifact must not advertise them as value as-of guarantees")
+    assert payload["trades"] == closed_confirm, (
+        "values are the newest read — the live flip must not be reported stale")
+    assert meta["closed_mutated_midfetch"] == 1
+    assert meta["closed_entries_after_as_of_excluded"] == 0
+    assert ev["as_of"] == meta["as_of"]
+    from datetime import datetime
+    exported = datetime.fromisoformat(meta["as_of"])
+    assert exported.tzinfo is not None and "." in meta["as_of"], (
+        "the exported cutoff is the full-precision (microsecond) instant the "
+        "filter compared against, never one truncated to seconds")
+    assert ev["holes_observed"] == [] and ev["attempts"] == 1
+
+
+def test_rows_that_opened_after_the_cutoff_are_outside_the_snapshot(monkeypatch):
+    """KNOWN-NG INPUT (Codex P2, PR #326): the trailing open read returns a
+    trade that opened after `as_of`, and the confirming pass returns a trade
+    that opened AND closed after it.  Both are after the cutoff: they must
+    not be members, and the exclusion must be COUNTED.  A row the tool cannot
+    judge (no entry_time) is kept and counted, never dropped silently.
+    """
+    future = "2999-01-01T00:00:00+00:00"
+    past = "2000-01-01T00:00:00+00:00"
+    closed = [{"id": 1, "status": "CLOSED", "entry_time": past,
+               "exit_time": "2026-09-19T00:00:00"}]
+    closed_with_late = closed + [{"id": 5, "status": "CLOSED", "entry_time": future,
+                                  "exit_time": "2999-01-01T00:00:01"}]
+
+    def script(kind, n):
+        if kind == "closed":
+            # The late row is in BOTH passes so the closed_during check does
+            # not fire — this pins the membership filter, not the hole check.
+            return list(closed_with_late)
+        late6 = {"id": 6, "status": "OPEN", "entry_time": future}
+        if n == 0:                      # open_before: one row that opened
+            return [late6]              # after as_of (server ran the read late)
+        return [late6,                  # still open: NOT a hole, excluded once
+                {"id": 7, "status": "OPEN", "entry_time": future},
+                {"id": 8, "status": "OPEN"}]                # 8: unjudgeable
+
+    from email.utils import format_datetime
+    from datetime import datetime, timezone
+    now_hdr = format_datetime(datetime.now(timezone.utc), usegmt=True)
+    m = _bracket_stub(monkeypatch, script, server_date=now_hdr)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert payload["_fetch_meta"]["membership_tolerance_s"] is not None
+    assert [r["id"] for r in open_rows] == [8], (
+        "a trade that provably opened after as_of is not a member — from the "
+        "FIRST open read as much as from the trailing one (the server can "
+        "execute open_before after the cutoff); one that cannot be judged is "
+        "kept (superset, never a silent drop)")
+    assert ev["opened_after_as_of"] == 2, (
+        "6 (first read) and 7 (trailing read) — 6 is seen in both reads and "
+        "counted ONCE: the count is of identities, not of sightings")
+    assert ev["open_after_only_unjudged"] == 1 and ev["attempts"] == 1
+    assert ev["opened_midfetch"] == 2, (
+        "every trailing-only row (7 excluded, 8 kept) opened during the "
+        "fetch and is counted as such, independently of the membership verdict")
+    assert [r["id"] for r in payload["trades"]] == [1], (
+        "a closed row that opened after as_of is after the cutoff too")
+    assert payload["count"] == 1
+    assert payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] == 1
+    assert payload["_fetch_meta"]["closed_entries_unjudged"] == 0
+
+
+def test_unmeasured_server_clock_means_superset_membership_not_exclusion(monkeypatch):
+    """PIN (Codex P2, PR #326 round 4): `entry_time` is the SERVER clock and
+    `as_of` the client's.  Without a measured skew the tool must not move a
+    row across the cutoff — it keeps every row (superset), counts the ones
+    that look post-cutoff as ambiguous, and says so in `membership_basis`.
+    """
+    future = "2999-01-01T00:00:00+00:00"
+    closed = [{"id": 1, "status": "CLOSED", "entry_time": future,
+               "exit_time": "2999-01-01T00:00:01"}]
+
+    def script(kind, n):
+        if kind == "closed":
+            return list(closed)
+        return [{"id": 7, "status": "OPEN", "entry_time": future}]
+
+    m = _bracket_stub(monkeypatch, script)           # no Date header
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    meta = payload["_fetch_meta"]
+    assert meta["membership_tolerance_s"] is None
+    assert meta["membership_basis"].startswith("superset")
+    assert [r["id"] for r in open_rows] == [7] and ev["opened_after_as_of"] == 0
+    assert ev["open_membership_ambiguous_kept"] == 1
+    assert [r["id"] for r in payload["trades"]] == [1]
+    assert meta["closed_entries_after_as_of_excluded"] == 0
+    assert meta["closed_membership_ambiguous_kept"] == 1
+
+
+def test_rows_inside_the_skew_band_are_kept_as_ambiguous_not_excluded(monkeypatch):
+    """A row whose entry_time is after as_of by LESS than the skew tolerance
+    may or may not have existed at the cutoff on the server's clock.  It is
+    kept and counted, never excluded (Codex P2, PR #326 round 4).
+    """
+    from email.utils import format_datetime
+    from datetime import datetime, timezone, timedelta
+
+    def script(kind, n):
+        if kind == "closed":
+            return []
+        # 100 ms BEFORE the client cutoff.  The Date header is second-granular,
+        # so the measured offset is in (-(1 s + rtt), 0]: on the server's
+        # clock this row is between -0.1 s and +0.9 s + rtt/2 from the cutoff
+        # — always inside the radius (rtt + 1 s), never 'after', never a
+        # clean 'member'.  (+200 ms was timing-flaky under the full suite.)
+        near = (datetime.now(timezone.utc) - timedelta(milliseconds=100)).isoformat()
+        return [{"id": 9, "status": "OPEN", "entry_time": near}]
+
+    now_hdr = format_datetime(datetime.now(timezone.utc), usegmt=True)
+    m = _bracket_stub(monkeypatch, script, server_date=now_hdr)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert payload["_fetch_meta"]["membership_tolerance_s"] >= 1.0
+    assert [r["id"] for r in open_rows] == [9]
+    assert ev["opened_after_as_of"] == 0 and ev["open_membership_ambiguous_kept"] == 1
+
+
+def test_skew_band_is_centred_on_the_measured_offset_not_widened_by_it(monkeypatch):
+    """PIN (Codex P2, PR #326 round 5): with the server clock BEHIND the
+    client by 10 s, an entry stamped 5 s before the client `as_of` opened
+    5 s AFTER the cutoff on the server's clock — provably outside.  Taking
+    |offset| as a band around the client instant would keep it.  The cutoff
+    must be re-expressed as `as_of + offset`, with only rtt + 1 s as radius.
+    Also pins that `_fetch_meta.rows` is the RETAINED closed count.
+    """
+    from email.utils import format_datetime
+    from datetime import datetime, timezone, timedelta
+
+    def script(kind, n):
+        if kind == "closed":
+            # stamped 5 s before the client cutoff, on a server 10 s behind
+            late = (datetime.now(timezone.utc) - timedelta(seconds=5)).isoformat()
+            return [{"id": 1, "status": "CLOSED", "entry_time": late,
+                     "exit_time": "2026-09-19T00:00:00"},
+                    {"id": 2, "status": "CLOSED",
+                     "entry_time": "2000-01-01T00:00:00+00:00",
+                     "exit_time": "2026-09-19T00:00:00"}]
+        return []
+
+    behind = format_datetime(datetime.now(timezone.utc) - timedelta(seconds=10),
+                             usegmt=True)
+    m = _bracket_stub(monkeypatch, script, server_date=behind)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    meta = payload["_fetch_meta"]
+    assert meta["server_clock_offset_s"] < -8
+    assert [r["id"] for r in payload["trades"]] == [2], (
+        "on the server's clock that row opened after the cutoff — it must "
+        "not survive as 'ambiguous' because |offset| widened the band")
+    assert meta["closed_entries_after_as_of_excluded"] == 1
+    assert meta["rows"] == 1 and meta["rows_fetched_closed"] == 2, (
+        "`rows` is what the artifact holds; the pre-filter count has its own field")
+    assert payload["count"] == 1
+
+
+def test_post_cutoff_lifecycles_inside_the_bracket_are_not_holes(monkeypatch):
+    """PIN (Codex P2, PR #326 round 6): a trade proven to have opened after
+    the cutoff is outside the snapshot, so it opening and closing inside the
+    bracket must not trip the hole checks — otherwise sustained post-cutoff
+    activity exhausts every attempt and aborts a fetch that IS complete as
+    of `as_of`.  Row 6: in open_before, gone from open_after, never in the
+    closed pages.  Row 5: only in the confirming pass.  Both post-cutoff.
+    """
+    from email.utils import format_datetime
+    from datetime import datetime, timezone
+    future = "2999-01-01T00:00:00+00:00"
+    base = [{"id": 1, "status": "CLOSED", "entry_time": "2000-01-01T00:00:00+00:00",
+             "exit_time": "2026-09-19T00:00:00"}]
+
+    def script(kind, n):
+        if kind == "closed":
+            if n >= 1:                       # confirming pass sees a late closer
+                return base + [{"id": 5, "status": "CLOSED", "entry_time": future,
+                                "exit_time": "2999-01-01T00:00:01"}]
+            return list(base)
+        if n == 0:
+            return [{"id": 6, "status": "OPEN", "entry_time": future}]
+        return []
+
+    now_hdr = format_datetime(datetime.now(timezone.utc), usegmt=True)
+    m = _bracket_stub(monkeypatch, script, server_date=now_hdr)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert ev["attempts"] == 1 and ev["holes_observed"] == [], (
+        "post-cutoff lifecycles are outside the snapshot, not holes")
+    assert open_rows == [] and [r["id"] for r in payload["trades"]] == [1]
+    assert ev["opened_after_as_of"] == 1
+    assert payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] == 1
+    assert payload["_fetch_meta"]["closed_mutated_midfetch"] == 0, (
+        "a row that exists only in the confirming pass is an exclusion, not a "
+        "mutation — the mutation tally covers identities in BOTH passes")
+
+
 def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkeypatch):
     """Never fold "cannot verify" into "fine" — the invariant of this tool."""
     def script(kind, n):
@@ -2093,6 +2346,8 @@ def test_a_bare_list_from_the_endpoint_is_not_a_valid_page(monkeypatch):
             return False
 
     def urlopen(url, timeout=None):
+        if "healthz" in url:                 # clock probe: unmeasured here
+            raise OSError("no clock probe in this stub")
         calls["n"] += 1
         if calls["n"] == 1:                       # a full, well-formed page
             rows = [{"id": i} for i in range(10)]
