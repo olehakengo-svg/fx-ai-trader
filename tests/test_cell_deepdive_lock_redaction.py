@@ -2300,6 +2300,9 @@ def test_post_cutoff_lifecycles_inside_the_bracket_are_not_holes(monkeypatch):
     assert open_rows == [] and [r["id"] for r in payload["trades"]] == [1]
     assert ev["opened_after_as_of"] == 1
     assert payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] == 1
+    assert payload["_fetch_meta"]["closed_mutated_midfetch"] == 0, (
+        "a row that exists only in the confirming pass is an exclusion, not a "
+        "mutation — the mutation tally covers identities in BOTH passes")
 
 
 def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkeypatch):

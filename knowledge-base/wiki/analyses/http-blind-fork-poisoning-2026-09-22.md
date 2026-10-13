@@ -115,7 +115,7 @@ gthread は `accept()` ごとに `nr_conns += 1` し、完了しないハンド�
 
 - **2026-09-24 追補**: (a) dup 率と LIVE 二重送信を実測 — 近接ペア 133/30d (kept の 8.0%)、両方 dedup=0 は 0 ペア (write-time フラグが全件捕捉、N 非膨張)、LIVE 二重送信 0 件。(b) master 単独窓 (09-15/09-22 の全盲 3h) の shadow 生成率は二重平日と同水準 (N=2、記述級)。(c) 計装: row `[EMIT_PROC] import|forked` marker + pid ログ + status `engine_pid` (record-only)。単一化は案 A (gunicorn `post_worker_init`) で別 PR。詳細と読み手: [[dual-engine-dup-rate-readout-2026-09-24]] / registry `dual-engine-emit-proc-attribution-readout` (10-01)。
 
-- **2026-10-13 追補 (resolve)**: 単一化 deploy (PR #308、10-04T06:03:40Z) 後 1 週間の (iii)(iv): 新規 364 行が全て `forked:forkchild`、近接ペア (Δ≤45s) **0**、`dedup_violation=1` 3 行 (全て bar 内 re-emit 型) → registry `dual-engine-master-worker-disposition` **resolved**。⚠️ ただし **shadow 生成率は 87.0 → 58.2 行/取引日 (−33%) の regime break が実在** (15m 系のみ、同セル ≤4h の短間隔 re-emit に集中 = per-process 状態二重化の artifact が消えた H1)。層別キー 10-04T06:03:40Z。詳細・含意: [[single-engine-shadow-rate-readout-2026-10-13]] / 2 週目確定 = registry `single-engine-shadow-rate-attribution-readout` (10-27)。
+- **2026-10-13 追補 (resolve)**: 単一化 deploy (PR #308、10-04T06:03:40Z) 後 1 週間の (iii)(iv): 新規 364 行が全て `forked:forkchild`、近接ペア (Δ≤45s) **0**、`dedup_violation=1` 3 行 (全て bar 内 re-emit 型) → registry `dual-engine-master-worker-disposition` **resolved**。⚠️ ただし **shadow 生成率は 87.0 → 58.2 行/取引日 (−33%) の regime break が実在** (15m 系のみ、同セル 4h 以内の短間隔 re-emit に集中 = per-process 状態二重化の artifact が消えた H1)。層別キー 10-04T06:03:40Z。詳細・含意: [[single-engine-shadow-rate-readout-2026-10-13]] / 2 週目確定 = registry `single-engine-shadow-rate-attribution-readout` (10-27)。
 
 ## 7. 教訓
 

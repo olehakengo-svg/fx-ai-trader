@@ -1474,8 +1474,12 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # below, which the previous round fixed; the symmetric side has to be
         # checked on the fix itself, not only on the original code.
         by_id_first = {_row_identity(r): r for r in payload["trades"]}
+        # Only an identity present in BOTH closed passes can have mutated; a
+        # post-cutoff trade that appears only in the confirming pass is an
+        # exclusion, not a mutation (Codex P2, PR #326 round 7).
         closed_mutated = sum(1 for r in confirm["trades"]
-                             if by_id_first.get(_row_identity(r)) != r)
+                             if _row_identity(r) in by_id_first
+                             and by_id_first[_row_identity(r)] != r)
         # MEMBERSHIP filter (Codex P2, PR #326): a closed row that OPENED
         # after `as_of` (opened and closed inside the bracket) is after the
         # cutoff and must not be counted as existing at `as_of`.  Judged on

@@ -12,7 +12,7 @@
 | `dedup_violation=1` の share | 8.2% (dual 期) → **0.9%** (3 行、全て直前同セル行から >120s = bar 内 re-emit 型、cross-process ではない) | §1 |
 | shadow 生成率 (kept = `is_shadow=1 ∧ dedup_violation≠1`、取引日あたり) | **87.0 → 58.2 (中央値 89 → 57)、−33%** — 09-24 readout §4 の「30% 未満は検出できない」自然実験 (N=2 日) では見えなかった **regime break が実在** | §2 |
 | どこが減ったか | **15m daytrade 系のみ** (72.3 → 46.0/日、−36%)。5m scalp / 1m / rnb は不変。`daytrade` (USD_JPY 15m) が −62% で最大 | §2 |
-| 機構仮説 H1 | 減った行は**同セルの短間隔 re-emit** (直前 kept 行から ≤4h) に集中 (≤30m −69% / ≤1h −47% / ≤2h −47% / ≤4h −60%、≤8h ±0、>8h −23%) = dual 期は master/worker が**別々の in-memory 状態** (recent_emit 60–900s / cooldown 1 bar / ORDER_BAR_DEDUP 予約) を持ち、片方が cooldown 中でももう片方が次 bar で同セルを emit できた。write-time dedup は**同 bar の twin しか捕捉しない**ので、これらは kept として残った | §3 |
+| 機構仮説 H1 | 減った行は**同セルの短間隔 re-emit** (直前 kept 行から 4h 以内) に集中 (区間別、互いに素: 15–30m −69% / 30m–1h −47% / 1–2h −47% / 2–4h −60%、4–8h ±0、>8h −23%; 累積 ≤4h 31.1 → 13.7/日 = −56%) = dual 期は master/worker が**別々の in-memory 状態** (recent_emit 60–900s / cooldown 1 bar / ORDER_BAR_DEDUP 予約) を持ち、片方が cooldown 中でももう片方が次 bar で同セルを emit できた。write-time dedup は**同 bar の twin しか捕捉しない**ので、これらは kept として残った | §3 |
 | 含意 | dual 期 (〜10-04) の 15m shadow N 蓄積率は構造 artifact で ~1.5× 膨張していた。**行自体は無効ではない** (各行は実シグナル評価) が、BT の COOLDOWN=1 bar では出ない行を含む → cadence 前提 (t8 13.3/週 / t9 3.9/週 / ecg 4.0/週 / sr_anti_hunt・ws3 の ETA) は post 期の率で読み直す。LOCK 母集団の規則変更は R1 (user) — 本 readout は層別キーの提供のみ | §4 |
 
 ## 1. (iii)(iv) 検証 — 単一化は設計どおり
@@ -33,7 +33,7 @@ kept shadow 行 / 取引日 (平日のみ、`is_shadow=1 ∧ dedup_violation≠1
 | pre (09-14〜10-02、dual) | 15 | **87.0** | 89 | 63–102 |
 | post (10-05〜10-12、single) | 6 | **58.2** | 57 | 50–67 |
 
-post の 6 日は全て pre の最小 (63) を下回る (順位検定の必要なし — 分布が重ならない)。⚠️ post N=6 日・1.5 週。10-27 (2 週目終了) に再読して確定する (registry `single-engine-shadow-rate-attribution-readout`)。
+post 6 日のうち 4 日 (59 / 54 / 55 / 50) が pre の最小 63 を下回り、残り 2 日 (67 / 64) は pre の range 内だが pre の下位 1 日 (63) を除く 14 日全てを下回る (Mann–Whitney U = 2 / 90 ペア、片側 p < 0.001)。⚠️ 初版の「post 6 日全てが pre の最小未満・分布が重ならない」は誤り (PR #326 Codex P2 4254165310 で訂正、range 50–67 と 63 が矛盾していた)。⚠️ post N=6 日・1.5 週。10-27 (2 週目終了) に再読して確定する (registry `single-engine-shadow-rate-attribution-readout`)。
 
 TF 別 (行/日): 15m **72.3 → 46.0** (−36%) / 5m 7.3 → 6.2 / 1m 5.7 → 5.2 / 1h 1.7 → 0.8 (N 小)。
 mode 別 (行/日、pre → post): `daytrade` (USD_JPY) **23.1 → 8.8** / gbpusd 11.2 → 9.5 / eurjpy 10.3 → 5.7 / eur 9.3 → 7.3 / audjpy 8.2 → 6.7 / gbpjpy 6.5 → 4.8 / eurgbp 2.7 → 2.2 / scalp 系 合計 12.9 → 11.3 / rnb_usdjpy 0.9 → 1.0。
@@ -42,20 +42,23 @@ entry_type 別 (上位): dual_sr_bounce 13.3 → 9.3 / dt_sr_channel_reversal 10
 
 ## 3. 機構仮説 H1 — per-process 状態の二重化が短間隔 re-emit を許していた
 
-15m shadow kept 行について「直前の同セル kept 行からの Δ」(行/日):
+15m shadow kept 行について「直前の同セル kept 行からの Δ」(行/日、**互いに素な区間** — 初版は累積 `≤` と誤記、PR #326 Codex P2 4254165321 で訂正):
 
-| Δ | pre | post | 変化 |
+| Δ 区間 | pre | post | 変化 |
 |---|---|---|---|
-| ≤30m | 9.13 | 2.83 | **−69%** |
-| ≤1h | 8.53 | 4.50 | −47% |
-| ≤2h | 7.53 | 4.00 | −47% |
-| ≤4h | 5.87 | 2.33 | −60% |
-| ≤8h | 4.27 | 4.33 | ±0 |
+| 15m–30m (同 bar の ≤15m は 0) | 9.13 | 2.83 | **−69%** |
+| 30m–1h | 8.53 | 4.50 | −47% |
+| 1h–2h | 7.53 | 4.00 | −47% |
+| 2h–4h | 5.87 | 2.33 | −60% |
+| 4h–8h | 4.27 | 4.33 | ±0 |
 | >8h | 36.1 | 27.7 | −23% |
+| 合計 | 71.5 | 45.7 | −36% |
 
-- 減少は **≤4h の短間隔 re-emit に集中**し、≤8h は不変。dual 期は master と worker が別々の in-memory 状態 (`recent_emit` 60–900s 窓 / COOLDOWN 1 bar = 15m / `ORDER_BAR_DEDUP` 予約) を持つため、A が emit → A は cooldown、B は同 bar では DB gate (open trade / max_per_mode_pair) で block されるが、A の shadow 行が閉じた**次 bar 以降**に B は自分の cooldown を持たないので同セルを再 emit できる。write-time dedup (2026-09-02) は同 bar の twin のみ捕捉 → これらは `dedup_violation=0` の kept 行として残った。単一化で消えたのはこの経路
+累積: ≤4h **31.1 → 13.7/日 (−56%)**、≤8h 35.3 → 18.0/日 (−49%、うち 4–8h 区間は不変)。
+
+- 減少は **4h 以内の短間隔 re-emit に集中**し、4–8h 区間は不変。dual 期は master と worker が別々の in-memory 状態 (`recent_emit` 60–900s 窓 / COOLDOWN 1 bar = 15m / `ORDER_BAR_DEDUP` 予約) を持つため、A が emit → A は cooldown、B は同 bar では DB gate (open trade / max_per_mode_pair) で block されるが、A の shadow 行が閉じた**次 bar 以降**に B は自分の cooldown を持たないので同セルを再 emit できる。write-time dedup (2026-09-02) は同 bar の twin のみ捕捉 → これらは `dedup_violation=0` の kept 行として残った。単一化で消えたのはこの経路
 - `daytrade` (USD_JPY 15m) が最大 (−62%) なのは、同 mode が cooldown 系 counter (persisted `daytrade:consec_loss` 40 / `cascade_cd` 5 / `cooldown` 5) を最も多く持つことと整合
-- **>8h の −23% は H1 で説明されない残余** (市場 regime / 週構成 / N=6 日)。10-27 再読で分離する (H1 なら短間隔のみ、regime なら >8h も残る)
+- **>8h の −23% は H1 で説明されない残余** (市場 regime / 週構成 / N=6 日)。10-27 再読で分離する (H1 なら短間隔区間のみ、regime なら >8h も残る)
 - H1 は**仮説**。確定には dual 期の短間隔 re-emit 行が 2 プロセスのどちらから出たか (marker は 09-24 計装以降のみ) の層別が要る — 09-24〜10-02 の marker 付き dual 期 kept 行で `import:*` vs `forked:*` の Δ 分布を出せば検証できる (10-27 readout に含める)
 
 ## 4. 含意 (record-only、挙動変更なし)
