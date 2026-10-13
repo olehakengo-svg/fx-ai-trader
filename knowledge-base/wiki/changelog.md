@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-13 — fix(tools): `cell_deepdive_audit._fetch_bracketed` の snapshot as-of を confirming closed pass 終了時点と定義 (`_fetch_meta.as_of` / `as_of_basis` / `open_after_at`) — PR #273 繰延 P2 ×2 消化 (rule:R3、autopilot、tools + pin のみ)
+
+- **欠陥**: 2 件 (4180187039 / 4180187042) はともに「`complete=true` の as-of = `open_after` 時点」という主張を前提に、(confirm 終了, open_after] 窓で open→close した trade の欠落 / `set_oanda_trade_id()` による closed 行の stale 値を指摘していた。
+- **修正**: as-of を confirming closed pass 終了時点と定義し artifact に刻む。`open_after` は open 行消失の hole check 専用 (as-of より後)。as-of 以後に閉じた open 行は `missed` → retry (保守的)。挙動変更は meta 3 キーの追加のみ、母集団計数は不変。
+- **KB**: registry `review-backlog-273-p2-snapshot-asof-2026-10-12` resolved / [[deepdive-dedup-estimand-and-lock-redaction-2026-09-20]] §5。引用規律: 週次 deepdive の LOCK 母集団 N / LIVE-shadow 比は `_fetch_meta.as_of` 時点の値。
+- 詳細: [[2026-10-13-session]]
+
 ## 2026-10-10 — fix(engine): price_shock_rev ×5 carve-out を R2 demote (`_PAIR_PROMOTED` → `_PAIR_DEMOTED`、agg-Kelly min-lot bypass 除去) — registry `ps-carveout-regate-post-172` の pre-registered pool 条件 N=11 / EV −6.08p 成立 (rule:R2、autopilot)
 
 - **判定** ([[ps-carveout-pool-r2-demote-2026-10-10]]): cron trigger watch が「live N=11 ≥ 10 — 再評価を実施せよ」→ 本番 `/api/demo/trades?limit=5000` (窓は 07-28 まで = since 08-11 を被覆) で再計数。pool (prefix `price_shock_rev` × since 08-11 × `oanda_trade_id` 非空 × dedup≠1 × CLOSED) **N=11 / Σ −66.9p / EV −6.08p / WR 36.4% / Wilson_lo 0.152** (eur_gbp N=9 EV −1.06 / aud_jpy N=2 EV −28.7 / 他 3 セル N=0、exit 11/11 horizon) → 条件 EV<−0.5p 成立。外れ値感度 (AUD_JPY −77.5p 除外で +1.06p に反転) は記録のみ — 事後除外は look-ahead、EUR_GBP 単独でも −1.06p、tail はこの family の設計 (2×ATR catastrophic SL 以外に損失上限なし)。

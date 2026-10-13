@@ -2052,6 +2052,56 @@ def test_a_trade_that_closes_inside_the_window_is_a_hole_and_forces_a_retry(monk
     assert ids == [1, 9], "the retry must collect the row that fell in the hole"
 
 
+def test_snapshot_as_of_is_the_confirming_pass_end_not_the_trailing_open_read(monkeypatch):
+    """PIN (Codex P2 ×2, PR #273 final HEAD; registry
+    review-backlog-273-p2-snapshot-asof-2026-10-12).
+
+    Two hazards live in the window between the confirming closed pass and the
+    trailing open read: a trade whose whole lifecycle falls there is in none
+    of the four reads, and a closed row `set_oanda_trade_id()` mutates there
+    keeps its pre-mutation values.  Both are only defects if the snapshot
+    claims completeness AS OF `open_after`.  The fix is definitional and must
+    be stated in the artifact, not only in prose: `_fetch_meta.as_of` is the
+    confirming pass's end, `open_after_at` is strictly later, and the payload
+    carries the confirming pass's values (nothing read after as-of is
+    represented).
+    """
+    import time
+
+    closed_first = [{"id": 1, "status": "CLOSED", "is_shadow": 1,
+                     "exit_time": "2026-09-19T00:00:00"}]
+    # The confirming pass sees the live flip; a THIRD pass (never read) would
+    # see a further mutation — it is after as-of, so it must not be in the
+    # payload and must not be claimed.
+    closed_confirm = [{"id": 1, "status": "CLOSED", "is_shadow": 0,
+                       "oanda_trade_id": "42",
+                       "exit_time": "2026-09-19T00:00:00"}]
+    seen = {"open": 0}
+
+    def script(kind, n):
+        if kind == "open":
+            seen["open"] = n
+            time.sleep(0.01)                # open_after is measurably later
+            return []
+        return list(closed_confirm if n >= 1 else closed_first)
+
+    m = _bracket_stub(monkeypatch, script)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    meta = payload["_fetch_meta"]
+    assert meta["complete"] is True
+    assert meta["as_of_basis"] == "confirm_pass_end", (
+        "the completeness point must be named in the artifact so a reader "
+        "cannot cite the open_after instant as the snapshot time")
+    assert meta["as_of"] <= meta["open_after_at"], (
+        "open_after is the hole-check read and is strictly later than as-of")
+    assert payload["trades"] == closed_confirm, (
+        "the payload is the confirming pass's representation — the values "
+        "as of `as_of`, never a read taken after it")
+    assert meta["closed_mutated_midfetch"] == 1
+    assert ev["holes_observed"] == [] and ev["attempts"] == 1
+
+
 def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkeypatch):
     """Never fold "cannot verify" into "fine" — the invariant of this tool."""
     def script(kind, n):

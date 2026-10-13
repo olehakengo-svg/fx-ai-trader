@@ -921,7 +921,7 @@
     },
     {
       "id": "review-backlog-273-p2-snapshot-asof-2026-10-12",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-12",
       "doc": "knowledge-base/wiki/analyses/deepdive-dedup-estimand-and-lock-redaction-2026-09-20.md",
@@ -930,7 +930,9 @@
       "reachability": "Claude が期日までに `gh api repos/olehakengo-svg/fx-ai-trader/pulls/comments/4180187039` / `4180187042` を読み、fix PR (tools のみ、巡目上限 ≤6 宣言) を起票する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
-      "outcome_lock": false
+      "outcome_lock": false,
+      "resolved": "2026-10-13",
+      "resolution": "✅ 2026-10-13 修正 commit (autopilot、rule:R3、tools + pin のみ): `_fetch_bracketed` の as-of を **confirming closed pass 終了時点**と定義し直し、`_fetch_meta.as_of` / `as_of_basis='confirm_pass_end'` / `open_after_at` を artifact に刻む (open_after は open 行消失の hole check 専用で as-of より後、(confirm 終了, open_after] 窓の open→close 一周 / set_oanda_trade_id() による closed 行 mutation は『as-of 後』= snapshot 外で欠落ではない — 4180187039 / 4180187042 の 2 件はともに as-of を open_after と主張していた前提の欠陥)。as-of 以後に open 行が閉じた場合は `missed` → retry (保守的 false hole)。pin = tests/test_cell_deepdive_lock_redaction.py::test_snapshot_as_of_is_the_confirming_pass_end_not_the_trailing_open_read。引用規律 (継続): 週次 deepdive の LOCK 母集団 N / LIVE-shadow 比は `_fetch_meta.as_of` 時点の値として引用する。"
     },
     {
       "id": "review-backlog-314-final-head-review-2026-10-12",

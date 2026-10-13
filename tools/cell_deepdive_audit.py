@@ -1265,11 +1265,17 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     the two open reads, so a trade that opened during the closed pass is
     present even though it never appears in the closed pages.
 
-    Read order is open → closed → closed(confirm) → open, and the trailing
-    open read is what bounds the snapshot: its instant IS the snapshot's
-    as-of.  A trade opening after it and never closing is outside the
-    snapshot, not missing from it (no non-atomic read sequence can include
-    it); the claim is completeness AS OF that instant.
+    Read order is open → closed → closed(confirm) → open.  The snapshot's
+    AS-OF instant is the END OF THE CONFIRMING CLOSED PASS, not the trailing
+    open read (Codex P2 ×2, PR #273 final-HEAD review, registry
+    `review-backlog-273-p2-snapshot-asof-2026-10-12`).  The trailing open
+    read is strictly LATER than as-of and serves one purpose: detecting an
+    open row that vanished inside the bracket (hole check).  Anything that
+    happens in the window (confirm end, open_after] — a trade that opens AND
+    closes there, or a closed row that `DemoDB.set_oanda_trade_id()` mutates
+    there — is AFTER as-of by definition, so it is outside the snapshot, not
+    missing from it.  `_fetch_meta.as_of` / `as_of_basis` state this so the
+    reader never cites the open_after instant as the completeness point.
 
     Completeness rests on TWO checks, because one of them cannot see the other
     one's hazard (Codex P2, PR #273, three rounds):
@@ -1295,17 +1301,24 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # middle just moves that window again, so the order is what fixes it,
         # not the count of reads.
         #
-        # SNAPSHOT BOUNDARY (stated, because it is not a defect): a trade that
-        # opens after `open_last` and never closes is not in this snapshot.
-        # No sequence of non-atomic reads can include it, and it is not
-        # "missing" — the snapshot's as-of instant is `open_last`, and the
-        # completeness claim is relative to that instant.  What WOULD be a
-        # defect is a row that existed before the as-of instant and is absent,
-        # and that is exactly what the two checks below cover.
+        # SNAPSHOT BOUNDARY (stated, because it is not a defect): the as-of
+        # instant is `as_of` = the moment the CONFIRMING closed pass returned.
+        # A trade that opens after it and never closes, one whose whole
+        # lifecycle falls between `as_of` and `open_after`, or a closed row
+        # mutated in that same window, is not in this snapshot and is not
+        # "missing" — the completeness claim is relative to `as_of`, and no
+        # later read is part of the claim.  What WOULD be a defect is a row
+        # that existed before `as_of` and is absent, and that is exactly what
+        # the two checks below cover.  `open_after` is read AFTER as-of on
+        # purpose: an open row that closes between the two instants shows up
+        # as `missed` (in neither `open_after` nor the closed pages) and
+        # forces a retry — a conservative false hole, never a silent gap.
         open_before = _http_fetch_open()
         payload = paginate_trades(_http_fetch_closed_page)
         confirm = paginate_trades(_http_fetch_closed_page)
+        as_of = datetime.now(timezone.utc).isoformat(timespec="seconds")
         open_after = _http_fetch_open()
+        open_after_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
         closed_keys = {_row_identity(r) for r in payload["trades"]}
         confirm_keys = {_row_identity(r) for r in confirm["trades"]}
@@ -1347,6 +1360,13 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                              if by_id_first.get(_row_identity(r)) != r)
         payload["trades"] = confirm["trades"]          # newer values win
         payload["_fetch_meta"]["closed_mutated_midfetch"] = closed_mutated
+        # The completeness point, stated in the artifact (not only in prose):
+        # `complete=true` is AS OF the confirming pass's end.  `open_after_at`
+        # is recorded so a reader can see the hole-check instant is later and
+        # must not be quoted as the snapshot time.
+        payload["_fetch_meta"]["as_of"] = as_of
+        payload["_fetch_meta"]["as_of_basis"] = "confirm_pass_end"
+        payload["_fetch_meta"]["open_after_at"] = open_after_at
         # Keep BOTH passes' drift evidence; the confirming pass is part of the
         # completeness argument, so its own retries must stay visible.
         payload["_fetch_meta"]["confirm_pass"] = {
