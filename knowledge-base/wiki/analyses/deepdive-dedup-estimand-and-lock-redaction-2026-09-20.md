@@ -691,7 +691,7 @@ autopilot は執行しない。選択肢は (a) BREAKEVEN を母集団から除�
       `tools/cell_edge_audit.py`) が LOCK セルの outcome を出していないか横展開で grep
       — 「1 箇所直したら同型の兄弟を同じ PR で掃く」([[project_mof_ingest_defect_family_2026_09_17]])
       の未実施分。本 PR では deepdive 経路のみ塞いだ
-- [x] **snapshot as-of の定義 (2026-10-13、registry `review-backlog-273-p2-snapshot-asof-2026-10-12` resolved)** — PR #273 最終 HEAD の P2 2 件 (4180187039 / 4180187042) は「`complete=true` の as-of = open_after 時点」という主張の欠陥。`_fetch_bracketed` の membership as-of を最初の request 送信前の時刻と定義し `_fetch_meta.as_of` / `as_of_basis=open_before_request_start` に明記、as-of 後に open した行は除外+カウント、値は最新読み (`observed_through_*` = 観測完了時刻)。初版 (confirm 終了時点) は PR #326 Codex P2 ×2 で棄却 (latency / bracket 内部 cutoff の取りこぼし)。pin 2 本併設
+- [x] **snapshot as-of の定義 (2026-10-13、registry `review-backlog-273-p2-snapshot-asof-2026-10-12` resolved)** — PR #273 最終 HEAD の P2 2 件 (4180187039 / 4180187042) は「`complete=true` の as-of = open_after 時点」という主張の欠陥。`_fetch_bracketed` の membership as-of を最初の request 送信前の時刻と定義し `_fetch_meta.as_of` / `as_of_basis=open_before_request_start` に明記、as-of 後に open した行は server 時計 skew の実測 tolerance を超える場合のみ除外+カウント (帯内 ambiguous 保持 / 未計測なら superset mode)、値は最新読み (`observed_through_*` = 観測完了時刻)。初版 (confirm 終了時点) は PR #326 Codex P2 ×2 で棄却 (latency / bracket 内部 cutoff の取りこぼし)。pin 2 本併設
 - [ ] `mqe_gbpusd_fix` の発火枯渇 (4.7 ヶ月で 2 本) の原因調査 — §1.4 で真因が
       dedup でないと確定したので、次は signal 側
 

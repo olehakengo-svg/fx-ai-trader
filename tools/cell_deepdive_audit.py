@@ -1258,6 +1258,42 @@ def _http_fetch_open(limit: int = 100000) -> list:
     return _http_fetch("open", limit, 0)
 
 
+def _server_clock_offset():
+    """Estimate (server_minus_client_seconds, rtt_seconds) from the `Date`
+    header of one cheap request, or None when it cannot be measured.
+
+    The membership cutoff is a CLIENT instant but `entry_time` is written by
+    the SERVER clock (Codex P2, PR #326 round 4): an unmeasured skew would
+    silently move rows across the cutoff under a `complete=true` stamp.  The
+    `Date` header is set by gunicorn on the app host (second granularity), so
+    offset ± (rtt + 1 s) bounds the skew; rows inside that band are AMBIGUOUS
+    and are kept + counted, never excluded.  No header → no exclusion at all
+    (superset mode), stated in `_fetch_meta.membership_basis`.
+    """
+    from email.utils import parsedate_to_datetime
+    from urllib.request import urlopen
+    url = "https://fx-ai-trader.onrender.com/healthz/http"
+    t0 = datetime.now(timezone.utc)
+    try:
+        with urlopen(url, timeout=60) as r:    # noqa: S310 (fixed PROD host)
+            headers = getattr(r, "headers", None)
+            hdr = headers.get("Date") if headers is not None else None
+            r.read()
+    except Exception:                          # measured or not — never raise
+        return None
+    t1 = datetime.now(timezone.utc)
+    if not hdr:
+        return None
+    try:
+        srv = parsedate_to_datetime(hdr)
+    except Exception:
+        return None
+    if srv.tzinfo is None:
+        srv = srv.replace(tzinfo=timezone.utc)
+    mid = t0 + (t1 - t0) / 2
+    return ((srv - mid).total_seconds(), (t1 - t0).total_seconds())
+
+
 def _opened_after(row: dict, as_of_dt: datetime):
     """True if the row's server `entry_time` is after `as_of_dt`, False if at
     or before, None if it cannot be judged (missing / unparseable)."""
@@ -1295,12 +1331,15 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
       * every trade closed by `as_of` is in both closed passes.
 
     Rows that OPENED after `as_of` are outside the snapshot by definition.
-    They are excluded from membership when their `entry_time` says so
-    (counted in `opened_after_as_of` / `closed_entries_after_as_of_excluded`);
-    a row without a parseable `entry_time` cannot be judged and is kept and
-    counted (`open_after_only_unjudged`) rather than silently dropped.  The
-    clock comparison is client UTC vs server `entry_time` — stated, not
-    hidden, in `_fetch_meta.as_of_clock`.
+    `entry_time` is the SERVER's clock, so a row is excluded only when it is
+    after the cutoff by more than the measured skew tolerance
+    (`_server_clock_offset`: Date-header offset + rtt + 1 s); rows inside the
+    band are ambiguous and are KEPT and counted, and when the server clock
+    cannot be measured nothing is excluded at all (superset mode) — both
+    stated in `_fetch_meta.membership_basis` (Codex P2, PR #326 round 4).  A
+    row without a parseable `entry_time` is kept and counted
+    (`open_after_only_unjudged` / `closed_entries_unjudged`), never dropped
+    silently.
 
     VALUES are separate from membership: a row's attributes are the newest
     read (`open_after` for open rows, the confirming pass for closed rows)
@@ -1347,7 +1386,25 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # bracket leaves a trade that opened after it and closed before the
         # trailing read in no read at all — so the cutoff is the first
         # instant, where both halves of the claim are provable.
+        clock = _server_clock_offset()
+        tol = (abs(clock[0]) + clock[1] + 1.0) if clock else None
         as_of_dt = datetime.now(timezone.utc)
+
+        def _judge(row):
+            """'after' (provably opened after the cutoff even under the
+            measured skew → excluded) / 'ambiguous' (inside the skew band,
+            or exact-clock-after in superset mode → kept + counted) /
+            'member' / None (unjudgeable → kept + counted)."""
+            exact = _opened_after(row, as_of_dt)
+            if exact is None:
+                return None
+            if tol is None:
+                return "ambiguous" if exact else "member"
+            if _opened_after(row, as_of_dt + timedelta(seconds=tol)) is True:
+                return "after"
+            if _opened_after(row, as_of_dt - timedelta(seconds=tol)) is True:
+                return "ambiguous"
+            return "member"
         # Full precision: the exported instant must be the SAME instant the
         # membership filter compares against (Codex P2, PR #326 round 2) —
         # truncating to seconds would move the advertised cutoff back by up
@@ -1404,20 +1461,36 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # the server's `entry_time`; unjudgeable rows are kept and counted.
         kept_closed: list = []
         closed_after = 0
+        closed_ambiguous = 0
         closed_unjudged = 0
         for r in confirm["trades"]:                  # newer values win
-            verdict = _opened_after(r, as_of_dt)
-            if verdict is True:
+            verdict = _judge(r)
+            if verdict == "after":
                 closed_after += 1
-            else:
-                if verdict is None:
-                    closed_unjudged += 1
-                kept_closed.append(r)
+                continue
+            if verdict == "ambiguous":
+                closed_ambiguous += 1
+            elif verdict is None:
+                closed_unjudged += 1
+            kept_closed.append(r)
         payload["trades"] = kept_closed
         payload["count"] = len(kept_closed)
         payload["_fetch_meta"]["closed_mutated_midfetch"] = closed_mutated
         payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] = closed_after
+        payload["_fetch_meta"]["closed_membership_ambiguous_kept"] = closed_ambiguous
         payload["_fetch_meta"]["closed_entries_unjudged"] = closed_unjudged
+        payload["_fetch_meta"]["server_clock_offset_s"] = (
+            round(clock[0], 3) if clock else None)
+        payload["_fetch_meta"]["server_clock_rtt_s"] = (
+            round(clock[1], 3) if clock else None)
+        payload["_fetch_meta"]["membership_tolerance_s"] = (
+            round(tol, 3) if tol is not None else None)
+        payload["_fetch_meta"]["membership_basis"] = (
+            "as_of ± tolerance (server Date header skew + rtt + 1 s); rows "
+            "inside the band are kept and counted as ambiguous"
+            if tol is not None else
+            "superset: server clock unmeasured, nothing excluded; rows with "
+            "entry_time > as_of are kept and counted as ambiguous")
         # The completeness point, stated in the artifact (not only in prose):
         # membership is AS OF `as_of` (before the first request).  The later
         # instants are client observation-completion times (when each
@@ -1426,7 +1499,8 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         payload["_fetch_meta"]["as_of"] = as_of
         payload["_fetch_meta"]["as_of_basis"] = "open_before_request_start"
         payload["_fetch_meta"]["as_of_clock"] = (
-            "client UTC at request start vs server entry_time; skew not measured")
+            "client UTC at request start; server entry_time compared with the "
+            "measured skew tolerance above")
         payload["_fetch_meta"]["confirm_pass_end_at"] = confirm_pass_end_at
         payload["_fetch_meta"]["open_after_at"] = open_after_at
         payload["_fetch_meta"]["observed_through_closed"] = confirm_pass_end_at
@@ -1460,10 +1534,14 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # it did not exist at the advertised instant.
         by_key: dict = {}
         excluded_after: set = set()          # identities, so a row seen in
-        for r in open_before:                # both reads is counted once
-            if _opened_after(r, as_of_dt) is True:
+        ambiguous_open: set = set()          # both reads is counted once
+        for r in open_before:
+            verdict = _judge(r)
+            if verdict == "after":
                 excluded_after.add(_row_identity(r))
                 continue
+            if verdict == "ambiguous":
+                ambiguous_open.add(_row_identity(r))
             by_key[_row_identity(r)] = r
         opened_midfetch = 0
         mutated_midfetch = 0
@@ -1475,10 +1553,14 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                 # PR #326: the trailing read is for hole detection, not
                 # membership).  Unjudgeable → kept and counted, never
                 # dropped silently.
-                if _opened_after(r, as_of_dt) is True:
+                verdict = _judge(r)
+                if verdict == "after":
                     excluded_after.add(k)
                     continue
-                opened_midfetch += 1           # unjudged (no entry_time)
+                if verdict == "ambiguous":
+                    ambiguous_open.add(k)
+                elif verdict is None:
+                    opened_midfetch += 1       # unjudged (no entry_time)
             elif by_key[k] != r:
                 mutated_midfetch += 1         # e.g. shadow -> live
             by_key[k] = r
@@ -1486,6 +1568,7 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                 {"attempts": attempt, "opened_midfetch": opened_midfetch,
                  "open_after_only_unjudged": opened_midfetch,
                  "opened_after_as_of": len(excluded_after),
+                 "open_membership_ambiguous_kept": len(ambiguous_open),
                  "mutated_midfetch": mutated_midfetch,
                  "as_of": as_of,
                  "holes_observed": holes})
@@ -1539,6 +1622,8 @@ def main(argv=None) -> int:
                                            brackets["opened_after_as_of"],
                                        "open_after_only_unjudged":
                                            brackets["open_after_only_unjudged"],
+                                       "open_membership_ambiguous_kept":
+                                           brackets["open_membership_ambiguous_kept"],
                                        "holes_observed":
                                            brackets["holes_observed"]})
         with open(args.fetch_to, "w") as f:

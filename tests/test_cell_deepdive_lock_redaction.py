@@ -1837,6 +1837,8 @@ def test_open_rows_are_fetched_before_the_closed_pages(monkeypatch):
     #   open-first   -> open=[9], closed=[9,8]  => overlap, reconciled to {8,9}
     #   closed-first -> closed=[8], open=[]     => id 9 in NEITHER set
     def urlopen(url, timeout=None):
+        if "healthz" in url:                 # clock probe: unmeasured here
+            raise OSError("no clock probe in this stub")
         first = not order
         if "status=open" in url:
             order.append("open")
@@ -1957,8 +1959,14 @@ def test_lock_with_only_dedup_repeats_still_gets_a_population_record():
     assert rec2["n_lock_population"] == 12
 
 
-def _bracket_stub(monkeypatch, script):
-    """Drive _fetch_bracketed with a per-request script of row lists."""
+def _bracket_stub(monkeypatch, script, server_date=None):
+    """Drive _fetch_bracketed with a per-request script of row lists.
+
+    `server_date`: an RFC-1123 `Date` header value to serve on the clock
+    probe (`/healthz/http`).  None → no header → superset mode (nothing is
+    excluded on membership), which is what the real tool does when the
+    server clock cannot be measured.
+    """
     import json
     import urllib.request
     import tools.cell_deepdive_audit as m
@@ -1966,8 +1974,9 @@ def _bracket_stub(monkeypatch, script):
     calls = {"open": 0, "closed": 0}
 
     class FakeResp:
-        def __init__(self, body):
+        def __init__(self, body, date=None):
             self.body = body.encode()
+            self.headers = {"Date": date} if date else {}
 
         def read(self):
             return self.body
@@ -1979,6 +1988,8 @@ def _bracket_stub(monkeypatch, script):
             return False
 
     def urlopen(url, timeout=None):
+        if "healthz" in url:                     # clock probe, not a read
+            return FakeResp("{}", server_date)
         if "status=open" in url:
             rows = script("open", calls["open"])
             calls["open"] += 1
@@ -2136,9 +2147,13 @@ def test_rows_that_opened_after_the_cutoff_are_outside_the_snapshot(monkeypatch)
                 {"id": 7, "status": "OPEN", "entry_time": future},
                 {"id": 8, "status": "OPEN"}]                # 8: unjudgeable
 
-    m = _bracket_stub(monkeypatch, script)
+    from email.utils import format_datetime
+    from datetime import datetime, timezone
+    now_hdr = format_datetime(datetime.now(timezone.utc), usegmt=True)
+    m = _bracket_stub(monkeypatch, script, server_date=now_hdr)
     open_rows, payload, ev = m._fetch_bracketed()
 
+    assert payload["_fetch_meta"]["membership_tolerance_s"] is not None
     assert [r["id"] for r in open_rows] == [8], (
         "a trade that provably opened after as_of is not a member — from the "
         "FIRST open read as much as from the trailing one (the server can "
@@ -2153,6 +2168,58 @@ def test_rows_that_opened_after_the_cutoff_are_outside_the_snapshot(monkeypatch)
     assert payload["count"] == 1
     assert payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] == 1
     assert payload["_fetch_meta"]["closed_entries_unjudged"] == 0
+
+
+def test_unmeasured_server_clock_means_superset_membership_not_exclusion(monkeypatch):
+    """PIN (Codex P2, PR #326 round 4): `entry_time` is the SERVER clock and
+    `as_of` the client's.  Without a measured skew the tool must not move a
+    row across the cutoff — it keeps every row (superset), counts the ones
+    that look post-cutoff as ambiguous, and says so in `membership_basis`.
+    """
+    future = "2999-01-01T00:00:00+00:00"
+    closed = [{"id": 1, "status": "CLOSED", "entry_time": future,
+               "exit_time": "2999-01-01T00:00:01"}]
+
+    def script(kind, n):
+        if kind == "closed":
+            return list(closed)
+        return [{"id": 7, "status": "OPEN", "entry_time": future}]
+
+    m = _bracket_stub(monkeypatch, script)           # no Date header
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    meta = payload["_fetch_meta"]
+    assert meta["membership_tolerance_s"] is None
+    assert meta["membership_basis"].startswith("superset")
+    assert [r["id"] for r in open_rows] == [7] and ev["opened_after_as_of"] == 0
+    assert ev["open_membership_ambiguous_kept"] == 1
+    assert [r["id"] for r in payload["trades"]] == [1]
+    assert meta["closed_entries_after_as_of_excluded"] == 0
+    assert meta["closed_membership_ambiguous_kept"] == 1
+
+
+def test_rows_inside_the_skew_band_are_kept_as_ambiguous_not_excluded(monkeypatch):
+    """A row whose entry_time is after as_of by LESS than the skew tolerance
+    may or may not have existed at the cutoff on the server's clock.  It is
+    kept and counted, never excluded (Codex P2, PR #326 round 4).
+    """
+    from email.utils import format_datetime
+    from datetime import datetime, timezone, timedelta
+
+    def script(kind, n):
+        if kind == "closed":
+            return []
+        # a few hundred ms after the cutoff: inside the ≥1 s tolerance band
+        near = (datetime.now(timezone.utc) + timedelta(milliseconds=200)).isoformat()
+        return [{"id": 9, "status": "OPEN", "entry_time": near}]
+
+    now_hdr = format_datetime(datetime.now(timezone.utc), usegmt=True)
+    m = _bracket_stub(monkeypatch, script, server_date=now_hdr)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert payload["_fetch_meta"]["membership_tolerance_s"] >= 1.0
+    assert [r["id"] for r in open_rows] == [9]
+    assert ev["opened_after_as_of"] == 0 and ev["open_membership_ambiguous_kept"] == 1
 
 
 def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkeypatch):
@@ -2196,6 +2263,8 @@ def test_a_bare_list_from_the_endpoint_is_not_a_valid_page(monkeypatch):
             return False
 
     def urlopen(url, timeout=None):
+        if "healthz" in url:                 # clock probe: unmeasured here
+            raise OSError("no clock probe in this stub")
         calls["n"] += 1
         if calls["n"] == 1:                       # a full, well-formed page
             rows = [{"id": i} for i in range(10)]
