@@ -7,6 +7,7 @@
 - **WAIT 汚染 caveat** (registry `block-counter-wait-contamination-recite-audit` resolved): hull-fire-rate-funnel §8.2 / ps-seat-supply-remeasure §8-1 / raw ps-seat-hedge-block-snapshot に「修理前 hedge_block / max_open 件数は再計算なしに引用禁止、結論は不変」を追記
 - **session-log 末尾差分** (registry `kb-session-log-postcommit-trailing-edit` resolved): (c) 仕様として文書化 — hash は pre-commit 時点で未存在のため (a) 移設は不可能、amend は hook 再入 / 並行 session 競合。CLAUDE.md 自走原則に 1 行 (自動行は `git checkout --` で捨てる。「先にコミット」は無限ループ — PR #326 Codex P2 で訂正)
 - 観測: ps `pair_demoted` は block_counts 未出現 (10-10 deploy 以降 ps signal が pair gate まで未到達) / 10-12 月曜 LIVE fill 0 / E1 ingest fresh 13 keys
+- **デプロイ確認**: PR #326 merge e3d76b80 (04:55Z) → Render dep-db6rjjdbedkc73bfjmu0 **live 04:57:33Z**、engine pid 96 → 95、tick ok。Codex 8 巡 P2 ×17 (全件実在、8 巡目 2 件は繰延)
 - 詳細: [[2026-10-13-session]]
 
 ## 2026-10-13 — fix(tools): `cell_deepdive_audit._fetch_bracketed` の snapshot membership as-of を**最初の request 送信前の時刻**と定義 (`_fetch_meta.as_of` / `as_of_basis=open_before_request_start`、as-of 後に open した行は除外+カウント、値は最新読み) — PR #273 繰延 P2 ×2 + PR #326 Codex P2 ×15 (7 巡: 6 巡上限後の 7 巡目は KB 数値の事実誤りの訂正 ×2 + 1 行修正) 消化、8 巡目 P2 ×2 (superset mode の `complete` 受理 / open_before の unjudged 計数) は review-ack 繰延 (registry `review-backlog-326-p2-deferrals-2026-10-13`、期日 10-20) (rule:R3、autopilot、tools + pin のみ)
