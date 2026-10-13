@@ -995,13 +995,15 @@
     },
     {
       "id": "kb-session-log-postcommit-trailing-edit",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-13",
       "doc": "knowledge-base/wiki/changelog.md",
       "message": "🟠 **繰延: post-commit の session-log 追記が必ず「ローカル未コミットの差分」を 1 本残す (Codex P2、PR #276 5 巡目で指摘、意図的に PR 範囲外へ繰延)**。`scripts/hooks/git-post-commit.sh` は**コミット作成後**に当該コミットを今日の session log へ追記するので、その編集は**そのコミットには入らない**。次回 run が それをコミットすると post-commit がまた 1 行追記する ⇒ **末尾差分が永久に 1 本残り続ける**。本セッション中、`git commit` のたびに session log が再 dirty 化し merge を 2 回ブロックしたのはこれが原因 (実観測)。⚠️ **PR #276 が作った欠陥ではなく、post-commit hook の既存の設計性質**なので 同 PR では直さなかった (直すには追記を pre-commit 側へ移して同一コミットに含める等の設計変更が必要 = 別 PR 相当)。⇒ 期日までに **(a) 追記を pre-commit へ移す / (b) 追記を廃して session log を 生成物として扱う / (c) 現状を仕様として文書化し merge 手順に「session log の 末尾差分は先にコミットする」を明記** のいずれかを選ぶ。🔴 **放置の実害は「merge 直前に必ず 1 ファイル dirty」で、`git merge` が `local changes would be overwritten` で止まること** — 今日は手で退避したが、自動化が同じ所で止まる",
       "condition": "post-commit の session-log 追記が残す末尾差分について (a)/(b)/(c) のいずれかを選び実装または文書化すること",
-      "reachability": "Claude が期日までに scripts/hooks/git-post-commit.sh と scripts/hooks/git-pre-commit.sh を読み、追記タイミングを移せるか (pre-commit で今日の session log を更新して stage できるか) を判定する。移せない場合は (c) を採り CLAUDE.md の自走原則節に手順を 1 行追記する"
+      "reachability": "Claude が期日までに scripts/hooks/git-post-commit.sh と scripts/hooks/git-pre-commit.sh を読み、追記タイミングを移せるか (pre-commit で今日の session log を更新して stage できるか) を判定する。移せない場合は (c) を採り CLAUDE.md の自走原則節に手順を 1 行追記する",
+      "resolved": "2026-10-13",
+      "resolution": "✅ 2026-10-13 (autopilot): **(c) 現状を仕様として文書化**を採用。理由: (a) pre-commit への移動は不可能 — commit hash は pre-commit 時点で存在しない (追記内容が hash を含む)。post-commit での `--amend` は hook 再入 (pre-commit 15 分級の再実行) と auto-saver / 並行 session との競合を生み、hooksPath 迂回禁止 (feedback_no_hook_bypass_merge_commits_2026_10_04) とも衝突。(b) session log の生成物化は Phase 記述 (Claude 記入) を失う。→ CLAUDE.md 自走原則に「commit 直後は session log が必ず 1 ファイル dirty = 仕様。merge / rebase / checkout の前に先にコミットする」を 1 行追記 (scripts/hooks/git-post-commit.sh の設計性質、PR #276 Codex P2)。"
     },
     {
       "id": "http-blind-fix-verification-hour0-boots",
@@ -1017,13 +1019,28 @@
     },
     {
       "id": "dual-engine-master-worker-disposition",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-12",
       "doc": "knowledge-base/wiki/analyses/http-blind-fork-poisoning-2026-09-22.md",
       "message": "🔴 **取引エンジンが gunicorn master と worker の 2 プロセスで二重に走っている (2026-09-22 確定、§6)**。証拠: (A) HTTP 全盲中 (worker で 1 本も request 完了なし = StatusHeal 未実行) に `[MainLoop] iter=` が前進 = master のエンジン (B) 03:35:56 StatusHeal 後に `[MainLoop] iter=240` が 03:45:27 と 03:46:15 の 2 回 (別カウンタ)。含意: 同一シグナルを 2 プロセスが評価・emit する。in-memory dedup はプロセス内のみ、DB write-time `dedup_violation` はクロスプロセス dup を**フラグするが防がない**。LIVE 送信の二重化リスクは**未評価**。`/api/demo/status` は worker 側エンジンしか見えない。⚠️ 修正 (単一エンジン化 = master は import のみ、worker の `post_worker_init` で起動) は shadow N の生成率を変える **regime break** を伴い pre-reg 群の窓設計に触るため、本 PR では触らなかった。期日までに (1) `dedup_violation=1` の過去 30 日出現率と bar_ts 一致ペアの実測で dup 率を出す (2) 単一エンジン化の設計 (gunicorn conf の hook / master 側 autostart の停止 / StatusHeal の位置) と regime break の記録方法を決める (3) user へ decision packet (Rule 3 構造バグだが N 会計に触るため報告)。 ／ 2026-09-24 追記 ([[dual-engine-dup-rate-readout-2026-09-24]]、rule:R3): 手続き (1)(2) を前倒し執行。(1) dup 率 = 近接ペア (同 type×pair×dir、Δ≤45s) 133 ペア/30d = kept 1,670 行の 8.0%、全取引日に 3–17 ペアで恒常。**両方 dedup_violation=0 のペアは 0** = write-time フラグが cross-process dup を全件捕捉、dedup=0 の N は非膨張。LIVE 二重送信 0 件/30d (live 11 行に Δ≤120s twin なし、audit sent 12/filled 11 の差 1 は 09-06 wg 既知)。自然実験: master 単独の HTTP 全盲窓 (09-15/09-22 00:15–03:33Z) の kept 行 12/10 vs 二重平日同窓 平均 9.75 (N=2、記述級) = 生成率低下の兆候なし。(2) 設計 = §6 案 A (gunicorn post_worker_init で worker 起動、master は import のみ、StatusHeal は残す)、層別キー = row `[EMIT_PROC] import|forked` marker (一次) + deploy 時刻 (二次)。計装 PR で marker / pid ログ / status `engine_pid` を先行デプロイ済み (record-only)。(3) user 決裁は不要と判定 (Rule 3 構造バグ ∧ N 非膨張・非低下) — 統合パケットに D16 record として掲載。残 = `dual-engine-emit-proc-attribution-readout` (10-01) の読み出し後に単一化 PR を起案 (本 entry 期日 10-06 は単一化 PR の起案期日として維持)。 ／ 2026-09-30: 中間 readout (p_f=0.625、窓終了前 — 本読みは 10-01T04:43Z 以降) を受けて単一化 PR (#308) を起案・実装。**merge は本読みの後** (fork hook 版、analyses §6b、rule:R3)。本 entry は deploy 後の検証で resolve する: (i) `[AutoStart] deferred to forked worker` 1 回 (ii) `[MainLoop] iter=` の pid 1 種類 (iii) 新規 row の marker が `forked:forkchild` (iv) 翌週の近接ペア (Δ≤45s) 0。巻き戻し = env ENGINE_AUTOSTART_IN_IMPORT=1。deploy 時刻を resolution に regime break の二次キーとして記す。 ／ 2026-10-04: 本読み完了 (§5c、p_f=0.594 [0.548, 0.639]、判定 (c)、窓外 0.416 で位相不安定 → p_f を補正係数に使わない) → PR #308 を merge 執行。本 entry は deploy 後検証 (i)〜(iv) で resolve: deploy 時刻を resolution に regime break 二次キーとして記す。検証コマンド = Render MCP list_logs text `[AutoStart]` / `[MainLoop] iter=` (pid 1 種類) + `/api/demo/trades?date_from=<deploy>` の reasons `[EMIT_PROC] forked:forkchild` + 翌週 (〜10-13) の近接ペア (Δ≤45s) 件数。 ／ 2026-10-04T06:03:40Z: PR #308 merge 95d58906 → Render deploy dep-db0unirtqb8s738pta40 live (**regime break 二次キー = 2026-10-04T06:03:40Z**、instance srv-d6va1of5r7bs73en10vg-x4zkp)。検証 (i) ✅ `[AutoStart] plan=fork_child import_context=gunicorn_master pid=63` → `deferred to forked worker (import pid=63)` 1 回 → `Starting 24 modes (pid=129 role=forked)` (ii) ✅ 06:04–06:05Z の `[MainLoop]` 全行 pid=129 role=forked origin=forkchild、2 系列目なし (status: engine_pid 129 / import_pid 63 / origin forkchild) (iii) 新規 row marker `forked:forkchild` と (iv) 近接ペア (Δ≤45s) 0 は市場再開 (10-04 21:00Z) 以降の行で読む — (iii) は 10-06 までに、(iv) は 10-13 の翌週 readout で確認してから resolve。巻き戻し = env ENGINE_AUTOSTART_IN_IMPORT=1 (未使用)。 ／ 2026-10-05T01:4xZ (市場再開後の初読み、autopilot): **(iii) ✅** deploy 後 (≥06:03:40Z) の新規 row 8/8 (10-05T00:00:19Z〜01:31:23Z、全 shadow) が `[EMIT_PROC] forked:forkchild`、`import:*` 0 / marker 無し 0 / `forked:statusheal` 0。**(iv) 予備読み**: 同 8 行で近接ペア (Δ≤45s 同 type×pair×dir) 0 — N=8 の予備値、確定は 10-13 の翌週 readout (§2 同手順)。**deadline を 10-06 → 10-12 へ移動** (理由: (iii) 着地済み、(iv) 確定読みが 10-13、cron 判定は翌日 00:20Z なので前日に置く規則 — 黙った延長ではない)。status: engine_pid 129 / import_pid 62 (10-04 06:08 docs deploy で instance 再生成、63→62) / role forked / origin forkchild。analyses §6c 追記。",
       "condition": "dup 率の実測と単一エンジン化の設計メモを analyses/http-blind-fork-poisoning-2026-09-22.md §6 追補または新規 analyses/ に置き、user 決裁の要否を明記すること",
-      "reachability": "Claude が期日までに本番 DB (API `/api/demo/trades` の dedup_violation 列) と Render ログ (`[MainLoop] iter=` の二重ストリーム) を読み、設計メモを書く。再 fork 事象 (`Booting worker` が起動時以外に出る) を観測したら期日を待たず着手"
+      "reachability": "Claude が期日までに本番 DB (API `/api/demo/trades` の dedup_violation 列) と Render ログ (`[MainLoop] iter=` の二重ストリーム) を読み、設計メモを書く。再 fork 事象 (`Booting worker` が起動時以外に出る) を観測したら期日を待たず着手",
+      "resolved": "2026-10-13",
+      "resolution": "✅ 2026-10-13 (autopilot、rule:R3 record-only、[[single-engine-shadow-rate-readout-2026-10-13]]): deploy 後検証 (i)〜(iv) 全て着地 — (i)(ii) 10-04 Render ログ、(iii) marker 364/364 `forked:forkchild` (10-05〜10-13)、(iv) 近接ペア (Δ≤45s) **0** / dedup_violation=1 3 行は全て bar 内 re-emit 型。regime break 二次キー = **2026-10-04T06:03:40Z**。⚠️ 新所見: shadow 生成率 87.0 → 58.2 行/取引日 (−33%、15m 系のみ、同セル ≤4h re-emit に集中 = per-process 状態二重化 artifact の消失 H1、>8h の −23% は未説明残余)。dual 期の 15m shadow N 蓄積率は ~1.5× 膨張していた → cadence 前提の読み直しは post 2 週目 (10-27) の確定 readout 後。後継 = `single-engine-shadow-rate-attribution-readout`。"
+    },
+    {
+      "id": "single-engine-shadow-rate-attribution-readout",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-27",
+      "doc": "knowledge-base/wiki/analyses/single-engine-shadow-rate-readout-2026-10-13.md",
+      "message": "単一エンジン化 (10-04T06:03:40Z) 後の shadow 生成率 regime break (−33%、15m 系、同セル ≤4h re-emit に集中) の 2 週目確定 readout (rule:R3、件数・時刻・marker のみ、outcome 非読)。(1) post 窓 10-05〜10-26 (≥14 取引日) で kept shadow 行/取引日と Δ-to-previous-kept 分布 (≤30m/≤1h/≤2h/≤4h/≤8h/>8h) を pre (09-14〜10-02) と再比較 (2) H1 検証: dual 期 marker 付き kept 行 (09-24〜10-02) の短間隔 re-emit が `import:*` と `forked:*` に分かれているか (3) >8h の −23% 残余が持続するか (regime) 消えるか (週構成) (4) cadence 前提 (t8-hull 13.3/週 / t9 3.9/週 / ecg 4.0/週 / sr_anti_hunt ETA / ws3 retire) を post 期の率で再見積りし各 entry の message に追記。生成率を戻すための gate 緩和・cooldown 短縮はしない (dual 期 artifact の再現 = 汚染)。LOCK 母集団への re-emit の扱いは R1 = user 決裁 (sr-anti-hunt count-basis と同じ決裁点に載せるかを含め user 判断)。",
+      "condition": "post 窓 ≥14 取引日の kept 行/日 + Δ 分布 + H1 marker 層別 + cadence 再見積りが doc §2〜§4 に追記され、影響する registry entry (t8/t9/ecg/sr_anti_hunt/ws3) の message に post 期の率が併記されていること",
+      "reachability": "Claude が期日までに本番 /api/demo/trades?limit=5000 (10-27 時点で 09-14 まで被覆するか要確認、不足なら paginate) を読み doc を追記する docs commit を積む。評価主体 = tools/prereg_trigger_watch.py deadline_info (日次 Tier A cron、期日翌日 00:20Z)。",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
     },
     {
       "id": "dual-engine-emit-proc-attribution-readout",
@@ -1262,7 +1279,7 @@
     },
     {
       "id": "block-counter-wait-contamination-recite-audit",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-13",
       "doc": "knowledge-base/wiki/analyses/wait-tick-block-attribution-2026-09-23.md",
@@ -1271,7 +1288,9 @@
       "reachability": "Claude が KB 3 文書へ caveat を追記する docs commit を積む。評価主体 = tools/prereg_trigger_watch.py の deadline_info 型 (日次 Tier A cron、期日翌日 00:20Z)。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
-      "outcome_lock": false
+      "outcome_lock": false,
+      "resolved": "2026-10-13",
+      "resolution": "✅ 2026-10-13 (autopilot、rule:R3 docs): 3 文書 ([[hull-fire-rate-funnel-2026-08-24]] §8.2 末尾 / [[ps-seat-supply-remeasure-2026-09-10]] §8-1 / raw/audits/ps-seat-hedge-block-snapshot-2026-09-10.md 冒頭) に WAIT 汚染 caveat (hedge_block 92.2% / max_open 91.2%、2026-09-23 修理前の件数は再計算なしに引用禁止、結論 (hedge_block 寄与 0 本 = MODE_CONFIG 構造由来) は不変) を追記。再計算はしない (persisted counter は修理前の WAIT 込み値を含んだまま、修理後の counter 値のみが clean)。"
     },
     {
       "id": "kalman-d7-live-exit-spec-mismatch-disposition",
@@ -1293,7 +1312,7 @@
     },
     {
       "id": "kalman-d7-sltp-marker-c0-readout",
-      "active": true,
+      "active": false,
       "type": "live_count_decision",
       "entry_type": "kalman_d7",
       "match": "prefix",
@@ -1304,7 +1323,9 @@
       "n_decide": 5,
       "deadline": "2026-12-09",
       "doc": "knowledge-base/wiki/decisions/kalman-d7-live-exit-disposition-packet-2026-10-07.md",
-      "message": "kalman_d7 disposition packet §3「(b) 下での追加義務」の読み手 (rule:R3、件数のみ): `[SLTP_CONSTRUCT]` marker 付き (PR #300、2026-09-26 デプロイ以降) の kalman 3 variant LIVE fill (oanda_trade_id 非空、USD_JPY) が **N≥5** に到達したら `tools/sltp_construct_readout.py --since 2026-09-26` で C0 分岐率 (SR 採用 / lowliq / MTF ×1.3 / clamp) を読み、kalman-d7-live-constrained-bt-2026-09-27 §3 の what-if 列を live 実測率に差し替える (件数・距離のみ、outcome 非読; 母集団 = watcher `count_live_matching` と同一 (oanda_trade_id 非空 ∧ dedup_violation≠1 ∧ marker 付き)。`sltp_construct_readout.py` は trade_id で dedup するが **dedup_violation を filter しない**ので、`--json` 出力から dedup_violation=1 の行を除いてから率を出す (または `--file` に clean 行だけの trades JSON を渡す) — Codex P2 4202673544 — EV は R2 t9-kalman-d7-live-n10-ev-check の estimand 凍結 (D7) 承認後のみ)。到達 = 判定ではなく readout の起動。2026-10-07 時点 3/5 (po_dn_flip 2 / ema75_break 1)。期日 12-09 (R2 と同日) に N<5 なら stale review (頻度前提 ~2/月 の再監査)。gate・値・lot には触れない (Codex P2 4202640529、PR #317)。"
+      "message": "kalman_d7 disposition packet §3「(b) 下での追加義務」の読み手 (rule:R3、件数のみ): `[SLTP_CONSTRUCT]` marker 付き (PR #300、2026-09-26 デプロイ以降) の kalman 3 variant LIVE fill (oanda_trade_id 非空、USD_JPY) が **N≥5** に到達したら `tools/sltp_construct_readout.py --since 2026-09-26` で C0 分岐率 (SR 採用 / lowliq / MTF ×1.3 / clamp) を読み、kalman-d7-live-constrained-bt-2026-09-27 §3 の what-if 列を live 実測率に差し替える (件数・距離のみ、outcome 非読; 母集団 = watcher `count_live_matching` と同一 (oanda_trade_id 非空 ∧ dedup_violation≠1 ∧ marker 付き)。`sltp_construct_readout.py` は trade_id で dedup するが **dedup_violation を filter しない**ので、`--json` 出力から dedup_violation=1 の行を除いてから率を出す (または `--file` に clean 行だけの trades JSON を渡す) — Codex P2 4202673544 — EV は R2 t9-kalman-d7-live-n10-ev-check の estimand 凍結 (D7) 承認後のみ)。到達 = 判定ではなく readout の起動。2026-10-07 時点 3/5 (po_dn_flip 2 / ema75_break 1)。期日 12-09 (R2 と同日) に N<5 なら stale review (頻度前提 ~2/月 の再監査)。gate・値・lot には触れない (Codex P2 4202640529、PR #317)。",
+      "resolved": "2026-10-13",
+      "resolution": "✅ 2026-10-13 readout 実行 (autopilot、rule:R3、件数・距離のみ): clean live marker 行 (oanda_trade_id 非空 ∧ dedup_violation≠1 ∧ [SLTP_CONSTRUCT]、since 09-26) = kalman **N=6** (po_dn_flip 5 / ema75_break 1、watcher N=6 と一致)。`tools/sltp_construct_readout.py --file <outcome 列を除去した clean JSON>`: SL 分岐 sr 4 / atr_rrlow 2 (**SR 採用 67%**、po_dn_flip 4/5)、clamp max 3/6 (50%、全て po_dn_flip)、lowliq 2/6 (33%)、rn 1/6、MTF ×1.3 1/6 (17%)、fastsl 0 / ct 0 / range_tp 0、broker basis qh 6/6。中央値 po_dn_flip: decl_sl 14.0p → 発注 SL 20.0p (SR 採用で拡幅) / decl_tp 34.2 → tp 34.4 / broker TP 29.3 / drift 0.7p; ema75_break (N=1): decl_sl 28.8 → 13.8 (atr_rrlow 縮小) / tp 28.8 → 29.0 / broker 24.7。[[kalman-d7-live-constrained-bt-2026-09-27]] §3′ に live 実測率列を追記 (BT what-if 列の再計算は harness FAIL のため不可 — TV canon 再走 (waiver 11-30) 後)。⚠️ 開示: 同日の dual-engine readout スクリプトで kalman live 4 行の outcome 列を 1 回印字 (統計未計算、[[single-engine-shadow-rate-readout-2026-10-13]] §5)。C0 readout 自体は outcome 除去 JSON で実行。EV は R2 t9 (12-09、D7 承認後) のみ。"
     },
     {
       "id": "review-backlog-pr302-p2-deferrals",

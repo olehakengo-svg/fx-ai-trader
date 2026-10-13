@@ -1,5 +1,7 @@
 # ps 席 hedge_block カウンタ — 即日スナップショット (2026-09-10)
 
+⚠️ **WAIT 汚染 caveat (2026-10-13 追記、registry `block-counter-wait-contamination-recite-audit`)**: 本節の `hedge_block` / `max_open` の**件数**は 2026-09-23 修理前の counter 由来で WAIT tick 汚染込み (30d 実測 hedge_block 92.2% / max_open 91.2%、[[wait-tick-block-attribution-2026-09-23]])。WAIT を除いた再計算なしに件数を引用しない。他 reason の件数は汚染ゼロでそのまま引用可。 本スナップショットの hedge_block 129 / 109 / 総 block 2233 は取得時点 (09-10T14:45Z、修理前) の生値であり、WAIT tick 由来が ~92% を占める。§8-2 の窓開始基準値としての用途 (差分読み) も、修理 (09-23) を跨ぐ差分は定義が変わるため無効。
+
 **目的**: §8-2 検証 (ps-carveout-regate、blocker-refutation-2026-09-10 の P4) が使う hedge_block 蓄積の**窓開始基準値**を確定する。`_block_counts` はプロセス内カウンタで**再デプロイの度にゼロリセット**されるため、窓開始時刻と初期値を即日記録しないと以後の読み値が解釈不能になる (rule:R3)。
 
 ## 1. 窓開始時刻 = 本日デプロイ時刻 (カウンタリセット時点)

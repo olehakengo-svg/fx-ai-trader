@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-13 — docs(KB+registry): 単一エンジン化 1 週目 readout — (iii)(iv) ✅ resolve + **shadow 生成率 −33% の regime break 発見** / kalman C0 live 実測率 (N=6) / WAIT 汚染 caveat ×3 / session-log 末尾差分 = 仕様 (c) (rule:R3、autopilot、record-only)
+
+- **dual-engine (iv)** ([[single-engine-shadow-rate-readout-2026-10-13]]): deploy 10-04T06:03:40Z 後の新規 364 行 = marker `forked:forkchild` 364/364、近接ペア (Δ≤45s) **0**、dedup_violation=1 3 行 (bar 内 re-emit 型のみ) → registry `dual-engine-master-worker-disposition` **resolved**。⚠️ **shadow kept 行/取引日 87.0 → 58.2 (中央値 89 → 57、post 6 日は全て pre の最小 63 未満)**。15m 系のみ (72.3 → 46.0)、`daytrade` USD_JPY −62%、5m/1m/rnb 不変。減少は同セル ≤4h の短間隔 re-emit に集中 (≤30m −69%、≤8h ±0) = per-process 状態 (recent_emit / cooldown / ORDER_BAR_DEDUP) の二重化が許していた artifact の消失 (H1)。dual 期 15m shadow N 率は ~1.5× 膨張 → cadence 前提の読み直しは 10-27 確定後 (registry `single-engine-shadow-rate-attribution-readout` 新設)。gate 緩和での「回復」はしない
+- **kalman C0** ([[kalman-d7-live-constrained-bt-2026-09-27]] §3′): clean live marker 行 N=6 (po_dn_flip 5 / ema75_break 1) — SR 採用 67% / clamp max 50% / lowliq 33% / rn 17% / MTF ×1.3 17% / broker qh 6/6、po_dn_flip の発注 SL 中央値 20.0p (宣言 14.0p、SR 由来)。what-if 再計算は harness FAIL のため TV canon 再走後。registry `kalman-d7-sltp-marker-c0-readout` resolved。⚠️ 開示: 同日の dual-engine 集計で kalman live 4 行の outcome 列を 1 回印字 (統計未計算、readout doc §5)
+- **WAIT 汚染 caveat** (registry `block-counter-wait-contamination-recite-audit` resolved): hull-fire-rate-funnel §8.2 / ps-seat-supply-remeasure §8-1 / raw ps-seat-hedge-block-snapshot に「修理前 hedge_block / max_open 件数は再計算なしに引用禁止、結論は不変」を追記
+- **session-log 末尾差分** (registry `kb-session-log-postcommit-trailing-edit` resolved): (c) 仕様として文書化 — hash は pre-commit 時点で未存在のため (a) 移設は不可能、amend は hook 再入 / 並行 session 競合。CLAUDE.md 自走原則に 1 行
+- 観測: ps `pair_demoted` は block_counts 未出現 (10-10 deploy 以降 ps signal が pair gate まで未到達) / 10-12 月曜 LIVE fill 0 / E1 ingest fresh 13 keys
+- 詳細: [[2026-10-13-session]]
+
 ## 2026-10-13 — fix(tools): `cell_deepdive_audit._fetch_bracketed` の snapshot as-of を confirming closed pass 終了時点と定義 (`_fetch_meta.as_of` / `as_of_basis` / `open_after_at`) — PR #273 繰延 P2 ×2 消化 (rule:R3、autopilot、tools + pin のみ)
 
 - **欠陥**: 2 件 (4180187039 / 4180187042) はともに「`complete=true` の as-of = `open_after` 時点」という主張を前提に、(confirm 終了, open_after] 窓で open→close した trade の欠落 / `set_oanda_trade_id()` による closed 行の stale 値を指摘していた。

@@ -60,7 +60,7 @@ D7: 承認 + disposition (c)
 |---|---|---|
 | binding | registry `t9-kalman-d7-live-n10-ev-check` (live_count_decision、12-09) | R2。estimand = broker realized net (D7 承認で凍結) |
 | disposition | registry `kalman-d7-live-exit-disposition-user-decision` (新設、期日 2026-11-29 = 返答期限 11-30 の前日規則) | user 返答の有無。無回答 = (b) |
-| C0 実測率 | registry `kalman-d7-sltp-marker-c0-readout` (live_count_decision、marker `[SLTP_CONSTRUCT]`、n_decide 5、12-09) → 発火時に `tools/sltp_construct_readout.py --since 2026-09-26` | marker 付き kalman fill の分岐率 (件数・距離のみ、**dedup_violation=1 を除外 = watcher と同一母集団**)。10-07: 3/5 |
+| C0 実測率 | registry `kalman-d7-sltp-marker-c0-readout` (live_count_decision、marker `[SLTP_CONSTRUCT]`、n_decide 5、12-09) → 発火時に `tools/sltp_construct_readout.py --since 2026-09-26` | marker 付き kalman fill の分岐率 (件数・距離のみ、**dedup_violation=1 を除外 = watcher と同一母集団**)。10-07: 3/5 → **10-13: N=6 到達、readout 済** ([[kalman-d7-live-constrained-bt-2026-09-27]] §3′: SR 採用 67% / clamp max 50% / lowliq 33% / MTF 1.3 17%、registry resolved) |
 | harness | Codex queue `20260927-0300-kalman-d7-v17-canon-tv-harness` | TV 再走 (user 操作待ち) |
 
 ## 関連
