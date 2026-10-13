@@ -2163,6 +2163,9 @@ def test_rows_that_opened_after_the_cutoff_are_outside_the_snapshot(monkeypatch)
         "6 (first read) and 7 (trailing read) — 6 is seen in both reads and "
         "counted ONCE: the count is of identities, not of sightings")
     assert ev["open_after_only_unjudged"] == 1 and ev["attempts"] == 1
+    assert ev["opened_midfetch"] == 2, (
+        "every trailing-only row (7 excluded, 8 kept) opened during the "
+        "fetch and is counted as such, independently of the membership verdict")
     assert [r["id"] for r in payload["trades"]] == [1], (
         "a closed row that opened after as_of is after the cutoff too")
     assert payload["count"] == 1
@@ -2262,6 +2265,41 @@ def test_skew_band_is_centred_on_the_measured_offset_not_widened_by_it(monkeypat
     assert meta["rows"] == 1 and meta["rows_fetched_closed"] == 2, (
         "`rows` is what the artifact holds; the pre-filter count has its own field")
     assert payload["count"] == 1
+
+
+def test_post_cutoff_lifecycles_inside_the_bracket_are_not_holes(monkeypatch):
+    """PIN (Codex P2, PR #326 round 6): a trade proven to have opened after
+    the cutoff is outside the snapshot, so it opening and closing inside the
+    bracket must not trip the hole checks — otherwise sustained post-cutoff
+    activity exhausts every attempt and aborts a fetch that IS complete as
+    of `as_of`.  Row 6: in open_before, gone from open_after, never in the
+    closed pages.  Row 5: only in the confirming pass.  Both post-cutoff.
+    """
+    from email.utils import format_datetime
+    from datetime import datetime, timezone
+    future = "2999-01-01T00:00:00+00:00"
+    base = [{"id": 1, "status": "CLOSED", "entry_time": "2000-01-01T00:00:00+00:00",
+             "exit_time": "2026-09-19T00:00:00"}]
+
+    def script(kind, n):
+        if kind == "closed":
+            if n >= 1:                       # confirming pass sees a late closer
+                return base + [{"id": 5, "status": "CLOSED", "entry_time": future,
+                                "exit_time": "2999-01-01T00:00:01"}]
+            return list(base)
+        if n == 0:
+            return [{"id": 6, "status": "OPEN", "entry_time": future}]
+        return []
+
+    now_hdr = format_datetime(datetime.now(timezone.utc), usegmt=True)
+    m = _bracket_stub(monkeypatch, script, server_date=now_hdr)
+    open_rows, payload, ev = m._fetch_bracketed()
+
+    assert ev["attempts"] == 1 and ev["holes_observed"] == [], (
+        "post-cutoff lifecycles are outside the snapshot, not holes")
+    assert open_rows == [] and [r["id"] for r in payload["trades"]] == [1]
+    assert ev["opened_after_as_of"] == 1
+    assert payload["_fetch_meta"]["closed_entries_after_as_of_excluded"] == 1
 
 
 def test_a_book_that_holes_on_every_attempt_refuses_to_claim_completeness(monkeypatch):

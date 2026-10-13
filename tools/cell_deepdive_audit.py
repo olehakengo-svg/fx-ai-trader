@@ -1442,10 +1442,19 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # the set of trades that closed during the bracket, whatever they were
         # doing beforehand.  Equality is therefore a PROOF that nothing closed
         # inside the window — not a heuristic.
-        closed_during = confirm_keys - closed_keys
+        # A trade proven to have opened AFTER the cutoff is outside the
+        # snapshot, so its lifecycle inside the bracket is not a hole
+        # (Codex P2, PR #326 round 6): without this, sustained post-cutoff
+        # activity would exhaust every attempt and abort a fetch that is
+        # complete as of `as_of`.  Only rows that are (or may be) members
+        # can trip the hole checks.
+        confirm_by_key = {_row_identity(r): r for r in confirm["trades"]}
+        closed_during = {k for k in confirm_keys - closed_keys
+                         if _judge(confirm_by_key[k]) != "after"}
         missed = [r for r in open_before
                   if _row_identity(r) not in after_keys
-                  and _row_identity(r) not in closed_keys]
+                  and _row_identity(r) not in closed_keys
+                  and _judge(r) != "after"]
         if missed or closed_during:
             # Report the two signals SEPARATELY: the same trade can trip both
             # (it was open before AND closed during), and summing them would
@@ -1553,6 +1562,7 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # the server executes `open_before`, and its entry_time then proves
         # it did not exist at the advertised instant.
         by_key: dict = {}
+        before_keys = {_row_identity(r) for r in open_before}
         excluded_after: set = set()          # identities, so a row seen in
         ambiguous_open: set = set()          # both reads is counted once
         for r in open_before:
@@ -1564,15 +1574,20 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                 ambiguous_open.add(_row_identity(r))
             by_key[_row_identity(r)] = r
         opened_midfetch = 0
+        open_after_only_unjudged = 0
         mutated_midfetch = 0
         for r in open_after:
             k = _row_identity(r)
-            if k not in by_key:
-                # Not open at `as_of`.  If its entry_time proves it opened
-                # after the cutoff it is outside the snapshot (Codex P2,
-                # PR #326: the trailing read is for hole detection, not
-                # membership).  Unjudgeable → kept and counted, never
-                # dropped silently.
+            if k in excluded_after:
+                continue                       # judged post-cutoff on read 1
+            if k not in before_keys:
+                # Every trailing-only row opened during the fetch and is
+                # COUNTED as such, independently of the membership verdict
+                # that follows (Codex P2, PR #326 round 6).  If its
+                # entry_time proves it opened after the cutoff it is outside
+                # the snapshot; unjudgeable → kept and counted separately,
+                # never dropped silently.
+                opened_midfetch += 1
                 verdict = _judge(r)
                 if verdict == "after":
                     excluded_after.add(k)
@@ -1580,13 +1595,13 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                 if verdict == "ambiguous":
                     ambiguous_open.add(k)
                 elif verdict is None:
-                    opened_midfetch += 1       # unjudged (no entry_time)
+                    open_after_only_unjudged += 1
             elif by_key[k] != r:
                 mutated_midfetch += 1         # e.g. shadow -> live
             by_key[k] = r
         return (list(by_key.values()), payload,
                 {"attempts": attempt, "opened_midfetch": opened_midfetch,
-                 "open_after_only_unjudged": opened_midfetch,
+                 "open_after_only_unjudged": open_after_only_unjudged,
                  "opened_after_as_of": len(excluded_after),
                  "open_membership_ambiguous_kept": len(ambiguous_open),
                  "mutated_midfetch": mutated_midfetch,
