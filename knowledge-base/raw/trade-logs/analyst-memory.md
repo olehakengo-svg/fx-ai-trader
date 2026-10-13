@@ -5291,6 +5291,16 @@ Cutoff後累計はN=10、WR=60.0%、PnL=+31.3pips 相当で推移中。
 | **ロンドン開始（07-08 UTC）** | EUR_USD VOLATILE + 下落SMAでボラ拡大リスク。Scalp系のspread_guard抵触増加に注意 |
 | **USD_JPYトレンド持続** | SMA slope +0.00672は緩やかな上昇。`kalman_po_dn_flip`（ショート）が連続シグナルを出しても逆風。EV=-2.56は現レジームとの不整合を反映している可能性 |
 
+### 2026-10-13 (Post-Tokyo Report)
+| セッション内PnL | ¥0 |
+| WR | N/A |
+| GBP_USD | TRENDING_DOWN | 71% | トレンド継続。ロンドン勢がトレンドを加速する可能性。gbp_asia_flash_crashブロック（7件）が示すGBPのintraday不安定性に要注意 |
+### 推奨戦略配分
+| 戦略 | ペア | 推奨 | 根拠 |
+| daytrade_gbpusd | GBP/USD | **監視優先（慎重）** | TRENDING_DOWNでトレンド系には有利だが、gbp_asia_flash_crash 7件ブロックはGBPの急変リスクを示唆。ロンドンOpen直後の乱高下に注意 |
+| scalp_eur / scalp_5m_eur | EUR/USD・EUR系 | **待機推奨** | r2_shadow_demoted_cell ブロックが37+8=45件と全体最多。デモ環境でのシャドウ降格セルが多く、シグナル品質に疑義 |
+**総括推奨: NO ACTION（積極的配置変更なし）**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
