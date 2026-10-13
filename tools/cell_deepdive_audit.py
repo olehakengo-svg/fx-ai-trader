@@ -1344,13 +1344,17 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # trailing read in no read at all — so the cutoff is the first
         # instant, where both halves of the claim are provable.
         as_of_dt = datetime.now(timezone.utc)
-        as_of = as_of_dt.isoformat(timespec="seconds")
+        # Full precision: the exported instant must be the SAME instant the
+        # membership filter compares against (Codex P2, PR #326 round 2) —
+        # truncating to seconds would move the advertised cutoff back by up
+        # to a second relative to the one actually applied.
+        as_of = as_of_dt.isoformat()
         open_before = _http_fetch_open()
         payload = paginate_trades(_http_fetch_closed_page)
         confirm = paginate_trades(_http_fetch_closed_page)
-        confirm_pass_end_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        confirm_pass_end_at = datetime.now(timezone.utc).isoformat()
         open_after = _http_fetch_open()
-        open_after_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        open_after_at = datetime.now(timezone.utc).isoformat()
 
         closed_keys = {_row_identity(r) for r in payload["trades"]}
         confirm_keys = {_row_identity(r) for r in confirm["trades"]}
@@ -1441,9 +1445,18 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # ([[feedback_live_vs_shadow_strict_separation]], and the conflation
         # incident [[project_live_fill_estimand_shadow_conflation_2026_09_03]]).
         # The newer read is strictly closer to the truth at snapshot time.
-        by_key = {_row_identity(r): r for r in open_before}
+        # The membership filter applies to the FIRST open read too (Codex
+        # P2, PR #326 round 2): a trade can open after `as_of_dt` but before
+        # the server executes `open_before`, and its entry_time then proves
+        # it did not exist at the advertised instant.
+        by_key: dict = {}
+        excluded_after: set = set()          # identities, so a row seen in
+        for r in open_before:                # both reads is counted once
+            if _opened_after(r, as_of_dt) is True:
+                excluded_after.add(_row_identity(r))
+                continue
+            by_key[_row_identity(r)] = r
         opened_midfetch = 0
-        opened_after_as_of = 0
         mutated_midfetch = 0
         for r in open_after:
             k = _row_identity(r)
@@ -1454,7 +1467,7 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                 # membership).  Unjudgeable → kept and counted, never
                 # dropped silently.
                 if _opened_after(r, as_of_dt) is True:
-                    opened_after_as_of += 1
+                    excluded_after.add(k)
                     continue
                 opened_midfetch += 1           # unjudged (no entry_time)
             elif by_key[k] != r:
@@ -1463,7 +1476,7 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         return (list(by_key.values()), payload,
                 {"attempts": attempt, "opened_midfetch": opened_midfetch,
                  "open_after_only_unjudged": opened_midfetch,
-                 "opened_after_as_of": opened_after_as_of,
+                 "opened_after_as_of": len(excluded_after),
                  "mutated_midfetch": mutated_midfetch,
                  "as_of": as_of,
                  "holes_observed": holes})
@@ -1508,6 +1521,15 @@ def main(argv=None) -> int:
                                            brackets["opened_midfetch"],
                                        "open_mutated_midfetch":
                                            brackets["mutated_midfetch"],
+                                       # Persist the exclusions the contract
+                                       # promises to count (Codex P2, PR #326
+                                       # round 2): a reader of the artifact
+                                       # must see how many open rows were
+                                       # dropped as post-cutoff, not infer it.
+                                       "open_opened_after_as_of_excluded":
+                                           brackets["opened_after_as_of"],
+                                       "open_after_only_unjudged":
+                                           brackets["open_after_only_unjudged"],
                                        "holes_observed":
                                            brackets["holes_observed"]})
         with open(args.fetch_to, "w") as f:

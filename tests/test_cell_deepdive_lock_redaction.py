@@ -2097,6 +2097,11 @@ def test_snapshot_as_of_is_captured_before_the_first_read_and_values_are_newest(
     assert meta["closed_mutated_midfetch"] == 1
     assert meta["closed_entries_after_as_of_excluded"] == 0
     assert ev["as_of"] == meta["as_of"]
+    from datetime import datetime
+    exported = datetime.fromisoformat(meta["as_of"])
+    assert exported.tzinfo is not None and "." in meta["as_of"], (
+        "the exported cutoff is the full-precision (microsecond) instant the "
+        "filter compared against, never one truncated to seconds")
     assert ev["holes_observed"] == [] and ev["attempts"] == 1
 
 
@@ -2119,18 +2124,25 @@ def test_rows_that_opened_after_the_cutoff_are_outside_the_snapshot(monkeypatch)
             # The late row is in BOTH passes so the closed_during check does
             # not fire — this pins the membership filter, not the hole check.
             return list(closed_with_late)
-        if n == 0:
-            return []                                       # open_before: nothing
-        return [{"id": 7, "status": "OPEN", "entry_time": future},
+        late6 = {"id": 6, "status": "OPEN", "entry_time": future}
+        if n == 0:                      # open_before: one row that opened
+            return [late6]              # after as_of (server ran the read late)
+        return [late6,                  # still open: NOT a hole, excluded once
+                {"id": 7, "status": "OPEN", "entry_time": future},
                 {"id": 8, "status": "OPEN"}]                # 8: unjudgeable
 
     m = _bracket_stub(monkeypatch, script)
     open_rows, payload, ev = m._fetch_bracketed()
 
     assert [r["id"] for r in open_rows] == [8], (
-        "a trade that provably opened after as_of is not a member; one that "
-        "cannot be judged is kept (superset, never a silent drop)")
-    assert ev["opened_after_as_of"] == 1 and ev["open_after_only_unjudged"] == 1
+        "a trade that provably opened after as_of is not a member — from the "
+        "FIRST open read as much as from the trailing one (the server can "
+        "execute open_before after the cutoff); one that cannot be judged is "
+        "kept (superset, never a silent drop)")
+    assert ev["opened_after_as_of"] == 2, (
+        "6 (first read) and 7 (trailing read) — 6 is seen in both reads and "
+        "counted ONCE: the count is of identities, not of sightings")
+    assert ev["open_after_only_unjudged"] == 1 and ev["attempts"] == 1
     assert [r["id"] for r in payload["trades"]] == [1], (
         "a closed row that opened after as_of is after the cutoff too")
     assert payload["count"] == 1
