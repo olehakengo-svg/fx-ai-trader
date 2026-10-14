@@ -7,6 +7,7 @@
 - **座礁救出**: ローカル `main` にのみ存在した wiki-daily 10-06 / 10-07 / 10-13 の成果物 (trade-log 3 本、[[daily-observations-2026-10]] 新設ファイル、index / log / 戦略カード 2 本の 10-13 追記) を union で取り込み。10-13 run の観測 O-2026-10-13-1 (史上最大 storm 95,229 cycle) / -2 (learner write-only 2 例目) は origin に無かった
 - 本番 (03:37Z): engine pid 95 tick ok (stalest 64s) / watchdog・main loop alive / emergency_killed false / NAV ¥273,245 / last live fill 10-09T09:16Z (4.8 日) / SVK 10 月 26 RT $520k target_reached / `storm_guard` totals 全 0 (10-13 deploy 以降 live fill 0 = `storm-guard-enforce-decision` 10-20 は現状「材料なし」見込み)
 - **PR #328 マージ 42be6f5c (04:33Z)**: Codex 4 巡 P2 ×5 (manifest に tool sha256 + git_dirty / 凍結 dir 上書き拒否 / report.md を凍結の一部として原子的に + stdout より先に永続 / 4 巡目 = 零行 parquet の部分凍結は review-ack 繰延 → registry `review-backlog-328-p2-deferrals-2026-10-14` 10-21)
+- **デプロイ確認**: Render dep-db7gc3tbedkc738isub0 **live 04:35:10Z**、engine pid 95 → 97、tick ok (stalest 28〜65s、10 分観測)、watchdog / main loop alive
 - 詳細: [[2026-10-14-session]]
 
 ## 2026-10-13 — docs(KB+registry): 単一エンジン化 1 週目 readout — (iii)(iv) ✅ resolve + **shadow 生成率 −33% の regime break 発見** / kalman C0 live 実測率 (N=6) / WAIT 汚染 caveat ×3 / session-log 末尾差分 = 仕様 (c) (rule:R3、autopilot、record-only)
