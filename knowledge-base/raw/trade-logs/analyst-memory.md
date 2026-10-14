@@ -5351,6 +5351,16 @@ Cutoff後累計は N=11、WR=72.7%、PnL=+¥83.4 という水準にとどまる�
 - **今日の対処**: 発火条件の緩和はコード変更を要するため対象外。レジーム状況（後述）との照合でScalpが発火しうる環境かを確認する。
 - KB記録の10-13エントリーに「`storm_guard` 0計上、cloud監査文書は言及ゼロ」と明記されている。95,229 cycleという異常規模のSL stormが発生したにもかかわらず、防衛機構の記録が残っていない点は構造的懸念として継続監視が必要。
 
+### 2026-10-14 (Pre-Tokyo Briefing)
+PnL = ¥0 / N = 0 / WR = N/A。
+> ※ Fidelity Cutoff: 2026-04-08以降、is_shadow=0のみ。N=12 / 全体WR=75.0% / 累積PnL=+99.0
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全戦略でN<10。統計的判断基準（N≥30）には遠く、EVの正値は「傾向」止まり。昇格・降格判断のいずれも時期尚早。**
+- **Block Counts主因**を見ると、`r2_shadow_demoted_cell`（scalp系）と`order_bar_dedup`（daytrade系）が支配的
+- `rnb_usdjpy:no_signal`が1,498カウントと断トツで最多。シグナル条件が現レジームと乖離している可能性が高い
+- **rnb_usdjpy**：USD_JPYがTRENDING_UPかつATR%ile=55%の中程度ボラ環境ではRnBシグナルが出づらい構造。本日も無シグナルが継続する可能性を前提に置く
+- **scalp系**：Shadow降格セルの解除を待つ以外に短期打開策はない。現状維持で観察継続
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
