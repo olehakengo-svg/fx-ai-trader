@@ -129,6 +129,7 @@ def load_clean(path: str, strategy: str | None, stream: str = "shadow",
         if outcomes is not None and t.get("outcome") not in outcomes:
             continue
         out.append({
+            "trade_id": t.get("id"),
             "entry_type": t.get("entry_type"),
             "instrument": t.get("instrument"),
             "direction": t.get("direction"),
@@ -478,6 +479,17 @@ def type_matched_means(pre: list[tuple[str, float]], post: list[tuple[str, float
             len(keys), n_common / len(pre))
 
 
+def match_key(row: dict) -> str:
+    """構成揃え mean のセルキー = instrument × entry_type × direction。
+
+    direction を含めないと、セル内の BUY/SELL 構成シフトで有利/不利幅の点推定が動く
+    (PR #310 review 4152312707、registry review-backlog-310-p2-excursion-input-snapshot)。
+    direction 欠損は "?" で独立セルにし、BUY/SELL と混ぜない。
+    """
+    d = (row.get("direction") or "").upper() or "?"
+    return f"{row.get('instrument')}|{row.get('entry_type')}|{d}"
+
+
 def split_entries(rows: list[dict], start: str, end: str) -> tuple[list[dict], list[dict]]:
     """exit 非依存の対照用: entry 時刻だけで pre (< START) / post (>= END) に分ける。
 
@@ -538,11 +550,16 @@ def common_coverage(pre: list[dict], post: list[dict], bar_end: dict[str, object
 
 def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
                             horizons: tuple[int, ...] = (60, 240), bars_tf: str = "1m",
-                            split_start: str | None = None) -> str:
+                            split_start: str | None = None,
+                            freeze: dict | None = None) -> str:
     """horizons は分。bars_tf の足で [entry, entry + horizon] にクリップして測る。
 
     split_start を渡すと、窓が START を越える pre 行を horizon ごとに落とす
     (drop_boundary_crossing — 群を跨ぐ窓の重なりを無くす)。
+
+    freeze (dict) を渡すと per-entry の派生結果 (trade_id / cohort / horizon / fav / adv /
+    block_id / match_key) と被覆の計数を書き込む — write_freeze() がリポジトリに凍結する
+    (registry review-backlog-310-p2-excursion-input-snapshot: 入力未凍結の表は再現不能)。
     """
     cache: dict[str, object] = {}
     bar_min = int(bars_tf.rstrip("m"))
@@ -570,9 +587,15 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
         notes.append(f"- {h} 分: 共通被覆 = instrument {sorted(S)} / entry ≤ "
                      f"{cutoff.isoformat() if cutoff else '—'} — 除外 pre {len(hpre) - len(cpre)} 行 / "
                      f"post {len(post) - len(cpost)} 行 / 窓が START を越える pre {len(pre) - len(hpre)} 行")
+        if freeze is not None:
+            freeze.setdefault("common_coverage", []).append({
+                "horizon_min": h, "instruments": sorted(S),
+                "entry_cutoff": cutoff.isoformat() if cutoff else None,
+                "pre_dropped_coverage": len(hpre) - len(cpre), "post_dropped_coverage": len(post) - len(cpost),
+                "pre_dropped_boundary_crossing": len(pre) - len(hpre)})
         res = {}
         for lab, rows in (("pre", cpre), ("post", cpost)):
-            fav, adv, tf, ta, days = [], [], [], [], []
+            fav, adv, tf, ta, days, kept = [], [], [], [], [], []
             for r in rows:
                 x = fixed_horizon_excursion(r, bars_for(r["instrument"]), h, bar_min, max_gap)
                 if x is None:
@@ -580,10 +603,23 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
                 days.append(r["entry_dt"])
                 fav.append(x[0])
                 adv.append(x[1])
-                key = f"{r['instrument']}|{r['entry_type']}"
+                key = match_key(r)
                 tf.append((key, x[0]))
                 ta.append((key, x[1]))
-            res[lab] = (fav, adv, tf, ta, len(rows), overlap_blocks(days, h))
+                kept.append(r)
+            blocks = overlap_blocks(days, h)
+            res[lab] = (fav, adv, tf, ta, len(rows), blocks)
+            if freeze is not None:
+                for r, f_, a_, b_ in zip(kept, fav, adv, blocks):
+                    freeze.setdefault("rows", []).append({
+                        "trade_id": r.get("trade_id"), "instrument": r.get("instrument"),
+                        "entry_type": r.get("entry_type"), "direction": (r.get("direction") or "").upper(),
+                        "entry_time": r.get("entry_time"), "cohort": lab, "horizon_min": h,
+                        "favorable_pips": round(f_, 4), "adverse_pips": round(a_, 4),
+                        "block_id": b_, "match_key": match_key(r)})
+                freeze.setdefault("coverage", []).append({
+                    "horizon_min": h, "cohort": lab, "rows_in_coverage": len(rows),
+                    "rows_measured": len(fav), "blocks": len(set(blocks))})
         for lab in ("pre", "post"):
             fav, adv, _, _, n_all, _ = res[lab]
             if not fav:
@@ -606,13 +642,124 @@ def excursion_control_table(pre: list[dict], post: list[dict], bars_dir: str,
             tmf = type_matched_means(res["pre"][2], res["post"][2])
             tma = type_matched_means(res["pre"][3], res["post"][3])
             if tmf and tma:
-                notes.append(f"  - instrument×entry_type 構成を揃えた mean (共通 {tmf[2]} cell, pre 行の "
+                notes.append(f"  - instrument×entry_type×direction 構成を揃えた mean (共通 {tmf[2]} cell, pre 行の "
                              f"{tmf[3]:.1%}): 有利幅 pre {tmf[0]:.2f} → post {tmf[1]:.2f}p / "
                              f"不利幅 pre {tma[0]:.2f} → post {tma[1]:.2f}p")
     return "\n".join(lines) + ("\n\n" + "\n".join(notes) if notes else "")
 
 
+def sha256_file(path: str | Path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+FREEZE_FILES = ("excursion_per_entry.csv", "manifest.json", "report.md")
+
+
+def _atomic_write(path: Path, data: str, *, newline: str | None = None) -> None:
+    """同 dir の一時ファイルに書いて rename — 途中失敗で壊れた凍結を残さない。"""
+    import os
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w", encoding="utf-8", newline=newline) as f:
+        f.write(data)
+    os.replace(tmp, path)
+
+
+def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows: int,
+                 trades_fetched_at: str | None, bars_dir: str, bars_tf: str,
+                 instruments: list[str], bars_fetched_at: str | None, params: dict,
+                 overwrite: bool = False) -> dict:
+    """§6 の入力と per-entry 派生結果をリポジトリに凍結する (再現性の担保)。
+
+    - excursion_per_entry.csv: 行 = (trade_id, cohort, horizon) ごとの fav / adv / block_id / match_key
+    - manifest.json: trades_json の sha256 / 行数 / 取得時刻、bars ファイルごとの sha256 / 行数 / 先頭・末尾、
+      取得パラメータ (horizons / split / stream / strategy / bars_tf / match_key)、tool の git HEAD
+    値を再計算せずとも表の数値は CSV から再集計でき、入力の同一性は sha256 で検証できる。
+
+    既存の凍結 dir には書かない (overwrite=False、PR #328 review 4266607770): KB が引用中の snapshot を
+    黙って置換しない。別入力なら別 dir を切る。生成元は git HEAD だけでなく本スクリプトの content sha256 と
+    dirty 状態も記録する (PR #328 review 4266607766: 未コミット変更で生成すると HEAD は親 commit を指す)。
+    """
+    import csv
+    import subprocess
+    out = Path(freeze_dir)
+    existing = [n for n in FREEZE_FILES if (out / n).exists()]
+    if existing and not overwrite:
+        raise SystemExit(f"freeze dir {out} に既存の凍結 {existing} がある — 別 dir を切るか --freeze-overwrite を明示せよ")
+    out.mkdir(parents=True, exist_ok=True)
+    rows = freeze.get("rows", [])
+    cols = ["trade_id", "instrument", "entry_type", "direction", "entry_time", "cohort",
+            "horizon_min", "favorable_pips", "adverse_pips", "block_id", "match_key"]
+    import io
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=cols)
+    w.writeheader()
+    for r in rows:
+        w.writerow({k: r.get(k) for k in cols})
+    _atomic_write(out / "excursion_per_entry.csv", buf.getvalue(), newline="")
+    files = {}
+    for inst in sorted(instruments):
+        p = Path(bars_dir) / f"{inst}_{bars_tf}.parquet"
+        if not p.exists():
+            files[inst] = None
+            continue
+        b = load_bars(bars_dir, inst, bars_tf)
+        files[inst] = {"file": p.name, "sha256": sha256_file(p), "bytes": p.stat().st_size,
+                       "rows": int(len(b)), "first": b.index[0].isoformat(), "last": b.index[-1].isoformat()}
+    tool_path = Path(__file__).resolve()
+    repo = tool_path.parents[1]
+    head, dirty = None, None
+    try:
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo,
+                              capture_output=True, text=True, timeout=10).stdout.strip() or None
+        st = subprocess.run(["git", "status", "--porcelain", "--", str(tool_path)], cwd=repo,
+                            capture_output=True, text=True, timeout=10)
+        dirty = bool(st.stdout.strip()) if st.returncode == 0 else None
+    except Exception:  # noqa: BLE001 — git 不在でも凍結は書く (sha256 が生成元の同一性を担う)
+        pass
+    manifest = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "tool": {"path": "tools/win_side_exit_decomposition.py", "sha256": sha256_file(tool_path),
+                 "git_head": head, "git_dirty": dirty,
+                 "note": "生成元の同一性は sha256 で検証する (git_dirty=true なら git_head は親 commit で、生成コードを含まない)"},
+        "trades_json": {"path": str(trades_json), "sha256": sha256_file(trades_json),
+                        "bytes": Path(trades_json).stat().st_size, "rows_in_payload": trades_rows,
+                        "fetched_at": trades_fetched_at,
+                        "source": "/api/demo/trades (可変 endpoint — 同一性は sha256 でのみ主張する)"},
+        "bars": {"dir": str(bars_dir), "tf": bars_tf, "fetched_at": bars_fetched_at,
+                 "source": "MASSIVE (tools/fetch_massive_data.py)", "files": files},
+        "params": dict(params, match_key="instrument|entry_type|direction"),
+        "common_coverage": freeze.get("common_coverage", []),
+        "coverage": freeze.get("coverage", []),
+        "rows_written": len(rows),
+    }
+    _atomic_write(out / "manifest.json", json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
+    return manifest
+
+
 def main() -> None:
+    """--freeze-dir 指定時は stdout を捕捉し、凍結ガード通過後に report.md も同 dir へ原子的に書く
+    (PR #328 review 4266657605: shell redirect は in-process ガードより先に report を切り詰める)。"""
+    import contextlib
+    import io
+    import sys
+    args = _parse_args()
+    if not args.freeze_dir:
+        _run(args)
+        return
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        _run(args)  # 既存凍結があれば write_freeze が SystemExit → report も書かない
+    # report を先に永続 — stdout が先に閉じていても (| head / CI cancel) 部分凍結を残さない (PR #328 review 4266711506)
+    _atomic_write(Path(args.freeze_dir) / "report.md", buf.getvalue())
+    sys.stdout.write(buf.getvalue())
+
+
+def _parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser()
     ap.add_argument("trades_json")
     ap.add_argument("--strategy", default="sr_anti_hunt_bounce",
@@ -630,8 +777,20 @@ def main() -> None:
                     help="{PAIR}_{TF}.parquet のディレクトリ。指定時のみ §6 対照 (exit 非依存を意図、選別 caveat 付き) を出す")
     ap.add_argument("--bars-tf", default="1m",
                     help="§6 の足 (既定 1m — 窓を entry から ≤1 分精度でクリップできる)")
+    ap.add_argument("--freeze-dir", default=None,
+                    help="§6 の per-entry 派生結果 (CSV) + 入力 sha256 / 取得パラメータ (manifest.json) を書く先 "
+                         "(--bars-dir 必須)。無指定の §6 は再現不能な一回限りの記述になる")
+    ap.add_argument("--trades-fetched-at", default=None, help="trades_json の取得時刻 (ISO、manifest に記録)")
+    ap.add_argument("--bars-fetched-at", default=None, help="bars の取得時刻 (ISO、manifest に記録)")
+    ap.add_argument("--freeze-overwrite", action="store_true",
+                    help="既存の凍結 dir を置換する (既定は拒否 — KB が引用中の snapshot を守る)")
     args = ap.parse_args()
+    if args.freeze_dir and not args.bars_dir:
+        ap.error("--freeze-dir は --bars-dir と併用する")
+    return args
 
+
+def _run(args: argparse.Namespace) -> None:
     strat = None if args.strategy == "ALL" else args.strategy
     rows = load_clean(args.trades_json, strat, args.stream)
     if not rows:
@@ -698,8 +857,24 @@ def main() -> None:
         ea, eb = split_entries(ent, args.split_at, args.transition_end)
         print(f"> 母集団 = outcome を問わない全 entry (BREAKEVEN / 未決済を含む) N={len(ent)}、"
               f"entry 時刻だけで分割 (pre {len(ea)} / post {len(eb)})。excursion は 0 で clamp。\n")
+        freeze: dict | None = {} if args.freeze_dir else None
         print(excursion_control_table(ea, eb, args.bars_dir, bars_tf=args.bars_tf,
-                                      split_start=args.split_at), "\n")
+                                      split_start=args.split_at, freeze=freeze), "\n")
+        if freeze is not None:
+            with open(args.trades_json) as f:
+                n_payload = len(json.load(f).get("trades", []))
+            m = write_freeze(args.freeze_dir, freeze, trades_json=args.trades_json, trades_rows=n_payload,
+                             trades_fetched_at=args.trades_fetched_at, bars_dir=args.bars_dir,
+                             bars_tf=args.bars_tf, instruments=sorted({r["instrument"] for r in ent}),
+                             bars_fetched_at=args.bars_fetched_at,
+                             params={"strategy": args.strategy, "stream": args.stream,
+                                     "split_at": args.split_at, "transition_end": args.transition_end,
+                                     "horizons_min": [60, 240], "bars_tf": args.bars_tf,
+                                     "population": "outcome を問わない全 entry (XAU 除外 / dedup 除外)"},
+                             overwrite=args.freeze_overwrite)
+            print(f"> 🧊 入力凍結: `{args.freeze_dir}/excursion_per_entry.csv` ({m['rows_written']} 行) + "
+                  f"`manifest.json` (trades sha256 {m['trades_json']['sha256'][:12]}…, bars {len(m['bars']['files'])} pair) + "
+                  f"`report.md` (本出力)\n")
 
 
 if __name__ == "__main__":

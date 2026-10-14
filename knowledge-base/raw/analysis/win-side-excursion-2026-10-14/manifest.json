@@ -1,0 +1,220 @@
+{
+ "bars": {
+  "dir": "/private/tmp/claude-501/-Users-jg-n-012-test-fx-ai-trader/655f786c-afb2-4cdf-9a09-122b69e11e93/scratchpad/bars1m",
+  "fetched_at": "2026-10-14T03:40:00Z/03:45:12Z (USD_JPY 03:40Z 単独、他 12 pair 03:41–03:45Z)",
+  "files": {
+   "AUD_JPY": {
+    "bytes": 4363940,
+    "file": "AUD_JPY_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:42:00+00:00",
+    "rows": 206305,
+    "sha256": "66e257780e96066d16e520a389e1e7907ea1ce491deba3f4a9a10d02abc30432"
+   },
+   "AUD_USD": {
+    "bytes": 2890327,
+    "file": "AUD_USD_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:43:00+00:00",
+    "rows": 167156,
+    "sha256": "879396b9c52bef23748b242192ada3517790632ee1f9c7009dd7aaf22669ae1e"
+   },
+   "EUR_AUD": {
+    "bytes": 3682836,
+    "file": "EUR_AUD_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:44:00+00:00",
+    "rows": 204367,
+    "sha256": "7b7efbd75ae0d6b7624a70532ea9ce03c543dff80acf7a602f0c2cd69a675b06"
+   },
+   "EUR_GBP": {
+    "bytes": 3151140,
+    "file": "EUR_GBP_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:42:00+00:00",
+    "rows": 205038,
+    "sha256": "ede81b678264d4bd98629a0dd395fbd3d5516be72a42a65c937f25088d0b64fb"
+   },
+   "EUR_JPY": {
+    "bytes": 4301129,
+    "file": "EUR_JPY_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:41:00+00:00",
+    "rows": 183961,
+    "sha256": "a86c4a9782b7cd35fa4d6c9b072840bb81eb3945780562163d2a3d381a95c098"
+   },
+   "EUR_USD": {
+    "bytes": 3601395,
+    "file": "EUR_USD_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:41:00+00:00",
+    "rows": 204917,
+    "sha256": "2bc2c14c537e76e3adf42feee221663dad65dad9ca9a121d5a2aaccd6370f5c2"
+   },
+   "GBP_JPY": {
+    "bytes": 4061465,
+    "file": "GBP_JPY_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:41:00+00:00",
+    "rows": 166086,
+    "sha256": "8f50a6bdafa53fe4063f44696052c12899f86682567127ec78349affdbe58d35"
+   },
+   "GBP_USD": {
+    "bytes": 3628836,
+    "file": "GBP_USD_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:40:00+00:00",
+    "rows": 206192,
+    "sha256": "1b2b0fed56dd30fa1ae6fca9dbbf2a9b9baf81a4c4aa7bffd42bd65e741bc364"
+   },
+   "NZD_JPY": {
+    "bytes": 4827916,
+    "file": "NZD_JPY_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:43:00+00:00",
+    "rows": 207503,
+    "sha256": "70837a826104855c28adbab00f093005c63140f7fc60f98ae22d534ee8e6a8e0"
+   },
+   "NZD_USD": {
+    "bytes": 3456759,
+    "file": "NZD_USD_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:42:00+00:00",
+    "rows": 206447,
+    "sha256": "8b5995b8cd5051e010d9b0e66907d979bdeb35ba97f3fbc454317e8c7ac4d3aa"
+   },
+   "USD_CAD": {
+    "bytes": 3632970,
+    "file": "USD_CAD_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:43:00+00:00",
+    "rows": 207358,
+    "sha256": "de478f7d69f044f265779c745ebc9b08cad50621329d87ac91dacac8192a6708"
+   },
+   "USD_CHF": {
+    "bytes": 3706327,
+    "file": "USD_CHF_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:42:00+00:00",
+    "rows": 205008,
+    "sha256": "1dfc46afa1347688c4a5397aee32ae2776226d6146889538d7e2fe0905f3e91b"
+   },
+   "USD_JPY": {
+    "bytes": 4447974,
+    "file": "USD_JPY_1m.parquet",
+    "first": "2026-03-25T00:00:00+00:00",
+    "last": "2026-10-14T03:40:00+00:00",
+    "rows": 206150,
+    "sha256": "825fe175d65519461122ec636ff7038814040ec372e120948aea49490a7c69cf"
+   }
+  },
+  "source": "MASSIVE (tools/fetch_massive_data.py)",
+  "tf": "1m"
+ },
+ "common_coverage": [
+  {
+   "entry_cutoff": "2026-10-14T02:40:00+00:00",
+   "horizon_min": 60,
+   "instruments": [
+    "AUD_JPY",
+    "AUD_USD",
+    "EUR_AUD",
+    "EUR_GBP",
+    "EUR_JPY",
+    "EUR_USD",
+    "GBP_JPY",
+    "GBP_USD",
+    "NZD_JPY",
+    "NZD_USD",
+    "USD_CAD",
+    "USD_CHF",
+    "USD_JPY"
+   ],
+   "post_dropped_coverage": 1,
+   "pre_dropped_boundary_crossing": 14,
+   "pre_dropped_coverage": 0
+  },
+  {
+   "entry_cutoff": "2026-10-13T23:40:00+00:00",
+   "horizon_min": 240,
+   "instruments": [
+    "AUD_JPY",
+    "AUD_USD",
+    "EUR_AUD",
+    "EUR_GBP",
+    "EUR_JPY",
+    "EUR_USD",
+    "GBP_JPY",
+    "GBP_USD",
+    "NZD_JPY",
+    "NZD_USD",
+    "USD_CAD",
+    "USD_CHF",
+    "USD_JPY"
+   ],
+   "post_dropped_coverage": 11,
+   "pre_dropped_boundary_crossing": 30,
+   "pre_dropped_coverage": 0
+  }
+ ],
+ "coverage": [
+  {
+   "blocks": 131,
+   "cohort": "pre",
+   "horizon_min": 60,
+   "rows_in_coverage": 5963,
+   "rows_measured": 5705
+  },
+  {
+   "blocks": 349,
+   "cohort": "post",
+   "horizon_min": 60,
+   "rows_in_coverage": 9240,
+   "rows_measured": 8924
+  },
+  {
+   "blocks": 21,
+   "cohort": "pre",
+   "horizon_min": 240,
+   "rows_in_coverage": 5947,
+   "rows_measured": 5571
+  },
+  {
+   "blocks": 24,
+   "cohort": "post",
+   "horizon_min": 240,
+   "rows_in_coverage": 9230,
+   "rows_measured": 8810
+  }
+ ],
+ "generated_at": "2026-10-14T04:07:52.193766+00:00",
+ "params": {
+  "bars_tf": "1m",
+  "horizons_min": [
+   60,
+   240
+  ],
+  "match_key": "instrument|entry_type|direction",
+  "population": "outcome を問わない全 entry (XAU 除外 / dedup 除外)",
+  "split_at": "2026-06-03T07:58:28+00:00",
+  "strategy": "ALL",
+  "stream": "shadow",
+  "transition_end": "2026-06-03T09:00:00+00:00"
+ },
+ "rows_written": 29010,
+ "tool": {
+  "git_dirty": true,
+  "git_head": "74356bc332b1f3409a4266313511ccf2b4a5174e",
+  "note": "生成元の同一性は sha256 で検証する (git_dirty=true なら git_head は親 commit で、生成コードを含まない)",
+  "path": "tools/win_side_exit_decomposition.py",
+  "sha256": "abc1ca5b90a791847426b7d20311f69c703b14109617a4c48173767cdf5416e2"
+ },
+ "trades_json": {
+  "bytes": 61062064,
+  "fetched_at": "2026-10-14T03:40:18Z/03:40:22Z",
+  "path": "/private/tmp/claude-501/-Users-jg-n-012-test-fx-ai-trader/655f786c-afb2-4cdf-9a09-122b69e11e93/scratchpad/trades_2026-10-14T034018Z.json",
+  "rows_in_payload": 19458,
+  "sha256": "e344cc86d54cc7653a8d6dc57eed49cfa351c6158e6f4a0047952908773a105e",
+  "source": "/api/demo/trades (可変 endpoint — 同一性は sha256 でのみ主張する)"
+ }
+}

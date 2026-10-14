@@ -63,4 +63,22 @@
 
 ## 週次 rollup
 
-(初回 rollup は 2026-09-21 月曜)
+⚠️ 月曜 rollup は 09-21 / 09-28 とも未実施だった (30d レビュー 2026-10-14 で遡及記載、[[daily-market-review-protocol]] §8)。以下は遡及集計 — 記述級の件数のみ、outcome 量なし。
+
+### 週 2026-09-14〜09-20 (遡及)
+| family | 観測 | 独立 event | 経路 | 卒業 (≥3) |
+|---|---|---|---|---|
+| `event_flush_reversion` (新規) | O-09-11-1 | 1 (09-11 CPI) | 記録のみ (E15-H1 CPI-fade 負 prior) | 1/3 |
+| `weekend_gap_fade` 執行契約 (既存、新 family でない) | O-09-14-1 / O-09-14-2 | 1 (09-13 weekend) | G0' 回付 (→ packet §6、09-28 発動) | — |
+| learner blacklist write-only (制御系) | O-09-18-1 | 1 (09-18) | 記録 + trade log 未決 | 1/3 |
+| live-eligible gate 到達非対称 (`bb_squeeze_breakout`×EUR_USD) | O-09-18-2 | 1 (09-18) | 記録のみ | 1/3 |
+
+### 週 2026-09-21〜09-27 (遡及)
+- 新規観測 0 (0 件の日は記録しない規則)。卒業到達 family なし
+
+### 週 2026-09-28〜10-04 (遡及)
+| family | 観測 | 独立 event | 経路 | 卒業 (≥3) |
+|---|---|---|---|---|
+| `weekend_gap_fade` 執行 estimand (basis) | O-09-28-1 | 1 (09-27 event #2) | packet v1 §1.2 / §2 (R1、user) | — (新 family でない) |
+
+- 卒業到達 family なし。9 月通算: 観測 6 entry / 独立 event 5 / 執行 QA 発見 4 entry (3 event) / 卒業 0
