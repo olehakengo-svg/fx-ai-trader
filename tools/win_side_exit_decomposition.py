@@ -657,19 +657,30 @@ def sha256_file(path: str | Path) -> str:
     return h.hexdigest()
 
 
+FREEZE_FILES = ("excursion_per_entry.csv", "manifest.json")
+
+
 def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows: int,
                  trades_fetched_at: str | None, bars_dir: str, bars_tf: str,
-                 instruments: list[str], bars_fetched_at: str | None, params: dict) -> dict:
+                 instruments: list[str], bars_fetched_at: str | None, params: dict,
+                 overwrite: bool = False) -> dict:
     """§6 の入力と per-entry 派生結果をリポジトリに凍結する (再現性の担保)。
 
     - excursion_per_entry.csv: 行 = (trade_id, cohort, horizon) ごとの fav / adv / block_id / match_key
     - manifest.json: trades_json の sha256 / 行数 / 取得時刻、bars ファイルごとの sha256 / 行数 / 先頭・末尾、
       取得パラメータ (horizons / split / stream / strategy / bars_tf / match_key)、tool の git HEAD
     値を再計算せずとも表の数値は CSV から再集計でき、入力の同一性は sha256 で検証できる。
+
+    既存の凍結 dir には書かない (overwrite=False、PR #328 review 4266607770): KB が引用中の snapshot を
+    黙って置換しない。別入力なら別 dir を切る。生成元は git HEAD だけでなく本スクリプトの content sha256 と
+    dirty 状態も記録する (PR #328 review 4266607766: 未コミット変更で生成すると HEAD は親 commit を指す)。
     """
     import csv
     import subprocess
     out = Path(freeze_dir)
+    existing = [n for n in FREEZE_FILES if (out / n).exists()]
+    if existing and not overwrite:
+        raise SystemExit(f"freeze dir {out} に既存の凍結 {existing} がある — 別 dir を切るか --freeze-overwrite を明示せよ")
     out.mkdir(parents=True, exist_ok=True)
     rows = freeze.get("rows", [])
     cols = ["trade_id", "instrument", "entry_type", "direction", "entry_time", "cohort",
@@ -688,14 +699,22 @@ def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows
         b = load_bars(bars_dir, inst, bars_tf)
         files[inst] = {"file": p.name, "sha256": sha256_file(p), "bytes": p.stat().st_size,
                        "rows": int(len(b)), "first": b.index[0].isoformat(), "last": b.index[-1].isoformat()}
+    tool_path = Path(__file__).resolve()
+    repo = tool_path.parents[1]
+    head, dirty = None, None
     try:
-        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[1],
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo,
                               capture_output=True, text=True, timeout=10).stdout.strip() or None
-    except Exception:  # noqa: BLE001 — git 不在でも凍結は書く
-        head = None
+        st = subprocess.run(["git", "status", "--porcelain", "--", str(tool_path)], cwd=repo,
+                            capture_output=True, text=True, timeout=10)
+        dirty = bool(st.stdout.strip()) if st.returncode == 0 else None
+    except Exception:  # noqa: BLE001 — git 不在でも凍結は書く (sha256 が生成元の同一性を担う)
+        pass
     manifest = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "tool": {"path": "tools/win_side_exit_decomposition.py", "git_head": head},
+        "tool": {"path": "tools/win_side_exit_decomposition.py", "sha256": sha256_file(tool_path),
+                 "git_head": head, "git_dirty": dirty,
+                 "note": "生成元の同一性は sha256 で検証する (git_dirty=true なら git_head は親 commit で、生成コードを含まない)"},
         "trades_json": {"path": str(trades_json), "sha256": sha256_file(trades_json),
                         "bytes": Path(trades_json).stat().st_size, "rows_in_payload": trades_rows,
                         "fetched_at": trades_fetched_at,
@@ -735,6 +754,8 @@ def main() -> None:
                          "(--bars-dir 必須)。無指定の §6 は再現不能な一回限りの記述になる")
     ap.add_argument("--trades-fetched-at", default=None, help="trades_json の取得時刻 (ISO、manifest に記録)")
     ap.add_argument("--bars-fetched-at", default=None, help="bars の取得時刻 (ISO、manifest に記録)")
+    ap.add_argument("--freeze-overwrite", action="store_true",
+                    help="既存の凍結 dir を置換する (既定は拒否 — KB が引用中の snapshot を守る)")
     args = ap.parse_args()
     if args.freeze_dir and not args.bars_dir:
         ap.error("--freeze-dir は --bars-dir と併用する")
@@ -818,7 +839,8 @@ def main() -> None:
                              params={"strategy": args.strategy, "stream": args.stream,
                                      "split_at": args.split_at, "transition_end": args.transition_end,
                                      "horizons_min": [60, 240], "bars_tf": args.bars_tf,
-                                     "population": "outcome を問わない全 entry (XAU 除外 / dedup 除外)"})
+                                     "population": "outcome を問わない全 entry (XAU 除外 / dedup 除外)"},
+                             overwrite=args.freeze_overwrite)
             print(f"> 🧊 入力凍結: `{args.freeze_dir}/excursion_per_entry.csv` ({m['rows_written']} 行) + "
                   f"`manifest.json` (trades sha256 {m['trades_json']['sha256'][:12]}…, bars {len(m['bars']['files'])} pair)\n")
 

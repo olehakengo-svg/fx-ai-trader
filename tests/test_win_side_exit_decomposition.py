@@ -556,3 +556,14 @@ def test_freeze_dir_persists_per_entry_results_and_input_hashes(wsed, tmp_path, 
     assert m["params"]["match_key"] == "instrument|entry_type|direction"
     assert m["params"]["split_at"] == wsed.SHADOW_EXIT_REGIME_BREAK
     assert m["rows_written"] == 8 and len(m["coverage"]) == 4 and len(m["common_coverage"]) == 2
+    # 生成元の同一性は git HEAD ではなく content sha256 で (PR #328 review 4266607766)
+    assert m["tool"]["sha256"] == hashlib.sha256(_TOOL.read_bytes()).hexdigest()
+    assert m["tool"]["git_dirty"] in (True, False, None) and "git_head" in m["tool"]
+    # 既存の凍結 dir は黙って置換しない (PR #328 review 4266607770)
+    before = (freeze_dir / "manifest.json").read_bytes()
+    with pytest.raises(SystemExit, match="既存の凍結"):
+        wsed.main()
+    assert (freeze_dir / "manifest.json").read_bytes() == before
+    monkeypatch.setattr(sys, "argv", sys.argv + ["--freeze-overwrite"])
+    wsed.main()
+    assert json.loads((freeze_dir / "manifest.json").read_text(encoding="utf-8"))["rows_written"] == 8

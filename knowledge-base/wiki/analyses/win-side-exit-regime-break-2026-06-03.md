@@ -259,7 +259,7 @@ exit 機構による選別になる (PR #310 Codex P1 4151271131)。excursion �
 **2026-10-14 凍結再計算 (registry `review-backlog-310-p2-excursion-input-snapshot` 消化、autopilot、rule:R3)** — 入力を
 `raw/analysis/win-side-excursion-2026-10-14/` に凍結 (`manifest.json`: trades `/api/demo/trades?limit=60000` 2026-10-14T03:40:18–22Z
 19,458 行 sha256 `e344cc86d54c…` / MASSIVE 1m 13 pair 2026-03-25〜10-14T03:40–45Z 各 sha256 / 取得パラメータ、`excursion_per_entry.csv` 29,010 行 =
-(trade_id, cohort, horizon) ごとの fav / adv / block_id / match_key、`report.md` = ツール出力全文)。構成揃えキーは **instrument×entry_type×direction**
+(trade_id, cohort, horizon) ごとの fav / adv / block_id / match_key、`report.md` = ツール出力全文、生成元 = `manifest.tool.sha256` でスクリプト content を検証 — git HEAD は未コミット生成時に親 commit を指すため同一性の根拠にしない)。構成揃えキーは **instrument×entry_type×direction**
 (`match_key()`、pin `test_matching_key_carries_direction`)。post は 10-14 まで延びたので N が 10-01 表より増えている (pre は閉じた cohort で同数):
 
 | horizon | 群 | N (被覆) | 被覆率 | median 有利幅 | median 不利幅 | 有利/不利 比 | instrument×entry_type×direction を揃えた mean 有利幅 | 同 不利幅 |
