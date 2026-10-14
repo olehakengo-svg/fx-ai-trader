@@ -1379,6 +1379,19 @@
       "outcome_lock": false,
       "resolved": "2026-10-14",
       "resolution": "✅ 2026-10-14 消化 (autopilot、rule:R3、tools + pin + KB): (1) `tools/win_side_exit_decomposition.py` に `--freeze-dir` を追加 — per-entry 派生結果 CSV (trade_id / cohort / horizon / fav / adv / block_id / match_key) + manifest.json (trades sha256・行数・取得時刻、bars pair ごとの sha256・行数・先頭末尾・取得時刻、取得パラメータ、tool git HEAD) をリポジトリに書く。pin `test_freeze_dir_persists_per_entry_results_and_input_hashes`。(2) 構成揃えキーを `match_key()` = instrument|entry_type|direction に変更 (direction 欠損は '?' 独立セル)、pin `test_matching_key_carries_direction`。(3) 10-01 の表は入力が失われ再現不能 → doc §6 で『参考のみ・判定根拠に使わない』と明示し、**凍結付きで再計算** (`raw/analysis/win-side-excursion-2026-10-14/`: trades 2026-10-14T03:40Z 19,458 行 + MASSIVE 1m 13 pair 03:40–45Z、CSV 29,010 行): median 有利幅 post−pre 60 分 −0.40p [−1.00, +0.30] / 240 分 −0.60p [−1.90, +1.60] (両 CI 0 含む = 結論不変)、direction 込み構成揃え 有利幅 −6.9% / −6.3%、不利幅 −5.9% / −12.9%。読み手 = doc §6 (e) 上段。⚠️ 入力は MASSIVE_API_KEY のあるローカルからのみ再取得可 (scratchpad の 1m parquet は保存しない — sha256 と取得パラメータで同一性を主張)。"
+    },
+    {
+      "id": "review-backlog-328-p2-deferrals-2026-10-14",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-21",
+      "doc": "knowledge-base/wiki/analyses/win-side-exit-regime-break-2026-06-03.md",
+      "message": "🟠 PR #328 (2026-10-14 マージ 42be6f5c) Codex 4 巡目 P2 4266792526 — 宣言上限 3 巡を超過したため **未修正・review-ack 繰延** (実欠陥)。対象 = `tools/win_side_exit_decomposition.py` write_freeze(): 零行 parquet (存在するが空) を excursion_control_table() は利用不可として完了するのに、write_freeze() が CSV を公開した後に同 parquet を再 load して `b.index[0]` で IndexError → CSV だけの部分凍結が残り次の通常 run が『既存凍結』として拒否、`--freeze-overwrite` 併用時は旧 snapshot の CSV だけ置換され manifest/report と不整合。処置 = 3 出力 (CSV / manifest / report) を同 dir の tmp に stage し検証後に一括 rename、bars manifest は零行 parquet を None (欠落) 扱い。pin 併設、巡目上限 ≤3。**修正までの引用規律: 凍結 dir は 3 ファイル揃い + manifest.tool.sha256 一致を確認してから引用する。現 snapshot `raw/analysis/win-side-excursion-2026-10-14/` は 3 ファイル揃い (CSV sha256 434f3d15d1a4…) で有効**。",
+      "condition": "対応 commit (pin 併設、tools/pr_review_gate.py 通過) で消化され inline thread 4266792526 を直読みして確認済み、または理由付きの期日再設定",
+      "reachability": "Claude autopilot が期日までに fix PR (tools のみ、巡目上限 ≤3 宣言) を起票する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
     }
   ]
 }
