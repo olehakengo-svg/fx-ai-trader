@@ -881,11 +881,26 @@
     },
     {
       "id": "daily-market-review-30d-effectiveness",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-14",
       "doc": "knowledge-base/wiki/analyses/daily-market-review-protocol.md",
-      "message": "daily market review 30d 有効性レビュー期日 — 観測記録数 / 卒業 family 数 / 執行QA発見数を集計 (daily-observations-2026-09/10.md が SSOT)。稼働率 <50% または (執行QA発見 0 かつ 卒業 family 0) なら write-only 認定 → プロトコル廃止提案 (§6)。読み手 = wiki-daily Phase 2.5 + user 報告"
+      "message": "daily market review 30d 有効性レビュー期日 — 観測記録数 / 卒業 family 数 / 執行QA発見数を集計 (daily-observations-2026-09/10.md が SSOT)。稼働率 <50% または (執行QA発見 0 かつ 卒業 family 0) なら write-only 認定 → プロトコル廃止提案 (§6)。読み手 = wiki-daily Phase 2.5 + user 報告",
+      "resolved": "2026-10-14",
+      "resolution": "✅ 2026-10-14 30d レビュー実施 (autopilot、rule:R3 記録のみ、[[daily-market-review-protocol]] §8): 窓 09-14〜10-13 (22 営業日) — wiki-daily run 17/22 = 77% (origin 14 + 座礁 3 = 10-06 / 10-07 / 10-13 を同 PR で救出)、執行 QA 節あり run = 13/22 = 59% (09-14〜09-17 は導入遅れで節なし)、観測 8 entry / 独立 event 7、執行 QA 発見 6 entry (5 event: WG drift→G0' packet §6 発動 / learner write-only ×2 / gate 到達非対称 / WG basis / storm→storm-guard 回付)、卒業 family 0、週次 rollup **0/4** (09-21 / 09-28 / 10-05 / 10-12 全て未実施 → 本 PR で遡及記載)。§6 廃止条件 (a) 稼働率 <50% = 不成立 (77% / 59%)、(b) 執行 QA 発見 0 ∧ 卒業 0 = 不成立 (発見 6)。⇒ **継続 — ただし条件付き**: rollup 層は write-only (0/4) で読み手不在が実証、10-08〜10-12 の 3 営業日連続欠落 + 10-13 一括 run は習慣途絶の前兆。後継 entry `daily-market-review-60d-effectiveness` (11-13) で (i) 執行 QA 節あり run ≥ 60% (10-14〜11-12) (ii) 月曜 rollup ≥ 3/4 — (ii) 不成立なら rollup 層のみ廃止 (観測→30d 集計へ一本化)、(i) 不成立なら §6 (a) 発動で廃止提案。卒業 0 は単独では廃止理由にしない (base rate 4% の下で 30d に卒業を期待する数理が無い)。"
+    },
+    {
+      "id": "daily-market-review-60d-effectiveness",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-13",
+      "doc": "knowledge-base/wiki/analyses/daily-market-review-protocol.md",
+      "message": "daily market review 60d 有効性レビュー期日 (30d レビュー 2026-10-14 の条件付き継続の後継、§8)。窓 = 2026-10-14〜11-12 (営業日 22)。判定 (i) 執行 QA 節あり wiki-daily run / 営業日 ≥ 60% — 不成立なら §6 (a) 発動で廃止提案 (ii) 月曜 rollup 実施 ≥ 3/4 (10-19 / 10-26 / 11-02 / 11-09) — 不成立なら rollup 層のみ廃止し family 集計を 30d レビュー時に一本化 (iii) 観測 entry 数 / 独立 event / 執行 QA 発見 / 卒業 family を集計 (卒業 0 は単独では廃止理由にしない)。SSOT = daily-observations-2026-10/11.md + raw/trade-logs/YYYY-MM-DD.md の『執行 QA』節 (grep -c '執行 ?QA')。読み手 = wiki-daily Phase 2.5 + user 報告",
+      "condition": "30d と同じ 3 計数 + (i)(ii) の判定が daily-market-review-protocol.md の追補節に記録され、継続 / rollup 廃止 / 全廃止 のいずれかが明示されること",
+      "reachability": "状態を進める主体 = Claude autopilot (R3、docs のみ)。評価主体 = tools/prereg_trigger_watch.py deadline_info (日次 Tier A cron、期日翌日 00:20Z)。",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
+      "outcome_lock": false
     },
     {
       "id": "sr-anti-hunt-eurjpy-count-basis-declaration",
@@ -1352,7 +1367,7 @@
     },
     {
       "id": "review-backlog-310-p2-excursion-input-snapshot",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-14",
       "doc": "knowledge-base/wiki/analyses/win-side-exit-regime-break-2026-06-03.md",
@@ -1361,7 +1376,9 @@
       "reachability": "状態を進める主体 = Claude セッション (autopilot 可、R3、docs/tools のみ)。評価主体 = tools/prereg_trigger_watch.py deadline_info (日次 Tier A cron、期日翌日 00:20Z)。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
-      "outcome_lock": false
+      "outcome_lock": false,
+      "resolved": "2026-10-14",
+      "resolution": "✅ 2026-10-14 消化 (autopilot、rule:R3、tools + pin + KB): (1) `tools/win_side_exit_decomposition.py` に `--freeze-dir` を追加 — per-entry 派生結果 CSV (trade_id / cohort / horizon / fav / adv / block_id / match_key) + manifest.json (trades sha256・行数・取得時刻、bars pair ごとの sha256・行数・先頭末尾・取得時刻、取得パラメータ、tool git HEAD) をリポジトリに書く。pin `test_freeze_dir_persists_per_entry_results_and_input_hashes`。(2) 構成揃えキーを `match_key()` = instrument|entry_type|direction に変更 (direction 欠損は '?' 独立セル)、pin `test_matching_key_carries_direction`。(3) 10-01 の表は入力が失われ再現不能 → doc §6 で『参考のみ・判定根拠に使わない』と明示し、**凍結付きで再計算** (`raw/analysis/win-side-excursion-2026-10-14/`: trades 2026-10-14T03:40Z 19,458 行 + MASSIVE 1m 13 pair 03:40–45Z、CSV 29,010 行): median 有利幅 post−pre 60 分 −0.40p [−1.00, +0.30] / 240 分 −0.60p [−1.90, +1.60] (両 CI 0 含む = 結論不変)、direction 込み構成揃え 有利幅 −6.9% / −6.3%、不利幅 −5.9% / −12.9%。読み手 = doc §6 (e) 上段。⚠️ 入力は MASSIVE_API_KEY のあるローカルからのみ再取得可 (scratchpad の 1m parquet は保存しない — sha256 と取得パラメータで同一性を主張)。"
     }
   ]
 }

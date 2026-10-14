@@ -194,3 +194,19 @@ Entry filters (v16 forensic 導出):
 - harness FAIL のため数値はゼロ、順位のみ (C3/C4 ≫ C0 > C6 近似 > C5 ≈ C2、C1 は canon exit 形状に依存)。決裁肢 (a) 宣言復元 [TV canon 再走で exit 種別確定が先、Rule 1] / **(b) 現状維持 + 執行 QA + R2 [推奨・既定]** / (c) shadow 降格 [実現損失根拠なし]。
 - live fill 3 variant **6 本** (po_dn_flip 5 / ema75_break 1、09-10〜10-05) = R2 6/10。winner ride 形状の fill 0 (8h cap で構造的に不可能)。
 - user 返答期限 11-30 (統合パケット D7 と同時)。registry: `kalman-d7-live-exit-spec-mismatch-disposition` resolved → 後継 `kalman-d7-live-exit-disposition-user-decision` (11-29)。
+## 🔴🔴 2026-10-13 更新 (wiki-daily 12:01Z、10-08〜10-13 を一括): **LIVE fill #6〜#8 — #1211263 が本戦略最大の storm (20,948 回 / 7.6h、族 A 主体) の末 `MAX_HOLD_TIME` +¥56、#1208876 は 25 分で SL_HIT −¥201、#1098462 は純族 A 349 回で BE +¥8。N=8、EV −3.64**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold |
+|---|---|---|---|---|---|---|---|
+| **#1098462** | 10-08 07:01:57 | 158.206 (signal 158.199) | 157.981 (−22.5p) / 158.456 (+25.0p) | 10-08 10:20:04 `STOP_LOSS_ORDER` @158.214 (BE+0.8) | **+¥8** | +0.8 `OANDA_SL_TP` | 3h18m |
+| **#1208876** | 10-09 08:31:43 | 158.313 | 158.113 (−20.0p) / 158.500 (+18.7p) | 10-09 08:57:20 `STOP_LOSS_ORDER` @158.112 | **−¥201** | −20.0 `SL_HIT` | **25m** |
+| **#1211263** | 10-09 09:16:17 | 158.182 (signal 158.175) | 158.104 (**−7.8p**) / 158.571 (+38.9p) | 10-09 17:16:16 `MARKET_ORDER_TRADE_CLOSE` @158.238 | **+¥56** | +5.1 `MAX_HOLD_TIME` | 8h00m |
+
+- 🔴🔴 **storm 4・5 度目 (本戦略)**: #1098462 は 07:01→10:07Z に **349 回全て 158.214** = 純族 A (10-02 #950042 型)。#1211263 は 09:16→17:15Z に **20,948 回** — 158.195 (BE+1.3) に **11,903 回**、最長同値 run **3,705**、上 1,604 / 下 1,598 (反転 922)、84 価格 = 族 A 主体に B 往復が混じる。終端は 8h hold cap の market close (自己約定なし)。#1208876 は storm なし (25 分で SL)
+- 🔴 `storm_guard` 0 計上 (deploy 2 回で状態消失、[[2026-10-13]] 発見 1)。`MARKET_ORDER_REJECT` (`TRADE_DOESNT_EXIST`) 10-09 08:57:21 = #1208876 の broker SL 約定 1 秒後に demo が close を送った競合 (無害)
+- 🆕 **ON_FILL SL 幅が 7.8 / 20.0 / 22.5p と散る** (#1211263 は −7.8p で他の 1/3) — carry_dip と同じ「SL のみボラ連動」型かは N=8 で未判定、記録のみ。TP も +18.7 / +25.0 / +38.9p で可変
+- ⚪ 執行 QA: hold 3h18m / 25m / **8h00m (cap 到達、本戦略初)**。MAFE favorable 9.2 / 0.7 / **23.9p** — #1211263 は +23.9 まで伸びて +5.1 で返した (10-02 19.8p / 10-05 21.1p と同型、TP 38.9p 未達)。demo↔broker 3/3 符号一致、差 ≤0.5p
+- 🔴 DD ledger: #1098462 `OANDA_SL_TP` +0.8 **未計上** (欠落 7 例目)、#1208876 −20.0 / #1211263 +5.1 は計上
+- **累計**: demo **N=8 / 4W / WR 50.0% / PnL −29.1 / EV −3.64** (`promo_ev` −3.64 一致、`promotion: pending`、`enabled: true`)、wf_h1 −3.88 / wf_h2 −3.40、Wilson 21.5 / BF 12.1。本窓 broker −¥137 (+8 −201 +56)。registry `t9-kalman-d7-live-n10-ev-check` (期日 12-09) の N≥10 まで **あと 2 fill**、現状 EV<0。`kalman-d7-live-exit-spec-mismatch-disposition` は期日 10-08 経過 (cloud の kalman live exit disposition packet での処理有無は未確認)
+- 詳細 [[2026-10-13]] 発見 1 / 発見 2
+

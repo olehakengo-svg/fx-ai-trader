@@ -483,3 +483,76 @@ def test_generated_control_report_carries_the_selection_caveat(wsed):
     src = inspect.getsource(wsed.main)
     assert "print(CONTROL_SELECTION_CAVEAT" in src
     assert "## 6. exit 非依存の対照 —" not in src
+
+
+def test_matching_key_carries_direction(wsed):
+    """構成揃え mean のキーは instrument×entry_type×direction (PR #310 review 4152312707)。
+
+    既知 NG: instrument|entry_type だけのキー — セル内の BUY/SELL 構成シフト (pre BUY 2 / SELL 1 →
+    post BUY 1 / SELL 2) で、方向内の値が不変でも post の平均が動き「縮小」に見える。
+    direction 欠損は "?" の独立セルで、BUY/SELL と混ぜない。
+    """
+    import inspect
+    import statistics as st
+    assert wsed.match_key({"instrument": "USD_JPY", "entry_type": "s", "direction": "buy"}) == "USD_JPY|s|BUY"
+    assert wsed.match_key({"instrument": "USD_JPY", "entry_type": "s", "direction": None}) == "USD_JPY|s|?"
+    pre = [(wsed.match_key({"instrument": "U", "entry_type": "s", "direction": d}), v)
+           for d, v in (("BUY", 10.0), ("BUY", 10.0), ("SELL", 2.0))]
+    post = [(wsed.match_key({"instrument": "U", "entry_type": "s", "direction": d}), v)
+            for d, v in (("BUY", 10.0), ("SELL", 2.0), ("SELL", 2.0))]
+    pm, qm, k, _ = wsed.type_matched_means(pre, post)
+    assert k == 2 and pm == pytest.approx(qm)                       # 方向別に揃えれば差 0
+    assert st.mean(v for _, v in pre) != st.mean(v for _, v in post)  # 揃えないと構成シフトが差に化ける
+    src = inspect.getsource(wsed.excursion_control_table)
+    assert "match_key(r)" in src and "instrument×entry_type×direction" in src
+    assert "f\"{r['instrument']}|{r['entry_type']}\"" not in src
+
+
+def test_freeze_dir_persists_per_entry_results_and_input_hashes(wsed, tmp_path, monkeypatch, capsys):
+    """--freeze-dir で §6 の per-entry 派生結果と入力 sha256 / 取得パラメータをリポジトリに残せる
+    (PR #310 review 4152277191 / registry review-backlog-310-p2-excursion-input-snapshot)。
+
+    既知 NG: 1m 足を scratchpad で取り、trades を可変 endpoint から読んで表だけ KB に書く —
+    後日どの入力で出た数値か検証できない。pin: CSV 行数 = 測定 entry × horizon、
+    manifest の sha256 が実ファイルと一致、match_key が direction 込み、行に block_id がある。
+    """
+    import hashlib
+    import sys
+    bars_dir = tmp_path / "bars"
+    bars_dir.mkdir()
+    bars = _minute_bars("2026-06-03T00:00:00+00:00", 1200, {70: (150.30, 149.99), 800: (150.01, 149.70)})
+    bars.to_parquet(bars_dir / "USD_JPY_1m.parquet")
+    trades = [
+        _t("2026-06-03T01:00:00+00:00", "WIN", 1.0, "TP_HIT", instrument="USD_JPY", entry_price=150.00, id=1),
+        _t("2026-06-03T02:00:00+00:00", "LOSS", -1.0, "SL_HIT", instrument="USD_JPY", entry_price=150.00, id=2,
+           direction="SELL"),
+        _t("2026-06-03T12:00:00+00:00", "BREAKEVEN", 0.1, "SL_HIT", instrument="USD_JPY", entry_price=150.00, id=3),
+        _t("2026-06-03T13:00:00+00:00", None, None, None, instrument="USD_JPY", entry_price=150.00, id=4,
+           direction="SELL", exit_time=None),
+    ]
+    tj = tmp_path / "t.json"
+    tj.write_text(json.dumps(_payload(trades)))
+    freeze_dir = tmp_path / "freeze"
+    monkeypatch.setattr(sys, "argv", ["wsed", str(tj), "--strategy", "s", "--bars-dir", str(bars_dir),
+                                      "--freeze-dir", str(freeze_dir),
+                                      "--trades-fetched-at", "2026-10-14T03:40:18Z",
+                                      "--bars-fetched-at", "2026-10-14T03:45:00Z"])
+    wsed.main()
+    out = capsys.readouterr().out
+    assert "入力凍結" in out
+    import csv
+    rows = list(csv.DictReader(open(freeze_dir / "excursion_per_entry.csv", encoding="utf-8")))
+    assert len(rows) == 4 * 2                                        # 4 entry × horizon (60, 240)
+    assert {r["cohort"] for r in rows} == {"pre", "post"}
+    assert {r["direction"] for r in rows} == {"BUY", "SELL"}
+    assert all(r["block_id"] != "" and r["match_key"].count("|") == 2 for r in rows)
+    assert {r["trade_id"] for r in rows} == {"1", "2", "3", "4"}
+    m = json.loads((freeze_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert m["trades_json"]["sha256"] == hashlib.sha256(tj.read_bytes()).hexdigest()
+    assert m["trades_json"]["rows_in_payload"] == 4 and m["trades_json"]["fetched_at"] == "2026-10-14T03:40:18Z"
+    bf = m["bars"]["files"]["USD_JPY"]
+    assert bf["sha256"] == hashlib.sha256((bars_dir / "USD_JPY_1m.parquet").read_bytes()).hexdigest()
+    assert bf["rows"] == 1200 and m["bars"]["fetched_at"] == "2026-10-14T03:45:00Z"
+    assert m["params"]["match_key"] == "instrument|entry_type|direction"
+    assert m["params"]["split_at"] == wsed.SHADOW_EXIT_REGIME_BREAK
+    assert m["rows_written"] == 8 and len(m["coverage"]) == 4 and len(m["common_coverage"]) == 2

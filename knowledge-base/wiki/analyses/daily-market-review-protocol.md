@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-14
 **Author**: Claude (quant analyst mode)
-**Status**: ACTIVE (30d 有効性レビュー 2026-10-14、registry `daily-market-review-30d-effectiveness`)
+**Status**: ACTIVE — **30d レビュー 2026-10-14 = 条件付き継続** (§8、registry `daily-market-review-30d-effectiveness` resolved → 後継 `daily-market-review-60d-effectiveness` 2026-11-13)
 **Related**: [[daily-tierB-protocol]], [[edge-development-pipeline-2026-07-18]], [[hypothesis-catalog-2026-07-24|hypothesis-catalog]], `.claude/commands/wiki-daily.md` Phase 2.5
 **Adversarial review**: 2026-09-14 初稿は 3 レンズレビューで P1×3 棄却 → 本版で修正 (シード観測自身が §2 違反を 2 種踏んだ — 定義の緩さは初日に悪用される実証)
 
@@ -78,6 +78,7 @@
 | 週次 (月曜) | rollup 節 | family 出現回数、卒業条件到達 |
 | 月次 | external-hypothesis-scan S0 queue | 卒業 family を次回スキャンの S0 候補へ供給 |
 | 30d | registry `daily-market-review-30d-effectiveness` (期日 2026-10-14) | 観測数 / 卒業 family 数 / 執行 QA 発見数 — 判定基準は §6 (稼働率 <50% または「執行 QA 発見 0 かつ 卒業 family 0」で廃止提案) |
+| 60d | registry `daily-market-review-60d-effectiveness` (期日 2026-11-13) | §8 の (i) 執行 QA 節あり run ≥ 60% / (ii) 月曜 rollup ≥ 3/4 / (iii) 3 計数 |
 
 ## 6. 廃止条件 (自己反証)
 
@@ -87,3 +88,31 @@
 
 - **Tier B-daily (`scripts/daily_hypothesis_scan.py`) の Phase 3 有効化は本プロトコルに含まない** — dry-run 解除は α 予算消費を伴う別決裁 (render.yaml コメント参照)
 - 日次での BT 実行・パラメータ変更・tier 変更は一切しない (それぞれ既存 Rule 1/2/3 の管轄)
+
+## 8. 30d 有効性レビュー (2026-10-14、autopilot、rule:R3 記録のみ) — 条件付き継続
+
+**窓**: 2026-09-14〜10-13 (30 日、営業日 22)。**SSOT**: `raw/trade-logs/YYYY-MM-DD.md` (wiki-daily 本体 run) の『執行 QA』節、`research/daily-observations-2026-09.md` / `-10.md`。
+⚠️ 10-06 / 10-07 / 10-13 の run 成果物はローカル `main` に座礁しており origin に無かった (10-13 run の観測ファイル `daily-observations-2026-10.md` 自体が未 push) — 本レビューの PR で救出。**観測層の write-only は「書いたが誰も読まない」だけでなく「書いたが repo に届かない」形でも起きる**。
+
+| 計数 | 値 | 内訳 |
+|---|---|---|
+| wiki-daily run (本体 `YYYY-MM-DD.md`) | **17/22 = 77%** | 欠落 5: 09-15 / 09-23 / 10-08 / 10-09 / 10-12 (うち 10-08〜10-12 は 3 営業日連続、10-13 に 6 日一括 run) |
+| 執行 QA 節あり run (Phase 2.5 実行の痕跡) | **13/22 = 59%** | 09-14 / 09-16 / 09-17 / 09-22 は run あり・節なし (導入直後の 3 run は未適用) |
+| 観測 entry / 独立 event | **8 / 7** | 09-11 CPI / 09-13 WG (2 entry = 1 event) / 09-18 learner / 09-18 gate 到達 / 09-27 WG basis / 10-08 storm / 10-12 learner |
+| 執行 QA 発見 | **6 entry / 5 event** | O-09-14-1 (WG drift → G0' 回付 → packet §6 発動 = 既存 frame が実際に動いた唯一の例) / O-09-18-1・O-10-13-2 (learner write-only ×2) / O-09-18-2 (gate 到達非対称) / O-09-28-1 (WG basis → packet v1) / O-10-13-1 (storm → `storm-guard-enforce-decision` 回付) |
+| 卒業 family (≥3 独立観測) | **0** | 最多 = learner write-only 2/3 (制御系、S1 対象外) |
+| 週次 rollup (月曜) | **0/4** | 09-21 / 09-28 / 10-05 / 10-12 全て未実施 (09-21 / 09-28 / 10-05 は run 自体はあった) → 本 PR で遡及記載 |
+| 外部の読み手 | 2 doc | weekend_gap packet v1 (09-28) / redraft が O-09-14-1・O-09-28-1 を引用。他 family の観測は未引用 |
+
+**§6 判定**: (a) 稼働率 <50% — **不成立** (run 77% / 執行 QA 59%)。(b) 執行 QA 発見 0 ∧ 卒業 0 — **不成立** (発見 6)。⇒ 廃止条件は成立しない。
+
+**ただし素直に「有効」とは言わない**:
+1. 価値の実体は**執行 QA** (6 発見、うち WG drift は packet §6 の事前コミット経路を実際に発動させた) であり、**観測採集→family 卒業→S1 の経路は 30d で 1 件も動いていない** (base rate 4% の下で 30d に卒業を期待する数理は元々無い — §1)。卒業 0 を廃止理由にしない代わりに、卒業を成果として数えもしない
+2. **rollup 層は write-only** (0/4、読み手 = 自分自身の月曜 run だったが実行されなかった)。family 集計は 30d レビュー時に一括で足りる可能性が高い
+3. 稼働率は knife-edge (執行 QA 59%) で、10-08〜10-12 の連続欠落 + 一括 run は習慣途絶の前兆。閾値 50% を「通過」と読むより「次の 30d で下回れば廃止」と読む
+
+**決定 = 条件付き継続** (registry `daily-market-review-60d-effectiveness`、期日 2026-11-13、窓 10-14〜11-12):
+- (i) 執行 QA 節あり run / 営業日 **≥ 60%** — 不成立なら §6 (a) 発動で廃止提案
+- (ii) 月曜 rollup **≥ 3/4** (10-19 / 10-26 / 11-02 / 11-09) — 不成立なら rollup 層のみ廃止 (観測→30d 集計へ一本化、§3(d) 削除)
+- (iii) 3 計数 (観測 / 執行 QA 発見 / 卒業) を再集計。卒業 0 は単独では廃止理由にしない
+- 判定は本節と同形式で追補し、registry entry の resolution に転記する
