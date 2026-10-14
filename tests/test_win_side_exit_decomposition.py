@@ -480,7 +480,7 @@ def test_generated_control_report_carries_the_selection_caveat(wsed):
     import inspect
     cav = wsed.CONTROL_SELECTION_CAVEAT
     assert "cooldown" in cav and "上限評価" in cav and "完全な exit 非依存ではない" in cav
-    src = inspect.getsource(wsed.main)
+    src = inspect.getsource(wsed._run)  # main() は freeze の stdout 捕捉だけ、本体は _run
     assert "print(CONTROL_SELECTION_CAVEAT" in src
     assert "## 6. exit 非依存の対照 —" not in src
 
@@ -567,3 +567,16 @@ def test_freeze_dir_persists_per_entry_results_and_input_hashes(wsed, tmp_path, 
     monkeypatch.setattr(sys, "argv", sys.argv + ["--freeze-overwrite"])
     wsed.main()
     assert json.loads((freeze_dir / "manifest.json").read_text(encoding="utf-8"))["rows_written"] == 8
+    # report.md はツールが凍結の一部として書く — shell redirect ではガードより先に切り詰められる (PR #328 review 4266657605)
+    rep = (freeze_dir / "report.md").read_text(encoding="utf-8")
+    assert rep.startswith("# Win-side exit decomposition") and "## 6." in rep and "入力凍結" in rep
+    assert rep == capsys.readouterr().out            # stdout と同一内容
+    assert not list(freeze_dir.glob("*.tmp"))         # 原子的書込の一時ファイルを残さない
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
+    (fresh / "report.md").write_text("old report")
+    monkeypatch.setattr(sys, "argv", [str(fresh) if a == str(freeze_dir) else a
+                                      for a in sys.argv if a != "--freeze-overwrite"])
+    with pytest.raises(SystemExit, match="既存の凍結"):
+        wsed.main()
+    assert (fresh / "report.md").read_text() == "old report" and not (fresh / "excursion_per_entry.csv").exists()

@@ -153,5 +153,5 @@
 - 240 分: median 有利幅 post−pre = -0.60p (重なり窓ブロック bootstrap 95% [-1.90, +1.60]、ブロック数 pre 21 / post 24)
   - instrument×entry_type×direction 構成を揃えた mean (共通 241 cell, pre 行の 59.1%): 有利幅 pre 18.41 → post 17.25p / 不利幅 pre 19.96 → post 17.39p 
 
-> 🧊 入力凍結: `knowledge-base/raw/analysis/win-side-excursion-2026-10-14/excursion_per_entry.csv` (29010 行) + `manifest.json` (trades sha256 e344cc86d54c…, bars 13 pair)
+> 🧊 入力凍結: `knowledge-base/raw/analysis/win-side-excursion-2026-10-14/excursion_per_entry.csv` (29010 行) + `manifest.json` (trades sha256 e344cc86d54c…, bars 13 pair) + `report.md` (本出力)
 

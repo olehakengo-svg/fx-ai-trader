@@ -187,7 +187,7 @@
    "rows_measured": 8810
   }
  ],
- "generated_at": "2026-10-14T03:58:38.244602+00:00",
+ "generated_at": "2026-10-14T04:07:52.193766+00:00",
  "params": {
   "bars_tf": "1m",
   "horizons_min": [
@@ -204,10 +204,10 @@
  "rows_written": 29010,
  "tool": {
   "git_dirty": true,
-  "git_head": "003c9a2a5734cd100a8ee3ffe782865923172462",
+  "git_head": "74356bc332b1f3409a4266313511ccf2b4a5174e",
   "note": "生成元の同一性は sha256 で検証する (git_dirty=true なら git_head は親 commit で、生成コードを含まない)",
   "path": "tools/win_side_exit_decomposition.py",
-  "sha256": "1f21b7b3bd4ff906589944b77618e21b7c7a6a2fdd97e7259e9357c4b738f629"
+  "sha256": "abc1ca5b90a791847426b7d20311f69c703b14109617a4c48173767cdf5416e2"
  },
  "trades_json": {
   "bytes": 61062064,

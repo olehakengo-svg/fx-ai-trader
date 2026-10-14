@@ -657,7 +657,16 @@ def sha256_file(path: str | Path) -> str:
     return h.hexdigest()
 
 
-FREEZE_FILES = ("excursion_per_entry.csv", "manifest.json")
+FREEZE_FILES = ("excursion_per_entry.csv", "manifest.json", "report.md")
+
+
+def _atomic_write(path: Path, data: str, *, newline: str | None = None) -> None:
+    """同 dir の一時ファイルに書いて rename — 途中失敗で壊れた凍結を残さない。"""
+    import os
+    tmp = path.with_name(path.name + ".tmp")
+    with open(tmp, "w", encoding="utf-8", newline=newline) as f:
+        f.write(data)
+    os.replace(tmp, path)
 
 
 def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows: int,
@@ -685,11 +694,13 @@ def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows
     rows = freeze.get("rows", [])
     cols = ["trade_id", "instrument", "entry_type", "direction", "entry_time", "cohort",
             "horizon_min", "favorable_pips", "adverse_pips", "block_id", "match_key"]
-    with open(out / "excursion_per_entry.csv", "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=cols)
-        w.writeheader()
-        for r in rows:
-            w.writerow({k: r.get(k) for k in cols})
+    import io
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=cols)
+    w.writeheader()
+    for r in rows:
+        w.writerow({k: r.get(k) for k in cols})
+    _atomic_write(out / "excursion_per_entry.csv", buf.getvalue(), newline="")
     files = {}
     for inst in sorted(instruments):
         p = Path(bars_dir) / f"{inst}_{bars_tf}.parquet"
@@ -726,12 +737,28 @@ def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows
         "coverage": freeze.get("coverage", []),
         "rows_written": len(rows),
     }
-    (out / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
-                                       encoding="utf-8")
+    _atomic_write(out / "manifest.json", json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
     return manifest
 
 
 def main() -> None:
+    """--freeze-dir 指定時は stdout を捕捉し、凍結ガード通過後に report.md も同 dir へ原子的に書く
+    (PR #328 review 4266657605: shell redirect は in-process ガードより先に report を切り詰める)。"""
+    import contextlib
+    import io
+    import sys
+    args = _parse_args()
+    if not args.freeze_dir:
+        _run(args)
+        return
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        _run(args)  # 既存凍結があれば write_freeze が SystemExit → report も書かない
+    sys.stdout.write(buf.getvalue())
+    _atomic_write(Path(args.freeze_dir) / "report.md", buf.getvalue())
+
+
+def _parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser()
     ap.add_argument("trades_json")
     ap.add_argument("--strategy", default="sr_anti_hunt_bounce",
@@ -759,7 +786,10 @@ def main() -> None:
     args = ap.parse_args()
     if args.freeze_dir and not args.bars_dir:
         ap.error("--freeze-dir は --bars-dir と併用する")
+    return args
 
+
+def _run(args: argparse.Namespace) -> None:
     strat = None if args.strategy == "ALL" else args.strategy
     rows = load_clean(args.trades_json, strat, args.stream)
     if not rows:
@@ -842,7 +872,8 @@ def main() -> None:
                                      "population": "outcome を問わない全 entry (XAU 除外 / dedup 除外)"},
                              overwrite=args.freeze_overwrite)
             print(f"> 🧊 入力凍結: `{args.freeze_dir}/excursion_per_entry.csv` ({m['rows_written']} 行) + "
-                  f"`manifest.json` (trades sha256 {m['trades_json']['sha256'][:12]}…, bars {len(m['bars']['files'])} pair)\n")
+                  f"`manifest.json` (trades sha256 {m['trades_json']['sha256'][:12]}…, bars {len(m['bars']['files'])} pair) + "
+                  f"`report.md` (本出力)\n")
 
 
 if __name__ == "__main__":
