@@ -5321,6 +5321,16 @@ Cutoff後累計は N=11、WR=72.7%、PnL=+¥83.4 という水準にとどまる�
 - **本日WR**: 算出不能（N=0）
 - **最良セッション**: 該当なし（全セッション無取引）
 
+### 2026-10-14 (Pre-Tokyo Briefing)
+前日（2026-10-13）はトレード**ゼロ**。東京・ロンドン・NY全セッションを通じてエントリー実績なし。PnL = ¥0、WR = N/A。全戦略でシグナル不発またはブロックが継続し、実質的な不活動日となった。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| kalman_d7_po_dn_flip | USD_JPY | 4 | 50.0% | -3.40 | -13.6 | ⚠️ 負EV（N不足） |
+**全戦略合計（Cutoff後）: N=10、WR=70.0%、PnL=+82.6**
+- `rnb_usdjpy: no_signal` が2,166件でブロック最多。シグナル生成自体が機能していない状態。
+- `r2_shadow_demoted_cell` が複数スキャルプ系戦略（scalp_eur: 985、scalp: 885、daytrade_1h_usdchf: 394等）に集中。降格済みセルがスキャルプ系全体の出力を抑圧している。
+- `order_bar_dedup` がデイトレ系（daytrade_eur: 463、daytrade: 384、daytrade_audjpy: 380等）で大量発生。同一バーへの重複注文防止ロジックが繰り返し作動しており、実質的にエントリーが間引かれ続けている。
+- `r2_shadow_demoted_cell` の集中は**構造的抑圧**であり、一時的なシグナル不足ではない。デモトラッキング期間中の蓄積待ちと認識する。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
