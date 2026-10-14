@@ -6,3 +6,4 @@
 {"day": "2026-10-08", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": -0.0247, "range": 0.866, "med20_range": 1.2275, "range_ratio": 0.705, "n_bars": 24, "candidate": false}
 {"day": "2026-10-09", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": 0.1272, "range": 0.679, "med20_range": 1.1235, "range_ratio": 0.604, "n_bars": 21, "candidate": false}
 {"day": "2026-10-12", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": 0.2162, "range": 0.681, "med20_range": 1.009, "range_ratio": 0.675, "n_bars": 24, "candidate": false}
+{"day": "2026-10-13", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": -0.1356, "range": 0.708, "med20_range": 0.9815, "range_ratio": 0.721, "n_bars": 24, "candidate": false}
