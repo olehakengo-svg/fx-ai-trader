@@ -580,3 +580,17 @@ def test_freeze_dir_persists_per_entry_results_and_input_hashes(wsed, tmp_path, 
     with pytest.raises(SystemExit, match="既存の凍結"):
         wsed.main()
     assert (fresh / "report.md").read_text() == "old report" and not (fresh / "excursion_per_entry.csv").exists()
+    # stdout が先に閉じても report.md は永続されている (PR #328 review 4266711506)
+    broken = tmp_path / "broken"
+
+    class _Closed:
+        def write(self, _):
+            raise BrokenPipeError
+        def flush(self):
+            pass
+    monkeypatch.setattr(sys, "argv", [str(broken) if a == str(fresh) else a for a in sys.argv])
+    monkeypatch.setattr(sys, "stdout", _Closed())
+    with pytest.raises(BrokenPipeError):
+        wsed.main()
+    assert (broken / "report.md").read_text(encoding="utf-8").startswith("# Win-side exit decomposition")
+    assert (broken / "manifest.json").exists() and not list(broken.glob("*.tmp"))

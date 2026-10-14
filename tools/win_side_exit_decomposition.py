@@ -754,8 +754,9 @@ def main() -> None:
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         _run(args)  # 既存凍結があれば write_freeze が SystemExit → report も書かない
-    sys.stdout.write(buf.getvalue())
+    # report を先に永続 — stdout が先に閉じていても (| head / CI cancel) 部分凍結を残さない (PR #328 review 4266711506)
     _atomic_write(Path(args.freeze_dir) / "report.md", buf.getvalue())
+    sys.stdout.write(buf.getvalue())
 
 
 def _parse_args() -> argparse.Namespace:
