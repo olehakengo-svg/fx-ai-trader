@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-15 — fix(tests+tools): main CI「flaky」の真因 4 系統を R3 修復 (壁時計依存 2 / プロセス共有状態 2) + review-backlog-sprint0922 #284 RoBERTa 事前学習 cutoff 訂正 (autopilot)
+
+- **CI**: 直近 12 run 中 5 回失敗を「flaky」でなく失敗 run の UTC 時刻 × test 名で分解 ([[lesson-wallclock-flaky-tests-2026-10-15]]): (1) `test_dt_ctx_hour_utc_live` = Layer 0 `is_trade_prohibited(bar_time=None)` の壁時計 now(UTC) が 22–23 時台に深夜禁止で engine 前 WAIT → test で stub (2) `test_api_oanda_stats_range` = today 行 `now−1h` が 00 時台に前日へ → 当日 00:00:01 下限 (3) `test_win_side_exit_decomposition` = PR #328 の `redirect_stdout` が他スレッド (daemon MainLoop) の print を report.md に混入 → `tools/win_side_exit_decomposition.py` `_run(out=)` 明示ストリーム化・`redirect_stdout` 撤廃・pin 追加 (反事実 FAIL 確認) (4) `test_bt_htf_m15_m5_inject` = cache key の `id(df)` 再利用による偽ヒット → test で cache.clear()、BT 本体側ハザードは registry `bt-scalp-mtf-cache-key-id-reuse-r3` (10-29)
+- **docs**: [[adhoc-scan-29-step0-2026-09-22]] (c) 清浄境界 2019-03 → **2019-08** (RoBERTa 事前学習 5 成分のうち終端公開は CC-News のみ → 保守的 overall cutoff = 公開 2019-07-26 arXiv v1)。registry `review-backlog-sprint0922-p2-deferrals` resolved (繰延 9 件完了)
+- 本番 (06:38Z): engine pid 94 tick ok / NAV ¥273,268 / **live fill 10-14T23:03:46Z** (10-09 以来初) / SVK 10 月 26 RT 到達
+- 詳細: [[2026-10-15-session]]
+
 ## 2026-10-14 — docs+tools(KB+registry): 期日 2 件消化 — daily market review 30d レビュー (条件付き継続) / §6 excursion の入力凍結 + direction キー (凍結再計算) + 座礁 wiki-daily 3 run 救出 (rule:R3、autopilot)
 
 - **daily market review 30d** ([[daily-market-review-protocol]] §8、registry `daily-market-review-30d-effectiveness` resolved → `daily-market-review-60d-effectiveness` 11-13): 窓 09-14〜10-13 (22 営業日) run 17/22 = 77% / 執行 QA 節あり 13/22 = 59% / 観測 8 entry (独立 event 7) / 執行 QA 発見 6 (5 event) / 卒業 0 / **月曜 rollup 0/4** (遡及記載)。§6 廃止条件 (a)(b) とも不成立 → **条件付き継続** (60d で (i) 執行 QA ≥ 60% (ii) rollup ≥ 3/4、不成立なら層別に廃止)

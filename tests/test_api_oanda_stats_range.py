@@ -26,7 +26,11 @@ def test_oanda_stats_range_filters_and_excludes_xau_by_default(tmp_path, flask_c
     old_db_path = app_mod._db_path
 
     now = datetime.now(timezone.utc)
-    today_row = now - timedelta(hours=1)
+    # range=today は UTC 当日 00:00 以降 (app.api_oanda_stats: rolling_days == 0)。旧 `now - 1h` は
+    # 00:00–00:59 UTC の run で前日に落ち today["total"] が 0 になった (main CI 2026-10-15T00:17Z / 00:22Z
+    # 実測、2026-10-15 rule:R3)。当日 00:00:01 を下限にして日付跨ぎを塞ぐ (未来時刻にはしない)
+    today_row = max(now - timedelta(hours=1), now.replace(hour=0, minute=0, second=1, microsecond=0))
+    assert today_row.date() == now.date()
     within_7d = now - timedelta(days=5)
 
     _insert_oanda_trade(db, "pre-fidelity", "USD_JPY", "2026-03-01T00:00:00")

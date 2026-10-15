@@ -1313,3 +1313,9 @@
 - **救出**: 10-06 / 10-07 / 10-13 wiki-daily (trade-log 3 + observations-10 + index/log/カード追記)
 - **現況**: NAV ¥273,245 / live fill 10-09 以来 0 / SVK 10 月 target 到達 / storm_guard 0
 - 詳細: [[2026-10-14-session]]
+
+## 2026-10-15 — autopilot: main CI「flaky」4 系統を R3 修復 (壁時計 2 / プロセス共有状態 2) + #284 RoBERTa cutoff 訂正 (2019-03 → 2019-08)
+- **CI**: 12 run 中 5 失敗は決定論的 — Layer 0 壁時計 (22–23 時台) / today 行の日付跨ぎ (00 時台) / `redirect_stdout` が daemon MainLoop の print を report に混入 / `id(df)` cache key の偽ヒット。ツールは明示 `out` ストリーム、test は時刻・cache の前提を固定 ([[lesson-wallclock-flaky-tests-2026-10-15]])
+- **docs**: [[adhoc-scan-29-step0-2026-09-22]] 清浄区間 2019-08 以降 (保守的 cutoff = RoBERTa 公開 2019-07-26)。registry `review-backlog-sprint0922-p2-deferrals` resolved / `bt-scalp-mtf-cache-key-id-reuse-r3` 新設 (10-29)
+- **現況**: NAV ¥273,268 / live fill 10-14T23:03Z (10-09 以来初) / SVK 10 月 target 到達
+- 詳細: [[2026-10-15-session]]

@@ -742,9 +742,13 @@ def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows
 
 
 def main() -> None:
-    """--freeze-dir 指定時は stdout を捕捉し、凍結ガード通過後に report.md も同 dir へ原子的に書く
-    (PR #328 review 4266657605: shell redirect は in-process ガードより先に report を切り詰める)。"""
-    import contextlib
+    """--freeze-dir 指定時は report 本文を明示ストリームに集め、凍結ガード通過後に report.md も同 dir へ
+    原子的に書く (PR #328 review 4266657605: shell redirect は in-process ガードより先に report を切り詰める)。
+
+    2026-10-15 (rule:R3): `contextlib.redirect_stdout` は **プロセス全体の sys.stdout** を差し替えるため、
+    同プロセスの他スレッド (pytest では先行 test が起動した demo_trader の daemon MainLoop: `[MainLoop/scalp]
+    tick #1 ok …`) の print が report.md の先頭に混入した (main CI 2026-10-15T03:13Z 実測、`startswith` pin が
+    検知)。report は `_run(out=)` に渡した StringIO にだけ書き、グローバル stdout は差し替えない。"""
     import io
     import sys
     args = _parse_args()
@@ -752,8 +756,7 @@ def main() -> None:
         _run(args)
         return
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        _run(args)  # 既存凍結があれば write_freeze が SystemExit → report も書かない
+    _run(args, out=buf)  # 既存凍結があれば write_freeze が SystemExit → report も書かない
     # report を先に永続 — stdout が先に閉じていても (| head / CI cancel) 部分凍結を残さない (PR #328 review 4266711506)
     _atomic_write(Path(args.freeze_dir) / "report.md", buf.getvalue())
     sys.stdout.write(buf.getvalue())
@@ -790,7 +793,12 @@ def _parse_args() -> argparse.Namespace:
     return args
 
 
-def _run(args: argparse.Namespace) -> None:
+def _run(args: argparse.Namespace, out=None) -> None:
+    """本体。`out` を渡すと report 本文はそこにだけ書く (既定 = sys.stdout)。
+    グローバル stdout の差し替えに頼らないので、他スレッドの print が report に混入しない。"""
+    import functools
+    import sys
+    _p = functools.partial(print, file=(out if out is not None else sys.stdout))
     strat = None if args.strategy == "ALL" else args.strategy
     rows = load_clean(args.trades_json, strat, args.stream)
     if not rows:
@@ -803,62 +811,62 @@ def _run(args: argparse.Namespace) -> None:
             r["cohort"], r["split_month"] = lab, split_month
     clean = a + b
 
-    print(f"# Win-side exit decomposition — {args.strategy} / stream={args.stream}\n")
-    print(f"- N = **{len(rows)}** (stream={args.stream} / XAU除外 / dedup除外 / outcome∈{{WIN,LOSS}})")
-    print(f"- span: {min(r['entry_time'] or '' for r in rows)} → {max(r['entry_time'] or '' for r in rows)}")
-    print(f"- 遷移窓 [{args.split_at}, {args.transition_end})")
-    print(f"- clean pre (exit < START) N={len(a)} / clean post (entry ≥ END) N={len(b)} / "
+    _p(f"# Win-side exit decomposition — {args.strategy} / stream={args.stream}\n")
+    _p(f"- N = **{len(rows)}** (stream={args.stream} / XAU除外 / dedup除外 / outcome∈{{WIN,LOSS}})")
+    _p(f"- span: {min(r['entry_time'] or '' for r in rows)} → {max(r['entry_time'] or '' for r in rows)}")
+    _p(f"- 遷移窓 [{args.split_at}, {args.transition_end})")
+    _p(f"- clean pre (exit < START) N={len(a)} / clean post (entry ≥ END) N={len(b)} / "
           f"**除外 (窓を跨ぐ・窓内で建つ) N={len(excl)}**")
     if excl:
         ex = summary_row(excl)
-        print(f"  - 除外群: WR {fmt(ex['wr'], 3)} / avg_win {fmt(ex['avg_win'])} / "
+        _p(f"  - 除外群: WR {fmt(ex['wr'], 3)} / avg_win {fmt(ex['avg_win'])} / "
               f"WIN 行 SL_HIT 率 {fmt(ex['slhit_win_share'], 3)}")
-    print()
+    _p()
 
-    print("## 0. 期間サマリ (clean cohort)\n")
-    print("| 群 | N | WR | avg_win | avg_loss | R:R | EV | WIN 行の SL_HIT 率 |")
-    print("|---|---|---|---|---|---|---|---|")
+    _p("## 0. 期間サマリ (clean cohort)\n")
+    _p("| 群 | N | WR | avg_win | avg_loss | R:R | EV | WIN 行の SL_HIT 率 |")
+    _p("|---|---|---|---|---|---|---|---|")
     for lab, grp in (("pre", a), ("post", b)):
         sr = summary_row(grp)
-        print(f"| {lab} | {sr['n']} | {fmt(sr['wr'], 3)} | {fmt(sr['avg_win'])} | {fmt(sr['avg_loss'])} | "
+        _p(f"| {lab} | {sr['n']} | {fmt(sr['wr'], 3)} | {fmt(sr['avg_win'])} | {fmt(sr['avg_loss'])} | "
               f"{fmt(sr['rr'])} | {fmt(sr['ev'])} | {fmt(sr['slhit_win_share'], 3)} |")
-    print()
+    _p()
 
-    print("## 1. 月次ペイオフ (境界月は pre/post に分割、除外群は含まない)\n")
-    print(monthly_table(clean), "\n")
+    _p("## 1. 月次ペイオフ (境界月は pre/post に分割、除外群は含まない)\n")
+    _p(monthly_table(clean), "\n")
 
-    print("## 2. close_reason × outcome (SL_HIT ラベル衝突対応)\n")
-    print(reason_outcome_table(a, "clean pre"), "\n")
-    print(reason_outcome_table(b, "clean post"), "\n")
+    _p("## 2. close_reason × outcome (SL_HIT ラベル衝突対応)\n")
+    _p(reason_outcome_table(a, "clean pre"), "\n")
+    _p(reason_outcome_table(b, "clean post"), "\n")
 
-    print("## 3. avg_win 変化の帰属 — shift-share 分解\n")
+    _p("## 3. avg_win 変化の帰属 — shift-share 分解\n")
     for key, label in (("reason", "close_reason 軸"), ("instrument", "pair 軸")):
         tbl, mix, within = shift_share(a, b, key)
         d = mix + within
-        print(f"### {label}\n")
-        print(tbl, "\n")
+        _p(f"### {label}\n")
+        _p(tbl, "\n")
         if d:
-            print(f"→ Δavg_win = {d:+.2f}p のうち mix {mix:+.2f}p ({mix/d:.0%}) / "
+            _p(f"→ Δavg_win = {d:+.2f}p のうち mix {mix:+.2f}p ({mix/d:.0%}) / "
                   f"within {within:+.2f}p ({within/d:.0%})\n")
 
-    print("## 4. 勝ち側 capture (realized / MFE) — exit 機構の記述のみ\n")
-    print("> ⚠️ MFE は exit 時点までしか観測されない (全行で censored)。exit を早めると測定 MFE は"
+    _p("## 4. 勝ち側 capture (realized / MFE) — exit 機構の記述のみ\n")
+    _p("> ⚠️ MFE は exit 時点までしか観測されない (全行で censored)。exit を早めると測定 MFE は"
           "機械的に縮む。市場機会の対照には使えない — §6 を見ること。\n")
-    print(capture_table(clean), "\n")
+    _p(capture_table(clean), "\n")
 
-    print("## 5. 保有時間 (exit 機構の記述指標 — 市場対照ではない)\n")
-    print(hold_hours(clean, win=True), "\n")
-    print(hold_hours(clean, win=False), "\n")
+    _p("## 5. 保有時間 (exit 機構の記述指標 — 市場対照ではない)\n")
+    _p(hold_hours(clean, win=True), "\n")
+    _p(hold_hours(clean, win=False), "\n")
 
     if args.bars_dir:
-        print(f"## 6. exit 非依存を意図した対照 (exit regime による選別あり) — 固定ホライズン excursion ([entry, entry+H] を {args.bars_tf} 足でクリップ)\n")
-        print(CONTROL_SELECTION_CAVEAT + "\n")
+        _p(f"## 6. exit 非依存を意図した対照 (exit regime による選別あり) — 固定ホライズン excursion ([entry, entry+H] を {args.bars_tf} 足でクリップ)\n")
+        _p(CONTROL_SELECTION_CAVEAT + "\n")
         ent = load_clean(args.trades_json, strat, args.stream, outcomes=None)
         ea, eb = split_entries(ent, args.split_at, args.transition_end)
-        print(f"> 母集団 = outcome を問わない全 entry (BREAKEVEN / 未決済を含む) N={len(ent)}、"
+        _p(f"> 母集団 = outcome を問わない全 entry (BREAKEVEN / 未決済を含む) N={len(ent)}、"
               f"entry 時刻だけで分割 (pre {len(ea)} / post {len(eb)})。excursion は 0 で clamp。\n")
         freeze: dict | None = {} if args.freeze_dir else None
-        print(excursion_control_table(ea, eb, args.bars_dir, bars_tf=args.bars_tf,
+        _p(excursion_control_table(ea, eb, args.bars_dir, bars_tf=args.bars_tf,
                                       split_start=args.split_at, freeze=freeze), "\n")
         if freeze is not None:
             with open(args.trades_json) as f:
@@ -872,7 +880,7 @@ def _run(args: argparse.Namespace) -> None:
                                      "horizons_min": [60, 240], "bars_tf": args.bars_tf,
                                      "population": "outcome を問わない全 entry (XAU 除外 / dedup 除外)"},
                              overwrite=args.freeze_overwrite)
-            print(f"> 🧊 入力凍結: `{args.freeze_dir}/excursion_per_entry.csv` ({m['rows_written']} 行) + "
+            _p(f"> 🧊 入力凍結: `{args.freeze_dir}/excursion_per_entry.csv` ({m['rows_written']} 行) + "
                   f"`manifest.json` (trades sha256 {m['trades_json']['sha256'][:12]}…, bars {len(m['bars']['files'])} pair) + "
                   f"`report.md` (本出力)\n")
 
