@@ -5391,6 +5391,16 @@ USD_JPYは現在TRENDING_UP（ATR%ile 53%）であり、トレンド方向のBUY
 - **詳細**: 前日の2件はSL_HIT −15.1pips / WIN +0.8pipsと**非対称な負け方**。累積EVは+7.42で黒字を保持しているが、前日だけ見るとロット配分に対してSL到達時の損失幅が顕著に大きい。
 - **対処方針**: USD_JPYが`TRENDING_UP`レジームにある中で、dip-accumulator戦略がどの方向に乗っているかを本日注視。買いdipが逆方向に働いていないか（下押し局面での強制買いがSL連打）を確認する。
 
+### 2026-10-15 (Pre-Tokyo Briefing)
+| 前日PnL合計 | +1.3（pip換算） |
+| 全体WR | 66.7%（2勝1敗） |
+前日は `kalman_d7_po_dn_flip` が +15.6pip の大陽線で牽引した一方、`usdjpy_carry_dip_accumulator` が −15.1pip のSL_HITを被り相殺。実質的にほぼフラット着地。ポジティブに見える WR 66.7% はN=3で統計的意味なし。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- 両戦略とも **N < 10**（`kalman`はN=4）。いずれも「データなし」扱いが統計上正確。
+- `usdjpy_carry_dip_accumulator` のEV +3.25は全期間累計で見れば正だが、**前日単日EV −7.15**（SL_HIT −15.1pip 起因）が示す通りボラが極めて高い。
+- `kalman_d7_po_dn_flip` のEV +0.37はN=4での数値。前日の +15.6 という単発外れ値が歪める可能性が高く、平均回帰を要警戒。
+- **N=30 到達まで両戦略の昇格判断は保留が統計的に正しい**。現時点での残距離：carry_dip N=6→残24件、kalman N=4→残26件。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
