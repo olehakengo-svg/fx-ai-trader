@@ -480,8 +480,8 @@ def test_generated_control_report_carries_the_selection_caveat(wsed):
     import inspect
     cav = wsed.CONTROL_SELECTION_CAVEAT
     assert "cooldown" in cav and "上限評価" in cav and "完全な exit 非依存ではない" in cav
-    src = inspect.getsource(wsed._run)  # main() は freeze の stdout 捕捉だけ、本体は _run
-    assert "print(CONTROL_SELECTION_CAVEAT" in src
+    src = inspect.getsource(wsed._run)  # main() は freeze の report 収集だけ、本体は _run
+    assert "_p(CONTROL_SELECTION_CAVEAT" in src   # _p = _run の明示 out ストリーム宛 print (2026-10-15)
     assert "## 6. exit 非依存の対照 —" not in src
 
 
@@ -594,3 +594,42 @@ def test_freeze_dir_persists_per_entry_results_and_input_hashes(wsed, tmp_path, 
         wsed.main()
     assert (broken / "report.md").read_text(encoding="utf-8").startswith("# Win-side exit decomposition")
     assert (broken / "manifest.json").exists() and not list(broken.glob("*.tmp"))
+
+
+def test_freeze_report_ignores_concurrent_stdout_from_other_threads(wsed, tmp_path, monkeypatch, capsys):
+    """report.md には本ツールの出力だけが入る — 同プロセスの他スレッドが sys.stdout に print しても混入しない
+    (main CI 2026-10-15T03:13Z 実測: `[MainLoop/scalp] tick #1 ok (0.8s) pid=2385` が report 先頭に混入し
+    `startswith` pin が落ちた。旧 main() は `contextlib.redirect_stdout` でプロセス全体の stdout を差し替えて
+    いたため、先行 test が起動した demo_trader の daemon MainLoop の print を拾った)。
+
+    pin: 本体実行中に第三者が sys.stdout へ書いた行は report.md に入らず、通常の stdout (capsys) に出る。
+    スレッドの実タイミングに依存しないよう、本体の途中で呼ばれる関数を wrap して「他スレッドの print」を模す。
+    """
+    import inspect
+    import sys
+    bars_dir = tmp_path / "bars"
+    bars_dir.mkdir()
+    _minute_bars("2026-06-03T00:00:00+00:00", 1200, {70: (150.30, 149.99)}).to_parquet(bars_dir / "USD_JPY_1m.parquet")
+    trades = [
+        _t("2026-06-03T01:00:00+00:00", "WIN", 1.0, "TP_HIT", instrument="USD_JPY", entry_price=150.00, id=1),
+        _t("2026-06-03T12:00:00+00:00", "LOSS", -1.0, "SL_HIT", instrument="USD_JPY", entry_price=150.00, id=2),
+    ]
+    tj = tmp_path / "t.json"
+    tj.write_text(json.dumps(_payload(trades)))
+    freeze_dir = tmp_path / "freeze"
+    intruder = "[MainLoop/scalp] tick #1 ok (0.8s) pid=2385"
+    original = wsed.excursion_control_table
+
+    def _noisy(*a, **k):
+        print(intruder, flush=True)          # 他スレッド (daemon MainLoop) の print を模す — グローバル stdout 宛
+        return original(*a, **k)
+
+    monkeypatch.setattr(wsed, "excursion_control_table", _noisy)
+    monkeypatch.setattr(sys, "argv", ["wsed", str(tj), "--strategy", "s", "--bars-dir", str(bars_dir),
+                                      "--freeze-dir", str(freeze_dir)])
+    wsed.main()
+    out = capsys.readouterr().out
+    rep = (freeze_dir / "report.md").read_text(encoding="utf-8")
+    assert rep.startswith("# Win-side exit decomposition") and intruder not in rep
+    assert intruder in out and rep in out       # 混入行は通常の stdout へ、report 本文はそのまま stdout にも出る
+    assert "redirect_stdout(" not in inspect.getsource(wsed.main)   # docstring の言及は可、呼び出しは不可

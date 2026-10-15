@@ -46,6 +46,12 @@ def _capture_dt_ctx(monkeypatch, bar_index_last, bar_time=None):
 
     import strategies.daytrade as dt_mod
     monkeypatch.setattr(dt_mod, "DaytradeEngine", _FakeEngine)
+    # Layer 0 `is_trade_prohibited(df, bar_time=None)` は live 経路では壁時計 now(UTC) で評価する (仕様:
+    # live の「今」が 22:00–23:59 UTC なら深夜禁止で engine 前に WAIT を返す)。本テストの estimand は
+    # ctx.hour_utc が直近バーに追従することであり layer0 ではないので、壁時計に依存しない stub に差し替える
+    # (main CI 2026-10-14T22:45Z / 23:54Z の run で engine 未到達 → ctx None で落ちた、2026-10-15 rule:R3)
+    monkeypatch.setattr(app_mod, "is_trade_prohibited",
+                        lambda df=None, bar_time=None: {"prohibited": False, "reason": "", "layer": 0, "check": "session"})
 
     df = _make_df(bar_index_last)
     sr = []

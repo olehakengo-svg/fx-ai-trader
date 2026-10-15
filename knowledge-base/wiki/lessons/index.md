@@ -37,6 +37,12 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-wallclock-flaky-tests-2026-10-15]]
+**発見日**: 2026-10-15 | **rule**: R3
+- 問題: main CI が 12 run 中 5 回失敗し「flaky、push し直せば通る」と記録されていたが、失敗 run の UTC 時刻 × test 名を並べると **壁時計依存 2 系統 (22–23 時台の Layer 0 深夜禁止 / 00 時台の `now−1h` 日付跨ぎ) + プロセス共有状態 2 系統 (`redirect_stdout` が他スレッドの print を拾う / `id(df)` を cache key にした偽ヒット)** の決定論的失敗だった
+- 修正: ツールは明示 `out` ストリームへ (redirect_stdout 撤廃)、test は時刻と cache の前提を自分で固定、layer0 は estimand 外として stub。反事実 (旧ツール + 新 pin = FAIL) と壁時計 22:45 固定の再現で確認
+- 教訓: **「flaky」はラベルであって診断ではない — 失敗の時刻分布と同一プロセス順序を先に見る**。本体コードでプロセス共有状態を差し替えない
+
 ### `[[lesson-wait-tick-block-attribution-2026-09-23]]`
 **発見日**: 2026-09-23 | **rule**: R3 | **計数器契約バグ 3 例目**
 - 問題: `_tick_entry` の `if signal == "WAIT": return` guard が 3 つの count ゲート (`max_per_mode_pair` / `hedge_block` / `max_open`) の**後ろ**にあり、建玉がある限り **WAIT tick が毎 tick それらの理由名で計上**されていた
