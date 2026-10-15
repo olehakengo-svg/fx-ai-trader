@@ -570,7 +570,10 @@ def test_freeze_dir_persists_per_entry_results_and_input_hashes(wsed, tmp_path, 
     # report.md はツールが凍結の一部として書く — shell redirect ではガードより先に切り詰められる (PR #328 review 4266657605)
     rep = (freeze_dir / "report.md").read_text(encoding="utf-8")
     assert rep.startswith("# Win-side exit decomposition") and "## 6." in rep and "入力凍結" in rep
-    assert rep == capsys.readouterr().out            # stdout と同一内容
+    # report 本文は stdout にも verbatim で出る。`==` ではなく `in`: 同プロセスの他スレッド (先行 test が起動した
+    # daemon MainLoop / HMM-heuristic) の print が本ツールの外側で stdout に並ぶのは正常で、report には入らない
+    # (PR #330 CI 2026-10-15T07:03Z 実測: `[HMM-heuristic] …` / `[MainLoop/scalp] tick #1 ok` が out 先頭に並んだ)
+    assert rep in capsys.readouterr().out            # report は stdout に contiguous に含まれる
     assert not list(freeze_dir.glob("*.tmp"))         # 原子的書込の一時ファイルを残さない
     fresh = tmp_path / "fresh"
     fresh.mkdir()

@@ -30,6 +30,8 @@ push し直せば通る」と書いており、rerun で済ませる運用が 2 
 3. `tests/test_dt_ctx_hour_utc_live.py`: `_capture_dt_ctx` で `app.is_trade_prohibited` を壁時計非依存の stub に差し替え (estimand は ctx.hour_utc の追従であって layer0 ではない)。壁時計 22:45 固定の再現で engine 到達 (hour_utc=3) を確認
 4. `tests/test_bt_htf_m15_m5_inject.py`: test 開始時に `app._bt_scalp_mtf_precompute_cache.clear()` で前提を固定
 
+補遺 (PR #330 の CI 1 巡目、07:03Z): 修正後 report.md は清浄だったが、同じ test の既存 pin `rep == capsys.out` が落ちた — 他スレッドの print が (正しく) 通常 stdout 側に出たため。**「stdout と同一」も同じ共有状態前提**だったので `rep in out` (contiguous 包含) に改めた。同一欠陥族の 5 例目を自分の pin で踏んだ。
+
 BT 本体側の id(df) 再利用ハザード (同形 df を別内容で作り直す経路があれば古い特徴量を黙って再利用) は registry
 `bt-scalp-mtf-cache-key-id-reuse-r3` (期日 2026-10-29) で別途裁定する。
 
