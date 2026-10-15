@@ -5381,6 +5381,16 @@ USD_JPYは現在TRENDING_UP（ATR%ile 53%）であり、トレンド方向のBUY
 - 累積N=6で依然「傾向段階」。直近2件は50%WRに後退（全期間66.7%から低下気味）
 - **USD_JPYはTRENDING_UP(ATR%ile=53%)**：トレンドフォローには中程度のボラティリティ。dip accumulator戦略は押し目買い想定だが、SL幅とエントリータイミングの妥当性が問われる
 
+### 2026-10-15 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **+1.3 pips** |
+| 全体WR | **66.7%** |
+前日（2026-10-14）は3件のトレードが執行された。`usdjpy_carry_dip_accumulator`が2件中1勝1敗（EV=-7.15）と足を引っ張り、`kalman_d7_po_dn_flip`の1件大勝（+15.6pips）で辛うじてプラス着地。実態は**1件の大勝が損失をカバーしたにすぎない**日だった。
+| Strategy | Pair | N | WR% | EV | PnL |
+| Strategy | Pair | N | WR% | EV | PnL |
+### 課題①：`usdjpy_carry_dip_accumulator` の前日EV急落（−7.15）
+- **詳細**: 前日の2件はSL_HIT −15.1pips / WIN +0.8pipsと**非対称な負け方**。累積EVは+7.42で黒字を保持しているが、前日だけ見るとロット配分に対してSL到達時の損失幅が顕著に大きい。
+- **対処方針**: USD_JPYが`TRENDING_UP`レジームにある中で、dip-accumulator戦略がどの方向に乗っているかを本日注視。買いdipが逆方向に働いていないか（下押し局面での強制買いがSL連打）を確認する。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
