@@ -5361,6 +5361,16 @@ PnL = ¥0 / N = 0 / WR = N/A。
 - **rnb_usdjpy**：USD_JPYがTRENDING_UPかつATR%ile=55%の中程度ボラ環境ではRnBシグナルが出づらい構造。本日も無シグナルが継続する可能性を前提に置く
 - **scalp系**：Shadow降格セルの解除を待つ以外に短期打開策はない。現状維持で観察継続
 
+### 2026-10-15 (Pre-Tokyo Briefing)
+| PnL合計 | **+1.3 pip** |
+| 全体WR | **66.7%** (2勝/1敗) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> - 昇格基準（N≥30 & EV≥1.0）到達まで：carry_dip あと**24件**、kalman あと**25件**、EUR_GBP あと**29件**
+> - 現時点でEVが正であることは確認できるが、いずれも信頼区間が極めて広い
+| Strategy | Pair | N | WR% | EV | PnL |
+> carry_dip の前日EV=-7.15は**全期間EV+11.00から大きく乖離**。N=2のため1日の判断材料にはならないが、SL水準とエントリー条件の点検は要する。
+USD_JPYは現在TRENDING_UP（ATR%ile 53%）であり、トレンド方向のBUYは理論上優位なはず。それでもSL_HITが発生したことは、エントリータイミングのドローダウン深度がSL幅を上回ったことを示唆。本日対処として**SL到達前の価格挙動を注視**し、同日内に2件目のcarry_dipシグナルが出た場合は累積エクスポージャーに注意。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
