@@ -5401,6 +5401,16 @@ USD_JPYは現在TRENDING_UP（ATR%ile 53%）であり、トレンド方向のBUY
 - `kalman_d7_po_dn_flip` のEV +0.37はN=4での数値。前日の +15.6 という単発外れ値が歪める可能性が高く、平均回帰を要警戒。
 - **N=30 到達まで両戦略の昇格判断は保留が統計的に正しい**。現時点での残距離：carry_dip N=6→残24件、kalman N=4→残26件。
 
+### 2026-10-16 (Pre-Tokyo Briefing)
+前日（2026-10-15）の稼働結果は**トレード1件、PnL = −17.6 pip、WR = 0.0%**。`usdjpy_carry_dip_accumulator` USD/JPY のBUYがSL_HITで終了。スプレッド0.8pipは許容範囲内（DT閾値20%に対し十分低水準）であり、SL到達は純粋な方向性ミスによるもの。前日は実質的に単一戦略・単一トレードのセッションであり、統計的意味を持つ分析を行うには不十分なサンプルサイズ。
+| Strategy | Pair | N | WR% | EV | PnL | 判断ステータス |
+**総計: N=10、WR=60.0%、PnL=+21.0pip**
+> ⚠️ 両戦略ともN<10。統計的判断基準上「データなし」扱い。EV・WRは参考値に過ぎない。
+- `carry_dip` の前日SL_HITは単発事象。N=6では降格判断不可。**N=30到達まで継続観察**が妥当。
+- ブロック構造については後述のBlock分析参照。
+- **現在のシステム全体のレジーム感応性**: EUR/USD・GBP/USD のVolatile（ATR 76%ile）が唯一の「トレード機会あり」シグナルだが、それが成約に繋がらない構造的問題が存在（後述）。
+- USD/JPYのTRENDING_UP(低ATR)は`carry_dip`の天敵レジーム。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
