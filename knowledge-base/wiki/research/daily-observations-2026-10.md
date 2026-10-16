@@ -26,6 +26,26 @@
 
 ---
 
+### O-2026-10-15-1: `storm_guard` が storm 2 建玉を初めて全数捕捉 (488/488、15/15 + 失敗 125) — 10-05「guard 外の 2nd writer」前提の格下げ (執行 QA / 制御系)
+- **現象**: 2026-10-14 05:56:50〜06:42:53 UTC、`usdjpy_carry_dip_accumulator` LIVE #1253195 (1,000u BUY @158.192) に `STOP_LOSS_ORDER` `REPLACEMENT` **488 回**、全て 158.208 (BE+1.6) = 純族 A、自然停止 17 分後に SL 市場到達 +¥16。同日 12:30:05〜12:30:16 に `kalman_d7_po_dn_flip` #1254177 に **15 回** (上 8 / 下 6、族 B)、直後 trail SL +¥157。`/api/oanda/status.storm_guard` (10-15 06:35Z): `trades` に両建玉、`sent_total` 488 (= broker 488) / 140 (成功 140−`failed_total` 125 = 15 = broker 15)、`totals.evaluated` 628、`breaker_trips` 2、`detected` breaker 528 / idempotent 51 / monotonic 18 / deadband 10、`skipped` 全 0 (`enforce: false`)。時間別ピーク 06Z 680 tx/h = `max_tx_per_hour` 50 の 13.6 倍
+- **トリガ日**: 2026-10-14 (計測 2026-10-15)
+- **想定メカニズム**: guard の in-process 状態が窓中に消えなかった (05:56Z 以降 deploy なし — origin/main は PR #328 04:33Z 以降 docs/data commit のみ) ため、writer の全送信が guard を通過した。10-05 の捕捉率 50.5% は「窓中の状態消失」でも説明可能 ⇒ 「全モードに guard 外の 2nd writer」説は 1 観測で保留。SL 2-writer 競合 (trail vs BE) 自体は #1254177 の往復で再現しており別問題。kalman 側 `failed_total` 125 は SL 約定後の modify 継続 (broker tx なし = HTTP エラー、推定)
+- **family 候補**: 既存 `storm_guard` 系 (新 family なし)。[[project_weekend_market_halted_retry_storm_2026_09_07]] の「guard 捕捉率 ~40–50%」記述への反例付記
+- **反証可能な予測**: 次に deploy を跨がない窓で storm が起き、guard `sent_total` (成功分) が broker `REPLACEMENT` の 95% 未満なら 2nd writer 説が復活。95% 以上なら 2 例目で「捕捉欠損 = 状態消失」が優勢。また `failed_total` が決済後にだけ増えるなら「決済後 modify 継続」は writer 側の停止条件欠落として独立の R3 候補
+- **隣接 ban / 凍結 frame**: registry `storm-guard-enforce-decision` (期日 2026-10-20) / `storm-guard-modify-sl` (10-20) が活性。凍結 look 保有 family ではない
+- **経路**: 執行 QA → **既存 frame 回付** (`storm-guard-enforce-decision` の前提 3 点のうち「2-writer 集約」の重み低下を供給)。新規 R1 候補は立てない
+
+### O-2026-10-15-2: 平日 21:03Z の open 側 `MARKET_HALTED` — broker は同 ms で cancel・リトライなし、demo は同 signal を shadow 建玉として保持し −18.8 (執行 QA / 制御系)
+- **現象**: 2026-10-14 21:03:52.248 UTC、`usdjpy_carry_dip_accumulator` live-eligible signal (audit id 18973 `sent`、1,000u BUY、signal 158.312) → broker `MARKET_ORDER` 1254212 (FOK、SL 158.154 / TP 158.992 on fill) → `ORDER_CANCEL` 1254213 `MARKET_HALTED` (同 ms)。bridge は `recent_errors` に `OPEN buy ok but no tradeID`、audit に `filled` 行なし。demo は trade #19539 を `is_shadow=1`、entry 158.34 (signal +2.8p)、SL 158.154 (broker 指定値) で保持 → 22:39:49 `SL_HIT` −18.8 (shadow book)。2 時間後の 23:03:47 に同戦略が再 signal → #1254215 fill (−¥150)
+- **トリガ日**: 2026-10-14 (計測 2026-10-15)
+- **想定メカニズム**: OANDA の平日日次ロールオーバー停止帯 (21:00Z 台) に FOK order が当たった。open 側はリトライループを持たない (tx 2 本で終了) — 週末 halt の exit 側 32,821 回リトライ ([[2026-10-05]]) とは経路が別。demo の shadow 化は「broker fill なし → demo は shadow として追跡」の fallback 経路 (slippage 2.8p は halt 明けの再評価価格と signal の差と推定)
+- **family 候補**: 新 event 種 (open 側 halt)。[[project_weekend_market_halted_retry_storm_2026_09_07]] の halt family とは「リトライの有無」で区別、独立 1 件
+- **反証可能な予測**: 21:00〜21:05Z 帯の live-eligible signal は今後も `MARKET_HALTED` で cancel され、audit に `sent` のみが残る。signal 時刻を 21:05Z 以降に遅延させる (または halt 帯を entry 除外する) 変更が入れば本観測は再発しない。exit 側で同帯に SL/TP 約定が必要になった場合は週末型のリトライループが出るか (未観測)
+- **隣接 ban / 凍結 frame**: なし。未決 8「週末 halt リトライ storm」の受け皿に「平日 open 側」を付記
+- **経路**: 記録のみ (独立観測 1 件目、R1 候補は 3 件で検討)
+
+---
+
 ## 週次 rollup
 
 ### 週 2026-10-05〜10-11 / 10-12〜10-13 (遡及、30d レビュー 2026-10-14 で記載 — 10-05 / 10-12 月曜の rollup は未実施だった)

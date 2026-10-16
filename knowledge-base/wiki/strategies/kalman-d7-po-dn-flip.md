@@ -210,3 +210,16 @@ Entry filters (v16 forensic 導出):
 - **累計**: demo **N=8 / 4W / WR 50.0% / PnL −29.1 / EV −3.64** (`promo_ev` −3.64 一致、`promotion: pending`、`enabled: true`)、wf_h1 −3.88 / wf_h2 −3.40、Wilson 21.5 / BF 12.1。本窓 broker −¥137 (+8 −201 +56)。registry `t9-kalman-d7-live-n10-ev-check` (期日 12-09) の N≥10 まで **あと 2 fill**、現状 EV<0。`kalman-d7-live-exit-spec-mismatch-disposition` は期日 10-08 経過 (cloud の kalman live exit disposition packet での処理有無は未確認)
 - 詳細 [[2026-10-13]] 発見 1 / 発見 2
 
+
+## 🟢🔑 2026-10-15 更新 (wiki-daily 06:36Z): **LIVE fill #9 #1254177 — trail が勝ちを確保した本戦略初例 (+¥157 / demo +15.6、MAFE favorable 27.2p)、storm は 11 秒 15 回 (族 B 小規模)、`storm_guard` 15/15 捕捉 + 決済後の失敗送信 125。N=9、EV −1.5 — `t9-kalman-d7-live-n10-ev-check` まであと 1 fill**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold | MAFE fav / adv |
+|---|---|---|---|---|---|---|---|---|
+| **#1254177** | 10-14 10:01:29 | 158.468 (signal 158.467) | 158.269 (−19.9p) / 158.730 (+26.2p) | 10-14 12:30:16 trail `STOP_LOSS_ORDER` @158.625 | **+¥157** | +15.6 `OANDA_SL_TP` | 2h29m | **27.2** / 6.7 |
+
+- 🟢 **trail が勝ちを確保**: MAFE favorable 27.2p のうち 15.6 を確保 (宣言 TP 158.777 = +30.8p / broker TP 158.730 は未達)。従来 5 本の決済形は BE+0.5〜1.3 へ返す (#950042 / #1027829 / #1098462) か `MAX_HOLD_TIME` (#1211263) か SL_HIT (#1208876) で、**+10p 超の trail 決済は本戦略初**
+- 🔑 **storm (本戦略 6 度目、最小)**: 12:30:05→12:30:16Z の **11 秒に `REPLACEMENT` 15 回**、価格 12 種 (158.603〜158.646)、上 8 / 下 6 = 族 B の trail⇄BE 往復 (非単調 6)、直後 12:30:16.6 に SL 約定 @158.625。`storm_guard.trades["f0974f77-89c"]` = `sent_total` **140** / `failed_total` **125** / `breaker` 90 / `deadband` 10 / `monotonic` 18 / `idempotent` 2 / `tripped` true、`confirmed_sl` 158.628 ⇒ 成功 15 = broker 15 (**捕捉率 100%**)、失敗 125 は SL 約定後も writer が modify を送り続けた分 (broker に対応 tx なし = HTTP エラー、推定)。10-05 #1027829 の 63.5% と対照 ([[2026-10-15]] 発見 1)
+- ON_FILL SL −19.9p (本戦略 4 本で 7.8 / 19.9 / 20.0 / 22.5p)、TP +26.2p (18.7〜38.9p)。demo↔broker 符号一致、差 0.1p (entry 158.469 / exit 158.625)
+- 🔴 DD ledger: `OANDA_SL_TP` +15.6 **未計上** (欠落 11 例目)
+- **累計**: demo **N 9 / 5W / WR 55.6% / PnL −13.5 / EV −1.5** (`promo_ev` −1.5 一致、`promotion: pending`、`enabled: true`)、wf_h1 −3.88 / wf_h2 +0.40、Wilson 26.7 / BF 15.7。本窓 broker +¥157。registry `t9-kalman-d7-live-n10-ev-check` (期日 12-09) の N≥10 まで **あと 1 fill**、現状 EV<0 — 判定時の estimand (demo EV / broker EV) を事前固定すること (未決 15)。`kalman-d7-live-exit-disposition-user-decision` (11-29) は origin 版カードの 10-07 節に記載 (ローカル未反映)
+- 詳細 [[2026-10-15]] 発見 1 / 発見 2
