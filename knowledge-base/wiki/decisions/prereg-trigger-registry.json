@@ -1397,15 +1397,17 @@
     },
     {
       "id": "bt-scalp-mtf-cache-key-id-reuse-r3",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-29",
-      "doc": "knowledge-base/wiki/lessons/lesson-wallclock-flaky-tests-2026-10-15.md",
+      "doc": "knowledge-base/wiki/analyses/bt-scalp-mtf-cache-key-fingerprint-2026-10-16.md",
       "message": "R3 候補 (未執行): `app._bt_scalp_mtf_cache_key(df)` = (id(df), len, index[0], index[-1]) は **オブジェクト id を同一性の代理**にしている。同形 (同 len・同 index 範囲) の別 df が前の df の GC 後に同じ id を割り当てられると、内容が違っても cache hit する (pytest で実測: `test_compute_bt_htf_bias_reuses_cached_scalp_mtf_precompute` が counted 0 回で `assert 0 == 1`、PR #326 CI 2026-10-13 / main CI 2026-10-13 ×3)。test 側は cache.clear() で前提を固定した (2026-10-15 PR) が、BT 本体 (scalp mode の `_compute_bt_htf_bias`) でも同じ窓を別内容 (ベンダー再取得で bar が訂正されたケース、ablation 比較で同 index の df を作り直すケース) で回すと**古い M15/M5 特徴量を黙って再利用**しうる。影響範囲は BT 専用 (live 経路は使わない) で、現行 BT 運用では同一プロセス内で同 index 範囲の df を作り直す経路が無いことを確認してから閉じる — あれば key に内容指紋 (例: Close 列の先頭/末尾/合計の丸め) を加える R3 修正。判定主体 = Claude セッション (autopilot 可)。期日までに (a) 経路 grep の結果 (該当なし → 記録のみで resolve) か (b) 修正 PR を出す。",
       "reachability": "Claude セッション手動 (autopilot 可、R3、BT 専用コード)。評価主体 = tools/prereg_trigger_watch.py deadline_info (日次 Tier A cron、期日翌日 00:20Z)。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
-      "outcome_lock": false
+      "outcome_lock": false,
+      "resolved": "2026-10-16",
+      "resolution": "✅ 2026-10-16 消化 (autopilot、期日 10-29 の 13 日前倒し、rule:R3、code + pin + KB) — 判定 (b) 修正 PR。経路 grep の結果: `tools/bt_target_runner.py` (strategy × pair ループ → `app.run_scalp_backtest`) が pair ごとに `fetch_ohlcv().copy() → add_indicators → dropna` で新 df を作り、`_dt_bt_cache` / `_scalp_bt_cache` は clear するが本 cache は clear しない = 同 len・同 index 両端の別 pair で id 再利用時に M15/M5 特徴量が cross-pair 汚染する実経路あり (`tools/ma_trend_perfect_shadow_bt.py` は既に `_bt_scalp_mtf_precompute_cache.clear()` を明示 = 回避策の痕跡)。修正: `app._bt_scalp_mtf_cache_key` を内容指紋 (len / index 両端 / Close・High・Low の nansum 丸め 1e-6、`id(df)` 非含有) に置換し、O(n) 指紋 (525k 行で 1.55 ms 実測) は `_bt_scalp_mtf_fp_memo` (id → (weakref, key)、`ref() is df` のときのみ再利用、上限 16) で live オブジェクトにつき 1 回に抑える。weakref 死亡 / 別オブジェクト = id 再利用と判定して再計算。pin `tests/test_bt_scalp_mtf_cache_key_fingerprint.py` (9、id 再利用の決定論的再現を含む)。保証外 = 同一オブジェクトの in-place 変更 (BT 経路になし、将来は memo.clear())。過去 BT の再走なし (発生条件の充足率不明 + bt_target_runner 出力は Rule 1 根拠に未引用)。詳細: analyses/bt-scalp-mtf-cache-key-fingerprint-2026-10-16.md"
     }
   ]
 }

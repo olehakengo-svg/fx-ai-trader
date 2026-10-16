@@ -1,5 +1,11 @@
 # FX AI Trader - Changelog
 
+## 2026-10-16 — fix(bt): scalp M15/M5 precompute cache の key を `id(df)` から内容指紋へ (cross-pair 偽ヒットの R3 修復) + 座礁 wiki-daily 10-15 救出 (PR #332)
+
+- 真因 (registry `bt-scalp-mtf-cache-key-id-reuse-r3`、期日 10-29 の 13 日前倒し): `app._bt_scalp_mtf_cache_key(df)` = `(id(df), len, index[0], index[-1])` はオブジェクト id を同一性の代理にしており、CPython の id 再利用で**同 len・同 index 両端の別 df (別 pair / ベンダー訂正後の同窓) が旧 df の M15/M5 特徴量を黙って再利用**した (PR #326 CI 2026-10-13 で `assert 0 == 1` として露出)。経路 grep: `tools/bt_target_runner.py` の strategy × pair ループが本 cache を clear せず pair ごとに新 df を作る = cross-pair 汚染の実経路 → 判定 (b) 修正 PR
+- 修復: key = `("scalp_mtf_fp_v2", len, index[0], index[-1], nansum(Close/High/Low) 丸め 1e-6)` (id 非含有)。O(n) 指紋 (525k 行 1.55 ms 実測) は `_bt_scalp_mtf_fp_memo` (id → (weakref, key)、`ref() is df` のときのみ再利用) で live オブジェクトにつき 1 回。weakref 死亡 / 別オブジェクト = id 再利用と判定して再計算
+- pin `tests/test_bt_scalp_mtf_cache_key_fingerprint.py` (9、id 再利用の決定論的再現を含む)。BT 不要 (rule:R3: 戦略ロジック・閾値・母集団を変えない)。詳細: knowledge-base/wiki/analyses/bt-scalp-mtf-cache-key-fingerprint-2026-10-16.md
+
 ## 2026-10-08 — fix(engine): price_shock_rev live watchdog の DEMOTE を取引プロセス内で評価 (cron の state file は web service に届いていなかった) + `/api/demo/trades` ページング (rule:R3 構造バグ)
 
 - 真因 (registry `ps-watchdog-demotion-state-unreachable`、PR #306 Codex P1): Render cron `fx-ai-price-shock-rev-watchdog` は `data/price_shock_rev_auto_demotions.json` を **cron 自身の一時 FS** に書き、`DemoTrader._read_price_shock_rev_auto_demotions` は web service 側の同名パスを読む ⇒ 05-18 LOCK の R2 契約 (live N≥10 ∧ (EV<0 ∨ Wilson_lo<0.40) → auto DEMOTE) は Discord 通知だけで発注を止めていなかった

@@ -53,11 +53,14 @@ def test_compute_bt_htf_bias_injects_m15_and_m5_for_scalp_mode():
 
 
 def test_compute_bt_htf_bias_reuses_cached_scalp_mtf_precompute(monkeypatch):
-    # cache key は (id(df), len, index[0], index[-1]) — 先行 test の同形 df が GC された後に同じ id が
-    # 再利用されると、本 test の df が cache に「既にある」扱いになり counted が 0 回で落ちる
-    # (PR #326 CI 2026-10-13 `assert 0 == 1` 実測、2026-10-15 rule:R3)。本 test の estimand は
-    # 「同一 df の 2 回目以降は再計算しない」なので、開始時にモジュール cache を空にして前提を固定する
+    # 2026-10-15: 旧 key (id(df), len, index[0], index[-1]) は先行 test の同形 df が GC された後に
+    # 同じ id が再利用されると偽ヒットし counted が 0 回で落ちた (PR #326 CI 2026-10-13 `assert 0 == 1`)。
+    # 2026-10-16 rule:R3 で key は内容指紋 (len / index 端 / Close・High・Low nansum) になり id 非依存
+    # (tests/test_bt_scalp_mtf_cache_key_fingerprint.py)。本 test の estimand は「同一 df の 2 回目以降は
+    # 再計算しない」なので、先行 test が同一内容の df を cache 済みでも counted が 0 にならないよう
+    # 開始時にモジュール cache を空にして前提を固定する (eviction 上限 4 とも独立)
     app._bt_scalp_mtf_precompute_cache.clear()
+    app._bt_scalp_mtf_fp_memo.clear()
     df = _sample_1m_ohlcv()
     cache_counter = {"calls": 0}
     original = app._build_bt_scalp_mtf_cache

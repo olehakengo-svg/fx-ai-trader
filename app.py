@@ -16,6 +16,7 @@ from flask import Flask, render_template, jsonify, request
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import weakref
 from datetime import datetime, timezone
 from pathlib import Path
 import os
@@ -5194,13 +5195,70 @@ def _compute_bt_htf_bias(df: "pd.DataFrame", bar_idx: int,
 
 
 _bt_scalp_mtf_precompute_cache: dict = {}
+# id(df) -> (weakref.ref(df), content key). The fingerprint below is O(n)
+# (three nansum passes), so it is computed once per live DataFrame object and
+# re-read in O(1) while that object is alive. A dead/replaced weakref means
+# the id was recycled by a *different* object -> recompute (never trust id).
+_bt_scalp_mtf_fp_memo: dict = {}
+_BT_SCALP_MTF_FP_MEMO_MAX = 16
+_BT_SCALP_MTF_FP_VERSION = "scalp_mtf_fp_v2"
+
+
+def _bt_scalp_mtf_content_fingerprint(df: "pd.DataFrame") -> tuple:
+    """Content-only identity for the scalp M15/M5 precompute cache.
+
+    rule:R3 2026-10-16 (registry `bt-scalp-mtf-cache-key-id-reuse-r3`): the
+    previous key `(id(df), len, index[0], index[-1])` used the object id as a
+    proxy for identity. CPython recycles ids after GC, so a *different*
+    DataFrame with the same bar count and index range (another pair in a
+    multi-pair BT loop such as tools/bt_target_runner.py, or a re-fetched
+    window with vendor-corrected bars) could silently hit the previous df's
+    M15/M5 features. The key is now derived from content only: length, index
+    endpoints and the nansum of Close/High/Low (rounded to 1e-6). Two frames
+    with identical content share one entry (correct: same features); any
+    single-bar change in Close/High/Low changes the key.
+    """
+    n = len(df)
+    try:
+        idx0, idx1 = df.index[0], df.index[-1]
+    except Exception:
+        idx0 = idx1 = None
+    sums = []
+    for col in ("Close", "High", "Low"):
+        try:
+            arr = df[col].to_numpy(dtype="float64", copy=False)
+            sums.append(round(float(np.nansum(arr)), 6))
+        except Exception:
+            sums.append(None)
+    return (_BT_SCALP_MTF_FP_VERSION, n, idx0, idx1, *sums)
 
 
 def _bt_scalp_mtf_cache_key(df: "pd.DataFrame"):
+    """Return the content fingerprint of ``df`` (memoised per live object).
+
+    The memo is keyed by id(df) but *validated* through a weakref: an entry is
+    reused only while ``memo_ref() is df``. Once the original object dies (or
+    the id belongs to another object) the fingerprint is recomputed, so id
+    reuse can never produce a false cache hit. In-place mutation of the same
+    object between calls is outside this guard (no BT path does that: BT
+    source frames are rebuilt via add_indicators()/dropna()).
+    """
+    oid = id(df)
+    memo = _bt_scalp_mtf_fp_memo.get(oid)
+    if memo is not None and memo[0]() is df:
+        return memo[1]
+    key = _bt_scalp_mtf_content_fingerprint(df)
     try:
-        return (id(df), len(df), df.index[0], df.index[-1])
-    except Exception:
-        return (id(df), len(df))
+        ref = weakref.ref(df)
+    except TypeError:  # pragma: no cover - DataFrame supports weakref
+        return key
+    if len(_bt_scalp_mtf_fp_memo) >= _BT_SCALP_MTF_FP_MEMO_MAX:
+        for dead in [k for k, (r, _) in _bt_scalp_mtf_fp_memo.items() if r() is None]:
+            del _bt_scalp_mtf_fp_memo[dead]
+        if len(_bt_scalp_mtf_fp_memo) >= _BT_SCALP_MTF_FP_MEMO_MAX:
+            _bt_scalp_mtf_fp_memo.pop(next(iter(_bt_scalp_mtf_fp_memo)), None)
+    _bt_scalp_mtf_fp_memo[oid] = (ref, key)
+    return key
 
 
 def _build_bt_scalp_mtf_cache(df: "pd.DataFrame") -> dict:

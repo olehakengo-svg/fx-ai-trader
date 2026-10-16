@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-16 — fix(bt)+docs(KB): scalp M15/M5 precompute cache key を `id(df)` → 内容指紋 (rule:R3、registry `bt-scalp-mtf-cache-key-id-reuse-r3` 13 日前倒し消化) + 座礁 wiki-daily 10-15 成果物の救出 (PR #332)
+
+- **R3 修復** ([[bt-scalp-mtf-cache-key-fingerprint-2026-10-16]]): 旧 key `(id(df), len, index[0], index[-1])` は id 再利用で同形別内容の df に偽ヒット (PR #326 CI 10-13 の `assert 0 == 1` = [[lesson-wallclock-flaky-tests-2026-10-15]] 4 系統目)。経路 grep で `tools/bt_target_runner.py` (pair ループ、本 cache 未 clear) に **cross-pair 汚染の実経路**を確認 → 記録のみでなく修正。新 key = 内容指紋 (len / index 両端 / Close・High・Low nansum、id 非含有)、O(n) 指紋は weakref 検証付き memo で live オブジェクトにつき 1 回 (525k 行 1.55 ms)。pin 9 本 (id 再利用の決定論的再現を含む)。保証外 = 同一オブジェクトの in-place 変更 (BT 経路になし)。過去 BT の再走なし (発生条件の充足率不明 + `bt_target_runner` 出力は Rule 1 根拠に未引用)
+- **座礁救出 (PR #332、docs-only)**: ローカル `main` (ahead 3 / behind 210) にしか無かった wiki-daily 10-15 の trade-log / [[daily-observations-2026-10]] O-2026-10-15-1・-2 / [[usdjpy_carry_dip_accumulator]]・[[kalman-d7-po-dn-flip]] の 10-15 節 / index・log 追記を `git apply --3way` + union で origin に取り込み (10-14 と同手順)
+- 本番 (04:10Z): engine pid 129 (forked) tick ok (stalest 61s) / watchdog・main loop alive / emergency_killed false / NAV ¥273,112 (open 1 = carry_dip #1254229 BUY 04:02Z、**本日 LIVE fill 1**) / SVK 10 月 26 RT target 到達 / storm_guard enforce false
+- registry: 期日超過 4 件は全て user 専権 (Gold 10 月画面 / wg W1〜W6 / sr_anti_hunt ×2) — 不変。autopilot 可の次期日 = 10-18 `edge-supply-scan-monthly` 第6次 / 10-19 `ps-seat-spread-magnitude-readout` (期日当日 run)
+- 詳細: [[2026-10-16-session]]
+
 ## 2026-10-15 — fix(tests+tools): main CI「flaky」の真因 4 系統を R3 修復 (壁時計依存 2 / プロセス共有状態 2) + review-backlog-sprint0922 #284 RoBERTa 事前学習 cutoff 訂正 (autopilot)
 
 - **CI**: 直近 12 run 中 5 回失敗を「flaky」でなく失敗 run の UTC 時刻 × test 名で分解 ([[lesson-wallclock-flaky-tests-2026-10-15]]): (1) `test_dt_ctx_hour_utc_live` = Layer 0 `is_trade_prohibited(bar_time=None)` の壁時計 now(UTC) が 22–23 時台に深夜禁止で engine 前 WAIT → test で stub (2) `test_api_oanda_stats_range` = today 行 `now−1h` が 00 時台に前日へ → 当日 00:00:01 下限 (3) `test_win_side_exit_decomposition` = PR #328 の `redirect_stdout` が他スレッド (daemon MainLoop) の print を report.md に混入 → `tools/win_side_exit_decomposition.py` `_run(out=)` 明示ストリーム化・`redirect_stdout` 撤廃・pin 追加 (反事実 FAIL 確認) (4) `test_bt_htf_m15_m5_inject` = cache key の `id(df)` 再利用による偽ヒット → test で cache.clear()、BT 本体側ハザードは registry `bt-scalp-mtf-cache-key-id-reuse-r3` (10-29)
