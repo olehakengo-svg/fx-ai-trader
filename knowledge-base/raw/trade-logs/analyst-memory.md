@@ -5431,6 +5431,16 @@ USD_JPYは現在TRENDING_UP（ATR%ile 53%）であり、トレンド方向のBUY
 - 特段の対処は不要。shadow降格はリスク管理の正常機能
 - USD_JPYのドローダウン管理に注目（NAV −23.90%のDD水準は継続監視が必要）
 
+### 2026-10-16 (Pre-Tokyo Briefing)
+| 前日PnL | **−17.6 pips** |
+| 前日WR | **0.0%** (1/1 LOSS) |
+前日（2026-10-15）はトレード1件のみ。`usdjpy_carry_dip_accumulator` USD/JPY BUY が SL_HIT。Spread 0.8 pipsと正常範囲だが、SL到達によるフルロス（−17.6 pips EV相当）を記録した。NAV残高は ¥273,108（前日 ¥273,268 比で実質 −¥160程度の微減、KB記録と概ね整合）。
+| Strategy | Pair | N | WR% | EV | PnL | ステータス |
+- `usdjpy_carry_dip_accumulator`: **7/30**（残23件でN=30到達）
+- `kalman_d7_po_dn_flip`: **4/30**（残26件でN=30到達）
+- 全体: **11/30**（残19件）
+- SL_HIT自体はシステム動作として正常。USD/JPYのトレンド方向（現在 `TRENDING_UP`）と `carry_dip` エントリー条件の乖離がなかったか確認要
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
