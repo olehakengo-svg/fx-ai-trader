@@ -345,3 +345,20 @@ Kalman D7 / vix_carry / ZZ v60 と同系の意図的例外。**LIVE flip は別�
 - ⚠️ **pre-reg 評価 N≥30 に対し N=16/30**。LIVE 4 営業日 4 fill 4 敗 (kalman 2 + 本戦略 2) で、book 全体の正セルは本戦略のみという構図は変わらないが、その正値は demo +69.7 / broker +46.1 まで縮んだ
 
 詳細: [[2026-09-25]]
+
+## 🔑🔴 2026-10-15 更新 (wiki-daily 06:36Z、10-13T12Z〜10-15T06:36Z): **fill #24〜#25 — #1253195 は純族 A storm 488 回 (46 min) の末 BE+1.6 で +¥16、#1254215 は 48 分で SL_HIT −¥150。`storm_guard` が 488/488 を全数捕捉 (初)。21:03Z の signal は平日 `MARKET_HALTED` で cancel (demo は shadow −18.8)。N=25、EV +5.04**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold | MAFE fav / adv |
+|---|---|---|---|---|---|---|---|---|
+| **#1253195** | 10-14 04:55:59 | 158.192 (signal 158.197) | 158.083 (**−10.9p**) / 158.877 (+68.5p) | 10-14 06:59:55 `STOP_LOSS_ORDER` @158.208 (BE+1.6) | **+¥16** | +0.8 `OANDA_SL_TP` | 2h04m | 15.2 / 8.9 |
+| (unfilled) | 10-14 21:03:52 | signal 158.312 | 158.154 (−15.8p) / 158.992 (+68.0p) 指定 | `MARKET_ORDER` 1254212 → `ORDER_CANCEL` **`MARKET_HALTED`** (同 ms) | — | demo #19539 **shadow** @158.34 → 22:39:49 `SL_HIT` −18.8 | — | 0.0 / 18.8 |
+| **#1254215** | 10-14 23:03:47 | 158.124 (signal 158.123) | 157.974 (**−15.0p**) / 158.803 (+67.9p) | 10-14 23:52:00 `STOP_LOSS_ORDER` @157.974 | **−¥150** | −15.1 `SL_HIT` | 48m | 4.3 / 15.1 |
+
+- 🔑 **storm (本戦略 7 度目) と guard**: #1253195 は 05:56:50→06:42:53Z に `REPLACEMENT` **488 回 (976 tx)**、636/h、median 1.02 s、**488 回全て 158.208 = BE+1.6** = 純族 A (#948647 672 / #1098462 349 型)。自然停止の 17 分後に SL が市場到達 (自己約定なし)。`storm_guard.trades["f7e75a67-faf"]` = `sent_total` **488** / `breaker` 438 / `idempotent` 49 / `failed_total` 0 / `tripped` true ⇒ **broker と 1:1 (捕捉率 100%)**、10-05 #1022861 の 45.9% と対照。`enforce: false` で block 0 ([[2026-10-15]] 発見 1、O-2026-10-15-1)
+- 🆕 **平日 open 側 `MARKET_HALTED`**: 21:03:52.248Z の FOK order が同 ms で cancel (日次ロールオーバー停止帯)。リトライなし (tx 2 本)、bridge `recent_errors` に `OPEN buy ok but no tradeID`、audit は `sent` のみ。demo は trade #19539 を `is_shadow=1` で保持 (entry 158.34 = signal +2.8p、SL は broker 指定 158.154) → −18.8 を shadow book に計上。**LIVE book / broker には入らない** (O-2026-10-15-2)。本戦略は 10-14 に 3 signal (04:55 / 21:03 / 23:03) = 09-25 型の「1 下落 = 複数 entry」が再現 (23:03 の dip-buy は反落の途中で 48 分 SL)
+- ✅ SL 契約破棄 **25/25** (−10.9 / −15.0p、未約定分 −15.8p、帯 9.8–28.5p 内)、TP = demo TP × 0.85 (158.997→158.877 / 158.923→158.803)。demo↔broker 2/2 符号一致、差 ≤0.1p
+- 🔑 「storm 下で BE へ返す」側が **4 例目** (#950042 / #1027829 / #1098462 / #1253195: MAFE favorable 15.2p → +0.8)、「trail が勝ちを確保」側は 3 例のまま (#1022861 / #1062664 / #1178008)
+- 🔴 DD ledger: #1253195 `OANDA_SL_TP` +0.8 **未計上** (欠落 10 例目)、#1254215 −15.1 は計上
+- `MARKET_ORDER_REJECT` (`TRADE_DOESNT_EXIST`) 23:52:00.86Z = #1254215 の broker SL 約定 0.26 秒後に demo が close を送った競合 (無害、3 例目)
+- **累計**: demo **N 25 / 14W / WR 56.0% / +126.0 / EV +5.04** (`promo_ev` +5.04 一致、wf_h1 +5.94 / wf_h2 +4.21、Wilson 37.1 / BF 26.8)、broker **+¥1,047 = +104.7p / 25 = +4.19p/trade** (25/25 突合)、risk `strategy_kelly` が初めて `insufficient` を外れた (edge 0.1299 / half_kelly 0.0606、窓内 n 11 — サイズ根拠にしない)、DSR 0.203 (n 11、`is_significant` false)。registry `carry-dip-v3-revival-watch` R2 (N≥10 ∧ EV<0) 不成立、D11 `live_count_decision` **25/30** (期日 11-10)。pre-reg N≥30 まで 5 fill
+- 詳細 [[2026-10-15]] 発見 1 / 発見 2
