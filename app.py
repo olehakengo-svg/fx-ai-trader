@@ -15,6 +15,7 @@ v3: 全精度改善モジュール搭載
 from flask import Flask, render_template, jsonify, request
 import yfinance as yf
 import pandas as pd
+import hashlib
 import numpy as np
 import weakref
 from datetime import datetime, timezone
@@ -5201,7 +5202,7 @@ _bt_scalp_mtf_precompute_cache: dict = {}
 # the id was recycled by a *different* object -> recompute (never trust id).
 _bt_scalp_mtf_fp_memo: dict = {}
 _BT_SCALP_MTF_FP_MEMO_MAX = 16
-_BT_SCALP_MTF_FP_VERSION = "scalp_mtf_fp_v2"
+_BT_SCALP_MTF_FP_VERSION = "scalp_mtf_fp_v3"
 
 
 def _bt_scalp_mtf_content_fingerprint(df: "pd.DataFrame") -> tuple:
@@ -5214,23 +5215,39 @@ def _bt_scalp_mtf_content_fingerprint(df: "pd.DataFrame") -> tuple:
     multi-pair BT loop such as tools/bt_target_runner.py, or a re-fetched
     window with vendor-corrected bars) could silently hit the previous df's
     M15/M5 features. The key is now derived from content only: length, index
-    endpoints and the nansum of Close/High/Low (rounded to 1e-6). Two frames
-    with identical content share one entry (correct: same features); any
-    single-bar change in Close/High/Low changes the key.
+    endpoints and a blake2b digest over the **ordered** index (int64 ns) and
+    the **ordered** OHLC(+Volume) float64 bytes — exactly the data
+    `resample_df` consumes. Two frames with identical content share one entry
+    (correct: same features); any change in any bar, including swapping two
+    interior bars (which leaves column totals unchanged — PR #333 Codex P2),
+    changes the key. Cost: ~12 ms per 525k-row frame, paid once per live
+    object (see `_bt_scalp_mtf_cache_key`).
     """
     n = len(df)
     try:
         idx0, idx1 = df.index[0], df.index[-1]
     except Exception:
         idx0 = idx1 = None
-    sums = []
-    for col in ("Close", "High", "Low"):
+    h = hashlib.blake2b(digest_size=16)
+    try:
+        idx_vals = getattr(df.index, "asi8", None)
+        if idx_vals is None:
+            idx_vals = np.asarray(df.index.values)
+        h.update(b"index:")
+        h.update(np.ascontiguousarray(idx_vals).tobytes())
+    except Exception:
+        h.update(b"index:unhashable")
+    for col in ("Open", "High", "Low", "Close", "Volume"):
+        if col not in df.columns:
+            h.update(f"{col}:absent;".encode())
+            continue
         try:
             arr = df[col].to_numpy(dtype="float64", copy=False)
-            sums.append(round(float(np.nansum(arr)), 6))
+            h.update(f"{col}:".encode())
+            h.update(np.ascontiguousarray(arr).tobytes())
         except Exception:
-            sums.append(None)
-    return (_BT_SCALP_MTF_FP_VERSION, n, idx0, idx1, *sums)
+            h.update(f"{col}:unhashable;".encode())
+    return (_BT_SCALP_MTF_FP_VERSION, n, idx0, idx1, h.hexdigest())
 
 
 def _bt_scalp_mtf_cache_key(df: "pd.DataFrame"):

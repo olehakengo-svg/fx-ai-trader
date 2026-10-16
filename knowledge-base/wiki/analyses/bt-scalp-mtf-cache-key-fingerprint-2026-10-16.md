@@ -32,21 +32,22 @@ id 再利用は決定論的に起きうる (本セッションの最小再現: `
 key を **内容のみ**から導出する:
 
 ```
-key = ("scalp_mtf_fp_v2", len(df), index[0], index[-1],
-       round(nansum(Close), 6), round(nansum(High), 6), round(nansum(Low), 6))
+key = ("scalp_mtf_fp_v3", len(df), index[0], index[-1],
+       blake2b_16(index.asi8 ‖ Open ‖ High ‖ Low ‖ Close ‖ Volume  — 全て順序付き bytes))
 ```
 
 - 同一内容の別オブジェクト (deep copy、同じ parquet の再読込) → 同 key = 同じ特徴量を共有 (正しい)
-- 同形で内容が異なる (別 pair / ベンダー訂正 1 bar) → nansum が変わる → 別 key → 再計算
+- 同形で内容が異なる (別 pair / ベンダー訂正 1 bar / **内部 2 bar の入れ替え**) → digest が変わる → 別 key → 再計算
 - `id(df)` は key に**含めない**
 
-コスト: nansum ×3 は O(n)。525,000 行 (365 日 1m 相当) で **1.55 ms/回** (実測、hash_pandas_object は 7.4 ms で不採用)。`_compute_bt_htf_bias` は scalp で 60 bar ごとに呼ばれるので 365d BT で ~8,700 回 → 毎回計算すると ~14 s。これを避けるため **オブジェクト単位の memo** `_bt_scalp_mtf_fp_memo: id(df) → (weakref.ref(df), key)` を置き、`memo_ref() is df` のときだけ再利用 (O(1))。weakref が死んでいる / 別オブジェクトを指す = id が再利用された、と判定して再計算する。memo 上限 16、満杯時は死んだ ref を刈る。
+初版 (PR #333 1 巡目) は Close/High/Low の `nansum` 丸めを指紋にしていたが、Codex P2 4290930321「合計は順序非感応 — 内部 2 行を入れ替えると列合計は不変なのに `resample_df` が消費する時系列特徴量 (EMA/ATR/RSI/divergence) は変わる」で **順序付き digest に置換** (pin 3b)。
+コスト: blake2b-128 over index int64 + OHLCV float64 bytes は O(n)。525,000 行 (365 日 1m 相当) で **11.9 ms/回** (実測、nansum ×3 は 1.55 ms だったが順序非感応で不採用、hash_pandas_object 7.4 ms も row hash の sum で同欠陥)。`_compute_bt_htf_bias` は scalp で 60 bar ごとに呼ばれるので 365d BT で ~8,700 回 → 毎回計算すると ~100 s。これを避けるため **オブジェクト単位の memo** `_bt_scalp_mtf_fp_memo: id(df) → (weakref.ref(df), key)` を置き、`memo_ref() is df` のときだけ再利用 (O(1))。weakref が死んでいる / 別オブジェクトを指す = id が再利用された、と判定して再計算する。memo 上限 16、満杯時は死んだ ref を刈る。
 
 **保証しないこと**: 同一オブジェクトの**その場 (in-place) 変更**は memo 越しに旧 key を返す。BT 経路は source df を `add_indicators()/dropna()` で作り直すため該当経路なし (grep 済み)。将来 in-place 訂正を書く場合は `app._bt_scalp_mtf_fp_memo.clear()` を呼ぶ。
 
-## 4. pin (`tests/test_bt_scalp_mtf_cache_key_fingerprint.py`、9 本)
+## 4. pin (`tests/test_bt_scalp_mtf_cache_key_fingerprint.py`、10 本)
 
-1. key に `id(df)` が含まれない 2. 同内容別オブジェクト → 同 key 3. 同形別 Close → 別 key 4. 1 bar 訂正 → 別 key 5. 指紋は live オブジェクトにつき 1 回 6. **id 再利用の決定論的再現** (memo に「別オブジェクトの weakref + 旧 key」を植える) → 旧 key を返さない 7. end-to-end: 同形 2 df で build 2 回、deep copy は 3 回目を起こさない 8. OHLC 列欠落で例外なし 9. memo の上限と死 ref 刈り。既存 `tests/test_bt_htf_m15_m5_inject.py` の 2 本は不変 (cache.clear() は eviction 上限 4 との独立性のために残す)。
+1. key に `id(df)` が含まれない 2. 同内容別オブジェクト → 同 key 3. 同形別 Close → 別 key 4. 1 bar 訂正 → 別 key 4b. **内部 2 bar 入れ替え (列合計不変) → 別 key** 5. 指紋は live オブジェクトにつき 1 回 6. **id 再利用の決定論的再現** (memo に「別オブジェクトの weakref + 旧 key」を植える) → 旧 key を返さない 7. end-to-end: 同形 2 df で build 2 回、deep copy は 3 回目を起こさない 8. OHLC 列欠落で例外なし (index だけでも内容感応) 9. memo の上限と死 ref 刈り。既存 `tests/test_bt_htf_m15_m5_inject.py` の 2 本は不変 (cache.clear() は eviction 上限 4 との独立性のために残す)。
 
 ## 5. BT 不要の根拠 (R3)
 

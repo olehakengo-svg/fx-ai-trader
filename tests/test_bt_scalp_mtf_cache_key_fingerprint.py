@@ -9,6 +9,7 @@ id was recycled. These pins fix the new contract:
 1. same content, different object  -> same key, no rebuild (cache reuse)
 2. same shape/index, different Close -> different key, rebuild
 3. a single corrected bar            -> different key
+3b. two interior bars swapped        -> different key (column totals equal; PR #333 Codex P2)
 4. the fingerprint is computed once per live object (O(1) re-reads)
 5. a recycled id never returns the stale fingerprint (weakref validation)
 6. frames without OHLC columns do not raise
@@ -72,6 +73,23 @@ def test_single_corrected_bar_changes_key():
     df_b = df_a.copy(deep=True)
     mid = len(df_b) // 2
     df_b.iloc[mid, df_b.columns.get_loc("Close")] += 0.013  # one vendor-corrected close
+    assert _bt_scalp_mtf_cache_key(df_a) != _bt_scalp_mtf_cache_key(df_b)
+
+
+def test_swapped_interior_bars_change_key_even_though_column_sums_match():
+    """PR #333 Codex P2: aggregate sums are order-insensitive. Swapping two
+    interior OHLC rows keeps every column total but changes the time-ordered
+    M15/M5 features, so the key must differ."""
+    df_a = _sample_1m_ohlcv()
+    df_b = df_a.copy(deep=True)
+    i, j = 300, 1700
+    for col in ("Open", "High", "Low", "Close", "Volume"):
+        loc = df_b.columns.get_loc(col)
+        vi, vj = df_b.iloc[i, loc], df_b.iloc[j, loc]
+        df_b.iloc[i, loc], df_b.iloc[j, loc] = vj, vi
+    for col in ("Open", "High", "Low", "Close", "Volume"):
+        assert np.isclose(df_a[col].sum(), df_b[col].sum())
+    assert df_a.index.equals(df_b.index)
     assert _bt_scalp_mtf_cache_key(df_a) != _bt_scalp_mtf_cache_key(df_b)
 
 
@@ -147,7 +165,11 @@ def test_fingerprint_tolerates_missing_ohlc_columns():
                       index=pd.date_range("2026-01-01", periods=3, freq="min", tz="UTC"))
     key = _bt_scalp_mtf_cache_key(df)
     assert key[1] == 3
-    assert key[4:] == (None, None, None)
+    assert len(key) == 5 and isinstance(key[4], str) and len(key[4]) == 32
+    # and it is still content-sensitive on the index alone
+    df2 = pd.DataFrame({"x": [1.0, 2.0, 3.0]},
+                       index=pd.date_range("2026-01-02", periods=3, freq="min", tz="UTC"))
+    assert _bt_scalp_mtf_cache_key(df2) != key
 
 
 def test_memo_prunes_dead_refs_and_caps_size():
