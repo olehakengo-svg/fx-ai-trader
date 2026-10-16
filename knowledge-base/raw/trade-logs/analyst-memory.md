@@ -5411,6 +5411,16 @@ USD_JPYは現在TRENDING_UP（ATR%ile 53%）であり、トレンド方向のBUY
 - **現在のシステム全体のレジーム感応性**: EUR/USD・GBP/USD のVolatile（ATR 76%ile）が唯一の「トレード機会あり」シグナルだが、それが成約に繋がらない構造的問題が存在（後述）。
 - USD/JPYのTRENDING_UP(低ATR)は`carry_dip`の天敵レジーム。
 
+### 2026-10-16 (Pre-Tokyo Briefing)
+| 前日PnL | **−17.6 pips** |
+| 前日WR | **0.0%** (1/1 LOSS) |
+前日（2026-10-15）は `usdjpy_carry_dip_accumulator / USD_JPY` の1件のみ成立。BUY方向でSL_HIT、PnL −17.6 pips。スプレッド0.8は許容範囲内であり、摩擦コストが主因ではなく、純粋なディレクショナル・ロスと判断する。
+> **注意: N=10（合計）、判断基準は「傾向」止まり。N≥30未到達のため昇格/降格判断は保留。**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**合計: N=10 / 全体WR=60.0% / 合計PnL=+21.0 pips**
+- `carry_dip`: EV=+3.25は見た目が良いが、**N=6は統計的に「データなし」水準**。直近10-15の−17.6が示すように単発SLが指標を大きく歪める。
+- `kalman_d7_po_dn_flip`: N=4、EV=+0.37。N≥10未満のため言及止まり。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
