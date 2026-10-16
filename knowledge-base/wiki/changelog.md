@@ -6,6 +6,8 @@
 - **座礁救出 (PR #332、docs-only)**: ローカル `main` (ahead 3 / behind 210) にしか無かった wiki-daily 10-15 の trade-log / [[daily-observations-2026-10]] O-2026-10-15-1・-2 / [[usdjpy_carry_dip_accumulator]]・[[kalman-d7-po-dn-flip]] の 10-15 節 / index・log 追記を `git apply --3way` + union で origin に取り込み (10-14 と同手順)
 - 本番 (04:10Z): engine pid 129 (forked) tick ok (stalest 61s) / watchdog・main loop alive / emergency_killed false / NAV ¥273,112 (open 1 = carry_dip #1254229 BUY 04:02Z、**本日 LIVE fill 1**) / SVK 10 月 26 RT target 到達 / storm_guard enforce false
 - registry: 期日超過 4 件は全て user 専権 (Gold 10 月画面 / wg W1〜W6 / sr_anti_hunt ×2) — 不変。autopilot 可の次期日 = 10-18 `edge-supply-scan-monthly` 第6次 / 10-19 `ps-seat-spread-magnitude-readout` (期日当日 run)
+- **PR #333 マージ 29b658a6 (04:40Z)**: Codex 2 巡 P2 ×1 (nansum は順序非感応 → blake2b 順序付き digest へ、実在) / CI 全 pass / `pr_review_gate.py 333` マージ可。PR #332 (救出) は 631e6d50
+- **デプロイ確認**: Render dep-db8qlf3ncjis73f0k6sg **live 04:42:47Z**、engine pid 129 → 130、tick ok (stalest 20s)、watchdog / main loop alive
 - 詳細: [[2026-10-16-session]]
 
 ## 2026-10-15 — fix(tests+tools): main CI「flaky」の真因 4 系統を R3 修復 (壁時計依存 2 / プロセス共有状態 2) + review-backlog-sprint0922 #284 RoBERTa 事前学習 cutoff 訂正 (autopilot)
