@@ -5441,6 +5441,16 @@ USD_JPYは現在TRENDING_UP（ATR%ile 53%）であり、トレンド方向のBUY
 - 全体: **11/30**（残19件）
 - SL_HIT自体はシステム動作として正常。USD/JPYのトレンド方向（現在 `TRENDING_UP`）と `carry_dip` エントリー条件の乖離がなかったか確認要
 
+### 2026-10-17 (Pre-Tokyo Briefing)
+- **PnL**: +0.8 pip（1トレード）
+- **トレード数**: N=1、**WR**: 100%（`usdjpy_carry_dip_accumulator` BUY WIN）
+- **全体評価**: 実質的にほぼ無活動日。単独勝利はポジティブだが、統計的意味なし。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- 全体 N=11、WR=63.6%、PnL=+21.8
+- 両戦略ともN<30につき「傾向」段階。判断可能ラインまでの不足：
+- `carry_dip`: **残23件**（N=30達成見込み：現ペースで要継続観察）
+- `kalman_d7_po_dn_flip`: **残26件**（N=10未達のためデータなし扱い）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
