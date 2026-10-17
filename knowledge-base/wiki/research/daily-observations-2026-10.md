@@ -46,6 +46,17 @@
 
 ---
 
+### O-2026-10-16-1: `storm_guard` 全数捕捉 2 例目 (269/269) — code deploy (04:42:47Z) の 2h25m 後に起きた storm で guard 状態は健在、O-2026-10-15-1 の反証可能予測「≥95% なら状態消失説が優勢」が成立 (執行 QA / 制御系)
+- **現象**: 2026-10-16 07:07:35〜07:15:38 UTC、`usdjpy_carry_dip_accumulator` LIVE #1254229 (1,000u BUY @157.918) に `STOP_LOSS_ORDER` `REPLACEMENT` **269 回** (538 tx)、全て 157.926 (BE+0.8) = 純族 A、median 0.88 s、最大 gap 173 s (2 バースト 186 + 83)、≈2,005/h。自然停止 6m41s 後の 07:22:19 に SL 市場到達 +¥8 (自己約定なし、純族 A 自然停止 5 例目)。`/api/oanda/status.storm_guard` (12:00Z): `trades` 1 件 (`349affe7-c3a`、`sent_total` 269 / `breaker` 219 / `idempotent` 49 / `failed_total` 0 / `tripped` true / `confirmed_sl` 157.926)、`totals.evaluated` 269 = `sent` 269、`breaker_trips` 1、`skipped` 全 0 (`enforce: false`)。**broker 269 と 1:1 (捕捉率 100%)**。10-15 06:36Z に登録されていた 2 建玉と `totals` 628 は消失 (= PR #333 Render live 04:42:47Z、`engine_pid` 129 → 130)
+- **トリガ日**: 2026-10-16 (計測 2026-10-16)
+- **想定メカニズム**: guard の in-process 状態は deploy で消える (3 例目の確証) が、deploy を跨がない窓では writer の全送信が guard を通過する (2 例連続: 10-14 488/488 + 15/15、10-16 269/269)。10-05 の捕捉率 50.5% は窓中の状態消失で説明可能。「全モードに guard 外の 2nd writer」説は本観測でも反証されず支持もされず (保留継続)。判定順 (推定、コード未読): 2〜50 送目 = idempotent (49 固定、10-15 の 488 回でも 49)、51 送目以降 = breaker (`max_tx_per_hour` 50 超過) ⇒ enforce なら idempotent で 2 送目から block、268/269 (99.6%) が消えた計算
+- **family 候補**: 既存 `storm_guard` 系 (新 family なし)。O-2026-10-15-1 の 2 例目 (独立観測 — 異なる日付・異なる deploy 境界)。[[project_weekend_market_halted_retry_storm_2026_09_07]] の「guard 捕捉率 ~40–50%」記述への反例 2 件目
+- **反証可能な予測**: 次に deploy を跨がない窓で storm が起き、guard `sent_total` (成功分) が broker `REPLACEMENT` の 95% 未満なら 2nd writer 説が復活。deploy を跨いだ窓で捕捉率が (deploy 後の送信数) / (全送信数) と一致すれば「状態消失 = 捕捉欠損」が確定。`enforce: true` 後の最初の storm で `skipped.idempotent` が `sent_total` − 1 程度なら判定順の推定が正しい
+- **隣接 ban / 凍結 frame**: registry `storm-guard-enforce-decision` (期日 2026-10-20、あと 4 日) / `storm-guard-modify-sl` (10-20) が活性。凍結 look 保有 family ではない
+- **経路**: 執行 QA → **既存 frame 回付** (`storm-guard-enforce-decision` の根拠材料として本観測を供給 — 前提 3 点のうち「状態永続化」の重みを上げ、「2-writer 集約」の重みをさらに下げる)。新規 R1 候補は立てない
+
+---
+
 ## 週次 rollup
 
 ### 週 2026-10-05〜10-11 / 10-12〜10-13 (遡及、30d レビュー 2026-10-14 で記載 — 10-05 / 10-12 月曜の rollup は未実施だった)
