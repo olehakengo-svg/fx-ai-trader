@@ -9,3 +9,4 @@
 {"day": "2026-10-13", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": -0.1356, "range": 0.708, "med20_range": 0.9815, "range_ratio": 0.721, "n_bars": 24, "candidate": false}
 {"day": "2026-10-14", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": -0.2116, "range": 1.075, "med20_range": 0.968, "range_ratio": 1.111, "n_bars": 24, "candidate": false}
 {"day": "2026-10-15", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": 0.1026, "range": 0.704, "med20_range": 0.968, "range_ratio": 0.727, "n_bars": 24, "candidate": false}
+{"day": "2026-10-16", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": -0.0911, "range": 0.653, "med20_range": 0.9595, "range_ratio": 0.681, "n_bars": 21, "candidate": false}
