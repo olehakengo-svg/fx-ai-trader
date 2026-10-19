@@ -371,11 +371,13 @@ def check_storm_guard(oanda_status: dict[str, Any], *, fetched_ok: bool = True) 
     trades = sg.get("trades") or {}
     if not isinstance(trades, dict):
         trades = {}
+    open_tripped = 0
     for tid, t in trades.items():
         if not isinstance(t, dict):
             continue
         sent = int(t.get("sent_total") or 0)
         if t.get("tripped"):
+            open_tripped += 1
             events.append({
                 "type": "sl_replacement_storm",
                 "demo_trade_id": str(tid),
@@ -406,6 +408,27 @@ def check_storm_guard(oanda_status: dict[str, Any], *, fetched_ok: bool = True) 
                 "confirmed_sl": t.get("confirmed_sl"),
                 "sent_total": sent,
             })
+    # 決済済み建玉の storm (PR #337 Codex P2): trip 後に建玉が閉じると
+    # `OandaBridge._storm_forget` が `trades` から消すが、累積 `totals.breaker_trips`
+    # は残る。open な tripped 建玉だけを見ると 15 分 cron の隙間で完結した storm を
+    # 一度も報告できない → 累積 trip 数が open tripped 数を上回る分を「決済済み」
+    # として同 type で出す (通知 cadence 6h は type で共有。process 再起動で totals が
+    # 0 に戻るまで毎 run 出るが、それは「storm の累計が残っている」という事実)。
+    total_trips = int(totals.get("breaker_trips") or 0)
+    if total_trips > open_tripped:
+        events.append({
+            "type": "sl_replacement_storm",
+            "demo_trade_id": None,
+            "scope": "closed_before_run",
+            "closed_trips": total_trips - open_tripped,
+            "open_tripped": open_tripped,
+            "breaker_trips": total_trips,
+            "sent_total": int(totals.get("sent") or 0),
+            "enforce": enforce,
+            "max_tx_per_hour": cfg.get("max_tx_per_hour"),
+            "skipped_total": int(sum(int(v or 0) for v in skipped.values())),
+            "detected_breaker": int((totals.get("detected") or {}).get("breaker") or 0),
+        })
     return events
 
 
@@ -1275,6 +1298,15 @@ def _event_line(e: dict[str, Any]) -> str:
         mode = ("enforce ON — skipped " + str(e.get("skipped_total")) + " 件を実際に止めた"
                 if e.get("enforce") else
                 "検知のみ — 送信は止めていない (STORM_GUARD_ENFORCE 未設定)")
+        if e.get("scope") == "closed_before_run":
+            return (
+                f"- 🌀 sl_replacement_storm (決済済み): 本 run 時点で open な tripped 建玉は"
+                f" {e.get('open_tripped')} 本だが breaker trip 累計 {e.get('breaker_trips')}"
+                f" = 決済済み建玉 {e.get('closed_trips')} 本で storm が完結していた"
+                f" (process 累計 sent {e.get('sent_total')} / detected.breaker"
+                f" {e.get('detected_breaker')}, 閾値 {e.get('max_tx_per_hour')}/h)"
+                f" — {mode}。読み方: storm-guard-design-2026-09-22 §3"
+            )
         return (
             f"- 🌀 sl_replacement_storm: demo {e.get('demo_trade_id')} ({e.get('direction')})"
             f" SL replacement {e.get('sent_total')} 送信 / breaker trip"

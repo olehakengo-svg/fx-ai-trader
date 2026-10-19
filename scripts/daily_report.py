@@ -599,12 +599,22 @@ def preprocess_trades(data: dict, session: str) -> str:
     return "\n".join(sections)
 
 
-def preprocess_oanda(data: dict) -> str:
-    """OANDAステータス+約定監査を集計テーブルに変換。"""
+def preprocess_oanda(data: dict, fetch_results: dict | None = None) -> str:
+    """OANDAステータス+約定監査を集計テーブルに変換。
+
+    ``fetch_results`` (url key → FetchResult) があれば ``oanda`` の取得成否を
+    payload の真偽値ではなく ``FetchResult.ok`` で判定する — HTTP 200 で ``{}`` が
+    返った成功 run を「取得不可」に折り畳まない (PR #337 Codex P2、watcher 側の
+    ``fetched_ok`` と同じ規律)。"""
     sections = []
 
     # OANDAステータス
     oanda = data.get("oanda", {})
+    if not isinstance(oanda, dict):
+        oanda = {}
+    oanda_fetched_ok = bool(oanda)
+    if fetch_results and "oanda" in fetch_results:
+        oanda_fetched_ok = bool(getattr(fetch_results["oanda"], "ok", False))
     if oanda:
         hb = oanda.get("heartbeat", {})
         audit_sum = oanda.get("audit_summary", {})
@@ -632,7 +642,9 @@ def preprocess_oanda(data: dict) -> str:
     # SL replacement storm guard (2026-10-17, rule:R3): PR #287 以来 write-only
     # だった `storm_guard` (OandaBridge.get_storm_guard_status) の読み手。
     # 有効化判断 (registry storm-guard-enforce-decision) の前提 = 読み手の配線。
-    if oanda:
+    # 成功した空 payload (HTTP 200 で {}) でも呼ぶ — 契約 (storm_guard キー) が無い
+    # ことを表に書く。fetch 失敗 (ok False) のときだけ省略する
+    if oanda or oanda_fetched_ok:
         sections.append(_build_storm_guard_table(oanda))
 
     # OANDA約定監査 — block_reason集計
@@ -997,7 +1009,7 @@ def run_analyst(data: dict, session: str = "pre_tokyo",
 
     # データ前処理（lesson-raw-json-to-llm: LLMには集計済みテーブルを渡す）
     trades_table = preprocess_trades(data, session)
-    oanda_table = preprocess_oanda(data)
+    oanda_table = preprocess_oanda(data, fetch_results=fetch_results)
     regime_table = preprocess_regime(data)
     status_table = preprocess_status(data)
     bt_div_table = preprocess_bt_divergence(data)  # v8.9: BT/本番乖離

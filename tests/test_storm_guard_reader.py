@@ -109,6 +109,19 @@ def test_daily_report_healthy_trail_has_no_storm_warning():
     assert "storm 署名あり" not in out
 
 
+def test_daily_report_successful_empty_payload_reports_missing_guard():
+    """PR #337 Codex P2 (2 巡目): HTTP 200 で {} が返った成功 run は「取得不可」
+    ではなく「契約が無い」。fetch 失敗 (ok False) のときだけ省略する。"""
+    ok = dr.FetchResult("u", True, {}, "", "")
+    out = dr.preprocess_oanda({"oanda": {}}, fetch_results={"oanda": ok})
+    assert "### SL replacement storm guard" in out and "`storm_guard` キー無し" in out
+    ng = dr.FetchResult("u", False, {}, "FAIL_X", "URLError: x")
+    out = dr.preprocess_oanda({"oanda": {}}, fetch_results={"oanda": ng})
+    assert "SL replacement storm guard" not in out
+    # fetch_results 無し (後方互換) は従来どおり payload の真偽値
+    assert "SL replacement storm guard" not in dr.preprocess_oanda({"oanda": {}})
+
+
 def test_daily_report_missing_key_is_said_not_skipped():
     """B: キー無しを黙って省略すると write-only に戻る。文面で露出する。"""
     out = dr.preprocess_oanda({"oanda": {"active": True, "heartbeat": {"nav": 1}}})
@@ -139,6 +152,30 @@ def test_watcher_fires_on_production_storm_shape():
 
 def test_watcher_silent_on_healthy_trail():
     assert aw.check_storm_guard({"storm_guard": _healthy_guard()}) == []
+
+
+def test_watcher_reports_storm_that_completed_between_runs():
+    """PR #337 Codex P2 (2 巡目): trip 後に建玉が閉じると _storm_forget が trades から
+    消すが totals.breaker_trips は残る。open tripped だけ見ると 15 分 cron の隙間で
+    完結した storm を一度も報告できない。"""
+    g = copy.deepcopy(PROD_STORM_GUARD)
+    g["trades"] = {}           # 決済済み → forget 済み
+    events = aw.check_storm_guard({"storm_guard": g})
+    assert [e["type"] for e in events] == ["sl_replacement_storm"]
+    e = events[0]
+    assert e["scope"] == "closed_before_run" and e["demo_trade_id"] is None
+    assert e["closed_trips"] == 1 and e["open_tripped"] == 0 and e["breaker_trips"] == 1
+    line = aw._event_line(e)
+    assert "決済済み" in line and "検知のみ" in line
+    # open な tripped 建玉 1 本 + 累計 2 → 決済済み 1 本分も併記 (本番 10-19 02:18Z の形)
+    g2 = copy.deepcopy(PROD_STORM_GUARD)
+    g2["totals"]["breaker_trips"] = 2
+    events = aw.check_storm_guard({"storm_guard": g2})
+    assert [(e["type"], e.get("scope")) for e in events] == [
+        ("sl_replacement_storm", None), ("sl_replacement_storm", "closed_before_run")]
+    assert events[1]["closed_trips"] == 1
+    # 累計 = open tripped なら決済済み分は無い
+    assert all(e.get("scope") is None for e in aw.check_storm_guard({"storm_guard": PROD_STORM_GUARD}))
 
 
 def test_watcher_silent_on_blind_run_but_loud_on_successful_empty_payload():
