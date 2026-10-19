@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-19 — feat(monitoring): D11 両基準併記 — m1_clean_live_monitor --strong に broker realized 列 + /api/oanda/trades_remote proxy (rule:R3)
+
+- **背景**: carry_dip clean live N=27/30、線形 ETA 10-26 で registry `integrated-decision-packet-d11-both-basis-impl` (期日 10-31) を追い越す見込み。pre-reg 規律「N≥30 到達後の基準選択禁止」のため到達前に両基準を同一母集団で読める状態が必要
+- **変更**: `app.py` `GET /api/oanda/trades_remote` (OANDA v20 closed trades の read-only proxy、count≤500、beforeID 遡行) — ローカル同期表 `/api/oanda/trades` は 2026-09-24 で停止しているため新設 / `tools/m1_clean_live_monitor.py` に `broker_trade_metrics` / `fetch_broker_closed_trades` / `cumulative_cell_stats_broker` / `basis_table` を追加、`--strong` 既定で broker 列、`--no-broker` で抑止。predicate 2 (REG 字義 N≥30∧PnL>0 / STRONG) × 基準 2 (demo pnl_pips / broker realizedPL + 価格由来 pips) を並記、未突合は unavailable (0 埋め禁止)
+- **pin**: 単体 15 + route 4、counterfactual 3 本 (REG N≥29 / 未突合 0 埋め / before_id 欠落) で各 fail を確認。本番実走 (proxy 未デプロイ) で broker 列 unavailable (HTTP 404、missing 614) の fail-loud を実証
+- **KB**: [[d11-both-basis-m1-monitor-2026-10-19]]。registry impl entry は resolved (実装着地)、user 決裁 entry (11-10) は不変
+- 残: デプロイ後の初回 `--strong` で proxy 到達 + 614 件被覆を確認 (次 autopilot run)
+
 ## 2026-10-16 — fix(bt)+docs(KB): scalp M15/M5 precompute cache key を `id(df)` → 内容指紋 (rule:R3、registry `bt-scalp-mtf-cache-key-id-reuse-r3` 13 日前倒し消化) + 座礁 wiki-daily 10-15 成果物の救出 (PR #332)
 
 - **R3 修復** ([[bt-scalp-mtf-cache-key-fingerprint-2026-10-16]]): 旧 key `(id(df), len, index[0], index[-1])` は id 再利用で同形別内容の df に偽ヒット (PR #326 CI 10-13 の `assert 0 == 1` = [[lesson-wallclock-flaky-tests-2026-10-15]] 4 系統目)。経路 grep で `tools/bt_target_runner.py` (pair ループ、本 cache 未 clear) に **cross-pair 汚染の実経路**を確認 → 記録のみでなく修正。新 key = 内容指紋 (len / index 両端 / **順序付き** index+OHLCV の blake2b digest、id 非含有 — 1 巡目の nansum 版は Codex P2「内部 2 bar 入れ替えで列合計不変」で置換)、O(n) 指紋は weakref 検証付き memo で live オブジェクトにつき 1 回 (525k 行 11.9 ms)。pin 10 本 (id 再利用の決定論的再現を含む)。保証外 = 同一オブジェクトの in-place 変更 (BT 経路になし)。過去 BT の再走なし (発生条件の充足率不明 + `bt_target_runner` 出力は Rule 1 根拠に未引用)

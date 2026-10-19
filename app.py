@@ -14946,6 +14946,39 @@ def api_oanda_trades():
     return jsonify({"trades": trades, "count": len(trades)})
 
 
+@app.route("/api/oanda/trades_remote")
+def api_oanda_trades_remote():
+    """OANDA v20 trades 一覧の **live proxy** (read-only、range 上限 count≤500)。
+
+    2026-10-19 rule:R3 (D11 両基準併記): ``/api/oanda/trades`` のローカル同期表
+    (oanda_trades) は 2026-09-24 で同期停止しており broker realized を返せない。
+    tools/m1_clean_live_monitor.py --strong が closed trade の realizedPL /
+    averageClosePrice を読むための純 read 経路。live 挙動への影響なし。
+    """
+    state = (request.args.get("state", "CLOSED") or "CLOSED").upper()
+    if state not in {"OPEN", "CLOSED", "CLOSE_WHEN_TRADEABLE", "ALL"}:
+        return jsonify({"error": "invalid state"}), 400
+    count = request.args.get("count", 500, type=int)
+    if count is None or count < 1 or count > 500:
+        return jsonify({"error": "count must be 1..500"}), 400
+    before_raw = request.args.get("before_id")
+    before_id = None
+    if before_raw not in (None, ""):
+        try:
+            before_id = int(before_raw)
+        except (TypeError, ValueError):
+            return jsonify({"error": "before_id must be an integer"}), 400
+        if before_id <= 0:
+            return jsonify({"error": "before_id must be positive"}), 400
+    instrument = request.args.get("instrument") or None
+    ok, data = _demo_trader._oanda._client.get_trades(
+        state=state, count=count, instrument=instrument,
+        before_id=str(before_id) if before_id is not None else None)
+    if ok:
+        return jsonify(data)
+    return jsonify({"error": data}), 500
+
+
 @app.route("/api/oanda/stats")
 def api_oanda_stats():
     """OANDA取引統計"""
