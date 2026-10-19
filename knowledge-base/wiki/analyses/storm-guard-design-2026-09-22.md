@@ -188,4 +188,37 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 3. enforce 時、TP-extender 経路 (L3285, L3411, L3444) は `modify_sl_sync` False で TP 延伸も DB に載らない (SL 成功と結合)。dead-band に当たる確率は低い (trail SL は原 SL から遠い) が、enforce 前に該当ログが出ないか確認。
 4. per-trade counter は in-memory。再起動で消えるが storm も消えるので一致。評価・予約・prune・rollback は全て `_storm_lock` (RLock) 内 (PR #287 review P2 で lock 外更新を廃止)。
 6. **再起動後 seed の残余リスク**: broker 不達 ∧ DB から direction のみ seed の場合、最初の 1 送信は baseline なしで通る (fail-open、4原則#1)。broker が stopLossOrder を持たない trade (SL なし) も同様。seed は trade ごと 1 回 (`OandaClient.get_open_trades()` 1 call) で、enforce 前に `seed_source != broker` の WARN が出ていないか確認。
-5. 検知器の読み手: `status["storm_guard"]` を daily report / anomaly_watcher で読む consumer は**未作成** (write-only 化を避けるため、hot file 所有セッション側で追加要)。
+5. 検知器の読み手: ~~`status["storm_guard"]` を daily report / anomaly_watcher で読む consumer は未作成~~ → **2026-10-19 配線済み** (§7-2: `scripts/daily_report.py::_build_storm_guard_table` / `scripts/anomaly_watcher.py::check_storm_guard`、pin `tests/test_storm_guard_reader.py` 12 本)。
+
+## 7. 追補 2026-10-19 — 有効化判断 (registry `storm-guard-enforce-decision`、期日 10-20): **ENABLE** (rule:R2 執行 / R3 構造)
+
+### 7.1 材料 (検知のみ epoch = 10-16T04:42:47Z deploy 〜、snapshot `/api/oanda/status.storm_guard` 2026-10-19T02:18:38Z)
+
+| 項目 | 値 |
+|---|---|
+| `totals` | evaluated **6,150** / sent **6,150** / failed 0 / breaker_trips **2** / detected breaker **6,050** · idempotent 98 · monotonic 0 · deadband 0 · serialize 0 / skipped 全 0 (`enforce: false`) / unknown_direction 0 / ambiguous_failures 0 |
+| `trades` #1254229 (`349affe7-c3a`、carry_dip BUY、10-16 04:02Z fill) | sent 269 / failed 0 / **tripped** / seed `broker` / counts breaker 219 · idempotent 49 / confirmed_sl 157.926 (= 10-16 12:00Z の 269 から不変 = 決済後に送信は増えていない) |
+| `trades` #1254773 (`57afa08a-184`、carry_dip BUY @157.75、**10-19 00:01:43Z fill、open 中**) | sent **5,881** (02:18Z、進行中; 00:01→02:18Z で ≈2,570/h = 閾値 50/h の **51 倍**、直近 100 送信/84 s ≈ 4,290/h) / failed 0 / **tripped** / seed `None` (= 新規 fill、restored ではない: 方向は entry 由来、§2.3 の fail-open 窓なし) / counts breaker 5,831 · idempotent 49 / confirmed_sl 157.758 (= BE+0.8) |
+| 前 epoch (10-10〜10-16) | [[daily-observations-2026-10]] O-2026-10-15-1: #1253195 488/488 + #1254177 15/15 (失敗 125) を全数捕捉、breaker_trips 2 |
+
+**捕捉率**: 検知のみで観測した storm **3 波 / 4 建玉すべてで breaker が trip** (488 / 15 / 269 / 5,881)。sent_total = broker `REPLACEMENT` 件数は 10-15 の 2 建玉で 1:1 を確認済み (O-2026-10-15-1 の反証可能予測「95% 未満なら 2nd writer 説復活」は 2 例目 #1254229 でも 269 = 269 で不成立 → 「捕捉欠損 = deploy による in-process 状態消失」が確定)。**偽陽性**: 平常 trail (#893161 型、3 送信) は帯域が 1 桁以上離れており (§1.2)、epoch 内に trip した非 storm 建玉は 0。
+
+**storm #3 の形 (Render ログ 01:41〜02:18Z)**: `new_sl` は **157.925〜157.953 (trail 側) と 157.758 (BE+0.8) の間を往復** — 純族 A (同値 loop) ではなく **2 writer の締め/緩め往復**で、BUY の SL を 19 pip **下げる**送信を含む (02:01Z 以降は 157.758 に収束)。検知のみでは `last_sl` が毎回更新されるため monotonic は 0 計上 (breaker が先に短絡、§3 の注意どおり)。enforce では (i) monotonic が緩め半分を reject、(ii) idempotent が同値を skip、(iii) 残りを breaker が止める = **3 check とも保護側に働く**。
+
+### 7.2 §6 の事前確認
+
+| §6 | 確認 | 結果 |
+|---|---|---|
+| 1 | ≥1 live fill の trail を検知のみで観測 | ✓ 3 波 / 4 建玉 |
+| 3 | TP-extender 経路の dead-band 当たり | `detected.deadband` 0、Render ログ `deadband` 0 件 (10-16 04:40Z〜) → 本 epoch では空集合 |
+| 5 | 読み手の配線 | ✓ 本 PR: `scripts/daily_report.py::_build_storm_guard_table` (OANDA 節に totals / per-trade 表、storm 署名の注意書き、**キー無しは「盲目」と明記**) + `scripts/anomaly_watcher.py::check_storm_guard` (`sl_replacement_storm` 6h / `storm_guard_seed_fallback` 6h / `storm_guard_missing` NOTIFY_NEVER)。pin `tests/test_storm_guard_reader.py` 12 本 (fixture = 10-16 12:00Z 本番形) |
+| 6 | restored trade の `seed_source != broker` WARN | restored 1 件 (#1254229) は `broker`。`unknown_direction` 0 |
+| 2 | family A の根 (LIVE 経路 `modify_sl_sync` 成功後の DB 未更新) | **未修理のまま** — enforce 後も caller は毎 tick 再計算 → skip を続ける (CPU/ログのみ、tx 0)。別 R3 (storm #3 の「2 writer 往復」の writer 特定を含む) |
+
+### 7.3 判断と執行
+
+- **判断 = ENABLE** (`STORM_GUARD_ENFORCE=1`)。根拠は 7.1 (捕捉 4/4、偽陽性 0、enforce の 3 check が全て保護側) + 7.2。分類: 執行は **rule:R2** (損失側防御の即断、戦略ロジック・閾値・母集団・lot 不変)、構造は PR #287 の R3 の延長。4 原則との整合: 止めるのは broker への**同値/緩め/過剰**な SL replacement 送信だけで、発注機会 (原則 1) と shadow (原則 3) に触れない。
+- **執行手順**: Render dashboard/API で web service `fx-ai-trader` の env `STORM_GUARD_ENFORCE=1` (render.yaml は `sync: false` で宣言のみ) → 自動再起動 → `/api/oanda/status.storm_guard.enforce == true` を確認 → registry `storm-guard-enforce-execution-window` に deploy id / 時刻を記録。**執行窓 = [[sprint-triage-pr-discipline-2026-09-22]] §3.2 (a) open live trade 0** (本決定時点では #1254773 が open のため執行は窓待ち。deploy 再起動は storm の in-process 状態も消すが、storm 自体は再起動後の restored trade で再発し得る — 10-16 の 2 例目がその形)。
+- **rollback**: env を空にして再起動 (検知のみへ戻る、コード変更不要)。
+- **Rule 2 監視**: (i) `anomaly_watcher` `sl_replacement_storm` (enforce ON では「skipped N 件を実際に止めた」と出る) (ii) daily report の表 (iii) registry `storm-guard-enforce-first-storm-readout` (11-02): 有効化後最初の live trail (storm でも平常でも) で `skipped.*` / `sent_total` / `failed_total` と、DB `sl` vs broker `confirmed_sl` の突合 (**正当な tightening の喪失 0** を確認)。喪失 ≥1 または `failed_total` の急増 (4xx reject) なら env 解除 (R2)。
+- **不変更**: guard 閾値 (50/h・200/日・deadband 1 pip)、`allow_loosen` (false)、caller 側の SL 計算、wg 凍結値。

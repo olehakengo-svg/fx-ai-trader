@@ -629,6 +629,12 @@ def preprocess_oanda(data: dict) -> str:
                 f"| {audit_sum.get('live_ratio', 'N/A')} |\n"
             )
 
+    # SL replacement storm guard (2026-10-17, rule:R3): PR #287 以来 write-only
+    # だった `storm_guard` (OandaBridge.get_storm_guard_status) の読み手。
+    # 有効化判断 (registry storm-guard-enforce-decision) の前提 = 読み手の配線。
+    if oanda:
+        sections.append(_build_storm_guard_table(oanda))
+
     # OANDA約定監査 — block_reason集計
     audit_data = data.get("oanda_audit", {})
     audit_entries = audit_data.get("audit", [])
@@ -658,6 +664,71 @@ def preprocess_oanda(data: dict) -> str:
             )
 
     return "\n".join(sections) if sections else "### OANDA\nOANDAデータ取得不可\n"
+
+
+def _build_storm_guard_table(oanda: dict) -> str:
+    """`/api/oanda/status` の `storm_guard` を表にする (設計: storm-guard-design-2026-09-22 §3).
+
+    読み方 (§3): 検知のみモードでは `detected.breaker` ≥ 1 と `trades[*].tripped`
+    が storm 署名。enforce 後は `skipped.*` が実際に止めた件数で、純族 A
+    (同一価格 loop) なら `skipped.idempotent` ≈ `sent_total` − 1 になる。
+    キー自体が無い場合は黙って省略せず「キー無し」と書く (version skew /
+    配線落ちを write-only に戻さない)。
+    """
+    sg = oanda.get("storm_guard")
+    if not isinstance(sg, dict):
+        return ("### SL replacement storm guard\n"
+                "`storm_guard` キー無し — /api/oanda/status の計装契約が破れている "
+                "(version skew?)。読み手は盲目\n")
+    totals = sg.get("totals") or {}
+    detected = totals.get("detected") or {}
+    skipped = totals.get("skipped") or {}
+    cfg = sg.get("config") or {}
+    enforce = bool(sg.get("enforce"))
+    lines = [
+        "### SL replacement storm guard",
+        "| enforce | max_tx/h | max_tx/day | deadband | evaluated | sent | failed "
+        "| breaker_trips | detected (brk/idem/mono/dead/ser) | skipped (brk/idem/mono/dead/ser) |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+        f"| {'ON' if enforce else 'detect-only'} "
+        f"| {cfg.get('max_tx_per_hour', 'N/A')} | {cfg.get('max_tx_per_day', 'N/A')} "
+        f"| {cfg.get('deadband_pips', 'N/A')}p "
+        f"| {totals.get('evaluated', 'N/A')} | {totals.get('sent', 'N/A')} "
+        f"| {totals.get('failed', 'N/A')} | {totals.get('breaker_trips', 'N/A')} "
+        f"| {detected.get('breaker', 0)}/{detected.get('idempotent', 0)}/{detected.get('monotonic', 0)}"
+        f"/{detected.get('deadband', 0)}/{detected.get('serialize', 0)} "
+        f"| {skipped.get('breaker', 0)}/{skipped.get('idempotent', 0)}/{skipped.get('monotonic', 0)}"
+        f"/{skipped.get('deadband', 0)}/{skipped.get('serialize', 0)} |",
+        "",
+    ]
+    trades = sg.get("trades") or {}
+    if trades:
+        lines.append("| demo trade | dir | sent | failed | tripped | seed | confirmed_sl | counts |")
+        lines.append("|---|---|---|---|---|---|---|---|")
+        for tid, t in sorted(trades.items(),
+                             key=lambda kv: -int((kv[1] or {}).get("sent_total", 0) or 0)):
+            t = t or {}
+            counts = t.get("counts") or {}
+            counts_s = " ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "-"
+            lines.append(
+                f"| {tid} | {t.get('direction', '?')} | {t.get('sent_total', 0)} "
+                f"| {t.get('failed_total', 0)} | {'**YES**' if t.get('tripped') else 'no'} "
+                f"| {t.get('seed_source', '-')} | {t.get('confirmed_sl', '-')} | {counts_s} |"
+            )
+    else:
+        lines.append("(guard 登録建玉なし)")
+    storm_sig = int(totals.get("breaker_trips") or 0) >= 1 or any(
+        (t or {}).get("tripped") for t in trades.values()
+    )
+    if storm_sig:
+        lines.append("")
+        lines.append(
+            "⚠️ storm 署名あり (breaker trip)。"
+            + ("enforce ON: `skipped` が実際に止めた件数。" if enforce else
+               "検知のみ: 送信は止めていない (`skipped` 全 0 が正常)。")
+            + " 読み方は storm-guard-design-2026-09-22 §3"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def preprocess_regime(data: dict) -> str:

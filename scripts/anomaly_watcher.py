@@ -114,6 +114,10 @@ NOTIFY_EVERY_HOURS = {
     "api_endpoint_failed": 6,
     "nav_floor": 6,
     "svk_behind_pace": 24,
+    # SL replacement storm guard (2026-10-17 rule:R3): storm 署名 (breaker trip)
+    # は建玉が閉じるまで status に残る継続性イベント。直接 PnL ¥0 なので 6h
+    "sl_replacement_storm": 6,
+    "storm_guard_seed_fallback": 6,
     # E1 positioning ingest (2026-09-10 rule:R3): 認証失敗は pre-reg §2.5
     # coverage budget を market-hour 毎に不可逆に燃やすので毎時。stale 単独
     # (認証以外の原因) は 6h — registry の daily 評価より 4 倍以上速い。
@@ -125,7 +129,8 @@ NOTIFY_EVERY_HOURS = {
 # build 完了まで旧 API を返す)。web が旧版のまま固着するケースは Render の
 # デプロイ失敗通知が受け持つので、ここは記録のみに降格する。
 NOTIFY_NEVER = {"write_probe_missing", "candidate_freshness_missing",
-                "engine_tick_missing", "positioning_freshness_missing"}
+                "engine_tick_missing", "positioning_freshness_missing",
+                "storm_guard_missing"}
 
 
 class FetchOutcome(NamedTuple):
@@ -321,6 +326,80 @@ def check_oanda_latency(oanda_status: dict[str, Any]) -> list[dict[str, Any]]:
                 "threshold": LATENCY_THRESHOLD_SEC,
             }
         )
+    return events
+
+
+def check_storm_guard(oanda_status: dict[str, Any]) -> list[dict[str, Any]]:
+    """SL replacement storm guard (PR #287) の読み手 (2026-10-17 rule:R3).
+
+    `status["storm_guard"]` は PR #287 (2026-09-22) 以来 **write-only** だった —
+    design doc §6-5 「読み手は未作成」。registry `storm-guard-enforce-decision`
+    は読み手の配線を有効化判断の前提にしている。
+
+    検知するもの (storm-guard-design-2026-09-22 §3):
+      - ``sl_replacement_storm``: いずれかの建玉で ``tripped`` (累積 tx breaker
+        が窓 50/h・200/日を超えた = storm 署名)。検知のみモードでは送信が続いて
+        いる (``skipped`` 全 0)、enforce では ``skipped`` が止めた件数。
+      - ``storm_guard_seed_fallback``: 再起動後 seed が broker 以外
+        (``db_direction_only`` / None) のまま送信した建玉 (§6-6: baseline なし
+        の fail-open 窓)。
+      - ``storm_guard_missing``: キー自体が無い (version skew / 配線落ち)。
+        黙って skip せず報告する (NOTIFY_NEVER、cron ログには残る)。
+
+    oanda_status が空 (fetch 失敗) の run では判定しない — 「取りに行けなかった」
+    を「正常」とも「契約破れ」とも混同しない (PR #210 と同じ規律)。
+    """
+    events: list[dict[str, Any]] = []
+    if not isinstance(oanda_status, dict) or not oanda_status:
+        return events
+    sg = oanda_status.get("storm_guard")
+    if not isinstance(sg, dict):
+        events.append({
+            "type": "storm_guard_missing",
+            "detail": "no storm_guard in /api/oanda/status (version skew?)",
+        })
+        return events
+    enforce = bool(sg.get("enforce"))
+    totals = sg.get("totals") or {}
+    skipped = totals.get("skipped") or {}
+    cfg = sg.get("config") or {}
+    trades = sg.get("trades") or {}
+    if not isinstance(trades, dict):
+        trades = {}
+    for tid, t in trades.items():
+        if not isinstance(t, dict):
+            continue
+        sent = int(t.get("sent_total") or 0)
+        if t.get("tripped"):
+            events.append({
+                "type": "sl_replacement_storm",
+                "demo_trade_id": str(tid),
+                "direction": t.get("direction"),
+                "sent_total": sent,
+                "failed_total": int(t.get("failed_total") or 0),
+                "counts": dict(t.get("counts") or {}),
+                "confirmed_sl": t.get("confirmed_sl"),
+                "enforce": enforce,
+                "max_tx_per_hour": cfg.get("max_tx_per_hour"),
+                "skipped_total": int(sum(int(v or 0) for v in skipped.values())),
+                "breaker_trips": int(totals.get("breaker_trips") or 0),
+            })
+        if sent > 0 and t.get("seed_source") not in (None, "broker") and not t.get("direction"):
+            # direction まで取れなかった fallback だけが fail-open (§2.3)。
+            # db_direction_only は単調性が効くので通知しない
+            events.append({
+                "type": "storm_guard_seed_fallback",
+                "demo_trade_id": str(tid),
+                "seed_source": t.get("seed_source"),
+                "sent_total": sent,
+            })
+        elif sent > 0 and t.get("seed_source") is None and not t.get("direction"):
+            events.append({
+                "type": "storm_guard_seed_fallback",
+                "demo_trade_id": str(tid),
+                "seed_source": None,
+                "sent_total": sent,
+            })
     return events
 
 
@@ -1186,6 +1265,24 @@ def _event_line(e: dict[str, Any]) -> str:
             f"- nav_floor: NAV ¥{e.get('nav_jpy'):,} < 警報線 ¥{int(e.get('threshold_jpy', 0)):,}"
             f" (API 停止床 ¥{int(e.get('api_floor_jpy', 0)):,})"
         )
+    if et == "sl_replacement_storm":
+        mode = ("enforce ON — skipped " + str(e.get("skipped_total")) + " 件を実際に止めた"
+                if e.get("enforce") else
+                "検知のみ — 送信は止めていない (STORM_GUARD_ENFORCE 未設定)")
+        return (
+            f"- 🌀 sl_replacement_storm: demo {e.get('demo_trade_id')} ({e.get('direction')})"
+            f" SL replacement {e.get('sent_total')} 送信 / breaker trip"
+            f" (閾値 {e.get('max_tx_per_hour')}/h, counts {json.dumps(e.get('counts'), ensure_ascii=False)})"
+            f" — {mode}。読み方: storm-guard-design-2026-09-22 §3"
+        )
+    if et == "storm_guard_seed_fallback":
+        return (
+            f"- storm_guard_seed_fallback: demo {e.get('demo_trade_id')} が"
+            f" seed={e.get('seed_source')} (方向不明 = 単調性 fail-open) のまま"
+            f" {e.get('sent_total')} 送信 — broker 照会失敗を疑う (§2.3 / §6-6)"
+        )
+    if et == "storm_guard_missing":
+        return f"- {et}: {e.get('detail')} — storm guard 計装の契約が破れている"
     if et == "svk_behind_pace":
         return (
             f"- svk_behind_pace: {e.get('month')} 出来高 ${e.get('volume_usd'):,.0f}"
@@ -1372,6 +1469,7 @@ def main() -> int:
     all_events.extend(check_api_reachability(outcomes, attempts, waited))
     all_events.extend(check_spread_spike(trades))
     all_events.extend(check_oanda_latency(oanda_status))
+    all_events.extend(check_storm_guard(oanda_status))
     all_events.extend(
         check_live_n_stagnation(status, trades, now=now, trades_ok=trades_out.ok)
     )

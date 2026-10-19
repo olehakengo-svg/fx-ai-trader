@@ -151,6 +151,12 @@ services:
         sync: false
       - key: USDJPY_CARRY_DIP_LIVE_ENABLE
         sync: false
+      # SL replacement storm guard (PR #287) の有効化 gate。既定 (未設定) = 検知のみ。
+      # 2026-10-17 有効化決定: knowledge-base/wiki/analyses/storm-guard-design-2026-09-22.md §7
+      # (registry storm-guard-enforce-decision → 後継 storm-guard-enforce-first-storm-readout)。
+      # 値は dashboard 管理 (sync: false)。無効化 = 値を空にして再起動 (rollback 手順も §7)。
+      - key: STORM_GUARD_ENFORCE
+        sync: false
 
   - type: worker
     name: fx-ai-discord-bot
