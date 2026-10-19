@@ -93,21 +93,6 @@
         "n_decide": 10
       },
       {
-        "entry_type": "price_shock_rev",
-        "instrument": null,
-        "direction": null,
-        "registry_id": "ps-carveout-regate-post-172",
-        "match": "prefix",
-        "reasons_marker": null,
-        "count_basis": null,
-        "kind": "live",
-        "since": "2026-08-11",
-        "closed_only": false,
-        "dedup_violation": null,
-        "mode": null,
-        "n_decide": 10
-      },
-      {
         "entry_type": "rnb_support_bounce",
         "instrument": "USD_JPY",
         "direction": "BUY",
@@ -350,7 +335,7 @@
     "note": "outcome statistics NOT COMPUTED for these cells \u2014 P-10 (no intermediate recomputation until the declared N is reached); the lock is checked before any statistic runs"
   },
   "meta": {
-    "prod_trades_fetched": 19663,
+    "prod_trades_fetched": 19668,
     "target_rows_raw": 868,
     "dedup_violation_excluded": 432,
     "non_winloss_excluded": 20,
