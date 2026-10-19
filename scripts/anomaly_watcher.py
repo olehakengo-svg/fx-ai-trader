@@ -329,7 +329,7 @@ def check_oanda_latency(oanda_status: dict[str, Any]) -> list[dict[str, Any]]:
     return events
 
 
-def check_storm_guard(oanda_status: dict[str, Any]) -> list[dict[str, Any]]:
+def check_storm_guard(oanda_status: dict[str, Any], *, fetched_ok: bool = True) -> list[dict[str, Any]]:
     """SL replacement storm guard (PR #287) の読み手 (2026-10-17 rule:R3).
 
     `status["storm_guard"]` は PR #287 (2026-09-22) 以来 **write-only** だった —
@@ -346,12 +346,17 @@ def check_storm_guard(oanda_status: dict[str, Any]) -> list[dict[str, Any]]:
       - ``storm_guard_missing``: キー自体が無い (version skew / 配線落ち)。
         黙って skip せず報告する (NOTIFY_NEVER、cron ログには残る)。
 
-    oanda_status が空 (fetch 失敗) の run では判定しない — 「取りに行けなかった」
-    を「正常」とも「契約破れ」とも混同しない (PR #210 と同じ規律)。
+    ``fetched_ok`` (FetchOutcome.ok) が False の run では判定しない — 「取りに
+    行けなかった」を「正常」とも「契約破れ」とも混同しない (PR #210 と同じ規律)。
+    逆に **HTTP 200 で `{}` が返った成功 run は「契約が無い」** なので
+    `storm_guard_missing` を出す (PR #337 Codex P2: 成功した空 payload を
+    fetch 失敗に折り畳まない)。
     """
     events: list[dict[str, Any]] = []
-    if not isinstance(oanda_status, dict) or not oanda_status:
+    if not fetched_ok:
         return events
+    if not isinstance(oanda_status, dict):
+        oanda_status = {}
     sg = oanda_status.get("storm_guard")
     if not isinstance(sg, dict):
         events.append({
@@ -384,20 +389,21 @@ def check_storm_guard(oanda_status: dict[str, Any]) -> list[dict[str, Any]]:
                 "skipped_total": int(sum(int(v or 0) for v in skipped.values())),
                 "breaker_trips": int(totals.get("breaker_trips") or 0),
             })
-        if sent > 0 and t.get("seed_source") not in (None, "broker") and not t.get("direction"):
-            # direction まで取れなかった fallback だけが fail-open (§2.3)。
-            # db_direction_only は単調性が効くので通知しない
+        seed = t.get("seed_source")
+        # restored trade の fail-open 窓 (§2.3 / §6-6): broker から baseline を
+        # 取れなかった建玉は、方向が DB から分かっても `confirmed_sl` が None の
+        # まま最初の送信を通す (`_storm_check_monotonic` は last None で即 return
+        # = 方向だけでは単調性は効かない、PR #337 Codex P2)。従って
+        # `db_direction_only` も通知対象。seed None + direction あり = 新規 fill
+        # (restored ではない) は対象外、seed None + direction なし = 何も取れなかった
+        # restored trade で通知。
+        if sent > 0 and (seed == "db_direction_only" or (seed is None and not t.get("direction"))):
             events.append({
                 "type": "storm_guard_seed_fallback",
                 "demo_trade_id": str(tid),
-                "seed_source": t.get("seed_source"),
-                "sent_total": sent,
-            })
-        elif sent > 0 and t.get("seed_source") is None and not t.get("direction"):
-            events.append({
-                "type": "storm_guard_seed_fallback",
-                "demo_trade_id": str(tid),
-                "seed_source": None,
+                "seed_source": seed,
+                "direction": t.get("direction"),
+                "confirmed_sl": t.get("confirmed_sl"),
                 "sent_total": sent,
             })
     return events
@@ -1278,7 +1284,8 @@ def _event_line(e: dict[str, Any]) -> str:
     if et == "storm_guard_seed_fallback":
         return (
             f"- storm_guard_seed_fallback: demo {e.get('demo_trade_id')} が"
-            f" seed={e.get('seed_source')} (方向不明 = 単調性 fail-open) のまま"
+            f" seed={e.get('seed_source')} (direction={e.get('direction')},"
+            f" broker baseline なし = 単調性 fail-open) のまま"
             f" {e.get('sent_total')} 送信 — broker 照会失敗を疑う (§2.3 / §6-6)"
         )
     if et == "storm_guard_missing":
@@ -1469,7 +1476,7 @@ def main() -> int:
     all_events.extend(check_api_reachability(outcomes, attempts, waited))
     all_events.extend(check_spread_spike(trades))
     all_events.extend(check_oanda_latency(oanda_status))
-    all_events.extend(check_storm_guard(oanda_status))
+    all_events.extend(check_storm_guard(oanda_status, fetched_ok=outcomes["/api/oanda/status"].ok))
     all_events.extend(
         check_live_n_stagnation(status, trades, now=now, trades_ok=trades_out.ok)
     )

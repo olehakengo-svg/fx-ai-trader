@@ -141,10 +141,28 @@ def test_watcher_silent_on_healthy_trail():
     assert aw.check_storm_guard({"storm_guard": _healthy_guard()}) == []
 
 
-def test_watcher_silent_on_blind_run():
-    """fetch 失敗 (空 payload) を「契約破れ」と混同しない。"""
-    assert aw.check_storm_guard({}) == []
-    assert aw.check_storm_guard(None) == []  # type: ignore[arg-type]
+def test_watcher_silent_on_blind_run_but_loud_on_successful_empty_payload():
+    """fetch 失敗 (FetchOutcome.ok False) は「契約破れ」と混同しない。
+    逆に HTTP 200 で {} が返った成功 run は契約が無い = missing を出す
+    (PR #337 Codex P2: 成功した空 payload を fetch 失敗に折り畳まない)。"""
+    assert aw.check_storm_guard({}, fetched_ok=False) == []
+    assert aw.check_storm_guard(None, fetched_ok=False) == []  # type: ignore[arg-type]
+    assert aw.check_storm_guard(PROD_STORM_GUARD and {"storm_guard": PROD_STORM_GUARD},
+                                fetched_ok=False) == []
+    assert [e["type"] for e in aw.check_storm_guard({}, fetched_ok=True)] == ["storm_guard_missing"]
+    assert [e["type"] for e in aw.check_storm_guard(None, fetched_ok=True)] == ["storm_guard_missing"]  # type: ignore[arg-type]
+
+
+def test_watcher_main_wires_fetch_ok_into_storm_check():
+    """main() が FetchOutcome.ok を渡している (AST pin: 既定 True のまま呼ぶと
+    502 run の {} が missing と誤報される)。"""
+    import ast
+    src = (ROOT / "scripts/anomaly_watcher.py").read_text()
+    calls = [n for n in ast.walk(ast.parse(src))
+             if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "check_storm_guard"]
+    assert len(calls) == 1
+    kw = {k.arg for k in calls[0].keywords}
+    assert "fetched_ok" in kw
 
 
 def test_watcher_reports_missing_key_without_notifying():
@@ -154,18 +172,33 @@ def test_watcher_reports_missing_key_without_notifying():
     assert aw._event_line(events[0]).startswith("- storm_guard_missing:")
 
 
-def test_watcher_seed_fallback_only_when_direction_unknown():
+def test_watcher_seed_fallback_for_any_restored_trade_without_broker_baseline():
+    """restored trade で broker から baseline を取れなかった建玉は、方向が DB から
+    分かっても confirmed_sl None のまま最初の送信を通す (= 単調性は効かない、
+    oanda_bridge._storm_check_monotonic は last None で即 return)。従って
+    db_direction_only も通知 (PR #337 Codex P2)。新規 fill (seed None + direction
+    あり) は restored ではないので通知しない。"""
     g = _healthy_guard()
     t = g["trades"]["abc-123"]
-    # db_direction_only: 単調性は効く → 通知しない
-    t["seed_source"] = "db_direction_only"
+    # 新規 fill の形 (本番 10-19 #1254773: seed None / direction BUY) → 通知しない
+    t["seed_source"] = None
     assert aw.check_storm_guard({"storm_guard": g}) == []
-    # seed None + 方向不明 + 送信あり = fail-open 窓 → 通知
+    # db_direction_only: 方向はあるが baseline なし → fail-open 窓 → 通知
+    t["seed_source"] = "db_direction_only"
+    t["confirmed_sl"] = None
+    events = aw.check_storm_guard({"storm_guard": g})
+    assert [e["type"] for e in events] == ["storm_guard_seed_fallback"]
+    assert events[0]["seed_source"] == "db_direction_only" and events[0]["direction"] == "BUY"
+    assert "単調性 fail-open" in aw._event_line(events[0])
+    # seed None + 方向不明 + 送信あり = 何も取れなかった restored trade → 通知
     t["seed_source"] = None
     t["direction"] = None
     events = aw.check_storm_guard({"storm_guard": g})
     assert [e["type"] for e in events] == ["storm_guard_seed_fallback"]
     assert events[0]["sent_total"] == 3
+    # 送信 0 なら fail-open は未発動 → 通知しない
+    t["sent_total"] = 0
+    assert aw.check_storm_guard({"storm_guard": g}) == []
 
 
 def test_watcher_enforce_event_line_says_how_many_were_blocked():
