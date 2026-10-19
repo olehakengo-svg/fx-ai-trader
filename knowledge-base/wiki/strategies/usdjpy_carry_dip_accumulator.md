@@ -362,3 +362,19 @@ Kalman D7 / vix_carry / ZZ v60 と同系の意図的例外。**LIVE flip は別�
 - `MARKET_ORDER_REJECT` (`TRADE_DOESNT_EXIST`) 23:52:00.86Z = #1254215 の broker SL 約定 0.26 秒後に demo が close を送った競合 (無害、3 例目)
 - **累計**: demo **N 25 / 14W / WR 56.0% / +126.0 / EV +5.04** (`promo_ev` +5.04 一致、wf_h1 +5.94 / wf_h2 +4.21、Wilson 37.1 / BF 26.8)、broker **+¥1,047 = +104.7p / 25 = +4.19p/trade** (25/25 突合)、risk `strategy_kelly` が初めて `insufficient` を外れた (edge 0.1299 / half_kelly 0.0606、窓内 n 11 — サイズ根拠にしない)、DSR 0.203 (n 11、`is_significant` false)。registry `carry-dip-v3-revival-watch` R2 (N≥10 ∧ EV<0) 不成立、D11 `live_count_decision` **25/30** (期日 11-10)。pre-reg N≥30 まで 5 fill
 - 詳細 [[2026-10-15]] 発見 1 / 発見 2
+
+## 🔑🔴 2026-10-16 更新 (wiki-daily 12:00Z、10-15T06:36Z〜10-16T12:00Z): **fill #26〜#27 — #1254222 は slippage 6.1p で建ち 16 分で SL_HIT −¥168、#1254229 は純族 A storm 269 回 (8.05 min) の末 BE+0.8 で +¥8。`storm_guard` が 269/269 を全数捕捉 (2 例目、PR #333 deploy の 2.4 h 後)。`[SLTP_CONSTRUCT]` marker が broker ブラケットと一致 (初確認)。N=27、EV +4.04**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold | MAFE fav / adv |
+|---|---|---|---|---|---|---|---|---|
+| **#1254222** | 10-15 13:02:38 | 157.882 (signal 157.829 = **+5.3p 追従**、demo entry 157.89 / `slippage_pips` **6.1**) | 157.714 (**−16.8p**) / 158.697 (+81.5p) | 10-15 13:18:57 `STOP_LOSS_ORDER` @157.714 | **−¥168** | −17.6 `SL_HIT` | **16m19s** | 6.4 / 17.6 |
+| **#1254229** | 10-16 04:02:18 | 157.918 (signal 157.918、slip 0) | 157.766 (**−15.2p**) / 158.598 (+68.0p) | 10-16 07:22:19 `STOP_LOSS_ORDER` @157.926 (BE+0.8) | **+¥8** | +0.8 `OANDA_SL_TP` | 3h20m | 7.4 / 11.8 |
+
+- 🔑 **storm (本戦略 8 度目) と guard**: #1254229 は 07:07:35→07:15:38Z の **8.05 min に `REPLACEMENT` 269 回 (538 tx)**、**全て 157.926 = BE+0.8** = 純族 A (#948647 672 / #1098462 349 / #1253195 488 型)、median 0.88 s、最大 gap 173 s (2 バースト 186 + 83)、≈2,005/h = `max_tx_per_hour` 50 の 40 倍。自然停止 6m41s 後に SL 市場到達 (自己約定なし) = 純族 A 自然停止 5 例目。`storm_guard.trades["349affe7-c3a"]` = `sent_total` **269** / `breaker` 219 / `idempotent` 49 / `failed_total` 0 / `tripped` true / `confirmed_sl` 157.926 ⇒ **broker と 1:1 (捕捉率 100%)**。10-15 の 2 建玉は 04:42:47Z の PR #333 deploy で `trades` から消えており、storm はその 2h25m 後 ⇒ 「deploy を跨がない窓では 100%」が 2 例連続 ([[2026-10-16]] 発見 1、O-2026-10-16-1)。`enforce: false` で block 0 — enforce なら idempotent で 2 送目から block = 268/269 が消えた計算
+- 🆕 **slippage 6.1p** (#1254222): signal 157.829 → fill 157.882、直近 8 fill (0.0–3.5p) で最大。13:02Z (NY 序盤) に dip-buy が 5p の戻りを追従して建ち、16 分で −16.8p SL。1 例、記録のみ
+- ✅ SL 契約破棄 **27/27** (−16.8 / −15.2p、帯 9.8–28.5p 内)。🆕 cloud session log 10-16 の fill 行 marker `[SLTP_CONSTRUCT] sl=atr_nosr … sl_p=15.2 / tp_p=80.0` / `[BROKER_TP] basis=qh mult=0.85 tp_p=68.0` が broker ON_FILL (157.766 / 158.598) と一致 = PR #300 計装の live 整合を初確認。TP = demo TP × 0.85 は 2/2 (demo `tp` 158.718 → 158.598、158.851 → 158.697)
+- ✅ demo↔broker 2/2 符号一致 (差 0.8p = demo entry 157.89 vs broker 157.882 / 差 0)。`MARKET_ORDER_REJECT` (`TRADE_DOESNT_EXIST`) 13:18:57.675Z = broker SL 約定直後の demo close 競合 (無害、4 例目)
+- 🔑 「storm 下で BE へ返す」側 **5 例目** (#950042 / #1027829 / #1098462 / #1253195 / #1254229: MAFE favorable 7.4p → +0.8)、「trail が勝ちを確保」側は 3 例のまま (#1022861 / #1062664 / #1178008)
+- 🔴 DD ledger: #1254229 `OANDA_SL_TP` +0.8 **未計上** (欠落 12 例目、累積 104.7 pip)、#1254222 −17.6 は計上
+- **累計**: demo **N 27 / 15W / WR 55.6% / +109.2 / EV +4.04** (`promo_n` 27 / `promo_ev` +4.04 一致、wf_h1 +5.53 / wf_h2 +2.66、Wilson 37.3 / BF 27.3)、broker **+¥887 = +88.7p / 27 = +3.29p/trade** (27/27 突合、10-15 の +¥1,047 から −¥160)。risk `strategy_kelly` half_kelly 0.0606 (n 11) → **0.016 (n 13、edge 0.0292 — サイズ根拠にしない)**、DSR 0.203 → 0.1434 (n 13、`is_significant` false)。registry `carry-dip-v3-revival-watch` R2 (N≥10 ∧ EV<0) 不成立、D11 `live_count_decision` **27/30** (期日 11-10)。pre-reg N≥30 まで 3 fill
+- 詳細 [[2026-10-16]] 発見 1 / 発見 2
