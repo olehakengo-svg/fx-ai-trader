@@ -5461,6 +5461,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - `order_bar_dedup`はdaytrade系で顕著（合計1,349件）。同一バーで複数シグナルが発生しているが重複排除で実際のオーダーに至っていない。
 - USD_JPYのRANGING＋ATR36%は**carry_dip/kalman戦略にとって最良の地合い**。N蓄積の好機。
 
+### 2026-10-19 (Pre-Tokyo Briefing)
+- 前日全セッション（東京・ロンドン・NY）を通じて約定ゼロ。PnL = ¥0、N = 0、WR = N/A。
+- OANDA口座残高: NAV = ¥273,717.16（前日比変動なし）。
+| Strategy | Pair | N | WR% | EV | PnL |
+| Strategy | N | 判断フェーズ | 昇格基準（N≥30 & EV≥1.0）まで |
+両戦略ともN<10。EVの符号は良好だが、統計的判断根拠なし。「傾向」としての観察にとどめる。
+- `r2_shadow_demoted_cell`: Shadow評価でデモート済みのセルへの注文が最多。scalp系全体が**r2デモート領域に張り付いた状態**。
+- `order_bar_dedup`: daytrade系で同一バー内の重複注文を排除。シグナル発生はあるが実約定に至らない。
+- `no_signal`: rnb_usdjpyは3,409件のno_signalでシグナル自体が不発。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
