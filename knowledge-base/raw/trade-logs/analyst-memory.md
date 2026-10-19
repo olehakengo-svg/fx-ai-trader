@@ -5451,6 +5451,16 @@ USD_JPYは現在TRENDING_UP（ATR%ile 53%）であり、トレンド方向のBUY
 - `carry_dip`: **残23件**（N=30達成見込み：現ペースで要継続観察）
 - `kalman_d7_po_dn_flip`: **残26件**（N=10未達のためデータなし扱い）
 
+### 2026-10-19 (Pre-Tokyo Briefing)
+前日（2026-10-18）は**トレードゼロ**。PnL = ¥0、WR = N/A。
+Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+> **統計的位置付け**: 両戦略ともN<10〜7の水準。`usdjpy_carry_dip_accumulator`はEV=+2.90と最も高いが、N=7は「データなし」扱い。`kalman_d7_po_dn_flip`はN=4で同様。昇格基準（N≥30 & EV≥1.0）まで距離あり。
+- **最大要因は`r2_shadow_demoted_cell`**。scalp系4戦略（scalp/scalp_eur/scalp_5m/scalp_5m_eur/scalp_5m_gbp）で合計2,349件がShadow降格セルによってブロックされている。これはSentinelがShadowステージで降格判定を維持しており、Live昇格が起きていないことを意味する。
+- `rnb_usdjpy:no_signal`の2,358件はRnBシステム自体がレンジ条件を検出しているが、エントリー条件を満たさないまま消化しているパターン。
+- `order_bar_dedup`はdaytrade系で顕著（合計1,349件）。同一バーで複数シグナルが発生しているが重複排除で実際のオーダーに至っていない。
+- USD_JPYのRANGING＋ATR36%は**carry_dip/kalman戦略にとって最良の地合い**。N蓄積の好機。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
