@@ -432,6 +432,22 @@ def test_unknown_direction_skips_monotonic_but_counts(monkeypatch):
 #       154.270 (BUY, broker から 8 pip 不利側) を DB 基準で「有利側」と誤判定して
 #       送る = guard が守るべき形状の素通し。baseline は broker から取る。
 
+def test_restore_path_broker_trade_without_stop_loss_is_marked_broker_no_sl(monkeypatch):
+    """PR #337 Codex P2 (3 巡目): broker に trade はあるが stopLossOrder が無い restored
+    trade は confirmed_sl None のまま最初の送信を通す (fail-open、§6-6)。最初の送信で
+    confirmed_sl が立つと "broker" から区別できないので provenance を分ける。"""
+    db = MagicMock()
+    db.get_open_trades.return_value = [_db_row("BUY", 154.115)]
+    b, fake = _bridge(monkeypatch, enforce=True, direction=None, db=db)
+    bt = _broker_trade("1000", "154.350")
+    bt.pop("stopLossOrder", None)
+    fake.open_trades = [bt]
+    assert b.modify_sl_sync(DEMO, 154.270, instrument="USD_JPY") is True   # baseline なし = 通る
+    st = b.get_storm_guard_status()["trades"][DEMO]
+    assert st["direction"] == "BUY" and st["seed_source"] == "broker_no_sl"
+    assert st["confirmed_sl"] == 154.270   # 最初の成功送信で baseline 確立
+
+
 def test_restore_path_seeds_baseline_from_broker_not_stale_db_sl(monkeypatch):
     db = MagicMock()
     db.get_open_trades.return_value = [_db_row("BUY", 154.115)]   # stale (open 時の SL)

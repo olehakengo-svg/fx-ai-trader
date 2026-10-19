@@ -399,7 +399,10 @@ def check_storm_guard(oanda_status: dict[str, Any], *, fetched_ok: bool = True) 
         # `db_direction_only` も通知対象。seed None + direction あり = 新規 fill
         # (restored ではない) は対象外、seed None + direction なし = 何も取れなかった
         # restored trade で通知。
-        if sent > 0 and (seed == "db_direction_only" or (seed is None and not t.get("direction"))):
+        # `broker_no_sl` = broker に trade はあったが stopLossOrder が無く baseline なし
+        # (同じ fail-open 窓、PR #337 Codex P2 3 巡目)
+        if sent > 0 and (seed in ("db_direction_only", "broker_no_sl")
+                         or (seed is None and not t.get("direction"))):
             events.append({
                 "type": "storm_guard_seed_fallback",
                 "demo_trade_id": str(tid),

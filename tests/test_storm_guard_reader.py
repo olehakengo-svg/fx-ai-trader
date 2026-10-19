@@ -122,6 +122,25 @@ def test_daily_report_successful_empty_payload_reports_missing_guard():
     assert "SL replacement storm guard" not in dr.preprocess_oanda({"oanda": {}})
 
 
+def test_daily_report_storm_section_is_deterministic_and_wired_outside_llm():
+    """PR #337 Codex P2 (3 巡目): 表を LLM 入力に入れるだけでは本文に残らない。
+    storm_guard_report_section が保存・送信される本文へ LLM 非経由で付く。"""
+    ok = dr.FetchResult("u", True, {"active": True, "storm_guard": PROD_STORM_GUARD}, "", "")
+    sec = dr.storm_guard_report_section({"oanda": ok.payload}, fetch_results={"oanda": ok})
+    assert sec.startswith("\n\n## SL replacement storm guard") and "| 349affe7-c3a | BUY | 269 |" in sec
+    empty_ok = dr.FetchResult("u", True, {}, "", "")
+    assert "`storm_guard` キー無し" in dr.storm_guard_report_section({"oanda": {}}, fetch_results={"oanda": empty_ok})
+    ng = dr.FetchResult("u", False, {}, "FAIL_X", "URLError: x")
+    assert dr.storm_guard_report_section({"oanda": {}}, fetch_results={"oanda": ng}) == ""
+    # main() が finalize 後・保存前に本文へ連結している (AST pin)
+    import ast
+    src = (ROOT / "scripts/daily_report.py").read_text()
+    calls = [n for n in ast.walk(ast.parse(src))
+             if isinstance(n, ast.Call) and getattr(n.func, "id", None) == "storm_guard_report_section"]
+    assert len(calls) == 1
+    assert "analyst_report = analyst_report + storm_guard_report_section(data, fetch_results)" in src
+
+
 def test_daily_report_missing_key_is_said_not_skipped():
     """B: キー無しを黙って省略すると write-only に戻る。文面で露出する。"""
     out = dr.preprocess_oanda({"oanda": {"active": True, "heartbeat": {"nav": 1}}})
@@ -219,6 +238,17 @@ def test_watcher_seed_fallback_for_any_restored_trade_without_broker_baseline():
     t = g["trades"]["abc-123"]
     # 新規 fill の形 (本番 10-19 #1254773: seed None / direction BUY) → 通知しない
     t["seed_source"] = None
+    assert aw.check_storm_guard({"storm_guard": g}) == []
+    # broker_no_sl: broker に trade はあったが stopLossOrder なし = baseline なし → 通知
+    # (3 巡目 P2: 最初の送信で confirmed_sl が立つと "broker" から区別できないので
+    # bridge 側で provenance を分けた)
+    t["seed_source"] = "broker_no_sl"
+    t["confirmed_sl"] = 154.260
+    events = aw.check_storm_guard({"storm_guard": g})
+    assert [e["type"] for e in events] == ["storm_guard_seed_fallback"]
+    assert events[0]["seed_source"] == "broker_no_sl"
+    # broker (baseline あり) は通知しない
+    t["seed_source"] = "broker"
     assert aw.check_storm_guard({"storm_guard": g}) == []
     # db_direction_only: 方向はあるが baseline なし → fail-open 窓 → 通知
     t["seed_source"] = "db_direction_only"

@@ -609,12 +609,7 @@ def preprocess_oanda(data: dict, fetch_results: dict | None = None) -> str:
     sections = []
 
     # OANDAステータス
-    oanda = data.get("oanda", {})
-    if not isinstance(oanda, dict):
-        oanda = {}
-    oanda_fetched_ok = bool(oanda)
-    if fetch_results and "oanda" in fetch_results:
-        oanda_fetched_ok = bool(getattr(fetch_results["oanda"], "ok", False))
+    oanda, oanda_fetched_ok = _oanda_payload_and_ok(data, fetch_results)
     if oanda:
         hb = oanda.get("heartbeat", {})
         audit_sum = oanda.get("audit_summary", {})
@@ -676,6 +671,32 @@ def preprocess_oanda(data: dict, fetch_results: dict | None = None) -> str:
             )
 
     return "\n".join(sections) if sections else "### OANDA\nOANDAデータ取得不可\n"
+
+
+def _oanda_payload_and_ok(data: dict, fetch_results: dict | None) -> tuple[dict, bool]:
+    """`/api/oanda/status` の payload と取得成否。成否は FetchResult.ok を優先し、
+    無ければ payload の真偽値 (後方互換)。"""
+    oanda = data.get("oanda", {})
+    if not isinstance(oanda, dict):
+        oanda = {}
+    ok = bool(oanda)
+    if fetch_results and "oanda" in fetch_results:
+        ok = bool(getattr(fetch_results["oanda"], "ok", False))
+    return oanda, ok
+
+
+def storm_guard_report_section(data: dict, fetch_results: dict | None = None) -> str:
+    """LLM を経由しない決定的な節 (PR #337 Codex P2 3 巡目)。
+
+    `preprocess_oanda` の表は LLM 入力にしか入らず、本文はモデルの応答なので
+    表が省略・言い換えされ得る。保存・送信される report にそのまま付けるための
+    節を返す。fetch 失敗 (ok False) のときは空文字 (「取りに行けなかった」を
+    「契約破れ」と書かない)。成功した空 payload は「キー無し = 盲目」と書く。"""
+    oanda, ok = _oanda_payload_and_ok(data, fetch_results)
+    if not (oanda or ok):
+        return ""
+    return ("\n\n## SL replacement storm guard（決定的出力 — LLM 非経由、"
+            "読み方: storm-guard-design-2026-09-22 §3）\n" + _build_storm_guard_table(oanda))
 
 
 def _build_storm_guard_table(oanda: dict) -> str:
@@ -1283,6 +1304,9 @@ def main() -> int:
     if failed:
         # \u53d6\u5f97\u72b6\u6cc1\u306f LLM \u306e\u6587\u7ae0\u3068\u306f\u72ec\u7acb\u306b\u3001\u6c7a\u5b9a\u7684\u306a\u7bc0\u3068\u3057\u3066\u30ec\u30dd\u30fc\u30c8\u5148\u982d\u3078\u6b8b\u3059
         analyst_report = preprocess_fetch_status(fetch_results) + "\n" + analyst_report
+    # storm guard 表は LLM の文章とは独立に決定的な節として本文末尾へ残す
+    # (PR #337 Codex P2: LLM 入力に入れただけでは省略・言い換えされ得る)
+    analyst_report = analyst_report + storm_guard_report_section(data, fetch_results)
 
     # Step 3: 作戦立案（pre_tokyoのみ）
     strategy_report = None

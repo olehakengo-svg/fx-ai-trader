@@ -1199,7 +1199,11 @@ class OandaBridge:
                             st["confirmed_sl"] = float(sl_order["price"])
                         except (TypeError, ValueError):
                             pass
-                    seeded_from = "broker"
+                    # broker に trade はあるが stopLossOrder が無い (SL なし建玉 / 価格欠損)
+                    # = baseline なしで最初の送信を通す fail-open (§6-6)。読み手が
+                    # 後から推定できるよう provenance を分ける (PR #337 Codex P2:
+                    # 最初の送信で confirmed_sl が立つと "broker" からは区別できない)
+                    seeded_from = "broker" if st["confirmed_sl"] is not None else "broker_no_sl"
                     break
             else:
                 logger.warning(f"[OandaBridge][STORM_GUARD] broker seed failed demo={demo_trade_id}: "
