@@ -5461,6 +5461,46 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - `order_bar_dedup`はdaytrade系で顕著（合計1,349件）。同一バーで複数シグナルが発生しているが重複排除で実際のオーダーに至っていない。
 - USD_JPYのRANGING＋ATR36%は**carry_dip/kalman戦略にとって最良の地合い**。N蓄積の好機。
 
+### 2026-10-19 (Pre-Tokyo Briefing)
+- 前日全セッション（東京・ロンドン・NY）を通じて約定ゼロ。PnL = ¥0、N = 0、WR = N/A。
+- OANDA口座残高: NAV = ¥273,717.16（前日比変動なし）。
+| Strategy | Pair | N | WR% | EV | PnL |
+| Strategy | N | 判断フェーズ | 昇格基準（N≥30 & EV≥1.0）まで |
+両戦略ともN<10。EVの符号は良好だが、統計的判断根拠なし。「傾向」としての観察にとどめる。
+- `r2_shadow_demoted_cell`: Shadow評価でデモート済みのセルへの注文が最多。scalp系全体が**r2デモート領域に張り付いた状態**。
+- `order_bar_dedup`: daytrade系で同一バー内の重複注文を排除。シグナル発生はあるが実約定に至らない。
+- `no_signal`: rnb_usdjpyは3,409件のno_signalでシグナル自体が不発。
+
+### 2026-10-19 (Post-NY Report)
+| セッション内PnL | **+0.0 pips** |
+| セッション内WR | **— (N=0)** |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+| 本日合計PnL | **+61.0 pips** |
+| 本日WR | **100.0%（N=1）** |
+- 唯一の取引はロンドンセッションにて発生。戦略名・ペアの詳細はセッション詳細データに記載なし（集計値のみ）。
+- **N=1につきWR/EV判断は統計的に無意味**。100%WRはデータとして保持するが意思決定に使用しない。
+
+### 2026-10-20 (Pre-Tokyo Briefing)
+- **PnL**: +¥61.0 | **トレード数**: 1件 | **WR**: 100%（WIN）
+- `usdjpy_carry_dip_accumulator` USD/JPY BUY → OANDA_SL_TP決済、Spread 0.8pip（守備的スプレッド）
+- 単発トレードのため統計的評価には不十分。累積N=11の中では良好な1日
+| Strategy | Pair | N | WR% | EV | PnL | 判断ステータス |
+> **統計的位置付け**：両戦略ともN<10〜7。N=30昇格基準まで`carry_dip`は残り**23件**、`kalman`は残り**26件**。現時点での判断は「傾向の確認」フェーズ。EVは正であり方向性は良好。
+- 全モード27系統が稼働中で、前日の執行は1件のみ
+- `rnb_usdjpy:no_signal` が4,735件（Block TOP1）と突出。USD/JPYのRANGINGレジーム（ATR%ile 34%、低ボラ）がRNBシグナル生成を抑制していると整合的
+- `scalp`, `scalp_eur`, `scalp_5m`系で計4,994件のr2_shadow_demoted_cellブロック
+
+### 2026-10-20 (Pre-Tokyo Briefing)
+| 前日PnL | **+¥61.0** |
+| 前日WR | **100.0%** |
+| Strategy | Pair | N | WR% | EV | PnL |
+> - `usdjpy_carry_dip_accumulator`: N=7 → **「傾向」域（N<10）**。EV=+13.34は魅力的だが統計的根拠不足。昇格基準（N≥30 & EV≥1.0）まで残り **23件**。
+> - `kalman_d7_po_dn_flip`: N=4 → **「データなし」域**。EV=+0.37は昇格基準(EV≥1.0)未達。参考値にとどめる。
+| Strategy | Pair | N | WR% | EV | Dir | Spread |
+- 27モードが稼働中にも関わらず前日成約は1件のみ。
+- `r2_shadow_demoted_cell`（scalp系: 計5,844件）と`order_bar_dedup`（daytrade系: 計3,521件）が発火の大半を吸収。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
