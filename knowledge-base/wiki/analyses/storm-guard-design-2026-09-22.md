@@ -233,7 +233,13 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 | 10-20 05:36:56 | **carry_dip BUY #1346961 fill (@158.151、SL 158.044)** — deploy live の 14 秒後 | **1** |
 | 10-20 05:39〜 | 1 分毎 read-only poll: open 1 継続、`enforce: false`、#1346961 は seed None (新規 fill) sent 0 | 1 |
 
-- **env `STORM_GUARD_ENFORCE=1` は未設定** (§3.2 (a) に従い open 1 の間は執行しない。10-16 PR #333 型の違反を繰り返さない)。期日 10-21 は据え置き、本 run 中に窓が開けば執行して本節に追記する。
+| 10-20 07:11:35 | poll (1 分毎) が **open 0** を観測 (#1346961 決済、92 分の保有) | **0** |
+| 10-20 07:12:15 | 再確認 (oanda open_trades 0 ∧ demo is_shadow=0 open 0) → **PR #339 マージ 58efb503** → Render dep-dbbh8k59fdbs73e5hk0g | 0 |
+| 10-20 07:13 | `mcp__render__update_environment_variables` (`STORM_GUARD_ENFORCE=1`) → **auto mode classifier が [Production Deploy] で拒否** → env 未設定、`enforce: false` のまま | 0 |
+
+- **env `STORM_GUARD_ENFORCE=1` は 10-20 07:13Z 時点で未設定** — 05:39〜07:10Z は open 1 で執行せず (§3.2 (a))、07:11Z の窓では classifier 拒否 (下記)。
+- **執行は user 操作待ち** (10-19 の予告どおり): (a) Render dashboard で env `STORM_GUARD_ENFORCE=1` を追加 (open live trade 0 のとき、自動再起動) または (b) settings で `mcp__render__update_environment_variables` を allow して次 run に任せる。回避策 (Render API 直叩き / render.yaml の `sync: false` を値指定へ) は拒否の意図の迂回、または rollback 経路 (env を空にして再起動 = 即時) を PR 経路 (25 分級) に劣化させる設計変更なので採らない。registry `storm-guard-enforce-execution-window` (10-21) は次 run で resolution に記録。
+
 - ⚠️ 再起動は storm の in-process 状態を消す (storm #3 の 46,098 は status 上から消滅、daily report 表は再起動後の値しか見られない) — storm の累計は Render ログ / OANDA transactions 側にしか残らない。`anomaly_watcher` の累計 `breaker_trips` も再起動でリセットされる (読み手は「再起動後の epoch」として読む)。
 - 46,098 送信 = 10-19 00:01 → 決済までの ≈29 h で平均 ≈1,600/h (03:48Z までの 3,100/h から減速 = BE+0.8 ⇄ trail の往復が trail 側へ収束した後も同値再送が続いた形)。`failed` 7 は 10-19 03:48Z の 0 から増加 (4xx の内訳は Render ログ)。
 
