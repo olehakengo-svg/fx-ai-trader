@@ -1074,10 +1074,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="audit a snapshot whose completeness is NOT proven "
                         "(loud warning; still refuses a full page)")
     p.add_argument("--allow-superset-snapshot", action="store_true",
-                   help="audit a bracketed snapshot fetched in SUPERSET mode "
-                        "(server clock unmeasured: rows that opened after "
-                        "as_of may be retained). Default: refuse — membership "
-                        "is a claim separate from pagination completeness")
+                   help="audit a bracketed snapshot whose MEMBERSHIP is not "
+                        "proven (_fetch_meta.membership_proven=false: server "
+                        "clock unmeasured, or ambiguous / unjudgeable rows "
+                        "retained — rows that opened after as_of may be "
+                        "present). Default: refuse — membership is a claim "
+                        "separate from pagination completeness")
     p.add_argument("--fetch-limit", type=int, default=100000,
                    help="the ?limit= used when fetching; the snapshot must be a "
                         "SHORT page (len < limit) to prove completeness")
@@ -1345,10 +1347,12 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     stated in `_fetch_meta.membership_basis` (Codex P2, PR #326 round 4).  A
     row without a parseable `entry_time` is kept and counted
     (`open_before_unjudged` / `open_after_only_unjudged` /
-    `closed_entries_unjudged`), never dropped silently.  Superset mode is
-    stated as `_fetch_meta.membership_proven = false`, and `main()` refuses
-    such a snapshot unless `--allow-superset-snapshot` is passed (Codex P2,
-    PR #326 round 8).
+    `closed_entries_unjudged`), never dropped silently.  Membership is
+    PROVEN (`_fetch_meta.membership_proven = true`) only when the server
+    cutoff was measured AND no ambiguous / unjudgeable row was retained;
+    otherwise the reasons are listed in `membership_unproven_reasons` and
+    `main()` refuses the snapshot unless `--allow-superset-snapshot` is
+    passed (Codex P2, PR #326 round 8 + PR #339 round 1).
 
     VALUES are separate from membership: a row's attributes are the newest
     read (`open_after` for open rows, the confirming pass for closed rows)
@@ -1537,8 +1541,11 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         # 4254831598): in superset mode `complete` stays true (no page was
         # truncated) but rows that opened AFTER `as_of` may be retained, so
         # the reader must not accept the snapshot as proven membership
-        # without an explicit opt-in (`--allow-superset-snapshot`).
-        payload["_fetch_meta"]["membership_proven"] = server_cutoff is not None
+        # without an explicit opt-in (`--allow-superset-snapshot`).  The
+        # flag is assigned AFTER the open-row loops below, because a measured
+        # cutoff alone does not prove membership: any retained ambiguous /
+        # unjudgeable row may also have opened after `as_of` (Codex P2,
+        # PR #339 round 1, comment 4321934642).
         # The completeness point, stated in the artifact (not only in prose):
         # membership is AS OF `as_of` (before the first request).  The later
         # instants are client observation-completion times (when each
@@ -1628,6 +1635,21 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
             elif by_key[k] != r:
                 mutated_midfetch += 1         # e.g. shadow -> live
             by_key[k] = r
+        # membership_proven ⇔ measured server cutoff ∧ no retained row whose
+        # membership is uncertain (ambiguous band or unjudgeable entry_time)
+        # in EITHER the open or the closed population.  Reasons are listed
+        # so the reader's refusal names what is unproven.
+        unproven: list = []
+        if server_cutoff is None:
+            unproven.append("server_clock_unmeasured")
+        n_amb = closed_ambiguous + len(ambiguous_open)
+        n_unj = closed_unjudged + open_before_unjudged + open_after_only_unjudged
+        if n_amb:
+            unproven.append(f"ambiguous_rows_kept={n_amb}")
+        if n_unj:
+            unproven.append(f"unjudgeable_rows_kept={n_unj}")
+        payload["_fetch_meta"]["membership_proven"] = not unproven
+        payload["_fetch_meta"]["membership_unproven_reasons"] = unproven
         return (list(by_key.values()), payload,
                 {"attempts": attempt, "opened_midfetch": opened_midfetch,
                  "open_after_only_unjudged": open_after_only_unjudged,
@@ -1703,7 +1725,7 @@ def main(argv=None) -> int:
               f"(discarded holes {m['holes_observed']}), opened mid-fetch "
               f"{m['open_opened_midfetch']}, open-rows-already-closed dropped "
               f"{m['open_closed_midfetch']}, completeness proven; membership "
-              f"{'proven' if m['membership_proven'] else 'SUPERSET (server clock unmeasured — audit needs --allow-superset-snapshot)'}, "
+              f"{'proven' if m['membership_proven'] else 'NOT PROVEN (' + ', '.join(m['membership_unproven_reasons']) + ' — audit needs --allow-superset-snapshot)'}, "
               f"unjudgeable open rows kept {m['open_before_unjudged']}+{m['open_after_only_unjudged']})")
         return 0
     if not args.trades_json:
@@ -1809,19 +1831,19 @@ def main(argv=None) -> int:
             and str(meta.get("membership_basis", "")).startswith("superset")):
         membership_proven = False
     if membership_proven is False:
+        why = ", ".join(meta.get("membership_unproven_reasons") or ["superset mode"])
         if not args.allow_superset_snapshot:
             raise SystemExit(
                 f"{args.trades_json}: _fetch_meta.membership_proven is false "
-                f"(superset mode — server clock unmeasured, rows that opened "
-                f"after as_of {meta.get('as_of')} may be retained). "
-                f"Re-fetch (python3 tools/cell_deepdive_audit.py --fetch-to ...) "
-                f"when the clock probe succeeds, or pass "
-                f"--allow-superset-snapshot to audit it anyway (N / "
-                f"multiplicity / candidates may include post-cutoff rows)")
-        print(f"[WARN] {args.trades_json}: membership NOT proven (superset "
-              f"mode, --allow-superset-snapshot) — N / multiplicity / "
-              f"candidates may include rows opened after as_of "
-              f"{meta.get('as_of')}", file=sys.stderr)
+                f"({why} — rows that opened after as_of {meta.get('as_of')} "
+                f"may be retained). Re-fetch (python3 tools/cell_deepdive_audit.py "
+                f"--fetch-to ...) when the book is quieter and the clock probe "
+                f"succeeds, or pass --allow-superset-snapshot to audit it anyway "
+                f"(N / multiplicity / candidates may include post-cutoff rows)")
+        print(f"[WARN] {args.trades_json}: membership NOT proven ({why}; "
+              f"--allow-superset-snapshot) — N / multiplicity / candidates "
+              f"may include rows opened after as_of {meta.get('as_of')}",
+              file=sys.stderr)
     result = run_audit(trades, run_date=args.run_date,
                        window_days=args.window_days)
     if not args.no_write:

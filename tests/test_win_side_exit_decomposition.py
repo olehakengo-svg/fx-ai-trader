@@ -705,3 +705,28 @@ def test_freeze_is_staged_and_published_as_one_unit(wsed, tmp_path, monkeypatch,
         wsed.main()
     assert {n: (freeze_dir / n).read_bytes() for n in wsed.FREEZE_FILES} == published
     assert not list(freeze_dir.glob("*.tmp"))
+
+    # (4) 公開 (rename) の途中失敗 — CSV は置換済み・manifest で I/O エラー → 置換済み分を巻き戻し、
+    #     旧 snapshot 3 点が無傷で .tmp / .bak も残らない (PR #339 review 4321934645)
+    import os
+    monkeypatch.setattr(wsed, "sha256_file", real_sha)
+    real_replace = os.replace
+
+    def _replace_fails_on_manifest(src, dst):
+        if str(src).endswith("manifest.json.tmp"):          # 公開 (tmp → 本名) だけ失敗、巻き戻しは通す
+            raise OSError(5, "simulated I/O error during publish")
+        return real_replace(src, dst)
+    monkeypatch.setattr(os, "replace", _replace_fails_on_manifest)
+    with pytest.raises(OSError, match="simulated I/O"):
+        wsed.main()
+    monkeypatch.setattr(os, "replace", real_replace)
+    assert {n: (freeze_dir / n).read_bytes() for n in wsed.FREEZE_FILES} == published
+    assert not list(freeze_dir.glob("*.tmp")) and not list(freeze_dir.glob("*.bak"))
+    # 旧版が無い dir での途中失敗は、公開済みの新規ファイルを消す (部分凍結ゼロ)
+    empty = tmp_path / "empty"
+    monkeypatch.setattr(sys, "argv", [str(empty) if a == str(freeze_dir) else a for a in argv])
+    monkeypatch.setattr(os, "replace", _replace_fails_on_manifest)
+    with pytest.raises(OSError, match="simulated I/O"):
+        wsed.main()
+    monkeypatch.setattr(os, "replace", real_replace)
+    assert list(empty.iterdir()) == []

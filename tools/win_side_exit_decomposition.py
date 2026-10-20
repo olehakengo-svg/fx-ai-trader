@@ -676,14 +676,44 @@ def _stage_write(path: Path, data: str, *, newline: str | None = None) -> Path:
 
 
 def _publish_staged(out: Path, names=FREEZE_FILES) -> None:
-    """stage 済み `.tmp` を本名へ rename する (検証はすべて済んでいる前提 — ここで失敗し得るのは FS だけ)。"""
+    """stage 済み `.tmp` を本名へ rename する (検証はすべて済んでいる前提 — ここで失敗し得るのは FS だけ)。
+
+    複数ファイルの rename は原子的でないので、途中の `os.replace` 失敗 (例: `--freeze-overwrite` 中の I/O
+    エラー) で CSV だけ新・manifest / report は旧 という混在凍結が残り得る (PR #339 review 4321934645)。
+    各ファイルの旧版を `<name>.bak` に退避してから置換し、失敗したら **完了済みの置換をすべて巻き戻す**
+    (旧版あり → .bak を戻す / 旧版なし → 新規公開分を消す)。成功時は .bak を消す。
+    """
     import os
-    for n in names:
-        os.replace(out / (n + ".tmp"), out / n)
+    done: list[tuple[str, bool]] = []            # (name, had_backup)
+    try:
+        for n in names:
+            target, bak = out / n, out / (n + ".bak")
+            had = target.exists()
+            if had:
+                os.replace(target, bak)
+            try:
+                os.replace(out / (n + ".tmp"), target)
+            except BaseException:
+                if had:
+                    os.replace(bak, target)         # この 1 件は未置換のまま戻す
+                raise
+            done.append((n, had))
+    except BaseException:
+        for n, had in reversed(done):
+            target, bak = out / n, out / (n + ".bak")
+            if had:
+                os.replace(bak, target)
+            elif target.exists():
+                target.unlink()
+        raise
+    for n, had in done:
+        if had:
+            (out / (n + ".bak")).unlink()
 
 
 def _discard_staged(out: Path) -> None:
-    """途中失敗時に stage 済み `.tmp` を捨てる (公開済みファイルには触らない)。"""
+    """途中失敗時に stage 済み `.tmp` を捨てる (公開済みファイルには触らない。`.bak` は `_publish_staged` が
+    巻き戻しで消費済み)。"""
     for n in FREEZE_FILES:
         t = out / (n + ".tmp")
         if t.exists():

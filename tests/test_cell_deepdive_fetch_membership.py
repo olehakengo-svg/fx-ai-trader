@@ -51,6 +51,7 @@ def test_measured_clock_marks_membership_proven(monkeypatch):
     _wire(monkeypatch, clock=(0.0, 0.05), open_before=before, open_after=before)
     _, payload, _ = cda._fetch_bracketed()
     assert payload["_fetch_meta"]["membership_proven"] is True
+    assert payload["_fetch_meta"]["membership_unproven_reasons"] == []
 
 
 def test_open_before_row_without_entry_time_is_kept_and_counted(monkeypatch):
@@ -62,6 +63,24 @@ def test_open_before_row_without_entry_time_is_kept_and_counted(monkeypatch):
     assert ev["open_before_unjudged"] == 2
     assert ev["open_after_only_unjudged"] == 0                  # the trailing loop cannot see them
     assert payload["_fetch_meta"]["closed_entries_unjudged"] == 0
+    # a retained unjudgeable row may have opened after as_of → membership is NOT proven even
+    # though the clock was measured (PR #339 review 4321934642)
+    assert payload["_fetch_meta"]["membership_proven"] is False
+    assert payload["_fetch_meta"]["membership_unproven_reasons"] == ["unjudgeable_rows_kept=2"]
+
+
+def test_retained_ambiguous_row_makes_membership_unproven(monkeypatch):
+    """Measured clock, but one open row sits inside the uncertainty band (kept + counted as
+    ambiguous): the snapshot must say membership_proven=false (PR #339 review 4321934642)."""
+    from datetime import datetime, timedelta, timezone
+    soon = (datetime.now(timezone.utc) + timedelta(seconds=0.5)).isoformat()   # inside rtt+1 s band
+    before = [_row(1, "2026-10-01T00:00:00+00:00"), _row(2, soon)]
+    _wire(monkeypatch, clock=(0.0, 0.05), open_before=before, open_after=before)
+    rows, payload, ev = cda._fetch_bracketed()
+    assert {r["id"] for r in rows} == {1, 2}
+    assert ev["open_membership_ambiguous_kept"] == 1
+    m = payload["_fetch_meta"]
+    assert m["membership_proven"] is False and m["membership_unproven_reasons"] == ["ambiguous_rows_kept=1"]
 
 
 def _write_snapshot(tmp_path, monkeypatch, *, clock):
@@ -76,7 +95,8 @@ def test_fetch_to_persists_the_new_counters(tmp_path, monkeypatch, capsys):
     snap = _write_snapshot(tmp_path, monkeypatch, clock=None)
     m = json.loads(snap.read_text())["_fetch_meta"]
     assert m["membership_proven"] is False and m["open_before_unjudged"] == 0
-    assert "SUPERSET" in capsys.readouterr().out
+    assert m["membership_unproven_reasons"] == ["server_clock_unmeasured"]
+    assert "NOT PROVEN (server_clock_unmeasured" in capsys.readouterr().out
 
 
 def test_reader_refuses_a_superset_snapshot_without_opt_in(tmp_path, monkeypatch):
@@ -95,6 +115,7 @@ def test_reader_accepts_a_proven_snapshot_and_a_legacy_one(tmp_path, monkeypatch
     # legacy artifact: predates the flag, states no superset basis → unchanged behaviour
     payload = json.loads(snap.read_text())
     payload["_fetch_meta"].pop("membership_proven")
+    payload["_fetch_meta"].pop("membership_unproven_reasons")
     payload["_fetch_meta"].pop("membership_basis")
     legacy = tmp_path / "legacy.json"
     legacy.write_text(json.dumps(payload))
