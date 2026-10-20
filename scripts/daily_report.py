@@ -599,12 +599,17 @@ def preprocess_trades(data: dict, session: str) -> str:
     return "\n".join(sections)
 
 
-def preprocess_oanda(data: dict) -> str:
-    """OANDAステータス+約定監査を集計テーブルに変換。"""
+def preprocess_oanda(data: dict, fetch_results: dict | None = None) -> str:
+    """OANDAステータス+約定監査を集計テーブルに変換。
+
+    ``fetch_results`` (url key → FetchResult) があれば ``oanda`` の取得成否を
+    payload の真偽値ではなく ``FetchResult.ok`` で判定する — HTTP 200 で ``{}`` が
+    返った成功 run を「取得不可」に折り畳まない (PR #337 Codex P2、watcher 側の
+    ``fetched_ok`` と同じ規律)。"""
     sections = []
 
     # OANDAステータス
-    oanda = data.get("oanda", {})
+    oanda, oanda_fetched_ok = _oanda_payload_and_ok(data, fetch_results)
     if oanda:
         hb = oanda.get("heartbeat", {})
         audit_sum = oanda.get("audit_summary", {})
@@ -628,6 +633,14 @@ def preprocess_oanda(data: dict) -> str:
                 f"| {audit_sum.get('demo_only', 0)} "
                 f"| {audit_sum.get('live_ratio', 'N/A')} |\n"
             )
+
+    # SL replacement storm guard (2026-10-17, rule:R3): PR #287 以来 write-only
+    # だった `storm_guard` (OandaBridge.get_storm_guard_status) の読み手。
+    # 有効化判断 (registry storm-guard-enforce-decision) の前提 = 読み手の配線。
+    # 成功した空 payload (HTTP 200 で {}) でも呼ぶ — 契約 (storm_guard キー) が無い
+    # ことを表に書く。fetch 失敗 (ok False) のときだけ省略する
+    if oanda or oanda_fetched_ok:
+        sections.append(_build_storm_guard_table(oanda))
 
     # OANDA約定監査 — block_reason集計
     audit_data = data.get("oanda_audit", {})
@@ -658,6 +671,97 @@ def preprocess_oanda(data: dict) -> str:
             )
 
     return "\n".join(sections) if sections else "### OANDA\nOANDAデータ取得不可\n"
+
+
+def _oanda_payload_and_ok(data: dict, fetch_results: dict | None) -> tuple[dict, bool]:
+    """`/api/oanda/status` の payload と取得成否。成否は FetchResult.ok を優先し、
+    無ければ payload の真偽値 (後方互換)。"""
+    oanda = data.get("oanda", {})
+    if not isinstance(oanda, dict):
+        oanda = {}
+    ok = bool(oanda)
+    if fetch_results and "oanda" in fetch_results:
+        ok = bool(getattr(fetch_results["oanda"], "ok", False))
+    return oanda, ok
+
+
+def storm_guard_report_section(data: dict, fetch_results: dict | None = None) -> str:
+    """LLM を経由しない決定的な節 (PR #337 Codex P2 3 巡目)。
+
+    `preprocess_oanda` の表は LLM 入力にしか入らず、本文はモデルの応答なので
+    表が省略・言い換えされ得る。保存・送信される report にそのまま付けるための
+    節を返す。fetch 失敗 (ok False) のときは空文字 (「取りに行けなかった」を
+    「契約破れ」と書かない)。成功した空 payload は「キー無し = 盲目」と書く。"""
+    oanda, ok = _oanda_payload_and_ok(data, fetch_results)
+    if not (oanda or ok):
+        return ""
+    return ("\n\n## SL replacement storm guard（決定的出力 — LLM 非経由、"
+            "読み方: storm-guard-design-2026-09-22 §3）\n" + _build_storm_guard_table(oanda))
+
+
+def _build_storm_guard_table(oanda: dict) -> str:
+    """`/api/oanda/status` の `storm_guard` を表にする (設計: storm-guard-design-2026-09-22 §3).
+
+    読み方 (§3): 検知のみモードでは `detected.breaker` ≥ 1 と `trades[*].tripped`
+    が storm 署名。enforce 後は `skipped.*` が実際に止めた件数で、純族 A
+    (同一価格 loop) なら `skipped.idempotent` ≈ `sent_total` − 1 になる。
+    キー自体が無い場合は黙って省略せず「キー無し」と書く (version skew /
+    配線落ちを write-only に戻さない)。
+    """
+    sg = oanda.get("storm_guard")
+    if not isinstance(sg, dict):
+        return ("### SL replacement storm guard\n"
+                "`storm_guard` キー無し — /api/oanda/status の計装契約が破れている "
+                "(version skew?)。読み手は盲目\n")
+    totals = sg.get("totals") or {}
+    detected = totals.get("detected") or {}
+    skipped = totals.get("skipped") or {}
+    cfg = sg.get("config") or {}
+    enforce = bool(sg.get("enforce"))
+    lines = [
+        "### SL replacement storm guard",
+        "| enforce | max_tx/h | max_tx/day | deadband | evaluated | sent | failed "
+        "| breaker_trips | detected (brk/idem/mono/dead/ser) | skipped (brk/idem/mono/dead/ser) |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+        f"| {'ON' if enforce else 'detect-only'} "
+        f"| {cfg.get('max_tx_per_hour', 'N/A')} | {cfg.get('max_tx_per_day', 'N/A')} "
+        f"| {cfg.get('deadband_pips', 'N/A')}p "
+        f"| {totals.get('evaluated', 'N/A')} | {totals.get('sent', 'N/A')} "
+        f"| {totals.get('failed', 'N/A')} | {totals.get('breaker_trips', 'N/A')} "
+        f"| {detected.get('breaker', 0)}/{detected.get('idempotent', 0)}/{detected.get('monotonic', 0)}"
+        f"/{detected.get('deadband', 0)}/{detected.get('serialize', 0)} "
+        f"| {skipped.get('breaker', 0)}/{skipped.get('idempotent', 0)}/{skipped.get('monotonic', 0)}"
+        f"/{skipped.get('deadband', 0)}/{skipped.get('serialize', 0)} |",
+        "",
+    ]
+    trades = sg.get("trades") or {}
+    if trades:
+        lines.append("| demo trade | dir | sent | failed | tripped | seed | confirmed_sl | counts |")
+        lines.append("|---|---|---|---|---|---|---|---|")
+        for tid, t in sorted(trades.items(),
+                             key=lambda kv: -int((kv[1] or {}).get("sent_total", 0) or 0)):
+            t = t or {}
+            counts = t.get("counts") or {}
+            counts_s = " ".join(f"{k}={v}" for k, v in sorted(counts.items())) or "-"
+            lines.append(
+                f"| {tid} | {t.get('direction', '?')} | {t.get('sent_total', 0)} "
+                f"| {t.get('failed_total', 0)} | {'**YES**' if t.get('tripped') else 'no'} "
+                f"| {t.get('seed_source', '-')} | {t.get('confirmed_sl', '-')} | {counts_s} |"
+            )
+    else:
+        lines.append("(guard 登録建玉なし)")
+    storm_sig = int(totals.get("breaker_trips") or 0) >= 1 or any(
+        (t or {}).get("tripped") for t in trades.values()
+    )
+    if storm_sig:
+        lines.append("")
+        lines.append(
+            "⚠️ storm 署名あり (breaker trip)。"
+            + ("enforce ON: `skipped` が実際に止めた件数。" if enforce else
+               "検知のみ: 送信は止めていない (`skipped` 全 0 が正常)。")
+            + " 読み方は storm-guard-design-2026-09-22 §3"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def preprocess_regime(data: dict) -> str:
@@ -926,7 +1030,7 @@ def run_analyst(data: dict, session: str = "pre_tokyo",
 
     # データ前処理（lesson-raw-json-to-llm: LLMには集計済みテーブルを渡す）
     trades_table = preprocess_trades(data, session)
-    oanda_table = preprocess_oanda(data)
+    oanda_table = preprocess_oanda(data, fetch_results=fetch_results)
     regime_table = preprocess_regime(data)
     status_table = preprocess_status(data)
     bt_div_table = preprocess_bt_divergence(data)  # v8.9: BT/本番乖離
@@ -1200,6 +1304,9 @@ def main() -> int:
     if failed:
         # \u53d6\u5f97\u72b6\u6cc1\u306f LLM \u306e\u6587\u7ae0\u3068\u306f\u72ec\u7acb\u306b\u3001\u6c7a\u5b9a\u7684\u306a\u7bc0\u3068\u3057\u3066\u30ec\u30dd\u30fc\u30c8\u5148\u982d\u3078\u6b8b\u3059
         analyst_report = preprocess_fetch_status(fetch_results) + "\n" + analyst_report
+    # storm guard 表は LLM の文章とは独立に決定的な節として本文末尾へ残す
+    # (PR #337 Codex P2: LLM 入力に入れただけでは省略・言い換えされ得る)
+    analyst_report = analyst_report + storm_guard_report_section(data, fetch_results)
 
     # Step 3: 作戦立案（pre_tokyoのみ）
     strategy_report = None
