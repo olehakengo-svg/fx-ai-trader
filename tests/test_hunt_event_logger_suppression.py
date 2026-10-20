@@ -43,11 +43,32 @@ def test_real_log_dir_untouched_by_a_suppressed_call(monkeypatch):
 
 @pytest.mark.parametrize(
     "mode,expected",
-    [("on", False), ("off", True), ("auto", True), ("ON", False), (" off ", True)],
+    [("on", False), ("off", True), ("auto", True), ("ON", False), (" off ", True), ("bogus", True)],
 )
 def test_mode_env_overrides(monkeypatch, mode, expected):
     monkeypatch.setenv(hel.MODE_ENV, mode)
     assert hel.writes_suppressed() is expected
+
+
+def test_retired_default_suppresses_outside_pytest_too(monkeypatch):
+    """2026-10-20 retirement (registry hunt-events-labeler-disposition, rule:R3): with no env
+    the logger must not write even in a real engine process. Counterfactual: the pre-retirement
+    default ``auto`` wrote outside pytest — pin that ``auto`` still does, so this test is not
+    vacuous about the process state it stubs."""
+    monkeypatch.delenv(hel.MODE_ENV, raising=False)
+    monkeypatch.setattr(hel, "_under_pytest", lambda: False)     # pretend: production engine
+    assert hel.DEFAULT_MODE == "off"
+    assert hel.writes_suppressed() is True
+    monkeypatch.setenv(hel.MODE_ENV, "auto")
+    assert hel.writes_suppressed() is False                        # the old default would have written
+
+
+def test_retired_default_call_site_returns_false_without_touching_disk(monkeypatch, tmp_path):
+    monkeypatch.delenv(hel.MODE_ENV, raising=False)
+    monkeypatch.setattr(hel, "_under_pytest", lambda: False)
+    monkeypatch.setenv(hel.DIR_ENV, str(tmp_path))
+    assert hel.log_hunt_event(**EVENT) is False
+    assert list(tmp_path.glob("*.jsonl")) == []
 
 
 def test_mode_on_writes_to_overridden_dir(monkeypatch, tmp_path):
