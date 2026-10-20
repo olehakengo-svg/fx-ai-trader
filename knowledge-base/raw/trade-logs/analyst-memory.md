@@ -5511,6 +5511,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - `usdjpy_carry_dip_accumulator`: **8/30**（残22件）
 - `kalman_d7_po_dn_flip`: **3/30**（残27件）
 
+### 2026-10-20 (Pre-Tokyo Briefing)
+| 前日 PnL | **+¥61.0** |
+| 前日 WR | **100%** (N=1、統計的意味なし) |
+| Strategy | Pair | N | WR% | EV | PnL |
+> - `usdjpy_carry_dip_accumulator`: N=7、EV=+5.91 → **「傾向」フェーズ**（N≥30で判断可）。EV水準は良好だが統計的確度不足
+> - `kalman_d7_po_dn_flip`: N=3 → **「データなし」**。EV+0.23は微弱ポジティブに過ぎず、現時点で意味を持たない
+> - **昇格基準（N≥30 & EV≥1.0）到達戦略: ゼロ**
+> - **降格基準（N≥30 & EV<−0.5）該当戦略: ゼロ**
+| usdjpy_carry_dip_accumulator | 7 | あと **23件** | 最有力候補。EV+5.91は水準十分だが分散未測定 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
