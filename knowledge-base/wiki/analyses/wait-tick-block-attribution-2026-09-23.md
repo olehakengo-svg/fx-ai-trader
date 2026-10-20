@@ -127,6 +127,21 @@ pin: `tests/test_wait_tick_block_attribution.py` (6 本)
 
 ⇒ 本 PR では**一切触らない**。registry `hedge-gate-duration-vs-2026-04-30-premise` (期日 2026-10-20) に R1 候補として起票し、判断材料 (真の件数・被拘束時間・免除集合) を凍結する。
 
+### 6.1 ⚖️ 期日判断 (2026-10-20、autopilot、rule:R3 記録のみ) = **(b) R1 packet を起案しない**
+
+| 軸 | 判断材料 | 帰結 |
+|---|---|---|
+| live 約定への寄与 | §8-1: hedge_block の live 寄与 = **0 本 (構造的に bind 不能)**。live 発火セル (kalman_d7 ×3 / zz_pivot ×2 / pivot_detector) は `_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS` で hedge を bypass。10-14〜10-20 の live fill (carry_dip ×4 / kalman po_dn ×1) も免除側 | time-to-M2 寄与 0 |
+| H2 の動機 | 同時刻の逆方向 sample が score-max ランキングを壊す (統計的動機) — 同時刻バーに対しては現在も成立 | 撤回理由なし |
+| 乖離の実コスト | 22 分離れた別バーの shadow sample を **4,662 件/30d (全 block の 3.0%)** 失う = shadow N の供給コスト | 現ミッション (M1 = clean live 月次符号転換) の律速は shadow N ではない |
+| 手続きコスト | 緩和 = live 経路ゲート変更 = Rule 1 (365d BT + Bonferroni + pre-reg LOCK + user 決裁)。単一 writer 直列容量は storm guard enforce / family A の根 (DB 未更新) が先 | 今は使わない |
+
+**再浮上条件** (どちらかで R1 packet を起案する — 期日ではなく条件で動かす):
+1. bypass 集合外の entry_type が live 候補になり、その live 候補行の block 台帳 (`/api/demo/block-counts` `per_cell_counts`) に `hedge_block` が **N≥10/30d** 現れる
+2. Bonferroni 検定対象セルの shadow N 到達が hedge_block で期日を外す (candidate 行の `hedge_block` 帰属が当該セル shadow 件数の **≥20%**)
+
+判断材料 (§6 の真の件数・被拘束時間・免除集合) は不変で凍結。registry entry は resolved。
+
 ## 7. 教訓
 
 **計数器は「自分が数えている母集団」を述語で宣言するが、評価順序がその宣言を壊す。** 早期 return が「これは数えない」と宣言していても、その return より前のゲートには効かない。**述語が対象外入力で自明に真になるゲート**(方向比較・総数比較) は、ガードの後ろに置かれた瞬間に別物を数え始める。

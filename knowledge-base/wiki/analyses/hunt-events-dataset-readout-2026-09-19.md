@@ -481,6 +481,13 @@ registry に `hunt-events-labeler-disposition` (期日 2026-10-20) を追加し�
 それまでは validity gate が DATA-BLOCKED を返し続けるので、**この経路から
 誤った verdict は出ない**。
 
+### 4.1 ⚖️ 期日判断 (2026-10-20、autopilot、rule:R3) = **(b) 退役**
+
+- **根拠**: labeler は 2026-04-28 の 'deferred' 宣言から **175 日未実装** (`reversal` None 69,577/69,577)。sr 系の判断 (forward confirm `sr-anti-hunt-eurjpy-buy-forward-confirm` 2027-02-28 を含む) は `demo_trades` 経路で完結しており、hunt_events は書込み + deploy churn (89 ファイル) だけを払う並行未使用系。(a) の価格由来事後ラベルは forward 窓との干渉確認が先に必要で、退役より重い
+- **書込み停止 (実装)**: `modules/hunt_event_logger.py` の既定 `HUNT_EVENT_LOG_MODE` を `auto` → **`off`** (`DEFAULT_MODE`)。未知値も off、`auto` は pytest 下のみ抑制 (旧既定)、`on` はモジュール自身のテスト専用。呼び出し元 `strategies/daytrade/sr_anti_hunt_bounce.py:137` は不変 (live ロジック不変、False を返すだけ)。pin `tests/test_hunt_event_logger_suppression.py` +2 — 本番相当 (pytest 外) で既定が書かない / 旧既定 `auto` なら書いていた (counterfactual)
+- **不変更**: `knowledge-base/raw/hunt_events/` は読み取り専用で保持 (archive しない — [[feedback_no_auto_archive_hide_new_content_2026_09_23]])。`tools/hunt_event_dataset.py` の fail-closed gate (pin 62 本) は不変 = 退役後も誤った verdict は出ない。§5 corrigendum (04-28 Step 1『81 events』) は本件で解消しない
+- registry `hunt-events-labeler-disposition` → resolved
+
 ## 5. 付随する corrigendum — 2026-04-28 決定文書の Step 1
 
 [[sr-strategies-signal-track-2026-04-28]] の Step 1 は

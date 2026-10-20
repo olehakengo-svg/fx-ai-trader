@@ -222,3 +222,18 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 - **rollback**: env を空にして再起動 (検知のみへ戻る、コード変更不要)。
 - **Rule 2 監視**: (i) `anomaly_watcher` `sl_replacement_storm` (enforce ON では「skipped N 件を実際に止めた」と出る) (ii) daily report の表 (iii) registry `storm-guard-enforce-first-storm-readout` (11-02): 有効化後最初の live trail (storm でも平常でも) で `skipped.*` / `sent_total` / `failed_total` と、DB `sl` vs broker `confirmed_sl` の突合 (**正当な tightening の喪失 0** を確認)。喪失 ≥1 または `failed_total` の急増 (4xx reject) なら env 解除 (R2)。
 - **不変更**: guard 閾値 (50/h・200/日・deadband 1 pip)、`allow_loosen` (false)、caller 側の SL 計算、wg 凍結値。
+
+### 7.4 執行窓の記録 (registry `storm-guard-enforce-execution-window`、期日 10-21)
+
+| 時刻 (UTC) | 事象 | open live |
+|---|---|---|
+| 10-19 03:48 | 前 run 終了。#1254773 open、storm #3 送信 11,812 | 1 |
+| 10-20 05:35 | 本 run 冒頭読み: `heartbeat.open_trade_count` 0、storm #3 最終値 #1254773 **sent 46,098 / failed 7** / confirmed_sl 158.275 (決済済み) | 0 |
+| 10-20 05:34:47 | PR #337 マージ (別セッション、open 0 の窓で実施) → Render dep-dbbfquflk1mc73dnqkn0 **live 05:36:42** = 再起動で `totals` 全 0・`trades` 空から再開 | 0 |
+| 10-20 05:36:56 | **carry_dip BUY #1346961 fill (@158.151、SL 158.044)** — deploy live の 14 秒後 | **1** |
+| 10-20 05:39〜 | 1 分毎 read-only poll: open 1 継続、`enforce: false`、#1346961 は seed None (新規 fill) sent 0 | 1 |
+
+- **env `STORM_GUARD_ENFORCE=1` は未設定** (§3.2 (a) に従い open 1 の間は執行しない。10-16 PR #333 型の違反を繰り返さない)。期日 10-21 は据え置き、本 run 中に窓が開けば執行して本節に追記する。
+- ⚠️ 再起動は storm の in-process 状態を消す (storm #3 の 46,098 は status 上から消滅、daily report 表は再起動後の値しか見られない) — storm の累計は Render ログ / OANDA transactions 側にしか残らない。`anomaly_watcher` の累計 `breaker_trips` も再起動でリセットされる (読み手は「再起動後の epoch」として読む)。
+- 46,098 送信 = 10-19 00:01 → 決済までの ≈29 h で平均 ≈1,600/h (03:48Z までの 3,100/h から減速 = BE+0.8 ⇄ trail の往復が trail 側へ収束した後も同値再送が続いた形)。`failed` 7 は 10-19 03:48Z の 0 から増加 (4xx の内訳は Render ログ)。
+

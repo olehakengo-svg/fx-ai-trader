@@ -1073,6 +1073,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-unverified-snapshot", action="store_true",
                    help="audit a snapshot whose completeness is NOT proven "
                         "(loud warning; still refuses a full page)")
+    p.add_argument("--allow-superset-snapshot", action="store_true",
+                   help="audit a bracketed snapshot fetched in SUPERSET mode "
+                        "(server clock unmeasured: rows that opened after "
+                        "as_of may be retained). Default: refuse — membership "
+                        "is a claim separate from pagination completeness")
     p.add_argument("--fetch-limit", type=int, default=100000,
                    help="the ?limit= used when fetching; the snapshot must be a "
                         "SHORT page (len < limit) to prove completeness")
@@ -1339,8 +1344,11 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
     cannot be measured nothing is excluded at all (superset mode) — both
     stated in `_fetch_meta.membership_basis` (Codex P2, PR #326 round 4).  A
     row without a parseable `entry_time` is kept and counted
-    (`open_after_only_unjudged` / `closed_entries_unjudged`), never dropped
-    silently.
+    (`open_before_unjudged` / `open_after_only_unjudged` /
+    `closed_entries_unjudged`), never dropped silently.  Superset mode is
+    stated as `_fetch_meta.membership_proven = false`, and `main()` refuses
+    such a snapshot unless `--allow-superset-snapshot` is passed (Codex P2,
+    PR #326 round 8).
 
     VALUES are separate from membership: a row's attributes are the newest
     read (`open_after` for open rows, the confirming pass for closed rows)
@@ -1524,6 +1532,13 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
             if server_cutoff is not None else
             "superset: server clock unmeasured, nothing excluded; rows with "
             "entry_time > as_of are kept and counted as ambiguous")
+        # Membership is a claim SEPARATE from pagination completeness and is
+        # stated as its own boolean (Codex P2, PR #326 round 8, comment
+        # 4254831598): in superset mode `complete` stays true (no page was
+        # truncated) but rows that opened AFTER `as_of` may be retained, so
+        # the reader must not accept the snapshot as proven membership
+        # without an explicit opt-in (`--allow-superset-snapshot`).
+        payload["_fetch_meta"]["membership_proven"] = server_cutoff is not None
         # The completeness point, stated in the artifact (not only in prose):
         # membership is AS OF `as_of` (before the first request).  The later
         # instants are client observation-completion times (when each
@@ -1569,6 +1584,14 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         before_keys = {_row_identity(r) for r in open_before}
         excluded_after: set = set()          # identities, so a row seen in
         ambiguous_open: set = set()          # both reads is counted once
+        # An `open_before` row whose entry_time is missing / malformed cannot
+        # be judged against the cutoff: it is KEPT (never dropped silently)
+        # and COUNTED here (Codex P2, PR #326 round 8, comment 4254831605).
+        # Its key is in `before_keys`, so the trailing loop cannot count it
+        # as `open_after_only_unjudged` — without this counter the artifact
+        # showed zero uncertainty for a row that may have opened after the
+        # request-start cutoff but before the server ran `open_before`.
+        open_before_unjudged = 0
         for r in open_before:
             verdict = _judge(r)
             if verdict == "after":
@@ -1576,6 +1599,8 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
                 continue
             if verdict == "ambiguous":
                 ambiguous_open.add(_row_identity(r))
+            elif verdict is None:
+                open_before_unjudged += 1
             by_key[_row_identity(r)] = r
         opened_midfetch = 0
         open_after_only_unjudged = 0
@@ -1606,6 +1631,7 @@ def _fetch_bracketed(max_attempts: int = 3) -> tuple:
         return (list(by_key.values()), payload,
                 {"attempts": attempt, "opened_midfetch": opened_midfetch,
                  "open_after_only_unjudged": open_after_only_unjudged,
+                 "open_before_unjudged": open_before_unjudged,
                  "opened_after_as_of": len(excluded_after),
                  "open_membership_ambiguous_kept": len(ambiguous_open),
                  "mutated_midfetch": mutated_midfetch,
@@ -1661,6 +1687,8 @@ def main(argv=None) -> int:
                                            brackets["opened_after_as_of"],
                                        "open_after_only_unjudged":
                                            brackets["open_after_only_unjudged"],
+                                       "open_before_unjudged":
+                                           brackets["open_before_unjudged"],
                                        "open_membership_ambiguous_kept":
                                            brackets["open_membership_ambiguous_kept"],
                                        "holes_observed":
@@ -1674,7 +1702,9 @@ def main(argv=None) -> int:
               f"{m['drift_observed']}, bracket attempt {m['open_attempts']} "
               f"(discarded holes {m['holes_observed']}), opened mid-fetch "
               f"{m['open_opened_midfetch']}, open-rows-already-closed dropped "
-              f"{m['open_closed_midfetch']}, completeness proven)")
+              f"{m['open_closed_midfetch']}, completeness proven; membership "
+              f"{'proven' if m['membership_proven'] else 'SUPERSET (server clock unmeasured — audit needs --allow-superset-snapshot)'}, "
+              f"unjudgeable open rows kept {m['open_before_unjudged']}+{m['open_after_only_unjudged']})")
         return 0
     if not args.trades_json:
         raise SystemExit("trades_json is required unless --fetch-to is used")
@@ -1767,6 +1797,31 @@ def main(argv=None) -> int:
             f"  python3 tools/cell_deepdive_audit.py --fetch-to {args.trades_json}\n"
             f"or pass --allow-unverified-snapshot to audit it anyway "
             f"(the report may carry truncated N / multiplicity / candidates)")
+    # Membership (as-of) is a SEPARATE claim from pagination completeness
+    # (Codex P2, PR #326 round 8, comment 4254831598): a bracketed fetch in
+    # superset mode keeps `complete=true` (no truncated page) while retaining
+    # rows that may have opened after `as_of`.  Reject unless the caller opts
+    # in explicitly.  Snapshots that predate the flag carry neither key and
+    # are unaffected; a legacy artifact that STATES a superset basis is
+    # treated the same as the flag.
+    membership_proven = meta.get("membership_proven") if isinstance(meta, dict) else None
+    if (membership_proven is None and isinstance(meta, dict)
+            and str(meta.get("membership_basis", "")).startswith("superset")):
+        membership_proven = False
+    if membership_proven is False:
+        if not args.allow_superset_snapshot:
+            raise SystemExit(
+                f"{args.trades_json}: _fetch_meta.membership_proven is false "
+                f"(superset mode — server clock unmeasured, rows that opened "
+                f"after as_of {meta.get('as_of')} may be retained). "
+                f"Re-fetch (python3 tools/cell_deepdive_audit.py --fetch-to ...) "
+                f"when the clock probe succeeds, or pass "
+                f"--allow-superset-snapshot to audit it anyway (N / "
+                f"multiplicity / candidates may include post-cutoff rows)")
+        print(f"[WARN] {args.trades_json}: membership NOT proven (superset "
+              f"mode, --allow-superset-snapshot) — N / multiplicity / "
+              f"candidates may include rows opened after as_of "
+              f"{meta.get('as_of')}", file=sys.stderr)
     result = run_audit(trades, run_date=args.run_date,
                        window_days=args.window_days)
     if not args.no_write:

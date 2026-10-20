@@ -56,10 +56,21 @@ removed in PR #264, and the documented discriminating signature
 produce realistic-looking values.  A post-hoc signature filter therefore cannot
 be the defence; the write itself must not happen.
 
-`HUNT_EVENT_LOG_MODE` controls this: ``auto`` (default) suppresses writes while
-running under pytest, ``off`` always suppresses, ``on`` always writes (used by
-this module's own tests, together with ``HUNT_EVENT_LOG_DIR`` to redirect the
-output into tmp_path).
+`HUNT_EVENT_LOG_MODE` controls this: ``off`` (default since 2026-10-20) always
+suppresses, ``auto`` suppresses only while running under pytest (the pre-
+retirement default), ``on`` always writes (used by this module's own tests,
+together with ``HUNT_EVENT_LOG_DIR`` to redirect the output into tmp_path).
+
+RETIRED 2026-10-20 (registry `hunt-events-labeler-disposition`, rule:R3,
+knowledge-base/wiki/analyses/hunt-events-dataset-readout-2026-09-19.md §4):
+the dataset never received its promised labeler (`reversal` is None on all
+69,577 rows, 175 days after the 2026-04-28 "deferred" declaration), sr-family
+decisions are made on the `demo_trades` path, and the only cost this parallel
+observation stream paid was writes + deploy churn.  The default is therefore
+``off``; the call site in `strategies/daytrade/sr_anti_hunt_bounce.py` is
+left in place (no live-logic change) and returns False.  Existing files under
+`knowledge-base/raw/hunt_events/` are kept read-only (tools/hunt_event_dataset.py
+still fails closed on them).
 """
 from __future__ import annotations
 
@@ -74,7 +85,8 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _LOG_DIR = _PROJECT_ROOT / "knowledge-base" / "raw" / "hunt_events"
 
-MODE_ENV = "HUNT_EVENT_LOG_MODE"   # "auto" (default) | "on" | "off"
+MODE_ENV = "HUNT_EVENT_LOG_MODE"   # "off" (default, retired 2026-10-20) | "auto" | "on"
+DEFAULT_MODE = "off"
 DIR_ENV = "HUNT_EVENT_LOG_DIR"     # absolute path override (tests)
 
 
@@ -84,12 +96,12 @@ def _under_pytest() -> bool:
 
 def writes_suppressed() -> bool:
     """True when this process must not append to the observation dataset."""
-    mode = os.environ.get(MODE_ENV, "auto").strip().lower()
+    mode = os.environ.get(MODE_ENV, DEFAULT_MODE).strip().lower()
     if mode == "on":
         return False
-    if mode == "off":
-        return True
-    return _under_pytest()
+    if mode == "auto":
+        return _under_pytest()
+    return True                      # "off" and anything unrecognised: retired → never write
 
 
 def log_dir() -> Path:
