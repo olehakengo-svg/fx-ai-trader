@@ -5491,6 +5491,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - `rnb_usdjpy:no_signal` が4,735件（Block TOP1）と突出。USD/JPYのRANGINGレジーム（ATR%ile 34%、低ボラ）がRNBシグナル生成を抑制していると整合的
 - `scalp`, `scalp_eur`, `scalp_5m`系で計4,994件のr2_shadow_demoted_cellブロック
 
+### 2026-10-20 (Pre-Tokyo Briefing)
+| 前日PnL | **+¥61.0** |
+| 前日WR | **100.0%** |
+| Strategy | Pair | N | WR% | EV | PnL |
+> - `usdjpy_carry_dip_accumulator`: N=7 → **「傾向」域（N<10）**。EV=+13.34は魅力的だが統計的根拠不足。昇格基準（N≥30 & EV≥1.0）まで残り **23件**。
+> - `kalman_d7_po_dn_flip`: N=4 → **「データなし」域**。EV=+0.37は昇格基準(EV≥1.0)未達。参考値にとどめる。
+| Strategy | Pair | N | WR% | EV | Dir | Spread |
+- 27モードが稼働中にも関わらず前日成約は1件のみ。
+- `r2_shadow_demoted_cell`（scalp系: 計5,844件）と`order_bar_dedup`（daytrade系: 計3,521件）が発火の大半を吸収。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
