@@ -1,6 +1,6 @@
 # Changelog — バージョン別変更と評価基準日
 
-## 2026-10-20 — docs(research)+registry: 外部仮説スキャン第6次 — U4 (a)(b)(c) 資本制約なし再評価 / #29 step 1 承認 / 四半期モダリティ棚卸し (rule:R3、新規採用 0、4 周連続)
+## 2026-10-20 — docs(research)+registry: 外部仮説スキャン第6次 — U4 (a)(b)(c) 資本制約なし再評価 / #29 step 1 承認 / 四半期モダリティ棚卸し (rule:R3、新規採用 0、3 周連続 (第4〜6次))
 
 - **文書**: [[external-hypothesis-scan-round6-2026-10-20]] (調査 6 面 + 反証 3 レンズ、全て「核は生存・細部訂正」で本文反映済み)
 - **採用 0 / 診断枠 1**: #29 S1 step 1 census を承認 (R3、$0、価格非接触、WIP 下限には数えない)。台帳に #29 (診断枠) + #30 idx19 / #31 weekly-xs-reversal / #32 tail-day-aftermath を 🅿️ research-only 予約で登録 (枠非消費)。(b) daily+ クロスセクションは「DRAFT 起案」から格下げ — 価格/OHLCV 内部モダリティ閉鎖からの carve-out 宣言 + C4 (正 EV ホスト不在) + F2 教訓 + 1d parquet 使用禁止

@@ -8,7 +8,7 @@
 **live への影響: ゼロ。** live/tier/lot/Kelly/shadow 構成を一切変更しない。E1 skew×outcome / ECG gate×outcome / E12 volume×価格 / LOCK 中 shadow セルの outcome は一切計算していない。
 
 **本スキャンの成果 (先出し)**:
-1. **新規採用 (能動 explore LOCK) = 0 本 (4 周連続)**。着手可能 family は 0 のまま。**#29 S1 step 1 census (診断枠、価格非接触、$0) を承認** — ただし診断枠は WIP 下限「着手可能 ≥1」に数えない (pipeline §3 / 台帳 #23 先例)。
+1. **新規採用 (能動 explore LOCK) = 0 本 (3 周連続、第4〜6次)**。着手可能 family は 0 のまま。**#29 S1 step 1 census (診断枠、価格非接触、$0) を承認** — ただし診断枠は WIP 下限「着手可能 ≥1」に数えない (pipeline §3 / 台帳 #23 先例)。
 2. 🔴 **KB の有償データ記述に事実誤り 2 点を発見** — E22 §9 の「真正 OTC 面 = Databento 等有償」は不正確 (Databento は CME **上場** options)。字義を満たす経路は CME DataMine 経由の **TFS-ICAP FX Options** (OTC indicative 面、2003-09〜、52 ペア) だが、**価格・個人の契約資格・tick→EOD 構築工程の 3 点が未確認**。「数百 $ 一回性」は一次情報ゼロで**未確認に格下げ**。
 3. **U4 (b) daily+ クロスセクション (weekly-xs-reversal 等) は「DRAFT 起案可」ではなく research-only 🅿️ 予約に格下げ** — 価格/OHLCV 内部モダリティは第3次で閉鎖済み (daily carve-out の明示宣言が要る)、正 EV ホスト不在 (C4、帳簿外保有)、F2 教訓 (OOS PASS → live 変換未実証の計画的再生産)。「資本が先」で止まっていたのは live 変換の論拠のみで、研究は元から $0 だった ([[../analyses/supply-space-feasibility-2026-09-17|supply-space]] §2.3)。
 4. **U4 (c) 非 FX は OANDA 制約下で空集合** — v20 API 口座は FX 68 ペアのみ、金・銀は CFD (MT4/MT5 別口座 = 対象外、user 決裁 09-24)。S1 クローズ。残余は「追加 FX ペアの shadow 蓄積」のみ (市場を変えない)。
@@ -33,14 +33,14 @@
 
 | 区分 | 本数 | 内訳 |
 |---|---|---|
-| 着手可能 (能動 explore family) | **0** | — (第4次〜第6次で新規採用 0、4 周連続) |
+| 着手可能 (能動 explore family) | **0** | — (第4次〜第6次で新規採用 0、3 周連続 (第4〜6次)) |
 | 診断枠 (供給ライン非算入、F1 分子分母外、explore 枠非消費) | 1 | #29 step 1 census (本次承認、§3-(i)) |
 | 時限ロック | 3 | E1 (verdict 11-12、元 10-15) / ECG #22 (11-06) / E12 (2027-02-05) |
 | 条件付き | 2 | MoF #4 reverdict (11-14、Q3 開示待ち) / ws3-round4 EUR divergence (ZN ≥11-16 ∧ FX 脚未到達) |
 | park | 2 | E23 #25 (UNDERPOWERED、Gate B N 40) / family B |
 | research-only 予約 (本次新設、枠非消費) | 3 | idx 19 guidance-shock / catalog[55] weekly-xs-reversal / catalog[70] tail-day-aftermath (§4-(b)、§5-(b)) |
 
-**WIP 下限「着手可能 ≥1」は本次後も未充足**。第5次の訂正どおり、診断枠を能動ラインに数えない (adhoc-scan-29 §6「census を着手可能に数えると承認範囲外の作業を能動ラインとして執行しうる」)。臨時スキャンの再発動は「新規 E 候補 / 入手性変化 / lock verdict 到達」のイベント時に限り、下限未充足のみでは発動しない (常時成立の再演回避)。対応として meta-audit R5 (能動枠 0 継続の機械トリガ) の registry 起票を cadence 決裁 (§7) の前提条件に載せる。
+**WIP 下限「着手可能 ≥1」は本次後も未充足**。第5次の訂正どおり、診断枠を能動ラインに数えない (adhoc-scan-29 §6「census を着手可能に数えると承認範囲外の作業を能動ラインとして執行しうる」)。**臨時スキャンの発動規則は pipeline §3 / registry `edge-supply-scan-monthly` の現行どおり維持する** (着手可能 0 なら期日を待たず R3 臨時スキャン) — 本文書はこの規則を変更しない。常時成立による再演 (adhoc-scan-29 と同型) の抑制は、§7 の cadence 決裁に「イベント駆動化 + meta-audit R5 (能動枠 0 継続の機械トリガ) の registry 起票」を提案として載せるに留め、採択・実装されるまでは現行トリガが有効。
 
 ## 3. 裁定 7 件
 
@@ -117,7 +117,7 @@
 | cross-sectional (daily+) | 未起案 (research-only 予約へ) | なし |
 | OOS 確定 PASS | weekend_gap 1 本 (live N=0、F2 12-31) | — |
 
-**cadence (user 決裁、三択)**: 月次維持 / 四半期 + イベント駆動 / 折衷 (文献四半期・運用月次)。賛成材料 = 第4〜6次で新規採用 0 が 3 周連続、棄却理由が C1/C2/C4 の 3 分類に収束。反対材料 = WIP 下限が現に未充足で臨時トリガが常時成立し四半期化しても削減にならない / 月次 §1 の入手性 re-check が 4 周連続で実欠陥を検出 (ZN cache / rate-anchor / mof-statements / MASSIVE 1h) / R5 機械トリガが未実装。**どの選択でも R5 (能動枠 0 が X 日継続の機械トリガ) の registry 起票 (R3) を前提条件にする**。
+**cadence (user 決裁、三択)**: 月次維持 / 四半期 + イベント駆動 (臨時スキャンの発動を「新規 E 候補 / 入手性変化 / lock verdict 到達」のイベントに限定し、常時成立の再演を R5 機械トリガで代替する提案を含む — 採択まで現行 WIP トリガは有効) / 折衷 (文献四半期・運用月次)。賛成材料 = 第4〜6次で新規採用 0 が 3 周連続、棄却理由が C1/C2/C4 の 3 分類に収束。反対材料 = WIP 下限が現に未充足で臨時トリガが常時成立し四半期化しても削減にならない / 月次 §1 の入手性 re-check が 3 周連続 (第4〜6次)で実欠陥を検出 (ZN cache / rate-anchor / mof-statements / MASSIVE 1h) / R5 機械トリガが未実装。**どの選択でも R5 (能動枠 0 が X 日継続の機械トリガ) の registry 起票 (R3) を前提条件にする**。
 
 ## 8. 反証記録 (3 レンズ、全て「核は生存・細部訂正」)
 
