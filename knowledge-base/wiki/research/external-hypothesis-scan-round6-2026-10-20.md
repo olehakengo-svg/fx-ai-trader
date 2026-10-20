@@ -46,7 +46,7 @@
 
 | # | 裁定 | 結論 | Rule | user |
 |---|---|---|---|---|
-| (i) | #29 S1 step 1 census の実行可否 | **承認**。範囲 = ABGH-2019 辞書の逐語転記モジュール (WP 381 Appendix 出典、sha256 pin、語彙編集を test で封鎖) + 価格非接触ペア列挙器 (`load_corpus()`→`census()` 生存 CB fed/ecb/boe、staleness >120d・Fed/ECB 同日 void) + 出力 = 適格連続同一 CB ペアの \|ΔNH\|>0 割合 (primary)。閾値・ホライズン・ペア写像の探索禁止。**WCB pooled は optional secondary** (user が gated 同意 + E23 §0-4 解釈を確認した場合のみ)、primary 単独で R3・$0 完結。クローズ条件は step 0 §7-3 文言不改変、参照値に「監査後 ABG-2012 40/228 = 17.5% (生存 3 CB、pass-1 10-01)」を併記 (旧 56/323 併記)。Gate A 引用は「EUR_USD/GBP_USD 2/2 通過、USD_JPY は判定外 (E23 §12.2)」 | R3 | ABGH-2019 再利用根拠 = Riksbank open-data 条件 (出所・日付表記、法 2022:818 = EU 指令 2019/1024) の読みを採用してよいか (異論なければ Claude が転記を自走。法的判断は user 専権) |
+| (i) | #29 S1 step 1 census の実行可否 | **承認**。範囲 = ABGH-2019 辞書の逐語転記モジュール (WP 381 Appendix 出典、sha256 pin、語彙編集を test で封鎖) + 価格非接触ペア列挙器 (`load_corpus()`→`census()` 生存 CB fed/ecb/boe、staleness >120d・Fed/ECB 同日 void) + 出力 = 適格連続同一 CB ペアの \|ΔNH\|>0 割合 (primary)。閾値・ホライズン・ペア写像の探索禁止。**WCB pooled は optional secondary** (user が gated 同意 + E23 §0-4 解釈を確認した場合のみ)、primary 単独で R3・$0 完結。クローズ条件は step 0 §7-3 文言不改変、参照値に「監査後 ABG-2012 40/228 = 17.5% (生存 3 CB、pass-1 10-01)」を併記 (旧 56/323 併記)。Gate A 引用は「EUR_USD/GBP_USD 2/2 通過、USD_JPY は判定外 (E23 §12.2)」 | R3 | ABGH-2019 再利用根拠 = Riksbank open-data 条件 (出所・日付表記、法 2022:818 = EU 指令 2019/1024) の読みを採用してよいか — **user の明示承認 (#29-L) が辞書転記の gate**。無回答 = 転記しない (法的判断は user 専権、adhoc-scan-29 §4.2「再利用許諾の根拠確認前にモジュールを作らない」)。census は辞書なしでは着手できないため、承認までは step 1 は「承認済み・着手待ち」 |
 | (ii) | #29 台帳登録 | **登録** (step 1 承認と同時)。形式 = #23 型「S1 intake (診断枠、供給ライン非算入、F1 分子分母外、m 非加算、explore 枠非消費)」。dense PASS (>50% 厳密、τ=0) 時のみ新 pre-reg DRAFT (R1) へ進み、explore 枠 1 消費の裁定を別途行う | R3 | — |
 | (iii) | explore 枠の現在値と解放規則 | 3 読み (案 A 0/3 / 案 B 1/3 / 案 C 2/3) を §6 に記録。**作業上の読み = 案 A** (09-10 E23 LOCK 時の会計「現在 0/3」が #26 FAIL を解放済みと数えた先例と整合)。規則本文は台帳の凍結節に挿入せず「第6次 追補」節に置く。正式採択 (解放規則 + verdict 行の「枠 x/3 → y/3」書式要件) は cadence と同じ user ack + PR レビュー。実務上どの読みでも空き ≥1 で、次の凍結 (dense PASS → R1 DRAFT) までに確定すれば足りる | R3 (記録) / user ack (採択) | 案 A の採択 (一言) |
 | (iv) | Picault–Renault (2017) 再取得 | **不可 (C1 到達不能、09-22 / 10-19 の 2 回連続) でクローズ**。以後の月次スキャンで保留を持ち越さない。例外 = user がブラウザで SSRN 2980777 を手動取得し辞書が全掲と確認できた場合のみ ECB 単独 secondary として census に追記 | R3 | 手動取得するか (任意、不要なら不可クローズ確定) |
@@ -136,7 +136,7 @@
 | U4-3 | vendor | TFS-ICAP (字義充足、価格未取得) / Databento 上場 (字義不充足、U4-6 連動) | D4 後に再上程 |
 | U4-6 | Databento 選択時の E22 §9 + 手順書 §8 字義改定 | 可 / 不可 | 不可 |
 | U4-(c) | 残余 shadow ペア拡張 | RT 実測 (R3) まで進める / 起案しない | RT 実測のみ |
-| #29-L | ABGH-2019 再利用根拠 (Riksbank open-data 条件) の読み | 採用 / 異論 | 採用 (Claude 自走) |
+| #29-L | ABGH-2019 再利用根拠 (Riksbank open-data 条件) の読み — **辞書転記の gate** | 採用 (転記開始) / 異論 | **転記しない (step 1 は承認待ちで保留、census gate 11-07 は催促のみ)** |
 | (iv) | Picault–Renault SSRN 手動取得 | する / しない | しない (不可クローズ) |
 | (iii) | explore 枠規則 案 A の正式採択 | 採択 / 保留 | 保留 (作業上の読みのまま) |
 | (vii) | cadence | 月次 / 四半期+イベント / 折衷 | 月次維持 |
@@ -144,7 +144,7 @@
 ## 10. 次アクション (Claude、執行は本 PR 外)
 
 1. **registry (別 PR、デプロイを伴うため open live trade 0 の窓でバッチ)**: `edge-supply-scan-monthly` deadline 2026-10-18 → **2026-11-17** (意図実行日 11-18 の前日、message に第6次実績を追記) / 新規 `adhoc-scan-29-step1-census-gate` (deadline **2026-11-07**、意図日 11-08) / R5 機械トリガの起票は cadence 決裁の前提として同 PR で検討。
-2. **#29 step 1 census (R3、別 PR)**: ABGH-2019 辞書転記モジュール (WP 381 Appendix、sha256 pin) + 価格非接触ペア列挙器 + 出力 (件数・割合のみ)。参照値 40/228 併記。
+2. **#29 step 1 census (R3、別 PR、#29-L の user 明示承認後)**: ABGH-2019 辞書転記モジュール (WP 381 Appendix、sha256 pin) + 価格非接触ペア列挙器 + 出力 (件数・割合のみ)。参照値 40/228 併記。承認前に着手できるのは列挙器の骨格 (辞書非依存部分) と転記 PR の雛形まで。
 3. **(a-1) DRAFT**: 差分節 8 項目 + P-10 節 + 購買前に可能な敵対的検証を DRAFT 上で先行 (購買は U4-1/2/3 後)。
 4. **ws3-round4 DRAFT + R3 infra 条件付き起案** (§5-(a))。
 5. **(c) 残余**: G0 ツール出力の instrument 全集合凍結 → RT 実測 (read-only)。
