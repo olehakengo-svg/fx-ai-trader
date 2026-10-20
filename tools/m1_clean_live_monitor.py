@@ -618,9 +618,14 @@ def fetch_broker_closed_trades(
         status.update(ok=False, reason=f"max_pages {max_pages} reached before coverage")
     status["covered"] = len(found)
     status["missing"] = len(needed_ids) - len(found)
-    if status["ok"] and status["missing"] > 0 and status["oldest_id_seen"] is not None \
-            and status["oldest_id_seen"] > min_needed:
-        status.update(ok=False, reason="coverage stopped before oldest needed id")
+    if status["ok"] and status["missing"] > 0:
+        # 被覆範囲に関わらず、必要 id が 1 つでも欠ければ broker 基準は unavailable
+        # (0 で埋めない / 部分一致を ok と呼ばない — Codex P2 2026-10-20)
+        if status["oldest_id_seen"] is None or status["oldest_id_seen"] > min_needed:
+            reason = "coverage stopped before oldest needed id"
+        else:
+            reason = f"{status['missing']} needed id(s) absent from broker closed trades"
+        status.update(ok=False, reason=reason)
     return found, status
 
 

@@ -154,6 +154,21 @@ def test_fetch_reports_missing_when_pages_run_dry_before_oldest_needed():
     assert set(found) == {"500"} and st["ok"] is False and st["missing"] == 1
 
 
+def test_fetch_marks_unavailable_when_an_id_is_absent_even_if_range_is_covered():
+    # ページは最古必要 id (100) より下まで届いたが、id 200 が broker 側に無い → ok=False
+    def fetcher(before):
+        return (True, {"trades": [_trade(500, 1000, 1, 1, 0), _trade(100, 1000, 1, 1, 0), _trade(50, 1000, 1, 1, 0)]})
+
+    found, st = m1.fetch_broker_closed_trades({"500", "200", "100"}, fetcher=fetcher)
+    assert set(found) == {"500", "100"}
+    assert st["ok"] is False and st["missing"] == 1 and "absent" in st["reason"]
+
+
+def test_fetch_first_page_empty_is_unavailable_not_ok():
+    found, st = m1.fetch_broker_closed_trades({"1"}, fetcher=lambda b: (True, {"trades": []}))
+    assert found == {} and st["ok"] is False and st["missing"] == 1
+
+
 def test_fetch_empty_needed_is_ok_without_calls():
     found, st = m1.fetch_broker_closed_trades(set(), fetcher=lambda b: (_ for _ in ()).throw(AssertionError("called")))
     assert found == {} and st["ok"] is True and st["pages"] == 0
