@@ -44,7 +44,7 @@ Shadow は UTC 固定で削らない (原則 3) は全ステージ共通。
 - 「今から蓄積しないと間に合わない」型のデータ (E1 の Myfxbook が典型) は、
   **S1 通過の時点で ingest を先行起動する** (蓄積は無料、待ちは不可逆)
 
-- **C5 (text モダリティ、2026-10-20 第6次追補、[[../research/external-hypothesis-scan-round6-2026-10-20]] §3-(i) / [[../research/adhoc-scan-29-step0-2026-09-22]] §7-5)**: 中銀テキスト系は (1) 辞書・モデルの再利用許諾を一次資料で確認してから転記 (sha256 pin、語彙編集を test で封鎖) (2) 監査可能な終端 = 公開日を上限とする保守的 cutoff (RoBERTa 清浄境界 2019-08、10-15 訂正) (3) step 1 census は価格非接触・件数と割合のみ、閾値・ホライズン・ペア写像の探索禁止 (4) E23 park (Gate B N 40、pass-2 未解錠) の救済には使わない (5) 診断枠は WIP 下限に数えない。
+- **C5 (text モダリティ、2026-10-20 第6次追補、[[../research/external-hypothesis-scan-round6-2026-10-20]] §3-(i) / [[../research/adhoc-scan-29-step0-2026-09-22]] §7-5)**: 中銀テキスト系は (1) 辞書・モデルの再利用許諾を一次資料で確認してから転記 (sha256 pin、語彙編集を test で封鎖) (2) **LLM (API / open-weight) の zero/few-shot 採点と frozen-LLM 表現からの回帰は、事前学習コーパスが当該声明とその後の市況解説を含むため恒久除外 (adhoc-scan-29-step0 §7-5 (c)、cutoff を置いても解除されない)**。encoder 分類器 (RoBERTa 系) も免責ではなく、**訓練標本 (事前学習・fine-tune とも) の終端が評価窓に先行することを primary 要件とし、fine-tune 標本の出所・期間を pre-reg で宣言する** (同 §7-5 (b))。監査可能な終端 = 公開日を上限とする保守的 cutoff (RoBERTa 清浄境界 2019-08、10-15 訂正) は encoder 経路の窓算術にのみ使う (3) step 1 census は価格非接触・件数と割合のみ、閾値・ホライズン・ペア写像の探索禁止 (4) E23 park (Gate B N 40、pass-2 未解錠) の救済には使わない (5) 診断枠は WIP 下限に数えない。
 
 ## 4. Cadence (新設)
 
