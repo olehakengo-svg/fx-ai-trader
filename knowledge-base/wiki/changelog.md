@@ -1,5 +1,16 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-20 — docs(research)+registry: 外部仮説スキャン第6次 — U4 (a)(b)(c) 資本制約なし再評価 / #29 step 1 承認 / 四半期モダリティ棚卸し (rule:R3、新規採用 0、3 周連続 (第4〜6次))
+
+- **文書**: [[external-hypothesis-scan-round6-2026-10-20]] (調査 6 面 + 反証 3 レンズ、全て「核は生存・細部訂正」で本文反映済み)
+- **採用 0 / 診断枠 1**: #29 S1 step 1 census を承認 (R3、$0、価格非接触、WIP 下限には数えない)。台帳に #29 (診断枠) + #30 idx19 / #31 weekly-xs-reversal / #32 tail-day-aftermath を 🅿️ research-only 予約で登録 (枠非消費)。(b) daily+ クロスセクションは「DRAFT 起案」から格下げ — 価格/OHLCV 内部モダリティ閉鎖からの carve-out 宣言 + C4 (正 EV ホスト不在) + F2 教訓 + 1d parquet 使用禁止
+- **KB 事実誤りの訂正 2 点**: E22 §9「真正 OTC 面 = Databento」は不正確 (Databento = CME 上場 options)。字義充足経路 = DataMine 経由 TFS-ICAP (OTC、2003-09〜) だが価格・契約資格・tick→EOD 構築が未確認、「数百 $ 一回性」は未確認に格下げ (supply-space §1.2 追記)
+- **U4 (c) 非 FX は OANDA 制約下で空集合 → S1 クローズ** (v20 口座 = FX 68 ペアのみ、金銀は CFD 別口座)。残余 = 追加 FX ペアの shadow 蓄積 (RT 実測 R3 まで)
+- **explore 枠**: 現在値 0/3〜2/3 の不定を 3 読みで記録、案 A (0/3) を作業上の読みに (台帳末尾「第6次 追補」、凍結節は不改変、正式採択は user ack)
+- **pipeline §3 に C5 (text 規律) 追記**。MASSIVE 1h cache 停止 (05-15〜) の恒久対策 (15m→1h resample、deploy 副作用回避の条件付き) を ws3-round4 の R3 infra として上程
+- **user 決裁項目 9 件** (round6 §9: U4-1〜U4-6 / #29 ライセンス読み / Picault–Renault / 枠規則 / cadence)
+- **registry**: `edge-supply-scan-monthly` deadline 10-18 → **11-17** (意図実行日 11-18 の前日規則) + 第6次実績を message に追記 / 新規 `adhoc-scan-29-step1-census-gate` (deadline 11-07、意図日 11-08)
+
 ## 2026-10-19 — feat(monitoring): D11 両基準併記 — m1_clean_live_monitor --strong に broker realized 列 + /api/oanda/trades_remote proxy (rule:R3)
 
 - **背景**: carry_dip clean live N=27/30、線形 ETA 10-26 で registry `integrated-decision-packet-d11-both-basis-impl` (期日 10-31) を追い越す見込み。pre-reg 規律「N≥30 到達後の基準選択禁止」のため到達前に両基準を同一母集団で読める状態が必要
