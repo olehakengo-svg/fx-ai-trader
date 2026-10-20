@@ -141,6 +141,14 @@ QUOTE_JPY_APPROX = {
 
 _TS_FORMATS = ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S")
 
+# ── broker 両基準 (--strong、D11 2026-10-19 rule:R3) ─────────────────────
+#: OANDA v20 trades 一覧の 1 ページ上限 (count ≤500)。
+BROKER_PAGE_SIZE = 500
+#: beforeID 遡行の安全上限 (clean live 614 行 ≈ 2 ページ、無限ループ防止)。
+BROKER_MAX_PAGES = 20
+#: broker 基準の口座通貨。Claude_auto_trade_KG は JPY 口座 — realizedPL は JPY。
+BROKER_ACCOUNT_CCY = "JPY"
+
 
 def parse_ts(value: Any) -> datetime | None:
     """``created_at`` を naive UTC datetime に。壊れていれば ``None``。"""
@@ -411,8 +419,13 @@ def strong_summary(
     anchor: datetime,
     days: int = WINDOW_DAYS,
     weak: dict[str, Any] | None = None,
+    broker: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """M1 強定義 readout。承認済み 2 文書の定義を**両方**計算し矛盾を明示する。"""
+    """M1 強定義 readout。承認済み 2 文書の定義を**両方**計算し矛盾を明示する。
+
+    ``broker`` = {"map": {oanda_trade_id: trade}, "status": {...}} (D11 両基準併記)。
+    None なら broker 列は ``skipped``、status.ok=False なら ``unavailable``。
+    """
     rows = list(rows)
     weak = weak or summarize(rows, anchor, days)
     cells = cumulative_cell_stats(rows, anchor, days)
@@ -424,8 +437,25 @@ def strong_summary(
     gate_ref_cells = [c for c in strong_cells if c["wilson_lo"] >= WILSON_GATE_REF]
     book_met = weak["verdict"] == "MET"
     cell_met = len(strong_cells) >= 1
+    # ── D11 両基準併記 (2026-10-19) ──
+    reg_literal_demo = [c for c in cells if _pred_reg_literal(c["n"], c["sum"])]
+    if broker is None:
+        broker_basis: dict[str, Any] = {"status": "skipped",
+                                        "reason": "broker fetch not requested (--no-broker)"}
+    else:
+        bstatus = broker.get("status") or {}
+        cells_b = cumulative_cell_stats_broker(rows, anchor, broker.get("map") or {}, days)
+        table = basis_table(cells, cells_b)
+        broker_basis = {
+            "status": "ok" if bstatus.get("ok") else "unavailable",
+            "reason": None if bstatus.get("ok") else bstatus.get("reason", "unknown"),
+            "fetch": {k: bstatus.get(k) for k in ("pages", "covered", "missing", "oldest_id_seen")},
+            "table": table,
+        }
     return {
         "anchor": anchor.isoformat(),
+        "n_cells_reg_literal_demo": len(reg_literal_demo),
+        "broker_basis": broker_basis,
         "estimand_cell": (
             f"セル (entry_type×instrument×direction) 単位 clean live 累積 "
             f"(cutoff {CLEAN_CUTOFF}〜anchor): N≥{STRONG_MIN_N} ∧ "
@@ -461,6 +491,271 @@ def strong_summary(
                 "の保守カウントを併記",
             ],
         },
+    }
+
+
+def pip_size(instrument: str) -> float:
+    """pip の価格刻み。JPY quote = 0.01、それ以外 = 0.0001 (XAU は roadmap で除外)。"""
+    return 0.01 if str(instrument or "").upper().endswith("_JPY") else 0.0001
+
+
+def broker_trade_metrics(trade: dict[str, Any]) -> dict[str, Any] | None:
+    """OANDA v20 trade object → broker 基準の実現値 (純関数)。
+
+    CLOSED 以外・必須キー欠損・units 0 は ``None`` (= 突合不能、0 で埋めない)。
+    pips = (averageClosePrice − price) × sign(initialUnits) / pip_size。
+    pl_jpy = realizedPL (口座通貨 JPY)、financing は別掲 (net = pl + financing)。
+    """
+    try:
+        if str(trade.get("state", "")).upper() != "CLOSED":
+            return None
+        units = float(trade["initialUnits"])
+        open_px = float(trade["price"])
+        close_px = float(trade["averageClosePrice"])
+        pl = float(trade["realizedPL"])
+        fin = float(trade.get("financing") or 0.0)
+    except (KeyError, TypeError, ValueError):
+        return None
+    if units == 0:
+        return None
+    sign = 1.0 if units > 0 else -1.0
+    instrument = str(trade.get("instrument") or "")
+    pips = (close_px - open_px) * sign / pip_size(instrument)
+    return {
+        "pl_jpy": pl,
+        "financing_jpy": fin,
+        "net_jpy": pl + fin,
+        "pips": round(pips, 2),
+        "units": abs(units),
+        "instrument": instrument,
+        "close_time": trade.get("closeTime"),
+    }
+
+
+def needed_broker_ids(rows: Iterable[dict[str, Any]], anchor: datetime,
+                      cutoff: str = CLEAN_CUTOFF) -> set[str]:
+    """demo 側 clean live 母集団 (cutoff..anchor) の oanda_trade_id 集合。"""
+    cutoff_dt = datetime.strptime(cutoff, "%Y-%m-%d")
+    ids: set[str] = set()
+    for r in rows:
+        if not is_clean_live(r):
+            continue
+        ts = parse_ts(r.get("created_at"))
+        if ts is None or ts < cutoff_dt or ts > anchor:
+            continue
+        ids.add(str(r.get("oanda_trade_id")).strip())
+    return ids
+
+
+def _default_broker_fetcher(api: str):
+    def _fetch(before_id: int | None) -> tuple[bool, Any]:
+        params: dict[str, Any] = {"state": "CLOSED", "count": BROKER_PAGE_SIZE}
+        if before_id is not None:
+            params["before_id"] = int(before_id)
+        try:
+            resp = requests.get(f"{api}/api/oanda/trades_remote", params=params, timeout=120)
+            if resp.status_code != 200:
+                return False, f"HTTP {resp.status_code}"
+            return True, resp.json()
+        except (requests.RequestException, ValueError) as exc:
+            return False, str(exc)
+    return _fetch
+
+
+def fetch_broker_closed_trades(
+    needed_ids: set[str],
+    api: str = DEFAULT_API,
+    fetcher=None,
+    max_pages: int = BROKER_MAX_PAGES,
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    """/api/oanda/trades_remote (OANDA closed trades の live proxy) を beforeID で
+    遡り、``needed_ids`` を被覆する。戻り = (id→trade, status)。
+
+    status = {ok, pages, reason, oldest_id_seen, covered, missing}。
+    失敗時は **部分 map + ok=False** — 読み手は broker 列を unavailable にする
+    (lesson: 失敗を 0 件と偽らない)。
+    """
+    fetcher = fetcher or _default_broker_fetcher(api)
+    found: dict[str, dict[str, Any]] = {}
+    status: dict[str, Any] = {"ok": True, "pages": 0, "reason": None,
+                              "oldest_id_seen": None, "covered": 0,
+                              "missing": len(needed_ids)}
+    if not needed_ids:
+        return found, status
+    try:
+        min_needed = min(int(i) for i in needed_ids)
+    except ValueError:
+        status.update(ok=False, reason="non-integer oanda_trade_id in needed_ids")
+        return found, status
+    before: int | None = None
+    while status["pages"] < max_pages:
+        ok, payload = fetcher(before)
+        status["pages"] += 1
+        if not ok:
+            status.update(ok=False, reason=f"fetch failed: {payload}")
+            break
+        trades = (payload or {}).get("trades") or []
+        if not trades:
+            break
+        ids_page: list[int] = []
+        for t in trades:
+            tid = str(t.get("id", "")).strip()
+            try:
+                ids_page.append(int(tid))
+            except ValueError:
+                continue
+            if tid in needed_ids:
+                found[tid] = t
+        if not ids_page:
+            status.update(ok=False, reason="page without integer trade ids")
+            break
+        oldest = min(ids_page)
+        status["oldest_id_seen"] = oldest
+        if len(found) >= len(needed_ids) or oldest <= min_needed:
+            break
+        before = oldest
+    else:
+        status.update(ok=False, reason=f"max_pages {max_pages} reached before coverage")
+    status["covered"] = len(found)
+    status["missing"] = len(needed_ids) - len(found)
+    if status["ok"] and status["missing"] > 0:
+        # 被覆範囲に関わらず、必要 id が 1 つでも欠ければ broker 基準は unavailable
+        # (0 で埋めない / 部分一致を ok と呼ばない — Codex P2 2026-10-20)
+        if status["oldest_id_seen"] is None or status["oldest_id_seen"] > min_needed:
+            reason = "coverage stopped before oldest needed id"
+        else:
+            reason = f"{status['missing']} needed id(s) absent from broker closed trades"
+        status.update(ok=False, reason=reason)
+    return found, status
+
+
+def cumulative_cell_stats_broker(
+    rows: Iterable[dict[str, Any]],
+    anchor: datetime,
+    broker_map: dict[str, dict[str, Any]],
+    days: int = WINDOW_DAYS,
+    cutoff: str = CLEAN_CUTOFF,
+) -> list[dict[str, Any]]:
+    """セル別 **broker 基準** 累積統計。母集団は demo 側 (``cumulative_cell_stats``)
+    と同一 (is_clean_live ∧ cutoff..anchor) — 片寄せしない (D11 pre-reg 規律)。
+
+    broker_map に無い行は ``n_unmatched`` に積み、統計には含めない (0 埋め禁止)。
+    ``basis_complete`` = n_unmatched == 0 の時だけ predicate を評価できる。
+    """
+    cutoff_dt = datetime.strptime(cutoff, "%Y-%m-%d")
+    span = timedelta(days=days)
+    cells: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        if not is_clean_live(r):
+            continue
+        ts = parse_ts(r.get("created_at"))
+        if ts is None or ts < cutoff_dt or ts > anchor:
+            continue
+        key = f"{r.get('entry_type')}×{r.get('instrument')}×{r.get('direction')}"
+        c = cells.setdefault(key, {
+            "cell": key, "instrument": r.get("instrument"),
+            "n": 0, "n_matched": 0, "n_unmatched": 0,
+            "sum_pl_jpy": 0.0, "sum_financing_jpy": 0.0, "sum_pips": 0.0,
+            "wins": 0, "n_recent": 0, "sum_pips_recent": 0.0,
+        })
+        c["n"] += 1
+        m = broker_trade_metrics(broker_map.get(str(r.get("oanda_trade_id")).strip()) or {})
+        if m is None:
+            c["n_unmatched"] += 1
+            continue
+        c["n_matched"] += 1
+        c["sum_pl_jpy"] += m["pl_jpy"]
+        c["sum_financing_jpy"] += m["financing_jpy"]
+        c["sum_pips"] += m["pips"]
+        if m["pl_jpy"] > 0:
+            c["wins"] += 1
+        if anchor - ts < span:
+            c["n_recent"] += 1
+            c["sum_pips_recent"] += m["pips"]
+    out = []
+    for c in cells.values():
+        nm = c["n_matched"]
+        for k in ("sum_pl_jpy", "sum_financing_jpy", "sum_pips", "sum_pips_recent"):
+            c[k] = round(c[k], 2)
+        c["ev_pips"] = round(c["sum_pips"] / nm, 3) if nm else None
+        c["wr"] = round(c["wins"] / nm, 4) if nm else None
+        c["wilson_lo"] = round(wilson_lower(c["wins"], nm), 4) if nm else None
+        c["basis_complete"] = c["n_unmatched"] == 0 and nm > 0
+        out.append(c)
+    out.sort(key=lambda c: (-c["n"], c["cell"]))
+    return out
+
+
+def _pred_reg_literal(n: int, total: float) -> bool:
+    """REG project-falsification-f3 の condition 字義: clean live N≥30 ∧ PnL>0。"""
+    return n >= STRONG_MIN_N and total > 0
+
+
+def _pred_strong(n: int, ev: float | None, wilson_lo: float | None,
+                 min_ev: float = STRONG_MIN_EV_PIPS) -> bool:
+    """実装主定義: N≥30 ∧ EV≥+1.0p/t ∧ Wilson95 下限(WR) > 0。"""
+    return (n >= STRONG_MIN_N and ev is not None and wilson_lo is not None
+            and ev >= min_ev and wilson_lo > 0.0)
+
+
+def basis_table(cells_demo: list[dict[str, Any]],
+                cells_broker: list[dict[str, Any]]) -> dict[str, Any]:
+    """同一セル集合で **2 基準 (demo pnl_pips / broker realized) × 2 predicate
+    (REG 字義 / STRONG)** を並記する (D11 両基準併記)。
+
+    broker 側は basis_complete の時のみ predicate を評価、それ以外は
+    ``"unavailable"`` (不一致でも一致でもない)。基準の選択はしない。
+    """
+    by_key = {c["cell"]: c for c in cells_broker}
+    rows: list[dict[str, Any]] = []
+    counts = {"reg_literal_demo": 0, "strong_demo": 0,
+              "reg_literal_broker": 0, "strong_broker": 0,
+              "broker_unavailable_cells": 0}
+    disagreements: list[str] = []
+    for d in cells_demo:
+        b = by_key.get(d["cell"])
+        demo = {
+            "sum": d["sum"], "ev": d["ev"], "wilson_lo": d["wilson_lo"],
+            "reg_literal": _pred_reg_literal(d["n"], d["sum"]),
+            "strong": _pred_strong(d["n"], d["ev"], d["wilson_lo"]),
+        }
+        counts["reg_literal_demo"] += int(demo["reg_literal"])
+        counts["strong_demo"] += int(demo["strong"])
+        if b is None or not b["basis_complete"]:
+            broker: dict[str, Any] = {
+                "status": "unavailable",
+                "n_matched": (b or {}).get("n_matched", 0),
+                "n_unmatched": (b or {}).get("n_unmatched", d["n"]),
+            }
+            counts["broker_unavailable_cells"] += 1
+        else:
+            broker = {
+                "status": "ok", "n_matched": b["n_matched"], "n_unmatched": 0,
+                "sum_pl_jpy": b["sum_pl_jpy"], "sum_financing_jpy": b["sum_financing_jpy"],
+                "sum_pips": b["sum_pips"], "ev_pips": b["ev_pips"],
+                "wilson_lo": b["wilson_lo"],
+                # REG 字義の「PnL>0」を broker で読む = realizedPL (JPY) 合計 > 0
+                "reg_literal": _pred_reg_literal(b["n_matched"], b["sum_pl_jpy"]),
+                "strong": _pred_strong(b["n_matched"], b["ev_pips"], b["wilson_lo"]),
+            }
+            counts["reg_literal_broker"] += int(broker["reg_literal"])
+            counts["strong_broker"] += int(broker["strong"])
+            if (broker["reg_literal"] != demo["reg_literal"]
+                    or broker["strong"] != demo["strong"]):
+                disagreements.append(d["cell"])
+        rows.append({"cell": d["cell"], "n": d["n"], "demo": demo, "broker": broker})
+    return {
+        "predicates": {
+            "reg_literal": f"clean live N≥{STRONG_MIN_N} ∧ PnL>0 (REG F3 condition 字義)",
+            "strong": f"N≥{STRONG_MIN_N} ∧ EV≥+{STRONG_MIN_EV_PIPS}p/t ∧ Wilson95下限(WR)>0",
+        },
+        "bases": {
+            "demo": "demo_trades.pnl_pips (bid/ask 建て、trail/BE 自己約定込み)",
+            "broker": f"OANDA closed trade realizedPL ({BROKER_ACCOUNT_CCY}) + price-derived pips",
+        },
+        "counts": counts,
+        "disagreements": disagreements,
+        "rows": rows,
     }
 
 
@@ -664,7 +959,44 @@ def to_markdown_strong(s: dict[str, Any]) -> str:
             f"- 最接近セル: {top['cell']} (N={top['n']}/{STRONG_MIN_N}, "
             f"EV={top['ev']:+.2f}p, w_lo={top['wilson_lo']:.2f})"
         )
+    lines.extend(_markdown_broker_basis(s))
     return "\n".join(lines)
+
+
+def _markdown_broker_basis(s: dict[str, Any]) -> list[str]:
+    """D11 両基準併記の行 (基準は選ばない、unavailable は unavailable と書く)。"""
+    bb = s.get("broker_basis")
+    if not bb:
+        return []
+    if bb.get("status") == "skipped":
+        return [f"- 両基準 (D11): broker 列 skipped ({bb.get('reason')})"]
+    table = bb.get("table") or {}
+    counts = table.get("counts") or {}
+    head = (
+        f"- 両基準 (D11): REG字義(N≥{STRONG_MIN_N}∧PnL>0) demo={counts.get('reg_literal_demo', 0)} / "
+        f"broker={counts.get('reg_literal_broker', 0)} | STRONG demo={counts.get('strong_demo', 0)} / "
+        f"broker={counts.get('strong_broker', 0)} | 不一致セル={len(table.get('disagreements') or [])}"
+    )
+    out = [head]
+    if bb.get("status") != "ok":
+        f = bb.get("fetch") or {}
+        out.append(
+            f"- ⚠️ broker 列 unavailable ({bb.get('reason')}; covered={f.get('covered')} "
+            f"missing={f.get('missing')} pages={f.get('pages')}) — 0 として読まないこと"
+        )
+    if counts.get("broker_unavailable_cells"):
+        out.append(f"- broker 未突合セル = {counts['broker_unavailable_cells']} (predicate 未評価)")
+    rows = table.get("rows") or []
+    if rows:
+        top = rows[0]
+        b = top["broker"]
+        if b.get("status") == "ok":
+            out.append(
+                f"- 最接近セル broker: {top['cell']} (N={b['n_matched']}/{top['n']}, "
+                f"pl=¥{b['sum_pl_jpy']:+,.0f}, EV={b['ev_pips']:+.2f}p, w_lo={b['wilson_lo']:.2f}; "
+                f"demo EV={top['demo']['ev']:+.2f}p)"
+            )
+    return out
 
 
 def to_markdown_m3(m3: dict[str, Any]) -> str:
@@ -747,13 +1079,20 @@ def build_report(
     anchor: datetime | None = None,
     strong: bool = False,
     nav_jpy: float | None = None,
+    broker: bool = True,
 ) -> dict[str, Any]:
     rows = fetch_trades(api)
     anchor = anchor or datetime.now(timezone.utc).replace(tzinfo=None)
     report = summarize(rows, anchor, days, lookback)
     if strong:
         # 弱定義 readout はそのまま (キー互換維持)、強定義 + M3 を追記する
-        report["strong"] = strong_summary(rows, anchor, days, weak=report)
+        broker_payload = None
+        if broker:
+            ids = needed_broker_ids(rows, anchor)
+            bmap, bstatus = fetch_broker_closed_trades(ids, api=api)
+            broker_payload = {"map": bmap, "status": bstatus}
+        report["strong"] = strong_summary(rows, anchor, days, weak=report,
+                                          broker=broker_payload)
         if nav_jpy is None:
             nav_jpy = fetch_nav_jpy(api)
         report["m3"] = m3_summary(rows, anchor, days, nav_jpy=nav_jpy)
@@ -769,11 +1108,14 @@ def main(argv: list[str] | None = None) -> int:
                     help="M1 強定義 (セル/book 両定義) + M3a/M3b readout を追記")
     ap.add_argument("--nav", type=float, default=None,
                     help="M3b %%換算用 NAV (JPY)。省略時は /api/oanda/status から取得")
+    ap.add_argument("--no-broker", action="store_true",
+                    help="D11 両基準併記の broker 列 (OANDA closed trades proxy) を取得しない")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
     try:
         report = build_report(args.api, args.days, args.lookback,
-                              strong=args.strong, nav_jpy=args.nav)
+                              strong=args.strong, nav_jpy=args.nav,
+                              broker=not args.no_broker)
     except (requests.RequestException, ValueError) as exc:
         print(f"## M1 KPI (clean live 30d PnL)\n- ⚠️ 取得失敗: {exc}")
         return 1
