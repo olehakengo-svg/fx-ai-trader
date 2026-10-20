@@ -24,6 +24,7 @@
 | 候補 | 何を解錠するか | 費用レンジ | 根拠 / 反根拠 | 決裁点 |
 |---|---|---|---|---|
 | **(a-1) OTC FX オプション面 (RR/BF/smile)** | E22 復活経路の指定データ = vol モダリティ再開 | Bloomberg/Refinitiv 級 ~$2k+/月、**CME DataMine FX options 歴史 = 数百$ 一回性 (最安 probe 経路)** | RR は EVZ と別情報 (crash 保険価格)。反根拠: G10 日次〜週次の系統エッジは文献で EM 比に弱い + E22 の完全 null は弱い負の prior | round4 §4 凍結の第 1 候補。**再上程条件 = U1「継続」+ ロック済みライン verdict 到達** — 10-15 の E1 verdict がまさにこれ |
+> **2026-10-20 第6次訂正** ([[../research/external-hypothesis-scan-round6-2026-10-20]] §4.1): 上行の「CME DataMine FX options 歴史 = 数百$ 一回性 (最安 probe 経路)」は**出所なし・未確認**に格下げ。E22 §9 の「真正 OTC 面 = Databento 等有償」は不正確 (Databento GLBX = CME **上場** options on futures、2010〜)。字義を満たす経路 = DataMine 経由 **TFS-ICAP FX Options** (OTC indicative 面、2003-09〜、52 ペア、ティック級日次ファイル ~2MB/日) だが**価格・個人の契約資格・tick→EOD 構築の 3 点が未確認**。Databento は Standard $199/月〜、新規 $125 クレジット (6 ヶ月失効)、statistics 単価・Volatility/Delta 配信は未確認。vendor 選択と手順書 §8 (vendor = DataMine 固定) の改定は user 決裁 (round6 §9 U4-3 / U4-6)。
 | **(a-2) CLS FX Outstanding (決済フロー)** | round5 E30 の C1 棄却の解錠 — **直近 2 スキャン 6 棄却中、金で救える唯一の 1 本** | **未取得** (機関向け商用、桁が上の可能性 — round5 逐語で優先度 (a-1) の下) | 母集団独立性は本物 (真の機関フロー ≠ E1 リテール ≠ E12 先物) | 価格照会のみ先行可 ($0)。購買判断は (a-1) の後 |
 | **(a-3) Databento CME (E12 歴史 + E13 tick 12y)** | E13 再入場 — ただし **E12 unsigned primary PASS 時のみ** (台帳 #10) | ~$200-1,000/月 + 歴史従量 | **今買っても何も速くならない** (E12 first look 2027-02-05 固定・前倒し禁止) | round4 凍結どおり **2027-02 まで保留** |
 | (a-4) OIS/policy path (family C 復活経路) | 参考: US レグは ZQ=F/SR3=F の CME capture 追加で **$0 種まき可** | $0 | 有償に分類しない — 即時執行可能な無償アクション | R3 で即時可 (本比較の対象外) |
@@ -41,6 +42,9 @@
 packet が「scan#4 に添付予定」とした 1 本は round4/round5 のどちらにも存在しない (KB 全文 grep で該当ゼロ)。round4 §4 は有償・長ホライズン・非価格モダリティをカバーしたが、**市場の変更は未カバー**だった。
 
 ### 2.2 市場候補と物理制約
+
+> **⛔ 2026-10-20 第6次で (c) 本体は OANDA 制約下で不成立としてクローズ** ([[../research/external-hypothesis-scan-round6-2026-10-20]] §4.3): user 決裁 09-24「OANDA は仕様で不変・別口座は提案しない」の下、OANDA JP v20 API 口座の取扱は **FX 68 ペアのみ** (貴金属なし、金・銀は MT4/MT5 の商品 CFD 別口座 = 対象外)。下表 3 行は歴史記録として保存。**残余 = 追加 FX ペア (55 本、取引制限中の除外要確認) の shadow 蓄積のみ** — 市場を変えない (base rate 不変、クロス RT 3.70–3.90p は majors より悪い)。手順 = G0 ツール出力で instrument 全集合を凍結 → RT 実測 (R3) → PASS ペアのみ backfill → MODE_CONFIG shadow_only 追加は読み手セット同 PR + Render disk/engine 容量実測 + user 一言承認。判定表 §3 の (c) 列は「取引資本追加: 不要 / 執行経路: 既存 / base rate を動かす機構: なし (ペア拡張のみ) / Render 書込み容量: 要実測」に読み替える。
+
 
 | 候補 | データ入手 | 執行口座 (物理制約) | 資本適合 | 判定 |
 |---|---|---|---|---|
