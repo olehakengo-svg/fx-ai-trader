@@ -660,19 +660,76 @@ def sha256_file(path: str | Path) -> str:
 FREEZE_FILES = ("excursion_per_entry.csv", "manifest.json", "report.md")
 
 
-def _atomic_write(path: Path, data: str, *, newline: str | None = None) -> None:
-    """同 dir の一時ファイルに書いて rename — 途中失敗で壊れた凍結を残さない。"""
-    import os
+def _stage_write(path: Path, data: str, *, newline: str | None = None) -> Path:
+    """同 dir の `<name>.tmp` に書くだけ (公開は `_publish_staged`)。
+
+    凍結は 3 ファイル (CSV / manifest / report) で 1 単位。1 ファイルずつ rename していると、
+    2 ファイル目の構築で例外が出たとき 1 ファイル目だけが公開された「部分凍結」が残り、
+    次の通常 run が『既存凍結』として拒否し、`--freeze-overwrite` 併用時は旧 snapshot の
+    CSV だけが置換されて manifest / report と不整合になる (PR #328 review 4266792526、
+    registry review-backlog-328-p2-deferrals-2026-10-14)。全部 stage してから一括で rename する。
+    """
     tmp = path.with_name(path.name + ".tmp")
     with open(tmp, "w", encoding="utf-8", newline=newline) as f:
         f.write(data)
-    os.replace(tmp, path)
+    return tmp
+
+
+def _publish_staged(out: Path, names=FREEZE_FILES) -> None:
+    """stage 済み `.tmp` を本名へ rename する (検証はすべて済んでいる前提 — ここで失敗し得るのは FS だけ)。
+
+    複数ファイルの rename は原子的でないので、途中の `os.replace` 失敗 (例: `--freeze-overwrite` 中の I/O
+    エラー) で CSV だけ新・manifest / report は旧 という混在凍結が残り得る (PR #339 review 4321934645)。
+    各ファイルの旧版を `<name>.bak` に退避してから置換し、失敗したら **完了済みの置換をすべて巻き戻す**
+    (旧版あり → .bak を戻す / 旧版なし → 新規公開分を消す)。成功時は .bak を消す。
+    """
+    import os
+    done: list[tuple[str, bool]] = []            # (name, had_backup)
+    try:
+        for n in names:
+            target, bak = out / n, out / (n + ".bak")
+            had = target.exists()
+            if had:
+                os.replace(target, bak)
+            try:
+                os.replace(out / (n + ".tmp"), target)
+            except BaseException:
+                if had:
+                    os.replace(bak, target)         # この 1 件は未置換のまま戻す
+                raise
+            done.append((n, had))
+    except BaseException:
+        for n, had in reversed(done):
+            target, bak = out / n, out / (n + ".bak")
+            if had:
+                os.replace(bak, target)
+            elif target.exists():
+                target.unlink()
+        raise
+    for n, had in done:
+        if had:
+            (out / (n + ".bak")).unlink()
+
+
+def _discard_staged(out: Path) -> None:
+    """途中失敗時に stage 済み `.tmp` を捨てる (公開済みファイルには触らない。`.bak` は `_publish_staged` が
+    巻き戻しで消費済み)。"""
+    for n in FREEZE_FILES:
+        t = out / (n + ".tmp")
+        if t.exists():
+            t.unlink()
+
+
+def _atomic_write(path: Path, data: str, *, newline: str | None = None) -> None:
+    """単独ファイルの原子的書込 (stage → rename)。凍結 3 点セットには使わない (上記)。"""
+    import os
+    os.replace(_stage_write(path, data, newline=newline), path)
 
 
 def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows: int,
                  trades_fetched_at: str | None, bars_dir: str, bars_tf: str,
                  instruments: list[str], bars_fetched_at: str | None, params: dict,
-                 overwrite: bool = False) -> dict:
+                 overwrite: bool = False, publish: bool = True) -> dict:
     """§6 の入力と per-entry 派生結果をリポジトリに凍結する (再現性の担保)。
 
     - excursion_per_entry.csv: 行 = (trade_id, cohort, horizon) ごとの fav / adv / block_id / match_key
@@ -683,6 +740,12 @@ def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows
     既存の凍結 dir には書かない (overwrite=False、PR #328 review 4266607770): KB が引用中の snapshot を
     黙って置換しない。別入力なら別 dir を切る。生成元は git HEAD だけでなく本スクリプトの content sha256 と
     dirty 状態も記録する (PR #328 review 4266607766: 未コミット変更で生成すると HEAD は親 commit を指す)。
+
+    書込み順序 (PR #328 review 4266792526): **入力の検証と manifest の構築を先に全部**済ませてから
+    CSV / manifest を `.tmp` に stage する。`publish=False` (main() が report.md も stage してから
+    3 点を一括公開する経路) では rename しない。存在するが**零行**の bars parquet は
+    `excursion_control_table()` が「利用不可」として完了するので、manifest も `rows: 0 / first: None /
+    last: None` (sha256 は記録 — 入力の同一性は残す) で受け、`b.index[0]` を触らない。
     """
     import csv
     import subprocess
@@ -690,7 +753,7 @@ def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows
     existing = [n for n in FREEZE_FILES if (out / n).exists()]
     if existing and not overwrite:
         raise SystemExit(f"freeze dir {out} に既存の凍結 {existing} がある — 別 dir を切るか --freeze-overwrite を明示せよ")
-    out.mkdir(parents=True, exist_ok=True)
+    # ── 1) 検証 + manifest 構築 (ここで失敗しても dir には何も書かれていない) ──
     rows = freeze.get("rows", [])
     cols = ["trade_id", "instrument", "entry_type", "direction", "entry_time", "cohort",
             "horizon_min", "favorable_pips", "adverse_pips", "block_id", "match_key"]
@@ -700,7 +763,6 @@ def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows
     w.writeheader()
     for r in rows:
         w.writerow({k: r.get(k) for k in cols})
-    _atomic_write(out / "excursion_per_entry.csv", buf.getvalue(), newline="")
     files = {}
     for inst in sorted(instruments):
         p = Path(bars_dir) / f"{inst}_{bars_tf}.parquet"
@@ -708,8 +770,11 @@ def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows
             files[inst] = None
             continue
         b = load_bars(bars_dir, inst, bars_tf)
+        n_bars = int(len(b)) if b is not None else 0
         files[inst] = {"file": p.name, "sha256": sha256_file(p), "bytes": p.stat().st_size,
-                       "rows": int(len(b)), "first": b.index[0].isoformat(), "last": b.index[-1].isoformat()}
+                       "rows": n_bars,
+                       "first": b.index[0].isoformat() if n_bars else None,
+                       "last": b.index[-1].isoformat() if n_bars else None}
     tool_path = Path(__file__).resolve()
     repo = tool_path.parents[1]
     head, dirty = None, None
@@ -737,7 +802,13 @@ def write_freeze(freeze_dir: str, freeze: dict, *, trades_json: str, trades_rows
         "coverage": freeze.get("coverage", []),
         "rows_written": len(rows),
     }
-    _atomic_write(out / "manifest.json", json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
+    # ── 2) stage (CSV / manifest) → 3) 公開 (publish=False なら main() が report と一緒に公開) ──
+    out.mkdir(parents=True, exist_ok=True)
+    _stage_write(out / "excursion_per_entry.csv", buf.getvalue(), newline="")
+    _stage_write(out / "manifest.json",
+                 json.dumps(manifest, ensure_ascii=False, indent=1, sort_keys=True) + "\n")
+    if publish:
+        _publish_staged(out, ("excursion_per_entry.csv", "manifest.json"))
     return manifest
 
 
@@ -756,9 +827,17 @@ def main() -> None:
         _run(args)
         return
     buf = io.StringIO()
-    _run(args, out=buf)  # 既存凍結があれば write_freeze が SystemExit → report も書かない
-    # report を先に永続 — stdout が先に閉じていても (| head / CI cancel) 部分凍結を残さない (PR #328 review 4266711506)
-    _atomic_write(Path(args.freeze_dir) / "report.md", buf.getvalue())
+    out = Path(args.freeze_dir)
+    try:
+        _run(args, out=buf)  # 既存凍結があれば write_freeze が SystemExit → 何も stage されない
+        # report も stage してから 3 点を一括公開 — 途中の例外 (零行 parquet 等) で CSV だけが
+        # 公開された部分凍結を残さない (PR #328 review 4266792526)。stdout が先に閉じていても
+        # (| head / CI cancel) 凍結は公開済み (PR #328 review 4266711506)
+        _stage_write(out / "report.md", buf.getvalue())
+        _publish_staged(out)
+    except BaseException:
+        _discard_staged(out)
+        raise
     sys.stdout.write(buf.getvalue())
 
 
@@ -879,7 +958,7 @@ def _run(args: argparse.Namespace, out=None) -> None:
                                      "split_at": args.split_at, "transition_end": args.transition_end,
                                      "horizons_min": [60, 240], "bars_tf": args.bars_tf,
                                      "population": "outcome を問わない全 entry (XAU 除外 / dedup 除外)"},
-                             overwrite=args.freeze_overwrite)
+                             overwrite=args.freeze_overwrite, publish=False)
             _p(f"> 🧊 入力凍結: `{args.freeze_dir}/excursion_per_entry.csv` ({m['rows_written']} 行) + "
                   f"`manifest.json` (trades sha256 {m['trades_json']['sha256'][:12]}…, bars {len(m['bars']['files'])} pair) + "
                   f"`report.md` (本出力)\n")

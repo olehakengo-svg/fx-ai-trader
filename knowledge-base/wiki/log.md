@@ -1,5 +1,10 @@
 # Knowledge Base Change Log
 
+## 2026-10-20 (autopilot — 期日 5 件消化 + storm guard 執行窓の記録)
+- 🔑 **storm guard 執行窓は閉じた**: PR #337 マージ 05:34:47Z (別セッション、open 0) → deploy live 05:36:42Z → **14 秒後 05:36:56Z に carry_dip BUY #1346961 fill** → open 1 で `STORM_GUARD_ENFORCE` 未設定 (§3.2 (a) 遵守、registry 10-21 据え置き)。再起動で storm #3 の in-process 累計 (最終 **46,098 送信 / failed 7**、#1254773 決済済み) は status から消滅 — 累計は Render ログ / OANDA transactions 側にのみ残る ([[storm-guard-design-2026-09-22]] §7.4)
+- ⚖️ **hedge-gate R1 = 起案しない** (live 寄与 0 本・H2 動機は同時刻バーで成立・コストは shadow N のみ、再浮上条件 2 つ) / ⚖️ **hunt_events = 退役** (logger 既定 off、175 日未実装 labeler、demo_trades 経路で完結) / ✅ **ps-seat spread magnitude readout**: EUR_AUD は全 block absolute (min 1.75× limit)、USD_CAD は marginal 含む (cap 3.0p 候補、分布計装なし)、NZD_JPY N=4 — disposition は Rule 1 で同乗のみ
+- ✅ review-backlog 326 (deepdive `membership_proven` + `open_before_unjudged`) / 328 (freeze 3 点一括公開、零行 parquet) を tools 修正 + pin で消化。`edge-supply-scan-monthly` は未着手 (臨時スキャン条件成立、次 run 第 1 候補) と明記
+
 ## 2026-10-19 (autopilot — storm guard 読み手配線 + 有効化判断 ENABLE、PR #335 救出マージ)
 - 🔴🔑 **storm 第 3 波が進行中**: 10-19 00:01:43Z fill の carry_dip #1254773 (BUY @157.75) に SL `REPLACEMENT` **5,881 送信 (02:18Z、≈2,570/h = guard 閾値の 51 倍)**、`storm_guard` は breaker trip で全数捕捉 (`enforce: false` = 送信は止めていない)。形は trail 側 157.93〜157.95 ⇄ BE+0.8 157.758 の **2 writer 往復** (BUY の SL を 19 pip 下げる送信を含む) — [[storm-guard-design-2026-09-22]] §7.1
 - ⚖️ **`storm-guard-enforce-decision` (期日 10-20) = ENABLE 確定** (§7、rule:R2 執行 / R3 構造)。読み手 (daily report 表 + anomaly_watcher `sl_replacement_storm`) を同 PR で配線 = 25 日間の write-only 解消。執行 (`STORM_GUARD_ENFORCE=1` + 再起動) は open live trade 0 の窓 → registry `storm-guard-enforce-execution-window` (10-21) / Rule 2 監視 `storm-guard-enforce-first-storm-readout` (11-02)

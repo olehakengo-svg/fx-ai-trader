@@ -467,3 +467,23 @@ USD_CAD **1.5p** / EUR_AUD **2.0p** / NZD_JPY **3.0p** — 平常時基準の値
   計算していない)。live N=6/10 で、供給が下流 gate に律速されている以上
   09-30 までの N≥10 到達は見込めない → 同エントリの
   「N<10 なら供給側の別問題として stale レビュー」分岐に入る見込みは §10 から変更なし
+
+## 12. ✅ spread magnitude readout (2026-10-20、registry `ps-seat-spread-magnitude-readout` 期日 10-19 の翌日、autopilot)
+
+計装到達 = **PASS** (`/api/demo/block-counts?days=28` に `per_cell_metrics` 256 キー、§11.6 の配線どおり)。窓 = 09-22〜10-20 (28d)。EV/WR/PnL は計算していない。
+
+| 席 (hourly、`_SPREAD_LIMITS`) | limit | n | min | mean | max | min / limit | mean / limit | max / limit |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `price_shock_rev_eur_aud_h1_long` EUR_AUD | 2.0 | **19** | 3.5 | 12.67 | 35.4 | **1.75×** | 6.3× | 17.7× |
+| `price_shock_rev_usd_cad_h1_long` USD_CAD | 1.5 | **27** | 1.6 | 2.97 | 13.1 | **1.07×** | 2.0× | 8.7× |
+| `price_shock_rev_nzd_jpy_h1_long` NZD_JPY | 3.0 | **4** | 3.0 | 7.28 | 19.8 | 1.0× | 2.4× | 6.6× |
+
+他 ps 席: aud_jpy `velocity_down` n=15 (24–60p、閾値 20p の 1.2–3.0×) / eur_gbp `spread_wide` n=1 (1.6p vs 1.5) + `recent_emit` n=2 (2,522–2,539 s < 3,600 s)。
+
+**読み (帰属のみ、是正は起案しない)**:
+- **EUR_AUD は全 block が absolute 側** — min が limit の 1.75 倍、mean 6.3 倍。per-strategy cap (b) で全数を通すには ≥35p (RT 摩擦 ~3p の 10 倍超) が要る = 構造的。候補は (a) 退役 or (c) 動的化のみ
+- **USD_CAD は marginal を含む** — min 1.07×、mean 2.0× だが max 8.7× の尾。(b) cap ≈3.0p (2× limit) が唯一 Rule 1 packet に値する候補。ただし **min/mean/max だけでは cap 3.0p が admit する割合を推定できない** (分布計装が無い。Markov 上界: 平均 2.97 の下で >6p の割合 ≤ 50% という程度)。起案するなら分位 (p50/p90) の R3 計装が先
+- **NZD_JPY は N=4** で判定材料不足 (min = limit ちょうど、max 6.6×)
+- ⚠️ `spread_wide` は shadow eligible (force-demoted / sentinel) でない entry を **shadow 行ごと** block する (`modules/demo_trader.py` の `not _is_shadow_eligible` 条件)。ps ×5 の 10-10 pool R2 demote は `_PAIR_DEMOTED` で shadow eligible ではないため、**demote 後も席供給 (shadow 蓄積) は本 gate に律速されたまま**。窓 28d は 10-10 を跨ぐが gate 挙動は前後で同一
+- **disposition は起案しない (autopilot 不可)**: 3 肢とも Rule 1 (365d BT + Bonferroni + pre-reg LOCK + user 決裁)。ps ×5 は再 live 化自体が R1 packet を要する ([[ps-carveout-pool-r2-demote-2026-10-10]]) ので、本 readout はその packet の『席供給』入力として同乗させる: EUR_AUD → (a) / USD_CAD → (b) cap 3.0p 候補 + 分位計装の要否 / NZD_JPY → N 不足。registry entry は resolved (readout 完了)。
+

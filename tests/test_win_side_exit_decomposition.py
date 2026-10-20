@@ -636,3 +636,97 @@ def test_freeze_report_ignores_concurrent_stdout_from_other_threads(wsed, tmp_pa
     assert rep.startswith("# Win-side exit decomposition") and intruder not in rep
     assert intruder in out and rep in out       # 混入行は通常の stdout へ、report 本文はそのまま stdout にも出る
     assert "redirect_stdout(" not in inspect.getsource(wsed.main)   # docstring の言及は可、呼び出しは不可
+
+
+def test_freeze_is_staged_and_published_as_one_unit(wsed, tmp_path, monkeypatch, capsys):
+    """凍結 3 点 (CSV / manifest / report) は全部 stage してから一括公開する (PR #328 review 4266792526、
+    registry review-backlog-328-p2-deferrals-2026-10-14)。
+
+    既知 NG (修正前): 存在するが零行の bars parquet で `excursion_control_table()` は「利用不可」として
+    完了するのに、write_freeze() が CSV を公開した後に同 parquet を再 load して `b.index[0]` で IndexError
+    → CSV だけの部分凍結が残り、次の通常 run が『既存凍結』として拒否。`--freeze-overwrite` 併用時は
+    旧 snapshot の CSV だけ置換され manifest / report と不整合。
+    pin: (1) 零行 parquet で 3 点とも書かれ manifest は rows 0 / first・last None (sha256 は記録)、
+    (2) manifest 構築中の例外では CSV も report も公開されず .tmp も残らない (counterfactual)、
+    (3) overwrite 中の例外では旧 snapshot 3 点が無傷。
+    """
+    import hashlib
+    import sys
+    import pandas as pd
+    bars_dir = tmp_path / "bars"
+    bars_dir.mkdir()
+    bars = _minute_bars("2026-06-03T00:00:00+00:00", 1200, {70: (150.30, 149.99), 800: (150.01, 149.70)})
+    bars.to_parquet(bars_dir / "USD_JPY_1m.parquet")
+    bars.iloc[0:0].to_parquet(bars_dir / "EUR_USD_1m.parquet")          # 存在するが零行
+    trades = [
+        _t("2026-06-03T01:00:00+00:00", "WIN", 1.0, "TP_HIT", instrument="USD_JPY", entry_price=150.00, id=1),
+        _t("2026-06-03T12:00:00+00:00", "LOSS", -1.0, "SL_HIT", instrument="USD_JPY", entry_price=150.00, id=2),
+        _t("2026-06-03T02:00:00+00:00", "WIN", 1.0, "TP_HIT", instrument="EUR_USD", entry_price=1.1000, id=3),
+        _t("2026-06-03T13:00:00+00:00", "LOSS", -1.0, "SL_HIT", instrument="EUR_USD", entry_price=1.1000, id=4),
+    ]
+    tj = tmp_path / "t.json"
+    tj.write_text(json.dumps(_payload(trades)))
+    freeze_dir = tmp_path / "freeze"
+    argv = ["wsed", str(tj), "--strategy", "s", "--bars-dir", str(bars_dir), "--freeze-dir", str(freeze_dir)]
+    monkeypatch.setattr(sys, "argv", list(argv))
+    wsed.main()                                                            # 修正前: IndexError
+    capsys.readouterr()
+    assert all((freeze_dir / n).exists() for n in wsed.FREEZE_FILES) and not list(freeze_dir.glob("*.tmp"))
+    m = json.loads((freeze_dir / "manifest.json").read_text(encoding="utf-8"))
+    eu = m["bars"]["files"]["EUR_USD"]
+    assert eu["rows"] == 0 and eu["first"] is None and eu["last"] is None
+    assert eu["sha256"] == hashlib.sha256((bars_dir / "EUR_USD_1m.parquet").read_bytes()).hexdigest()
+    assert m["bars"]["files"]["USD_JPY"]["rows"] == 1200
+    published = {n: (freeze_dir / n).read_bytes() for n in wsed.FREEZE_FILES}
+
+    # (2) counterfactual: manifest 構築の途中で例外 → 何も公開されず .tmp も残らない
+    fresh = tmp_path / "fresh"
+    monkeypatch.setattr(sys, "argv", [str(fresh) if a == str(freeze_dir) else a for a in argv])
+    real_sha = wsed.sha256_file
+
+    def _boom(path):
+        if str(path).endswith("EUR_USD_1m.parquet"):
+            raise RuntimeError("simulated failure while building the manifest")
+        return real_sha(path)
+    monkeypatch.setattr(wsed, "sha256_file", _boom)
+    with pytest.raises(RuntimeError, match="simulated"):
+        wsed.main()
+    assert not fresh.exists() or (list(fresh.iterdir()) == [])            # 部分凍結ゼロ (CSV も report も無い)
+    # 次の通常 run が『既存凍結』として拒否されない (部分凍結が残っていた旧挙動の否定)
+    monkeypatch.setattr(wsed, "sha256_file", real_sha)
+    wsed.main()
+    capsys.readouterr()
+    assert all((fresh / n).exists() for n in wsed.FREEZE_FILES) and not list(fresh.glob("*.tmp"))
+
+    # (3) overwrite 中の例外では旧 snapshot 3 点が無傷 (CSV だけ置換される不整合を否定)
+    monkeypatch.setattr(sys, "argv", list(argv) + ["--freeze-overwrite"])
+    monkeypatch.setattr(wsed, "sha256_file", _boom)
+    with pytest.raises(RuntimeError, match="simulated"):
+        wsed.main()
+    assert {n: (freeze_dir / n).read_bytes() for n in wsed.FREEZE_FILES} == published
+    assert not list(freeze_dir.glob("*.tmp"))
+
+    # (4) 公開 (rename) の途中失敗 — CSV は置換済み・manifest で I/O エラー → 置換済み分を巻き戻し、
+    #     旧 snapshot 3 点が無傷で .tmp / .bak も残らない (PR #339 review 4321934645)
+    import os
+    monkeypatch.setattr(wsed, "sha256_file", real_sha)
+    real_replace = os.replace
+
+    def _replace_fails_on_manifest(src, dst):
+        if str(src).endswith("manifest.json.tmp"):          # 公開 (tmp → 本名) だけ失敗、巻き戻しは通す
+            raise OSError(5, "simulated I/O error during publish")
+        return real_replace(src, dst)
+    monkeypatch.setattr(os, "replace", _replace_fails_on_manifest)
+    with pytest.raises(OSError, match="simulated I/O"):
+        wsed.main()
+    monkeypatch.setattr(os, "replace", real_replace)
+    assert {n: (freeze_dir / n).read_bytes() for n in wsed.FREEZE_FILES} == published
+    assert not list(freeze_dir.glob("*.tmp")) and not list(freeze_dir.glob("*.bak"))
+    # 旧版が無い dir での途中失敗は、公開済みの新規ファイルを消す (部分凍結ゼロ)
+    empty = tmp_path / "empty"
+    monkeypatch.setattr(sys, "argv", [str(empty) if a == str(freeze_dir) else a for a in argv])
+    monkeypatch.setattr(os, "replace", _replace_fails_on_manifest)
+    with pytest.raises(OSError, match="simulated I/O"):
+        wsed.main()
+    monkeypatch.setattr(os, "replace", real_replace)
+    assert list(empty.iterdir()) == []

@@ -268,7 +268,10 @@
       "deadline": "2026-10-18",
       "doc": "knowledge-base/wiki/syntheses/edge-development-pipeline-2026-07-18.md",
       "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: 着手できる本数が 0 なら期日を待たず臨時スキャン (R3)。第3次 2026-08-14 実行済 (採用 E21/E22)。第4次 2026-09-10 実行済 (family A 採用=台帳 #27 / family B park / E23 LOCK / E26-E28 全棄却 / rate-anchor+zn-cache 修復)。**第5次 2026-09-17 実行済 (期日 09-18 の 1 日前倒し — [[external-hypothesis-scan-round5-2026-09-17]])**: (1) 新規 E29-E31 全棄却 = 採用 0 で 3 周連続 (棄却理由は C1 有償 / C2 既 ban モダリティ / C4 正 EV ホスト不在 の 3 分類に収束)。(2) 🔴 **WIP 発動会計を訂正** — 09-15 の『能動測定ライン 0 本』は台帳 #27 (family A) の数え落としで、統治規則 (今日着手できる本数 ≥1) 下では臨時スキャン条件は成立していなかった (実害ゼロ)。正しい現在値 = **着手可能 1 本 (#27、凍結期日 09-24)** / 時限ロック 3 (E1 10-15, ECG 11-06, E12 2027-02-05) / 条件付き 2 / park 2 → WIP 充足。(3) 🔴 **family A forward コーパスの供給欠陥を修復** — mof-statements-daily が 8/20 run 失敗 (単一根因 GDELT 429)、失敗時に先行 4 ソースの成果ごと破棄しており **my20260915.html が実際に欠落**していた (回収済)。欠陥族 3 例目 (zn-cache / rate_anchor に続く) → [[lesson-defect-family-sweep-siblings-2026-09-17]]。(4) 第4次の rate-anchor-daily (4/4 success) / zn-cache-refresh (2/2 success) 修復を運用実績で確認しクローズ。次回 **第6次 = 2026-10-18、四半期モダリティ棚卸しを同乗**。§4 に月次→四半期+イベント駆動への cadence 変更提案 (user 決裁事項、未執行)。 【到達経路 (第6次の材料、性質 pin 継続 — 「条件を書く」と「条件が起こりうる」は別物)】family A forward 材料 = **mof-statements-daily** cron (lexicon_scores.csv 日次) — 基盤着地は statement-ladder-foundation-readiness で resolve 済み。⚠️ 本 cron は 8/20 run 失敗 (GDELT 429) で **my20260915.html を実際に落としていた** — 第5次 §1.2 で per-source 隔離 + commit `if: !cancelled()` により修復・回収済み。次回 scheduled run が soft-gdelt で success 終了することを実ログで確認するまで「修復完了」と言わないこと。 / family B 再裁定入力 = **intervention-watch** workflow (E-A 凍結検知器、00:20 UTC — 直近 4/4 success) + mof-next-episode-reverdict。 / family C 残置材料 + ws3-round4 conditional の唯一の到達経路 = **rate-anchor-daily** workflow (平日 21:15 UTC) と zn-cache-refresh — 第4次修復後 4/4 / 2/2 success、manifest date_max 2026-09-16 で運用実績確認済み (第5次 §1.1)。 ／ 2026-09-22 追記: **臨時スキャン 2026-09-22 実行済** (#29 S1 step 0、[[adhoc-scan-29-step0-2026-09-22]]、PR #284 — 月次 cadence とは別建ての臨時記録で本 deadline 10-18 は消費しない): 無条件候補 0 / 条件付き 2 (WCB pooled = ライセンス不整合 (card cc-by-4.0 vs 論文・LICENSE・全データセット CC BY-NC-SA 4.0) + fine-tune 終端 2024 で記述 secondary 固定 / ABGH-2019 辞書 = license-free primary 候補・再利用許諾未確認・密度未測定)。WIP 会計: 着手可能 (能動) 0 / 提案 1 (step 1 census、価格非接触)。第6次 (10-18) で裁定: step 1 実行可否 / #29 台帳登録可否 / explore 枠現在値 (0/3〜2/3) 確定 / C5 text 規律 (LLM zero-shot・frozen-LLM 表現採点の恒久除外、encoder も事前学習終端以前は汚染扱い) の KB 反映。 ／ ⛔ 2026-09-24 user 決裁 (user-decision-capital-not-binding-edge-first-2026-09-24.md): 第6次 (10-18) の議題に **U4 (a) 有償 probe ((a-1) FX オプション面 等) / (b) daily+ クロスセクショナル / (c) 非 FX (OANDA 銘柄内に限る) を「資本制約なし」で再上程**する。月額 ¥数十万級の有償データは U2 未決裁のため user 明示承認が前提。keeper ゼロ化 / venue 変更は議題から除外。 ／ 2026-10-10 (autopilot): **E1 first look #1 = POSTPONE** (品質 gate、[[e1-positioning-contrarian-prereg-2026-07-16]] §8-1) → 時限ロック E1 の日付は 10-15 → **11-12**。第6次 (10-18) での (a-1) probe R1 起案可否は手順書 [[e1-first-look-runbook-2026-09-22]] §8 一行定義の第 1 項 [verdict ∈ {UNDERPOWERED, REJECT, REJECT-F}] が **不成立 (verdict 未着)** → 起案しない。WIP 会計の時限ロック 3 本は不変 (E1 11-12 / ECG 11-06 / E12 2027-02-05)。",
-      "reachability": "Claude セッション手動 (Tier-A cron が TRIGGERED 表示)。前進経路 = wiki/research/ に external-hypothesis-scan-round6 を新設。先に読む: 既存 ban 台帳 (hypothesis-catalog-2026-07-24) + 直近 3 スキャンの棄却理由 3 分類 + external-hypothesis-scan-round5-2026-09-17 §4 (cadence 提案)。第6次は四半期モダリティ棚卸し同乗 = falsified 一覧の『閉鎖』前提が崩れていないかの再確認を含む。"
+      "reachability": "Claude セッション手動 (Tier-A cron が TRIGGERED 表示)。前進経路 = wiki/research/ に external-hypothesis-scan-round6 を新設。先に読む: 既存 ban 台帳 (hypothesis-catalog-2026-07-24) + 直近 3 スキャンの棄却理由 3 分類 + external-hypothesis-scan-round5-2026-09-17 §4 (cadence 提案)。第6次は四半期モダリティ棚卸し同乗 = falsified 一覧の『閉鎖』前提が崩れていないかの再確認を含む。",
+      "note": {
+        "2026-10-20": "未着手 (autopilot 10-20)。理由: 本 run の直列容量を storm guard 執行窓 + 期日 5 件 (hedge-gate / hunt-events / ps-seat readout / review-backlog 326・328) に使用。WIP 規則の現在値: 着手可能ライン = family A は 09-18 FAIL クローズ、E1 は 11-05 cutoff 待ち、ECG 11-06、E12 2027-02-05 → **着手可能 0 本 = 臨時スキャン条件が成立している**ので第 6 次は次 run の第 1 候補 (研究側、deploy 不要 → 窓待ち不要)。期日は変更しない (TRIGGERED 表示を維持)。"
+      }
     },
     {
       "id": "e23-explore-verdict-deadline",
@@ -871,13 +874,15 @@
     },
     {
       "id": "ps-seat-spread-magnitude-readout",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-19",
       "doc": "knowledge-base/wiki/analyses/ps-seat-supply-remeasure-2026-09-10.md",
       "message": "【期日に実行するコマンド】curl -s 'https://fx-ai-trader.onrender.com/api/demo/block-counts?days=28' → persisted.per_cell_metrics の price_shock_rev_*|*:spread_wide を読む (n / min / mean / max)。背景: §11 readout (2026-09-21) で 3 席 (NZD_JPY/EUR_AUD/USD_CAD) の distinct bar 機会 6/6 が spread_wide で落ちていると帰属できたが、**閾値をどれだけ超えたか**が永続面に無く 「marginal (例 3.1p vs 3.0p limit = 調整可能)」と「absolute (例 15p = 構造的)」を区別できなかった (gate_block_daily が reason.split('(')[0] で数値を捨てていた)。本エントリはその計装 (2026-09-21 rule:R3、metric_n/sum/min/max + per_cell_metrics 読み手) の deploy + 4 週で magnitude 分布を読む。**判定はここでは行わない — 読んだ上で disposition を起案する**: (a) 3 席退役 / (b) ショック時スプレッドを許容する per-strategy cap の pre-reg (weekend_gap_fade の専用 cap 10.0p が同型の前例、modules/demo_trader.py:6241) / (c) 静的閾値を動的 (ATR 比 / 分位) 化。**いずれも Rule 1 = 365d BT + Bonferroni + pre-reg LOCK + user 最終承認が必要で autopilot は執行しない**。EV/WR/PnL は計算しない — EV 判定は ps-carveout-regate-post-172 の凍結 look に委ねる (P-10 型 ban)。⚠️ n が 0 のまま期日到達 = 3 席が 4 週間ショックを引かなかった (供給バースト構造) か 計装が届いていないかの二択 → まず /api/demo/block-counts に per_cell_metrics キー自体が 存在するかを確認し、無ければ配線落ちとして R3 再修理して +4 週 roll する (推測で起案しない) ／ 2026-10-10: ps ×5 は pool R2 条件成立で `_PAIR_DEMOTED` ([[ps-carveout-pool-r2-demote-2026-10-10]]) — 本 readout の目的は「席供給 (shadow 到達) の診断」として不変だが、live 送信の回復を論じる場合は R1 (user 決裁) が前提になる。",
       "reachability": "状態を進めるジョブ = 本番エンジン自身 (hourly mode の _tick_entry が spread_wide block ごとに modules/block_event_logger.record_block へ magnitude を書く)。読み手 = /api/demo/block-counts の persisted.per_cell_metrics (query_block_counts、同一コミットで併設済み)。判定 = Claude セッション手動。計装は 2026-09-21 PR で main 着地 → Render auto-deploy。",
-      "execution_command": "curl -s 'https://fx-ai-trader.onrender.com/api/demo/block-counts?days=28'"
+      "execution_command": "curl -s 'https://fx-ai-trader.onrender.com/api/demo/block-counts?days=28'",
+      "resolved": "2026-10-20",
+      "resolution": "✅ 2026-10-20 readout 実行 (autopilot、期日 10-19 の翌日; 計装到達 PASS = `per_cell_metrics` 256 キー、[[ps-seat-supply-remeasure-2026-09-10]] §12)。`/api/demo/block-counts?days=28` (09-22〜10-20) の `price_shock_rev_*|*:spread_wide` (n / min / mean / max、pip): **EUR_AUD 19 / 3.5 / 12.67 / 35.4 (limit 2.0 → min 1.75× / mean 6.3× / max 17.7×)** / **USD_CAD 27 / 1.6 / 2.97 / 13.1 (limit 1.5 → min 1.07× / mean 2.0× / max 8.7×)** / **NZD_JPY 4 / 3.0 / 7.28 / 19.8 (limit 3.0 → min 1.0× / mean 2.4× / max 6.6×)**。EUR_AUD は min が limit の 1.75 倍 = **全 block が absolute 側**で per-strategy cap (b) は ≥35p を要する (= 構造的、RT 摩擦 ~3p の 10 倍超) → (a) 退役候補 or (c) のみ。USD_CAD は min 1.07× = marginal を含み mean 2.0× (max 8.7× の尾) → (b) cap ≈3.0p (2× limit) が唯一 Rule 1 packet に値する候補だが **min/mean/max だけでは cap 3.0p が admit する割合を推定できない** (分布 = ヒストグラム計装が無い; Markov 上界のみ)。NZD_JPY は N=4 で判定材料不足。他 ps: aud_jpy `velocity_down` 15 (24–60p、閾値 20p の 1.2–3.0×) / eur_gbp `spread_wide` 1 (1.6 vs 1.5) + `recent_emit` 2。⚠️ (i) `spread_wide` は `_PAIR_DEMOTED` 後も shadow eligible (force-demoted / sentinel のみ) ではない ps セルを **shadow 行ごと** block する = 10-10 pool demote 後も席供給 (shadow 蓄積) は本 gate に律速されたまま (ii) 窓 28d は 10-10 demote を跨ぐが gate 挙動は demote 前後で同一。**disposition は起案しない (autopilot 不可、全肢 Rule 1 + user 決裁)** — ps ×5 は 10-10 に pool R2 demote 済みで再 live 化自体が R1 packet を要するため、本 readout は**その packet の §『席供給』入力として同乗**させる (EUR_AUD (a) / USD_CAD (b) cap 3.0p 候補 + 分布計装 R3 の要否 / NZD_JPY N 不足)。EV/WR/PnL は計算していない (P-10 型 ban 維持)。"
     },
     {
       "id": "daily-market-review-30d-effectiveness",
@@ -951,7 +956,7 @@
     },
     {
       "id": "review-backlog-326-p2-deferrals-2026-10-13",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-20",
       "doc": "knowledge-base/wiki/analyses/deepdive-dedup-estimand-and-lock-redaction-2026-09-20.md",
@@ -960,7 +965,9 @@
       "reachability": "Claude が期日までに `gh api repos/olehakengo-svg/fx-ai-trader/pulls/comments/4254831598` / `4254831605` を読み、fix PR (tools のみ、巡目上限 ≤6 宣言) を起票する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
-      "outcome_lock": false
+      "outcome_lock": false,
+      "resolved": "2026-10-20",
+      "resolution": "✅ 2026-10-20 消化 (autopilot、期日当日、tools のみ rule:R3、branch autopilot/registry-due-2026-10-20)。(a) 4254831598: `_fetch_bracketed` が `_fetch_meta.membership_proven` (= server_cutoff 測定済み **∧** 保持した曖昧/判定不能行 0; 理由は `membership_unproven_reasons`、PR #339 Codex P2 4321934642 で強化) を artifact に明記し、`main()` の読み手は `membership_proven is False` (または legacy artifact で `membership_basis` が 'superset' 始まり) の snapshot を **`--allow-superset-snapshot` 明示 opt-in なしでは拒否** (pagination の `complete` とは別の claim として分離; `complete` は改変しない)。(b) 4254831605: 初回 open 読みの `_judge() is None` 行を `open_before_unjudged` として計数し artifact (`_fetch_meta.open_before_unjudged`) と `--fetch-to` の要約行に出す (行は従来どおり保持)。pin `tests/test_cell_deepdive_fetch_membership.py` (7: superset 明記 / 測定済みは proven / open_before 不正 entry_time 2 行の計数と保持 / 永続 / 読み手拒否 + opt-in / proven・legacy 受理 + legacy superset 拒否)。inline thread 2 件は本 PR で解決コメント。巡目上限 ≤6 宣言。"
     },
     {
       "id": "review-backlog-314-final-head-review-2026-10-12",
@@ -989,7 +996,7 @@
     },
     {
       "id": "hunt-events-labeler-disposition",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-20",
       "doc": "knowledge-base/wiki/analyses/hunt-events-dataset-readout-2026-09-19.md",
@@ -1001,7 +1008,9 @@
         "resolve_when": "(a) tools/attribute_hunt_outcomes.py が存在し accounting.labeled > 0 になる = labeler 実装 → readout §4 を更新して resolve / (b) データセット退役を決定 → 書込み停止 + readout §4 を更新して resolve",
         "current_state": "rows_read 69577 / quarantined 1 / repeats_collapsed 48884 / distinct 20692 / labeled 0 → validity gate DATA-BLOCKED (2026-09-22 再測、既定 dedup 窓 1h、identity ごとに時刻昇順へ並べてから窓を張る修正後)。⚠️ 膨張率は窓依存: 15m 27,565 (2.52x) / 1h 20,692 (3.36x) / 4h 14,953 (4.65x) / 24h 11,614 (5.99x) / 無制限 9,946 (7.00x) — 点推定で引用しないこと。旧値 (15m 27,335 / 1h 20,642) は到着順依存の過小計数であり引用禁止 (PR #272 第8巡、Codex P2)",
         "stage_b_observation": "labeler を実装する場合の追加要件 (2026-09-19 の自主監査): tools/sr_audit.stage_b_simulation は actual_outcome 由来の event と reversal proxy 由来 (tp_pip*0.7 haircut) を同一の n に混ぜ内訳を返さない。混合比が変われば EV/PF/Kelly が動くので、labeler 実装時に内訳を出すこと。⚠️ D4 軸 (未ラベル行が分母に入る) は Stage B には無い — 未解決 outcome は `else: continue` で母集団から落ちる (確認済み)。"
-      }
+      },
+      "resolved": "2026-10-20",
+      "resolution": "⚖️ 2026-10-20 判断 = **(b) 退役** (autopilot、rule:R3、[[hunt-events-dataset-readout-2026-09-19]] §4 追補)。根拠: labeler は 2026-04-28 の 'deferred' 宣言から **175 日未実装** (reversal None 69,577/69,577)、sr 系の判断 (forward confirm `sr-anti-hunt-eurjpy-buy-forward-confirm` 2027-02-28 を含む) は demo_trades 経路で完結しており、hunt_events は書込み + deploy churn (89 ファイル) のコストのみを払う並行未使用系。(a) を選ぶ場合の価格由来事後ラベルは forward 窓との干渉確認が先に必要 = 退役より重い。**書込み停止** = `modules/hunt_event_logger.py` の既定 `HUNT_EVENT_LOG_MODE` を `auto` → **`off`** (未知値も off、`on` はモジュール自身のテスト専用; pin `tests/test_hunt_event_logger_suppression.py` +2: 本番相当 (pytest 外) で既定が書かない / 旧既定 `auto` なら書いていた counterfactual)。呼び出し元 `strategies/daytrade/sr_anti_hunt_bounce.py:137` は不変 (live ロジック不変、False を返すだけ)。既存 `knowledge-base/raw/hunt_events/` は読み取り専用で保持 (勝手に archive しない — [[feedback_no_auto_archive_hide_new_content_2026_09_23]])、`tools/hunt_event_dataset.py` の fail-closed gate は不変。⚠️ 過去の N 主張 (04-28 Step 1『81 events』) は readout §5 corrigendum のとおり再確認が必要なまま (本件で解消しない)。branch autopilot/registry-due-2026-10-20"
     },
     {
       "id": "review-backlog-253-257-digest",
@@ -1299,7 +1308,7 @@
     },
     {
       "id": "hedge-gate-duration-vs-2026-04-30-premise",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-20",
       "doc": "knowledge-base/wiki/analyses/wait-tick-block-attribution-2026-09-23.md",
@@ -1308,7 +1317,9 @@
       "reachability": "評価主体 = tools/prereg_trigger_watch.py の deadline_info 型 (日次 Tier A cron、期日翌日 00:20Z に TRIGGERED)。判断 = Claude が材料を提示し user が決裁 (R1)。状態を進めるジョブは無く、期日での判断そのものが唯一の遷移。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
-      "outcome_lock": false
+      "outcome_lock": false,
+      "resolved": "2026-10-20",
+      "resolution": "⚖️ 2026-10-20 判断 = **(b) 起案しない** (autopilot、rule:R3 記録のみ、[[wait-tick-block-attribution-2026-09-23]] §6.1 追補)。根拠: (1) hedge_block の live 約定への寄与は §8-1 で **0 本 (構造的に bind 不能、確定)** — live 発火セル (kalman_d7 / zz_pivot / pivot_detector) は `_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS` で hedge を bypass、10-14〜10-20 の live fill (carry_dip ×4 / kalman po_dn ×1) も免除側 ⇒ time-to-M2 寄与 0 / (2) 2026-04-30 H2 の統計的動機 (同時刻の逆方向 sample が score-max ランキングを壊す) は同時刻バーに対して現在も成立、乖離は『22 分離れた別バーの shadow sample を 4,662 件/30d (全 block 3.0%) 失う』という **shadow N の供給コスト**に限られ、現ミッション (M1 = clean live 月次符号転換) の律速は shadow N ではない / (3) 緩和 = live 経路ゲート変更 = Rule 1 (365d BT + Bonferroni + pre-reg LOCK + user 決裁) で、Claude の単一 writer 直列容量を storm guard enforce / family A の根 (DB 未更新) より先に使う理由が無い。**再浮上条件 (どちらかで R1 packet 起案)**: (i) bypass 集合外の entry_type が live 候補になり、その live 候補行の block 台帳 (`/api/demo/block-counts` per_cell_counts) に `hedge_block` が N≥10/30d 現れる / (ii) Bonferroni 検定の対象セルで shadow N の到達が hedge_block によって期日を外す (candidate 行の `hedge_block` 帰属が当該セル shadow 件数の ≥20%)。判断材料 (真の件数・被拘束時間・免除集合) は §6 に凍結済みで不変。"
     },
     {
       "id": "block-counter-wait-contamination-recite-audit",
@@ -1387,7 +1398,7 @@
     },
     {
       "id": "review-backlog-328-p2-deferrals-2026-10-14",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-21",
       "doc": "knowledge-base/wiki/analyses/win-side-exit-regime-break-2026-06-03.md",
@@ -1396,7 +1407,9 @@
       "reachability": "Claude autopilot が期日までに fix PR (tools のみ、巡目上限 ≤3 宣言) を起票する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
       "execution_command": "python3 tools/prereg_trigger_watch.py",
       "execution_subject": "prereg_trigger_watch daily cron (Tier A)",
-      "outcome_lock": false
+      "outcome_lock": false,
+      "resolved": "2026-10-20",
+      "resolution": "✅ 2026-10-20 消化 (autopilot、期日 10-21 の前日、tools のみ rule:R3、branch autopilot/registry-due-2026-10-20)。4266792526: `write_freeze()` は入力検証 + manifest 構築を**先に全部**済ませてから CSV / manifest を `.tmp` に stage し (`publish=False`)、`main()` が report.md も stage した後に 3 点を `_publish_staged` で一括 rename (各ファイルの旧版を `.bak` に退避し、rename の途中失敗では完了済み置換を全部巻き戻す — PR #339 Codex P2 4321934645; 途中例外は `_discard_staged` で .tmp を捨てる)。零行 parquet は `rows: 0 / first: None / last: None` (sha256 は記録 — registry 文面の『None (欠落) 扱い』より入力同一性を残す側に倒した、`excursion_control_table()` の『利用不可』判定と整合) で `b.index[0]` を触らない。pin `tests/test_win_side_exit_decomposition.py::test_freeze_is_staged_and_published_as_one_unit` (零行 parquet で 3 点公開 / manifest 構築中の例外で CSV・report とも未公開かつ .tmp なし → 次 run が『既存凍結』で拒否されない / overwrite 中の例外で旧 snapshot 3 点無傷)。既存 pin 129 件 pass。現 snapshot `raw/analysis/win-side-excursion-2026-10-14/` は不変。巡目上限 ≤3 宣言。"
     },
     {
       "id": "bt-scalp-mtf-cache-key-id-reuse-r3",
@@ -1420,7 +1433,10 @@
       "doc": "knowledge-base/wiki/analyses/storm-guard-design-2026-09-22.md",
       "message": "storm guard 有効化の**執行** (判断は storm-guard-enforce-decision で 10-19 に ENABLE 確定、[[storm-guard-design-2026-09-22]] §7.3)。Render web service fx-ai-trader の env `STORM_GUARD_ENFORCE=1` を設定 (render.yaml は sync:false 宣言のみ) → 自動再起動 → `/api/oanda/status.storm_guard.enforce == true` を確認。執行窓 = [[sprint-triage-pr-discipline-2026-09-22]] §3.2 (a) **open live trade 0** (`/api/demo/status` の is_shadow=0 open と OANDA `heartbeat.open_trade_count` が 0) ∧ (b) 日曜 20:00–22:30Z を避ける。10-19 02:18Z 時点は #1254773 (carry_dip BUY) が open で storm 進行中 (5,881 送信)。TRIGGERED (10-21 に未執行) = 窓が開かなかった場合は『窓未到来、open trade = #…』と記録して延長 (黙って延長しない)。rollback = env を空にして再起動。",
       "condition": "Render env STORM_GUARD_ENFORCE=1 が設定され、再起動後の /api/oanda/status.storm_guard.enforce が true であることを確認し、deploy id・時刻・確認時点の storm_guard totals を本 entry の resolution に記録すること",
-      "reachability": "autopilot が各 run 冒頭で open live trade 数を読み、0 なら Render MCP `update_environment_variables` (merge、replace=false) で設定し、deploy live 後に `/api/oanda/status` を読んで記録する。open trade がある間は執行しない (再起動で OandaBridge / SL-TP 監視 / _price_history が reset される、§3.2 (a))。Tier A cron (tools/prereg_trigger_watch.py) が deadline 超過で TRIGGERED を出す。"
+      "reachability": "autopilot が各 run 冒頭で open live trade 数を読み、0 なら Render MCP `update_environment_variables` (merge、replace=false) で設定し、deploy live 後に `/api/oanda/status` を読んで記録する。open trade がある間は執行しない (再起動で OandaBridge / SL-TP 監視 / _price_history が reset される、§3.2 (a))。Tier A cron (tools/prereg_trigger_watch.py) が deadline 超過で TRIGGERED を出す。",
+      "note": {
+        "2026-10-20": "窓未到来。05:34:47Z PR #337 マージ (open 0 で実施、deploy dep-dbbfquflk1mc73dnqkn0 live 05:36:42Z) の **14 秒後 05:36:56Z に carry_dip BUY #1346961 (@158.151、SL 158.044) が fill** → open 1。05:39〜 1 分毎 poll (read-only) で open 1 継続のため env 未設定。再起動で storm #3 の in-process 状態は消え (`totals` 全 0 から再開、#1346961 は seed None の新規 fill として 1 建玉のみ追跡)、enforce は false のまま。deploy 直前 05:35Z 読みの storm #3 最終値: #1254773 sent **46,098** / failed 7 / confirmed_sl 158.275 (10-19 03:48Z の 11,812 から更に 34k、決済済み = open 0)。"
+      }
     },
     {
       "id": "storm-guard-enforce-first-storm-readout",
