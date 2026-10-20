@@ -5481,6 +5481,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - 唯一の取引はロンドンセッションにて発生。戦略名・ペアの詳細はセッション詳細データに記載なし（集計値のみ）。
 - **N=1につきWR/EV判断は統計的に無意味**。100%WRはデータとして保持するが意思決定に使用しない。
 
+### 2026-10-20 (Pre-Tokyo Briefing)
+- **PnL**: +¥61.0 | **トレード数**: 1件 | **WR**: 100%（WIN）
+- `usdjpy_carry_dip_accumulator` USD/JPY BUY → OANDA_SL_TP決済、Spread 0.8pip（守備的スプレッド）
+- 単発トレードのため統計的評価には不十分。累積N=11の中では良好な1日
+| Strategy | Pair | N | WR% | EV | PnL | 判断ステータス |
+> **統計的位置付け**：両戦略ともN<10〜7。N=30昇格基準まで`carry_dip`は残り**23件**、`kalman`は残り**26件**。現時点での判断は「傾向の確認」フェーズ。EVは正であり方向性は良好。
+- 全モード27系統が稼働中で、前日の執行は1件のみ
+- `rnb_usdjpy:no_signal` が4,735件（Block TOP1）と突出。USD/JPYのRANGINGレジーム（ATR%ile 34%、低ボラ）がRNBシグナル生成を抑制していると整合的
+- `scalp`, `scalp_eur`, `scalp_5m`系で計4,994件のr2_shadow_demoted_cellブロック
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
