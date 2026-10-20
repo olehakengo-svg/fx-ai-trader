@@ -5501,6 +5501,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - 27モードが稼働中にも関わらず前日成約は1件のみ。
 - `r2_shadow_demoted_cell`（scalp系: 計5,844件）と`order_bar_dedup`（daytrade系: 計3,521件）が発火の大半を吸収。
 
+### 2026-10-20 (Pre-Tokyo Briefing)
+| 前日PnL | **+¥61.0** |
+| 前日WR | **100%**（N=1、統計的意味なし） |
+`usdjpy_carry_dip_accumulator / USD_JPY` 1件のみが成立。OANDA_SL_TPによる決済、スプレッド0.8pip（良好）。Cutoff後累計はN=11、WR=63.6%、PnL=+83.4。トレード数が極めて少ない状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+**昇格基準（N≥30 & EV≥1.0）**: 両戦略とも未到達。
+`usdjpy_carry_dip_accumulator`はEV=+10.34と突出しているが、N=8は「傾向」段階。昇格判断には最低22件の追加蓄積が必要。
+- `usdjpy_carry_dip_accumulator`: **8/30**（残22件）
+- `kalman_d7_po_dn_flip`: **3/30**（残27件）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
