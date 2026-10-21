@@ -1324,7 +1324,57 @@
       "doc": "knowledge-base/wiki/decisions/sprint-0922-close-review-2026-10-21.md",
       "message": "次 30 日 (2026-10-22〜11-21) の終了レビュー。[[sprint-0922-close-review-2026-10-21]] §4 の採用 8 項目 (#1 storm guard enforce 執行 + first-storm readout / #2 family A 根 + 2-writer 特定の R3 (11-14) / #3 D11 窓 (≒10-25) と F3 両基準 readout (N≥30) / #4 E1 POSTPONE 凍結 11-05 + verdict 11-12 / #5 wg-dst-cutoff R3 10-25 + G1 10-31 + W1 user 決裁 / #6 DD ledger 非計上の消費者棚卸し (11-07) + carry_dip exit 棚卸し (10-31) / #7 規律文言の改定 (10-28): 執行窓条件に「直近 signal なし」+ PR body に estimand 宣言見出し、deploy 後 N 分の LIVE 送信抑止は user 上程のみ / #8 wiki-daily 欠落の原因調査 + 座礁 main 恒久策の再上程 + storm_guard 状態永続化の user 決裁待ち置き (11-07)) の done / in-flight / parked を証拠付きで判定し (固定日の第 7 次スキャン 11-17 / #29 census gate 11-07 は triage 対象外、別 entry で追跡)、、巡目実測 (code PR 中央値、目標 ≤6 で上限超過率 58% (18/31) → 30% 以下)、繰延 P2 消化率、market-safe 窓違反件数、deploy 直後 fill (未決 17) の再発件数を記録する。巡目中央値が 7 から下がらなければ §3.1 の上限値 (≤6) を容量規律として見直す (user 決裁不要)。",
       "condition": "終了レビュー文書 (採用項目の done / in-flight / parked、巡目実測、繰延 P2 消化率、窓違反件数) が decisions/ に置かれ、次 30 日 triage が両レンズ反証つきで起案されること",
-      "reachability": "Claude (autopilot) が期日までに gh api で PR の @codex review 依頼回数 / inline P1・P2 を集計し (SCRATCH 手順 = tools 化候補: tools/pr_round_stats.py)、REASSESS §3 形式で文書化する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。"
+      "reachability": "Claude (autopilot) が期日までに gh api で PR の @codex review 依頼回数 / inline P1・P2 を集計し (SCRATCH 手順 = tools 化候補: tools/pr_round_stats.py)、REASSESS §3 形式で文書化する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。中間期日は sub-entry 4 本 (sprint-1022-policy-wording-r3 10-28 / carry-dip-exit-type-inventory 10-31 / dd-ledger-nonbooking-consumer-audit 11-07 / sprint-1022-process-fixed-cost-upsubmit 11-07) + family-a-root-two-writer-r3 (11-14) で Tier A が個別に催促する (PR #342 Codex P2 4333203117)。"
+    },
+    {
+      "id": "sprint-1022-policy-wording-r3",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-28",
+      "doc": "knowledge-base/wiki/decisions/sprint-0922-close-review-2026-10-21.md",
+      "message": "[[sprint-0922-close-review-2026-10-21]] §4 #7 (R3 文書のみ): (i) [[sprint-triage-pr-discipline-2026-09-22]] §3.2 (a) の執行窓条件を「open live trade 0 ∧ 直近 1 H1 bar に live-eligible signal なし」へ改定 (10-20 05:36:56Z の deploy 直後 14 秒 fill が執行窓を塞いだ新型の穴、[[2026-10-20]] 未決 17 候補 (c)) / (ii) PR body 固定見出し「estimand 宣言」(母集団・分母・凍結値への非接触) を §3.1 に追加 (P1 の最頻型 = estimand / 母集団 の起票時予防) / (iii) deploy 後 N 分の LIVE 送信抑止 (候補 (a)) は原則 1 と衝突し得るので user 上程のみ (実装しない)。",
+      "condition": "(i)(ii) が sprint-triage-pr-discipline-2026-09-22.md に追記され、(iii) が user 決裁項目として packet または session log に上程されていること",
+      "reachability": "Claude (autopilot、docs のみ) が期日までに docs PR を積む。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。"
+    },
+    {
+      "id": "carry-dip-exit-type-inventory",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-10-31",
+      "doc": "knowledge-base/wiki/strategies/usdjpy_carry_dip_accumulator.md",
+      "message": "[[sprint-0922-close-review-2026-10-21]] §4 #6(b) (record-only): carry_dip 決済 29 fill (10-20 12:00Z 時点、以後の fill も含める) の exit 種別を broker tx `reason` (`TAKE_PROFIT_ORDER` / `STOP_LOSS_ORDER` / `MARKET_ORDER_TRADE_CLOSE` 等) で分類し、カードの exit 像 (TP 1 / BE 5 / trail 3 / writer 未起動 SL 2 / 残り未分類、[[2026-10-20]] 未決 18) を 29/29 で確定する。demo `close_reason` (`OANDA_SL_TP`) は SL/TP を区別しないので使わない。D5 (user 決裁 11-30) の材料。outcome 量 (PnL) の再集計はしない (凍結 look ではないが record-only の範囲)。",
+      "condition": "カードに exit 種別表 (fill id × broker reason × 分類) が追記され、分類不能 0 であること",
+      "reachability": "Claude (autopilot) が `/api/oanda/transactions` (fill ごとの決済 tx) を読み、カードに表を追記する docs PR を積む。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。"
+    },
+    {
+      "id": "dd-ledger-nonbooking-consumer-audit",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-07",
+      "doc": "knowledge-base/wiki/decisions/sprint-0922-close-review-2026-10-21.md",
+      "message": "[[sprint-0922-close-review-2026-10-21]] §4 #6(a) (R3): DD ledger (`/api/risk/dashboard` `dd_pips` / `jpy_ledger`) が `OANDA_SL_TP` 決済を計上しない (14 例、累積 155.0 pip、[[2026-10-20]] 発見 3) — 先に ledger の消費者 (0.2x lever / daily report / index Defensive 行 / monitor alert) を棚卸しし、(a) 計上経路を broker 決済まで広げる修理 (monitoring 経路 = Codex ゲート) か (b) 「ledger は SL_HIT 経路のみ」と注記して KPI から外す文書 R3 かを判定して記録する。両レンズ反証 (close review §4 #6) では (b) で足りる可能性 = reclassify。",
+      "condition": "消費者棚卸し表 + (a)/(b) の判定が analyses/ または close review 追補に記録され、(a) なら fix PR、(b) なら index Defensive 行と daily report の注記が着地していること",
+      "reachability": "Claude (autopilot) が app.py / scripts/daily_report.py / scripts/anomaly_watcher.py の ledger 読み手を grep して棚卸しする。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。"
+    },
+    {
+      "id": "sprint-1022-process-fixed-cost-upsubmit",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-07",
+      "doc": "knowledge-base/wiki/decisions/sprint-0922-close-review-2026-10-21.md",
+      "message": "[[sprint-0922-close-review-2026-10-21]] §4 #8 (R3 記録 / user 上程): (i) wiki-daily scheduled run の 10 月欠落 (9 日 / 21 日 = 43%) の原因を scheduled task 側のログで 1 回調査して記録 / (ii) 座礁ローカル main (behind 300 超、救済 PR 8 本 = 4 セッション ≈ 供給の 21〜38%) の恒久策 3 択 (`reset --hard` は user 操作) を packet 追補として再上程 / (iii) `storm_guard` 状態の永続化 (code deploy 毎に消失、5 例) は enforce とは別の R3 候補として user 決裁待ちに置く (readout 分母にのみ影響、[[2026-10-20]] 未決 19)。",
+      "condition": "(i) の調査記録と (ii)(iii) の上程文 (packet 追補または decisions/ 1 頁) が main にマージされていること",
+      "reachability": "Claude (autopilot) が docs PR を積む。(ii) の執行 (reset --hard) と (iii) の決裁は user 専権で autopilot は代行しない。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。"
+    },
+    {
+      "id": "family-a-root-two-writer-r3",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-14",
+      "doc": "knowledge-base/wiki/analyses/storm-guard-design-2026-09-22.md",
+      "message": "[[sprint-0922-close-review-2026-10-21]] §4 #2 (R3 構造修理、live 経路 PR): family A の根 = LIVE 経路 `modify_sl_sync` 成功後の DB `sl` 未更新 ([[storm-guard-design-2026-09-22]] §6-2) + storm #3 (10-19 #1254773、46,091 送信) の 2 writer (trail ⇄ BE+0.7 157.758 往復、BUY の SL を最大 51.7 pip 下げる送信) の特定と単一 writer 化。順序 = storm-guard-enforce-execution-window の執行 → storm-guard-enforce-first-storm-readout → 本 entry (readout が「正当 tightening 喪失」を出したら優先度↑)。巡目上限 ≤6 宣言、open live 0 窓でマージ、wg 凍結値・carry_dip SL 150p・kalman 契約に非接触。enforce が未執行のまま期日到来なら『前提 (enforce) 未充足』と記録して延長 (黙って延長しない)。",
+      "condition": "修理 PR (test pin: modify_sl_sync 成功で DB sl が更新される / BE writer が trail より保護的でない SL を書かない) がマージされ、次の live trail で DB sl == broker confirmed_sl が確認されていること",
+      "reachability": "Claude (autopilot) が modules/demo_trader.py の trail / BE writer と modules/oanda_bridge.py の modify_sl_sync 経路を読み、fix PR を積む (Codex ゲート、§3.2 窓)。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。"
     },
     {
       "id": "hedge-gate-duration-vs-2026-04-30-premise",
