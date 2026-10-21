@@ -418,9 +418,9 @@ def test_every_modify_sl_sync_success_branch_persists():
     assert len(checked) >= 7, checked
 
 
-# ── (l) PR #346 Codex P2: migration で OPEN 行の sl_initial を backfill ─────
+# ── (l) PR #346 Codex P2 ×3: 列追加前の行は backfill しない (provenance が無い) ──
 
-def test_sl_initial_backfilled_for_open_rows_on_init(tmp_path):
+def test_sl_initial_not_backfilled_for_legacy_rows_on_init(tmp_path):
     path = str(tmp_path / "bf.db")
     db = DemoDB(path)
     tid_open = db.open_trade(direction="BUY", entry_price=ENTRY, sl=SL0, tp=TP0,
@@ -451,10 +451,20 @@ def test_sl_initial_backfilled_for_open_rows_on_init(tmp_path):
     with db2._safe_conn() as conn:
         rows = {r["trade_id"]: r["sl_initial"] for r in conn.execute(
             "SELECT trade_id, sl_initial FROM demo_trades").fetchall()}
-    assert rows[tid_open] == SL0                         # OPEN かつ sl がリスク側 = 原値 → backfill
-    assert rows[tid_sell] == 157.917                     # SELL も同様 (sl > entry)
-    assert rows[tid_trailed] is None                     # 利益側へ動いた行は NULL のまま (可変値を初期リスクにしない)
-    assert rows[tid_closed] is None                      # CLOSED の旧行は NULL のまま
-    # NULL のまま残った行は従来どおり決済時 sl で割る
+    # 列追加前の行は OPEN / CLOSED / リスク側 / 利益側を問わず NULL のまま
+    # (改変の provenance が無い = 「entry 側」では原値と断定できない、50% TP extender 反例)
+    assert rows[tid_open] is None
+    assert rows[tid_sell] is None
+    assert rows[tid_trailed] is None
+    assert rows[tid_closed] is None
+    # NULL の行は従来どおり決済時 sl で割る (= 本修正前と同じ推定量)
     res = db2.close_trade(tid_trailed, 157.93, "SL_HIT")
     assert res["pnl_r"] == round(18.0 / 19.0, 2)
+    # 新規行 (列追加後の open_trade) だけが sl_initial を持つ
+    tid_new = db2.open_trade(direction="BUY", entry_price=ENTRY, sl=SL0, tp=TP0,
+                             entry_type="usdjpy_carry_dip_accumulator", confidence=80,
+                             tf="1h", mode="daytrade_1h", instrument="USD_JPY",
+                             oanda_trade_id="2")
+    with db2._safe_conn() as conn:
+        r = conn.execute("SELECT sl_initial FROM demo_trades WHERE trade_id=?", (tid_new,)).fetchone()
+    assert r["sl_initial"] == SL0

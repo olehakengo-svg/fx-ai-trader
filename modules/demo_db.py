@@ -267,24 +267,13 @@ class DemoDB:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN sl_initial REAL")
             except Exception:
                 pass
-            # 2026-10-21 (PR #346 Codex P2 ×2): 列追加時点で OPEN の行のうち、`sl` が
-            # ON_FILL 値のままと**判る行だけ** backfill する。既存の全 writer (Tier1 BE =
-            # entry+spread / Tier2・extender・pyramid trail = price ∓ k·ATR で favorable 側)
-            # は SL を必ず entry の**利益側**へ動かすので、`sl` がまだリスク側
-            # (BUY: sl < entry / SELL: sl > entry) なら原値と断定できる。利益側へ動いた
-            # 行 (trail 済み shadow / extender 経路を通った LIVE) は NULL のまま残し、
-            # close_trade は従来どおり決済時 sl へ fallback (可変値を「初期リスク」と
-            # 記録しない)。冪等。CLOSED の旧行は NULL のまま (後方互換)。
-            try:
-                conn.execute(
-                    "UPDATE demo_trades SET sl_initial = sl "
-                    "WHERE status='OPEN' AND sl_initial IS NULL AND sl IS NOT NULL "
-                    "AND entry_price IS NOT NULL "
-                    "AND ((direction='BUY' AND sl < entry_price) "
-                    "OR (direction='SELL' AND sl > entry_price))"
-                )
-            except Exception:
-                pass
+            # 2026-10-21 (PR #346 Codex P2 ×3): 列追加前からある行 (OPEN を含む) は
+            # **backfill しない**。`sl` が改変済みかどうかの provenance が DB に無く、
+            # 「entry のリスク側にある」だけでは原値と断定できない (50% TP extender は
+            # TP が近いと `price − 0.5·ATR` を entry より下に persist し得る)。可変 stop を
+            # 「初期リスク」として固定するより、NULL のまま close_trade を従来どおり
+            # 決済時 sl へ fallback させる (= 本修正前と同じ推定量) 方が安全。
+            # sl_initial は open_trade で新規行にだけ書く。
 
             # ── v7.0: Shadow Tracking カラム ──
             try:
