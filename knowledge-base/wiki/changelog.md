@@ -6,6 +6,7 @@
 - **registry**: `sprint-0922-triage-close` resolved / 新規 `sprint-1022-triage-close` (11-21) / `storm-guard-enforce-execution-window` 10-21 → **10-22** (note: permission 待ち、classifier 拒否 2 回、窓は ≥20 h 開いていた) / `storm-guard-enforce-first-storm-readout` note (執行日確定まで据え置き)
 - **救出 (5 例目)**: [[2026-10-20]] trade-log + log.md / index.md / daily-observations O-2026-10-20-1〜3 + rollup / carry_dip カード 10-20 節 (ローカル main のみに存在した wiki-daily 成果物)
 - **user 操作待ち (不変)**: `STORM_GUARD_ENFORCE=1` を Render dashboard で設定 (open live 0 のとき) か、`mcp__render__update_environment_variables` を allow に追加
+- **PR #342 マージ 9b6dd9ef (2026-10-21 05:52:09Z、open live 0 窓) → Render dep-dbc562u7bikc73flert0 live 05:54:06Z**。Codex P2 6 巡 (上限) 全件修正: active:false / 容量見積り 8 本 / enforce 後カウンタ予測の限定 / 後継 entry 列挙整合 / 巡目 rollup 再計算 (code 超過 18/31 = 58%、全体中央値 5) / 中間期日 sub-entry 5 本 (10-28 / 10-31 / 11-07 ×2 / 11-14)
 
 ## 2026-10-20 — docs(research)+registry: 外部仮説スキャン第6次 — U4 (a)(b)(c) 資本制約なし再評価 / #29 step 1 承認 / 四半期モダリティ棚卸し (rule:R3、新規採用 0、3 周連続 (第4〜6次))
 
