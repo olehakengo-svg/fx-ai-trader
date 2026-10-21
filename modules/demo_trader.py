@@ -1335,6 +1335,11 @@ class DemoTrader:
         self._mafe_tracker = {}         # {trade_id: {"max_high": float, "min_low": float}}
         # ── 建値ガード用: エントリー時ATR保存 ──
         self._entry_atr = {}            # {trade_id: atr_value (raw price units)}
+        # 2026-10-21 (rule:R3, SL storm family A/B の根): LIVE 行の「最終 broker 確認済み
+        # SL」の in-memory 写し {trade_id: sl}。耐久脚は DB (update_sl_tp) で、本 dict は
+        # DB 書込み失敗 (2026-08-21 Disk 満杯型) でも次 tick の baseline が ON_FILL SL へ
+        # 戻らないための保険。shadow 行には使わない。storm-guard-design-2026-09-22 §8
+        self._live_sl_sent = {}
         # ── SL狩り対策: クロス戦略カスケード防御 + Fast-SL検出 ──
         self._sl_hit_history = []       # [(timestamp, instrument, entry_type, hold_sec)] SL_HIT履歴
         # ── MTF連携: 15m DT → 1m Scalp 戦略バイアス（通貨ペア別）──
@@ -3105,6 +3110,9 @@ class DemoTrader:
                                                   spread_at_exit=_spread_exit_oa,
                                                   mafe_adverse_pips=_mafe_adv_oa,
                                                   mafe_favorable_pips=_mafe_fav_oa)
+                    # 2026-10-21 (PR #346 Codex P1): 確認済み SL の写しは DB close が返ってから捨てる
+                    if hasattr(self, "_live_sl_sent"):
+                        self._live_sl_sent.pop(trade_id, None)
                     if "error" not in result:
                         pnl = result.get("pnl_pips", 0)
                         outcome = result.get("outcome", "?")
@@ -3205,6 +3213,8 @@ class DemoTrader:
         open_trades = self._db.get_open_trades()
         if not open_trades:
             return
+        if not hasattr(self, "_live_sl_sent"):      # __new__ 構築 (tests) 互換
+            self._live_sl_sent = {}
 
         # 通貨ペア別にリアルタイム価格を取得（キャッシュ）— bid/ask対応
         _price_cache_rt = {}
@@ -3292,6 +3302,27 @@ class DemoTrader:
             tf = trade.get("tf", "")
             mode = trade.get("mode", "")
             entry_price = trade["entry_price"]
+
+            # ── 2026-10-21 (rule:R3): LIVE 行の SL baseline ──
+            # 以下の BE / trail writer は全て `new_sl > sl` (BUY) で緩め防止するが、
+            # 比較対象 `sl` が毎 tick DB から読み直す ON_FILL 値のままだと恒真になり、
+            # 同値再送 (family A) と trail⇄BE 往復 (family B) の根になる
+            # (#1254773: 46,091 送信 / 11.8 h)。DB sl は送信口で persist する (下記) が、
+            # DB 書込み失敗に備え最終 broker 確認値との保護側 (BUY: max / SELL: min) を
+            # baseline にする。shadow 行は従来どおり DB sl のみ。
+            if trade.get("is_shadow", 0) != 1 and sl is not None:
+                _sent_prev = self._live_sl_sent.get(trade_id)
+                if _sent_prev is not None:
+                    _db_lags = (_sent_prev > sl) if direction == "BUY" else (_sent_prev < sl)
+                    if _db_lags:
+                        # 2026-10-21 (PR #346 Codex P1 5 巡目): 前 tick の persist が一時的に
+                        # 失敗して DB が写しより古い。broker への新規送信とは独立に、治るまで
+                        # 毎 tick 書き直す (再起動で写しが消えても DB が確認値を持つように)。
+                        try:
+                            self._db.update_sl_tp(trade_id, _sent_prev, tp)
+                        except Exception:
+                            pass  # best-effort — 次 tick で再試行
+                    sl = max(sl, _sent_prev) if direction == "BUY" else min(sl, _sent_prev)
 
             # 通貨ペア別価格取得
             _mode_cfg = MODE_CONFIG.get(mode, {})
@@ -3512,6 +3543,17 @@ class DemoTrader:
                     # LIVE: mirror to OANDA; rollback on failure (preserves contract)
                     if not self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
                         sl = _original_sl  # OANDA失敗時はSLを元に戻す
+                    else:
+                        # 2026-10-21 (rule:R3): broker 受理後に shadow 分岐と対称に
+                        # persist。ここが無いと次 tick の baseline が ON_FILL SL へ戻り
+                        # 同値再送 / trail⇄BE 往復の根になる (2026-06-03 ab7a4931 以来の
+                        # 非対称、storm-guard-design-2026-09-22 §8)。in-memory 脚は
+                        # DB 書込み失敗の保険。
+                        self._live_sl_sent[trade_id] = sl
+                        try:
+                            self._db.update_sl_tp(trade_id, sl, tp)
+                        except Exception:
+                            pass  # best-effort — never crash the SL loop
 
             # ── v8.9: 含み益リアルタイム検知 (0.5秒ループ内) ──
             # 大幅含み益のDiscord通知 + Shadow含み益警告
@@ -3598,6 +3640,9 @@ class DemoTrader:
                         if new_sl < sl:
                             sl = new_sl
                     if self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                        # 2026-10-21 (PR #346 Codex P1): broker 受理値は persist の前に写す
+                        # (update_sl_tp が失敗しても次 tick の baseline が戻らない)
+                        self._live_sl_sent[trade_id] = sl
                         self._db.update_sl_tp(trade_id, sl, tp)
                         self._add_log(
                             f"🚀 [v6.4] 50% TP Extender: {trade_id} ({_entry_type_pe}) "
@@ -3668,6 +3713,7 @@ class DemoTrader:
                                 f"({trade_id})"
                             )
                         else:
+                            self._live_sl_sent[trade_id] = sl  # 2026-10-21 (PR #346 Codex P1): persist 前に写す
                             self._db.update_sl_tp(trade_id, sl, tp)
                             # Open pyramid OANDA position
                             _pyr_id = f"PYR_{trade_id}"
@@ -3724,6 +3770,7 @@ class DemoTrader:
                             if new_sl < sl:
                                 sl = new_sl
                         if self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                            self._live_sl_sent[trade_id] = sl  # 2026-10-21 (PR #346 Codex P1): persist 前に写す
                             self._db.update_sl_tp(trade_id, sl, tp)
                             self._add_log(
                                 f"🚀 DT Profit Extender: {trade_id} ({_entry_type_pe}) "
@@ -3757,6 +3804,7 @@ class DemoTrader:
                                 sl = new_sl
                         # SL/TP変更をDBに反映 (OANDA成功時のみ)
                         if self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                            self._live_sl_sent[trade_id] = sl  # 2026-10-21 (PR #346 Codex P1): persist 前に写す
                             self._db.update_sl_tp(trade_id, sl, tp)
                             self._add_log(
                                 f"🚀 Profit Extender: {trade_id} TP延伸 "
@@ -3773,11 +3821,22 @@ class DemoTrader:
                         if new_sl > sl:
                             if self._oanda.modify_sl_sync(trade_id, new_sl, instrument=_inst):
                                 sl = new_sl
+                                # 2026-10-21 (rule:R3): 同形状の兄弟 — 成功後に persist
+                                self._live_sl_sent[trade_id] = sl
+                                try:
+                                    self._db.update_sl_tp(trade_id, sl, tp)
+                                except Exception:
+                                    pass
                     else:
                         new_sl = round(price + _pe_trail, _pip_decimals)
                         if new_sl < sl:
                             if self._oanda.modify_sl_sync(trade_id, new_sl, instrument=_inst):
                                 sl = new_sl
+                                self._live_sl_sent[trade_id] = sl
+                                try:
+                                    self._db.update_sl_tp(trade_id, sl, tp)
+                                except Exception:
+                                    pass
 
             # ── Climax Exit (Confluence Scalp v2) ──
             # TP延伸中にクライマックス検出 → 即利確
@@ -3919,6 +3978,12 @@ class DemoTrader:
                                               spread_at_exit=_spread_exit,
                                               mafe_adverse_pips=_mafe_adverse,
                                               mafe_favorable_pips=_mafe_favorable)
+                # 2026-10-21 (PR #346 Codex P1): broker 確認済み SL の写しは DB close が
+                # **返ってから** 捨てる。close_trade が例外で失敗すると行は OPEN のまま
+                # 残り (per-trade except)、先に pop していると次 tick の baseline が
+                # ON_FILL SL に戻って再送 / 緩めが起きる (= この写しが防ぐ故障そのもの)。
+                # 戻り値が error dict でも行はもう OPEN ではないので捨ててよい。
+                self._live_sl_sent.pop(trade_id, None)
                 if "error" in result:
                     continue  # 別スレッドで既にクローズ済み → スキップ
 
@@ -8774,6 +8839,10 @@ class DemoTrader:
                                           spread_at_exit=_spread_exit_sr,
                                           mafe_adverse_pips=_mafe_adverse_sr,
                                           mafe_favorable_pips=_mafe_favorable_sr)
+            # 2026-10-21 (PR #346 Codex P1): 確認済み SL の写しは DB close が返ってから捨てる
+            # (_check_sltp_realtime の close 経路と同じ順序)
+            if hasattr(self, "_live_sl_sent"):
+                self._live_sl_sent.pop(trade_id, None)
             if "error" in result:
                 return  # 別スレッドで既にクローズ済み → スキップ
 

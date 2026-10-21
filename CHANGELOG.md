@@ -1,5 +1,14 @@
 # FX AI Trader - Changelog
 
+## 2026-10-21 — fix(sltp): LIVE 経路の broker 確認済み SL を persist — SL replacement storm family A/B の根を修復 (rule:R3)
+
+- **根**: `modules/demo_trader.py::_check_sltp_realtime` の LIVE 送信口が `modify_sl_sync` 成功後に DB `sl` を更新しない (shadow 分岐だけ `update_sl_tp`、2026-06-03 以来) → 毎 tick の baseline が ON_FILL SL → Tier2 trail と Tier1 BE (同じ if/else) の `new_sl > sl` 緩め防止が恒真 → 同値再送 (family A) / trail⇄BE 往復 (family B: #1254773 で 46,091 `REPLACEMENT` / 11.8 h)。code derivation + 反証: [[storm-guard-design-2026-09-22]] §8
+- **修正**: 成功時に shadow と対称に `update_sl_tp` + `_live_sl_sent` (in-memory、DB 書込み失敗の保険) + LIVE 行の baseline を保護側で合成 + confluence_scalp 継続 trail (兄弟) も persist。`modules/demo_db.py`: `sl_initial` 列 (ALTER TABLE 後方互換) + `close_trade` の `pnl_r` 分母を ON_FILL SL に
+- **不変更**: writer の閾値 (0.8 / 1.5 / 0.5·ATR、BE = entry+spread)、bridge storm guard、lot、pre-reg 凍結値、shadow 経路 (byte 同一 pin)
+- **推定量の明示変更**: LIVE 行も persist 済み trail/BE SL で engine 側 `SL_HIT` 判定が走る (broker の resting SL 水準は不変) — close_reason / exit_price の demo 側分布が deploy 境界で変わる。broker 列が一次
+- **pin**: `tests/test_sltp_live_sl_persist_storm_root.py` 13 本 (修正前に red を確認: storm #3 の形 `[157.94, 157.758, 157.97, 157.97, 157.758]` が再現)。実 `OandaBridge` で `detected.idempotent == monotonic == 0` (enforce 未設定 / =1)
+- registry: `sl-persist-root-fix-first-live-trail-readout` (11-04) / `storm-guard-enforce-first-storm-readout` note。詳細: [[2026-10-21-session]]
+
 ## 2026-10-20 — fix(tools)+docs(KB): 期日 5 件消化 — review-backlog 326 (deepdive 膜 proven / open_before unjudged) ・ 328 (freeze 3 点一括公開) の P2 修正 / hunt_events 退役 (logger 既定 off) / hedge-gate R1 不起案 / ps-seat spread magnitude readout (rule:R3、autopilot)
 
 - **review-backlog-326** (`tools/cell_deepdive_audit.py`): `_fetch_bracketed` が `_fetch_meta.membership_proven` を明記し、読み手は superset snapshot (server clock 未測定) を `--allow-superset-snapshot` なしで拒否 (`complete` = pagination の claim とは分離)。初回 open 読みの entry_time 欠落/不正行を `open_before_unjudged` として計数 (保持は従来どおり)。pin `tests/test_cell_deepdive_fetch_membership.py` (7)
