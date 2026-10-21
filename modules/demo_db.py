@@ -259,6 +259,15 @@ class DemoDB:
                 except Exception:
                     pass
 
+            # ── 2026-10-21 (rule:R3): ON_FILL SL の不変記録 ──
+            # `sl` 列は BE/trail で動く (shadow は 2026-06-03 から、LIVE は SL storm
+            # family A/B の根修復 = 送信口 persist から)。R 分母 (close_trade の sl_dist)
+            # は本列から取る。NULL = 列追加前の行 (後方互換: 決済時 sl で割る)。
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN sl_initial REAL")
+            except Exception:
+                pass
+
             # ── v7.0: Shadow Tracking カラム ──
             try:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN is_shadow INTEGER DEFAULT 0")
@@ -1151,8 +1160,9 @@ class DemoDB:
                          is_shadow, oanda_trade_id, dow_regime, v2_regime,
                          edge_cell_id, confluence_score, confluence_details,
                          mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
-                         gate_group, mtf_alignment, mtf_gate_action, dedup_violation)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         gate_group, mtf_alignment, mtf_gate_action, dedup_violation,
+                         sl_initial)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
@@ -1163,7 +1173,8 @@ class DemoDB:
                       oanda_trade_id, dow_regime, v2_regime,
                       edge_cell_id or "", confluence_score, confluence_details,
                       mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
-                      gate_group, mtf_alignment, mtf_gate_action, dedup_violation))
+                      gate_group, mtf_alignment, mtf_gate_action, dedup_violation,
+                      sl))
                 conn.commit()
         return trade_id
 
@@ -1224,7 +1235,12 @@ class DemoDB:
                 else:
                     pnl_pips = round((entry_p - exit_price) * _pip_mult, 1)
 
-                sl_dist = abs(entry_p - sl)
+                # 2026-10-21 (rule:R3): R 分母は ON_FILL SL 距離 (sl_initial)。`sl` 列は
+                # BE/trail persist で動くため、決済時 sl で割ると BE 決済の R が ~100 倍に
+                # 膨れ、trail 決済 (sl > entry) では無意味な値になる。NULL (列追加前の行)
+                # は従来どおり決済時 sl。
+                _sl_initial = row["sl_initial"] if "sl_initial" in row.keys() else None
+                sl_dist = abs(entry_p - (_sl_initial if _sl_initial else sl))
                 pnl_r = round(pnl_pips / (sl_dist * _pip_mult) if sl_dist > 0 else 0, 2)
 
                 if pnl_pips > 0.5:

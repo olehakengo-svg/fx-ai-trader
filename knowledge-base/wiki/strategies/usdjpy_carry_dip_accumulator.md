@@ -177,6 +177,7 @@
 
 ## Exit
 - TP = entry + 0.8円 / SL = entry - 1.5円 / hold ≤ 24 H1 bars
+- 🔑 **2026-10-21 (rule:R3、推定量の明示変更)**: LIVE 行の engine 側 SL/TP ループが、broker 確認済みの trail / BE SL を DB に persist するようになった ([[storm-guard-design-2026-09-22]] §8 — SL storm family A/B の根の修復)。それまで LIVE 行の DB `sl` は ON_FILL 値のまま (#1254773 は 46k 送信後も 157.583) で、engine 側 `price <= sl` 判定は原 SL だけを見ていた。修復 deploy 以降は (i) **broker の resting SL 水準は不変** (既に trail 済み) だが (ii) engine 側 `SL_HIT` 判定が persist 済み trail / BE 水準で毎 tick 走るため、trail 決済の一部が `OANDA_SL_TP` (broker averageClosePrice、`_sync_oanda_closures`) ではなく `SL_HIT` (engine bid) として記録される。**demo 列の close_reason / exit_price 分布は deploy 境界で regime が変わる — 両基準併記 (D11) は broker 列を一次に読む**。`pnl_r` は新設 `sl_initial` (ON_FILL SL) で割る (旧行は従来どおり)。storm 自体は caller で消える (同値再送 0 / BE 引き戻し 0、残余 = 新高値ごとの 0.001 刻み trail)。回帰確認 = registry `sl-persist-root-fix-first-live-trail-readout` (11-04)
 
 ## ⚠️ Rule-1 意図的 LIVE 例外（pending）
 本戦略は **N<30・単一4ヶ月レジーム・非Bonferroni** で Rule-1（365日BT or Live N≥30 + Bonferroni + Pre-reg LOCK）を**未充足**。

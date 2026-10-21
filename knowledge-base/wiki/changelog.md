@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-21 — fix(sltp): LIVE 経路の broker 確認済み SL を persist — SL replacement storm family A/B の根 (caller 側) を修復 (rule:R3)
+
+- **根** ([[storm-guard-design-2026-09-22]] §8): `_check_sltp_realtime` の LIVE 送信口は `modify_sl_sync` 成功後に DB `sl` を persist しない (shadow 分岐のみ persist、2026-06-03 ab7a4931 以来の非対称) → 毎 tick の baseline が ON_FILL SL のまま → Tier2 trail / Tier1 BE (同一 if/else の排他 2 分岐) の `new_sl > sl` が恒真 → 同値再送 (family A) と trail⇄BE 往復 (family B、#1254773 46,091 送信 / 11.8 h) が同じ根から出る。Workflow 18 agent (反証 0/6)
+- **修正** (caller 層、bridge 不変): 成功時 persist + `_live_sl_sent` in-memory 脚 (DB 書込み失敗の保険) + baseline 合成 (BUY max / SELL min) + 兄弟 (confluence_scalp 継続 trail) 対称化。`demo_db`: `sl_initial` 列 + `close_trade` の R 分母を ON_FILL SL に (persist で `sl` が動くため)
+- **推定量の明示変更**: LIVE 行も persist 済み trail SL に対して engine 側 SL_HIT 判定が走る (broker SL 水準は不変、ラベル `OANDA_SL_TP` → `SL_HIT` の移動あり) — D11 readout は broker 列で読む
+- **pin**: `tests/test_sltp_live_sl_persist_storm_root.py` 13 本 (CF 2 + AST 1、修正前 red 確認済み)。registry: `sl-persist-root-fix-first-live-trail-readout` (11-04) 新設 / `storm-guard-enforce-first-storm-readout` note。教訓 [[lesson-deferred-root-fix-needs-deadline-2026-10-21]]
+- 同日: 座礁 wiki-daily 10-20 の救出 + execution-window 10-22 は autopilot 10-21 run の PR #342 が先着 (本セッションの重複 PR #343 は close)。本セッション固有の記録 = 10-20 09:14Z の MCP 再試行 (拒否、通算 3 回目のうち 2 番目) を registry note / §7.4 に追記
+
 ## 2026-10-21 — docs(KB)+registry: sprint 0922 終了レビュー + 次 30 日 triage / storm guard 執行窓 permission 待ち 2 回目 (期日 +1 日) / 座礁 wiki-daily 10-20 救出 (rule:R3、autopilot、code 変更なし)
 
 - **文書**: [[sprint-0922-close-review-2026-10-21]] — 8 項目 done 5 / partial 3、巡目 code 中央値 7 (62 PR 集計、上限 ≤6 据え置き・超過 58%)、P1 75 / P2 271、繰延 P2 消化 9/9、窓違反 1 件、次 30 日 8 項目 (両レンズ反証)

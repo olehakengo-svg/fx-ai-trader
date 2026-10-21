@@ -32,6 +32,8 @@
 
 ⇒ 修理の正しい層は **戦略・呼び出し側ではなく、broker への送信を一元化している `OandaBridge.modify_sl*`** (storm 4 が kalman、storm 1–3/5 が carry_dip で、戦略横断 = 共有層と確定済み、index 09-11 (a))。呼び出し側の DB 未更新 (family A の根) は別 PR の候補として needs_orchestrator に返す (本 PR は呼び出し側非接触)。
 
+> ⬛ **2026-10-21 追補**: 上の行番号は 2026-09-22 時点 (L3188–3199 = 現 L3524–3545)。呼び出し側の根は **§8 で修復** — family A (同値 loop) と family B (trail⇄BE 往復、§7.1 storm #3) は**同じ根** (LIVE 行の baseline が永久に ON_FILL SL) の 2 つの現れで、「bridge 入口が正しい層」は guard (防御深度) としては正しいが、根は caller 側にあった。
+
 ### 1.1 なぜ既存 breaker は効かないか
 `daily_loss_limit_pips` / `max_drawdown_pips` は pip/PnL 建て。storm の直接 PnL は **¥0** (index 09-11 broker ledger 残差ゼロ) ⇒ 原理的に発火しない。tx 数建ての breaker が必要 (index 09-11 「still no guard of the right shape」)。
 
@@ -184,7 +186,7 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 
 ## 6. 既知の限界・フォローアップ (needs_orchestrator)
 1. **有効化は別判断**: 検知のみで ≥1 live fill の trail を観測 (`detected.*` と `sent` の比、`breaker_trips`) してから `STORM_GUARD_ENFORCE=1` (Render env + 再起動)。有効化は Rule 2 監視付き。
-2. **family A の根 (L3188–3199 LIVE 経路の DB 未更新)** は本 PR では直していない — 冪等 guard で broker tx は止まるが、caller は毎 tick 再計算→skip を続ける (CPU/ログのみ、tx 0)。別 PR (R3) 候補。
+2. ~~**family A の根 (L3188–3199 LIVE 経路の DB 未更新)** は本 PR では直していない — 冪等 guard で broker tx は止まるが、caller は毎 tick 再計算→skip を続ける (CPU/ログのみ、tx 0)。別 PR (R3) 候補。~~ → **2026-10-21 修復 (§8)**。⚠️ 教訓: 期日付き registry entry なしで needs_orchestrator に返したため 29 日放置、その間に storm 3 波 (14,676 / 57,311 / 46,091 送信) — [[lesson-deferred-root-fix-needs-deadline-2026-10-21]]
 3. enforce 時、TP-extender 経路 (L3285, L3411, L3444) は `modify_sl_sync` False で TP 延伸も DB に載らない (SL 成功と結合)。dead-band に当たる確率は低い (trail SL は原 SL から遠い) が、enforce 前に該当ログが出ないか確認。
 4. per-trade counter は in-memory。再起動で消えるが storm も消えるので一致。評価・予約・prune・rollback は全て `_storm_lock` (RLock) 内 (PR #287 review P2 で lock 外更新を廃止)。
 6. **再起動後 seed の残余リスク**: broker 不達 ∧ DB から direction のみ seed の場合、最初の 1 送信は baseline なしで通る (fail-open、4原則#1)。broker が stopLossOrder を持たない trade (SL なし) も同様。seed は trade ごと 1 回 (`OandaClient.get_open_trades()` 1 call) で、enforce 前に `seed_source != broker` の WARN が出ていないか確認。
@@ -213,7 +215,7 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 | 3 | TP-extender 経路の dead-band 当たり | `detected.deadband` 0、Render ログ `deadband` 0 件 (10-16 04:40Z〜) → 本 epoch では空集合 |
 | 5 | 読み手の配線 | ✓ 本 PR: `scripts/daily_report.py::_build_storm_guard_table` (OANDA 節に totals / per-trade 表、storm 署名の注意書き、**キー無しは「盲目」と明記**) + `scripts/anomaly_watcher.py::check_storm_guard` (`sl_replacement_storm` 6h / `storm_guard_seed_fallback` 6h / `storm_guard_missing` NOTIFY_NEVER; `FetchOutcome.ok` False では判定せず HTTP 200 の空 payload は missing、`db_direction_only` seed は baseline なし = fail-open として通知、決済済み建玉で完結した storm は累計 `breaker_trips` − open tripped で報告、daily report も `FetchResult.ok` で成功した空 payload を「キー無し」と書く 、broker に trade はあるが stopLossOrder が無い restored trade は `seed_source=broker_no_sl` (§2.3 の fail-open 窓、bridge 側で provenance 分離) として通知、表は LLM 非経由の決定的節 `storm_guard_report_section` で本文に連結 — PR #337 Codex P2 ×6 / 3 巡、上限到達)。pin `tests/test_storm_guard_reader.py` 16 本 + bridge pin 1 (fixture = 10-16 12:00Z 本番形) |
 | 6 | restored trade の `seed_source != broker` WARN | restored 1 件 (#1254229) は `broker`。`unknown_direction` 0。本 PR で `broker_no_sl` (broker に trade はあるが stopLossOrder なし = baseline なし) を `broker` から分離 — 読み手は `db_direction_only` / `broker_no_sl` / seed なし+方向なし を fail-open 窓として通知 |
-| 2 | family A の根 (LIVE 経路 `modify_sl_sync` 成功後の DB 未更新) | **未修理のまま** — enforce 後も caller は毎 tick 再計算 → skip を続ける (CPU/ログのみ、tx 0)。別 R3 (storm #3 の「2 writer 往復」の writer 特定を含む) |
+| 2 | family A の根 (LIVE 経路 `modify_sl_sync` 成功後の DB 未更新) | ~~**未修理のまま** — enforce 後も caller は毎 tick 再計算 → skip を続ける (CPU/ログのみ、tx 0)。別 R3 (storm #3 の「2 writer 往復」の writer 特定を含む)~~ → **2026-10-21 §8 で修復** (2 writer = Tier2 trail / Tier1 BE の同一 if/else、根は同じ stale baseline) |
 
 ### 7.3 判断と執行
 
@@ -236,8 +238,10 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 | 10-20 07:11:35 | poll (1 分毎) が **open 0** を観測 (#1346961 決済、92 分の保有) | **0** |
 | 10-20 07:12:15 | 再確認 (oanda open_trades 0 ∧ demo is_shadow=0 open 0) → **PR #339 マージ 58efb503** → Render dep-dbbh8k59fdbs73e5hk0g | 0 |
 | 10-20 07:13 | `mcp__render__update_environment_variables` (`STORM_GUARD_ENFORCE=1`) → **auto mode classifier が [Production Deploy] で拒否** → env 未設定、`enforce: false` のまま | 0 |
+| 10-20 09:13 | 再確認 (open 0 継続、#1346961 は 07:10:31Z に SL 約定) → 09:14Z `mcp__render__update_environment_variables` 再試行 → **classifier 2 回目の拒否** ([Production Deploy]) → registry 期日 10-21 → 10-22 (+1 日 — 同内容を autopilot 10-21 の PR #342 が先着で着地、本セッションの PR #343 は重複 close) | 0 |
 | 10-21 03:26 | 次 run (autopilot 10-21) 冒頭読み: `/api/oanda/status` open_trades **0** / `heartbeat.open_trade_count` 0 / `/api/demo/status` is_shadow=0 open 0 / `storm_guard.enforce` **false** / totals 全 0 (07:14Z 再起動 epoch 内で live fill 0 = storm 0) | 0 |
-| 10-21 03:27:33 | 再確認 open 0 → `mcp__render__update_environment_variables` (同 payload、replace=false) **2 回目 → classifier [Production Deploy] で再拒否** (2 run 連続)。以後本 run では呼ばない | 0 |
+| 10-21 03:27:33 | 再確認 open 0 → `mcp__render__update_environment_variables` (同 payload、replace=false) **classifier [Production Deploy] で再拒否** (2 run 連続; 対話セッションの 10-20 09:14Z 再試行を含めると通算 3 回目)。以後本 run では呼ばない | 0 |
+| 10-21 04:14 | open 0 継続 (enforce false、totals 全 0)。user 操作待ちのまま。caller 側の根の修復 (§8) に着手 | 0 |
 
 - **env `STORM_GUARD_ENFORCE=1` は 10-20 07:13Z 時点で未設定** — 05:39〜07:10Z は open 1 で執行せず (§3.2 (a))、07:11Z の窓では classifier 拒否 (下記)。
 - **執行は user 操作待ち** (10-19 の予告どおり): (a) Render dashboard で env `STORM_GUARD_ENFORCE=1` を追加 (open live trade 0 のとき、自動再起動) または (b) settings で `mcp__render__update_environment_variables` を allow して次 run に任せる。回避策 (Render API 直叩き / render.yaml の `sync: false` を値指定へ) は拒否の意図の迂回、または rollback 経路 (env を空にして再起動 = 即時) を PR 経路 (25 分級) に劣化させる設計変更なので採らない。registry `storm-guard-enforce-execution-window` (10-21) は次 run で resolution に記録。
@@ -245,4 +249,53 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 - **10-21 追記 (autopilot 10-21 run)**: 執行窓は **10-20 07:11Z から 10-21 03:27Z まで ≥20 時間開いていた** (その間 live fill 0、`storm_guard` totals 0) が、Claude 側に env 変更の権限が無いため未執行。allow ルール未追加を 1 回の試行で確認 (上表)。registry `storm-guard-enforce-execution-window` は resolution に「permission 待ち (10-20 07:13Z / 10-21 03:27Z の 2 回拒否)」を記録し期日を **10-21 → 10-22 に +1 日** (理由 = user 操作待ち、黙った延長ではない)。user 操作の 2 択は不変: (a) Render dashboard で env 追加 (open live 0 のとき) / (b) `mcp__render__update_environment_variables` を allow に追加。(b) なら次 run が冒頭 1 分で執行する。⚠️ enforce 前に起きる次の storm は送信される (10-20 07:14Z 以降は open 0 で storm 0)。
 - ⚠️ 再起動は storm の in-process 状態を消す (storm #3 の 46,098 は status 上から消滅、daily report 表は再起動後の値しか見られない) — storm の累計は Render ログ / OANDA transactions 側にしか残らない。`anomaly_watcher` の累計 `breaker_trips` も再起動でリセットされる (読み手は「再起動後の epoch」として読む)。
 - 46,098 送信 = 10-19 00:01 → 決済までの ≈29 h で平均 ≈1,600/h (03:48Z までの 3,100/h から減速 = BE+0.8 ⇄ trail の往復が trail 側へ収束した後も同値再送が続いた形)。`failed` 7 は 10-19 03:48Z の 0 から増加 (4xx の内訳は Render ログ)。
+
+---
+
+## 8. 追補 2026-10-21 — family A/B の根 (caller 側) の R3 修復
+
+**Status**: 実装済み (本 PR)。**Scope**: `modules/demo_trader.py` `_check_sltp_realtime` の LIVE 送信口 + 兄弟 1 箇所、`modules/demo_db.py` (`sl_initial` 列 + `close_trade` の R 分母)。bridge (`oanda_bridge.py`) は不変。**Tests**: `tests/test_sltp_live_sl_persist_storm_root.py` 13 本 (CF pin 2 本 + AST pin 1 本)。**導出**: Workflow 18 agent (読み 5 面 → 統合 → 反証 3 レンズ × 2 claim = 0/6 refuted → 設計 3 案 × 判定 3 = caller 層案が 9/10 で全員一致)。
+
+### 8.1 根 (code derivation — 行番号は origin/main 0e1ba221 = 本 PR 直前)
+
+| 要素 | 位置 | 内容 |
+|---|---|---|
+| tick | `_check_sltp_realtime` L3210 (`SLTP_CHECK_INTERVAL` 0.5 s) | 毎 tick `self._db.get_open_trades()` → `sl = trade["sl"]` (L3298) が全 writer の baseline。`_original_sl = sl` (L3362) |
+| 送信口 | L3524 `if sl != _original_sl:` | shadow 分岐 = `update_sl_tp` で persist / **LIVE 分岐 (L3533-) = `modify_sl_sync` 成功後に persist しない** (2026-06-03 ab7a4931 以来の非対称。bridge は bool のみ返し、`_storm_confirm` は in-memory、DB も戻り値も書かない) |
+| Writer T (Tier2 trail) | L3492- | `favorable ≥ 1.5·ATR_eff` → `new_sl = round(bid − 0.5·ATR_eff, 3)`、`if new_sl > sl: sl = new_sl` |
+| Writer B (Tier1 BE) | L3504- (同じ `elif favorable ≥ 0.8·ATR` の `else`) | `0.8·ATR_eff ≤ favorable < 1.5·ATR_eff` → `new_sl = round(entry + spread, 3)`、`if new_sl > sl: sl = new_sl`。once-only 条件 (fired フラグ / `sl < entry`) は無い |
+| ATR_eff | `self._entry_atr[trade_id]` (in-memory、fill 時 1 回、再起動で消え既定 0.07) | #1254773: `[SLTP_CONSTRUCT] sl_p=16.7` = (0.8 daytrade_1h × ATR + 0.2 lowliq 00Z × ATR) ⇒ ATR_eff ≈ 0.167 (`_get_base_mode` は `_1h` を剥がさないので乗数は 1.0 でなく 0.8) |
+
+**機構**: LIVE 行の `sl` は永久に ON_FILL 値 (#1254773 は決済後の DB 行でも 157.583 = 46k 送信後も不変 — `/api/demo/trades` で直接確認) なので、両 writer の `new_sl > sl` は恒真。(i) BE 帯 (bid ∈ [157.8836, 158.0005)) では B が 157.758 を毎 tick 再送 = **family A**。(ii) bid が切替 158.0005 (= entry + 1.5·ATR_eff) を跨ぐたびに T (≥157.917) と B (157.758) が交互に送られ、B の送信は broker から見て 16.7〜52 pip の**緩め** = **family B**。Render ログ 01:41–02:18Z の 157.925–157.953 ⇄ 157.758 は bid 158.0085–158.0365 (切替の 0.8–3.6 pip 上) と整合。T の値は iteration 内 local にしか存在せず次 tick は再び 157.583 から始まる (ラチェットされない = T 同士でも bid と共に下がる送信が出る。「反転 5,222 = 閾値横断回数」は過剰な読みで、反転は T 内でも起きる)。**停止条件が構造的に無い** (fired フラグなし / broker 値との比較なし / 建玉が消えるまで続く = 09-14 の「停止機構なし」の実体)。純族 A 既知 5 例の送信価格 (159.241 / 158.268 / 153.969 / 153.392 / 157.926) は全て entry+spread = Writer B の値 ⇒ **family A と B は同じ根の 2 つの現れ**。
+
+**shadow が無事な理由**: shadow 分岐は persist するので `new_sl > sl` が真のクロス tick 単調ガードになる (2026-06-03 のコメントどおり shadow 側だけ「動作保全」の名目で LIVE を旧来のまま残した非対称がそのまま根)。
+
+**反証試行** (3 レンズ: code-correctness / 実測整合 / 対立仮説 — 2 thread・2 process・sltp_checker・broker 丸め・stale cache): 0/6 refuted。細部訂正 2 点は上表に反映 (ATR 乗数、反転の読み)。**未検証**: 12Z 付近の「trail 158.28 → 157.758」が実在するか (実在なら `fetch_oanda_bid_ask` 失敗時の `_get_realtime_price` fallback = stale feed 第 3 因子。どちらでも最小修正は同じ) / `failed 7` の内訳 (Render ログ未読)。
+
+### 8.2 修正 (caller 層、bridge 不変、rule:R3 — 構造バグ、戦略ロジック・閾値・lot・pre-reg 凍結値・shadow 経路は不変)
+
+1. **送信口の対称化** (L3533-): `modify_sl_sync` 成功時に shadow 分岐と同じ `self._db.update_sl_tp(trade_id, sl, tp)` (best-effort) + `self._live_sl_sent[trade_id] = sl`。
+2. **baseline の合成** (L3298 直後、LIVE 行のみ): `sl = max(DB sl, _live_sl_sent)` (BUY) / `min` (SELL)。耐久脚は DB、in-memory は DB 書込み失敗 (2026-08-21 Disk 満杯型) の保険。close 3 箇所 (`_check_sltp_realtime` / `_sync_oanda_closures` / SIGNAL_REVERSE) で pop。
+3. **兄弟**: confluence_scalp 継続 trail (L3800-、`_profit_extended` 後) の成功分岐 2 つも persist (同形状の未 persist = 2 箇所目)。AST pin (k) が `_check_sltp_realtime` 内の全 `modify_sl_sync` 成功分岐に `update_sl_tp` を要求。
+4. **R 分母** (`modules/demo_db.py`): `sl_initial REAL` 列を新設 (open 時の SL、`ALTER TABLE` 後方互換、旧行は NULL)、`close_trade` の `sl_dist` は `sl_initial` から。persist で `sl` 列が動くため、BE 決済の `pnl_r` が ~100 倍 (sl_dist 0.8p) に膨れるのを防ぐ。⚠️ shadow 行は 2026-06-03 から既にこの歪みを持っていた (= `/api/demo/stats.avg_r` の既知の汚染、過去行は不改変・引用時注意)。
+
+**効果** (pin (a)(b)): tick N+1 の baseline が確認済み値になるので、同値は `new_sl > sl` 偽 → `sl == _original_sl` → 送信なし (family A 消滅)、BE 値 entry+spread は persist 済み trail 値より低く棄却 (family B 消滅)。**残余** = bid 新高値ごとの 0.001 刻み trail (storm 4 型、上限 = 新高値数、11.8 h トレンドで数百件)。1 pip 未満の間引きは trail 幅の変更に当たるので caller ではしない — bridge enforce の deadband (1.0 pip) に委ねる。
+
+### 8.3 推定量の明示変更 (carry_dip カード「Exit」節にも記載)
+
+- LIVE 行も persist 済み trail/BE SL に対して engine 側の `price <= sl` (SL_HIT) 判定が毎 tick 走る (pin (h))。これは shadow 行と extender 発火後の LIVE 行が既に持つ semantics で、**broker の resting SL 水準は不変** (既に trail 済み) だが、決済ラベルが `OANDA_SL_TP` (broker averageClosePrice、`_sync_oanda_closures`) → `SL_HIT` (engine bid) に移る決済が出る。**D11 両基準併記 readout は broker 列で読む** (demo 列の close_reason / exit_price 分布が deploy 境界で変わる)。DD ledger の `OANDA_SL_TP` 未計上 (14 例目) は逆に `SL_HIT` 側で計上されるようになる = 帳簿の regime 変化点として記録。
+- `fetch_oanda_bid_ask` 失敗時は `_get_realtime_price` fallback (TwelveData cache / OANDA mid / yfinance 1m) が `price` になる — 旧来も同じだが、今後は trail 水準での SL_HIT 判定にもこの価格が使われる (露出は従来と同じ経路、幅が trail 分だけ狭まる)。
+
+### 8.4 enforce との関係・回帰アラーム
+
+- 修正後、family A/B は caller で止まり bridge の `detected.idempotent` / `detected.monotonic` は **0** になる (pin (j)、enforce 未設定 / =1 の両方で実 `OandaBridge` + fake client により確認)。enforce は防御深度 (deadband / breaker / 単調性) として維持 — `storm-guard-enforce-execution-window` の執行判断 (ENABLE) は不変。
+- 回帰アラーム: deploy 後**最初の live trail** で daily report の storm guard 表 `detected.idempotent + detected.monotonic > 0` なら本修正の回帰 (registry `sl-persist-root-fix-first-live-trail-readout`、期日 11-04)。`storm-guard-enforce-first-storm-readout` (11-02) の読みは「guard が skip した」と「caller が送らなくなった」を区別する (note 追記)。
+
+### 8.5 CF pin (`tests/test_sltp_live_sl_persist_storm_root.py`)
+
+(a) family A 同値再送 1 回で停止 / (b) family B: `[157.94, 157.97]`、BE 157.758 不在、単調 / (c) trail 後の BE 冪等 (20 tick 0 送信) / (d) 失敗時 rollback 契約不変 (再試行継続、DB 不変) / (e) shadow byte 同一 / (f) DB 書込み失敗でも in-memory 脚が止める / (g) **CF**: 両脚 kill で修正前の形 `[157.94, 157.758, 157.97, 157.97, 157.758]` が再現、DB 脚のみ kill は保護 / (h) LIVE SL_HIT at trail (推定量変更の pin) / (i) `pnl_r` = 18.0 / 16.7 (legacy NULL 行は 18.0 / 19.0) / (j) 実 bridge で detected 0 (enforce ×2) / (k) AST。修正前に走らせて red を確認済み (storm の形がそのまま再現)。
+
+### 8.6 教訓
+
+§6-2 で「別 PR (R3) 候補」として needs_orchestrator に返した根本修理が期日付き registry entry を持たず、**29 日 (09-22 → 10-21) 放置**され、その間に storm 3 波 (#1022861 14,676 / #1062664 57,311 / #1254773 46,091 送信、合計 ≈120k tx) が起きた。guard (防御) を先に入れたことで「根は後で」が既定化した。→ [[lesson-deferred-root-fix-needs-deadline-2026-10-21]]
 

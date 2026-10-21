@@ -1,5 +1,12 @@
 # Knowledge Base Change Log
 
+## 2026-10-21 (対話「前回の続き」— storm family A/B の根を R3 修復 + 座礁 10-20 救出 + enforce は permission 待ち継続)
+- 🔑🔴 **SL storm の根は caller 側だった**: LIVE 送信口が broker 確認済み SL を DB に persist しない (shadow だけ persist、06-03 以来) → baseline が ON_FILL SL のまま → Tier2 trail ⇄ Tier1 BE (同一 if/else) が恒真ガードで往復。family A と B は同じ根。Workflow 18 agent で導出・反証 0/6・設計 3 案判定 → caller 層 persist 案 ([[storm-guard-design-2026-09-22]] §8)
+- ✅ 修正 PR: persist + in-memory 脚 + 兄弟対称化 + `sl_initial` (R 分母)。pin 13 本 (red → green)。推定量の明示変更 (LIVE SL_HIT at trail) を §8.3 / carry_dip カードに記録
+- ⚪ 座礁 wiki-daily 10-20 (2 run) 救出 + execution-window 10-22 は autopilot 10-21 の PR #342 が先着 → 本セッションの重複 PR #343 は close (並行セッション重複 race 3 件目)。固有の記録 = 10-20 09:14Z の MCP 再試行拒否 (通算 3 回のうち 2 番目) を registry note / §7.4 に追記
+- ⚖️ 教訓 [[lesson-deferred-root-fix-needs-deadline-2026-10-21]]: needs_orchestrator 返しの根本修理に期日を付けなかった 29 日で storm 3 波 ≈120k tx
+- 詳細: [[2026-10-21-session]]
+
 ## 2026-10-21 (autopilot — sprint 0922 終了レビュー + storm guard 執行窓 permission 待ち 2 回目 + 座礁 wiki-daily 10-20 救出)
 - ⚖️ **sprint 0922 (09-22〜10-22) 終了レビュー** [[sprint-0922-close-review-2026-10-21]] (registry `sprint-0922-triage-close` resolved、期日前日): 8 項目 = **done 5 / partial 3** (Rank 3 M3b ラベルの tool 反映、Rank 4 (v) NO-DATA スタブ・(vii) engine-tick endpoint、Rank 5 (c) § 化・(d) block 台帳 tool が未着手)。巡目 (`@codex review` 依頼回数、PR #280〜#341 = 62 本): **code 中央値 7 / docs 1 / 全体 5** → 09-18〜22 の 8.5 から低下で §3.1 上限 (P2 ≤6) は据え置き、ただし code の上限超過 18/31 (58%)、P1 75 件 (全件修正・繰延 0) / P2 271。繰延 P2 消化 9/9 + 以後も未消化 0。**market-safe 窓違反 1 件** (10-16 #333、遡及) + 新型の穴 (deploy 直後 2 分の fill が執行窓を塞ぐ)。次 30 日 (10-22〜11-21) 8 項目を両レンズ反証つきで起案、後継 registry `sprint-1022-triage-close` (11-21)
 - 🔑 **storm guard 執行窓は ≥20 時間開いていたが未執行 (permission 待ち 2 回目)**: 10-21 03:26Z open live 0 / `enforce: false` → 03:27Z `mcp__render__update_environment_variables` 試行 → classifier [Production Deploy] 再拒否。registry `storm-guard-enforce-execution-window` は note に記録して期日 **10-21 → 10-22 (+1 日、理由付き)**、[[storm-guard-design-2026-09-22]] §7.4 に 10-21 行。**user 操作 2 択は不変** (dashboard env / MCP allow)。`storm-guard-enforce-first-storm-readout` (11-02) は執行日確定まで据え置き
