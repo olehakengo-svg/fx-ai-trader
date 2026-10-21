@@ -432,6 +432,17 @@ def test_sl_initial_backfilled_for_open_rows_on_init(tmp_path):
                                tf="1h", mode="daytrade_1h", instrument="USD_JPY",
                                oanda_trade_id="1")
     db.close_trade(tid_closed, 157.93, "SL_HIT")
+    # 既に利益側へ trail 済みの OPEN shadow 行 (sl 157.94 > entry) = 原値は失われている
+    tid_trailed = db.open_trade(direction="BUY", entry_price=ENTRY, sl=SL0, tp=TP0,
+                                entry_type="usdjpy_carry_dip_accumulator", confidence=80,
+                                tf="1h", mode="daytrade_1h", instrument="USD_JPY",
+                                is_shadow=True)
+    db.update_sl_tp(tid_trailed, 157.94, TP0)
+    # SELL の OPEN 行 (sl > entry = リスク側のまま) = 原値
+    tid_sell = db.open_trade(direction="SELL", entry_price=ENTRY, sl=157.917, tp=157.03,
+                             entry_type="usdjpy_carry_dip_accumulator", confidence=80,
+                             tf="1h", mode="daytrade_1h", instrument="USD_JPY",
+                             is_shadow=True)
     # 列追加前 (= NULL) の状態を再現
     with db._safe_conn() as conn:
         conn.execute("UPDATE demo_trades SET sl_initial=NULL")
@@ -440,5 +451,10 @@ def test_sl_initial_backfilled_for_open_rows_on_init(tmp_path):
     with db2._safe_conn() as conn:
         rows = {r["trade_id"]: r["sl_initial"] for r in conn.execute(
             "SELECT trade_id, sl_initial FROM demo_trades").fetchall()}
-    assert rows[tid_open] == SL0                         # OPEN 行は backfill
+    assert rows[tid_open] == SL0                         # OPEN かつ sl がリスク側 = 原値 → backfill
+    assert rows[tid_sell] == 157.917                     # SELL も同様 (sl > entry)
+    assert rows[tid_trailed] is None                     # 利益側へ動いた行は NULL のまま (可変値を初期リスクにしない)
     assert rows[tid_closed] is None                      # CLOSED の旧行は NULL のまま
+    # NULL のまま残った行は従来どおり決済時 sl で割る
+    res = db2.close_trade(tid_trailed, 157.93, "SL_HIT")
+    assert res["pnl_r"] == round(18.0 / 19.0, 2)

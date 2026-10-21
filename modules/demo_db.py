@@ -267,14 +267,21 @@ class DemoDB:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN sl_initial REAL")
             except Exception:
                 pass
-            # 2026-10-21 (PR #346 Codex P2): 列追加時点で OPEN の行は現 sl で backfill
-            # (LIVE 行の sl は本修正前は ON_FILL のまま = 原値; shadow 行は 06-03 から
-            # trail 済みの値になり得るが、NULL のまま決済時 sl へ fallback するのと同じ値)。
-            # 冪等 (NULL の OPEN 行だけ)。CLOSED の旧行は NULL のまま (後方互換)。
+            # 2026-10-21 (PR #346 Codex P2 ×2): 列追加時点で OPEN の行のうち、`sl` が
+            # ON_FILL 値のままと**判る行だけ** backfill する。既存の全 writer (Tier1 BE =
+            # entry+spread / Tier2・extender・pyramid trail = price ∓ k·ATR で favorable 側)
+            # は SL を必ず entry の**利益側**へ動かすので、`sl` がまだリスク側
+            # (BUY: sl < entry / SELL: sl > entry) なら原値と断定できる。利益側へ動いた
+            # 行 (trail 済み shadow / extender 経路を通った LIVE) は NULL のまま残し、
+            # close_trade は従来どおり決済時 sl へ fallback (可変値を「初期リスク」と
+            # 記録しない)。冪等。CLOSED の旧行は NULL のまま (後方互換)。
             try:
                 conn.execute(
                     "UPDATE demo_trades SET sl_initial = sl "
-                    "WHERE status='OPEN' AND sl_initial IS NULL AND sl IS NOT NULL"
+                    "WHERE status='OPEN' AND sl_initial IS NULL AND sl IS NOT NULL "
+                    "AND entry_price IS NOT NULL "
+                    "AND ((direction='BUY' AND sl < entry_price) "
+                    "OR (direction='SELL' AND sl > entry_price))"
                 )
             except Exception:
                 pass
