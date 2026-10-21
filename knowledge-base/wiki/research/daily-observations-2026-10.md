@@ -57,6 +57,37 @@
 
 ---
 
+### O-2026-10-20-1: carry_dip #1254773 に `REPLACEMENT` 46,091 回 / 11.82 h — 族 B 型 (trail⇄BE 往復) の最大規模、自然停止なし (TP 約定で終了)、`storm_guard` 46,098 − 失敗 7 = 46,091 で全数捕捉 3 例目、O-2026-10-13-1 の予測成立、状態は PR #337 deploy で消失 (4 例目) (執行 QA / 制御系)
+- **現象**: 2026-10-19 00:50:52〜12:40:03 UTC、`usdjpy_carry_dip_accumulator` LIVE #1254773 (1,000u BUY @157.751、00:01:43Z fill) に `STOP_LOSS_ORDER` `REPLACEMENT` **46,091 回** (92,182 tx)、率 3,900/h (`max_tx_per_hour` 50 の 78 倍)、送信間隔 median 0.86 s、最大 gap 151 s、gap >10 min 0。価格 347 種 (157.758〜158.275)、同値 30,570 / 上 7,924 / 下 7,596 / 反転 5,222、**157.758 (BE+0.7) が 8,091 回** — 時間帯ごとに trail 側が上げた SL (01Z 157.94 → 12Z 158.28) を BE 側が 157.758 へ引き戻す往復 (BUY の SL を最大 51.7 pip 下げる送信を含む)。最後の `REPLACEMENT` (158.275) は 12:40:03.435Z の `TAKE_PROFIT_ORDER` 約定 (+¥609) と同一秒 = 建玉消滅まで送信継続。`/api/oanda/status.storm_guard` (05:31Z): `trades["57afa08a-184"]` `sent_total` 46,098 / `failed_total` 7 / `breaker` 46,048 / `idempotent` 49 / `tripped` true / `confirmed_sl` 158.275、`totals.evaluated` 46,367 = 269 + 46,098、`breaker_trips` 2、`skipped` 全 0 (`enforce: false`)。**成功 46,091 = broker 46,091 (捕捉率 100%)**。05:34:47Z PR #337 merge → Render deploy (`engine_pid` 130→129、`engine_import_pid` 39→60) → 05:39Z guard `trades` は新建玉 `6c20d641-972` のみ・totals 全 0
+- **トリガ日**: 2026-10-19 (計測 2026-10-20)
+- **想定メカニズム**: 既知の trail writer ⇄ BE writer の 2-writer 競合 (#950042 初観測、族 B) が hold 12h38m の全期間続いた。guard 捕捉 100% が 3 例連続 (488 / 269 / 46,091) = 全送信が同一プロセスの guard を通過する。10-05 の捕捉率 50.5% は窓中の deploy による状態消失で説明可能 (消失 4 例全てが code deploy と一致)。failed 7 の時刻は guard から読めず、決済済み建玉への modify は broker tx を生まないため「決済後 modify 継続」(O-2026-10-15-1) は broker 側では検証不能
+- **family 候補**: 既存 `storm_guard` 系 (付記、4 件目 — 異なる日付・異なる建玉)。[[project_weekend_market_halted_retry_storm_2026_09_07]] の「族 B は自己約定で終わる」記述への反例 (本件は TP 約定で終了、自己約定なし)
+- **反証可能な予測**: O-2026-10-13-1 の予測「hold >10h なら 30,000 回超 (率 3,000–4,000/h 不変なら)」は hold 12h38m / 46,091 / 3,900/h で**成立**。次: enforce 執行後 (registry `storm-guard-enforce-execution-window`) の最初の storm で `skipped.idempotent` + `skipped.breaker` ≈ `evaluated` − 1、broker `REPLACEMENT` は建玉あたり数十以下、かつ正当な trail tightening の喪失 0 (`storm-guard-enforce-first-storm-readout`、11-02)。逆に enforce 後も broker `REPLACEMENT` が数百を超えれば guard 外の writer が実在する。読み手 (daily report 表 / anomaly_watcher `sl_replacement_storm`) の初出が次 daily report に出なければ PR #337 の配線不備
+- **隣接 ban / 凍結 frame**: registry `storm-guard-enforce-decision` は 10-19 に resolved (ENABLE、PR #337)。活性 = `storm-guard-enforce-execution-window` (期日 10-21、open live 0 の窓で env + 再起動 — #1346961 が 05:36:57Z から open で現在窓なし) / `storm-guard-enforce-first-storm-readout` (11-02)。凍結 look 保有 family ではない
+- **経路**: 執行 QA → **既存 frame 回付** (10-19 決定の材料 5,881 送信を完了値 46,098 / 46,091 で補完、`storm-guard-enforce-first-storm-readout` の基準値として供給)。新規 R1 候補は立てない
+
+### O-2026-10-20-2: docs/data push は web service を再デプロイしない — `engine_pid` 130 が 10-16 04:42Z → 10-20 05:31Z (3.9 d) 不変、同期間 origin に docs/data commit 48 本 (`data/monitoring/**` 7 本含む)、code commit 0 (執行 QA / 制御系)
+- **現象**: `/api/demo/status` `engine_pid` 130 / `engine_import_pid` 39 / `main_loop_restarts` 1 が 2026-10-16 04:42:47Z (PR #333 deploy) から 10-20 05:31Z まで同値、guard `trades["349affe7-c3a"]` (10-16 07Z の storm) が 05:31Z まで残存 = 同一プロセス。同期間に origin/main へ 48 commit (`knowledge-base/raw/**` 53 path / `data/external/**` 15 / `data/monitoring/**` 7 (nav_floor_projection.csv を含む daily report commit) / `data/cache/**` 3 / `wiki/**` 4、PR #335 / #336 含む)、`*.py` / `render.yaml` の変更 0。05:34:47Z の PR #337 (code) merge 後 05:39Z に `engine_pid` 129 / `engine_import_pid` 60、guard 全消失 (8 サンプル同値)
+- **トリガ日**: 2026-10-16〜2026-10-20 (計測 2026-10-20)
+- **想定メカニズム**: render.yaml 09-24 コメント「`docs(KB): daily report` commit が毎回 web service を再デプロイ」および 10-07 仮説「docs/data push → Render auto-deploy 日次」は本窓では成立していない。可能性: (a) Render の `ignoredPaths` 評価単位が commit ではなく push で、docs-only push が skip されている (b) 09-24 以降に dashboard 側 auto-deploy 設定が変わった (c) 10-15〜16 の pid 94→129 (code commit なし) は deploy ではなく Render 側再起動 (health / memory)。検証は Render deploy ログ (MCP 未認証)
+- **family 候補**: 新規 `render_deploy_trigger` (独立 1 件目)。[[2026-10-16]] 発見 5 の pid 94→129 と対照
+- **反証可能な予測**: 次の docs/data-only push 群の間も `engine_pid` 129 / `engine_import_pid` 60 / guard 状態が不変なら確定。逆に code commit なしで pid が変われば Render 側再起動が別経路として実在し、guard 状態永続化の優先度が上がる
+- **隣接 ban / 凍結 frame**: なし。未決 12 (render.yaml `ignoredPaths` 拡張) が受け皿
+- **経路**: 記録のみ (未決 12 へ供給)。🆕 12:00Z 追記: 根拠は「pid 不変」ではなく「guard 状態 `349affe7` の 3.9 d 残存」(O-2026-10-20-3 で pid 再利用が判明)
+
+---
+
+### O-2026-10-20-3: `storm_guard` 状態消失 5 例目 — PR #339 code deploy (Render live 07:14:03Z) で 05:39Z 登録の建玉エントリが消えたが `engine_pid` は 129 のまま = pid 再利用 ⇒ 「pid 不変 = 再デプロイなし」は不成立 (執行 QA / 制御系)
+- **現象**: 05:39Z `storm_guard.trades["6c20d641-972"]` (#1346961、`confirmed_sl` 158.044、sent 0) → 12:00Z `trades` {} / totals 全 0。閉じた建玉は guard に残る仕様 (05:31Z に 10-16 分 `349affe7-c3a` が残存) なので消失 = プロセス再起動。origin session log 10-20 Phase 5: 07:11:35Z open 0 → 07:12:15Z PR #339 merge (`modules/hunt_event_logger.py` 含む code) → Render dep-dbbh8k59fdbs73e5hk0g live **07:14:03Z**。`/api/demo/status` `engine_pid` は 05:39Z も 12:00Z も **129** (`engine_import_pid` 59)
+- **トリガ日**: 2026-10-20 07:14Z (計測 12:00Z)
+- **想定メカニズム**: Render コンテナは毎回同じ fork 順で起動するため、親 web プロセスから fork した engine が同じ pid を得る。10-06 の「pid 130 不変のまま guard 状態消失 (2 例目)」と同じ構造。pid は deploy 判定の識別子にならず、識別子として有効なのは guard 状態の残存 / `main_loop_restarts` / Render deploy ログ
+- **family 候補**: `storm_guard` 系 (状態消失サブ family: 10-06 / 10-07 / 10-13 / 10-20 05:34Z #337 / 10-20 07:14Z #339 = 5 例、うち code deploy 起因 4)。`render_deploy_trigger` family (O-10-20-2) への影響: **結論 (docs/data push は再デプロイしない) は維持、根拠を「pid 130 不変」から「guard 状態 `349affe7` の 3.9 d 残存」に差し替え**
+- **反証可能な予測**: 次の code deploy でも `engine_pid` が 129 のままなら pid 再利用は構造的。逆に enforce 有効化後、deploy 直後の建玉で `breaker` 履歴なしでも idempotent / monotonic が block するなら、状態永続化は readout の分母 (totals) のためだけに必要
+- **隣接 ban / 凍結 frame**: `storm-guard-enforce-execution-window` (10-21) = permission 待ち (classifier [Production Deploy] 拒否、user 操作要)。`storm-guard-enforce-first-storm-readout` (11-02) の totals は deploy 毎に分断される
+- **経路**: 記録のみ (未決 19「`storm_guard` 状態の永続化」を新設、user 決裁)
+
+---
+
 ## 週次 rollup
 
 ### 週 2026-10-05〜10-11 / 10-12〜10-13 (遡及、30d レビュー 2026-10-14 で記載 — 10-05 / 10-12 月曜の rollup は未実施だった)
@@ -67,3 +98,14 @@
 
 - 卒業到達 family なし。learner write-only は 2/3 — ただし制御系欠陥であり S1 (エッジ feasibility) の対象ではなく、到達時の経路は「修復 R3 PR 起票」(user 決裁の未決 5 を既存受け皿とする)
 - 10-01〜10-12 の wiki-daily run は本ファイルに追記しなかった (10-06 / 10-07 は run あり・観測 0、10-08〜10-12 は run 欠落)。次回 rollup = 2026-10-19 (月)
+
+### 2026-10-13〜10-19 (月曜 10-19 の wiki-daily 欠落のため 10-20 に代行; ローカル座礁分を autopilot 10-21 が origin へ救出)
+| family | 独立観測 (週内) | 累計 | 卒業条件 (≥3) | 経路 |
+|---|---|---|---|---|
+| `storm_guard` 系 (SL replacement storm / guard 捕捉) | 3 (O-10-13-1 / O-10-15-1 / O-10-16-1) + 10-20 に 4 件目 (O-10-20-1) + 状態消失サブ family 5 例目 (O-10-20-3、12:00Z) | 5 | **到達** | 制御系 (エッジではない) — 既存 frame `storm-guard-enforce-decision` が 10-19 に ENABLE で決着 (PR #337)、S1 起票対象外、user 報告のみ。後継 frame 2 本 (10-21 執行窓 / 11-02 readout) |
+| learner no-op (`entry_type_blacklist` write-only) | 1 (O-10-13-2) | 2 (O-09-18-1 含む) | 未達 | 未決 5 (user 決裁待ち) |
+| 平日 open 側 `MARKET_HALTED` (リトライなし cancel) | 1 (O-10-15-2) | 1 | 未達 | 記録のみ |
+| `render_deploy_trigger` (docs/data push が再デプロイしない) | 0 (10-20 に 1 件目 O-10-20-2、根拠は guard 状態残存 — pid は O-10-20-3 で識別子失格) | 1 | 未達 | 未決 12 |
+
+- 執行 QA 発見 4 (週内 3 + 10-20 の 2 件目は別 family) / 卒業 family (エッジ) 0 / S1 起票 0。10-17〜10-19 の run 欠落 (3 日) で稼働率 4/7
+- 次回 rollup = 2026-10-26 (月)
