@@ -254,7 +254,7 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 
 ## 8. 追補 2026-10-21 — family A/B の根 (caller 側) の R3 修復
 
-**Status**: 実装済み (本 PR)。**Scope**: `modules/demo_trader.py` `_check_sltp_realtime` の LIVE 送信口 + 兄弟 1 箇所、`modules/demo_db.py` (`sl_initial` 列 + `close_trade` の R 分母)。bridge (`oanda_bridge.py`) は不変。**Tests**: `tests/test_sltp_live_sl_persist_storm_root.py` 13 本 (CF pin 2 本 + AST pin 1 本)。**導出**: Workflow 18 agent (読み 5 面 → 統合 → 反証 3 レンズ × 2 claim = 0/6 refuted → 設計 3 案 × 判定 3 = caller 層案が 9/10 で全員一致)。
+**Status**: **着地 — PR #346 merged 6e3041fa (2026-10-21 10:04:10Z、open live 0 の窓)、Render live 10:06Z (`engine_import_pid` 39→59、pid 95 再利用)**。Codex 6 巡 (P1 ×3 / P2 ×3、全件実在・全件消化; 写しの pop は close 後 / 全 7 成功分岐で写し→persist / legacy `sl_initial` は backfill しない / 一時失敗した persist は次 tick 以降に治す)。**Scope**: `modules/demo_trader.py` `_check_sltp_realtime` の LIVE 送信口 + 兄弟 1 箇所、`modules/demo_db.py` (`sl_initial` 列 + `close_trade` の R 分母)。bridge (`oanda_bridge.py`) は不変。**Tests**: `tests/test_sltp_live_sl_persist_storm_root.py` 16 本 (CF pin 2 本 + AST pin 1 本 + Codex 巡で追加 3 本)。**導出**: Workflow 18 agent (読み 5 面 → 統合 → 反証 3 レンズ × 2 claim = 0/6 refuted → 設計 3 案 × 判定 3 = caller 層案が 9/10 で全員一致)。
 
 ### 8.1 根 (code derivation — 行番号は origin/main 0e1ba221 = 本 PR 直前)
 
