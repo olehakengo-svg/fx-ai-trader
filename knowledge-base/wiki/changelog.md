@@ -2,7 +2,7 @@
 
 ## 2026-10-21 — docs(KB)+registry: sprint 0922 終了レビュー + 次 30 日 triage / storm guard 執行窓 permission 待ち 2 回目 (期日 +1 日) / 座礁 wiki-daily 10-20 救出 (rule:R3、autopilot、code 変更なし)
 
-- **文書**: [[sprint-0922-close-review-2026-10-21]] — 8 項目 done 5 / partial 3、巡目 code 中央値 7 (62 PR 集計、上限 ≤6 据え置き・超過 55%)、P1 75 / P2 271、繰延 P2 消化 9/9、窓違反 1 件、次 30 日 8 項目 (両レンズ反証)
+- **文書**: [[sprint-0922-close-review-2026-10-21]] — 8 項目 done 5 / partial 3、巡目 code 中央値 7 (62 PR 集計、上限 ≤6 据え置き・超過 58%)、P1 75 / P2 271、繰延 P2 消化 9/9、窓違反 1 件、次 30 日 8 項目 (両レンズ反証)
 - **registry**: `sprint-0922-triage-close` resolved / 新規 `sprint-1022-triage-close` (11-21) / `storm-guard-enforce-execution-window` 10-21 → **10-22** (note: permission 待ち、classifier 拒否 2 回、窓は ≥20 h 開いていた) / `storm-guard-enforce-first-storm-readout` note (執行日確定まで据え置き)
 - **救出 (5 例目)**: [[2026-10-20]] trade-log + log.md / index.md / daily-observations O-2026-10-20-1〜3 + rollup / carry_dip カード 10-20 節 (ローカル main のみに存在した wiki-daily 成果物)
 - **user 操作待ち (不変)**: `STORM_GUARD_ENFORCE=1` を Render dashboard で設定 (open live 0 のとき) か、`mcp__render__update_environment_variables` を allow に追加
