@@ -1306,7 +1306,7 @@
     },
     {
       "id": "sprint-0922-triage-close",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-22",
       "doc": "knowledge-base/wiki/decisions/sprint-triage-pr-discipline-2026-09-22.md",
