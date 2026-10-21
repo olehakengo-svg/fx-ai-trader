@@ -5551,6 +5551,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - **今日の観点**: Trail/BE writerが機能していれば最悪でもBEに持ち込める可能性があった。ただし**コード変更は行わない**。レジーム（USD_JPY RANGING / ATR%ile 36%）でのBUY方向損切りは、低ボラ相場での逆行として整合的。
 - KB記録によると`STORM_GUARD_ENFORCE=1`が未設定（user操作待ち）。2026-10-21 03:27Z試行も拒否。
 
+### 2026-10-21 (Pre-Tokyo Briefing)
+| 前日 PnL | **−10.7 pip** |
+| 前日 WR | **0.0%** |
+### Fidelity Cutoff 後 全期間（N=7 / WR=57.1% / PnL=+34.8）
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> - `carry_dip` N=6 → 「データなし」領域。EV +3.20 は方向性として良好だが、統計的判断不可。
+> - `kalman_d7_po_dn_flip` N=1 → 完全に評価不能。EV +15.60 は単一サンプルのノイズ。
+| EV | **+5.50** |
+| Broker PnL | **+¥1,388** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
