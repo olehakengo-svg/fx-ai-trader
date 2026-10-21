@@ -5531,6 +5531,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - `carry_dip`: N=7でEV=+5.91は高く見えるが、1件の大勝（前日大敗−10.7を含めても累積+41.4）が数値を押し上げている構造。大きな外れ値に依存したEVである可能性を排除できない。
 - `kalman_d7_po_dn_flip`: N=3。データなし相当。
 
+### 2026-10-21 (Pre-Tokyo Briefing)
+| 前日PnL | **−10.7 pips** |
+| 全体WR | 0.0%（1/1 LOSS） |
+| Strategy | Pair | N | WR% | EV | PnL |
+> ⚠️ **統計判断**: 全戦略でN<10。データなし水準。EV・WRは参考値に過ぎず、有意な判断不可。N≥30到達まで評価保留が原則。
+- `usdjpy_carry_dip_accumulator` が USD/JPY レンジ相場（ATR%ile 36%、SMA Slope +0.002と微弱上昇）でBUY→SL。レンジ低ATR環境下での dip accumulator のエントリータイミングが不適合だった可能性。
+- 前日トレード数1件と極端に少ない。各モードは全てONだが、Block Countsが示す通り大量のシグナルが手前で遮断されている。
+- **現状維持を基本方針**とする。N=8では戦略変更の根拠なし。
+- `carry_dip_accumulator` はUSD_JPYのレンジ継続中は勝率低下が構造的に想定されるため、次のエントリーシグナルに対して過信しないこと。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
