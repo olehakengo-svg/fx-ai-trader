@@ -5521,6 +5521,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 > - **降格基準（N≥30 & EV<−0.5）該当戦略: ゼロ**
 | usdjpy_carry_dip_accumulator | 7 | あと **23件** | 最有力候補。EV+5.91は水準十分だが分散未測定 |
 
+### 2026-10-21 (Pre-Tokyo Briefing)
+- **2026-10-20 PnL**: **−¥10.7** (N=1, WR=0%)
+- **唯一のトレード**: `usdjpy_carry_dip_accumulator` / USD_JPY / BUY → LOSS（SL執行）
+- **Spread**: 0.8p（通常範囲内）。スプレッドによるコスト問題は否定される。純粋なディレクション判断の失敗。
+### メイン集計（N=10, WR=60.0%, 累積PnL=+42.1）
+| Strategy | Pair | N | WR% | EV | PnL |
+- 両戦略ともN<10（判断不可域）。EVは参考値に留める。
+- `carry_dip`: N=7でEV=+5.91は高く見えるが、1件の大勝（前日大敗−10.7を含めても累積+41.4）が数値を押し上げている構造。大きな外れ値に依存したEVである可能性を排除できない。
+- `kalman_d7_po_dn_flip`: N=3。データなし相当。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
