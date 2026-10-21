@@ -3082,8 +3082,6 @@ class DemoTrader:
                         _mt_oa = self._mafe_tracker.pop(trade_id, None)
                         self._entry_atr.pop(trade_id, None)
                         self._entry_adx.pop(trade_id, None)
-                        if hasattr(self, "_live_sl_sent"):
-                            self._live_sl_sent.pop(trade_id, None)
                     self._pyramided_trades.discard(trade_id)
                     self._dd_phase_at_entry.pop(trade_id, None)
                     if hasattr(self, "_be_lock_fired"):
@@ -3112,6 +3110,9 @@ class DemoTrader:
                                                   spread_at_exit=_spread_exit_oa,
                                                   mafe_adverse_pips=_mafe_adv_oa,
                                                   mafe_favorable_pips=_mafe_fav_oa)
+                    # 2026-10-21 (PR #346 Codex P1): 確認済み SL の写しは DB close が返ってから捨てる
+                    if hasattr(self, "_live_sl_sent"):
+                        self._live_sl_sent.pop(trade_id, None)
                     if "error" not in result:
                         pnl = result.get("pnl_pips", 0)
                         outcome = result.get("outcome", "?")
@@ -3942,8 +3943,6 @@ class DemoTrader:
                     _mt = self._mafe_tracker.pop(trade_id, None)
                     self._entry_atr.pop(trade_id, None)
                     self._entry_adx.pop(trade_id, None)
-                    if hasattr(self, "_live_sl_sent"):
-                        self._live_sl_sent.pop(trade_id, None)
                 self._pyramided_trades.discard(trade_id)
                 self._dd_phase_at_entry.pop(trade_id, None)
                 # MFE BE-lock telemetry cleanup
@@ -3964,6 +3963,12 @@ class DemoTrader:
                                               spread_at_exit=_spread_exit,
                                               mafe_adverse_pips=_mafe_adverse,
                                               mafe_favorable_pips=_mafe_favorable)
+                # 2026-10-21 (PR #346 Codex P1): broker 確認済み SL の写しは DB close が
+                # **返ってから** 捨てる。close_trade が例外で失敗すると行は OPEN のまま
+                # 残り (per-trade except)、先に pop していると次 tick の baseline が
+                # ON_FILL SL に戻って再送 / 緩めが起きる (= この写しが防ぐ故障そのもの)。
+                # 戻り値が error dict でも行はもう OPEN ではないので捨ててよい。
+                self._live_sl_sent.pop(trade_id, None)
                 if "error" in result:
                     continue  # 別スレッドで既にクローズ済み → スキップ
 
@@ -8796,8 +8801,6 @@ class DemoTrader:
                 _mt_sr = self._mafe_tracker.pop(trade_id, None)
                 self._entry_atr.pop(trade_id, None)
                 self._entry_adx.pop(trade_id, None)
-                if hasattr(self, "_live_sl_sent"):
-                    self._live_sl_sent.pop(trade_id, None)
             self._pyramided_trades.discard(trade_id)
             self._dd_phase_at_entry.pop(trade_id, None)
             if _mt_sr and entry_price_sr:
@@ -8821,6 +8824,10 @@ class DemoTrader:
                                           spread_at_exit=_spread_exit_sr,
                                           mafe_adverse_pips=_mafe_adverse_sr,
                                           mafe_favorable_pips=_mafe_favorable_sr)
+            # 2026-10-21 (PR #346 Codex P1): 確認済み SL の写しは DB close が返ってから捨てる
+            # (_check_sltp_realtime の close 経路と同じ順序)
+            if hasattr(self, "_live_sl_sent"):
+                self._live_sl_sent.pop(trade_id, None)
             if "error" in result:
                 return  # 別スレッドで既にクローズ済み → スキップ
 

@@ -264,6 +264,42 @@ def test_live_sl_hit_now_judged_against_persisted_trail(env, monkeypatch):
     assert tid not in trader._live_sl_sent             # close で cleanup
 
 
+# ── (h') PR #346 Codex P1: 写しは DB close が確定してから捨てる ──────────────
+
+def test_cached_sl_survives_close_trade_db_failure(env, monkeypatch):
+    """update_sl_tp が失敗して DB sl が ON_FILL のまま (写しだけが確認済み値) の状態で、
+    close_trade が一時的 DB 障害で例外 → 行は OPEN のまま残る。写しを close 前に pop して
+    いると次 tick の baseline が ON_FILL に戻り BE 157.758 を再送/緩めてしまう。"""
+    trader, bridge, _ = env
+    tid = _open(trader)
+
+    def _disk_full(*_a, **_k):
+        raise RuntimeError("simulated disk full")
+
+    monkeypatch.setattr(trader._db, "update_sl_tp", _disk_full)
+    _run(trader, monkeypatch, [158.02])                 # trail 157.94 → 写しのみ (DB は SL0)
+    assert bridge.calls == [157.94] and _row(trader, tid)["sl"] == SL0
+
+    real_close = trader._db.close_trade
+
+    def _db_locked(*_a, **_k):
+        raise RuntimeError("simulated: database is locked")
+
+    monkeypatch.setattr(trader._db, "close_trade", _db_locked)
+    _run(trader, monkeypatch, [157.93])                 # SL_HIT 経路 → close_trade が例外
+    assert _row(trader, tid)["status"] == "OPEN"        # 行は残る (per-trade except)
+    assert trader._live_sl_sent[tid] == 157.94          # 写しは捨てられていない
+    assert bridge.calls == [157.94]
+
+    _run(trader, monkeypatch, [157.95])                 # BE 帯: 写しが baseline → 再送なし
+    assert bridge.calls == [157.94]
+
+    monkeypatch.setattr(trader._db, "close_trade", real_close)
+    _run(trader, monkeypatch, [157.93])                 # 復旧 → close 成立 → 写しは pop
+    assert _row(trader, tid)["status"] == "CLOSED"
+    assert tid not in trader._live_sl_sent
+
+
 # ── (i) pnl_r の分母は ON_FILL SL 距離 ────────────────────────────────────
 
 def test_pnl_r_uses_initial_sl_not_trailed_sl(tmp_path):
