@@ -3631,6 +3631,9 @@ class DemoTrader:
                         if new_sl < sl:
                             sl = new_sl
                     if self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                        # 2026-10-21 (PR #346 Codex P1): broker 受理値は persist の前に写す
+                        # (update_sl_tp が失敗しても次 tick の baseline が戻らない)
+                        self._live_sl_sent[trade_id] = sl
                         self._db.update_sl_tp(trade_id, sl, tp)
                         self._add_log(
                             f"🚀 [v6.4] 50% TP Extender: {trade_id} ({_entry_type_pe}) "
@@ -3701,6 +3704,7 @@ class DemoTrader:
                                 f"({trade_id})"
                             )
                         else:
+                            self._live_sl_sent[trade_id] = sl  # 2026-10-21 (PR #346 Codex P1): persist 前に写す
                             self._db.update_sl_tp(trade_id, sl, tp)
                             # Open pyramid OANDA position
                             _pyr_id = f"PYR_{trade_id}"
@@ -3757,6 +3761,7 @@ class DemoTrader:
                             if new_sl < sl:
                                 sl = new_sl
                         if self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                            self._live_sl_sent[trade_id] = sl  # 2026-10-21 (PR #346 Codex P1): persist 前に写す
                             self._db.update_sl_tp(trade_id, sl, tp)
                             self._add_log(
                                 f"🚀 DT Profit Extender: {trade_id} ({_entry_type_pe}) "
@@ -3790,6 +3795,7 @@ class DemoTrader:
                                 sl = new_sl
                         # SL/TP変更をDBに反映 (OANDA成功時のみ)
                         if self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                            self._live_sl_sent[trade_id] = sl  # 2026-10-21 (PR #346 Codex P1): persist 前に写す
                             self._db.update_sl_tp(trade_id, sl, tp)
                             self._add_log(
                                 f"🚀 Profit Extender: {trade_id} TP延伸 "

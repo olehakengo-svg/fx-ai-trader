@@ -267,6 +267,17 @@ class DemoDB:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN sl_initial REAL")
             except Exception:
                 pass
+            # 2026-10-21 (PR #346 Codex P2): 列追加時点で OPEN の行は現 sl で backfill
+            # (LIVE 行の sl は本修正前は ON_FILL のまま = 原値; shadow 行は 06-03 から
+            # trail 済みの値になり得るが、NULL のまま決済時 sl へ fallback するのと同じ値)。
+            # 冪等 (NULL の OPEN 行だけ)。CLOSED の旧行は NULL のまま (後方互換)。
+            try:
+                conn.execute(
+                    "UPDATE demo_trades SET sl_initial = sl "
+                    "WHERE status='OPEN' AND sl_initial IS NULL AND sl IS NOT NULL"
+                )
+            except Exception:
+                pass
 
             # ── v7.0: Shadow Tracking カラム ──
             try:

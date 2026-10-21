@@ -375,6 +375,24 @@ def test_every_modify_sl_sync_success_branch_persists():
                    and sub.func.attr == "update_sl_tp"
                    for n in nodes for sub in ast.walk(n))
 
+    def _caches_before_persist(nodes) -> bool:
+        """成功分岐内で `self._live_sl_sent[...] = ...` が `update_sl_tp` より前にある
+        (PR #346 Codex P1: update_sl_tp が失敗しても写しが残る順序)。"""
+        seq = []
+        for n in nodes:
+            for sub in ast.walk(n):
+                if (isinstance(sub, ast.Assign) and len(sub.targets) == 1
+                        and isinstance(sub.targets[0], ast.Subscript)
+                        and isinstance(sub.targets[0].value, ast.Attribute)
+                        and sub.targets[0].value.attr == "_live_sl_sent"):
+                    seq.append(("cache", sub.lineno))
+                if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute)
+                        and sub.func.attr == "update_sl_tp"):
+                    seq.append(("persist", sub.lineno))
+        seq.sort(key=lambda x: x[1])
+        kinds = [k for k, _ in seq]
+        return "cache" in kinds and "persist" in kinds and kinds.index("cache") < kinds.index("persist")
+
     checked = []
     for node in ast.walk(fn):
         if not isinstance(node, ast.If):
@@ -382,11 +400,45 @@ def test_every_modify_sl_sync_success_branch_persists():
         t = node.test
         if _is_modify(t):                                   # if modify_sl_sync(...): <success>
             assert _persists(node.body), f"L{node.lineno}: 成功分岐に update_sl_tp が無い"
+            assert _caches_before_persist(node.body), f"L{node.lineno}: 成功分岐で _live_sl_sent 記録が persist より前に無い"
             checked.append(node.lineno)
         elif (isinstance(t, ast.UnaryOp) and isinstance(t.op, ast.Not)
               and _is_modify(t.operand)):                   # if not modify_sl_sync(...): rollback / else: <success>
             assert node.orelse and _persists(node.orelse), (
                 f"L{node.lineno}: `if not modify_sl_sync` の else (成功分岐) に update_sl_tp が無い"
                 " — LIVE 分岐の未 persist = storm family A/B の根")
+            assert _caches_before_persist(node.orelse), f"L{node.lineno}: else 分岐で _live_sl_sent 記録が persist より前に無い"
             checked.append(node.lineno)
-    assert len(checked) >= 6, checked
+        elif (isinstance(t, ast.UnaryOp) and isinstance(t.op, ast.Not)
+              and isinstance(t.operand, ast.Name) and t.operand.id == "_sl_ok"):
+            # pyramid: _sl_ok = modify_sl_sync(...); if not _sl_ok: abort / else: <success>
+            assert node.orelse and _persists(node.orelse) and _caches_before_persist(node.orelse), (
+                f"L{node.lineno}: pyramid 成功分岐 (`if not _sl_ok` の else) に写し→persist の順序が無い")
+            checked.append(node.lineno)
+    assert len(checked) >= 7, checked
+
+
+# ── (l) PR #346 Codex P2: migration で OPEN 行の sl_initial を backfill ─────
+
+def test_sl_initial_backfilled_for_open_rows_on_init(tmp_path):
+    path = str(tmp_path / "bf.db")
+    db = DemoDB(path)
+    tid_open = db.open_trade(direction="BUY", entry_price=ENTRY, sl=SL0, tp=TP0,
+                             entry_type="usdjpy_carry_dip_accumulator", confidence=80,
+                             tf="1h", mode="daytrade_1h", instrument="USD_JPY",
+                             oanda_trade_id=OANDA_ID)
+    tid_closed = db.open_trade(direction="BUY", entry_price=ENTRY, sl=SL0, tp=TP0,
+                               entry_type="usdjpy_carry_dip_accumulator", confidence=80,
+                               tf="1h", mode="daytrade_1h", instrument="USD_JPY",
+                               oanda_trade_id="1")
+    db.close_trade(tid_closed, 157.93, "SL_HIT")
+    # 列追加前 (= NULL) の状態を再現
+    with db._safe_conn() as conn:
+        conn.execute("UPDATE demo_trades SET sl_initial=NULL")
+        conn.commit()
+    db2 = DemoDB(path)                                   # 再 init = migration 再実行
+    with db2._safe_conn() as conn:
+        rows = {r["trade_id"]: r["sl_initial"] for r in conn.execute(
+            "SELECT trade_id, sl_initial FROM demo_trades").fetchall()}
+    assert rows[tid_open] == SL0                         # OPEN 行は backfill
+    assert rows[tid_closed] is None                      # CLOSED の旧行は NULL のまま
