@@ -5541,6 +5541,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - **現状維持を基本方針**とする。N=8では戦略変更の根拠なし。
 - `carry_dip_accumulator` はUSD_JPYのレンジ継続中は勝率低下が構造的に想定されるため、次のエントリーシグナルに対して過信しないこと。
 
+### 2026-10-21 (Pre-Tokyo Briefing)
+| 前日PnL（デモ） | −10.7 pip |
+| 前日WR | 0.0%（1戦0勝） |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **総計**: N=8 / WR=62.5% / PnL=+39.9pip
+### ■ 昇格基準（N≥30 & EV≥+1.0）達成戦略
+- **状況**: USD_JPY BUY → OANDA_SL_TP（SL執行）。KB記載によるとSL −10.8p 設定、MAFE favorable 7.1pで推移後に反転。Trail/BE writerは未起動（`REPLACEMENT 0`）。
+- **今日の観点**: Trail/BE writerが機能していれば最悪でもBEに持ち込める可能性があった。ただし**コード変更は行わない**。レジーム（USD_JPY RANGING / ATR%ile 36%）でのBUY方向損切りは、低ボラ相場での逆行として整合的。
+- KB記録によると`STORM_GUARD_ENFORCE=1`が未設定（user操作待ち）。2026-10-21 03:27Z試行も拒否。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
