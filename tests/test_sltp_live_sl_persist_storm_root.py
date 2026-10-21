@@ -264,6 +264,36 @@ def test_live_sl_hit_now_judged_against_persisted_trail(env, monkeypatch):
     assert tid not in trader._live_sl_sent             # close で cleanup
 
 
+# ── (f') PR #346 Codex P1 (5 巡目): 一時失敗した persist は次 tick 以降に DB を治す ──
+
+def test_db_persist_retried_on_later_ticks_after_transient_failure(env, monkeypatch):
+    """update_sl_tp が 1 回だけ失敗 → 写しは 157.94、DB は SL0 のまま。次 tick は新規送信が
+    無くても (BE 帯) DB を写しの値で書き直す = 再起動後も DB が確認値を持つ。"""
+    trader, bridge, _ = env
+    tid = _open(trader)
+    real_update = trader._db.update_sl_tp
+    state = {"fail_left": 1, "calls": 0}
+
+    def _flaky(trade_id, sl, tp):
+        state["calls"] += 1
+        if state["fail_left"] > 0:
+            state["fail_left"] -= 1
+            raise RuntimeError("simulated transient db failure")
+        return real_update(trade_id, sl, tp)
+
+    monkeypatch.setattr(trader._db, "update_sl_tp", _flaky)
+    _run(trader, monkeypatch, [158.02])                 # trail 157.94 送信、persist は失敗
+    assert bridge.calls == [157.94]
+    assert _row(trader, tid)["sl"] == SL0 and trader._live_sl_sent[tid] == 157.94
+    _run(trader, monkeypatch, [157.95])                 # BE 帯: broker 送信なし、DB だけ治す
+    assert bridge.calls == [157.94]
+    assert _row(trader, tid)["sl"] == 157.94            # 治った
+    n_after_heal = state["calls"]
+    _run(trader, monkeypatch, [157.95] * 3)             # 治った後は書き直さない
+    assert state["calls"] == n_after_heal
+    assert bridge.calls == [157.94]
+
+
 # ── (h') PR #346 Codex P1: 写しは DB close が確定してから捨てる ──────────────
 
 def test_cached_sl_survives_close_trade_db_failure(env, monkeypatch):

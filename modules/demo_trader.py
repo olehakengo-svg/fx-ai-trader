@@ -3313,6 +3313,15 @@ class DemoTrader:
             if trade.get("is_shadow", 0) != 1 and sl is not None:
                 _sent_prev = self._live_sl_sent.get(trade_id)
                 if _sent_prev is not None:
+                    _db_lags = (_sent_prev > sl) if direction == "BUY" else (_sent_prev < sl)
+                    if _db_lags:
+                        # 2026-10-21 (PR #346 Codex P1 5 巡目): 前 tick の persist が一時的に
+                        # 失敗して DB が写しより古い。broker への新規送信とは独立に、治るまで
+                        # 毎 tick 書き直す (再起動で写しが消えても DB が確認値を持つように)。
+                        try:
+                            self._db.update_sl_tp(trade_id, _sent_prev, tp)
+                        except Exception:
+                            pass  # best-effort — 次 tick で再試行
                     sl = max(sl, _sent_prev) if direction == "BUY" else min(sl, _sent_prev)
 
             # 通貨ペア別価格取得
