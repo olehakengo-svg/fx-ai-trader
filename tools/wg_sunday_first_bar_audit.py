@@ -115,6 +115,31 @@ def resolve_as_detector(idx: pd.DatetimeIndex, first_bar: pd.Timestamp) -> dict:
     }
 
 
+def _nth_sunday(year: int, month: int, n: int) -> datetime:
+    d = datetime(year, month, 1, tzinfo=timezone.utc)
+    first_sun = d + timedelta(days=(6 - d.weekday()) % 7)
+    return first_sun + timedelta(days=7 * (n - 1))
+
+
+def expected_sunday_open_hour_utc(sunday) -> int:
+    """Expected OANDA Sunday open hour (UTC) from the US DST calendar ONLY —
+    independent of any observed bar (positive control for the audit).
+
+    OANDA opens Sunday 17:00 New York. US DST ends on the first Sunday of
+    November (-> EST, 22:00 UTC) and starts on the second Sunday of March
+    (-> EDT, 21:00 UTC). Both switch Sundays already open at the new hour
+    (measured 2025-11-02 -> 22:00, 2026-03-08 -> 21:00).
+    """
+    ts = pd.Timestamp(sunday)
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    y = ts.year
+    dst_end = _nth_sunday(y, 11, 1).date()
+    dst_start = _nth_sunday(y, 3, 2).date()
+    d = ts.date()
+    return 22 if (d >= dst_end or d < dst_start) else 21
+
+
 def classify_open(first_bar: Optional[pd.Timestamp]) -> str:
     """'sun21' (summer stamp) / 'sun22' (winter stamp) / 'other'."""
     if first_bar is None or first_bar.weekday() != 6:
@@ -142,17 +167,23 @@ def audit_pair(instrument: str, idx: pd.DatetimeIndex,
         res = resolve_as_detector(idx, fb)
         cls = classify_open(res["first_bar_ts"])
         counts[cls] += 1
-        # structural-bug signature: detector resolves to a 21:00 bar while the
-        # real first bar of that weekend is 22:00 (deadline < real open)
-        if (res["first_bar_ts"] is not None and fb.hour == 22
-                and res["first_bar_ts"] != fb):
+        # Expected open hour comes from the US DST calendar, NOT from the
+        # observed index (otherwise a vendor 21:00 bar on a winter Sunday
+        # would define its own expectation and hide the bug).
+        exp_hour = expected_sunday_open_hour_utc(res["sun_cut"])
+        resolved_hour = res["first_bar_hour_utc"]
+        # structural-bug signature: calendar says winter (22:00 real open) but
+        # the detector resolves to a 21:00-stamped bar -> deadline 21:15 < open
+        if exp_hour == 22 and resolved_hour == 21:
             deterministic_halt += 1
         rows.append({
             "weekend": res["sun_cut"].date().isoformat(),
             "last_bar": _iso(rec["last_bar"]),
             "first_bar": _iso(fb),
             "gap_h": rec["gap_h"],
+            "expected_open_hour_utc": exp_hour,
             "detector_first_bar_ts": _iso(res["first_bar_ts"]),
+            "detector_hour_matches_expected": bool(resolved_hour == exp_hour),
             "detector_matches_index_first_bar": bool(res["first_bar_ts"] == fb),
             "detector_fri_close_bar": _iso(res["fri_close_bar"]),
             "halt_deadline": _iso(res["halt_deadline"]),
@@ -206,10 +237,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
               f"counts={rep['counts']} "
               f"deterministic_halt_signature={rep['deterministic_halt_signature']}")
         for r in rep["weekends"]:
-            flag = "" if r["detector_matches_index_first_bar"] else "  <-- MISMATCH"
+            flag = "" if r["detector_hour_matches_expected"] else "  <-- MISMATCH vs DST calendar"
             print(f"  {r['weekend']} last={r['last_bar'][11:16]} "
-                  f"first={r['first_bar'][11:16]} class={r['class']} "
-                  f"deadline={r['halt_deadline'][11:16]}{flag}")
+                  f"first={r['first_bar'][11:16]} expect={r['expected_open_hour_utc']:02d}:00 "
+                  f"class={r['class']} deadline={r['halt_deadline'][11:16]}{flag}")
     if args.out:
         os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
         with open(args.out, "w", encoding="utf-8") as fh:

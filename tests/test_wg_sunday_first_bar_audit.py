@@ -13,6 +13,7 @@ import pandas as pd
 from tools.wg_sunday_first_bar_audit import (
     audit_pair,
     classify_open,
+    expected_sunday_open_hour_utc,
     resolve_as_detector,
     weekend_boundaries,
 )
@@ -101,24 +102,49 @@ def test_audit_pair_counts_and_no_structural_bug_on_measured_structure():
     assert rep["counts"] == {"sun21": 0, "sun22": 3, "other": 0}
     assert rep["deterministic_halt_signature"] == 0
     assert all(r["detector_matches_index_first_bar"] for r in rep["weekends"])
+    assert all(r["expected_open_hour_utc"] == 22 for r in rep["weekends"])
+    assert all(r["detector_hour_matches_expected"] for r in rep["weekends"])
     assert all(r["halt_deadline"].endswith("22:15:00+00:00") for r in rep["weekends"])
 
 
+def test_expected_sunday_open_hour_from_us_dst_calendar_only():
+    # US DST ends first Sunday of November (2025-11-02), starts second Sunday
+    # of March (2026-03-08); both switch Sundays open at the new hour.
+    assert expected_sunday_open_hour_utc("2025-10-26") == 21
+    assert expected_sunday_open_hour_utc("2025-11-02") == 22
+    assert expected_sunday_open_hour_utc("2025-12-14") == 22
+    assert expected_sunday_open_hour_utc("2026-03-01") == 22
+    assert expected_sunday_open_hour_utc("2026-03-08") == 21
+    assert expected_sunday_open_hour_utc("2026-07-26") == 21
+    assert expected_sunday_open_hour_utc("2026-11-01") == 22   # the weekend under study
+    assert expected_sunday_open_hour_utc(pd.Timestamp("2026-10-25", tz="UTC")) == 21  # EU-only switch
+
+
 def test_audit_pair_flags_structural_bug_signature_when_vendor_emits_2100_in_winter():
-    """Counterfactual: if the vendor stamped a (fake) 21:00 bar on a winter
-    weekend whose real first bar is 22:00, the detector would resolve to 21:00
-    (deadline 21:15 < real open 22:04) — the signature the audit must flag."""
+    """Positive control: if the vendor stamped a (fake) 21:00 bar on a winter
+    weekend (calendar says 22:00 real open), the detector resolves to 21:00
+    (deadline 21:15 < real open 22:04). The expectation must come from the
+    DST calendar, not from the observed first bar, so the report's signature
+    count increments (Codex P2 on PR #350)."""
     idx = _winter_like_index()
     fake = pd.Timestamp("2025-12-14 21:00", tz="UTC")
     idx2 = pd.DatetimeIndex(sorted(set(idx) | {fake}))
-    # weekend_boundaries now sees 21:00 as the first bar (gap >= 40h still)
     rep = audit_pair("USD_JPY", idx2,
                      pd.Timestamp("2025-12-13", tz="UTC"),
                      pd.Timestamp("2025-12-15", tz="UTC"))
     assert rep["n_weekends"] == 1
     assert rep["counts"]["sun21"] == 1
-    # the audit's own "index first bar" is 21:00 here, so the mismatch flag is
-    # what a *consumer* of the index would see; we pin the resolution instead:
+    assert rep["deterministic_halt_signature"] == 1
+    row = rep["weekends"][0]
+    assert row["expected_open_hour_utc"] == 22
+    assert row["detector_hour_matches_expected"] is False
+    assert row["halt_deadline"].endswith("21:15:00+00:00")
     res = resolve_as_detector(idx2, pd.Timestamp("2025-12-14 22:00", tz="UTC"))
     assert res["first_bar_ts"] == fake
     assert res["halt_deadline"] == fake + timedelta(minutes=15)   # 21:15 < 22:04
+    # and the unmodified measured structure stays clean (negative control)
+    clean = audit_pair("USD_JPY", idx,
+                       pd.Timestamp("2025-12-13", tz="UTC"),
+                       pd.Timestamp("2025-12-15", tz="UTC"))
+    assert clean["deterministic_halt_signature"] == 0
+    assert clean["weekends"][0]["detector_hour_matches_expected"] is True
