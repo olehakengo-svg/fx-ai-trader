@@ -5561,6 +5561,16 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 | EV | **+5.50** |
 | Broker PnL | **+¥1,388** |
 
+### 2026-10-22 (Pre-Tokyo Briefing)
+前日（2026-10-21）はトレード**ゼロ**。PnL = ¥0、WR = N/A。
+Cutoff後の累積トレードは **N=7、WR=57.1%、PnL=+34.8**（うち2戦略、USD/JPY集中）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注意**: N=7はFidelity Cutoff後の全累積値。両戦略ともN<10につき「データなし」扱い。EV数値はポジティブだが統計的判断には使用不可。
+- **今日の焦点**: carry_dip がN=29→30到達を待つ。1件の執行が昇格判断の閾値。
+- r2_shadow_demoted_cellについては、シャドウセルの降格状態が解消されるまでscalp系の自然な沈黙は継続予想。コード変更なし・監視継続。
+- daytrade系のorder_bar_dedupは正常ガード機能として受容。
+| 時間帯(UTC) | 内容 | 注意点 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
