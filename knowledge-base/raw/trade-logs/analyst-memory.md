@@ -5581,6 +5581,16 @@ Cutoff後の累積トレードは **N=7、WR=57.1%、PnL=+34.8**（うち2戦略
 - `r2_shadow_demoted_cell`の規模からScalp系は**実質停止状態**と認識する
 - `gbp_asia_flash_crash`は安全機構として意図的動作であり、対処不要
 
+### 2026-10-22 (Pre-Tokyo Briefing)
+前日（2026-10-21）はトレードゼロ。戦略シグナル自体が発生しなかったか、r2_shadow_demoted_cell・order_bar_dedup 等のブロック機構によって全シグナルが除去された結果。PnL = ¥0、N = 0、WR = N/A。Cutoff後累計でもN=7（実質稼働ペア2本のみ）という極端な低稼働状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL |
+- 両戦略ともN<10。これは「データなし」域であり、EVの数値（+3.20、+15.60）はノイズと区別不能。
+- carry_dip は N=29（KB記載）まで蓄積されているが、OANDA昇格基準の **N≥30** にあと1件。**D11 29/30 到達済み**（KB参照）。
+- kalman_d7 はN=1のため判断素材として使用不可。
+- `shadow_tracking` 16件 → シャドウモード追跡中でライブ送信対象外
+- `agg_kelly=-0.244<0` 2件 → アグリゲートKellyが負（ポートフォリオ期待値が負とシステムが判定）
+- `shadow_tracking(promo_block:pair_demoted)` 1件 → 降格ペアのブロック
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
