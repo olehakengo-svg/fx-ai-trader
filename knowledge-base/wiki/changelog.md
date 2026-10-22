@@ -1,5 +1,10 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-22 — tools(readout): OANDA v20 口座の銘柄全集合を凍結 (68 CURRENCY、貴金属なし) — 第6次 §4.3 (c) の決定的確認 (rule:R3)
+
+- `tools/oanda_instrument_universe.py` (read-only、token/account id は非記録) + `tests/` 3 本 + raw `bt-results/oanda-instrument-universe/2026-10-22.json` + [[oanda-instrument-universe-2026-10-22]]
+- 結果: 68 銘柄すべて CURRENCY、METAL/CFD 0、JPY quote 11。XAU_USD は口座に存在しない銘柄 (MODE_CONFIG の 2 モードは死に銘柄、除去は code PR 別建て)。残余 (c) = 追加 FX ペア 55 本の shadow 蓄積母集団を固定
+
 ## 2026-10-21 — fix(sltp): LIVE 経路の broker 確認済み SL を persist — SL replacement storm family A/B の根 (caller 側) を修復 (rule:R3)
 
 - **根** ([[storm-guard-design-2026-09-22]] §8): `_check_sltp_realtime` の LIVE 送信口は `modify_sl_sync` 成功後に DB `sl` を persist しない (shadow 分岐のみ persist、2026-06-03 ab7a4931 以来の非対称) → 毎 tick の baseline が ON_FILL SL のまま → Tier2 trail / Tier1 BE (同一 if/else の排他 2 分岐) の `new_sl > sl` が恒真 → 同値再送 (family A) と trail⇄BE 往復 (family B、#1254773 46,091 送信 / 11.8 h) が同じ根から出る。Workflow 18 agent (反証 0/6)

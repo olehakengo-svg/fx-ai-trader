@@ -5551,6 +5551,36 @@ Cutoff後全期間の累積はN=11、WR=63.6%、PnL=+¥21.8に留まる。
 - **今日の観点**: Trail/BE writerが機能していれば最悪でもBEに持ち込める可能性があった。ただし**コード変更は行わない**。レジーム（USD_JPY RANGING / ATR%ile 36%）でのBUY方向損切りは、低ボラ相場での逆行として整合的。
 - KB記録によると`STORM_GUARD_ENFORCE=1`が未設定（user操作待ち）。2026-10-21 03:27Z試行も拒否。
 
+### 2026-10-21 (Pre-Tokyo Briefing)
+| 前日 PnL | **−10.7 pip** |
+| 前日 WR | **0.0%** |
+### Fidelity Cutoff 後 全期間（N=7 / WR=57.1% / PnL=+34.8）
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> - `carry_dip` N=6 → 「データなし」領域。EV +3.20 は方向性として良好だが、統計的判断不可。
+> - `kalman_d7_po_dn_flip` N=1 → 完全に評価不能。EV +15.60 は単一サンプルのノイズ。
+| EV | **+5.50** |
+| Broker PnL | **+¥1,388** |
+
+### 2026-10-22 (Pre-Tokyo Briefing)
+前日（2026-10-21）はトレード**ゼロ**。PnL = ¥0、WR = N/A。
+Cutoff後の累積トレードは **N=7、WR=57.1%、PnL=+34.8**（うち2戦略、USD/JPY集中）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注意**: N=7はFidelity Cutoff後の全累積値。両戦略ともN<10につき「データなし」扱い。EV数値はポジティブだが統計的判断には使用不可。
+- **今日の焦点**: carry_dip がN=29→30到達を待つ。1件の執行が昇格判断の閾値。
+- r2_shadow_demoted_cellについては、シャドウセルの降格状態が解消されるまでscalp系の自然な沈黙は継続予想。コード変更なし・監視継続。
+- daytrade系のorder_bar_dedupは正常ガード機能として受容。
+| 時間帯(UTC) | 内容 | 注意点 |
+
+### 2026-10-22 (Pre-Tokyo Briefing)
+前日（2026-10-21）のトレードは**ゼロ**。PnL = ¥0、N = 0、WR = N/A。
+全モードはON状態を維持しているが、実執行は完全に停止している。Cutoff後累計はN=7、PnL=+34.8pipsに留まる。
+| Strategy | Pair | N | WR% | EV | PnL（pips） |
+- `carry_dip`: N=6 → **「データなし」扱い**（N<10）。EV+3.20は参考値に過ぎない
+- `kalman_d7`: N=1 → **完全に判定不能**。EV+15.60は数値として記録するのみ
+- 両戦略ともN=30の昇格基準には程遠く、現時点で判断可能な戦略は**ゼロ**
+- `r2_shadow_demoted_cell`の規模からScalp系は**実質停止状態**と認識する
+- `gbp_asia_flash_crash`は安全機構として意図的動作であり、対処不要
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

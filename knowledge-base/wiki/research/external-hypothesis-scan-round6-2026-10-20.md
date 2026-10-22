@@ -81,7 +81,7 @@
 
 ### 4.3 (c) 非 FX — OANDA 制約下でクローズ
 
-- OANDA JP の v20 API 口座 (NY サーバー / fxTrade / プロコース) で取引できるのは **FX 68 ペアのみ**。金 (XAUUSD)・銀 (XAGUSD) は商品 CFD = **MT4/MT5 の別口座** (2026-05-12 実測: v20 REST は CFD を 400 で返す) → user 決裁 09-24「別口座は提案しない」により対象外。supply-space §2.2 の (c-1) equity index / (c-2) 個別株 / (c-3) crypto は全て OANDA 外 = 不成立。§2.4「母集団が変わる」利点も消える。
+- OANDA JP の v20 API 口座 (NY サーバー / fxTrade / プロコース) で取引できるのは **FX 68 ペアのみ** (✅ 2026-10-22 API 一次情報で確定: 68 CURRENCY、METAL 0 — [[../analyses/oanda-instrument-universe-2026-10-22]])。金 (XAUUSD)・銀 (XAGUSD) は商品 CFD = **MT4/MT5 の別口座** (2026-05-12 実測: v20 REST は CFD を 400 で返す) → user 決裁 09-24「別口座は提案しない」により対象外。supply-space §2.2 の (c-1) equity index / (c-2) 個別株 / (c-3) crypto は全て OANDA 外 = 不成立。§2.4「母集団が変わる」利点も消える。
 - **残余 = 追加 FX ペア (68−13=55、取引制限中ペアの除外要確認) の shadow 蓄積**。これは市場を変えない (base rate 4% prior 不変、クロスの RT 3.70–3.90p は majors より悪い、ZAR_JPY 等 EM は intraday 不成立、TRY 系は証拠金 25%)。起案するなら順序固定: ① 既存 G0 ツール出力を PAIRS フィルタなしで保存し instrument 全集合 (XAU/XAG 不在・displayPrecision・marginRate・取引制限) を KB 凍結 → ② G0 型 RT 実測 (read-only、stressed_RT = p75(spread)+1.0p ≤ 5.0p で PASS) → ③ PASS ペアのみ MASSIVE backfill + friction 表追記 → ④ MODE_CONFIG `shadow_only=True` 追加は rnb 前例の付帯条件 (forward pre-reg first look + R2 auto-demote gate 読み手 + `_UNIVERSAL_SENTINEL` 非追加 + test pin + KB 同 commit) + **Render disk/engine tick 容量の実測** (08-21 disk 満杯の再発防止) + user 一言承認。①〜③ は R3 単独実行可。live 化は常に Rule 1。
 - **KB 訂正候補**: `friction-analysis.md` XAU 行 / xau-stop-rationale に「OANDA JP fxTrade に XAU/USD は無く、数値は demo 推計・OANDA 約定 0」を注記。MODE_CONFIG の XAU_USD 2 モード (auto_start=False) は死に銘柄 → 除去は code PR 別建て。
 

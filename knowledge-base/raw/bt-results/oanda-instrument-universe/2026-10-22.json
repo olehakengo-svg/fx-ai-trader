@@ -1,0 +1,1453 @@
+{
+  "tool": "oanda_instrument_universe",
+  "run_utc": "2026-10-22T06:04:34+00:00",
+  "n_instruments": 68,
+  "by_type": {
+    "CURRENCY": 68
+  },
+  "metals_present": [],
+  "jpy_quote": [
+    "AUD_JPY",
+    "CAD_JPY",
+    "CHF_JPY",
+    "EUR_JPY",
+    "GBP_JPY",
+    "HKD_JPY",
+    "NZD_JPY",
+    "SGD_JPY",
+    "TRY_JPY",
+    "USD_JPY",
+    "ZAR_JPY"
+  ],
+  "instruments": [
+    {
+      "name": "AUD_CAD",
+      "type": "CURRENCY",
+      "displayName": "AUD/CAD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0121",
+        "shortRate": "-0.0345"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "AUD_CHF",
+      "type": "CURRENCY",
+      "displayName": "AUD/CHF",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0358",
+        "shortRate": "-0.0575"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "AUD_HKD",
+      "type": "CURRENCY",
+      "displayName": "AUD/HKD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0092",
+        "shortRate": "-0.0304"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "AUD_JPY",
+      "type": "CURRENCY",
+      "displayName": "AUD/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0239",
+        "shortRate": "-0.0428"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "AUD_NZD",
+      "type": "CURRENCY",
+      "displayName": "AUD/NZD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0078",
+        "shortRate": "-0.0286"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "AUD_SGD",
+      "type": "CURRENCY",
+      "displayName": "AUD/SGD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0175",
+        "shortRate": "-0.0395"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "AUD_USD",
+      "type": "CURRENCY",
+      "displayName": "AUD/USD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0047",
+        "shortRate": "-0.0156"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "CAD_CHF",
+      "type": "CURRENCY",
+      "displayName": "CAD/CHF",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0118",
+        "shortRate": "-0.0347"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "CAD_HKD",
+      "type": "CURRENCY",
+      "displayName": "CAD/HKD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0169",
+        "shortRate": "-0.0099"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "CAD_JPY",
+      "type": "CURRENCY",
+      "displayName": "CAD/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0001",
+        "shortRate": "-0.020"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "CAD_SGD",
+      "type": "CURRENCY",
+      "displayName": "CAD/SGD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0076",
+        "shortRate": "-0.018"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "CHF_HKD",
+      "type": "CURRENCY",
+      "displayName": "CHF/HKD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0391",
+        "shortRate": "0.0146"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "CHF_JPY",
+      "type": "CURRENCY",
+      "displayName": "CHF/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.023",
+        "shortRate": "0.0038"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "CHF_ZAR",
+      "type": "CURRENCY",
+      "displayName": "CHF/ZAR",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0985",
+        "shortRate": "0.0501"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_AUD",
+      "type": "CURRENCY",
+      "displayName": "EUR/AUD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.03",
+        "shortRate": "0.0095"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_CAD",
+      "type": "CURRENCY",
+      "displayName": "EUR/CAD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0075",
+        "shortRate": "-0.0146"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_CHF",
+      "type": "CURRENCY",
+      "displayName": "EUR/CHF",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0163",
+        "shortRate": "-0.0375"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_CZK",
+      "type": "CURRENCY",
+      "displayName": "EUR/CZK",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0492",
+        "shortRate": "-0.0264"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_DKK",
+      "type": "CURRENCY",
+      "displayName": "EUR/DKK",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0059",
+        "shortRate": "-0.0156"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_GBP",
+      "type": "CURRENCY",
+      "displayName": "EUR/GBP",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0224",
+        "shortRate": "0.0016"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_HKD",
+      "type": "CURRENCY",
+      "displayName": "EUR/HKD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.012",
+        "shortRate": "-0.0121"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_HUF",
+      "type": "CURRENCY",
+      "displayName": "EUR/HUF",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0655",
+        "shortRate": "-0.0042"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_JPY",
+      "type": "CURRENCY",
+      "displayName": "EUR/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0043",
+        "shortRate": "-0.0227"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_NOK",
+      "type": "CURRENCY",
+      "displayName": "EUR/NOK",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0312",
+        "shortRate": "0.0085"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_NZD",
+      "type": "CURRENCY",
+      "displayName": "EUR/NZD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0124",
+        "shortRate": "-0.0092"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_PLN",
+      "type": "CURRENCY",
+      "displayName": "EUR/PLN",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0347",
+        "shortRate": "-0.009"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_SEK",
+      "type": "CURRENCY",
+      "displayName": "EUR/SEK",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0033",
+        "shortRate": "-0.0183"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_SGD",
+      "type": "CURRENCY",
+      "displayName": "EUR/SGD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0027",
+        "shortRate": "-0.0204"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_TRY",
+      "type": "CURRENCY",
+      "displayName": "EUR/TRY",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "10000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.25",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.3772",
+        "shortRate": "0.2302"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_USD",
+      "type": "CURRENCY",
+      "displayName": "EUR/USD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0243",
+        "shortRate": "0.0042"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "EUR_ZAR",
+      "type": "CURRENCY",
+      "displayName": "EUR/ZAR",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0714",
+        "shortRate": "0.0235"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_AUD",
+      "type": "CURRENCY",
+      "displayName": "GBP/AUD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.018",
+        "shortRate": "-0.0025"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_CAD",
+      "type": "CURRENCY",
+      "displayName": "GBP/CAD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0044",
+        "shortRate": "-0.0267"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_CHF",
+      "type": "CURRENCY",
+      "displayName": "GBP/CHF",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0282",
+        "shortRate": "-0.0496"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_HKD",
+      "type": "CURRENCY",
+      "displayName": "GBP/HKD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0016",
+        "shortRate": "-0.0224"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_JPY",
+      "type": "CURRENCY",
+      "displayName": "GBP/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "50000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0177",
+        "shortRate": "-0.0333"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_NZD",
+      "type": "CURRENCY",
+      "displayName": "GBP/NZD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.00010",
+        "shortRate": "-0.0207"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_PLN",
+      "type": "CURRENCY",
+      "displayName": "GBP/PLN",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0114",
+        "shortRate": "-0.0097"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_SGD",
+      "type": "CURRENCY",
+      "displayName": "GBP/SGD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0099",
+        "shortRate": "-0.0317"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_USD",
+      "type": "CURRENCY",
+      "displayName": "GBP/USD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "50000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0124",
+        "shortRate": "-0.0078"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "GBP_ZAR",
+      "type": "CURRENCY",
+      "displayName": "GBP/ZAR",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0564",
+        "shortRate": "0.0146"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "HKD_JPY",
+      "type": "CURRENCY",
+      "displayName": "HKD/JPY",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.00190",
+        "shortRate": "-0.0253"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "NZD_CAD",
+      "type": "CURRENCY",
+      "displayName": "NZD/CAD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0065",
+        "shortRate": "-0.0169"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "NZD_CHF",
+      "type": "CURRENCY",
+      "displayName": "NZD/CHF",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0174",
+        "shortRate": "-0.0398"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "NZD_HKD",
+      "type": "CURRENCY",
+      "displayName": "NZD/HKD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0092",
+        "shortRate": "-0.0125"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "NZD_JPY",
+      "type": "CURRENCY",
+      "displayName": "NZD/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0053",
+        "shortRate": "-0.025"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "NZD_SGD",
+      "type": "CURRENCY",
+      "displayName": "NZD/SGD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.00050",
+        "shortRate": "-0.0215"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "NZD_USD",
+      "type": "CURRENCY",
+      "displayName": "NZD/USD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.023",
+        "shortRate": "0.0024"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "SGD_CHF",
+      "type": "CURRENCY",
+      "displayName": "SGD/CHF",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0071",
+        "shortRate": "-0.029"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "SGD_JPY",
+      "type": "CURRENCY",
+      "displayName": "SGD/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.005",
+        "shortRate": "-0.0143"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "TRY_JPY",
+      "type": "CURRENCY",
+      "displayName": "TRY/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.25",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.2438",
+        "shortRate": "-0.3913"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_CAD",
+      "type": "CURRENCY",
+      "displayName": "USD/CAD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0065",
+        "shortRate": "-0.0289"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_CHF",
+      "type": "CURRENCY",
+      "displayName": "USD/CHF",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0307",
+        "shortRate": "-0.0516"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_CNH",
+      "type": "CURRENCY",
+      "displayName": "USD/CNH",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0165",
+        "shortRate": "-0.0375"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_CZK",
+      "type": "CURRENCY",
+      "displayName": "USD/CZK",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0179",
+        "shortRate": "-0.023"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_DKK",
+      "type": "CURRENCY",
+      "displayName": "USD/DKK",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0089",
+        "shortRate": "-0.0292"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_HKD",
+      "type": "CURRENCY",
+      "displayName": "USD/HKD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0039",
+        "shortRate": "-0.0247"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_HUF",
+      "type": "CURRENCY",
+      "displayName": "USD/HUF",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.037",
+        "shortRate": "-0.0042"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_JPY",
+      "type": "CURRENCY",
+      "displayName": "USD/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0201",
+        "shortRate": "-0.0354"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_MXN",
+      "type": "CURRENCY",
+      "displayName": "USD/MXN",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.08",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0396",
+        "shortRate": "0.0166"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_NOK",
+      "type": "CURRENCY",
+      "displayName": "USD/NOK",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0158",
+        "shortRate": "-0.0047"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_PLN",
+      "type": "CURRENCY",
+      "displayName": "USD/PLN",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.009",
+        "shortRate": "-0.0119"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_SEK",
+      "type": "CURRENCY",
+      "displayName": "USD/SEK",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.04",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0116",
+        "shortRate": "-0.0319"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_SGD",
+      "type": "CURRENCY",
+      "displayName": "USD/SGD",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0126",
+        "shortRate": "-0.0336"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_THB",
+      "type": "CURRENCY",
+      "displayName": "USD/THB",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.05",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.0319",
+        "shortRate": "-0.0439"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_TRY",
+      "type": "CURRENCY",
+      "displayName": "USD/TRY",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "10000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.25",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.3415",
+        "shortRate": "0.2335"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "USD_ZAR",
+      "type": "CURRENCY",
+      "displayName": "USD/ZAR",
+      "displayPrecision": 5,
+      "pipLocation": -4,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "-0.054",
+        "shortRate": "0.0124"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    },
+    {
+      "name": "ZAR_JPY",
+      "type": "CURRENCY",
+      "displayName": "ZAR/JPY",
+      "displayPrecision": 3,
+      "pipLocation": -2,
+      "tradeUnitsPrecision": 0,
+      "minimumTradeSize": "1",
+      "maximumOrderUnits": "100000000",
+      "maximumPositionSize": "0",
+      "marginRate": "0.1",
+      "guaranteedStopLossOrderMode": "DISABLED",
+      "financing": {
+        "longRate": "0.0371",
+        "shortRate": "-0.0849"
+      },
+      "tags": [
+        "CURRENCY",
+        "FX"
+      ]
+    }
+  ],
+  "note": "read-only snapshot of tradeable instruments for this v20 account; no prices, signals or outcomes. Token / account id are not recorded."
+}

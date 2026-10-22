@@ -9,6 +9,7 @@
 | EUR_JPY | 1.0pip | 0.5pip | **2.50pip** | 33.7% | |
 | EUR_GBP | 1.5pip | - | **~3.0pip** | 57.1% | **STRUCTURALLY IMPOSSIBLE** (stopped) |
 | XAU_USD | 86pip | 46pip | **217.5pip** | ~35% ATR-rel | **STOPPED v8.4** |
+> ⚠️ 2026-10-22: XAU_USD は当口座 (OANDA v20、CURRENCY 68 銘柄) に**存在しない** — 上行の数値は demo 推計で OANDA 約定 0 ([[oanda-instrument-universe-2026-10-22]])。
 
 ## Aggregate Friction
 - Pre-v8.4: avg 7.04pip/trade (XAU-distorted)
