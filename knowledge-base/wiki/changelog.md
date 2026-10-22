@@ -9,6 +9,10 @@
 - registry 新設 `wg-winter-first-weekend-open-time-check` (11-02): DRAFT §5 項目 3–4 (11-01 実開場時刻 ±10 分 / G0 発火整合、G0' 終了済みのため event に数えず記録のみ)
 - **storm guard 執行窓 (registry `storm-guard-enforce-execution-window`)**: 06:05Z / 06:14Z open live 0 (窓 ≥47 h) だが本セッションは Render MCP が `CONNECT_TIMEOUT` で未接続 = env 変更 tool 自体が無く試行不可 → note + 期日 10-22 → **10-23** (+1 日)。[[storm-guard-design-2026-09-22]] §7.4 に行追加。user 2 択は不変
 - 詳細: [[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]] §5.1 / [[weekend-gap-fade]] 2026-10-22 節 / [[2026-10-22-session]]
+## 2026-10-22 — tools(readout): OANDA v20 口座の銘柄全集合を凍結 (68 CURRENCY、貴金属なし) — 第6次 §4.3 (c) の決定的確認 (rule:R3)
+
+- `tools/oanda_instrument_universe.py` (read-only、token/account id は非記録) + `tests/` 3 本 + raw `bt-results/oanda-instrument-universe/2026-10-22.json` + [[oanda-instrument-universe-2026-10-22]]
+- 結果: 68 銘柄すべて CURRENCY、METAL/CFD 0、JPY quote 11。XAU_USD は口座に存在しない銘柄 (MODE_CONFIG の 2 モードは死に銘柄、除去は code PR 別建て)。残余 (c) = 追加 FX ペア 55 本の shadow 蓄積母集団を固定
 
 ## 2026-10-21 — fix(sltp): LIVE 経路の broker 確認済み SL を persist — SL replacement storm family A/B の根 (caller 側) を修復 (rule:R3)
 
