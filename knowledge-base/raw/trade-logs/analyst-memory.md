@@ -5591,6 +5591,16 @@ Cutoff後の累積トレードは **N=7、WR=57.1%、PnL=+34.8**（うち2戦略
 - `agg_kelly=-0.244<0` 2件 → アグリゲートKellyが負（ポートフォリオ期待値が負とシステムが判定）
 - `shadow_tracking(promo_block:pair_demoted)` 1件 → 降格ペアのブロック
 
+### 2026-10-22 (Pre-Tokyo Briefing)
+前日（2026-10-21）はトレードゼロ。PnL = 0、N = 0、WR = N/A。
+本日もCutoff後累積で **N=7 / WR=57.1% / PnL=+34.8pip** という極めて低サンプルの状態が継続。
+| Strategy | Pair | N | WR% | EV | PnL |
+> - `carry_dip`: N=6 → 「データなし」域（N<10）。EV+3.20は参考値に過ぎない。ただしKBによればN累計29に達しており、**あと1件でN=30の昇格審査ライン**に到達する。
+> - `kalman_d7`: N=1 → 完全に「データなし」。EV+15.60は単一イベントの偶発値。評価不能。
+- **Shadow demoted（r2）**: scalp系の全執行窓がshadow降格によって封鎖。`scalp`, `scalp_eur`, `scalp_5m`, `scalp_5m_eur`, `scalp_5m_gbp`, `daytrade_1h_usdchf` 合計1,950件超。これがシステム全体の最大抑制要因。
+- **order_bar_dedup**: daytrade系で840件。同一バーでのオーダー重複排除が頻繁に発動→エントリーチャンスが機械的に消去されている。
+- **no_signal**: rnb_usdjpy専用カウンター1,292件はRnBロジックがそもそも条件を見出せていないことを示す。静的なRANGING相場（USD/JPY ATR%ile 33%）との相性の問題。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
