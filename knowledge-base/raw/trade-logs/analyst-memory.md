@@ -5571,6 +5571,16 @@ Cutoff後の累積トレードは **N=7、WR=57.1%、PnL=+34.8**（うち2戦略
 - daytrade系のorder_bar_dedupは正常ガード機能として受容。
 | 時間帯(UTC) | 内容 | 注意点 |
 
+### 2026-10-22 (Pre-Tokyo Briefing)
+前日（2026-10-21）のトレードは**ゼロ**。PnL = ¥0、N = 0、WR = N/A。
+全モードはON状態を維持しているが、実執行は完全に停止している。Cutoff後累計はN=7、PnL=+34.8pipsに留まる。
+| Strategy | Pair | N | WR% | EV | PnL（pips） |
+- `carry_dip`: N=6 → **「データなし」扱い**（N<10）。EV+3.20は参考値に過ぎない
+- `kalman_d7`: N=1 → **完全に判定不能**。EV+15.60は数値として記録するのみ
+- 両戦略ともN=30の昇格基準には程遠く、現時点で判断可能な戦略は**ゼロ**
+- `r2_shadow_demoted_cell`の規模からScalp系は**実質停止状態**と認識する
+- `gbp_asia_flash_crash`は安全機構として意図的動作であり、対処不要
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
