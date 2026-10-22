@@ -633,3 +633,86 @@ def test_shield_and_quick_harvest_and_mode_registration():
             < tick_src.index("if self._is_fx_market_closed():"))
     # diagnostics-only membership (observability, not a gate bypass)
     assert "weekend_gap_fade" in dt.DemoTrader._SILENT_DROP_DIAG_TYPES
+
+
+# ── Winter (US DST off) structure pin — rule:R3 2026-10-22 ──────────────
+# Registry `wg-dst-cutoff-basis-r3` / DRAFT weekend-gap-execution-modality
+# §5 items 1-2. Measured previous winter (2025-11-02 .. 2026-03-01, MASSIVE
+# 15m, 3 pairs x 17 weekends identical): Friday bars run through 21:45 UTC and
+# the Sunday first bar is stamped 22:00 UTC. The detector's cuts are DST-blind
+# (Fri 21:00 / Sun 21:00), so first_bar_ts resolves to the 22:00 bar and the
+# halt deadline (+15 min, frozen) is 22:15 > real open ~22:04 — no
+# deterministic ABANDONED_HALT. Friday-side estimand in winter = 20:45 close
+# (frozen explore definition; the 21:00..21:45 bars are excluded).
+
+
+def _mk_winter_df(instrument: str, fri_close: float, gap_pips: float,
+                  late_fri_close_delta_pips: float = 5.0) -> pd.DataFrame:
+    """Friday bars through 21:45 (the 21:00..21:45 bars carry a different
+    close so the Friday-cut choice is observable), Sunday first bar at 22:00."""
+    pip = WEEKEND_GAP_PIP_SIZE[instrument]
+    df = _mk_df(instrument, fri_close, gap_pips, include_sunday_bar=False,
+                last_friday_bar="2026-07-24 21:45")
+    late = df.index >= _FRI
+    df.loc[late, "Close"] = fri_close + late_fri_close_delta_pips * pip
+    sun_ts = _SUN + timedelta(hours=1)
+    sun_open = fri_close + gap_pips * pip
+    sun_row = pd.DataFrame(
+        {"Open": [sun_open], "High": [sun_open + pip],
+         "Low": [sun_open - pip], "Close": [sun_open]},
+        index=[sun_ts],
+    )
+    return pd.concat([df, sun_row])
+
+
+def test_winter_structure_first_bar_ts_resolves_to_2200_bar_and_fri_close_is_2045():
+    from strategies.daytrade.weekend_gap_fade import WEEKEND_GAP_HALT_ABANDON_MIN
+    df = _mk_winter_df("USD_JPY", 150.00, 30.0)
+    sun_ts = _SUN + timedelta(hours=1)
+    det = detect_weekend_gap_signal(df, "USD_JPY", sun_ts + timedelta(minutes=5))
+    assert det is not None
+    assert det["first_bar_ts"] == sun_ts                      # 22:00 stamped bar
+    assert det["first_bar_ts"].hour == 22
+    # Friday close = last bar strictly < Fri 21:00 (frozen) = 20:45 close, NOT
+    # the winter 21:45 bar (which carries fri_close + 5p in this fixture)
+    assert det["fri_close"] == pytest.approx(150.00)
+    assert det["gap_pips"] == pytest.approx(30.0)
+    # halt deadline derived from the 22:00 bar = 22:15 (> real open ~22:04)
+    deadline = det["first_bar_ts"] + timedelta(minutes=WEEKEND_GAP_HALT_ABANDON_MIN)
+    assert deadline == _SUN + timedelta(hours=1, minutes=15)
+    # entry window (4 bars) starts from the 22:00 bar, so 22:59 is inside
+    assert detect_weekend_gap_signal(df, "USD_JPY", sun_ts + timedelta(minutes=59)) is not None
+    # and 21:xx (before the first bar exists) is None — no premature evaluation
+    assert detect_weekend_gap_signal(df, "USD_JPY", _SUN + timedelta(minutes=5)) is None
+
+
+def test_winter_send_decision_halt_deadline_is_2215_not_2115():
+    """Contract (B) send decision on the winter-resolved first_bar_ts:
+    halted at 22:10 -> HOLD (before 22:15), 22:15:00 -> HOLD (strictly after
+    rule), 22:15:01 -> ABANDONED_HALT; tradeable at 22:05 -> SEND. A 21:00
+    resolution (counterfactual) would have abandoned at 21:15:01 — before the
+    real open — which the measured 22:00 stamp rules out."""
+    from strategies.daytrade.weekend_gap_fade import (
+        WEEKEND_GAP_LATCH_ABANDONED_HALT,
+        weekend_gap_entry_send_decision,
+    )
+    df = _mk_winter_df("USD_JPY", 150.00, 30.0)
+    sun_ts = _SUN + timedelta(hours=1)
+    det = detect_weekend_gap_signal(df, "USD_JPY", sun_ts + timedelta(minutes=5))
+    fb = det["first_bar_ts"]
+    mid = det["sunday_open"]
+
+    def dec(now, tradeable, age):
+        return weekend_gap_entry_send_decision(
+            det["direction"], "USD_JPY", now, fb, tradeable, age, mid, mid)[0]
+
+    assert dec(fb + timedelta(minutes=10), False, 1.0) == "HOLD"
+    assert dec(fb + timedelta(minutes=15), False, 1.0) == "HOLD"
+    assert dec(fb + timedelta(minutes=15, seconds=1), False, 1.0) == WEEKEND_GAP_LATCH_ABANDONED_HALT
+    assert dec(fb + timedelta(minutes=5), True, 1.0) == "SEND"
+    # counterfactual 21:00 resolution: the same 22:04 real-open tick would
+    # already be past 21:15 -> deterministic abandon (the bug §5-2 guards against)
+    fake_fb = _SUN
+    assert weekend_gap_entry_send_decision(
+        det["direction"], "USD_JPY", _SUN + timedelta(hours=1, minutes=4),
+        fake_fb, False, 1.0, mid, mid)[0] == WEEKEND_GAP_LATCH_ABANDONED_HALT

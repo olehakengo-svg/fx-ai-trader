@@ -164,9 +164,18 @@
 - live fill 通算: **0/5 qualifying イベント** (07-26 インフラ障害 / 08-02・09-06 MARKET_HALTED / 09-13・09-27 ABANDONED_DRIFT)。改定後 (契約 B) = **0/2**。G1/G2/G3 の live N は 0。F2 (12-31) は active のまま。
 - 価格系 forward 観測 (候補 6): (|gap|, live drift, basis) = 09-13 (50.0, +41.0, +41.0) / 09-27 (22.0, +18.4, +19.3)。O-2026-09-14-1 の予測「|gap| と drift は正相関、|gap|≥40p で drift>8p が常態」は N=2 で棄却されないが、**説明変数は |gap| ではなく basis** の可能性を O-2026-09-28-1 ([[daily-observations-2026-09]]) として登録。計測 json: `bt-results/wg_gap_drift-2026-09-28.json` (09-13 / 09-20 / 09-27 × 3 ペア)。
 
+### 2026-10-22 — 冬時間 (2026-11-01〜) の打ち切り基準時刻 R3 再導出 (DRAFT §5 項目 1–2 完了、構造バグなし)
+
+- **結論**: `first_bar_ts` は冬に MASSIVE **22:00 stamped** バーへ解決 → 打ち切り (凍結 +15 分) = **22:15 > 実開場見込み 22:04**。決定論 `ABANDONED_HALT` 型 (DRAFT §5-2) は不成立 → 修理 PR 不要、pin のみ。registry `wg-dst-cutoff-basis-r3` resolved (期日 10-25 の 3 日前)。
+- **実測** (価格非接触、`tools/wg_sunday_first_bar_audit.py` → `raw/bt-results/wg-winter-first-bar-audit-2026-10-22.json`): 前冬 2025-11-02〜2026-03-01 の 18 週末 × 3 ペアすべて Sun 初バー 22:00 / Fri 最終バー 21:45 (切替 11-02 のみ Fri 20:45)、夏は 21:00 / 20:45。検出器の cut は DST 非依存 (Fri 21:00 / Sun 21:00 固定) で `searchsorted` が冬は 22:00 バーを返す。`deterministic_halt_signature` 0/54。
+- **副所見**: 冬の Friday close は凍結定義どおり **20:45 Close** (21:45 ではない) — explore tool と同一、BT/live 整合、変更は R1 (起案しない)。
+- **残 (11-01 当日〜11-02)**: 実開場時刻 (22:04–22:05 ±10 分) と G0 発火時刻の整合確認 = registry `wg-winter-first-weekend-open-time-check`。G0' は終了済みのため 11-01 は event に数えず記録のみ。月次 `sunday_open_spread_measure.py` / `wg_gap_drift_measure.py` re-run も同日。
+- 詳細: [[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]] §5.1 / [[2026-10-22-session]]
+
 ## テスト
 
-`tests/test_weekend_gap_fade.py` (29 tests): 検出 (qualify/非qualify/方向/ガード/窓/凍結閾値) / cap 境界とスコープ / latch dedup + fail-closed / G1/G2 発火・境界・**非再武装** / 1000u・horizon・disaster SL・no-TP・登録 4 点 pin。
+`tests/test_weekend_gap_fade.py` (31 tests): 検出 (qualify/非qualify/方向/ガード/窓/凍結閾値) / **冬構造 pin ×2 (22:00 解決・20:45 close・打ち切り 22:15、2026-10-22)** / cap 境界とスコープ / latch dedup + fail-closed / G1/G2 発火・境界・**非再武装** / 1000u・horizon・disaster SL・no-TP・登録 4 点 pin。
+`tests/test_wg_sunday_first_bar_audit.py` (6 tests、2026-10-22): 監査 tool の純関数 (祝日除外 / 冬・夏解決 / 分類 / 偽 21:00 バー signature)。
 `tests/test_weekend_gap_execution_contract_b.py` (26 tests、AMENDMENT 2026-09-10): 凍結値 pin / send decision 境界 (tradeable 直後 SEND・+15 分 strictly-after・drift strictly >+8.0p・符号規約両スケール) / **counterfactual kill pin** (繰り下げ配線を殺すと halt 中 tick が `_tick_entry` に到達して落ちる — 実証: 配線 kill で 5 tests fail) / halt-race 限定再送 (1 回のみ・MARKET_HALTED 限定・flag なし再送なし・transport error 対象外) / **G1 基準 quote 差し替え pin** (再送 fill の slippage が再送直前 quote 基準 — basis swap を殺すと落ちることを実証) / `fetch_oanda_pricing_state` (ナノ秒 ts parse・halted・fail-closed)。
 
 ## 参照

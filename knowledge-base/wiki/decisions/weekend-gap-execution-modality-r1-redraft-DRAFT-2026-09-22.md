@@ -104,6 +104,24 @@
   4. 11-01 が qualify し、**かつその時点で G0' event #2 が未発生の場合のみ**、それを G0' の event #2 として数える (DST を分母外にしない)。9〜10 月の qualifying pair-event で G0' が既に終了 (event #2 発生) していれば **数えない** — §2 のとおり event #3 は存在せず、rolling gate は未承認 (PR #281 review P2、6 巡目)。数えない場合も本節の R3 再導出と月次 re-run は実施する。同日は `tools/sunday_open_spread_measure.py` / `wg_gap_drift_measure.py` の月次 re-run を必ず走らせる (常設 gate、冬時間初週末は注視 — card §前向きゲート「常設」)。
 - **期限**: 1–2 を 2026-10-25 まで、3–4 は 11-01 当日〜11-02 (24h 規則)。
 
+### 5.1 結果 — 項目 1–2 完了 (2026-10-22、autopilot、rule:R3、価格非接触、registry `wg-dst-cutoff-basis-r3` resolved)
+
+- **結論: 構造バグなし。修理 PR 不要 — test pin + 監査 tool で着地。** `first_bar_ts` は冬に **MASSIVE 22:00 stamped バー**へ解決し、打ち切り (凍結 +15 分) は **22:15 > 実開場見込み 22:04**。項目 2 の決定論 `ABANDONED_HALT` 型は成立しない。
+- **実測** (`tools/wg_sunday_first_bar_audit.py` — MASSIVE 15m parquet の **index (timestamp) のみ**読む、OHLC 列 0、outcome 非接触。artifact `raw/bt-results/wg-winter-first-bar-audit-2026-10-22.json`、窓 2025-10-01〜2026-10-22、USD_JPY / EUR_USD / AUD_USD):
+
+| 期間 | 金曜最終バー | 日曜初バー | 検出器 `first_bar_ts` | 打ち切り | 週末数 (×3 ペア) |
+|---|---|---|---|---|---|
+| 夏 (〜2025-10-26、2026-03-08〜) | 20:45 | **21:00** | 21:00 バー | 21:15 | 35 (105) |
+| **冬 2025-11-02〜2026-03-01** | 21:45 (11-09 以降) | **22:00** | **22:00 バー** | **22:15** | **18 (54)** |
+| 切替 2025-11-02 | 20:45 (夏の最終) | 22:00 | 22:00 バー | 22:15 | (冬に含む、gap 49.25 h) |
+| 切替 2026-03-08 | 21:45 (冬の最終) | 21:00 | 21:00 バー | 21:15 | (夏に含む、gap 47.25 h) |
+
+  `sun22` 54/54、`other` 0、`deterministic_halt_signature` (検出器が 22:00 開場週末に 21:00 バーへ解決) = **0/54**。3 ペアの時刻構造は完全に同一。祝日 gap (12-25 / 01-01、23 h) は週末に数えない (`WEEKEND_GAP_MIN_H` 40 h)。
+- **機構 (code read)**: `detect_weekend_gap_signal` の cut は DST 非依存 — `_last_friday_cut` = Fri 21:00 固定、`sun_cut` = +48 h = Sun 21:00 固定。冬は Sun 21:00 のバーが存在しないので `idx.searchsorted(sun_cut)` が次の 22:00 バーを返し、guard (`SUN_OPEN_GUARD_H` 24 h) 内 ⇒ `first_bar_ts` = 22:00 バー。`weekend_key_for` (`hour >= 21`) も 22:xx を含み、`_weekend_gap_tick` は market-closed gate (日曜 `h < 22`) より前に走るため 22:00〜22:04 の halt 中 poll も従来どおり。live のデータ源は `modules/data.py` の Massive API 最優先経路 (`_MASSIVE_SYMBOLS` に 3 ペア) = parquet と同ベンダー・同 stamp 規約。
+- **副所見 (estimand 事実、変更提案なし)**: 冬の Friday close は凍結定義「last bar strictly < Fri 21:00 UTC」どおり **20:45 バーの Close** であり、実取引最終バー (21:45) ではない。explore tool (`tools/weekend_gap_fill_explore.py:106`) と同一定義なので BT/live 整合、凍結統計 (12.3 y、冬週末を含む) もこの定義で算出済み。変更 = 定義変更 = R1 (起案しない)。冬の gap は「金曜最後の 1 時間の値動き」を含む量として定義されている、と読む。
+- **pin (CI)**: `tests/test_weekend_gap_fade.py::test_winter_structure_first_bar_ts_resolves_to_2200_bar_and_fri_close_is_2045` (22:00 解決 / 20:45 close / 窓 22:00–23:00 / 21:xx は None) + `::test_winter_send_decision_halt_deadline_is_2215_not_2115` (22:10 HOLD / 22:15:00 HOLD / 22:15:01 ABANDONED_HALT / 22:05 tradeable SEND、**counterfactual**: 21:00 解決なら 22:04 の tick で既に ABANDONED_HALT = 項目 2 の型を陽に示す) + `tests/test_wg_sunday_first_bar_audit.py` 6 本 (祝日除外 / 冬・夏解決 / 分類 / 集計 / 偽 21:00 バー投入時の signature 検出)。
+- **項目 3–4** は後継 registry `wg-winter-first-weekend-open-time-check` (期日 11-02) で追跡。G0' は 09-13 / 09-27 の 2 event で終了済みのため **11-01 が qualify しても event として数えない (記録のみ)** — 本節項目 4 の条件「未発生の場合のみ」は不成立が確定している。
+
 ---
 
 ## 6. 記録規則 — 「イベント後 24h 以内に card 転記」 (g0prime 手順への追記案)

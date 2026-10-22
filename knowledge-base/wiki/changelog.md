@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-22 — test(wg)+tools: weekend_gap 冬時間の打ち切り基準時刻 R3 再導出 — 構造バグなし、pin + 監査 tool / storm guard 執行窓 permission 待ち 3 run 目 (MCP 未接続) (rule:R3、autopilot、live 経路のコード変更なし)
+
+- **registry `wg-dst-cutoff-basis-r3` (期日 10-25) resolved**: 前冬 2025-11-02〜2026-03-01 の MASSIVE 15m 初バーは **18 週末 × 3 ペア (USD_JPY / EUR_USD / AUD_USD) 全て 22:00 stamped** (夏 21:00)、金曜最終バーは冬 21:45 / 夏 20:45。`detect_weekend_gap_signal` の cut は DST 非依存 (Fri 21:00 / Sun 21:00 固定) で `searchsorted` が冬は 22:00 バーを返す ⇒ `first_bar_ts` = 22:00 バー、打ち切り (凍結 +15 分) = 22:15 > 実開場見込み 22:04。DRAFT §5-2 の決定論 `ABANDONED_HALT` 型は不成立 → **修理 PR 不要**
+- `tools/wg_sunday_first_bar_audit.py` (新規、parquet の index のみ読む = OHLC 列 0 / outcome 非接触、`--cache-dir` でローカル main の cache を指定) → artifact `raw/bt-results/wg-winter-first-bar-audit-2026-10-22.json` (`sun22` 54/54、`deterministic_halt_signature` 0/54)
+- pin: `tests/test_weekend_gap_fade.py` +2 (冬構造 fixture: 22:00 解決 / Friday close = 20:45 / 打ち切り 22:10 HOLD・22:15:00 HOLD・22:15:01 ABANDONED_HALT / counterfactual 21:00 解決なら 22:04 で放棄) + `tests/test_wg_sunday_first_bar_audit.py` 6 本。凍結値・閾値・live 経路コードは不変
+- 副所見 (estimand 事実、変更提案なし): 冬の Friday close は凍結定義どおり 20:45 Close (21:45 ではない) — explore tool と同一定義、BT/live 整合。変更は R1
+- registry 新設 `wg-winter-first-weekend-open-time-check` (11-02): DRAFT §5 項目 3–4 (11-01 実開場時刻 ±10 分 / G0 発火整合、G0' 終了済みのため event に数えず記録のみ)
+- **storm guard 執行窓 (registry `storm-guard-enforce-execution-window`)**: 06:05Z / 06:14Z open live 0 (窓 ≥47 h) だが本セッションは Render MCP が `CONNECT_TIMEOUT` で未接続 = env 変更 tool 自体が無く試行不可 → note + 期日 10-22 → **10-23** (+1 日)。[[storm-guard-design-2026-09-22]] §7.4 に行追加。user 2 択は不変
+- 詳細: [[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]] §5.1 / [[weekend-gap-fade]] 2026-10-22 節 / [[2026-10-22-session]]
+
 ## 2026-10-21 — fix(sltp): LIVE 経路の broker 確認済み SL を persist — SL replacement storm family A/B の根 (caller 側) を修復 (rule:R3)
 
 - **根** ([[storm-guard-design-2026-09-22]] §8): `_check_sltp_realtime` の LIVE 送信口は `modify_sl_sync` 成功後に DB `sl` を persist しない (shadow 分岐のみ persist、2026-06-03 ab7a4931 以来の非対称) → 毎 tick の baseline が ON_FILL SL のまま → Tier2 trail / Tier1 BE (同一 if/else の排他 2 分岐) の `new_sl > sl` が恒真 → 同値再送 (family A) と trail⇄BE 往復 (family B、#1254773 46,091 送信 / 11.8 h) が同じ根から出る。Workflow 18 agent (反証 0/6)
