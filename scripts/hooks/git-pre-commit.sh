@@ -25,9 +25,9 @@ fi
 # 行頭 conflict マーカー検査 (2026-10-22 R3): 解決スクリプトの途中停止 → マーカー入りの
 # ファイルを git add → 素通り (PR #338 merge commit 2ff51e6e) の再発防止。index の内容を見る。
 echo "[pre-commit] Checking conflict markers (staged, line-anchored)..."
-STAGED_AM="$(git diff --cached --name-only --diff-filter=AM)"
-if [[ -n "$STAGED_AM" ]]; then
-    printf '%s\n' "$STAGED_AM" | python3 "$REPO_ROOT/scripts/hooks/check_conflict_markers.py" --stdin --index || {
+# -z (NUL 区切り) で quotePath エスケープを避け、rename/copy (R/C) も対象に含める
+if [[ -n "$(git diff --cached --name-only --diff-filter=ACMR)" ]]; then
+    git diff --cached --name-only -z --diff-filter=ACMR | python3 "$REPO_ROOT/scripts/hooks/check_conflict_markers.py" --stdin0 --index || {
         echo "[pre-commit] Conflict markers found. Commit blocked."
         exit 1
     }

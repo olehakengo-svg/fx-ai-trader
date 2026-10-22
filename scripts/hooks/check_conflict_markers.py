@@ -8,9 +8,11 @@
 本文中の引用 (「`<<<<<<<` を含む記述」) には反応しない。
 
 使い方:
+    git diff --cached --name-only -z --diff-filter=ACMR | python3 scripts/hooks/check_conflict_markers.py --stdin0 --index
     printf '%s\n' path1 path2 | python3 scripts/hooks/check_conflict_markers.py --stdin
     python3 scripts/hooks/check_conflict_markers.py path1 path2
-    (--index を付けると working tree でなく index の内容 `git show :path` を検査する)
+    (--stdin0 = NUL 区切り: 非 ASCII / 空白を含むパスを quotePath エスケープなしで受ける。
+     --index を付けると working tree でなく index の内容 `git show :path` を検査する)
 
 終了コード: 0 = マーカーなし / 1 = 1 件以上 (stdout に `path:line: marker` を列挙) /
 2 = 引数エラー。読めないファイル (binary / 不在) は skip (stderr に 1 行)。
@@ -65,9 +67,9 @@ def scan(paths: Iterable[str], use_index: bool = False) -> list[str]:
     """`path:line: marker` 形式の違反一覧 (空 = clean)。"""
     violations: list[str] = []
     for p in paths:
-        p = p.strip()
-        if not p:
+        if not p or not p.strip():
             continue
+        # パスは字義どおりに扱う (strip しない — 空白を含むファイル名を壊さない)
         text = read_source(p, use_index)
         if text is None:
             print(f"[conflict-markers] skip (binary/unreadable): {p}", file=sys.stderr)
@@ -81,10 +83,15 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="行頭 git conflict マーカー検査")
     ap.add_argument("paths", nargs="*")
     ap.add_argument("--stdin", action="store_true", help="検査パスを stdin から 1 行 1 つで受ける")
+    ap.add_argument("--stdin0", action="store_true",
+                    help="検査パスを stdin から NUL 区切りで受ける (git diff -z、非 ASCII パス安全)")
     ap.add_argument("--index", action="store_true", help="working tree でなく index (git show :path) を検査")
     args = ap.parse_args(argv)
     paths = list(args.paths)
-    if args.stdin:
+    if args.stdin0:
+        raw = sys.stdin.buffer.read()
+        paths.extend(part.decode("utf-8", "surrogateescape") for part in raw.split(b"\0"))
+    elif args.stdin:
         paths.extend(sys.stdin.read().split("\n"))
     if not paths:
         return 2

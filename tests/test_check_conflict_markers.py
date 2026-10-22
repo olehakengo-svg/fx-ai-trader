@@ -75,8 +75,21 @@ def test_cli_exit_codes(tmp_path):
     assert r.returncode == 2
 
 
-def test_hook_wires_the_checker_against_the_index():
+def test_stdin0_keeps_literal_non_ascii_and_spaced_paths(tmp_path):
+    jp = tmp_path / "セッション ログ 2026-10-22.md"  # 非 ASCII + 空白
+    jp.write_text("ok\n<<<<<<< HEAD\n", encoding="utf-8")
+    spaced = tmp_path / " leading-space.md"
+    spaced.write_text("clean\n", encoding="utf-8")
+    payload = f"{jp}\0{spaced}\0".encode("utf-8")
+    r = subprocess.run([sys.executable, str(SCRIPT), "--stdin0"], input=payload, capture_output=True)
+    out = r.stdout.decode("utf-8")
+    assert r.returncode == 1 and "セッション ログ 2026-10-22.md:2: <<<<<<<" in out
+    assert "skip" not in r.stderr.decode("utf-8")  # 空白付きパスも字義どおり読めている
+
+
+def test_hook_wires_the_checker_against_the_index_with_nul_paths_and_renames():
     hook = (ROOT / "scripts" / "hooks" / "git-pre-commit.sh").read_text(encoding="utf-8")
     assert "check_conflict_markers.py" in hook
-    assert "--stdin --index" in hook
-    assert "--diff-filter=AM" in hook
+    assert "--stdin0 --index" in hook
+    assert "--name-only -z --diff-filter=ACMR" in hook  # rename/copy を含め、quotePath を避ける
+    assert "--diff-filter=AM\"" not in hook
