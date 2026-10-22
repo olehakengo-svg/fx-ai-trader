@@ -1296,13 +1296,28 @@
     },
     {
       "id": "wg-dst-cutoff-basis-r3",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-10-25",
       "doc": "knowledge-base/wiki/decisions/weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22.md",
       "message": "冬時間 2026-11-01 (US DST 終了、EU 10-25 終了時点では 21:00 UTC のまま) 以降 Sunday open は **22:00 UTC** (実開場 22:04 見込み — 未実測、凍結 12 / 16 週末は全て夏時間)。10-25 までに R3 再導出: `first_bar_ts` (demo_trader.py:4205) が冬に MASSIVE **22:00 stamped バー**へ解決するかを、前冬 (2025-11-02〜2026-03-08) の Sunday 初バー ts で parquet から確認 (価格系のみ、outcome 非接触) + test pin。MASSIVE が冬に 21:00 バーを出す構造なら ABANDONED_HALT 決定論 = 構造バグとして R3 修理。11-01 が qualify し、かつその時点で G0' event #2 が未発生の場合のみ、それを event #2 として数える (DST を分母外にしない)。出所: [[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]] §5 / g0prime message。",
       "condition": "前冬 Sunday 初バー ts の実測結果と `first_bar_ts` の解決先が DRAFT §5 に記録され、決定論バグなら修理 PR (test pin 付き) がマージ済みであること",
-      "reachability": "Claude が data/cache/massive の 15m parquet (価格系) を読み、必要なら strategies/daytrade/weekend_gap_fade.py の R3 修理 PR (live 経路 = 巡目上限宣言 + market-safe 窓、日曜 20:00–22:30Z 除外)。"
+      "reachability": "Claude が data/cache/massive の 15m parquet (価格系) を読み、必要なら strategies/daytrade/weekend_gap_fade.py の R3 修理 PR (live 経路 = 巡目上限宣言 + market-safe 窓、日曜 20:00–22:30Z 除外)。",
+      "resolved": "2026-10-22",
+      "resolution": "✅ 2026-10-22 (autopilot、期日 10-25 の 3 日前、rule:R3、価格非接触): **構造バグなし — 修理 PR 不要、test pin + 監査 tool で着地**。実測 (`tools/wg_sunday_first_bar_audit.py`、MASSIVE 15m parquet の **index のみ**読む、OHLC 列 0、artifact `raw/bt-results/wg-winter-first-bar-audit-2026-10-22.json`): 前冬 2025-11-02〜2026-03-01 の **18 週末 × 3 ペア (USD_JPY / EUR_USD / AUD_USD) 全てで Sunday 初バーは 22:00 stamped** (`sun22` 54/54、`other` 0)、夏 (〜10-26、03-08〜) は 21:00 stamped。金曜最終バーは冬 21:45 (11-09 以降) / 夏 20:45、切替週末 11-02 は Fri 20:45 → Sun 22:00 (gap 49.25h)、03-08 は Fri 21:45 → Sun 21:00 (47.25h)。`detect_weekend_gap_signal` の cut は DST 非依存 (`_last_friday_cut` = Fri 21:00、`sun_cut` = +48h = Sun 21:00) → `searchsorted(sun_cut)` が冬は 22:00 バーを返す (guard 24h 内) ⇒ `first_bar_ts` = 22:00 バー、打ち切り = 22:15 > 実開場見込み 22:04。`deterministic_halt_signature` (US DST カレンダーから index と独立に導出した期待開場時刻 = 冬 22:00 なのに検出器が 21:00 バーへ解決、Codex P2 で独立導出に修正) = **0/54**、期待時刻との不一致 0/159。pin: `tests/test_weekend_gap_fade.py::test_winter_structure_first_bar_ts_resolves_to_2200_bar_and_fri_close_is_2045` / `::test_winter_send_decision_halt_deadline_is_2215_not_2115` (counterfactual 21:00 解決なら 22:04 tick で ABANDONED_HALT = §5-2 の型を陽に示す) + `tests/test_wg_sunday_first_bar_audit.py` 7 本 (陽性対照: 偽 21:00 バー投入で signature 1 / 実測構造で 0)。**副所見 (estimand 事実、変更提案なし)**: 冬の Friday close は凍結定義 (last bar < Fri 21:00) どおり **20:45 バーの Close** であり、実取引最終バー 21:45 ではない — explore tool (`tools/weekend_gap_fill_explore.py:106`) と同一定義なので BT/live 整合、凍結統計 (12.3y、冬週末を含む) もこの定義で算出済み。変更は定義変更 = R1 (起案しない)。live データ源も MASSIVE API (`modules/data.py` `_MASSIVE_SYMBOLS` に 3 ペアとも含む) = parquet と同ベンダー。§5 項目 3–4 (11-01 当日の実開場時刻 / G0 発火時刻整合、G0' は 09-27 で終了済みのため event として数えない・記録のみ) は後継 entry `wg-winter-first-weekend-open-time-check` (11-02)。記録: DRAFT §5.1 / [[weekend-gap-fade]] 2026-10-22 節 / [[2026-10-22-session]]。",
+      "note": {
+        "2026-10-22": "autopilot run 06:0xZ: parquet は git 非追跡のためローカル main checkout の `data/cache/massive` を `--cache-dir` 絶対パスで指定して実行 (USD_JPY 10-09 まで = 前冬窓は完全被覆)。"
+      }
+    },
+    {
+      "id": "wg-winter-first-weekend-open-time-check",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-02",
+      "doc": "knowledge-base/wiki/decisions/weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22.md",
+      "message": "[[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]] §5 項目 3–4 (項目 1–2 は `wg-dst-cutoff-basis-r3` で 10-22 完了 = 構造バグなし、first_bar_ts は冬 22:00 バーへ解決、打ち切り 22:15)。冬時間初週末 **2026-11-01 (日)** の実開場時刻と G0 発火時刻仕様 (card §前向きゲート: 冬 22:05±5m) / EXEC_B 実送信時刻の整合を 11-02 までに確認 (24h 規則): (3) OANDA 実開場 (初 M1 / tradeable 転換時刻) が **22:04–22:05 から >±10 分乖離** なら R3 で打ち切り基準時刻を再導出 (凍結値 +15 分の変更は R1)。no-qualify 週末でも `[WEEKEND_GAP]` 診断行 (gap 値 / no-qualify) と tradeable poll の時刻は読める。(4) G0' は 09-13 / 09-27 の 2 event で終了済み (packet §6 発動、R1 再審 packet v1 は user 決裁 W1〜W6 待ち) のため **11-01 が qualify しても event として数えない — 記録のみ** (card へ 24h 以内に転記、shadow outcome は書かない)。同日 `tools/sunday_open_spread_measure.py` / `tools/wg_gap_drift_measure.py` の月次 re-run (常設 gate、冬時間初週末は注視)。",
+      "condition": "2026-11-01 の実開場時刻 (OANDA 初 M1 ts または tradeable 転換時刻)、engine の `[WEEKEND_GAP]` 初回評価 tick 時刻、qualify/no-qualify、(qualify 時) 契約 B の決定 (SEND / HOLD→ABANDONED_* / SKIPPED_SPREAD) と送信時刻が [[weekend-gap-fade]] の 2026-11-01 節に記録され、22:04–22:05 からの乖離が ±10 分以内であること (超過なら R3 再導出 entry を新設)",
+      "reachability": "autopilot 11-02 run が Render ログ API (service srv-d6va1of5r7bs73en10vg、2026-11-01T21:50–22:40Z、text=`WEEKEND_GAP`) + `/api/demo/trades` (weekend_gap_fade 行、system_kv latch) + `/api/oanda/audit` を読んで card へ転記する。Tier A cron (tools/prereg_trigger_watch.py) が deadline 超過で TRIGGERED を出す。ログが取得不能なら『判断材料なし』と記録して +7 日延長 (黙って延長しない)。"
     },
     {
       "id": "sprint-0922-triage-close",
@@ -1501,7 +1516,7 @@
       "id": "storm-guard-enforce-execution-window",
       "active": true,
       "type": "deadline_info",
-      "deadline": "2026-10-22",
+      "deadline": "2026-10-23",
       "doc": "knowledge-base/wiki/analyses/storm-guard-design-2026-09-22.md",
       "message": "storm guard 有効化の**執行** (判断は storm-guard-enforce-decision で 10-19 に ENABLE 確定、[[storm-guard-design-2026-09-22]] §7.3)。Render web service fx-ai-trader の env `STORM_GUARD_ENFORCE=1` を設定 (render.yaml は sync:false 宣言のみ) → 自動再起動 → `/api/oanda/status.storm_guard.enforce == true` を確認。執行窓 = [[sprint-triage-pr-discipline-2026-09-22]] §3.2 (a) **open live trade 0** (`/api/demo/status` の is_shadow=0 open と OANDA `heartbeat.open_trade_count` が 0) ∧ (b) 日曜 20:00–22:30Z を避ける。10-19 02:18Z 時点は #1254773 (carry_dip BUY) が open で storm 進行中 (5,881 送信)。TRIGGERED (10-21 に未執行) = 窓が開かなかった場合は『窓未到来、open trade = #…』と記録して延長 (黙って延長しない)。rollback = env を空にして再起動。",
       "condition": "Render env STORM_GUARD_ENFORCE=1 が設定され、再起動後の /api/oanda/status.storm_guard.enforce が true であることを確認し、deploy id・時刻・確認時点の storm_guard totals を本 entry の resolution に記録すること",
@@ -1509,7 +1524,8 @@
       "note": {
         "2026-10-20": "窓未到来。05:34:47Z PR #337 マージ (open 0 で実施、deploy dep-dbbfquflk1mc73dnqkn0 live 05:36:42Z) の **14 秒後 05:36:56Z に carry_dip BUY #1346961 (@158.151、SL 158.044) が fill** → open 1。05:39〜 1 分毎 poll (read-only) で open 1 継続のため env 未設定。再起動で storm #3 の in-process 状態は消え (`totals` 全 0 から再開、#1346961 は seed None の新規 fill として 1 建玉のみ追跡)、enforce は false のまま。deploy 直前 05:35Z 読みの storm #3 最終値: #1254773 sent **46,098** / failed 7 / confirmed_sl 158.275 (10-19 03:48Z の 11,812 から更に 34k、決済済み = open 0)。",
         "2026-10-21": "**permission 待ち (期日 10-21 → 10-22 に +1 日、理由 = user 操作待ち、窓は開いていた)**。autopilot 10-21 run 冒頭 03:26Z: `/api/oanda/status` open_trades 0 / `heartbeat.open_trade_count` 0 / `/api/demo/status` is_shadow=0 open 0 / `storm_guard.enforce` false / totals 全 0 (07:14Z 再起動 epoch 内で live fill 0 = storm 0) = **執行窓は 10-20 07:11Z から ≥20 時間開いていた**。03:27:33Z に open 0 を再確認して `mcp__render__update_environment_variables` (STORM_GUARD_ENFORCE=1、replace=false) を 1 回試行 → auto mode classifier **[Production Deploy] で再拒否 (10-20 07:13Z に続き 2 run 連続)**。allow ルール未追加を確認したので本 run では再試行しない。回避策 (Render API 直叩き / render.yaml 値指定) は採らない (拒否意図の迂回 / rollback 経路の劣化)。**user 操作の 2 択 (不変)**: (a) Render dashboard で web service fx-ai-trader の env `STORM_GUARD_ENFORCE=1` を追加 (open live 0 のとき、自動再起動) / (b) settings で `mcp__render__update_environment_variables` を allow に追加 → 次 run が冒頭で執行。次 run も false なら同じ記録を note に積み、期日は毎回 +1 日 (理由付き)。enforce 前の次 storm は送信される (10-20 07:14Z 以降 open 0 で storm 0)。記録: [[storm-guard-design-2026-09-22]] §7.4 10-21 行 / [[2026-10-21-session]]。",
-        "2026-10-20 09:14Z (対話セッション)": "autopilot 10-21 03:27Z の試行より前に、対話セッションが 10-20 09:13Z (oanda open_trades 0 ∧ demo is_shadow=0 open 0 ∧ engine tick 0.9 s を再確認) → 09:14Z に `mcp__render__update_environment_variables` (同 payload) を試行 → classifier [Production Deploy] で拒否。通算の拒否は 10-20 07:13Z / 10-20 09:14Z / 10-21 03:27Z の **3 回** (窓はその間ずっと開いていた)。同セッションの重複 PR #343 (期日 10-22 化) は先着の PR #342 で close。"
+        "2026-10-20 09:14Z (対話セッション)": "autopilot 10-21 03:27Z の試行より前に、対話セッションが 10-20 09:13Z (oanda open_trades 0 ∧ demo is_shadow=0 open 0 ∧ engine tick 0.9 s を再確認) → 09:14Z に `mcp__render__update_environment_variables` (同 payload) を試行 → classifier [Production Deploy] で拒否。通算の拒否は 10-20 07:13Z / 10-20 09:14Z / 10-21 03:27Z の **3 回** (窓はその間ずっと開いていた)。同セッションの重複 PR #343 (期日 10-22 化) は先着の PR #342 で close。",
+        "2026-10-22": "**permission 待ち 3 run 目 — 本 run は試行自体が不可 (期日 10-22 → 10-23、+1 日、理由 = user 操作待ち + Render MCP 未接続)**。autopilot 10-22 run 冒頭 06:05Z / 06:14Z 再確認: `/api/oanda/status` open_trades 0 / `heartbeat.open_trade_count` 0 / NAV ¥273,609.1611 (10-20 12:00Z と同値 = live fill 0) / `storm_guard.enforce` false / totals 全 0 (10-21 10:06Z PR #346 deploy epoch 内 live fill 0)、`/api/demo/status` is_shadow=0 open 0 (open 1 は shadow) ⇒ **執行窓は開いている** (10-20 07:11Z から ≥47 h)。しかし本セッションは Render MCP server が `CONNECT_TIMEOUT` (30 s) で未接続 = `mcp__render__update_environment_variables` が tool として存在せず、試行できない (classifier 拒否とは別の障害モード)。回避策 (Render REST 直叩き / render.yaml 値指定 / code default 反転) は 10-21 note の方針どおり採らない。classifier 拒否の通算は **4 回** (10-20 07:13Z / 10-20 09:14Z 対話 / 10-21 03:27Z autopilot / 10-21 10:38Z 対話 — 10-21 note の『2 回』『3 回』は当時の既知数)。リスク評価の更新: caller 側の根 (LIVE 送信口の DB 未 persist) は PR #346 (10-21 10:06Z live) で修復済みのため、enforce 未執行で露出する残余は family A/B ではなく deadband (0.001 刻み trail) と breaker 対象のみ = 緊急度は 10-19 判断時より低い (ただし ENABLE 判断は不変)。**user 操作 2 択は不変**: (a) Render dashboard で `STORM_GUARD_ENFORCE=1` (open live 0 のとき) / (b) settings で MCP tool を allow (+ MCP 接続回復)。次 run: MCP が接続されていれば 1 回試行、未接続なら本 note と同じ記録 + 期日 +1 日。"
       }
     },
     {

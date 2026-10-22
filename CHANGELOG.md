@@ -41,6 +41,11 @@
 - 10-08 本番 dry-run (ページング後の全期間、--apply なし): EUR_GBP N=9 EV −1.06 Wilson_lo 0.121 (WATCH) / AUD_JPY N=4 / 他 3 セル N=0 → 現時点の DEMOTE 0。**EUR_GBP は次の closed live fill で N=10 到達、EV<0 なら本修正で初めて実効する auto-demote が発火する** (R2、05-18 LOCK 契約)。母集団 (is_shadow=0 ∧ CLOSED) は不変 — 厳格 Live (`oanda_trade_id` 非空) との差は 10-08 時点 0 行 (13/13 一致)
 - BT 不要 (rule:R3 構造バグ: 戦略ロジック・閾値・母集団を変えない。05-18 宣言済み predicate の到達性修復)。詳細: knowledge-base/wiki/changelog.md 2026-10-08
 
+## 2026-10-22 — test(wg)+tools: weekend_gap 冬時間 (2026-11-01〜) の打ち切り基準時刻 R3 再導出 — 構造バグなし、pin + 監査 tool (rule:R3)
+
+- `tools/wg_sunday_first_bar_audit.py` (新規): MASSIVE 15m parquet の index のみ読み、週末 gap ごとに Fri 最終バー / Sun 初バー / 検出器 `first_bar_ts` 解決先 / 打ち切り時刻を出力 (価格非接触)。前冬 2025-11-02〜2026-03-01 は 18 週末 × 3 ペア全て **22:00 stamped** → 打ち切り 22:15 > 実開場 22:04、`deterministic_halt_signature` 0/54 = DRAFT §5-2 の構造バグは不成立
+- pin: `tests/test_weekend_gap_fade.py` +2 (冬構造: 22:00 解決 / Friday close = 20:45 / 打ち切り境界 / counterfactual) + `tests/test_wg_sunday_first_bar_audit.py` (7、期待開場時刻は US DST カレンダーから独立導出、偽 21:00 バー陽性対照)。凍結値・live 経路コードは不変。詳細: knowledge-base/wiki/decisions/weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22.md §5.1
+
 ## 2026-09-27 — research(bt): kalman_d7_po_dn_flip live 制約付き BT (C0〜C6) Python port — harness 未検証 / 宣言 TP 5×ATR は canon exit ではない可能性が高い (確定は TV 再走) (rule:R3 診断のみ)
 
 - `tools/kalman_d7_live_constrained_bt.py` (standalone) + pin `tests/test_kalman_d7_live_constrained_bt.py` (19)。Codex queue `20260925-0300` を Claude 自走で完遂 (done + Claude Review、PR #302)

@@ -1,5 +1,11 @@
 # Knowledge Base Change Log
 
+## 2026-10-22 (autopilot — weekend_gap 冬時間の打ち切り基準時刻 R3 再導出 = 構造バグなし + storm guard 執行窓 permission 待ち 3 run 目)
+- ✅ **registry `wg-dst-cutoff-basis-r3` (期日 10-25) を 3 日前倒しで resolve**: 前冬 18 週末 × 3 ペアの MASSIVE 15m 初バーは全て **22:00 stamped** → `first_bar_ts` は 22:00 バー、打ち切り 22:15 > 実開場 22:04。DRAFT §5-2 の決定論 `ABANDONED_HALT` 型は不成立 = 修理不要。`tools/wg_sunday_first_bar_audit.py` (index のみ、価格非接触、期待開場時刻は US DST カレンダーから独立導出) + pin 9 本。副所見: 冬の Friday close は凍結定義どおり 20:45 Close (R1 事項、起案なし)。後継 `wg-winter-first-weekend-open-time-check` (11-02、11-01 実開場時刻 ±10 分の確認、G0' 終了済みのため記録のみ) ([[weekend-gap-execution-modality-r1-redraft-DRAFT-2026-09-22]] §5.1)
+- 🔑 **storm guard 執行窓は ≥47 h 開いているが未執行 (3 run 目)**: 06:05Z / 06:14Z open live 0 / `enforce: false`。本セッションは Render MCP が `CONNECT_TIMEOUT` で未接続 = env 変更 tool 自体が存在せず試行不可 (classifier 拒否とは別の障害モード)。registry 期日 **10-22 → 10-23** (+1 日、理由付き)、[[storm-guard-design-2026-09-22]] §7.4 に行追加。caller 側根は PR #346 で修復済みのため残余露出は deadband / breaker のみ
+- ⚪ SHADOW_PROMOTE R2 alert 03:18Z (CRITICAL 6 / WARN 20、全て is_shadow=1 母集団) は原則 3 (Shadow は削らない) により処置対象外・記録のみ (09-26 前例と同じ)
+- 詳細: [[2026-10-22-session]]
+
 ## 2026-10-21 (対話「前回の続き」— storm family A/B の根を R3 修復 + 座礁 10-20 救出 + enforce は permission 待ち継続)
 - 🔑🔴 **SL storm の根は caller 側だった**: LIVE 送信口が broker 確認済み SL を DB に persist しない (shadow だけ persist、06-03 以来) → baseline が ON_FILL SL のまま → Tier2 trail ⇄ Tier1 BE (同一 if/else) が恒真ガードで往復。family A と B は同じ根。Workflow 18 agent で導出・反証 0/6・設計 3 案判定 → caller 層 persist 案 ([[storm-guard-design-2026-09-22]] §8)
 - ✅ 修正 PR: persist + in-memory 脚 + 兄弟対称化 + `sl_initial` (R 分母)。pin 13 本 (red → green)。推定量の明示変更 (LIVE SL_HIT at trail) を §8.3 / carry_dip カードに記録
