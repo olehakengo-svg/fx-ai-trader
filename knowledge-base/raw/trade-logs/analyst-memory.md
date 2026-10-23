@@ -5601,6 +5601,16 @@ Cutoff後の累積トレードは **N=7、WR=57.1%、PnL=+34.8**（うち2戦略
 - **order_bar_dedup**: daytrade系で840件。同一バーでのオーダー重複排除が頻繁に発動→エントリーチャンスが機械的に消去されている。
 - **no_signal**: rnb_usdjpy専用カウンター1,292件はRnBロジックがそもそも条件を見出せていないことを示す。静的なRANGING相場（USD/JPY ATR%ile 33%）との相性の問題。
 
+### 2026-10-23 (Pre-Tokyo Briefing)
+前日（2026-10-22）はトレード**ゼロ**。PnL = ¥0、WR = N/A。
+Cutoff後累計はN=7（carry_dip 6件 + kalman_d7 1件）、PnL合計 +34.8 pips相当にとどまる。
+| Strategy | Pair | N | WR% | EV | PnL(pip) | 判定 |
+- **scalp系**（EUR/GBP中心）：EUR_USDのATR%ile 81%はスプレッドガード（Scalp=30%）超過懸念。シグナルが出ても spread_guard に引っかかるリスク。
+- **daytrade系**：全ペアRANGING。トレンドフォロー型のdaytradeには不利なレジーム。score_gateの多発と整合する。
+- **carry_dip（USD_JPY）**：ATR%ile 36%は低ボラ。エントリー条件のdip深度が不十分でシグナル発生しにくい。
+- **rnb_usdjpy**：低ボラRANGINGはRnBの本来対象レジームのはずだが、no_signal 1,800件はレンジ幅が狭すぎてバンド境界到達未達の可能性。
+- **kalman_d7**：N=1のみ。判断材料なし。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
