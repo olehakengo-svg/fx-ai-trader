@@ -5618,6 +5618,16 @@ Cutoff後累計はN=7（carry_dip 6件 + kalman_d7 1件）、PnL合計 +34.8 pip
 - `r2_shadow_demoted_cell`ブロックの主因ペア（GBP系スキャルプ）について、シャドウでのN蓄積が実効的に進んでいるか別途確認を推奨
 - `STORM_GUARD_ENFORCE=1`についてはuser決裁が必要——本日中の判断が望ましい
 
+### 2026-10-23 (Pre-Tokyo Briefing)
+前日（2026-10-22）は**トレードゼロ**。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後累積（有効データ）はN=7、PnL=+34.2、WR=42.9%。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> - carry_dipはN=6で「データなし」域。EV+3.10は参考値にとどまる。
+- 上記いずれも**コード変更なし・設定変更なし**で経過観察継続。
+- shadow_demoted_cellの件数推移を次レポートで追跡し、件数が増加継続する場合は降格速度の判断材料とする。
+| GBP_USD | RANGING | 76% | +0.00091 | 高ATR×横ばい。スプレッド拡大局面注意 |
+- **scalp系（5分足）**: EUR_USD・GBP_USD のATR%ile 76-81%はスプレッド相対コストが高く、spread_guard閾値（Scalp=30%）に引っかかりやすい。高ボラ＋RANGINGの組み合わせはwhipsawリスク。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
