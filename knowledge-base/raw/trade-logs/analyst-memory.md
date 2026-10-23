@@ -5628,6 +5628,16 @@ Cutoff後累積（有効データ）はN=7、PnL=+34.2、WR=42.9%。
 | GBP_USD | RANGING | 76% | +0.00091 | 高ATR×横ばい。スプレッド拡大局面注意 |
 - **scalp系（5分足）**: EUR_USD・GBP_USD のATR%ile 76-81%はスプレッド相対コストが高く、spread_guard閾値（Scalp=30%）に引っかかりやすい。高ボラ＋RANGINGの組み合わせはwhipsawリスク。
 
+### 2026-10-23 (Pre-Tokyo Briefing)
+前日（2026-10-22）は**トレードゼロ**。PnL = ¥0、WR = N/A。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- N=6 はデータとして扱えない（統計的判断閾値N=10未満）
+- EV+3.10 は見た目良好だが、**N=6では完全にノイズ領域**
+- 昇格基準（N≥30 & EV≥1.0）まで残り **24件**
+- 他の全戦略：Cutoff後有効データ **ゼロ**
+- `shadow_tracking`による16件ブロック（shadow期間中 = まだLIVE昇格前）
+- `agg_kelly=-0.245<0`による2件ブロック（Kelly基準でネガティブ、LIVE送信不可）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
