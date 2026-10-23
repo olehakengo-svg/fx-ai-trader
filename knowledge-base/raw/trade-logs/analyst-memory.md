@@ -5611,6 +5611,13 @@ Cutoff後累計はN=7（carry_dip 6件 + kalman_d7 1件）、PnL合計 +34.8 pip
 - **rnb_usdjpy**：低ボラRANGINGはRnBの本来対象レジームのはずだが、no_signal 1,800件はレンジ幅が狭すぎてバンド境界到達未達の可能性。
 - **kalman_d7**：N=1のみ。判断材料なし。
 
+### 2026-10-23 (Pre-Tokyo Briefing)
+前日（2026-10-22）は**トレードゼロ**。Cutoff後累計はN=7、WR=57.1%、PnL=+34.8pipsに留まる。OANDA実口座は¥273,609.1611（balance=NAV、open建玉0）で前日比±¥0。システムは稼働中だが実質的に静止状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的位置づけ**: 全戦略合計N=7。N<10につき両戦略とも「データなし」扱い。WR・EVはいずれも参考値に過ぎない。昇格基準（N≥30、EV≥1.0）まで残り**最低23件**。
+- `r2_shadow_demoted_cell`ブロックの主因ペア（GBP系スキャルプ）について、シャドウでのN蓄積が実効的に進んでいるか別途確認を推奨
+- `STORM_GUARD_ENFORCE=1`についてはuser決裁が必要——本日中の判断が望ましい
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
