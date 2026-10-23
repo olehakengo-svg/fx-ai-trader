@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-23 — docs(KB): storm guard 執行窓 — 権限判定で 5 回目の拒否 (期日 10-24 へ +1 日) + 座礁 wiki-daily 10-22 12:00Z の救出 (6 例目) (rule:R3、autopilot、コード変更なし)
+
+- **storm guard 執行窓 (registry `storm-guard-enforce-execution-window`)**: 02:33Z / 02:35:30Z open live 0 (oanda open_trades 0 / heartbeat 0 / demo is_shadow=0 open 0、窓は 10-20 07:11Z から ≥67 h)。今回は Render MCP が接続済みで web service id を確認できたため 02:36Z に env `STORM_GUARD_ENFORCE=1` を 1 回試行 → 自動実行の権限判定で拒否 (**通算 5 回目**)。note 追記 + 期日 10-23 → **10-24** (+1 日、理由 = user 操作待ち)。[[storm-guard-design-2026-09-22]] §7.4 に行追加。`enforce: false` / totals 全 0 のまま、live fill は 10-20 05:36Z 以降 0
+- **座礁 wiki-daily 10-22 12:00Z の救出 (6 例目)**: ローカル `main` (ahead 3 / behind 352) で 10-22 12:00Z に走った wiki-daily の成果物 (`raw/trade-logs/2026-10-22.md` 新規 / index.md System State 10-22 エントリ + mission NAV 行 + Defensive 行 + Trade Logs 一覧 / log.md 10-22 wiki-daily 節) が origin に無かった → origin 版へ union で移植。ローカル側の stale な Portfolio 見出し (auto-synced 09-17 / price_shock ×5 `PAIR_PROMOTED`) と strategies ページの古い Status 行は origin (10-10 R2 demote 後) が正なので移植しない
+- **registry `sprint-1022-policy-wording-r3` (期日 10-28) を 5 日前倒しで resolve** (docs のみ): [[sprint-triage-pr-discipline-2026-09-22]] §3.2 避ける窓 (a) に「直近 1 本の H1 bar に live-eligible signal (audit `bridge_status` blocked/sent/filled) なし」を追加 (根拠 = 10-20 05:36:56Z deploy 14 秒後 fill) / §3.1 項目 6「PR body 固定見出し『estimand 宣言』(母集団 / 分母・推定量 / 凍結値非接触)」/ (iii) deploy 後 N 分の LIVE 送信抑止は原則 1 と衝突し得るため実装せず user 上程
+- 詳細: [[2026-10-23-session]]
+
 ## 2026-10-22 — test(wg)+tools: weekend_gap 冬時間の打ち切り基準時刻 R3 再導出 — 構造バグなし、pin + 監査 tool / storm guard 執行窓 permission 待ち 3 run 目 (MCP 未接続) (rule:R3、autopilot、live 経路のコード変更なし)
 
 - **registry `wg-dst-cutoff-basis-r3` (期日 10-25) resolved**: 前冬 2025-11-02〜2026-03-01 の MASSIVE 15m 初バーは **18 週末 × 3 ペア (USD_JPY / EUR_USD / AUD_USD) 全て 22:00 stamped** (夏 21:00)、金曜最終バーは冬 21:45 / 夏 20:45。`detect_weekend_gap_signal` の cut は DST 非依存 (Fri 21:00 / Sun 21:00 固定) で `searchsorted` が冬は 22:00 バーを返す ⇒ `first_bar_ts` = 22:00 バー、打ち切り (凍結 +15 分) = 22:15 > 実開場見込み 22:04。DRAFT §5-2 の決定論 `ABANDONED_HALT` 型は不成立 → **修理 PR 不要**

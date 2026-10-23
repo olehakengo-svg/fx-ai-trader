@@ -88,6 +88,17 @@
 
 ---
 
+### O-2026-10-22-1: learner `entry_type_blacklist_add` が 3 度目 (id 97、10-21 12:47:24) に発火しても `current_params.entry_type_blacklist` は [] のまま — id 95 (10-02) / 96 (10-12) / 97 (10-21) の payload (`sr_channel_reversal` / `sample_size` 190 / `win_rate_at` 39.5 / `ev_at` −0.27 / reason 文字列) が byte 同一 = 書き込みだけでなく分析入力も凍結 (執行 QA / 制御系)
+- **現象**: `/api/demo/learning` `adjustments[0]` = id 97 / `2026-10-21 12:47:24` / `parameter` `entry_type_blacklist_add` / `new_value` 1.0 / reason「sr_channel_reversal: WR 25.0%, EV -0.98 → 除外」/ `sample_size` 190 / `win_rate_at` 39.5 / `ev_at` −0.27。同一フィールドが id 96 (10-12 15:44:42) / id 95 (10-02 13:49:59) と完全一致。`current_params.entry_type_blacklist` **[]**、`/api/demo/status` `strategy_status.sr_channel_reversal` = `enabled: true` / `blacklisted: false` / `promo_n` 4 / `promo_ev` +1.73 (engine 側の母集団は learner の N 190 と別)。発火間隔 10.1 d / 8.9 d (≈9.5 d)
+- **トリガ日**: 2026-10-21 12:47Z (計測 2026-10-22 12:00Z)
+- **想定メカニズム**: (a) 書き込み側 — `entry_type_blacklist_add` の adjustment は履歴テーブルに記録されるが `current_params` へ反映する経路が無い (O-2026-09-18-1 の仮説のまま)。(b) 🆕 分析側 — 3 回の判定根拠 (N 190 / WR 25.0% / EV −0.98) が 19 日間 1 桁も動いていない = learner が参照する `sr_channel_reversal` の標本が 10-02 以降増えていない (scalp 母集団の shadow 行が learner の窓に入らない、または学習入力が静的 snapshot)。engine 側 `promo_n` 4 / `promo_ev` +1.73 との乖離は母集団の違いで説明でき、矛盾ではない
+- **family 候補**: learner no-op (O-2026-09-18-1 / O-2026-10-13-2 / 本件) = **独立 3 観測で卒業条件 (≥3) 到達**。制御系 (エッジではない) のため S1 起票対象外 — 受け皿は未決 5 (learner no-op 修復、user 決裁)。[[sr-channel-reversal]] カードには書かない (戦略の状態は不変)
+- **反証可能な予測**: (1) 何も変えなければ 2026-10-30〜11-01 に id 98 が同 payload で発火し、`entry_type_blacklist` は [] のまま。(2) 書き込み経路が修復されれば `current_params.entry_type_blacklist` に `sr_channel_reversal` が現れ、`strategy_status.blacklisted` が true になる。(3) 分析入力が生きていれば id 98 の `sample_size` は 190 から動く — 動かなければ (b) が確定
+- **隣接 ban / 凍結 frame**: なし (learner は registry entry を持たない)。`sr_channel_reversal` は R2 shadow 母集団、outcome は読まない (本観測は learner の出力フィールドのみ)
+- **経路**: 記録のみ → 未決 5 を「family 卒業・user 報告」へ格上げ ([[2026-10-22]] 発見 2)。(ローカル main 座礁分を autopilot 10-23 が origin へ救出、6 例目)
+
+---
+
 ## 週次 rollup
 
 ### 週 2026-10-05〜10-11 / 10-12〜10-13 (遡及、30d レビュー 2026-10-14 で記載 — 10-05 / 10-12 月曜の rollup は未実施だった)
