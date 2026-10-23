@@ -1,5 +1,11 @@
 # FX AI Trader - Changelog
 
+## 2026-10-23 — docs(KB): storm guard 執行窓の権限判定拒否 5 回目 (registry 期日 10-24) + 座礁 wiki-daily 10-22 12:00Z 救出 (rule:R3、autopilot)
+
+- **storm guard 執行窓**: 02:35:30Z open live 0 (窓 ≥67 h)。Render MCP 接続済みで env `STORM_GUARD_ENFORCE=1` を 1 回試行 → 自動実行の権限判定で拒否 (通算 5 回目)。registry `storm-guard-enforce-execution-window` note + 期日 10-23 → 10-24。`enforce: false` のまま、live fill 0 継続 (10-20 05:36Z 以降)。詳細: [[storm-guard-design-2026-09-22]] §7.4
+- **座礁 wiki-daily 10-22 12:00Z 救出 (6 例目)**: trade-log / index.md System State / log.md / O-2026-10-22-1 を origin 版へ union 移植 (stale な Portfolio / Status 行は移植しない)
+- **registry `sprint-1022-policy-wording-r3` resolve (期日 10-28 の 5 日前、docs のみ)**: [[sprint-triage-pr-discipline-2026-09-22]] §3.2 (a) 執行窓条件に「直近 1 H1 bar に live-eligible signal なし」を追加、§3.1 に「estimand 宣言」固定見出し。(iii) deploy 後 N 分の送信抑止は user 上程のみ。詳細: [[2026-10-23-session]]
+
 ## 2026-10-21 — fix(sltp): LIVE 経路の broker 確認済み SL を persist — SL replacement storm family A/B の根を修復 (rule:R3)
 
 - **根**: `modules/demo_trader.py::_check_sltp_realtime` の LIVE 送信口が `modify_sl_sync` 成功後に DB `sl` を更新しない (shadow 分岐だけ `update_sl_tp`、2026-06-03 以来) → 毎 tick の baseline が ON_FILL SL → Tier2 trail と Tier1 BE (同じ if/else) の `new_sl > sl` 緩め防止が恒真 → 同値再送 (family A) / trail⇄BE 往復 (family B: #1254773 で 46,091 `REPLACEMENT` / 11.8 h)。code derivation + 反証: [[storm-guard-design-2026-09-22]] §8
