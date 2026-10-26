@@ -5648,6 +5648,16 @@ OANDA Block Reasonsで `agg_kelly=-0.245<0` が記録。Shadow側のEVが−51.7
 - Shadow側EVの悪化原因（`agg_kelly<0`の根拠となるShadow取引）を確認し、Shadow降格候補の特定を優先
 - **東京セッション（09:00-15:00 JST）**：USD_JPY ATR%ile=37%と低位。carry_dipには積み上げ好機だが、ブレイク方向が不明確なためSL配置に注意。
 
+### 2026-10-26 (Pre-Tokyo Briefing)
+- **2026-10-25（前日）**: トレード **0件**、PnL **¥0**、WR **N/A**
+- Cutoff後（2026-04-08以降）の有効トレードは **usdjpy_carry_dip_accumulator / USD_JPY のN=6のみ**
+- システム稼働・OANDA接続ともに正常だが、実質的にシグナル生成は停止状態
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注**: N=6はFidelity Cutoff基準で「データなし」扱い。EV+3.10は参考値に過ぎない。昇格基準（N≥30 & EV≥1.0）まで残り **24件**。
+- **scalp/scalp_eur/scalp_5m系**: `r2_shadow_demoted_cell`が圧倒的主因。シャドウ評価でデモットされたセルがOANDA送信を完全遮断している。これは意図的な安全機構だが、結果として本番シグナルがゼロ。
+- **daytrade系**: `order_bar_dedup`が主因。同一バーでの重複注文排除。シグナル頻度そのものは生きているが発注には至っていない。
+- **rnb_usdjpy**: `no_signal` 2,556件はサイクル毎の評価結果。市場条件がR&B条件を満たしていない。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
