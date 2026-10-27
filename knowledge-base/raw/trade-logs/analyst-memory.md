@@ -5704,6 +5704,16 @@ Cutoff後全期間でも有効トレードは `usdjpy_carry_dip_accumulator` の
 - **DT系**：RANGINGは方向トレードに不利。`score_gate`落ちが増えるのは整合的。
 - **Scalp系**：RANGINGはレンジ内の往復でscalpに有利なはずだが、`r2_shadow_demoted_cell`による経路封鎖がその機会を完全に潰している。レジームは味方、しかし内部ゲートが閉じている。
 
+### 2026-10-27 (Post-NY Report)
+| PnL | **±0.0** |
+### セッション別PnL
+| Session | N | WR% | PnL |
+- **本日合計PnL**: ±0
+- **本日トレード数**: 0
+- **最も成績が良かったセッション**: 該当なし
+- **最も成績が悪かったセッション**: 該当なし（全セッション均等にゼロ）
+- **SENT率 0%** — 全50件がデモ側にのみ記録され、OANDA本番には1件も転送されていない。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
