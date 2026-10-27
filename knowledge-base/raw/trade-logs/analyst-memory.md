@@ -5674,6 +5674,16 @@ EV+6.74は魅力的に見えるが、N=5は統計的に無意味。しかし本C
 - **最も成績が悪かったセッション**: 存在せず（全セッション無執行）
 **全20件が `shadow_tracking` 系**。OANDA Bridgeにシグナルが到達してはいるが、昇格条件（N≥30 & EV≥1.0）を満たした戦略が存在しないためライブ送信はゼロ。`promo_block:force_demoted` の2件は強制降格状態にある戦略によるもので、これらは意図的ブロックであり正常動作。
 
+### 2026-10-27 (Pre-Tokyo Briefing)
+前日（2026-10-26）の**トレード数：0件**。PnL・WR共に計測対象なし。
+| Strategy | Pair | N | WR% | EV | PnL |
+> EV+12.82は一見良好だが、N<10のためノイズと区別不可。昇格基準（N≥30 & EV≥1.0）まで残り **26件**。
+- **daytrade系**：`order_bar_dedup`が主因（主要戦略で計1,090〜552件）。バー跨ぎ重複抑制が大量発動中。
+- **scalp系**：`r2_shadow_demoted_cell`が支配的ブロック（scalp: 2,319件、scalp_eur: 1,567件、scalp_5m: 856件）。Shadow降格セルへの参照がシグナルを根元から遮断。
+- **rnb_usdjpy**：`no_signal` 4,960件が最大ブロック。レンジ相場（USD_JPY ATR%ile=34%）でのシグナル枯渇が直接原因。
+- Bridge block理由：`shadow_tracking` 19件、`shadow_tracking(promo_block:force_demoted)` 1件。
+- 昇格基準未達戦略がshadow追跡のまま固定されており、LIVE送信対象が存在しない構造。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
