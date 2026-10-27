@@ -5684,6 +5684,16 @@ EV+6.74は魅力的に見えるが、N=5は統計的に無意味。しかし本C
 - Bridge block理由：`shadow_tracking` 19件、`shadow_tracking(promo_block:force_demoted)` 1件。
 - 昇格基準未達戦略がshadow追跡のまま固定されており、LIVE送信対象が存在しない構造。
 
+### 2026-10-27 (Pre-Tokyo Briefing)
+前日（2026-10-26）のトレード数は**ゼロ**。PnL合計 ¥0、WR算出不能。
+Cutoff後の有効トレードは`usdjpy_carry_dip_accumulator / USD_JPY`の**N=4**のみ（EV +12.82、累積PnL +51.3p）。
+| Strategy | Pair | N | WR% | EV | PnL(p) | 判定 |
+- N=4 は「データなし」水準（<10）。EV +12.82 は数値として記録するが、判断根拠には使用不可。
+- Sentinel N蓄積進捗：N=30まで残り **26件**。昇格基準（N≥30 & EV≥1.0）到達は現トレード生成率から見て遠く、期間見通し立たず。
+- **RnB（`rnb_usdjpy`）**：`no_signal` 5,210件が最大因子。USD_JPY がRANGING（ATR%ile 34%、低ボラ）のため、RnBのシグナル条件（おそらくトレンド系）が機能していない可能性が高い。
+- **Scalp系 `r2_shadow_demoted_cell`**：R2降格セルのブロックがScalp全系統（scalp, scalp_eur, scalp_5m系, scalp_5m_gbp, scalp_5m_eur）で支配的。Shadow評価でパフォーマンス不振と判定されたセルが累積しており、シグナル生成自体はあるが出口を塞がれている構図。
+- **Daytrade系 `order_bar_dedup`**：同一バーでの重複注文を除去する正常動作。異常ではないが件数が多い（daytrade, daytrade_eur, daytrade_gbpusd等で合計2,000件超）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
