@@ -5694,6 +5694,16 @@ Cutoff後の有効トレードは`usdjpy_carry_dip_accumulator / USD_JPY`の**N=
 - **Scalp系 `r2_shadow_demoted_cell`**：R2降格セルのブロックがScalp全系統（scalp, scalp_eur, scalp_5m系, scalp_5m_gbp, scalp_5m_eur）で支配的。Shadow評価でパフォーマンス不振と判定されたセルが累積しており、シグナル生成自体はあるが出口を塞がれている構図。
 - **Daytrade系 `order_bar_dedup`**：同一バーでの重複注文を除去する正常動作。異常ではないが件数が多い（daytrade, daytrade_eur, daytrade_gbpusd等で合計2,000件超）。
 
+### 2026-10-27 (Pre-Tokyo Briefing)
+前日（2026-10-26）は**トレードゼロ**。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後全期間でも有効トレードは `usdjpy_carry_dip_accumulator` の N=4 のみ（PnL +51.3）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **備考**: N=4 は統計的判断不可（データなし扱い）。EV +12.82 は数値として記録するが、信頼区間が極めて広く、昇格基準（N≥30 & EV≥1.0）まで残り **26件**。WR 50%・4サンプルでは正規分布検定の意味もない。
+- `r2_shadow_demoted_cell` の集中はscalp系の経路封鎖を意味する。N蓄積そのものが進まない構造的デッドロック状態であることを認識して監視継続。
+- `order_bar_dedup` の件数はdaytrade系が正常作動している証左でもあるが、件数が多すぎる場合は実機会をどれだけ捨てているか定量把握が必要。
+- **DT系**：RANGINGは方向トレードに不利。`score_gate`落ちが増えるのは整合的。
+- **Scalp系**：RANGINGはレンジ内の往復でscalpに有利なはずだが、`r2_shadow_demoted_cell`による経路封鎖がその機会を完全に潰している。レジームは味方、しかし内部ゲートが閉じている。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
