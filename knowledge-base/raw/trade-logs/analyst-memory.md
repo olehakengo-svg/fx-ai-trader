@@ -5734,6 +5734,16 @@ Cutoff後全期間でも有効トレードは `usdjpy_carry_dip_accumulator` の
 - `r2_shadow_demoted_cell` の蓄積が構造的問題か、一時的相場要因かを引き続き監視
 - OANDA転送は `promo_block:pair_demoted` の対象ペア確認が優先事項
 
+### 2026-10-28 (Pre-Tokyo Briefing)
+2026-10-27は**トレードゼロ**。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが記録に存在する（EV=+16.83、PnL=+50.5）。
+| Strategy | Pair | N | WR% | EV | PnL | 判断可否 |
+- **scalp系のボトルネックは `r2_shadow_demoted_cell` 一択**。scalp(4,383) + scalp_eur(2,826) + scalp_5m(1,852) + scalp_5m_gbp(1,403) + scalp_5m_eur(1,204) + daytrade_1h_usdchf(832) = **計12,500件超**がshadowデモート判定でブロック。Shadow段階で昇格基準（N≥30 & EV≥1.0）に未達の戦略・セルがOANDA送信を阻止している状態。
+- **daytrade系のボトルネックは `order_bar_dedup`**。同一バー内の重複注文排除が5,617件。これはシグナル生成自体は起きているが、バー確定前の連続シグナルを除去している正常動作。ただしこの件数の大きさはシグナル頻度に対して実執行がほぼゼロであることを示す。
+- **rnb_usdjpy の `no_signal` 8,736件**はシステム最大のブロック要因。エントリー条件そのものが成立していない（carry dip条件不成立）。
+- scalp系の実取引再開には**r2_shadow_demoted_cellに分類されている戦略セルのN蓄積が最優先**。現状は全Scalp系でShadow昇格条件到達待ちであり、本日も同様のブロック継続が見込まれる。追加のアクションは不要。待機が正解。
+- daytrade系の`order_bar_dedup`は正常動作として看過可能。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
