@@ -5714,6 +5714,16 @@ Cutoff後全期間でも有効トレードは `usdjpy_carry_dip_accumulator` の
 - **最も成績が悪かったセッション**: 該当なし（全セッション均等にゼロ）
 - **SENT率 0%** — 全50件がデモ側にのみ記録され、OANDA本番には1件も転送されていない。
 
+### 2026-10-28 (Pre-Tokyo Briefing)
+| 前日PnL | **¥0** |
+| 前日WR | **N/A** |
+| Strategy | Pair | N | WR% | EV | PnL |
+> - N=3は「データなし」ゾーン（統計的判断不可）。EVの+16.83は正値だが、3件では信頼区間が極めて広く判断材料にならない。
+> - 昇格基準（N≥30 & EV≥1.0）には大幅未達。N=30まで残り**27件**。
+- `shadow_tracking` 15件
+- `shadow_tracking(promo_block:pair_demoted)` 3件
+- `shadow_tracking(shadow_emit_no_lot)` 2件
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
