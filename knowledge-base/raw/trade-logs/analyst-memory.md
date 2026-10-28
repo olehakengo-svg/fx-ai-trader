@@ -5724,6 +5724,16 @@ Cutoff後全期間でも有効トレードは `usdjpy_carry_dip_accumulator` の
 - `shadow_tracking(promo_block:pair_demoted)` 3件
 - `shadow_tracking(shadow_emit_no_lot)` 2件
 
+### 2026-10-28 (Pre-Tokyo Briefing)
+前日（2026-10-27）はトレード**ゼロ**。PnL = ¥0、WR = N/A。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> EV+16.83は参考値に過ぎず、判断不可。N=30到達まで **27件不足**。
+- 前日トレードゼロ。Block Countsの主因は以下のとおり：
+- Block理由: `shadow_tracking` 15件、`shadow_tracking(shadow_emit_no_lot)` 3件、`shadow_tracking(promo_block:pair_demoted)` 2件
+- **全20件がshadow_trackingカテゴリに起因**。デモ→本番の橋渡し関数が、ペア降格・ロット算出失敗でブロック。本番実行ゼロは設計通りの動作だが、shadow側も実効的にトレードを生成していない。
+- `r2_shadow_demoted_cell` の蓄積が構造的問題か、一時的相場要因かを引き続き監視
+- OANDA転送は `promo_block:pair_demoted` の対象ペア確認が優先事項
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
