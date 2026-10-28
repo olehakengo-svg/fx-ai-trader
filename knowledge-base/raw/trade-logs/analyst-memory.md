@@ -5744,6 +5744,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 - scalp系の実取引再開には**r2_shadow_demoted_cellに分類されている戦略セルのN蓄積が最優先**。現状は全Scalp系でShadow昇格条件到達待ちであり、本日も同様のブロック継続が見込まれる。追加のアクションは不要。待機が正解。
 - daytrade系の`order_bar_dedup`は正常動作として看過可能。
 
+### 2026-10-28 (Post-NY Report)
+| PnL | +0.0 |
+### セッション別 PnL 比較
+| Session | N | WR% | PnL |
+- **最良セッション**: 該当なし（全セッション約定ゼロ）
+- **最悪セッション**: 該当なし（同上）
+- **本日合計**: PnL ¥0 / N=0 / WR 計算不能
+**主因**: 全ブロックが `shadow_tracking` 系。現在昇格基準（N≥30 & EV≥1.0）を満たしたペア・戦略が存在しないため、シャドウ段階にとどまり続けている。`pair_demoted` / `force_demoted` が計8件あり、降格済みペアへのシグナルが依然発生している点は注目に値する。
+> それ以外の戦略パラメータ・コード介入は **NO ACTION推奨**（昇格基準到達ゼロのため判断根拠なし）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
