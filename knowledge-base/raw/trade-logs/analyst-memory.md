@@ -5784,6 +5784,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 - `order_bar_dedup`系はデイトレ複数ストラテジー間の同一バーへの重複エントリー防止が機能しており、これは正常動作。
 - `r2_shadow_demoted_cell`ブロックが1,254件に達している点は、Scalp系戦略の実質的機能停止を意味する。現状を「監視継続」とし、介入は不要（コード変更禁止、かつ自律保護の結果）。
 
+### 2026-10-29 (Post-NY Report)
+| WR | 0.0% |
+| PnL | **−10.8 pips** |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+### セッション別PnL比較
+| セッション | 時間帯(UTC) | N | WR% | PnL(pips) |
+| 合計PnL | **−10.0 pips** |
+| WR | 50.0% |
+| 最良セッション | London（+0.8 pips、WR 100%） |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
