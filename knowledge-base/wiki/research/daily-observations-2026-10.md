@@ -97,6 +97,21 @@
 - **隣接 ban / 凍結 frame**: なし (learner は registry entry を持たない)。`sr_channel_reversal` は R2 shadow 母集団、outcome は読まない (本観測は learner の出力フィールドのみ)
 - **経路**: 記録のみ → 未決 5 を「family 卒業・user 報告」へ格上げ ([[2026-10-22]] 発見 2)。(ローカル main 座礁分を autopilot 10-23 が origin へ救出、6 例目)
 
+### O-2026-10-29-1 (座礁救出 7 例目、autopilot 10-29 が移植): learner の `entry_type_blacklist` に `sr_channel_reversal` が初めて反映 (`strategy_status.blacklisted: true`) — ただし id 98 (10-22 14:40:46) / id 99 (10-26 14:49:02) の payload は id 95〜97 と byte 同一 (`sample_size` 190 / WR 39.5 / EV −0.27) = 分析入力の凍結は継続、発火周期 9.5 d → 4 d (執行 QA / 制御系)
+- **観測** (wiki-daily 10-29 02:00Z): `current_params.entry_type_blacklist` = `["sr_channel_reversal"]` (10-22 12:00Z は [])、`strategy_status.sr_channel_reversal` = `blacklisted: true` / `enabled: true` / `promo_n` 4 不変。O-2026-10-22-1 の反証可能予測 (2)「書き込み経路が修復されれば現れる」が成立、(1)「10-30〜11-01 に id 98」は 8 日早く外れ (id 98 は前回 run の 2h40m 後)、(3)「入力が生きていれば `sample_size` が動く」は不成立 (190 のまま)
+- **想定メカニズム** (未特定): (a) 10-23 03:04Z の再起動 (PR #352 registry JSON deploy、`price_shock` latch `refreshed_at` 03:04:28Z) で adjustments 履歴から `current_params` を再構築 — ただし 10-21 05:54Z / 10:06Z / 10-22 06:56Z の 3 再起動では id 95〜97 が反映されなかったため単独説明不足 / (b) id 98 の書き込み経路が異なる (origin に code 変更なし) / (c) in-memory 反映で次 deploy で消える
+- **反証可能な予測**: 次の code deploy 後も `entry_type_blacklist` に `sr_channel_reversal` が残れば (a) または永続化、消えれば (c)。`sr_channel_reversal` の shadow 行は demo/trades 10-02〜10-29 窓・audit 1500 窓とも 0 本 = 反映の前後で発火数に差は出ない (`promo_n` 4 は窓外)
+- **family**: learner no-op (O-09-18-1 / O-10-13-2 / O-10-22-1、卒業済) の状態を「write-only」→「反映されたが機構不明 + 分析入力凍結」へ更新。制御系のため S1 対象外、未決 5 の user 報告内容を差し替え
+- **経路**: 記録のみ ([[2026-10-29]] 発見 2)
+
+### O-2026-10-29-2: PR #346 (LIVE SL の DB persist、10-21 10:06Z deploy) 後 最初の live trail — carry_dip #1346967 で `REPLACEMENT` 1 回 / storm 0、`storm_guard` evaluated 1 / sent 1 / detected.idempotent 0 / detected.monotonic 0 = broker 1:1 (全数捕捉 4 例目、最小) (執行 QA / 制御系)
+- **観測**: 10-23 04:02:13Z fill → 06:42:32Z `CLIENT_REQUEST_REPLACED` + `STOP_LOSS_ORDER REPLACEMENT` 156.929 (BE+0.8) の 1 組 → 08:00:44Z SL 約定 +¥7。trail/BE writer は起動した (MAFE fav 23.5p) のに再送なし。従来「BE へ返す」型は 269〜57,311 回の storm を伴った (5 例)。DB `sl` == broker confirmed SL、`sl_initial` 列が初めて LIVE 行に入った。guard 状態は 5.9 d 残存 (本窓 code deploy 0)
+- **解釈**: pin `test_real_bridge_guard_counters_zero_after_fix` の期待値 (idempotent == monotonic == 0) を実 trade で初観測 = family A/B の共通根 (送信口の未 persist) の修復と整合。N=1 のため「回帰なし」は暫定、`sl-persist-root-fix-first-live-trail-readout` (11-04) の判定材料
+- **付随**: broker SL 約定の 0.92 s 後に demo が `TRADE_CLOSE` を送り `MARKET_ORDER_REJECT` (決済後レース、無害、本戦略で初記録)
+- **反証可能な予測**: 次の live trail (favorable ≥ 0.8·ATR 到達建玉) でも `REPLACEMENT` ≤ 数回・idempotent / monotonic 0 なら修復確定。≥50 回の同値再送が再発すれば別 writer (guard 外) 説が復活
+- **family**: `storm_guard` 系 (卒業済) — 捕捉率 100% の 4 例目、状態消失なし
+- **経路**: 記録のみ ([[2026-10-29]] 発見 1、[[usdjpy_carry_dip_accumulator]] 10-29 節)
+
 ---
 
 ## 週次 rollup
@@ -120,3 +135,15 @@
 
 - 執行 QA 発見 4 (週内 3 + 10-20 の 2 件目は別 family) / 卒業 family (エッジ) 0 / S1 起票 0。10-17〜10-19 の run 欠落 (3 日) で稼働率 4/7
 - 次回 rollup = 2026-10-26 (月)
+
+### 2026-10-20〜10-26 (月曜 10-26 の wiki-daily 欠落のため 10-29 に 3 日遅れで代行)
+| family | 独立観測 (週内) | 累計 | 卒業条件 (≥3) | 経路 |
+|---|---|---|---|---|
+| `storm_guard` 系 (SL replacement storm / guard 捕捉 / 状態消失) | 2 (O-10-20-1 族 B 46,091 回 + 全数捕捉 3 例目 / O-10-20-3 状態消失 5 例目) + 10-23 trade の O-10-29-2 (REPLACEMENT 1、捕捉 1:1、状態消失なし) は週外 | 7 | 到達済 | 制御系 — PR #346 (10-21) で caller 側根を修復、`sl-persist-root-fix-first-live-trail-readout` 11-04 / `storm-guard-enforce-first-storm-readout` 11-02 (enforce 未執行) |
+| learner no-op (`entry_type_blacklist` write-only) | 1 (O-10-22-1、3 例目) | 3 | **到達 (10-22)** | 未決 5 (user 報告) — 10-29 に O-10-29-1 で「反映されたが機構不明」へ状態更新 |
+| `render_deploy_trigger` (docs/data push と再デプロイ) | 1 (O-10-20-2、根拠 = guard 状態 3.9 d 残存) | 1 | 未達 | 未決 12 — 10-23 PR #352 (registry JSON) で latch refresh = deploy 示唆 (記録のみ) |
+| 平日 open 側 `MARKET_HALTED` | 0 | 1 | 未達 | 記録のみ |
+| deploy 直後 LIVE 送信 | 1 (#1346961、PR #337 の 2m10s 後、O-10-20-1 内) | 2 | 未達 | PR #352 で §3.2 (a) 改定、deploy 後 N 分抑止は user 上程 (10-23) |
+
+- 執行 QA 発見 4 (O-10-20-1 / -2 / -3 / O-10-22-1) / 卒業 family (エッジ) 0 / S1 起票 0。wiki-daily 稼働 10-20 (2 run) / 10-22 のみ = 2/7 日
+- 次回 rollup = 2026-11-02 (月)

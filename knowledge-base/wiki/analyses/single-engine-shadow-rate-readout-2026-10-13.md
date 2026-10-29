@@ -72,5 +72,63 @@ entry_type 別 (上位): dual_sr_bounce 13.3 → 9.3 / dt_sr_channel_reversal 10
 
 本 readout の (iii)(iv) 集計スクリプトで live 9 行 (kalman_d7_po_dn_flip 4 / usdjpy_carry_dip_accumulator 4 / price_shock_rev_eur_gbp_h1_long 1、10-05〜10-09) の `outcome` 列を 1 回印字した (件数確認の print に outcome を含めてしまった)。R2 `t9-kalman-d7-live-n10-ev-check` (N=9/10) と carry_dip の母集団に対する outcome 観測 1 回。統計は計算していない。kalman C0 readout ([[kalman-d7-live-constrained-bt-2026-09-27]] §3′) は outcome 列を除去した JSON で別途実行した。
 
+## 6. 確定 readout 2026-10-29 (registry `single-engine-shadow-rate-attribution-readout`、期日 10-27 — autopilot 10-24〜28 欠落のため 2 日遅れ、rule:R3、件数・時刻・marker のみ、outcome 非読)
+
+データ: 本番 `/api/demo/trades?limit=5000&include_shadow=1` (10-29 04:35Z、5,003 行、entry_time 08-04 12:46Z〜10-29 03:51Z = pre / post 両窓を被覆、paginate 不要)。母集団 = `is_shadow=1 ∧ dedup_violation≠1`、平日のみ。セル = entry_type × instrument × direction (§3 と同一 — pre 窓を同定義で再計算すると §3 の表と 15m–30m 9.13 / 30m–1h 8.53 / 1h–2h 7.53 / 2h–4h 5.87 / 4h–8h 4.27 が一致、>8h は 35.8 vs 36.1 で端数差のみ)。
+
+### 6.1 (1) post 窓 10-05〜10-26 = 16 取引日 (≥14 ✓) の kept 行/日
+
+| 期間 | 日数 | 平均 | 中央値 | range | pre 最小 63 未満の日 |
+|---|---|---|---|---|---|
+| pre (09-14〜10-02、dual) | 15 | 87.0 | 89 | 63–102 | — |
+| post 第 1 週 (10-05〜10-12、§2 初版) | 6 | 58.2 | 57 | 50–67 | 4/6 |
+| **post 全窓 (10-05〜10-26)** | **16** | **64.2** | **65.5** | **50–78** | **7/16** |
+| post 第 2–3 週 (10-13〜10-26) | 10 | 67.8 | 68.5 | 52–78 | 3/10 |
+
+日別: 10-05 59 / 06 67 / 07 54 / 08 64 / 09 55 / 12 50 / 13 61 / 14 78 / 15 76 / 16 56 / 19 52 / 20 78 / 21 69 / 22 68 / 23 68 / 26 72。TF 別 (行/日、pre → post 全窓): 15m **72.3 → 50.5 (−30%)** / 5m 7.3 → 6.7 / 1m 5.7 → 4.9 / 1h 1.7 → 2.1。
+
+→ regime break は **持続** (全窓 −26%、15m −30%) だが第 1 週の −33% / −36% より幅が縮んだ。第 2–3 週は pre range (63–102) の下端に重なる日が増えており、第 1 週の値には週構成 (USD_JPY 10-05〜09 の低ボラ) が乗っていた。
+
+### 6.2 Δ-to-previous-kept (15m、互いに素な区間、行/日)
+
+| Δ 区間 | pre (15 日) | post 第 1 週 (6 日) | **post 全窓 (16 日)** | 変化 (全窓 vs pre) |
+|---|---|---|---|---|
+| 15m–30m | 9.13 | 2.83 | **3.56** | **−61%** |
+| 30m–1h | 8.53 | 4.50 | **5.38** | −37% |
+| 1h–2h | 7.53 | 4.00 | **4.62** | −39% |
+| 2h–4h | 5.87 | 2.33 | **2.81** | −52% |
+| 4h–8h | 4.27 | 4.33 | **3.19** | −25% (第 1 週 ±0 → N 小、主張しない) |
+| >8h | 35.8 | 27.3 | **30.4** | **−15%** (第 1 週 −23%) |
+| 合計 | 71.1 | 45.3 | 49.9 | −30% |
+| 累積 ≤4h | 31.1 | 13.7 | **16.4** | **−47%** |
+
+→ (3) **>8h の残余は −23% → −15% に縮小** = 第 1 週の値の一部は週構成で、regime として持続する成分は小さい (≤4h の −47% とは桁が違う)。減少の集中は依然 **≤4h の短間隔 re-emit** にある。
+
+### 6.3 (2) H1 検証 — dual 期 marker 層別 (09-24〜10-02 の 7 取引日、15m kept 519 行: `import:*` 231 / `forked:*` 282 / marker なし 6)
+
+同セル直前 kept 行からの Δ ≤4h の re-emit **226 行** を「直前行がどのプロセスから出たか」で層別:
+
+| 当該行 \ 直前行 | prev = import | prev = forked | 計 |
+|---|---|---|---|
+| import | 56 (同一) | 41 (**cross**) | 97 |
+| forked | 50 (**cross**) | 79 (同一) | 129 |
+
+- **cross-process re-emit (≤4h) = 91 / 226 = 40% = 13.0 行/日**、same-process = 135 = 19.3 行/日
+- pre → post の ≤4h 減少 = 31.1 − 16.4 = **14.7 行/日** ≈ cross-process 成分 13.0 行/日 (88%)。post 期 (単一 process) の ≤4h 16.4 行/日は dual 期の same-process 成分 19.3 行/日と同程度
+- → **H1 は定量的に整合**: 消えたのは「片方の process の cooldown 中にもう片方が同セルを再 emit する」経路の分。same-process の短間隔 re-emit (cooldown 1 bar 後の再評価) は単一化後も残っており、これは BT の COOLDOWN=1 bar と同じ挙動。⚠️ marker 期間 7 日 vs Δ の pre 窓 15 日で窓が揃っていない (marker 計装 09-24 以前は層別不能) — 比率の主張 (40% / 88%) は ±10pt 程度の幅で読む
+
+### 6.4 (4) cadence 前提の再見積り (kept shadow 行/週、pre 09-14〜10-02 (19 暦日) → post 10-05〜10-26 (22 暦日))
+
+| entry | pre | post | 既存の前提 | 読み |
+|---|---|---|---|---|
+| hull_* (`t8-hull-shadow-freq`) | 0 | 0.64 (2 行) | 期待 13.3/週 (signal-rate、estimand 不一致は 08-24 で既知) | post 期も ~0 — signal-rate との比較は不可のまま |
+| kalman_d7* shadow (`t9-kalman-d7-fire-info`) | 0 | 0 | BT 3.9/週 | kalman は min-lot carve-out で live 経路 (shadow 行 0 は構造) — 読み手は live fill (`t9-kalman-d7-live-n10-ev-check` N=9) |
+| session_time_bias (`ecg-stb-postfix-fire-info`) | 34.6 (94) | **20.7** (65) | ~4.0/週/cell × active 4 cells | entry_type 合算 (全 cell・両方向)。−40% で、第 1 週の 15m 系減少と同方向 |
+| sr_anti_hunt_bounce × EUR_JPY (`sr-anti-hunt-eurjpy-buy-forward-confirm`) | 両方向 3.68 (10) / **凍結母集団 (BUY ∧ closed ∧ dedup≠1) 1.84 (5)** | 両方向 **2.23** (7) / **凍結母集団 1.27 (4)** | ETA 1.75 本/週 (BUY のみ) | 凍結母集団の post 率 1.27/週は前提 1.75 を **下回る (−31%)** — ただし同 entry は trigger watch 10-29 で既に fresh N=42 ≥ 40 の TRIGGERED (R1 判定は count-basis の user 決裁点 10-12 超過待ち) なので ETA 2027-02-28 は到達済みで無意味、率は判定書の「rate 変化の開示」用。⬛ 初版の「両方向 2.23 ≥ 1.75 で前倒し側」は母集団不一致 (PR #354 Codex P2 4408816983) で撤回 |
+| london_fix_reversal × EUR_USD (ws3 stage-1 survivor) | 2.58 (7) | **1.59** (5) | `ws3-stage2-underpowered-recheck` (2027-01-31) | −38% |
+| htf_false_breakout × AUD_JPY (ws3 stage-1 survivor) | 2.21 (6) | **0.95** (3) | 同上 | −57% (N 3、幅大) |
+
+→ cadence 前提は一律 **×0.6〜0.75** で読み直す (15m 系)。各 registry entry の message に post 率を併記した (本 run)。**gate 緩和・cooldown 短縮はしない** (§4-4)。LOCK 母集団への re-emit の扱い (dual 期行の層別) は R1 = user 決裁のまま。
+
 ## 関連
-[[http-blind-fork-poisoning-2026-09-22]] §6 / [[dual-engine-dup-rate-readout-2026-09-24]] / MEMORY `project_single_engine_deploy_regime_break_2026_10_04` / registry `dual-engine-master-worker-disposition` (resolved 10-13) → `single-engine-shadow-rate-attribution-readout` (10-27) / [[2026-10-13-session]]
+[[http-blind-fork-poisoning-2026-09-22]] §6 / [[dual-engine-dup-rate-readout-2026-09-24]] / MEMORY `project_single_engine_deploy_regime_break_2026_10_04` / registry `dual-engine-master-worker-disposition` (resolved 10-13) → `single-engine-shadow-rate-attribution-readout` (10-27、§6 で resolved 10-29) / [[2026-10-13-session]]

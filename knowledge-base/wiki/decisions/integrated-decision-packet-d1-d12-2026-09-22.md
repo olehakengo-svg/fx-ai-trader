@@ -327,3 +327,11 @@ D3: 額 ¥__ と時点 __ ; 同時に D2(i)=(a) か 0.2x 解除のどちらか�
 - 8-2 の為替換算は MASSIVE 15m 最終 close (10-07、mid) — OANDA 実レートとの差は証拠金で ±0.5% 程度、binding 判定を変えない。
 - 8-1 の carry_dip broker EV +3.33p は N=20 の点推定で CI 未算出 (D5 の判断材料は「両正・R2 不成立」の符号のみ)。
 - 本節も文書のみ (価格・DB の outcome 計算ゼロ。clean live 30d の値は既存 monitor の出力を転記)。
+
+### 8-12 (2026-10-29 autopilot、rule:R3 記録のみ) — D11: carry_dip clean live N≥30 が user 返答より先に到達 → **REG 字義で凍結**
+
+- 到達: carry_dip × USD_JPY × BUY の clean live (CLOSED ∧ pnl_pips 非 null ∧ oanda_trade_id 非空 ∧ dedup_violation≠1、since 04-08) が **#1346967 の決済 2026-10-23T08:00:44Z で N=30** (§8-0 最速推定 11-09 より 17 日早い — 10-19〜23 に 3 fill)。registry `integrated-decision-packet-d11-user-decision` (live_count_decision、n_decide 30、closed_only) は 10-24 00:20Z 以降 TRIGGERED 状態だったが autopilot run が 10-24〜28 に無く、本 run が最初の読み手
+- D11 の user 返答: 10-19〜10-29 の KB / PR に記録なし (origin の同期間コミットは全て bot)。**実効返答窓 (11-10 と N≥30 到達日の前日の早い方 = 10-22) は閉じた**
+- 凍結 (D11 行 / §8-10 / Codex P2 4214567106 の規律どおり): **F3 (`project-falsification-f3-m1-durable-cell`、2027-03-31) の判定 predicate = REG `condition` 字義「clean live N≥30 ∧ PnL>0 (demo 簿)」**。monitor 強定義 (EV≥+1.0 ∧ Wilson_lo>0) は併記のみで predicate ではない。以後 11-29 の user-response entry 経由でも D11 返答は転記しない (凍結した predicate を遅い返答で上書きしない)。改定したい場合は次サイクル (F3 判定後) の提案として記録
+- 両基準の現況 (`tools/m1_clean_live_monitor.py --strong` 10-29 04:40Z 転記、anchor = 10-29): REG 字義 (N≥30 ∧ PnL>0) **demo 2 / broker 2 セル** (carry_dip N=30 / bb_rsi_reversion × USD_JPY × SELL N=44 broker +¥1,358)、STRONG **demo 1 / broker 1** (carry_dip N=30 EV +5.32 w_lo 0.42)、不一致 0。F3 の「達成セルが立てば resolve」は **2027-03-31 の評価時点で読む** (本 run は F3 entry に初到達の note のみ — 10-23 時点で立ったセルが 03-31 まで durable かは未知で、今 resolve すると 5 か月前に verdict を固定することになる)
+- 本節も文書のみ (outcome の再計算はしていない。数値は monitor 出力の転記)
