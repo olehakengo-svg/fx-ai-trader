@@ -171,8 +171,14 @@ def test_registry_d11_user_decision_entry_counts_closed_only(monkeypatch):
     reg = json.loads(p.read_text())
     hit = [x for x in reg["triggers"]
            if x["id"] == "integrated-decision-packet-d11-user-decision"]
-    assert hit and hit[0]["active"] is True
-    trig = hit[0]
+    assert hit
+    # 2026-10-29: carry_dip clean live N≥30 到達 (10-23) が user 返答より先に
+    # 来たため、既定 (REG 字義) で resolved。entry 自体 (型 / closed_only /
+    # 期日) は改変せず、resolution に凍結先を明記しているかを pin する。
+    assert hit[0]["active"] is False
+    assert hit[0].get("resolved") == "2026-10-29"
+    assert "REG" in hit[0].get("resolution", "")
+    trig = dict(hit[0], active=True)  # 配線 pin は entry の写しを active 化して評価
     assert trig["type"] == "live_count_decision"
     assert trig.get("closed_only") is True
     assert trig["deadline"] == "2026-11-10"  # inclusive evaluator (today >= deadline)
