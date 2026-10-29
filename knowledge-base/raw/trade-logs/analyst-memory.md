@@ -5754,6 +5754,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 **主因**: 全ブロックが `shadow_tracking` 系。現在昇格基準（N≥30 & EV≥1.0）を満たしたペア・戦略が存在しないため、シャドウ段階にとどまり続けている。`pair_demoted` / `force_demoted` が計8件あり、降格済みペアへのシグナルが依然発生している点は注目に値する。
 > それ以外の戦略パラメータ・コード介入は **NO ACTION推奨**（昇格基準到達ゼロのため判断根拠なし）。
 
+### 2026-10-29 (Pre-Tokyo Briefing)
+前日（2026-10-28）はトレードゼロ。PnL = ±¥0、N = 0、WR = N/A。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的評価不能。** N=3は「データなし」ゾーン。EV +16.83は外れ値1件で容易に歪む水準。昇格・降格いずれの判断も保留。
+- 27モードが稼働中（ON）にもかかわらず前日トレードゼロ。
+- Block Counts最上位を見ると **`rnb_usdjpy:no_signal`（10,121件）** が突出。シグナル生成段階での棄却が大量発生している。
+- `scalp:r2_shadow_demoted_cell`（4,930）、`scalp_eur`（3,283）、`scalp_5m`（1,998）、`scalp_5m_gbp`（1,664）、`scalp_5m_eur`（1,469）。
+- Scalp系のシグナルは多数生成されているが、シャドウ降格セルに該当して全て棄却されている。シャドウ側の降格判定が執行の主障壁となっている。
+- 全50件がSKIPに分類。Bridge側ブロック理由の内訳：`shadow_tracking`（13件）、`shadow_tracking(promo_block:pair_demoted)`（5件）、`shadow_tracking(promo_block:force_demoted)`（1件）、`shadow_tracking(shadow_emit_no_lot)`（1件）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
