@@ -5764,6 +5764,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 - Scalp系のシグナルは多数生成されているが、シャドウ降格セルに該当して全て棄却されている。シャドウ側の降格判定が執行の主障壁となっている。
 - 全50件がSKIPに分類。Bridge側ブロック理由の内訳：`shadow_tracking`（13件）、`shadow_tracking(promo_block:pair_demoted)`（5件）、`shadow_tracking(promo_block:force_demoted)`（1件）、`shadow_tracking(shadow_emit_no_lot)`（1件）。
 
+### 2026-10-29 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | N/A |
+- Fidelity Cutoff後の全戦略N=0（本セッション）。統計的判断の前提が成立しない
+- `r2_shadow_demoted_cell`大量発生はシャドウ側の降格セル集積が原因であり、パラメータ変更ではなくN蓄積による昇格待ちが正規プロセス
+- DD防御モード（defensive mode、-23.81% DD）継続中 → 積極的介入はDD防御方針に反する
+### 推奨戦略配分
+**NO ACTION推奨**
+推奨根拠：
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
