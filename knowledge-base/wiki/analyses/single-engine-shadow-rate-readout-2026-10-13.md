@@ -124,7 +124,7 @@ entry_type 別 (上位): dual_sr_bounce 13.3 → 9.3 / dt_sr_channel_reversal 10
 | hull_* (`t8-hull-shadow-freq`) | 0 | 0.64 (2 行) | 期待 13.3/週 (signal-rate、estimand 不一致は 08-24 で既知) | post 期も ~0 — signal-rate との比較は不可のまま |
 | kalman_d7* shadow (`t9-kalman-d7-fire-info`) | 0 | 0 | BT 3.9/週 | kalman は min-lot carve-out で live 経路 (shadow 行 0 は構造) — 読み手は live fill (`t9-kalman-d7-live-n10-ev-check` N=9) |
 | session_time_bias (`ecg-stb-postfix-fire-info`) | 34.6 (94) | **20.7** (65) | ~4.0/週/cell × active 4 cells | entry_type 合算 (全 cell・両方向)。−40% で、第 1 週の 15m 系減少と同方向 |
-| sr_anti_hunt_bounce × EUR_JPY (`sr-anti-hunt-eurjpy-buy-forward-confirm`) | 3.68 (10) | **2.23** (7) | ETA 1.75 本/週 (両方向合算の本表より狭い母集団) | 両方向合算 2.23/週 ≥ 1.75 — ETA 2027-02-28 は post 率でも前倒し側 (count-basis は user 決裁点、変更なし) |
+| sr_anti_hunt_bounce × EUR_JPY (`sr-anti-hunt-eurjpy-buy-forward-confirm`) | 両方向 3.68 (10) / **凍結母集団 (BUY ∧ closed ∧ dedup≠1) 1.84 (5)** | 両方向 **2.23** (7) / **凍結母集団 1.27 (4)** | ETA 1.75 本/週 (BUY のみ) | 凍結母集団の post 率 1.27/週は前提 1.75 を **下回る (−31%)** — ただし同 entry は trigger watch 10-29 で既に fresh N=42 ≥ 40 の TRIGGERED (R1 判定は count-basis の user 決裁点 10-12 超過待ち) なので ETA 2027-02-28 は到達済みで無意味、率は判定書の「rate 変化の開示」用。⬛ 初版の「両方向 2.23 ≥ 1.75 で前倒し側」は母集団不一致 (PR #354 Codex P2 4408816983) で撤回 |
 | london_fix_reversal × EUR_USD (ws3 stage-1 survivor) | 2.58 (7) | **1.59** (5) | `ws3-stage2-underpowered-recheck` (2027-01-31) | −38% |
 | htf_false_breakout × AUD_JPY (ws3 stage-1 survivor) | 2.21 (6) | **0.95** (3) | 同上 | −57% (N 3、幅大) |
 
