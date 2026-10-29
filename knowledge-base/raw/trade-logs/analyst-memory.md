@@ -5774,6 +5774,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 **NO ACTION推奨**
 推奨根拠：
 
+### 2026-10-29 (Pre-Tokyo Briefing)
+| PnL合計 | **¥0** |
+| 全体WR | **N/A** |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**重要補足（KB照合）**: `carry_dip`はKB記録上ではN=30到達済み（broker +¥1,395 / EV +5.32）。本テーブルのN=2はデモ環境フィルタ後の**現APIウィンドウ内**の値である可能性が高く、**KB上のN=30が優先参照値**。
+- **最大ブロック源は`r2_shadow_demoted_cell`（計1,254件）** — Scalp系全体でシャドウデモート済みセルがシグナルを吸収している。システムが自律的にScalp戦略を封じている状態。
+- `rnb_usdjpy:no_signal`（770件）はレジーム非適合（全ペアRANGING）によるシグナル不発が主因と推察。
+- `order_bar_dedup`系はデイトレ複数ストラテジー間の同一バーへの重複エントリー防止が機能しており、これは正常動作。
+- `r2_shadow_demoted_cell`ブロックが1,254件に達している点は、Scalp系戦略の実質的機能停止を意味する。現状を「監視継続」とし、介入は不要（コード変更禁止、かつ自律保護の結果）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
