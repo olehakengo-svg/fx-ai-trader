@@ -403,3 +403,56 @@ Kalman D7 / vix_carry / ZZ v60 と同系の意図的例外。**LIVE flip は別�
 - 🔴 DD ledger: #1346961 `OANDA_SL_TP` −10.7 **未計上** (損失側も非計上、欠落 14 例目、累積 155.0 pip)
 - **累計**: demo **N 29 / 16W / WR 55.2% / +159.5 / EV +5.50** (`by_type` trades 29 / pnl 159.5、wf_h1 +7.36 / wf_h2 +3.77、Wilson 37.5 / BF 27.8)、broker **+¥1,388 = +138.8p / 29 = +4.79p/trade** (29/29 突合、05:31Z の +¥1,496 から −¥108)。risk `strategy_kelly` half_kelly 0.1162 (n 14) → **0.0911 (n 15、edge 0.2423 — サイズ根拠にしない)**、DSR 0.3252 → 0.2847 (Sharpe 0.1539 < threshold 0.3068、not sig)。D11 `live_count_decision` **29/30** (期日 11-10)、R2 `carry-dip-v3-revival-watch` 不成立。slippage 3.1p (3 fill 連続 ≤3.1p)
 - 詳細 [[2026-10-20]] PM 発見 1〜3
+
+## 🔑 2026-10-29 更新 (autopilot、rule:R3 記録のみ): **fill #30 = #1346967 (10-23) BE +¥7 / demo +0.2 → pre-reg 評価 N≥30 到達、D11 は REG 字義で凍結 — および exit 種別の 30/30 棚卸し (registry `carry-dip-exit-type-inventory` 期日 10-31 を 2 日前倒しで resolve)**
+
+> ⚠️ wiki-daily は 10-23〜10-29 の 7 日間 run なし (trade-log 無し)。本 fill は origin KB に未記載だったため autopilot 10-29 が転記した。10-24〜28 は autopilot run も無し。
+
+### fill #30 #1346967
+- 10-23 **04:02:13Z** BUY 1000u @**156.921** (DD 0.1369x、signal 156.907、slippage 1.4p、spread 0.8p)。ON_FILL TP 157.587 (+66.6p = `[BROKER_TP] basis=qh mult=0.85`) / SL 156.715 (−20.6p、`[SLTP_CONSTRUCT] sl=atr_nosr`、宣言 150p の 0.137× = SL 契約破棄 **30/30**)。entry 時 regime: HMM trending 0.58 (agree false) / `v2_regime` no_go / MTF `range_tight`・`squeeze` / DOW CHOP (regime gate 非参照、記録のみ)
+- **06:42:32Z** SL → **156.929** (= entry + 0.8、Tier1 BE writer、tx 1346970/71) **1 回のみ** — MAFE favorable 23.5p で BE 閾値 (0.8·ATR_eff = 20.6p) を超え、trail 閾値 (1.5·ATR_eff ≈ 38.6p) には届かず。**storm 0** (`storm_guard` evaluated 1 / sent 1 / detected 全 0) = PR #346 (10-21 deploy) 後の初 live trail で family A/B の回帰なし ([[storm-guard-design-2026-09-22]] §8.7)。DB `sl` 156.929 == broker、`sl_initial` 156.715 (新列が埋まった初の LIVE 行)、`pnl_r` 0.01 = 0.2/20.6
+- **08:00:44.025Z** broker `STOP_LOSS_ORDER` 約定 @156.928、`pl` **+¥7.00** (hold 3h58m)。0.86 s 後に engine `SL_HIT` @156.923 (bid) → close 要求は 404 `MARKET_ORDER_REJECT` (既決済、無害)。demo `close_reason` **`SL_HIT`** / outcome `BREAKEVEN` / +0.2p — §8.3 推定量変更 (LIVE 行の engine 側 SL_HIT が trail/BE 水準で走る) の**初出**、exit_price (engine bid) − broker averageClosePrice = **−0.5p**
+- **累計 (10-29 04:32Z)**: demo **N 30 / +159.7 / EV +5.32 / Wilson_lo(WR) 0.42** (`tools/m1_clean_live_monitor.py --strong` 転記; W/L/BE = 16/13/1)、broker **+¥1,395 = +139.5p / 30 = +4.65p/trade** (30/30 突合、+¥1,388 + ¥7)。両基準とも正 → R2 `carry-dip-v3-revival-watch` (N≥10 ∧ EV<0) 不成立
+- 🔑 **pre-reg 評価 N≥30 に到達 (10-23 08:00:44Z)** — 「Rule-1 意図的 LIVE 例外」節の評価 N。到達後の判断 (lot / 昇格 / 降格 / SL 復元 D5) は **Rule 1 = user 決裁**で autopilot は判断しない。D11 (F3 estimand) は user 返答より先に N≥30 が来たため pre-reg 規律により **REG 字義 (clean live N≥30 ∧ PnL>0、demo 簿) で凍結** ([[integrated-decision-packet-d1-d12-2026-09-22]] §8-12、registry `integrated-decision-packet-d11-user-decision` resolved)。monitor 両基準: REG 字義 demo 2 / broker 2 セル、STRONG (EV≥+1.0 ∧ Wilson_lo>0) demo 1 / broker 1 (本セル)、不一致 0
+- 🔴 DD ledger: #1346967 も未計上 (欠落 15 例目、累積 155.2 pip — BE +0.2 は符号正だが「計上されない」事実は同じ、registry `dd-ledger-nonbooking-consumer-audit` 11-07)
+- NAV ¥273,609.1611 → **¥273,616.1611** (+¥7、残差 0、financing 0)、`lastTransactionID` 1346965 → **1346974** (9 tx = 本 fill の全て)。実 DD −23.81% (不変桁)
+
+### exit 種別棚卸し 30/30 (broker tx `reason` 基準、registry `carry-dip-exit-type-inventory`)
+方法: `/api/oanda/transactions` (idrange ≤100) を fill id から exit_time へ二分探索し、`tradesClosed[].tradeID == fill id` の `ORDER_FILL` とそれを約定させた注文 tx を取得 (29/30 一致; #709598 は demo exit_time 09-04 21:45 と broker 約定 09-06 21:04 が 47 h ずれる halted-exit のため直接 tx 837943 を読んだ)。分類は注文の `type` × `reason` × (最終 SL − entry): TP = `TAKE_PROFIT_ORDER` / ON_FILL SL = writer 未起動 / REPLACEMENT SL で最終 SL − entry ≤ +1.5p = BE (Tier1) / >+1.5p = trail (Tier2) / `MARKET_ORDER_TRADE_CLOSE` = halt 経由 market close。**分類不能 0**。PnL の再集計はしない (record-only)。
+
+| # | fill | open (UTC) | entry | 決済 tx | 決済時刻 (UTC) | ORDER_FILL reason | 約定した注文 (type reason price) | 最終 SL − entry | 分類 |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | #549260 | 08-05 04:17 | 157.386 | 573983 | 08-05 06:32:49 | `STOP_LOSS_ORDER` | SL REPLACEMENT 157.677 (← 573980) | +29.1p | **trail 置換 SL (Tier2)** |
+| 2 | #573986 | 08-09 22:03 | 157.842 | 677393 | 08-10 07:20:34 | `TAKE_PROFIT_ORDER` | TP ON_FILL 158.477 | +63.5p | **broker TP 約定** |
+| 3 | #677396 | 08-12 10:50 | 159.172 | 677399 | 08-12 12:10:22 | `STOP_LOSS_ORDER` | SL ON_FILL 159.050 | -12.2p | **writer 未起動 SL (ON_FILL)** |
+| 4 | #677402 | 08-14 06:02 | 159.233 | 677907 | 08-14 07:45:19 | `STOP_LOSS_ORDER` | SL REPLACEMENT 159.241 (← 677904) | +0.8p | **BE 置換 SL (Tier1)** |
+| 5 | #677910 | 08-16 23:02 | 159.152 | 677913 | 08-17 00:26:43 | `STOP_LOSS_ORDER` | SL ON_FILL 159.036 | -11.6p | **writer 未起動 SL (ON_FILL)** |
+| 6 | #677917 | 08-17 06:52 | 158.976 | 677920 | 08-17 07:19:28 | `STOP_LOSS_ORDER` | SL ON_FILL 158.860 | -11.6p | **writer 未起動 SL (ON_FILL)** |
+| 7 | #677924 | 08-19 01:05 | 159.488 | 677927 | 08-19 02:16:05 | `STOP_LOSS_ORDER` | SL ON_FILL 159.371 | -11.7p | **writer 未起動 SL (ON_FILL)** |
+| 8 | #677931 | 08-20 07:03 | 158.401 | 681146 | 08-20 07:42:30 | `STOP_LOSS_ORDER` | SL REPLACEMENT 158.409 (← 681139) | +0.8p | **BE 置換 SL (Tier1)** |
+| 9 | #681149 | 08-20 10:19 | 158.26 | 709522 | 08-20 13:35:16 | `STOP_LOSS_ORDER` | SL REPLACEMENT 158.642 (← 709519) | +38.2p | **trail 置換 SL (Tier2)** |
+| 10 | #709598 | 09-04 17:01 | 156.122 | 837943 | 09-06 21:04:58 | `MARKET_ORDER_TRADE_CLOSE` | MARKET_ORDER TRADE_CLOSE (demo exit_time 09-04 21:45 → broker 約定は 47 h 後の再開値 155.981、既知の halted-exit 欠陥) | — | **週末 halt 経由 market close** |
+| 11 | #837947 | 09-06 22:03 | 156.274 | 837950 | 09-07 00:23:00 | `STOP_LOSS_ORDER` | SL ON_FILL 156.028 | -24.6p | **writer 未起動 SL (ON_FILL)** |
+| 12 | #837978 | 09-08 10:02 | 153.961 | 847563 | 09-08 12:27:24 | `STOP_LOSS_ORDER` | SL REPLACEMENT 153.969 (← 847560) | +0.8p | **BE 置換 SL (Tier1)** |
+| 13 | #847578 | 09-09 23:28 | 153.384 | 859453 | 09-10 02:01:28 | `STOP_LOSS_ORDER` | SL REPLACEMENT 153.392 (← 859450) | +0.8p | **BE 置換 SL (Tier1)** |
+| 14 | #893161 | 09-11 11:02 | 153.937 | 893170 | 09-11 12:30:04 | `STOP_LOSS_ORDER` | SL REPLACEMENT 154.248 (← 893167) | +31.1p | **trail 置換 SL (Tier2)** |
+| 15 | #893195 | 09-25 04:02 | 158.37 | 893198 | 09-25 05:13:50 | `STOP_LOSS_ORDER` | SL ON_FILL 158.207 | -16.3p | **writer 未起動 SL (ON_FILL)** |
+| 16 | #893201 | 09-25 06:03 | 158.24 | 893204 | 09-25 06:14:21 | `STOP_LOSS_ORDER` | SL ON_FILL 158.071 | -16.9p | **writer 未起動 SL (ON_FILL)** |
+| 17 | #893207 | 09-28 00:01 | 157.567 | 948634 | 09-28 06:07:35 | `STOP_LOSS_ORDER` | SL REPLACEMENT 157.663 (← 948631) | +9.6p | **trail 置換 SL (Tier2)** |
+| 18 | #948637 | 09-28 07:01 | 157.558 | 948640 | 09-28 07:55:34 | `STOP_LOSS_ORDER` | SL ON_FILL 157.369 | -18.9p | **writer 未起動 SL (ON_FILL)** |
+| 19 | #948647 | 09-29 19:03 | 157.226 | 949999 | 09-30 00:55:02 | `STOP_LOSS_ORDER` | SL REPLACEMENT 157.234 (← 949996) | +0.8p | **BE 置換 SL (Tier1)** |
+| 20 | #1022861 | 10-05 02:01 | 157.593 | 1062618 | 10-05 05:56:56 | `STOP_LOSS_ORDER` | SL REPLACEMENT 157.885 (← 1062615) | +29.2p | **trail 置換 SL (Tier2)** |
+| 21 | #1062653 | 10-07 22:01 | 158.053 | 1062656 | 10-08 00:02:46 | `STOP_LOSS_ORDER` | SL ON_FILL 157.932 | -12.1p | **writer 未起動 SL (ON_FILL)** |
+| 22 | #1062664 | 10-08 01:03 | 157.835 | 1177993 | 10-08 16:17:11 | `STOP_LOSS_ORDER` | SL REPLACEMENT 158.252 (← 1177990) | +41.7p | **trail 置換 SL (Tier2)** |
+| 23 | #1178008 | 10-09 02:04 | 157.903 | 1211257 | 10-09 08:56:40 | `STOP_LOSS_ORDER` | SL REPLACEMENT 158.125 (← 1211254) | +22.2p | **trail 置換 SL (Tier2)** |
+| 24 | #1253195 | 10-14 04:55 | 158.2 | 1254174 | 10-14 06:59:55 | `STOP_LOSS_ORDER` | SL REPLACEMENT 158.208 (← 1254171) | +0.8p | **BE 置換 SL (Tier1)** |
+| 25 | #1254215 | 10-14 23:03 | 158.123 | 1254218 | 10-14 23:52:00 | `STOP_LOSS_ORDER` | SL ON_FILL 157.974 | -14.9p | **writer 未起動 SL (ON_FILL)** |
+| 26 | #1254222 | 10-15 13:02 | 157.89 | 1254225 | 10-15 13:18:57 | `STOP_LOSS_ORDER` | SL ON_FILL 157.714 | -17.6p | **writer 未起動 SL (ON_FILL)** |
+| 27 | #1254229 | 10-16 04:02 | 157.918 | 1254770 | 10-16 07:22:19 | `STOP_LOSS_ORDER` | SL REPLACEMENT 157.926 (← 1254767) | +0.8p | **BE 置換 SL (Tier1)** |
+| 28 | #1254773 | 10-19 00:01 | 157.75 | 1346958 | 10-19 12:40:03 | `TAKE_PROFIT_ORDER` | TP ON_FILL 158.359 | +60.9p | **broker TP 約定** |
+| 29 | #1346961 | 10-20 05:36 | 158.151 | 1346964 | 10-20 07:10:31 | `STOP_LOSS_ORDER` | SL ON_FILL 158.044 | -10.7p | **writer 未起動 SL (ON_FILL)** |
+| 30 | #1346967 | 10-23 04:02 | 156.921 | 1346972 | 10-23 08:00:44 | `STOP_LOSS_ORDER` | SL REPLACEMENT 156.929 (← 1346969) | +0.8p | **BE 置換 SL (Tier1)** |
+
+**集計**: broker TP 約定 **2** / writer 未起動 SL (ON_FILL) **12** / BE 置換 SL **8** / trail 置換 SL **7** / halt 経由 market close **1** = 30。
+- ⬛ **訂正**: 10-20 節の「#1254773 = カード記録上 初の broker TP 約定」は誤り — **#573986 (08-10 07:20Z、TP 158.477 ON_FILL、+¥637 = 累計最大の正値) が最初の TP 約定**で、#1254773 は 2 例目。10-20 時点の exit 像「TP 1 / BE 5 / trail 3 / writer 未起動 SL 2 / 残り未分類」は本表で **TP 2 / BE 8 / trail 7 / ON_FILL SL 12 / halt 1** に確定 (未分類 0)
+- 読み: 30 fill のうち **宣言 exit (TP +80p / SL −150p / hold 24H1) に沿った決済は 0** — TP 2 本も `mult=0.85` 等の置換 TP (+60.8p / +66.6p 級)、SL 30/30 が 9.8–28.5p 帯。trail 7 本の最終 SL は entry +9.6〜+41.7p (いずれも TP 到達前に trail SL で決済)、BE 8 本は全て entry +0.8p。D5 (SL 復元 / as-placed 新宣言、user 決裁 11-30) の材料であり、本節は分類の事実のみ

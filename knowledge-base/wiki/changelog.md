@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-10-29 — docs(KB)+registry: carry_dip #1346967 = SL persist 根治後の初 live trail 回帰なし / clean live N=30 到達で D11 を REG 字義で凍結 / exit 種別 30/30 棚卸し / 単一エンジン shadow 率確定 readout / storm guard enforce 拒否 6 回目 (rule:R3、autopilot、コード変更なし)
+
+- **sl-persist 初 live trail readout (registry 11-04 → resolve)**: #1346967 (10-23) BE 置換 1 回、`storm_guard` idempotent 0 / monotonic 0 / sent 1、DB sl == broker、`sl_initial` 初記録、§8.3 推定量変更の初出 (−0.5p)。未検証 = Tier2 trail 脚 ([[storm-guard-design-2026-09-22]] §8.7)
+- **D11 凍結 (registry `integrated-decision-packet-d11-user-decision` resolve)**: carry_dip clean live N=30 (10-23 08:00:44Z) が user 返答より先 → F3 predicate = REG 字義 (N≥30 ∧ PnL>0 demo 簿)。F3 entry は active のまま初到達 note ([[integrated-decision-packet-d1-d12-2026-09-22]] §8-12)
+- **exit 種別 30/30 (registry `carry-dip-exit-type-inventory` resolve)**: TP 2 / ON_FILL SL 12 / BE 8 / trail 7 / halt 1、分類不能 0、「初 TP = #1254773」を #573986 に訂正 ([[usdjpy_carry_dip_accumulator]])
+- **shadow 率確定 (registry `single-engine-shadow-rate-attribution-readout` resolve)**: post 16 日 −26% (15m −30%、≤4h −47%)、H1 cross-process 成分 88%、cadence 5 entry に post 率併記 ([[single-engine-shadow-rate-readout-2026-10-13]] §6)
+- **weekend-gap G1**: live N=0、11-30 へ roll。**storm guard enforce**: 拒否 6 回目、期日 10-30
+- 詳細: [[2026-10-29-session]]
+
 ## 2026-10-23 — docs(KB): storm guard 執行窓 — 権限判定で 5 回目の拒否 (期日 10-24 へ +1 日) + 座礁 wiki-daily 10-22 12:00Z の救出 (6 例目) (rule:R3、autopilot、コード変更なし)
 
 - **storm guard 執行窓 (registry `storm-guard-enforce-execution-window`)**: 02:33Z / 02:35:30Z open live 0 (oanda open_trades 0 / heartbeat 0 / demo is_shadow=0 open 0、窓は 10-20 07:11Z から ≥67 h)。今回は Render MCP が接続済みで web service id を確認できたため 02:36Z に env `STORM_GUARD_ENFORCE=1` を 1 回試行 → 自動実行の権限判定で拒否 (**通算 5 回目**)。note 追記 + 期日 10-23 → **10-24** (+1 日、理由 = user 操作待ち)。[[storm-guard-design-2026-09-22]] §7.4 に行追加。`enforce: false` / totals 全 0 のまま、live fill は 10-20 05:36Z 以降 0
