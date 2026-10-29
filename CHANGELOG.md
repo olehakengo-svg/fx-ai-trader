@@ -7,6 +7,7 @@
 - **exit 種別 30/30 (registry `carry-dip-exit-type-inventory` resolve)**: TP 2 / ON_FILL SL 12 / BE 8 / trail 7 / halt 1、分類不能 0、「初 TP = #1254773」を #573986 に訂正 ([[usdjpy_carry_dip_accumulator]])
 - **shadow 率確定 (registry `single-engine-shadow-rate-attribution-readout` resolve)**: post 16 日 −26% (15m −30%、≤4h −47%)、H1 cross-process 成分 88%、cadence 5 entry に post 率併記 ([[single-engine-shadow-rate-readout-2026-10-13]] §6)
 - **weekend-gap G1**: live N=0、11-30 へ roll。**storm guard enforce**: 拒否 6 回目、期日 10-30
+- **座礁 wiki-daily 10-29 02:00Z 救出 (7 例目)**: 本 run 中 04:37Z にローカル main で走った wiki-daily の成果物 (trade-log / index / log / daily-observations O-10-29-1・-2 + rollup / carry_dip 節) を union 移植 (stale な Portfolio 見出しは不採用)
 - 詳細: [[2026-10-29-session]]
 
 ## 2026-10-23 — docs(KB): storm guard 執行窓の権限判定拒否 5 回目 (registry 期日 10-24) + 座礁 wiki-daily 10-22 12:00Z 救出 (rule:R3、autopilot)
