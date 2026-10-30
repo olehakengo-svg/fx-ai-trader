@@ -5794,6 +5794,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 | WR | 50.0% |
 | 最良セッション | London（+0.8 pips、WR 100%） |
 
+### 2026-10-30 (Pre-Tokyo Briefing)
+前日（2026-10-29）のトレード数は **N=2**、全体WR **50.0%**、PnL合計 **−10.0 pips**（EV −5.00）。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: N=2、N=1 いずれも「データなし」水準（N<10）。EVの符号・大きさともに現時点では判断材料にならない。唯一注記すべきは `kalman_d7_po_dn_flip` の非対称性：WR=50%ながら EV=−5.00 は、損失トレードの絶対値（10.8）が利益トレード（0.8）の**13.5倍**に達していることを意味する。これはRR（リスクリワード）構造の問題を示唆するが、N=2では確認不可。
+- `shadow_tracking`: 13件 → Shadow評価中のため本番転送を抑止（正常動作）
+- `shadow_tracking(shadow_emit_no_lot)`: 2件 → ロットサイズ算出不可によるスキップ
+- `shadow_tracking(promo_block:pair_demoted)`: 2件 → ペア降格による明示的ブロック
+- **東京時間（JST 09:00-15:00）**: USD_JPYのRANGING継続が最も高い確率シナリオ。Kalman戦略のシグナル発生有無を確認。
+- **ロンドンOpen前後（JST 16:00-17:00）**: EUR_USD・GBP_USDの高ATR%ile環境でレジーム遷移（RANGING→TRENDING）の可能性。DT系戦略の score_gate 通過率が上昇する可能性。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

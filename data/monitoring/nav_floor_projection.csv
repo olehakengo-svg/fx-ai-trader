@@ -43,3 +43,4 @@ date,nav_jpy,burn_per_day_jpy,days_to_floor,floor_date_est,method,burn_fit_per_d
 2026-10-27,273616,38.9,298,2027-08-21,decomposed,60.5,192,68.3,-29.4,"nav_delta:2026-09-28->2026-10-27:29d,keeper_rt_in_window=26,transfers_jpy=+0,n_transfers=0",2026-10-27T20:19:24.463076+00:00
 2026-10-28,273616,39.9,290,2027-08-14,decomposed,58.7,198,68.3,-28.4,"nav_delta:2026-09-28->2026-10-28:30d,keeper_rt_in_window=26,transfers_jpy=+0,n_transfers=0",2026-10-28T20:41:20.955020+00:00
 2026-10-29,273522,46.5,247,2027-07-03,decomposed,56.9,202,68.3,-21.8,"nav_delta:2026-09-29->2026-10-29:30d,keeper_rt_in_window=26,transfers_jpy=+0,n_transfers=0",2026-10-29T20:44:46.090451+00:00
+2026-10-30,273522,41.5,277,2027-08-03,decomposed,57.2,201,68.3,-26.8,"nav_delta:2026-09-30->2026-10-30:30d,keeper_rt_in_window=26,transfers_jpy=+0,n_transfers=0",2026-10-30T01:45:19.016320+00:00
