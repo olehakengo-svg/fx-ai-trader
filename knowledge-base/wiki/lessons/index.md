@@ -37,6 +37,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### `[[lesson-mtf-regime-range-cascade-2026-10-30]]`
+**発見日**: 2026-10-30 | **rule**: R1 (6 ヶ月再評価) | **判定**: REJECT、`enabled = False` 継続、次回 2027-04-30
+- 問題: 2026-04-30 に N=462 の実測で停止した range-regime MR cascade を、Pre-reg 閾値 (Wilson_BF_lower ≥ 0.50 AND N ≥ 50) で再評価
+- 症状: 本番 180d (12,025 行、XAU / dedup 除外) の継承 3 戦略 × {range_tight, range_wide} 6 cell が **WR 28〜36% / Wilson_BF lo 12〜25% / PF 0.41〜0.56 / EV 全負**。N は 10 倍 (32〜107) になったが edge は再出現せず、m=114 の全 range cell でも survivor 0
+- 原因: 「regime が変われば edge が戻る」仮説が実測で不成立。bb_rsi_reversion は range で non-range より WR が約 20pp 低い (4 月の方向性と整合)
+- 修正: コード無変更。lesson + 戦略カード + raw cell 全表を docs-only PR で記録。構造的発見 3 点 (`REGIME_RANGE` が `no_go` の alias で range 条件がコード上消滅 / 1m parquet cache が 2026-05 で stale / 1h parquet が `datetime64[ms]` で `merge_asof` 退行) と代理指標の供給停止 (継承 3 戦略が 8 月以降 demote で発火 0) を次回へ引き継ぎ
+- 教訓: **再評価タスクは「戦略の edge」と「それを測る装置が生きているか」を別々に判定せよ。N 不足は観測装置の停止であって re-enable の根拠ではない**
+
 ### [[lesson-wallclock-flaky-tests-2026-10-15]]
 **発見日**: 2026-10-15 | **rule**: R3
 - 問題: main CI が 12 run 中 5 回失敗し「flaky、push し直せば通る」と記録されていたが、失敗 run の UTC 時刻 × test 名を並べると **壁時計依存 2 系統 (22–23 時台の Layer 0 深夜禁止 / 00 時台の `now−1h` 日付跨ぎ) + プロセス共有状態 2 系統 (`redirect_stdout` が他スレッドの print を拾う / `id(df)` を cache key にした偽ヒット)** の決定論的失敗だった
