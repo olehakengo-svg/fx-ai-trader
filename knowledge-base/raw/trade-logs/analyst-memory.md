@@ -5824,6 +5824,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 - kalman_d7_po_dn_flip: 勝ちトレード+0.8pip / 負けトレード−10.8pip
 - 両トレードともSL_HIT終了。**RR比が約1:13.5**と極めて不利
 
+### 2026-10-30 (Post-NY Report)
+| PnL | **+0.0** |
+- `rnb_usdjpy:no_signal` が累計**1,771件**でブロック首位を占めており、本セッション中も同機構が無信号状態を維持していたと推定される。
+- `r2_shadow_demoted_cell` ブロック（scalp系4戦略合計 **2,072件**）が依然として支配的。シャドウ降格セルに対して本番エントリーが完全に抑制された状態が継続。
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+| 本日合計PnL | **+0.0** |
+**主因の構造:** 転送ゼロの直接原因は「シャドウモード継続」。`pair_demoted` / `force_demoted` を含むブロックは昇格基準（N≥30 & EV≥1.0）が未到達または明示的降格適用によるもの。`agg_kelly<0`は本日1件のみで主因ではない。
+3. **シャドウN蓄積進捗** — 昇格候補戦略のN件数確認（N≥30 & EV≥1.0の戦略が存在するか）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
