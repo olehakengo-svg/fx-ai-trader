@@ -5804,6 +5804,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 - **東京時間（JST 09:00-15:00）**: USD_JPYのRANGING継続が最も高い確率シナリオ。Kalman戦略のシグナル発生有無を確認。
 - **ロンドンOpen前後（JST 16:00-17:00）**: EUR_USD・GBP_USDの高ATR%ile環境でレジーム遷移（RANGING→TRENDING）の可能性。DT系戦略の score_gate 通過率が上昇する可能性。
 
+### 2026-10-30 (Post-Tokyo Report)
+| PnL | **¥0** |
+- Fidelity Cutoff後の全戦略においてN<10（多数でN=0）。統計的判断の土台がない。
+- `r2_shadow_demoted_cell`によるブロックはシャドウ評価機構が正常動作している証拠であり、これを迂回すべき理由は現時点でデータ上存在しない。
+- DD防御モード（0.2x defensive）は継続中。介入のハードルは高い。
+### 推奨戦略配分
+**NO ACTION推奨。**
+**推奨アクション:**
+- `STORM_GUARD_ENFORCE=1` のuser操作を最優先で完了させること（5日超過は管理上の空白）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
