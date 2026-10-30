@@ -5814,6 +5814,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 **推奨アクション:**
 - `STORM_GUARD_ENFORCE=1` のuser操作を最優先で完了させること（5日超過は管理上の空白）。
 
+### 2026-10-30 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **−10.0 pips** |
+| 全体WR | **50.0%**（1勝1敗、非対称ペイオフによりPnL負） |
+| Strategy | Pair | N | WR% | EV | PnL |
+> **判断ステータス**: N=3（全体）はデータ不足。いずれの戦略も統計的判断域（N≥30）未満。kalman_d7_po_dn_flipはEV=−5.00と深刻だが、N=2では「傾向」にも満たない。
+- daytrade_xau: OFF / scalp_xau: OFF → 本日対象外
+> KB情報補足: carry_dip_accumulatorはKBによれば累計N=30到達・EV+5.32の実績あり（broker +¥1,395）。ただしCutoff後の本テーブル集計ではN=1のみ検出 — 残99件はis_shadow扱いまたは異なるstrategy_key分類の可能性。
+- kalman_d7_po_dn_flip: 勝ちトレード+0.8pip / 負けトレード−10.8pip
+- 両トレードともSL_HIT終了。**RR比が約1:13.5**と極めて不利
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
