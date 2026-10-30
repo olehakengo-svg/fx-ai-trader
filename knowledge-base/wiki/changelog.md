@@ -6,6 +6,7 @@
 - **registry 追記**: `kalman-d7-live-exit-disposition-user-decision` (11-29) = 返答を「再 live 化 R1 + exit 仕様」として読む / `t9-kalman-d7-fire-info` = 10-30 deploy 以降 shadow 分子が再び有効
 - **storm guard 執行窓 (registry `storm-guard-enforce-execution-window`)**: 01:50Z / 01:53Z open live 0 ∧ audit 直近 H1 bar 全 skipped ∧ 金曜 = 窓成立 → 01:54Z env 設定 1 回試行 → classifier [Production Deploy] 拒否 **7 回目** → 期日 10-30 → **10-31**。**user 操作待ち** 不変 ([[storm-guard-design-2026-09-22]] §7.4 10-30 行)
 - **観測 (記録のみ)**: 10-29 21:04:14Z carry_dip LIVE 注文が OANDA `MARKET_ORDER` → `ORDER_CANCEL MARKET_HALTED` (日次 21:00Z 付近の halt、10-15 21:03Z に続く 2 例目) → demo 行 20255 は shadow 化 (+0.8 `SL_HIT`)、リトライなし (O-2026-10-30-1)
+- **merge / deploy**: PR #357 merge 2754c045 (03:22:04Z、CI 全 pass / Codex findings 0 / review gate exit 0 / 窓再確認 03:21:53Z open live 0) → Render live **03:24:17Z** (`code_pins.KALMAN_D7_R2_LIVE_STOP: true`、`engine_import_pid` 59 → 39、`storm_guard` 状態消失 7 例目、open live 0)
 - 詳細: [[2026-10-30-session]]
 
 ## 2026-10-29 — docs(KB)+registry: carry_dip #1346967 = SL persist 根治後の初 live trail 回帰なし / clean live N=30 到達で D11 を REG 字義で凍結 / exit 種別 30/30 棚卸し / 単一エンジン shadow 率確定 readout / storm guard enforce 拒否 6 回目 (rule:R3、autopilot、コード変更なし)
