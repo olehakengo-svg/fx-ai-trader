@@ -1,5 +1,13 @@
 # FX AI Trader - Changelog
 
+## 2026-10-30 — fix(engine): kalman_d7 R2 live stop — pre-reg LOCK 09-01 §R2「LIVE N≥10 ∧ EV<0 → live 停止」成立 (clean live N=12、demo EV −1.71p / broker ≈ −3.0p、両基準負) を code pin で執行 + storm guard enforce 拒否 7 回目 (rule:R2、autopilot)
+
+- **kalman_d7 R2 live stop (registry `t9-kalman-d7-live-n10-ev-check` resolve)**: fill #12 #1346985 (10-29 18:52Z → 20:01Z ON_FILL SL −10.8 / −¥105) で prefix 合算 clean live N=12 (po_dn 11 / ema75 1)。demo Σ −20.5p / EV −1.71p / WR 66.7%、broker realized Σ −¥363 ≈ −3.0p/fill、po_dn 単独 −2.14p / ≈ −2.0p = **4 基準全て負 (estimand 不変、D11 両基準併記と同型)**。連続 3 SL は不成立。LOCK 09-01 の撤退経路 (env `KALMAN_D7_LIVE_ENABLE=0`) は autopilot から変更不可のため、同じ gate を `modules/demo_trader.py` の class pin `_KALMAN_D7_R2_LIVE_STOP = True` (`_kalman_d7_live_eligible` 先頭) で閉鎖。1000u 契約 / bypass set / シグナル / SL / TP 非接触、shadow (UNIVERSAL_SENTINEL) 蓄積継続。`/api/demo/live-enable-flags` `code_pins.KALMAN_D7_R2_LIVE_STOP` 追加。tests `tests/test_kalman_d7_r2_live_stop_2026_10_30.py` 13 pin (pin 解除で env gate 復帰 = 再 live 化 R1 の到達性を含む)。再 live 化は R1 (user 決裁、exit 仕様 (a)/(b) と同時) ([[kalman-d7-r2-live-stop-2026-10-30]] / [[kalman-d7-po-dn-flip]] 10-30 節)
+- **registry 追記**: `kalman-d7-live-exit-disposition-user-decision` (11-29) = 返答を「再 live 化 R1 + exit 仕様」として読む / `t9-kalman-d7-fire-info` = 10-30 deploy 以降 shadow 分子が再び有効
+- **storm guard 執行窓 (registry `storm-guard-enforce-execution-window`)**: 01:50Z / 01:53Z open live 0 ∧ audit 直近 H1 bar 全 skipped ∧ 金曜 = 窓成立 → 01:54Z env 設定 1 回試行 → classifier [Production Deploy] 拒否 **7 回目** → 期日 10-30 → **10-31**。**user 操作待ち** 不変 ([[storm-guard-design-2026-09-22]] §7.4 10-30 行)
+- **観測 (記録のみ)**: 10-29 21:04:14Z carry_dip LIVE 注文が OANDA `MARKET_ORDER` → `ORDER_CANCEL MARKET_HALTED` (日次 21:00Z 付近の halt、10-15 21:03Z に続く 2 例目) → demo 行 20255 は shadow 化 (+0.8 `SL_HIT`)、リトライなし (O-2026-10-30-1)
+- 詳細: [[2026-10-30-session]]
+
 ## 2026-10-29 — docs(KB)+registry: carry_dip #1346967 = SL persist 根治後の初 live trail 回帰なし / clean live N=30 到達で D11 を REG 字義で凍結 / exit 種別 30/30 棚卸し / 単一エンジン shadow 率確定 readout / storm guard enforce 拒否 6 回目 (rule:R3、autopilot、コード変更なし)
 
 - **sl-persist 初 live trail readout (registry 11-04 → resolve)**: #1346967 (10-23) BE 置換 1 回、`storm_guard` idempotent 0 / monotonic 0 / sent 1、DB sl == broker、`sl_initial` 初記録、§8.3 推定量変更の初出 (−0.5p)。未検証 = Tier2 trail 脚 ([[storm-guard-design-2026-09-22]] §8.7)
