@@ -112,6 +112,13 @@
 - **family**: `storm_guard` 系 (卒業済) — 捕捉率 100% の 4 例目、状態消失なし
 - **経路**: 記録のみ ([[2026-10-29]] 発見 1、[[usdjpy_carry_dip_accumulator]] 10-29 節)
 
+### O-2026-10-30-1: 平日 21:04Z の carry_dip LIVE 注文が OANDA `MARKET_HALTED` で cancel → demo 行は shadow 化 (10-15 21:03Z に続く 2 例目、リトライ storm なし) (執行 QA / 制御系)
+- **観測** (autopilot 10-30 01:5xZ): audit 10-29 21:04:14Z `usdjpy_carry_dip_accumulator` USD_JPY is_live True `bridge_status: sent` / oanda_trade_id '' → broker tx 1346991 `MARKET_ORDER` (CLIENT_ORDER 1000u) + 1346992 `ORDER_CANCEL` reason `MARKET_HALTED` (21:04:14Z)。demo 行 20255 (entry 21:04:13Z @157.686 BUY) は `is_shadow` 1 で記録され `SL_HIT` +0.8 で決済 = clean live 母集団に入らない。同 bar で 2 本目の `MARKET_ORDER` は無い (週末型 32,821 回リトライ storm [[kalman-d7-ema75-break]] 10-05 とは異なり単発)
+- **解釈**: OANDA の日次 rollover halt (NY 17:00 = 21:00Z 前後、数分) に live-eligible signal が当たると注文は broker 側で cancel され、engine は shadow へ降格して記録する (pre-send guard の観測面 [[project_pre_send_guard_observability_r3_2026_09_23]] の経路)。原則 1 (攻める) の観点では「失われた live 機会」だが、+0.8 (BE 帯) のため PnL 影響は小。頻度 = 10-15 / 10-29 の 2 例 / ~45 日
+- **反証可能な予測**: 21:00〜21:06Z の live-eligible signal は今後も `MARKET_HALTED` で cancel される (構造的)。次の同型例で `MARKET_ORDER` が 2 回以上なら リトライ経路の退行
+- **family**: 新規 (halt-window live loss)。2 例で family 化は保留、3 例目で `wiki/lessons/` 候補 (対策は halt 窓の数分後に再送する R3 修理 = live 経路変更なので記録のみ)
+- **経路**: 記録のみ ([[2026-10-30-session]])
+
 ---
 
 ## 週次 rollup

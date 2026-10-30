@@ -4,7 +4,7 @@
 - **Entry Type**: `kalman_d7_ema75_break`
 - **Category**: TF (Trend Following)
 - **Timeframe**: DT 15m
-- **Status**: SHADOW by default; LIVE via `KALMAN_D7_LIVE_ENABLE=1` env var (rule:R1 例外, 2026-05-20)
+- **Status**: 🔻 **LIVE 停止 (R2、2026-10-30)** — pre-reg LOCK 09-01 §R2「LIVE N≥10 ∧ EV<0 → live 停止」成立 (prefix 合算 N=12、demo EV −1.71p / broker ≈ −3.0p、両基準負)。code pin `_KALMAN_D7_R2_LIVE_STOP=True` で `_kalman_d7_live_eligible` を閉鎖、shadow (UNIVERSAL_SENTINEL) 蓄積は継続。再 live 化 = R1 ([[kalman-d7-r2-live-stop-2026-10-30]])。旧: SHADOW by default; LIVE via `KALMAN_D7_LIVE_ENABLE=1` env var (rule:R1 例外, 2026-05-20 → 09-01 LOCK 1000u carve-out)
 - **Active Pairs**: USDJPY only
 
 ## BT Performance (TV Pine, 10.5mo M15)
@@ -61,3 +61,6 @@ Same entry as v17 (kalman_d7_po_dn_flip):
 - ⚪ 本戦略は secondary emit (primary = po_dn が勝った bar) で LIVE に出る。金曜 19Z entry × 8h cap 不発 × `WEEKEND_CLOSE` 21:45Z という経路は**構造的に halt を踏む** ⇒ 再発防止 (金曜クローズ前 flat 化 or halt 検出で retry 停止) は user 決裁待ち ([[2026-10-05]] 未決 8)
 
 詳細: [[2026-10-05]] 発見 1 / [[kalman-d7-po-dn-flip]]
+
+
+## 🔻 2026-10-30 更新 (autopilot、rule:R2): kalman_d7 3 variant の LIVE 停止 — prefix 合算 clean live N=12 (本 variant は #957198 の 1 本、demo +3.0 / broker −¥147) で pre-reg R2 ゲート (N≥10 ∧ EV<0) 成立。code pin `_KALMAN_D7_R2_LIVE_STOP` で live 経路を閉鎖、shadow 継続。詳細 [[kalman-d7-r2-live-stop-2026-10-30]]

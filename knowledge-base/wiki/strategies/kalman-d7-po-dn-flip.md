@@ -4,7 +4,7 @@
 - **Entry Type**: `kalman_d7_po_dn_flip`
 - **Category**: TF (Trend Following)
 - **Timeframe**: DT 15m
-- **Status**: SHADOW by default; LIVE via `KALMAN_D7_LIVE_ENABLE=1` env var (rule:R1 例外, 2026-05-20)
+- **Status**: 🔻 **LIVE 停止 (R2、2026-10-30)** — pre-reg LOCK 09-01 §R2「LIVE N≥10 ∧ EV<0 → live 停止」成立 (prefix 合算 N=12、demo EV −1.71p / broker ≈ −3.0p、両基準負)。code pin `_KALMAN_D7_R2_LIVE_STOP=True` で `_kalman_d7_live_eligible` を閉鎖、shadow (UNIVERSAL_SENTINEL) 蓄積は継続。再 live 化 = R1 ([[kalman-d7-r2-live-stop-2026-10-30]])。旧: SHADOW by default; LIVE via `KALMAN_D7_LIVE_ENABLE=1` env var (rule:R1 例外, 2026-05-20 → 09-01 LOCK 1000u carve-out)
 - **Active Pairs**: USDJPY only
 
 ## BT Performance (TV Pine, 10.5mo M15)
@@ -223,3 +223,14 @@ Entry filters (v16 forensic 導出):
 - 🔴 DD ledger: `OANDA_SL_TP` +15.6 **未計上** (欠落 11 例目)
 - **累計**: demo **N 9 / 5W / WR 55.6% / PnL −13.5 / EV −1.5** (`promo_ev` −1.5 一致、`promotion: pending`、`enabled: true`)、wf_h1 −3.88 / wf_h2 +0.40、Wilson 26.7 / BF 15.7。本窓 broker +¥157。registry `t9-kalman-d7-live-n10-ev-check` (期日 12-09) の N≥10 まで **あと 1 fill**、現状 EV<0 — 判定時の estimand (demo EV / broker EV) を事前固定すること (未決 15)。`kalman-d7-live-exit-disposition-user-decision` (11-29) は origin 版カードの 10-07 節に記載 (ローカル未反映)
 - 詳細 [[2026-10-15]] 発見 1 / 発見 2
+
+
+## 🔻 2026-10-30 更新 (autopilot、rule:R2): **LIVE fill #11 #1346985 (10-29 18:52Z、ON_FILL SL 157.862 で 20:01Z `SL_HIT` −10.8 / −¥105、hold 1h09m、`REPLACEMENT` 0) で po_dn 単独 N=11 / prefix N=12 — pre-reg R2 ゲート成立 → live 停止を執行**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold |
+|---|---|---|---|---|---|---|---|
+| **#1346985** | 10-29 18:52:48 | 157.966 | 157.862 (−10.4p) / 158.098 (+13.2p) | 10-29 20:01:39 `STOP_LOSS_ORDER` @157.861 (ON_FILL SL、置換 0) | **−¥105** | −10.8 `SL_HIT` | 1h09m |
+
+- 決済後 0.6 s に demo `TRADE_CLOSE` → `MARKET_ORDER_REJECT` (本戦略 3 例目、無害 race)。ON_FILL SL 幅 −10.4p は 6 本で 7.8 / 10.4 / 19.9 / 20.0 / 20.0 / 22.5p。`storm_guard` は本 fill で evaluated 0 (置換なし)
+- **累計 (clean live、prefix kalman_d7 × USD_JPY、since 08-09)**: demo **N 12 / 8W / WR 66.7% / Σ −20.5p / EV −1.71p** (po_dn 単独 N 11 / Σ −23.5 / EV −2.14)、broker realized **Σ −¥363 ≈ −3.0p/fill** (po_dn 単独 −¥216)。4 基準全て負 = estimand 不変 → registry `t9-kalman-d7-live-n10-ev-check` **resolved 10-30**、LOCK 09-01 §R2 の「live 停止」を code pin で執行 (env は autopilot から変更不可のため)。詳細・敵対的検査・再 live 化条件: [[kalman-d7-r2-live-stop-2026-10-30]]
+- 停止の原因仮説 = exit 仕様非同期 (BT WR 23.9% / W/L 12.3× の payoff 型 ↔ live WR 66.7% / payoff 0.32 の BE 返し型、12 本中 宣言 TP 到達 0)。user 決裁 `kalman-d7-live-exit-disposition-user-decision` (11-29) は「再 live 化 R1 + exit 仕様」として読む

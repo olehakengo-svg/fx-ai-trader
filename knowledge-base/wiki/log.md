@@ -1,5 +1,14 @@
 # Knowledge Base Change Log
 
+## 2026-10-30 (autopilot — kalman_d7 R2 live stop 執行 (pre-reg N≥10 ∧ EV<0 成立、両基準負) + enforce 拒否 7 回目)
+
+- **判定 (rule:R2)**: registry `t9-kalman-d7-live-n10-ev-check` TRIGGERED (prefix kalman_d7 × USD_JPY clean live N=12、fill #12 = #1346985 10-29 18:52Z → 20:01Z ON_FILL SL −10.8 / −¥105)。demo Σ −20.5p / EV −1.71p、broker Σ −¥363 ≈ −3.0p、po_dn 単独 −2.14p / −2.0p = 4 基準全て負 → LOCK 09-01 §R2 の live 停止を執行。連続 3 SL 不成立。[[kalman-d7-r2-live-stop-2026-10-30]]
+- **実装**: `_KALMAN_D7_R2_LIVE_STOP = True` (demo_trader、`_kalman_d7_live_eligible` 先頭、env より優先) + flags endpoint `code_pins` + tests 13 pin。lot 契約 / bypass / シグナル非接触、shadow 継続。env は autopilot から変更不可 (classifier) のため code pin
+- **storm guard enforce**: 01:54Z 試行 → 拒否 7 回目、期日 10-31。窓 (open live 0) は開いている = user 操作待ち
+- **観測**: 10-29 21:04Z carry_dip LIVE 注文が `MARKET_HALTED` で cancel → shadow 化 (O-2026-10-30-1)。NAV ¥273,522.1611 (10-29 12:00Z → −¥105 = #1346985、残差 0)
+- **Strategy pages**: [[kalman-d7-po-dn-flip]] / [[kalman-d7-ema75-break]] / [[kalman-d7-trail-atr]] Status → 🔻 LIVE 停止 (R2)
+- 詳細: [[2026-10-30-session]]
+
 ## 2026-10-29 (autopilot — carry_dip #30 = 修復後初 live trail 回帰なし + N≥30 到達で D11 凍結 + exit 30/30 棚卸し + 単一エンジン shadow 率確定 readout + enforce 拒否 6 回目)
 - 🔑 **PR #346 (SL persist 根治) 後の最初の live trail = carry_dip #1346967 (10-23)**: BE 置換 **1 回** (156.929 = entry+0.8)、`storm_guard` evaluated 1 / sent 1 / idempotent 0 / monotonic 0、DB `sl` == broker、`sl_initial` 156.715 初記録、SL 約定 +¥7 (demo +0.2 BE)。§8.3 推定量変更の初出 (engine bid 156.923 vs broker 156.928 = −0.5p、close 要求は 404 無害 race)。未検証 = Tier2 trail 脚 (favorable < 1.5·ATR で未発火)。registry `sl-persist-root-fix-first-live-trail-readout` resolve ([[storm-guard-design-2026-09-22]] §8.7)
 - 🔑 **carry_dip clean live N=30 到達 (10-23 08:00:44Z)** — pre-reg 評価 N。demo +159.7 / EV +5.32 / Wilson_lo 0.42、broker +¥1,395 (30/30)。両基準正で R2 不成立。到達後の判断は Rule 1 (user、D5 11-30)。**D11 は user 返答より先に到達したため REG 字義 (clean live N≥30 ∧ PnL>0 demo 簿) で凍結** — registry `integrated-decision-packet-d11-user-decision` resolved、[[integrated-decision-packet-d1-d12-2026-09-22]] §8-12。F3 entry は active のまま初到達を note (resolve は 2027-03-31 評価時)
