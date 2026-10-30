@@ -477,17 +477,42 @@ def test_prefix_locks_cover_their_variant_family():
     assert res["candidates"] == []
 
 
-def test_real_registry_preserves_prefix_match_flags():
-    """Counter-pin against the live registry: prefix flags must survive."""
+def test_real_registry_preserves_prefix_match_flags(tmp_path):
+    """Counter-pin against the live registry: prefix flags must survive.
+
+    2026-10-30: no ACTIVE outcome LOCK uses match=prefix any more (the kalman
+    and ps families were both resolved by executed R2 decisions), so the
+    property is pinned on the REAL kalman entry's shape by re-activating a
+    copy of the live registry — same device as the D11 wiring pin in
+    tests/test_prereg_trigger_watch.py (entry の写しを active 化して評価).
+    """
+    from tools.cell_deepdive_audit import REGISTRY_PATH
+    reg = json.loads(Path(REGISTRY_PATH).read_text())
+    kal = [t for t in reg["triggers"]
+           if t["id"] == "t9-kalman-d7-live-n10-ev-check"]
+    assert kal, "kalman R2 entry must stay in the registry (resolved, not deleted)"
+    copy = dict(kal[0], active=True)
+    copy.pop("resolved", None)
+    copy.pop("resolution", None)
+    f = tmp_path / "reactivated.json"
+    f.write_text(json.dumps({"triggers": [copy]}))
+    by_id_copy = {lk["registry_id"]: lk for lk in load_locked_cells(f)}
+    assert by_id_copy["t9-kalman-d7-live-n10-ev-check"]["match"] == "prefix"
+
     locked = load_locked_cells()
     by_id = {lk["registry_id"]: lk for lk in locked}
-    assert by_id["t9-kalman-d7-live-n10-ev-check"]["match"] == "prefix"
     # ps-carveout-regate-post-172 (prefix) was RESOLVED on 2026-10-10 once its
     # pooled R2 decision executed (N=11, EV<-0.5p -> _PAIR_DEMOTED, PR #324):
     # an executed decision no longer freezes an outcome look, and keeping it
     # active would raise a stale TRIGGERED on every daily run (Codex P2).
     # Resolved locks must drop out of the redaction population.
     assert "ps-carveout-regate-post-172" not in by_id
+    # t9-kalman-d7-live-n10-ev-check (prefix) was RESOLVED on 2026-10-30 the
+    # same way: N=12 >= 10 with EV<0 on both demo and broker bases -> R2 live
+    # stop executed (_KALMAN_D7_R2_LIVE_STOP, kalman-d7-r2-live-stop-2026-10-30).
+    # Its live population is frozen (no further fills), so no outcome look
+    # remains to protect; keeping it active would TRIGGER daily.
+    assert "t9-kalman-d7-live-n10-ev-check" not in by_id
     # ...and a non-prefix lock is not silently widened.
     assert by_id["sr-anti-hunt-eurjpy-buy-forward-confirm"]["match"] == "exact"
 
@@ -1020,12 +1045,15 @@ def test_real_registry_classification_of_outcome_locks():
     for outcome_lock in ("sr-anti-hunt-eurjpy-buy-forward-confirm",
                          "ws3-t11-anti-hunt-usdjpy-recheck",
                          "rnb-support-bounce-shadow-forward",
-                         "t9-kalman-d7-live-n10-ev-check",
                          "hourblock-class-exempt-r2-rollback",
                          "ws3-stage2-underpowered-recheck"):
         assert outcome_lock in ids, outcome_lock
-    # Executed + resolved outcome LOCK (2026-10-10, PR #324) is out.
+    # Executed + resolved outcome LOCKs are out:
+    # ps-carveout-regate-post-172 (2026-10-10, PR #324) and
+    # t9-kalman-d7-live-n10-ev-check (2026-10-30, R2 live stop,
+    # kalman-d7-r2-live-stop-2026-10-30).
     assert "ps-carveout-regate-post-172" not in ids
+    assert "t9-kalman-d7-live-n10-ev-check" not in ids
 
 
 def test_locked_cells_are_reported_below_the_audit_minimum_n():
@@ -1270,9 +1298,11 @@ def test_malformed_match_selector_fails_closed(tmp_path):
     # Counter-pins: "prefix" works, and an ABSENT key is legal (means exact).
     assert load_locked_cells(reg({"match": "prefix"}))[0]["match"] == "prefix"
     assert load_locked_cells(reg({}))[0]["match"] == "exact"
-    # ...and the real registry still loads with its prefix flags intact.
+    # ...and the real registry still loads; the resolved kalman prefix LOCK
+    # (2026-10-30 R2 live stop) is out of the population, exact locks intact.
     by_id = {lk["registry_id"]: lk for lk in load_locked_cells()}
-    assert by_id["t9-kalman-d7-live-n10-ev-check"]["match"] == "prefix"
+    assert "t9-kalman-d7-live-n10-ev-check" not in by_id
+    assert by_id["sr-anti-hunt-eurjpy-buy-forward-confirm"]["match"] == "exact"
 
 
 def test_a_full_page_is_not_proof_of_completeness(tmp_path):

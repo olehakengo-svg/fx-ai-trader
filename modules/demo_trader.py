@@ -10857,10 +10857,26 @@ class DemoTrader:
 
     _KALMAN_D7_LIVE_ENABLE = _os.environ.get("KALMAN_D7_LIVE_ENABLE", "0") == "1"
     _KALMAN_D7_LIVE_INSTRUMENT = "USD_JPY"
+    # 2026-10-30 (rule:R2, registry t9-kalman-d7-live-n10-ev-check): pre-reg
+    # LOCK 2026-09-01 §R2「LIVE N>=10 到達で EV<0 → live 停止」が成立 —
+    # clean live (prefix kalman_d7, USD_JPY, since 2026-08-09, oanda_trade_id
+    # 非空 ∧ dedup_violation != 1, CLOSED) N=12 / demo Σ -20.5p EV -1.71p /
+    # broker realized Σ -¥363 ≈ -3.0p (両基準とも負 = estimand 不変)。LOCK の
+    # 撤退経路は env KALMAN_D7_LIVE_ENABLE=0 だが Render env は autopilot から
+    # 変更不可 (classifier) のため code pin で同じ gate を閉じる。shadow 蓄積は
+    # 継続 (原則 3)。再 live 化 = R1 (user 決裁) で本 pin を False に戻す PR。
+    # knowledge-base/wiki/decisions/kalman-d7-r2-live-stop-2026-10-30.md
+    _KALMAN_D7_R2_LIVE_STOP = True
 
     @classmethod
     def _kalman_d7_live_eligible(cls, entry_type: str, instrument: str = "") -> bool:
-        """Return True if Kalman D7 LIVE override applies — bypass SHADOW_MODE gate."""
+        """Return True if Kalman D7 LIVE override applies — bypass SHADOW_MODE gate.
+
+        2026-10-30 R2 live stop: ``_KALMAN_D7_R2_LIVE_STOP`` が True の間は env に
+        関係なく False (= LOCK 09-01 の「env 0 で即時撤退」と同じ経路を code で固定)。
+        """
+        if cls._KALMAN_D7_R2_LIVE_STOP:
+            return False
         if not cls._KALMAN_D7_LIVE_ENABLE:
             return False
         if entry_type not in cls._KALMAN_D7_LIVE_OVERRIDE:

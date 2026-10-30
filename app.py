@@ -13966,6 +13966,11 @@ def api_demo_live_enable_flags():
                 getattr(_demo_trader, "_HULL_DONCHIAN_FADE_LIVE_ENABLE", False)),
             "SWEEP_REVERSION_EURGBP_LIVE_ENABLE": bool(
                 getattr(_demo_trader, "_SWEEP_REVERSION_EURGBP_LIVE_ENABLE", False)),
+            # 2026-10-30 R2 live stop (registry t9-kalman-d7-live-n10-ev-check):
+            # True の間は KALMAN_D7_LIVE_ENABLE lever の effective に関係なく
+            # _kalman_d7_live_eligible は False (code pin が env より優先)。
+            "KALMAN_D7_R2_LIVE_STOP": bool(
+                getattr(_demo_trader, "_KALMAN_D7_R2_LIVE_STOP", False)),
         },
         "removed_levers": [
             "BB_RSI_EMA_ALIGNED_REDESIGN_V2",

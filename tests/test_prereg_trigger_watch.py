@@ -244,8 +244,14 @@ def test_registry_kalman_live_check_entry_is_wired(monkeypatch):
     hit = [t for t in reg["triggers"]
            if t["id"] == "t9-kalman-d7-live-n10-ev-check"]
     assert hit, "kalman live 退避条件の監視エントリが registry から消えている"
-    trig = hit[0]
-    assert trig["active"] is True
+    # 2026-10-30: N=12 ≥ 10 ∧ EV<0 (demo / broker 両基準) で R2 live stop を
+    # 執行し resolved (kalman-d7-r2-live-stop-2026-10-30.md)。entry は削除
+    # せず resolution に執行を明記しているかを pin し、配線 pin は写しを
+    # active 化して評価する (D11 pin と同じ手法)。
+    assert hit[0]["active"] is False
+    assert hit[0].get("resolved") == "2026-10-30"
+    assert "R2" in hit[0].get("resolution", "")
+    trig = dict(hit[0], active=True)
     assert trig["match"] == "prefix", "3 variant 合算には prefix 必須"
     assert trig["type"] == "live_count_decision"
 
