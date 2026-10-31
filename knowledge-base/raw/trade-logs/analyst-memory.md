@@ -5834,6 +5834,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 **主因の構造:** 転送ゼロの直接原因は「シャドウモード継続」。`pair_demoted` / `force_demoted` を含むブロックは昇格基準（N≥30 & EV≥1.0）が未到達または明示的降格適用によるもの。`agg_kelly<0`は本日1件のみで主因ではない。
 3. **シャドウN蓄積進捗** — 昇格候補戦略のN件数確認（N≥30 & EV≥1.0の戦略が存在するか）。
 
+### 2026-10-31 (Pre-Tokyo Briefing)
+前日（2026-10-30）はトレードゼロ。直近Cutoff後の有効トレードは累計**N=3**（kalman_d7_po_dn_flip: N=2、usdjpy_carry_dip_accumulator: N=1）、全体PnL合計 **-9.8 JPY**、全体WR **33.3%**。実口座NAVは **¥273,522.16**（昨日比微減）。市場は複数ペアでRANGING、執行機会そのものが乏しい環境が継続中。
+| Strategy | Pair | N | WR% | EV | PnL | ステータス |
+> **N蓄積進捗**: 最大N=2。昇格基準（N≥30 & EV≥+1.0）まで最低**28件**不足。降格判断（N≥30 & EV<−0.5）も未到達。いずれの戦略も「データなし」扱い。
+- **scalp系全4戦略**で`r2_shadow_demoted_cell`が支配的ブロック要因。これはShadowトラッキングで降格判定されたセルが通過を阻んでいる構造的フィルター。短期的に解除される性質ではない。
+- `rnb_usdjpy:no_signal`が1,959件は1日分のブロックとして突出。USD_JPYがRANGING（ATR%ile 39%）でトレンドシグナルが出ない状況と整合する。
+- `order_bar_dedup`の集積はdaytrade系が「エントリー試みるも重複排除で却下」を繰り返している状態。
+- **Kelly負値**（agg_kelly=−0.249）が観測。リスク調整後の期待値が負のため、サイジング根拠がない状態。現在のDefensive Mode（0.2x）と整合的。
+- `pair_demoted` / `force_demoted`による昇格ブロックが活性。本番への転送は意図的に抑制されている。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
