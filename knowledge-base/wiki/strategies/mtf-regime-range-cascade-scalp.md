@@ -4,6 +4,21 @@
 
 range_tight regime での MR cascade。**実測根拠で発火停止**。
 
+## 再評価 #1 (2026-10-30): REJECT — `enabled = False` 継続、次回 2027-04-30
+
+詳細: [[lesson-mtf-regime-range-cascade-2026-10-30]] / cell 全表 `knowledge-base/raw/audits/mtf-range-cascade-reeval-cells-2026-10-30.md`
+
+| 継承 cell (本番 180d, XAU / dedup 除外) | N | WR% | Wilson_BF lo (m=6) | EV | PF |
+|---|---:|---:|---:|---:|---:|
+| bb_rsi_reversion × range_tight | 32 | 28.1 | 12.6% | -1.30 | 0.55 |
+| sr_channel_reversal × range_tight | 107 | 35.5 | 24.5% | -1.33 | 0.56 |
+| engulfing_bb × range_tight | 43 | 32.6 | 17.3% | -1.73 | 0.44 |
+| bb_rsi_reversion × range_wide | 32 | 31.2 | 14.7% | -1.45 | 0.45 |
+| sr_channel_reversal × range_wide | 82 | 35.4 | 23.1% | -1.36 | 0.56 |
+| engulfing_bb × range_wide | 74 | 28.4 | 16.9% | -1.92 | 0.41 |
+
+閾値 (Wilson_BF_lower ≥ 0.50 AND N ≥ 50) に対し全 cell FAIL。**再 enable する前の必須修正**: `modules/regime_classifier.py` で `REGIME_RANGE = REGIME_NO_GO` の alias になっており、default path の Layer 1 は「moderate_trend 以外の全バー」を通す (range 検出ではない)。`_range_cohort()` (REDESIGN_V2 path) か実 range classifier への差し替えが前提。
+
 ## 廃止理由 (rule:R3, ラベル実測クオンツ判定)
 
 demo_trades.db (N=462) のラベル実測クエリで、range_tight regime での MR は **構造的に負け**:
