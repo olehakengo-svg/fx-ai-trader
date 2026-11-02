@@ -5844,6 +5844,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 - **Kelly負値**（agg_kelly=−0.249）が観測。リスク調整後の期待値が負のため、サイジング根拠がない状態。現在のDefensive Mode（0.2x）と整合的。
 - `pair_demoted` / `force_demoted`による昇格ブロックが活性。本番への転送は意図的に抑制されている。
 
+### 2026-11-02 (Post-Tokyo Report)
+| セッション PnL | ¥0 |
+| WR | N/A |
+- 東京セッション N=0。統計的判断根拠なし（データなし扱い）
+- ブロック理由はすべてシステム設計内の正常動作
+- 現在 **DD防御 0.2x モード**（実 DD −23.90%）稼働中 — このモードでの慎重な非執行はミッション整合的
+- OANDA Live Rate 0%（全50件がデモ only SKIP）は shadow_tracking（16件）/ pair_demoted（3件）/ negative Kelly（1件）が原因であり、いずれも正当なブロック
+### 推奨戦略配分
+### **NO ACTION推奨 — 戦略レベルの能動的変更なし**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
