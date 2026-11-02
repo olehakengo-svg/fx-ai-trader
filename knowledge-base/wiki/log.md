@@ -1,5 +1,14 @@
 # Knowledge Base Change Log
 
+## 2026-11-02 (autopilot — 冬時間初週末 11-01 実開場 22:04Z 乖離 0 + drift tool 冬 artifact R3 修正 + enforce 拒否 8 回目 + 座礁 deepdive 救出 8 例目 + max_open×shadow readout)
+
+- **registry 期日 3 件**: `wg-winter-first-weekend-open-time-check` → resolved (OANDA 初 M1 22:04:00Z ×3 ペア、`[WEEKEND_GAP]` 22:01Z 全 no-qualify、USD_JPY −20.5p は閾値 21.4p まで 0.9p のニアミス = 記録のみ、閾値変更は R1 で起案しない) / `storm-guard-enforce-execution-window` 10-31 → 11-03 (拒否 8 回目) / `storm-guard-enforce-first-storm-readout` 11-02 → 11-09 (判断材料なし)。新規 `wg-winter-sunday-open-spread-rerun` (11-04) / `max-open-live-cap-counts-shadow-r3` (11-04)。lint 0 違反
+- **fix(tools) rule:R3**: `wg_gap_drift_measure.py` の drift / OANDA 窓 / 遅延基準を実 MASSIVE 初バーに (冬 artifact 解消、夏の値不変、4 pin)。gap anchor (検出器の凍結定義複製) は不変
+- **観測 O-2026-11-02-1**: `max_open` グローバル上限が shadow 建玉を数え、carry_dip live-eligible 1/12 を shadow 化 (10-30 08:02Z)。[[daily-observations-2026-11]] 新設
+- **座礁救出 8 例目**: deepdive 2026-11-02 `_summary.json` を再生成して PR #359。ローカル main の 11-01 / 10-17 session log は auto-saver の空テンプレ (内容なし) = 救出対象外
+- **PR #356 マージ** (docs、10-30 起票)。**NAV −¥240 = SVK 11 月 3 RT** (設計どおり、戦略 fill 0)
+- 詳細: [[2026-11-02-session]] / [[weekend-gap-fade]] / [[storm-guard-design-2026-09-22]] §7.4
+
 ## 2026-10-30 (autopilot — kalman_d7 R2 live stop 執行 (pre-reg N≥10 ∧ EV<0 成立、両基準負) + enforce 拒否 7 回目)
 
 - **判定 (rule:R2)**: registry `t9-kalman-d7-live-n10-ev-check` TRIGGERED (prefix kalman_d7 × USD_JPY clean live N=12、fill #12 = #1346985 10-29 18:52Z → 20:01Z ON_FILL SL −10.8 / −¥105)。demo Σ −20.5p / EV −1.71p、broker Σ −¥363 ≈ −3.0p、po_dn 単独 −2.14p / −2.0p = 4 基準全て負 → LOCK 09-01 §R2 の live 停止を執行。連続 3 SL 不成立。[[kalman-d7-r2-live-stop-2026-10-30]]
