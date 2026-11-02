@@ -5854,6 +5854,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 ### 推奨戦略配分
 ### **NO ACTION推奨 — 戦略レベルの能動的変更なし**
 
+### 2026-11-02 (Post-London Report)
+| PnL | **¥0** |
+| WR | **N/A** |
+- **r2_shadow_demoted_cell** が Scalp 系・daytrade_1h_usdchf を中心に大量ブロック（TOP15合計で約3,987件の累積ブロック）
+- **order_bar_dedup** が daytrade_eurgbp(360)・gbpusd(294)・daytrade(233)・eurjpy(116)・eur(125) で連発 → シグナルはあるが重複排除で機会を消耗
+- **regime_squeeze_mr** が daytrade_eurgbp で120件 → EUR/GBP はレジームフィルターが継続的に否認
+- **rnb_usdjpy:no_signal** が 1,366件でトップ → USD/JPY（ATR%ile 38%）の低ボラが no_signal の主因
+| PnL | ¥0 | ¥0 |
+| WR | N/A | N/A |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
