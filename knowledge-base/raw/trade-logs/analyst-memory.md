@@ -5864,6 +5864,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 | PnL | ¥0 | ¥0 |
 | WR | N/A | N/A |
 
+### 2026-11-02 (Pre-Tokyo Briefing)
+| 前日（2026-11-01）PnL | トレードなし（¥0） |
+| 当日（Cutoff後全期間累計）有効トレード | N=3、PnL=−¥9.8 |
+| 全体WR（有効N=3） | 33.3% |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注記**: N=3合計はすべてUSD_JPYに集中。他ペア（EUR/GBP系）の有効フィルを確認できるデータなし。kalman_d7のEV=−5.00は2トレードのみによる数値であり、傾向として扱うことも困難。
+- 10-29 20:01Z以降、live open=0が継続中。
+- carry_dip #1346967はmax_open=8/8（shadow建玉込み）でshadow化 → **live機会喪失（O-2026-11-02-1）**。
+- R3 registry修正は11-04予定だが、それまで同構造が再現するリスクが残る。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
