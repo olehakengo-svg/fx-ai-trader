@@ -1,0 +1,1294 @@
+{
+  "run_date": "2026-11-02",
+  "purpose": "weekend_gap 執行契約 R1 改定パケット: OANDA 実開場時刻 + Sunday open 後ドリフト実測 (価格データのみ、outcome 非結合)",
+  "read_only": true,
+  "n_weekends": 8,
+  "weekend_range": [
+    "2026-09-13",
+    "2026-11-01"
+  ],
+  "drift_def": "MASSIVE 1m: drift(+k) = mid_open(first_bar+k) - mid_open(first bar >= Sun 21:00 UTC; 夏 21:00 / 冬 22:00), pips. adverse = fade 方向符号 (BUY:+drift / SELL:-drift)",
+  "weekends": [
+    {
+      "sunday": "2026-11-01",
+      "pair": "EUR_USD",
+      "fri_close": 1.1158,
+      "sun_open": 1.11546,
+      "massive_first_bar_utc": "2026-11-01T22:00:00+00:00",
+      "gap_pips": -3.4,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": -2.3,
+          "adverse_pips": -2.3
+        },
+        "+3m": {
+          "drift_pips": -2.3,
+          "adverse_pips": -2.3
+        },
+        "+4m": {
+          "drift_pips": -2.3,
+          "adverse_pips": -2.3
+        },
+        "+5m": {
+          "drift_pips": -2.3,
+          "adverse_pips": -2.3
+        },
+        "+6m": {
+          "drift_pips": -2.3,
+          "adverse_pips": -2.3
+        },
+        "+8m": {
+          "drift_pips": 1.4,
+          "adverse_pips": 1.4
+        },
+        "+10m": {
+          "drift_pips": 1.4,
+          "adverse_pips": 1.4
+        },
+        "+15m": {
+          "drift_pips": 2.8,
+          "adverse_pips": 2.8
+        }
+      },
+      "oanda_first_m1_utc": "2026-11-01T22:04:00Z",
+      "oanda_first_m1_mid_o": 1.11597,
+      "oanda_first_m1_spread_pips": 10.0,
+      "oanda_vs_massive_open_pips": 5.1
+    },
+    {
+      "sunday": "2026-11-01",
+      "pair": "USD_JPY",
+      "fri_close": 157.546,
+      "sun_open": 157.346,
+      "massive_first_bar_utc": "2026-11-01T22:00:00+00:00",
+      "gap_pips": -20.0,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 8.0,
+          "adverse_pips": 8.0
+        },
+        "+3m": {
+          "drift_pips": 8.0,
+          "adverse_pips": 8.0
+        },
+        "+4m": {
+          "drift_pips": 8.0,
+          "adverse_pips": 8.0
+        },
+        "+5m": {
+          "drift_pips": 8.0,
+          "adverse_pips": 8.0
+        },
+        "+6m": {
+          "drift_pips": 8.0,
+          "adverse_pips": 8.0
+        },
+        "+8m": {
+          "drift_pips": 12.7,
+          "adverse_pips": 12.7
+        },
+        "+10m": {
+          "drift_pips": 12.7,
+          "adverse_pips": 12.7
+        },
+        "+15m": {
+          "drift_pips": 12.7,
+          "adverse_pips": 12.7
+        }
+      },
+      "oanda_first_m1_utc": "2026-11-01T22:04:00Z",
+      "oanda_first_m1_mid_o": 157.526,
+      "oanda_first_m1_spread_pips": 8.7,
+      "oanda_vs_massive_open_pips": 18.0
+    },
+    {
+      "sunday": "2026-11-01",
+      "pair": "AUD_USD",
+      "fri_close": 0.70307,
+      "sun_open": 0.70241,
+      "massive_first_bar_utc": "2026-11-01T22:00:00+00:00",
+      "gap_pips": -6.6,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 0.5,
+          "adverse_pips": 0.5
+        },
+        "+3m": {
+          "drift_pips": 0.6,
+          "adverse_pips": 0.6
+        },
+        "+4m": {
+          "drift_pips": 0.6,
+          "adverse_pips": 0.6
+        },
+        "+5m": {
+          "drift_pips": 0.7,
+          "adverse_pips": 0.7
+        },
+        "+6m": {
+          "drift_pips": 2.6,
+          "adverse_pips": 2.6
+        },
+        "+8m": {
+          "drift_pips": 3.5,
+          "adverse_pips": 3.5
+        },
+        "+10m": {
+          "drift_pips": 4.1,
+          "adverse_pips": 4.1
+        },
+        "+15m": {
+          "drift_pips": 3.5,
+          "adverse_pips": 3.5
+        }
+      },
+      "oanda_first_m1_utc": "2026-11-01T22:04:00Z",
+      "oanda_first_m1_mid_o": 0.70285,
+      "oanda_first_m1_spread_pips": 6.8,
+      "oanda_vs_massive_open_pips": 4.4
+    },
+    {
+      "sunday": "2026-10-25",
+      "pair": "EUR_USD",
+      "fri_close": 1.1202,
+      "sun_open": 1.12208,
+      "massive_first_bar_utc": "2026-10-25T21:00:00+00:00",
+      "gap_pips": 18.8,
+      "fade_side": "SELL",
+      "drift": {
+        "+2m": {
+          "drift_pips": 0.3,
+          "adverse_pips": -0.3
+        },
+        "+3m": {
+          "drift_pips": -0.3,
+          "adverse_pips": 0.3
+        },
+        "+4m": {
+          "drift_pips": 0.7,
+          "adverse_pips": -0.7
+        },
+        "+5m": {
+          "drift_pips": -0.5,
+          "adverse_pips": 0.5
+        },
+        "+6m": {
+          "drift_pips": -0.4,
+          "adverse_pips": 0.4
+        },
+        "+8m": {
+          "drift_pips": -0.2,
+          "adverse_pips": 0.2
+        },
+        "+10m": {
+          "drift_pips": 0.5,
+          "adverse_pips": -0.5
+        },
+        "+15m": {
+          "drift_pips": 0.4,
+          "adverse_pips": -0.4
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-25T21:04:00Z",
+      "oanda_first_m1_mid_o": 1.12228,
+      "oanda_first_m1_spread_pips": 3.1,
+      "oanda_vs_massive_open_pips": 2.0
+    },
+    {
+      "sunday": "2026-10-25",
+      "pair": "USD_JPY",
+      "fri_close": 156.819,
+      "sun_open": 156.779,
+      "massive_first_bar_utc": "2026-10-25T21:00:00+00:00",
+      "gap_pips": -4.0,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 10.9,
+          "adverse_pips": 10.9
+        },
+        "+3m": {
+          "drift_pips": 10.9,
+          "adverse_pips": 10.9
+        },
+        "+4m": {
+          "drift_pips": 10.9,
+          "adverse_pips": 10.9
+        },
+        "+5m": {
+          "drift_pips": 10.9,
+          "adverse_pips": 10.9
+        },
+        "+6m": {
+          "drift_pips": 10.9,
+          "adverse_pips": 10.9
+        },
+        "+8m": {
+          "drift_pips": 10.9,
+          "adverse_pips": 10.9
+        },
+        "+10m": {
+          "drift_pips": 10.9,
+          "adverse_pips": 10.9
+        },
+        "+15m": {
+          "drift_pips": 10.9,
+          "adverse_pips": 10.9
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-25T21:04:00Z",
+      "oanda_first_m1_mid_o": 157.07,
+      "oanda_first_m1_spread_pips": 10.0,
+      "oanda_vs_massive_open_pips": 29.1
+    },
+    {
+      "sunday": "2026-10-25",
+      "pair": "AUD_USD",
+      "fri_close": 0.70326,
+      "sun_open": 0.70337,
+      "massive_first_bar_utc": "2026-10-25T21:00:00+00:00",
+      "gap_pips": 1.1,
+      "fade_side": "SELL",
+      "drift": {
+        "+2m": {
+          "drift_pips": -20.1,
+          "adverse_pips": 20.1
+        },
+        "+3m": {
+          "drift_pips": -6.7,
+          "adverse_pips": 6.7
+        },
+        "+4m": {
+          "drift_pips": -2.9,
+          "adverse_pips": 2.9
+        },
+        "+5m": {
+          "drift_pips": -6.5,
+          "adverse_pips": 6.5
+        },
+        "+6m": {
+          "drift_pips": -5.3,
+          "adverse_pips": 5.3
+        },
+        "+8m": {
+          "drift_pips": -5.2,
+          "adverse_pips": 5.2
+        },
+        "+10m": {
+          "drift_pips": -5.0,
+          "adverse_pips": 5.0
+        },
+        "+15m": {
+          "drift_pips": -1.9,
+          "adverse_pips": 1.9
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-25T21:04:00Z",
+      "oanda_first_m1_mid_o": 0.7033,
+      "oanda_first_m1_spread_pips": 9.7,
+      "oanda_vs_massive_open_pips": -0.7
+    },
+    {
+      "sunday": "2026-10-18",
+      "pair": "EUR_USD",
+      "fri_close": 1.124,
+      "sun_open": 1.1235,
+      "massive_first_bar_utc": "2026-10-18T21:00:00+00:00",
+      "gap_pips": -5.0,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": -54.3,
+          "adverse_pips": -54.3
+        },
+        "+3m": {
+          "drift_pips": -54.3,
+          "adverse_pips": -54.3
+        },
+        "+4m": {
+          "drift_pips": -54.3,
+          "adverse_pips": -54.3
+        },
+        "+5m": {
+          "drift_pips": -54.3,
+          "adverse_pips": -54.3
+        },
+        "+6m": {
+          "drift_pips": -54.3,
+          "adverse_pips": -54.3
+        },
+        "+8m": {
+          "drift_pips": -54.3,
+          "adverse_pips": -54.3
+        },
+        "+10m": {
+          "drift_pips": -54.3,
+          "adverse_pips": -54.3
+        },
+        "+15m": {
+          "drift_pips": -54.3,
+          "adverse_pips": -54.3
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-18T21:04:00Z",
+      "oanda_first_m1_mid_o": 1.11968,
+      "oanda_first_m1_spread_pips": 10.0,
+      "oanda_vs_massive_open_pips": -38.2
+    },
+    {
+      "sunday": "2026-10-18",
+      "pair": "USD_JPY",
+      "fri_close": 157.99699999999999,
+      "sun_open": 158.01,
+      "massive_first_bar_utc": "2026-10-18T21:00:00+00:00",
+      "gap_pips": 1.3,
+      "fade_side": "SELL",
+      "drift": {
+        "+2m": {
+          "drift_pips": -9.9,
+          "adverse_pips": 9.9
+        },
+        "+3m": {
+          "drift_pips": -9.9,
+          "adverse_pips": 9.9
+        },
+        "+4m": {
+          "drift_pips": -9.9,
+          "adverse_pips": 9.9
+        },
+        "+5m": {
+          "drift_pips": -9.9,
+          "adverse_pips": 9.9
+        },
+        "+6m": {
+          "drift_pips": -9.9,
+          "adverse_pips": 9.9
+        },
+        "+8m": {
+          "drift_pips": -9.9,
+          "adverse_pips": 9.9
+        },
+        "+10m": {
+          "drift_pips": -9.9,
+          "adverse_pips": 9.9
+        },
+        "+15m": {
+          "drift_pips": -9.9,
+          "adverse_pips": 9.9
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-18T21:04:00Z",
+      "oanda_first_m1_mid_o": 157.976,
+      "oanda_first_m1_spread_pips": 10.0,
+      "oanda_vs_massive_open_pips": -3.4
+    },
+    {
+      "sunday": "2026-10-18",
+      "pair": "AUD_USD",
+      "fri_close": 0.69447,
+      "sun_open": 0.6955,
+      "massive_first_bar_utc": "2026-10-18T21:00:00+00:00",
+      "gap_pips": 10.3,
+      "fade_side": "SELL",
+      "drift": {
+        "+2m": {
+          "drift_pips": 1.6,
+          "adverse_pips": -1.6
+        },
+        "+3m": {
+          "drift_pips": 1.6,
+          "adverse_pips": -1.6
+        },
+        "+4m": {
+          "drift_pips": 1.6,
+          "adverse_pips": -1.6
+        },
+        "+5m": {
+          "drift_pips": 1.6,
+          "adverse_pips": -1.6
+        },
+        "+6m": {
+          "drift_pips": 1.6,
+          "adverse_pips": -1.6
+        },
+        "+8m": {
+          "drift_pips": 1.6,
+          "adverse_pips": -1.6
+        },
+        "+10m": {
+          "drift_pips": 1.6,
+          "adverse_pips": -1.6
+        },
+        "+15m": {
+          "drift_pips": 1.6,
+          "adverse_pips": -1.6
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-18T21:04:00Z",
+      "oanda_first_m1_mid_o": 0.69695,
+      "oanda_first_m1_spread_pips": 4.6,
+      "oanda_vs_massive_open_pips": 14.5
+    },
+    {
+      "sunday": "2026-10-11",
+      "pair": "EUR_USD",
+      "fri_close": 1.12015,
+      "sun_open": 1.11865,
+      "massive_first_bar_utc": "2026-10-11T21:00:00+00:00",
+      "gap_pips": -15.0,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": -0.4,
+          "adverse_pips": -0.4
+        },
+        "+3m": {
+          "drift_pips": -1.6,
+          "adverse_pips": -1.6
+        },
+        "+4m": {
+          "drift_pips": -1.6,
+          "adverse_pips": -1.6
+        },
+        "+5m": {
+          "drift_pips": 0.8,
+          "adverse_pips": 0.8
+        },
+        "+6m": {
+          "drift_pips": -1.4,
+          "adverse_pips": -1.4
+        },
+        "+8m": {
+          "drift_pips": 1.7,
+          "adverse_pips": 1.7
+        },
+        "+10m": {
+          "drift_pips": 2.5,
+          "adverse_pips": 2.5
+        },
+        "+15m": {
+          "drift_pips": 3.6,
+          "adverse_pips": 3.6
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-11T21:04:00Z",
+      "oanda_first_m1_mid_o": 1.11872,
+      "oanda_first_m1_spread_pips": 5.0,
+      "oanda_vs_massive_open_pips": 0.7
+    },
+    {
+      "sunday": "2026-10-11",
+      "pair": "USD_JPY",
+      "fri_close": 158.29899999999998,
+      "sun_open": 158.191,
+      "massive_first_bar_utc": "2026-10-11T21:00:00+00:00",
+      "gap_pips": -10.8,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": -3.9,
+          "adverse_pips": -3.9
+        },
+        "+3m": {
+          "drift_pips": -3.9,
+          "adverse_pips": -3.9
+        },
+        "+4m": {
+          "drift_pips": -3.9,
+          "adverse_pips": -3.9
+        },
+        "+5m": {
+          "drift_pips": -3.9,
+          "adverse_pips": -3.9
+        },
+        "+6m": {
+          "drift_pips": -3.9,
+          "adverse_pips": -3.9
+        },
+        "+8m": {
+          "drift_pips": -3.9,
+          "adverse_pips": -3.9
+        },
+        "+10m": {
+          "drift_pips": -3.9,
+          "adverse_pips": -3.9
+        },
+        "+15m": {
+          "drift_pips": -3.9,
+          "adverse_pips": -3.9
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-11T21:04:00Z",
+      "oanda_first_m1_mid_o": 158.26,
+      "oanda_first_m1_spread_pips": 10.0,
+      "oanda_vs_massive_open_pips": 6.9
+    },
+    {
+      "sunday": "2026-10-11",
+      "pair": "AUD_USD",
+      "fri_close": 0.6982,
+      "sun_open": 0.69656,
+      "massive_first_bar_utc": "2026-10-11T21:00:00+00:00",
+      "gap_pips": -16.4,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 0.5,
+          "adverse_pips": 0.5
+        },
+        "+3m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        },
+        "+4m": {
+          "drift_pips": 0.7,
+          "adverse_pips": 0.7
+        },
+        "+5m": {
+          "drift_pips": 1.1,
+          "adverse_pips": 1.1
+        },
+        "+6m": {
+          "drift_pips": 3.0,
+          "adverse_pips": 3.0
+        },
+        "+8m": {
+          "drift_pips": 5.2,
+          "adverse_pips": 5.2
+        },
+        "+10m": {
+          "drift_pips": 3.5,
+          "adverse_pips": 3.5
+        },
+        "+15m": {
+          "drift_pips": 3.8,
+          "adverse_pips": 3.8
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-11T21:04:00Z",
+      "oanda_first_m1_mid_o": 0.69704,
+      "oanda_first_m1_spread_pips": 4.9,
+      "oanda_vs_massive_open_pips": 4.8
+    },
+    {
+      "sunday": "2026-10-04",
+      "pair": "EUR_USD",
+      "fri_close": 1.1252,
+      "sun_open": 1.12589,
+      "massive_first_bar_utc": "2026-10-04T21:00:00+00:00",
+      "gap_pips": 6.9,
+      "fade_side": "SELL",
+      "drift": {
+        "+2m": {
+          "drift_pips": 1.0,
+          "adverse_pips": -1.0
+        },
+        "+3m": {
+          "drift_pips": -0.2,
+          "adverse_pips": 0.2
+        },
+        "+4m": {
+          "drift_pips": -0.3,
+          "adverse_pips": 0.3
+        },
+        "+5m": {
+          "drift_pips": -1.3,
+          "adverse_pips": 1.3
+        },
+        "+6m": {
+          "drift_pips": -0.9,
+          "adverse_pips": 0.9
+        },
+        "+8m": {
+          "drift_pips": 0.6,
+          "adverse_pips": -0.6
+        },
+        "+10m": {
+          "drift_pips": -0.6,
+          "adverse_pips": 0.6
+        },
+        "+15m": {
+          "drift_pips": 0.1,
+          "adverse_pips": -0.1
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-04T21:04:00Z",
+      "oanda_first_m1_mid_o": 1.12596,
+      "oanda_first_m1_spread_pips": 4.3,
+      "oanda_vs_massive_open_pips": 0.7
+    },
+    {
+      "sunday": "2026-10-04",
+      "pair": "USD_JPY",
+      "fri_close": 157.845,
+      "sun_open": 157.673,
+      "massive_first_bar_utc": "2026-10-04T21:00:00+00:00",
+      "gap_pips": -17.2,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": -2.8,
+          "adverse_pips": -2.8
+        },
+        "+3m": {
+          "drift_pips": -2.8,
+          "adverse_pips": -2.8
+        },
+        "+4m": {
+          "drift_pips": -2.8,
+          "adverse_pips": -2.8
+        },
+        "+5m": {
+          "drift_pips": -2.8,
+          "adverse_pips": -2.8
+        },
+        "+6m": {
+          "drift_pips": -2.8,
+          "adverse_pips": -2.8
+        },
+        "+8m": {
+          "drift_pips": -2.8,
+          "adverse_pips": -2.8
+        },
+        "+10m": {
+          "drift_pips": -2.8,
+          "adverse_pips": -2.8
+        },
+        "+15m": {
+          "drift_pips": -2.8,
+          "adverse_pips": -2.8
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-04T21:04:00Z",
+      "oanda_first_m1_mid_o": 157.72,
+      "oanda_first_m1_spread_pips": 10.0,
+      "oanda_vs_massive_open_pips": 4.7
+    },
+    {
+      "sunday": "2026-10-04",
+      "pair": "AUD_USD",
+      "fri_close": 0.6953,
+      "sun_open": 0.69355,
+      "massive_first_bar_utc": "2026-10-04T21:00:00+00:00",
+      "gap_pips": -17.5,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 7.5,
+          "adverse_pips": 7.5
+        },
+        "+3m": {
+          "drift_pips": 8.0,
+          "adverse_pips": 8.0
+        },
+        "+4m": {
+          "drift_pips": -15.1,
+          "adverse_pips": -15.1
+        },
+        "+5m": {
+          "drift_pips": -15.1,
+          "adverse_pips": -15.1
+        },
+        "+6m": {
+          "drift_pips": 3.5,
+          "adverse_pips": 3.5
+        },
+        "+8m": {
+          "drift_pips": 1.6,
+          "adverse_pips": 1.6
+        },
+        "+10m": {
+          "drift_pips": 0.2,
+          "adverse_pips": 0.2
+        },
+        "+15m": {
+          "drift_pips": 15.5,
+          "adverse_pips": 15.5
+        }
+      },
+      "oanda_first_m1_utc": "2026-10-04T21:04:00Z",
+      "oanda_first_m1_mid_o": 0.69479,
+      "oanda_first_m1_spread_pips": 15.0,
+      "oanda_vs_massive_open_pips": 12.4
+    },
+    {
+      "sunday": "2026-09-27",
+      "pair": "EUR_USD",
+      "fri_close": 1.13896,
+      "sun_open": 1.13769,
+      "massive_first_bar_utc": "2026-09-27T21:00:00+00:00",
+      "gap_pips": -12.7,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 0.0,
+          "adverse_pips": 0.0
+        },
+        "+3m": {
+          "drift_pips": -0.5,
+          "adverse_pips": -0.5
+        },
+        "+4m": {
+          "drift_pips": 1.3,
+          "adverse_pips": 1.3
+        },
+        "+5m": {
+          "drift_pips": 1.5,
+          "adverse_pips": 1.5
+        },
+        "+6m": {
+          "drift_pips": 1.5,
+          "adverse_pips": 1.5
+        },
+        "+8m": {
+          "drift_pips": 2.5,
+          "adverse_pips": 2.5
+        },
+        "+10m": {
+          "drift_pips": 2.7,
+          "adverse_pips": 2.7
+        },
+        "+15m": {
+          "drift_pips": 2.9,
+          "adverse_pips": 2.9
+        }
+      },
+      "oanda_first_m1_utc": "2026-09-27T21:04:00Z",
+      "oanda_first_m1_mid_o": 1.13799,
+      "oanda_first_m1_spread_pips": 2.8,
+      "oanda_vs_massive_open_pips": 3.0
+    },
+    {
+      "sunday": "2026-09-27",
+      "pair": "USD_JPY",
+      "fri_close": 157.279,
+      "sun_open": 157.059,
+      "massive_first_bar_utc": "2026-09-27T21:00:00+00:00",
+      "gap_pips": -22.0,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 9.3,
+          "adverse_pips": 9.3
+        },
+        "+3m": {
+          "drift_pips": 9.3,
+          "adverse_pips": 9.3
+        },
+        "+4m": {
+          "drift_pips": 9.3,
+          "adverse_pips": 9.3
+        },
+        "+5m": {
+          "drift_pips": 9.3,
+          "adverse_pips": 9.3
+        },
+        "+6m": {
+          "drift_pips": 9.3,
+          "adverse_pips": 9.3
+        },
+        "+8m": {
+          "drift_pips": 9.3,
+          "adverse_pips": 9.3
+        },
+        "+10m": {
+          "drift_pips": 9.3,
+          "adverse_pips": 9.3
+        },
+        "+15m": {
+          "drift_pips": 9.3,
+          "adverse_pips": 9.3
+        }
+      },
+      "oanda_first_m1_utc": "2026-09-27T21:04:00Z",
+      "oanda_first_m1_mid_o": 157.252,
+      "oanda_first_m1_spread_pips": 7.1,
+      "oanda_vs_massive_open_pips": 19.3
+    },
+    {
+      "sunday": "2026-09-27",
+      "pair": "AUD_USD",
+      "fri_close": 0.70203,
+      "sun_open": 0.70075,
+      "massive_first_bar_utc": "2026-09-27T21:00:00+00:00",
+      "gap_pips": -12.8,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": -0.7,
+          "adverse_pips": -0.7
+        },
+        "+3m": {
+          "drift_pips": 0.5,
+          "adverse_pips": 0.5
+        },
+        "+4m": {
+          "drift_pips": 1.2,
+          "adverse_pips": 1.2
+        },
+        "+5m": {
+          "drift_pips": 1.2,
+          "adverse_pips": 1.2
+        },
+        "+6m": {
+          "drift_pips": 0.5,
+          "adverse_pips": 0.5
+        },
+        "+8m": {
+          "drift_pips": 0.8,
+          "adverse_pips": 0.8
+        },
+        "+10m": {
+          "drift_pips": 0.9,
+          "adverse_pips": 0.9
+        },
+        "+15m": {
+          "drift_pips": 0.5,
+          "adverse_pips": 0.5
+        }
+      },
+      "oanda_first_m1_utc": "2026-09-27T21:04:00Z",
+      "oanda_first_m1_mid_o": 0.70118,
+      "oanda_first_m1_spread_pips": 6.0,
+      "oanda_vs_massive_open_pips": 4.3
+    },
+    {
+      "sunday": "2026-09-20",
+      "pair": "EUR_USD",
+      "fri_close": 1.1484,
+      "sun_open": 1.14821,
+      "massive_first_bar_utc": "2026-09-20T21:00:00+00:00",
+      "gap_pips": -1.9,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": -0.6,
+          "adverse_pips": -0.6
+        },
+        "+3m": {
+          "drift_pips": -0.6,
+          "adverse_pips": -0.6
+        },
+        "+4m": {
+          "drift_pips": -0.8,
+          "adverse_pips": -0.8
+        },
+        "+5m": {
+          "drift_pips": -0.4,
+          "adverse_pips": -0.4
+        },
+        "+6m": {
+          "drift_pips": -0.6,
+          "adverse_pips": -0.6
+        },
+        "+8m": {
+          "drift_pips": 0.0,
+          "adverse_pips": 0.0
+        },
+        "+10m": {
+          "drift_pips": 0.2,
+          "adverse_pips": 0.2
+        },
+        "+15m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        }
+      },
+      "oanda_first_m1_utc": "2026-09-20T21:04:00Z",
+      "oanda_first_m1_mid_o": 1.14838,
+      "oanda_first_m1_spread_pips": 4.9,
+      "oanda_vs_massive_open_pips": 1.7
+    },
+    {
+      "sunday": "2026-09-20",
+      "pair": "USD_JPY",
+      "fri_close": 156.873,
+      "sun_open": 156.683,
+      "massive_first_bar_utc": "2026-09-20T21:00:00+00:00",
+      "gap_pips": -19.0,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        },
+        "+3m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        },
+        "+4m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        },
+        "+5m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        },
+        "+6m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        },
+        "+8m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        },
+        "+10m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        },
+        "+15m": {
+          "drift_pips": 0.3,
+          "adverse_pips": 0.3
+        }
+      },
+      "oanda_first_m1_utc": "2026-09-20T21:04:00Z",
+      "oanda_first_m1_mid_o": 156.86,
+      "oanda_first_m1_spread_pips": 10.0,
+      "oanda_vs_massive_open_pips": 17.7
+    },
+    {
+      "sunday": "2026-09-20",
+      "pair": "AUD_USD",
+      "fri_close": 0.7122,
+      "sun_open": 0.71015,
+      "massive_first_bar_utc": "2026-09-20T21:00:00+00:00",
+      "gap_pips": -20.5,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": -0.2,
+          "adverse_pips": -0.2
+        },
+        "+3m": {
+          "drift_pips": -0.2,
+          "adverse_pips": -0.2
+        },
+        "+4m": {
+          "drift_pips": -0.2,
+          "adverse_pips": -0.2
+        },
+        "+5m": {
+          "drift_pips": -0.2,
+          "adverse_pips": -0.2
+        },
+        "+6m": {
+          "drift_pips": 0.7,
+          "adverse_pips": 0.7
+        },
+        "+8m": {
+          "drift_pips": 7.8,
+          "adverse_pips": 7.8
+        },
+        "+10m": {
+          "drift_pips": 1.1,
+          "adverse_pips": 1.1
+        },
+        "+15m": {
+          "drift_pips": 2.1,
+          "adverse_pips": 2.1
+        }
+      },
+      "oanda_first_m1_utc": "2026-09-20T21:04:00Z",
+      "oanda_first_m1_mid_o": 0.71136,
+      "oanda_first_m1_spread_pips": 15.0,
+      "oanda_vs_massive_open_pips": 12.1
+    },
+    {
+      "sunday": "2026-09-13",
+      "pair": "EUR_USD",
+      "fri_close": 1.1598,
+      "sun_open": 1.15958,
+      "massive_first_bar_utc": "2026-09-13T21:00:00+00:00",
+      "gap_pips": -2.2,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 0.6,
+          "adverse_pips": 0.6
+        },
+        "+3m": {
+          "drift_pips": -0.7,
+          "adverse_pips": -0.7
+        },
+        "+4m": {
+          "drift_pips": -0.4,
+          "adverse_pips": -0.4
+        },
+        "+5m": {
+          "drift_pips": -1.3,
+          "adverse_pips": -1.3
+        },
+        "+6m": {
+          "drift_pips": 0.5,
+          "adverse_pips": 0.5
+        },
+        "+8m": {
+          "drift_pips": -0.8,
+          "adverse_pips": -0.8
+        },
+        "+10m": {
+          "drift_pips": 0.8,
+          "adverse_pips": 0.8
+        },
+        "+15m": {
+          "drift_pips": 0.6,
+          "adverse_pips": 0.6
+        }
+      },
+      "oanda_first_m1_utc": "2026-09-13T21:04:00Z",
+      "oanda_first_m1_mid_o": 1.1597,
+      "oanda_first_m1_spread_pips": 5.1,
+      "oanda_vs_massive_open_pips": 1.2
+    },
+    {
+      "sunday": "2026-09-13",
+      "pair": "USD_JPY",
+      "fri_close": 153.62,
+      "sun_open": 153.12,
+      "massive_first_bar_utc": "2026-09-13T21:00:00+00:00",
+      "gap_pips": -50.0,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 39.3,
+          "adverse_pips": 39.3
+        },
+        "+3m": {
+          "drift_pips": 39.3,
+          "adverse_pips": 39.3
+        },
+        "+4m": {
+          "drift_pips": 39.3,
+          "adverse_pips": 39.3
+        },
+        "+5m": {
+          "drift_pips": 39.3,
+          "adverse_pips": 39.3
+        },
+        "+6m": {
+          "drift_pips": 39.3,
+          "adverse_pips": 39.3
+        },
+        "+8m": {
+          "drift_pips": 39.3,
+          "adverse_pips": 39.3
+        },
+        "+10m": {
+          "drift_pips": 39.3,
+          "adverse_pips": 39.3
+        },
+        "+15m": {
+          "drift_pips": 39.3,
+          "adverse_pips": 39.3
+        }
+      },
+      "oanda_first_m1_utc": "2026-09-13T21:04:00Z",
+      "oanda_first_m1_mid_o": 153.53,
+      "oanda_first_m1_spread_pips": 10.0,
+      "oanda_vs_massive_open_pips": 41.0
+    },
+    {
+      "sunday": "2026-09-13",
+      "pair": "AUD_USD",
+      "fri_close": 0.717,
+      "sun_open": 0.71428,
+      "massive_first_bar_utc": "2026-09-13T21:00:00+00:00",
+      "gap_pips": -27.2,
+      "fade_side": "BUY",
+      "drift": {
+        "+2m": {
+          "drift_pips": 13.2,
+          "adverse_pips": 13.2
+        },
+        "+3m": {
+          "drift_pips": 15.0,
+          "adverse_pips": 15.0
+        },
+        "+4m": {
+          "drift_pips": 15.4,
+          "adverse_pips": 15.4
+        },
+        "+5m": {
+          "drift_pips": 15.8,
+          "adverse_pips": 15.8
+        },
+        "+6m": {
+          "drift_pips": 14.9,
+          "adverse_pips": 14.9
+        },
+        "+8m": {
+          "drift_pips": 14.9,
+          "adverse_pips": 14.9
+        },
+        "+10m": {
+          "drift_pips": 13.8,
+          "adverse_pips": 13.8
+        },
+        "+15m": {
+          "drift_pips": 16.9,
+          "adverse_pips": 16.9
+        }
+      },
+      "oanda_first_m1_utc": "2026-09-13T21:04:00Z",
+      "oanda_first_m1_mid_o": 0.71633,
+      "oanda_first_m1_spread_pips": 12.0,
+      "oanda_vs_massive_open_pips": 20.5
+    }
+  ],
+  "aggregates": {
+    "oanda_first_m1_delay_min": {
+      "n": 24,
+      "mean": 4.0,
+      "p50": 4.0,
+      "p90": 4.0,
+      "min": 4.0,
+      "max": 4.0
+    },
+    "open_by": {
+      "<= +5m": 1.0,
+      "<= +6m": 1.0,
+      "<= +8m": 1.0,
+      "<= +10m": 1.0,
+      "<= +15m": 1.0
+    },
+    "adverse_drift_+2m_pips": {
+      "n": 24,
+      "mean": 2.17,
+      "p50": 0.3,
+      "p90": 13.2,
+      "min": -54.3,
+      "max": 39.3
+    },
+    "abs_drift_+2m_pips": {
+      "n": 24,
+      "mean": 7.84,
+      "p50": 2.3,
+      "p90": 20.1,
+      "min": 0.0,
+      "max": 54.3
+    },
+    "adverse_drift_+3m_pips": {
+      "n": 24,
+      "mean": 1.7,
+      "p50": 0.3,
+      "p90": 10.9,
+      "min": -54.3,
+      "max": 39.3
+    },
+    "abs_drift_+3m_pips": {
+      "n": 24,
+      "mean": 7.41,
+      "p50": 2.3,
+      "p90": 15.0,
+      "min": 0.2,
+      "max": 54.3
+    },
+    "adverse_drift_+4m_pips": {
+      "n": 24,
+      "mean": 0.68,
+      "p50": 0.3,
+      "p90": 10.9,
+      "min": -54.3,
+      "max": 39.3
+    },
+    "abs_drift_+4m_pips": {
+      "n": 24,
+      "mean": 7.66,
+      "p50": 2.3,
+      "p90": 15.4,
+      "min": 0.2,
+      "max": 54.3
+    },
+    "adverse_drift_+5m_pips": {
+      "n": 24,
+      "mean": 1.05,
+      "p50": 0.8,
+      "p90": 10.9,
+      "min": -54.3,
+      "max": 39.3
+    },
+    "abs_drift_+5m_pips": {
+      "n": 24,
+      "mean": 7.88,
+      "p50": 2.3,
+      "p90": 15.8,
+      "min": 0.2,
+      "max": 54.3
+    },
+    "adverse_drift_+6m_pips": {
+      "n": 24,
+      "mean": 1.86,
+      "p50": 0.9,
+      "p90": 10.9,
+      "min": -54.3,
+      "max": 39.3
+    },
+    "abs_drift_+6m_pips": {
+      "n": 24,
+      "mean": 7.43,
+      "p50": 2.8,
+      "p90": 14.9,
+      "min": 0.3,
+      "max": 54.3
+    },
+    "adverse_drift_+8m_pips": {
+      "n": 24,
+      "mean": 2.63,
+      "p50": 1.7,
+      "p90": 12.7,
+      "min": -54.3,
+      "max": 39.3
+    },
+    "abs_drift_+8m_pips": {
+      "n": 24,
+      "mean": 7.97,
+      "p50": 3.5,
+      "p90": 14.9,
+      "min": 0.0,
+      "max": 54.3
+    },
+    "adverse_drift_+10m_pips": {
+      "n": 24,
+      "mean": 2.34,
+      "p50": 1.4,
+      "p90": 12.7,
+      "min": -54.3,
+      "max": 39.3
+    },
+    "abs_drift_+10m_pips": {
+      "n": 24,
+      "mean": 7.6,
+      "p50": 2.8,
+      "p90": 13.8,
+      "min": 0.2,
+      "max": 54.3
+    },
+    "adverse_drift_+15m_pips": {
+      "n": 24,
+      "mean": 3.07,
+      "p50": 2.8,
+      "p90": 15.5,
+      "min": -54.3,
+      "max": 39.3
+    },
+    "abs_drift_+15m_pips": {
+      "n": 24,
+      "mean": 8.33,
+      "p50": 3.5,
+      "p90": 16.9,
+      "min": 0.1,
+      "max": 54.3
+    },
+    "oanda_vs_massive_open_basis_pips": {
+      "n": 24,
+      "mean": 7.58,
+      "p50": 4.8,
+      "p90": 20.5,
+      "min": -38.2,
+      "max": 41.0
+    }
+  }
+}

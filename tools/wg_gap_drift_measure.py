@@ -39,7 +39,7 @@ PAIRS = ("EUR_USD", "USD_JPY", "AUD_USD")            # arm B pooled (GBP 除外)
 PIP = {"EUR_USD": 1e-4, "USD_JPY": 1e-2, "AUD_USD": 1e-4}
 MASSIVE_TICKER = {"EUR_USD": "C:EURUSD", "USD_JPY": "C:USDJPY",
                   "AUD_USD": "C:AUDUSD"}
-DRIFT_OFFSETS_MIN = (2, 3, 4, 5, 6, 8, 10, 15)       # Sunday 21:00 からの分
+DRIFT_OFFSETS_MIN = (2, 3, 4, 5, 6, 8, 10, 15)       # MASSIVE Sunday 初バー (夏 21:00 / 冬 22:00) からの分
 REQUEST_SLEEP_S = 0.2
 
 
@@ -89,6 +89,33 @@ def last_bar_before(bars: list, ts_ms: int):
     return prev
 
 
+def drift_anchor_ms(first_bar_ms: int) -> int:
+    """drift(+k) の基準 = MASSIVE Sunday 初バーの実 ts (夏 21:00 / 冬 22:00)。
+    gap の anchor (Fri/Sun 21:00 cut) は検出器の凍結定義 (DST-blind、
+    wg-dst-cutoff-basis-r3 で構造バグなし確定) を複製するので触らない。"""
+    return int(first_bar_ms)
+
+
+def oanda_open_window(first_bar_ts: datetime):
+    """OANDA 実開場 (初 complete M1) を探す窓 = MASSIVE 初バー −5 分から 35 分。
+    夏 20:55–21:30 / 冬 21:55–22:30 (旧実装は 20:55 固定で冬は空振り)。"""
+    t0 = first_bar_ts.replace(second=0, microsecond=0) - timedelta(minutes=5)
+    return t0, t0 + timedelta(minutes=35)
+
+
+def open_delay_min(oanda_first_m1_utc: str, massive_first_bar_utc):
+    """OANDA 初 M1 − MASSIVE 初バー (分)。MASSIVE 初バーが無い行は None
+    (旧実装は hour=21 固定 = 冬は +64 分に化ける)。"""
+    if not oanda_first_m1_utc or not massive_first_bar_utc:
+        return None
+    dt = datetime.strptime(oanda_first_m1_utc, "%Y-%m-%dT%H:%M:%SZ").replace(
+        tzinfo=timezone.utc)
+    base = datetime.fromisoformat(massive_first_bar_utc)
+    if base.tzinfo is None:
+        base = base.replace(tzinfo=timezone.utc)
+    return (dt - base).total_seconds() / 60.0
+
+
 def measure_weekend(pair: str, sun: date, api_key: str, oanda) -> dict:
     pip = PIP[pair]
     tick = MASSIVE_TICKER[pair]
@@ -126,8 +153,12 @@ def measure_weekend(pair: str, sun: date, api_key: str, oanda) -> dict:
         "fade_side": fade_side,
         "drift": {},
     })
+    # drift 基準 = 実際の MASSIVE 初バー (夏 21:00 / 冬 22:00)。nominal 21:00 に
+    # 固定すると冬は 21:00+k の bar_at_or_after が全て同じ 22:00 バーを返して
+    # drift が 0.0 に潰れる (2026-11-01 で実測した write-only artifact、rule:R3)。
+    drift_base_ms = drift_anchor_ms(sb["t"])
     for k in DRIFT_OFFSETS_MIN:
-        b = bar_at_or_after(sun_bars, sun_2100 + k * 60_000)
+        b = bar_at_or_after(sun_bars, drift_base_ms + k * 60_000)
         if b is None:
             continue
         drift = (float(b["o"]) - sun_open) / pip
@@ -136,11 +167,11 @@ def measure_weekend(pair: str, sun: date, api_key: str, oanda) -> dict:
             "adverse_pips": round(sign * drift, 2),
         }
 
-    # OANDA 実開場: Sun 20:55 以降の最初の complete M1 バー (M1 が刻まれる =
-    # tradeable の必要条件。halt 中はバーが存在しない)
+    # OANDA 実開場: MASSIVE 初バー −5 分以降の最初の complete M1 バー (M1 が
+    # 刻まれる = tradeable の必要条件。halt 中はバーが存在しない)。窓は夏
+    # 20:55–21:30 / 冬 21:55–22:30 (oanda_open_window)。
     fmt = "%Y-%m-%dT%H:%M:%SZ"
-    t0 = datetime(sun.year, sun.month, sun.day, 20, 55, tzinfo=timezone.utc)
-    t1 = t0 + timedelta(minutes=35)
+    t0, t1 = oanda_open_window(sun_open_ts)
     ok, data = oanda.get_candles(pair, granularity="M1", price="MBA",
                                  from_time=t0.strftime(fmt),
                                  to_time=t1.strftime(fmt))
@@ -210,8 +241,8 @@ def main() -> int:
         "read_only": True,
         "n_weekends": args.weekends,
         "weekend_range": [sundays[-1].isoformat(), sundays[0].isoformat()],
-        "drift_def": ("MASSIVE 1m: drift(+k) = mid_open(21:00+k) - "
-                      "mid_open(first bar >= Sun 21:00 UTC), pips. "
+        "drift_def": ("MASSIVE 1m: drift(+k) = mid_open(first_bar+k) - "
+                      "mid_open(first bar >= Sun 21:00 UTC; 夏 21:00 / 冬 22:00), pips. "
                       "adverse = fade 方向符号 (BUY:+drift / SELL:-drift)"),
         "weekends": [],
         "aggregates": {},
@@ -235,10 +266,10 @@ def main() -> int:
         ots = w.get("oanda_first_m1_utc")
         if not ots:
             continue
-        dt = datetime.strptime(ots, "%Y-%m-%dT%H:%M:%SZ").replace(
-            tzinfo=timezone.utc)
-        base = dt.replace(hour=21, minute=0, second=0)
-        open_delays.append((dt - base).total_seconds() / 60.0)
+        delay = open_delay_min(ots, w.get("massive_first_bar_utc"))
+        if delay is None:
+            continue
+        open_delays.append(delay)
     result["aggregates"]["oanda_first_m1_delay_min"] = agg(open_delays)
     result["aggregates"]["open_by"] = {
         f"<= +{m}m": (round(sum(1 for d in open_delays if d <= m)
