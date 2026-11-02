@@ -9,6 +9,7 @@
 - **座礁 deepdive 11-02 救出 (8 例目)**: scheduled `cell-deepdive-7strategies-weekly` がローカル main (10-09) に書いた `_summary.json` を origin tool + 現 registry + proven-complete snapshot で再生成 (meta 同一、stale lock なし) → PR #359
 - **NAV**: 02:23Z ¥273,282.1611 (10-30 01:50Z 比 **−¥240** = SVK 11 月分 3 RT × ¥80 (00:02 / 01:02 / 02:02Z、10k USD_JPY、月 $520k 目標・日 3 RT 上限 = 設計どおり)、戦略 fill 0、financing 0、残差 0)、実 DD −23.90%
 - **PR #356 マージ** (mtf_regime_range_cascade_scalp 6 か月再評価 = REJECT、docs のみ、Codex findings 0、10-30 起票のまま未マージだったもの)
+- **merge / deploy**: PR #360 merge f8787c62 (02:51:36Z、CI 全 pass / Codex findings 0 / review gate exit 0) → Render live **02:53:47Z** (`engine_pid` 132 → 94、tools-only、live 経路無変更、`storm_guard` 状態消失 8 例目 = 値は元から 0)。救出 PR #359 merge 9cdba9eb (02:41:33Z)
 - 詳細: [[2026-11-02-session]]
 
 ## 2026-10-30 — fix(engine): kalman_d7 R2 live stop — pre-reg LOCK 09-01 §R2「LIVE N≥10 ∧ EV<0 → live 停止」成立 (clean live N=12、demo EV −1.71p / broker ≈ −3.0p、両基準負) を code pin で執行 + storm guard enforce 拒否 7 回目 (rule:R2、autopilot)
