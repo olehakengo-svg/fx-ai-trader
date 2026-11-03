@@ -1,5 +1,13 @@
 # Knowledge Base Change Log
 
+## 2026-11-03 (autopilot — max_open live-cap R3 修理 (PR #363) + enforce 拒否 9 回目 + 座礁 wiki-daily 救出 9 例目 (PR #362))
+
+- **fix(demo_trader) rule:R3 (PR #363)**: グローバル建玉上限 `max_open_trades`=8 の判定を live + shadow 総数 → **live 建玉数** (`is_shadow` 偽) に変更。open live 0 でも shadow 8 本で carry_dip が `[SHADOW_BYPASS] max_open` に落ちていた (O-2026-11-02-1、10-30 08:02:59Z、1/12) = Live vs Shadow 分離違反の修理。shadow 上限 (max_open+8) は総数のまま、上流 shadow 行にも適用 (`max_open_shadow_cap`、marker なし = 旧実装の誤 marker も解消)。CF pin 7 本、全 suite 4258 passed。lot / シグナル / bypass 例外 / 凍結値 非接触。[[max-open-live-cap-counts-shadow-r3-2026-11-03]]。registry `max-open-live-cap-counts-shadow-r3` 11-04 → 11-10 (deploy 後の 0 件確認で resolve)
+- **storm guard enforce**: 01:11Z open live 0 ∧ 直近 H1 bar live-eligible 0 ∧ 火曜 → 01:12Z env 設定 1 回試行 → classifier 拒否 **9 回目** → registry 期日 11-03 → 11-04。user 操作 2 択 (dashboard env / tool allow) 不変。[[storm-guard-design-2026-09-22]] §7.4
+- **座礁救出 9 例目 (PR #362、docs)**: ローカル main の wiki-daily 10-29 12:00Z 再実行 + 11-02 12:33Z の成果物 (trade-log 11-02 / 10-29 末尾節 / log 2 節 / index System State 2 エントリ・mission・Defensive 行 / O-2026-10-29-3・O-2026-11-02-2 + 週次 rollup / kalman・carry_dip 節) を union 移植。stale Portfolio 見出し・旧 Status 行・deepdive 10-18・空テンプレ session log は不採用
+- **NAV**: 01:11Z ¥273,122.1611 (11-02 12:33Z 比 −¥160、戦略 fill 0)。`wg-winter-sunday-open-spread-rerun` (11-04) は baseline 未到来で未着手
+- 詳細: [[2026-11-03-session]]
+
 ## 2026-11-02 (autopilot — 冬時間初週末 11-01 実開場 22:04Z 乖離 0 + drift tool 冬 artifact R3 修正 + enforce 拒否 8 回目 + 座礁 deepdive 救出 8 例目 + max_open×shadow readout)
 
 - **registry 期日 3 件**: `wg-winter-first-weekend-open-time-check` → resolved (OANDA 初 M1 22:04:00Z ×3 ペア、`[WEEKEND_GAP]` 22:01Z 全 no-qualify、USD_JPY −20.5p は閾値 21.4p まで 0.9p のニアミス = 記録のみ、閾値変更は R1 で起案しない) / `storm-guard-enforce-execution-window` 10-31 → 11-03 (拒否 8 回目) / `storm-guard-enforce-first-storm-readout` 11-02 → 11-09 (判断材料なし)。新規 `wg-winter-sunday-open-spread-rerun` (11-04) / `max-open-live-cap-counts-shadow-r3` (11-04)。lint 0 違反
