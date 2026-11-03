@@ -225,6 +225,20 @@ Entry filters (v16 forensic 導出):
 - 詳細 [[2026-10-15]] 発見 1 / 発見 2
 
 
+## 🟢🔴 2026-10-29 更新 (wiki-daily 12:00Z 再実行 — 座礁救出 9 例目、autopilot 11-03 が移植): **LIVE fill #10 #1346976 — BE+1.1 で +¥11 / demo +0.8、`REPLACEMENT` 1 回 / storm 0 = PR #346 後の live trail 2 例目 (本戦略初)、`storm_guard` 1:1。N=10 到達、EV −1.27 < 0 ⇒ `t9-kalman-d7-live-n10-ev-check` の pre-reg 条件 (N≥10 ∧ EV<0 → 0.1x 降格 R2) が成立、執行は autopilot / user**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold | MAFE fav / adv |
+|---|---|---|---|---|---|---|---|---|
+| **#1346976** | 10-29 10:16:13 | 157.975 (signal 157.95、demo 157.978、slippage 2.8p) | 157.778 (−19.7p) / 158.274 (+29.9p) | 10-29 11:02:10 `STOP_LOSS_ORDER` @157.986 (BE+1.1、10:34:58 に 1 回置換) | **+¥11** | +0.8 `SL_HIT` | 46m | 7.0 / 1.6 |
+
+- 🟢 **storm なし**: broker tx は `CLIENT_REQUEST_REPLACED` + `STOP_LOSS_ORDER REPLACEMENT` の 1 組 (10:34:58.066Z、fill の 18m45s 後) だけ。本戦略の過去の BE 返し / trail は全て storm 下 (3,571 / 5,198 / 349 / 20,948 / 15 回) だった ⇒ **PR #346 (LIVE SL の DB persist、10-21 deploy) の修復が carry_dip 以外でも効いた初証拠** (10-23 carry_dip #1346967 と合わせ N=2、[[2026-10-29]] 12:00Z 発見 1、O-2026-10-29-2 の予測を満たす 1 例目)
+- 🔑 `storm_guard` totals evaluated 1 / sent 1 / failed 0 / idempotent 0 / monotonic 0 = broker 1:1 (全数捕捉 5 例目)。05:14Z (PR #354 registry JSON deploy) の状態消失 6 例目の**後**に登録された新状態。DB `sl` 157.986 == broker、`sl_initial` 157.778 = ON_FILL SL (本戦略で初めて新列が入った LIVE 行)、demo exit = broker 0.0p
+- 🆕 **SL 構築**: `[SLTP_CONSTRUCT] sl=sr clamp=max decl_sl_p=11.5 sl_p=20.0 decl_tp_p=38.2 tp_p=35.4 entry_drift_p=2.8` — 宣言 1.5×ATR = 11.5p (157.835) が SR basis 157.791 で **20.0p へ拡張** (carry_dip の「宣言 150p → 切り詰め」と逆向き)。`[BROKER_TP] basis=qh mult=0.85 tp_p=29.6` ↔ broker TP 158.274 整合。ON_FILL SL 幅は 5 本で 7.8 / 19.9 / 20.0 / 20.0 / 22.5p
+- ⚪ 決済後レース: broker SL 約定の 0.41 s 後に demo `TRADE_CLOSE` → `MARKET_ORDER_REJECT` `TRADE_DOESNT_EXIST` (本戦略 2 例目、10-09 #1208876 の 1 s と同型、無害)。regime `RANGE` / hmm ranging 0.672 agree、mtf `range_tight` / `squeeze`、`[LIVE_PROMOTE_EMIT] score=4.00 (primary=dt_bb_rsi_mr won)`
+- 🔴 DD ledger: `SL_HIT` +0.8 は**計上** (`dd_pips` 1334.5 → 1333.7、「SL_HIT のみ計上」規則 16 例目)
+- **累計**: demo **N 10 / 6W / WR 60.0% / PnL −12.7 / EV −1.27** (`promo_ev` −1.27 一致、`promotion: pending`、`enabled: true`)、wf_h1 −3.0 / wf_h2 +0.46、Wilson 31.3 / BF 19.1。risk `strategy_kelly` `insufficient` (n 7)、DSR 0.1519 (n 7)。本窓 broker +¥11、10 本の broker 合計 −¥202 (#893181/89 −245、#950042 +6、#1027829 +6、#1098462 +8、#1208876 −201、#1211263 +56、#1254177 +157、#1346976 +11; storm 4 の #859468 は別表)。🔴 **registry `t9-kalman-d7-live-n10-ev-check` (`live_count_decision`、`n_decide` 10、prefix `kalman_d7`、期日 12-09): N≥10 到達、EV<0** (po_dn 単独 N 10 / −1.27、prefix 合算 N 11 / −0.88、broker 基準も負) ⇒ 約束された「Live N≥10 時点で EV<0 なら 0.1x へ降格 (R2)」の執行判断は autopilot / user、estimand (demo / broker) の事前固定は未決 15 のまま。本 run は記録のみ
+- 詳細 [[2026-10-29]] 12:00Z 再実行 発見 1
+
 ## 🔻 2026-10-30 更新 (autopilot、rule:R2): **LIVE fill #11 #1346985 (10-29 18:52Z、ON_FILL SL 157.862 で 20:01Z `SL_HIT` −10.8 / −¥105、hold 1h09m、`REPLACEMENT` 0) で po_dn 単独 N=11 / prefix N=12 — pre-reg R2 ゲート成立 → live 停止を執行**
 
 | fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold |
@@ -234,3 +248,18 @@ Entry filters (v16 forensic 導出):
 - 決済後 0.6 s に demo `TRADE_CLOSE` → `MARKET_ORDER_REJECT` (本戦略 3 例目、無害 race)。ON_FILL SL 幅 −10.4p は 6 本で 7.8 / 10.4 / 19.9 / 20.0 / 20.0 / 22.5p。`storm_guard` は本 fill で evaluated 0 (置換なし)
 - **累計 (clean live、prefix kalman_d7 × USD_JPY、since 08-09)**: demo **N 12 / 8W / WR 66.7% / Σ −20.5p / EV −1.71p** (po_dn 単独 N 11 / Σ −23.5 / EV −2.14)、broker realized **Σ −¥363 ≈ −3.0p/fill** (po_dn 単独 −¥216)。4 基準全て負 = estimand 不変 → registry `t9-kalman-d7-live-n10-ev-check` **resolved 10-30**、LOCK 09-01 §R2 の「live 停止」を code pin で執行 (env は autopilot から変更不可のため)。詳細・敵対的検査・再 live 化条件: [[kalman-d7-r2-live-stop-2026-10-30]]
 - 停止の原因仮説 = exit 仕様非同期 (BT WR 23.9% / W/L 12.3× の payoff 型 ↔ live WR 66.7% / payoff 0.32 の BE 返し型、12 本中 宣言 TP 到達 0)。user 決裁 `kalman-d7-live-exit-disposition-user-decision` (11-29) は「再 live 化 R1 + exit 仕様」として読む
+
+## 🔻🔴 2026-11-02 更新 (wiki-daily 12:33Z — 座礁救出 9 例目、autopilot 11-03 が移植、10-29 12:00Z 以降を一括): **LIVE fill #11 #1346985 — ON_FILL SL −10.4p に 1h09m で到達 (−¥105 / demo −10.8 `SL_HIT`、`REPLACEMENT` 0 = trail 未起動)。N=11 / EV −2.14 ⇒ autopilot 10-30 が PR #357 で LOCK 09-01 §R2 の live 停止を code pin `_KALMAN_D7_R2_LIVE_STOP = True` で執行 (registry `t9-kalman-d7-live-n10-ev-check` resolved 10-30)。gate 成立 (10-29 11:02Z) → 本 fill (18:52Z) → 停止 deploy (10-30 03:24Z) の latency で 1 fill 通過**
+
+| fill | entry (UTC) | entry | ON_FILL SL / TP | exit | broker | demo | hold | MAFE fav / adv |
+|---|---|---|---|---|---|---|---|---|
+| **#1346985** | 10-29 18:52:48 | 157.966 (signal 157.952、slippage 1.4p、spread 0.8) | 157.862 (**−10.4p**) / 158.098 (+13.2p = demo tp 158.124 × 0.85) | 10-29 20:01:39 `STOP_LOSS_ORDER` @157.861 (ON_FILL SL、置換 0) | **−¥105** | −10.8 `SL_HIT` (`LOSS`、R −1.04) | 1h09m | 1.6 / 10.8 |
+
+- 🔻 **trail / BE writer は未起動** (fav 1.6p で逆行)。`sl` == `sl_initial` 157.862、`storm_guard` evaluated 0 = 整合。exit 型は「ON_FILL SL 到達 (置換 0)」= 本戦略 #1208876 (10-09) に続く 2 例目。demo exit 157.858 vs broker 157.861 = 0.3p
+- ⚪ 決済後レース 4 例目 (本戦略 3 例目): broker SL 約定 0.36 s 後に demo 自前監視が close、0.41 s 後に `MARKET_ORDER_REJECT` `TRADE_DOESNT_EXIST` (#1346990)。無害
+- 🆕 ON_FILL SL 幅は 6 本で 7.8 / **10.4** / 19.9 / 20.0 / 20.0 / 22.5p、TP 13.2 / 18.7 / 25.0 / 26.2 / 29.9 / 38.9p。`[SLTP_CONSTRUCT]` marker は `/api/demo/logs` 窓外で未読。regime `RANGE` ADX **10.8** / hmm ranging 0.650、`close_analysis` に「⛔ ADX11<12 レンジ相場 (シグナル減衰)」= 減衰条件下で LIVE 送信 (score 減衰は LIVE gate に効かない可能性、`LIVE_EXCEPTION_BYPASS` 所属、記録のみ — 未決 25)
+- 🔑 **R2 live 停止 (PR #357、autopilot 10-30、rule:R2)**: 根拠 = clean live prefix `kalman_d7` × USD_JPY (since 08-09) **N 12 / demo Σ −20.5p / EV −1.71p**、broker realized **Σ −¥363**、po_dn 単独 N 11 / Σ −23.5 / EV −2.14 (4 基準全て負 = estimand 不変、未決 15 の事前固定問題は結果に影響せず)。撤退経路 env `KALMAN_D7_LIVE_ENABLE=0` は autopilot から変更不可 (classifier) のため `_kalman_d7_live_override_applies()` を code で False 固定 (`tests/test_kalman_d7_r2_live_stop_2026_10_30.py`)。shadow 蓄積は継続 (原則 3)。`strategy_status` は `enabled: true` / `promotion: pending` のまま (pin は表示に出ない)。詳細 (origin): [[kalman-d7-r2-live-stop-2026-10-30]] / 再 live 化 = R1 user 決裁 `kalman-d7-live-exit-disposition-user-decision` (11-29、「再 live 化 R1 + exit 仕様」として読む)。停止の原因仮説 = exit 仕様非同期 (BT WR 23.9% / payoff 12.3× ↔ live WR 66.7% / payoff 0.32、宣言 TP 到達 0/12)
+- 🔑 **gate → 執行 latency** (O-2026-11-02-2、[[daily-observations-2026-11]]): 条件成立 10-29 11:02Z → 本 fill 18:52Z (7h50m) → 停止 live 10-30 03:24Z (8h32m) = 16h22m の窓で 1 fill (−¥105)。engine 内 latch (`price_shock_rev_auto_demotions` 型) が本戦略には無い
+- 🔴 DD ledger: `SL_HIT` −10.8 は**計上** (`dd_pips` 1333.7 → 1344.5、規則 17 例目)
+- **累計**: demo **N 11 / 6W / WR 54.5% / PnL −23.5 / EV −2.14** (`promo_ev` −2.14 一致)、wf_h1 −3.0 / wf_h2 −1.42、BF 17.2。risk 30d n 7 / Sharpe −0.100 / DSR 0.0 / `strategy_kelly` insufficient。本窓 broker −¥105。本 card の 10-29 節ベースの po_dn 11 本合計 **−¥307** (autopilot card の −¥216 / prefix −¥363 とは集計範囲が異なる、照合未実施)。**live は停止中** — 以後の本 card 更新は shadow 側 N のみ
+- 詳細 [[2026-11-02]] 発見 1
