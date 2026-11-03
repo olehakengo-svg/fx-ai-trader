@@ -25,6 +25,7 @@
 |---|---|---|---|---|
 | **(a-1) OTC FX オプション面 (RR/BF/smile)** | E22 復活経路の指定データ = vol モダリティ再開 | Bloomberg/Refinitiv 級 ~$2k+/月、**CME DataMine FX options 歴史 = 数百$ 一回性 (最安 probe 経路)** | RR は EVZ と別情報 (crash 保険価格)。反根拠: G10 日次〜週次の系統エッジは文献で EM 比に弱い + E22 の完全 null は弱い負の prior | round4 §4 凍結の第 1 候補。**再上程条件 = U1「継続」+ ロック済みライン verdict 到達** — 10-15 の E1 verdict がまさにこれ |
 > **2026-10-20 第6次訂正** ([[../research/external-hypothesis-scan-round6-2026-10-20]] §4.1): 上行の「CME DataMine FX options 歴史 = 数百$ 一回性 (最安 probe 経路)」は**出所なし・未確認**に格下げ。E22 §9 の「真正 OTC 面 = Databento 等有償」は不正確 (Databento GLBX = CME **上場** options on futures、2010〜)。字義を満たす経路 = DataMine 経由 **TFS-ICAP FX Options** (OTC indicative 面、2003-09〜、52 ペア、ティック級日次ファイル ~2MB/日) だが**価格・個人の契約資格・tick→EOD 構築の 3 点が未確認**。Databento は Standard $199/月〜、新規 $125 クレジット (6 ヶ月失効)、statistics 単価・Volatility/Delta 配信は未確認。vendor 選択と手順書 §8 (vendor = DataMine 固定) の改定は user 決裁 (round6 §9 U4-3 / U4-6)。
+> **2026-11-03 U4-1 = (B) decouple** ([[../research/external-hypothesis-scan-round6-2026-10-20]] §9.1): E1 verdict は (a-1) 起案の前提ではなくなった。改定後条件 = [[../decisions/e1-first-look-runbook-2026-09-22]] §8 追補 (U1 継続 ∧ 一回性 probe (上限 = U4-2、未提示なら起案なし) ∧ 新 family pre-reg + 敵対的検証とセット ∧ explore 枠に空き)。vendor 字義 (CME DataMine) は U4-3 / U4-6 未決で不改変。
 | **(a-2) CLS FX Outstanding (決済フロー)** | round5 E30 の C1 棄却の解錠 — **直近 2 スキャン 6 棄却中、金で救える唯一の 1 本** | **未取得** (機関向け商用、桁が上の可能性 — round5 逐語で優先度 (a-1) の下) | 母集団独立性は本物 (真の機関フロー ≠ E1 リテール ≠ E12 先物) | 価格照会のみ先行可 ($0)。購買判断は (a-1) の後 |
 | **(a-3) Databento CME (E12 歴史 + E13 tick 12y)** | E13 再入場 — ただし **E12 unsigned primary PASS 時のみ** (台帳 #10) | ~$200-1,000/月 + 歴史従量 | **今買っても何も速くならない** (E12 first look 2027-02-05 固定・前倒し禁止) | round4 凍結どおり **2027-02 まで保留** |
 | (a-4) OIS/policy path (family C 復活経路) | 参考: US レグは ZQ=F/SR3=F の CME capture 追加で **$0 種まき可** | $0 | 有償に分類しない — 即時執行可能な無償アクション | R3 で即時可 (本比較の対象外) |
@@ -80,11 +81,11 @@ packet は (b) daily+ クロスセクショナルを「現 NAV では最小ロ�
 **U4 仮決め = (a) を主経路、(c) は S1 まで。**
 
 1. **(a) が唯一「取引資本を追加せずに」空間を変えられる経路** — NAV floor 制約・OANDA 存続条件と両立するのは (a) だけ。変えるのは情報集合のみで、執行・摩擦・検証の既存資産が全部生きる。
-2. 具体形: **10-15 の E1 verdict が PASS 以外なら、scan#6 (10-18) で (a-1) OTC FX オプション面の歴史 probe (CME DataMine、一回性・上限額は**未確認** (「数百$」は根拠なし — 2026-10-20 第6次訂正、上限は U4-2 で user が置く)) の R1 起案を裁定**。月額型は U2 決裁前は自動 NO。(a-2) CLS は価格照会 ($0) のみ先行。(a-3) Databento CME は 2027-02 (E12 verdict) まで保留 — round4 凍結を維持。
+2. 具体形: **10-15 の E1 verdict が PASS 以外なら、scan#6 (10-18) で (a-1) OTC FX オプション面の歴史 probe (CME DataMine、一回性・上限額は**未確認** (「数百$」は根拠なし — 2026-10-20 第6次訂正、上限は U4-2 で user が置く)) の R1 起案を裁定**。月額型は U2 決裁前は自動 NO。(a-2) CLS は価格照会 ($0) のみ先行。(a-3) Databento CME は 2027-02 (E12 verdict) まで保留 — round4 凍結を維持。 **→ 2026-11-03 U4-1 (B) decouple で E1 条件は外れた ([[../research/external-hypothesis-scan-round6-2026-10-20]] §9.1)**
 3. ~~**(c) は scan#6 に S1 裁定表 (equity index daily、本メモ §2) を正式添付して物理判定 (口座・資本・執行) を凍結するに留める**。live 経路の解錠は U2 が ¥1M+ に解決した場合のみ — その時点で (c) を (a) と対等の候補に昇格して再裁定。~~ — **⛔ 2026-10-20 第6次で上書き: (c) は OANDA 制約下クローズ。S1 裁定表の添付・U2 ¥1M+ での昇格はいずれも不成立 (別口座不可)。残余 = 追加 FX ペアの shadow 蓄積 (RT 実測 R3 まで、[[../research/external-hypothesis-scan-round6-2026-10-20]] §4.3)**
 4. **無決裁 = (d)** (F1 の時限 3 系統・結合 FAIL 確率 ~61-89% への賭け) であることを 10-18 の上程文面に毎回明記する。
 
-決裁の書式: `U4 仮決め: (a) probe [E1 verdict 条件付き] / (c) S1 のみ` の一言で足りる。反映 (registry 期日 + scan#6 議題 + packet 追記) は Claude が自走する。
+決裁の書式: `U4 仮決め: (a) probe [E1 verdict 条件付き] / (c) S1 のみ` の一言で足りる。 **(2026-11-03: U4-1 (B) 採択により [E1 verdict 条件付き] は失効、U4-2 の円数字が未提示のため probe 起案なし)**反映 (registry 期日 + scan#6 議題 + packet 追記) は Claude が自走する。
 
 
 ## 5. リスク・反論 (敵対材料、10-18 上程時に併読)

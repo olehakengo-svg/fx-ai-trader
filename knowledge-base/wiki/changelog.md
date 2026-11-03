@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-03 — ops+docs(KB): storm guard enforce 執行 (env 設定成功、10 回目で初) + 第6次スキャン §9 決裁 9 件の記録 (user「これ進めて」) + R5 機械トリガ起票 + ローカル main reset
+
+- **storm guard enforce 執行 (registry `storm-guard-enforce-execution-window` resolve、期日 11-04 (01:12Z の 9 回目拒否で +1 日済み) の前日に執行)**: 05:30:55Z 窓確認 (open live 0 / demo is_shadow=0 open 0 / 火曜 / totals 全 0) → 05:31:41Z `STORM_GUARD_ENFORCE=1` を Render MCP で設定 **成功** (10-20 07:13Z〜11-03 01:12Z の拒否 9 回と同一 payload、今回は classifier 拒否なし) → deploy `dep-dbkn3fegekts73ekq5h0` live 05:33:27Z → 05:33:44Z `enforce` **true** 確認 (totals 全 0、engine_pid 95)。`storm-guard-enforce-first-storm-readout` 期日 11-09 → **11-15** (執行日 +12 日)。[[storm-guard-design-2026-09-22]] §7.4
+- **第6次スキャン §9 決裁 9 件 ([[external-hypothesis-scan-round6-2026-10-20]] §9.1 新設)**: user 2026-11-03「これ進めて」(10-22 対話報告の未決 4 項目を引用) を推奨/既定の一括適用として記録 — U4-1 **(B) decouple** (手順書 [[e1-first-look-runbook-2026-09-22]] §8 追補) / U4-2 **未提示 = 購買起案なし** / U4-3・U4-6 D4 後 / (c) RT 実測 R3 へ / **#29-L 採用 = 辞書転記 gate 解除** (`adhoc-scan-29-step1-census-gate` 11-07、異論で停止) / (iv) 不可クローズ確定 / (iii) **案 A 正式採択** (台帳 第6次 追補、書式要件発効) / (vii) **cadence 月次維持** + 前提条件 R5 を registry `edge-supply-active-line-idle-r5` (12-03、能動 0 本が 30 日継続) として起票
+- **D11**: 10-29 に REG 字義で凍結済み (`integrated-decision-packet-d11-user-decision` resolved、F3 は 2027-03-31 評価) — 本日の変更なし
+- **ローカル main**: user 指示で `git reset --hard origin/main` (32a820f0 → 883b9b98、540 behind / 3 ahead を解消)。退避 = branch `backup/local-main-pre-reset-2026-11-03` + stash `local-main-pre-reset-2026-11-03` (staged KB 27 A / 5 M + parquet 3)。実質的な行は救出 9 例で origin に反映済み (残差 = stale 行・auto-saver 空テンプレ 10-17 / 11-01 / 11-03)
+- **PR #363 マージ** (max_open live 上限 R3、review gate 通過、05:36:38Z) — enforce 執行と同一窓でバッチ
+- 詳細: [[2026-11-03-session]]
+
 ## 2026-11-03 — fix(demo_trader)+docs(KB): max_open グローバル上限を live 建玉数で判定 (shadow が live を削る R3 修理、O-2026-11-02-1) + storm guard enforce 拒否 9 回目 + 座礁 wiki-daily 救出 9 例目 (autopilot)
 
 - **`max-open-live-cap-counts-shadow-r3` (11-04) 修理 PR #363 (rule:R3)**: `_tick_entry` max_open 節の live 上限判定を `len(open_trades)` (live+shadow 総数) → `_n_open_live` (is_shadow 偽) に変更。shadow 上限 (max_open+8) は総数のまま、上流で shadow 化済みの行にも適用 (`max_open_shadow_cap`、marker なし)。旧実装は open live 0 でも shadow 8 本で carry_dip を `[SHADOW_BYPASS] max_open` に落とし (10-30 08:02:59Z、1/12)、かつ上流 shadow 行に同 marker を誤付与していた。CF pin 9 本 (Codex P2 対応 = 最終 shadow 判定後に総数上限を再チェック、下流 gate で shadow 化した候補の素通りを閉鎖)。lot / シグナル / bypass 例外 / 凍結値は非接触。code derivation: [[max-open-live-cap-counts-shadow-r3-2026-11-03]]。registry 期日 11-04 → 11-10 (deploy 後の 0 件確認で resolve)

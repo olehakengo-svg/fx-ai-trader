@@ -1,5 +1,11 @@
 # Knowledge Base Change Log
 
+## 2026-11-03 (対話セッション — storm guard enforce 執行成功 + 第6次 §9 決裁 9 件記録 + R5 起票 + ローカル main reset)
+
+- **registry**: `storm-guard-enforce-execution-window` → resolved 2026-11-03 (deploy dep-dbkn3fegekts73ekq5h0 live 05:33:27Z、enforce true 05:33:44Z) / `storm-guard-enforce-first-storm-readout` 11-09 → 11-15 / `adhoc-scan-29-step1-census-gate` note (#29-L 承認、転記解錠) / `edge-supply-scan-monthly` note (決裁 9 件) / 新規 `edge-supply-active-line-idle-r5` (12-03)
+- **docs**: round6 §9.1 新設 (決裁記録) / e1-first-look-runbook §8 追補 (U4-1 (B)) / hypothesis-catalog 第6次 追補 (案 A 採択・書式要件発効) / storm-guard-design §7.4 11-03 行 / research/index 第6次行
+- **ローカル main**: reset --hard origin/main (退避 branch + stash)、PR #363 マージ
+
 ## 2026-11-03 (autopilot — max_open live-cap R3 修理 (PR #363) + enforce 拒否 9 回目 + 座礁 wiki-daily 救出 9 例目 (PR #362))
 
 - **fix(demo_trader) rule:R3 (PR #363)**: グローバル建玉上限 `max_open_trades`=8 の判定を live + shadow 総数 → **live 建玉数** (`is_shadow` 偽) に変更。open live 0 でも shadow 8 本で carry_dip が `[SHADOW_BYPASS] max_open` に落ちていた (O-2026-11-02-1、10-30 08:02:59Z、1/12) = Live vs Shadow 分離違反の修理。shadow 上限 (max_open+8) は総数のまま、上流 shadow 行にも適用 (`max_open_shadow_cap`、marker なし = 旧実装の誤 marker も解消)。CF pin 7 本、全 suite 4258 passed。lot / シグナル / bypass 例外 / 凍結値 非接触。[[max-open-live-cap-counts-shadow-r3-2026-11-03]]。registry `max-open-live-cap-counts-shadow-r3` 11-04 → 11-10 (deploy 後の 0 件確認で resolve)
