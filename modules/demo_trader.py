@@ -5689,27 +5689,45 @@ class DemoTrader:
                 return
         # グローバル安全上限（全通貨ペア・全モード合計）
         # v8.9: Shadow trades は別上限 (max_open + 8) — N蓄積を優先しつつメモリ保護
+        # 2026-11-03 (rule:R3, O-2026-11-02-1 / registry max-open-live-cap-counts-shadow-r3):
+        #   旧実装は `_n_open = len(open_trades)` (live + shadow の総数) を live 上限と
+        #   比較していたため、open live 0 でも shadow 建玉 8 本で live-eligible 型
+        #   (carry_dip = _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS 非所属) が
+        #   `[SHADOW_BYPASS] max_open` に落ちた (10-30 08:02:59Z row 20285 = 実測 1/12)。
+        #   shadow が live を削る = Live vs Shadow 厳格分離の違反 (原則 1)。
+        #   per-cell 上限 (max_per_mode_pair、2026-04-30) と同じく live / shadow を
+        #   別カウントする:
+        #     * live 上限 `max_open_trades` は **is_shadow 偽の建玉数** で判定
+        #     * shadow 上限 `max_open + 8` は従来どおり **総数** (メモリ保護) で判定し、
+        #       上流で既に shadow 化された行にも適用する (旧実装では総数 ≥ max_open の
+        #       分岐内でしか効かなかったが、閾値・母数は同一)
+        #   lot / シグナル / bypass 例外集合 / 凍結値は非接触。
         _max_open = self._params["max_open_trades"]
         _shadow_max = _max_open + 8
         _n_open = len(open_trades)
-        if _n_open >= _max_open:
+        _n_open_live = sum(1 for _t in open_trades if not _t.get("is_shadow", False))
+        if _n_open_live >= _max_open:
             if entry_type in self._COUNT_GATE_BYPASS_LIVE_EXCEPTIONS:
                 # 2026-06-02 (rule:R3): LIVE intentional exception bypass.
                 # Global open cap of 8 may be exceeded for user-declared LIVE
                 # intentional exceptions. See _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS.
                 self._add_log(
                     f"[LIVE_EXCEPTION_BYPASS] {entry_type} max_open bypass "
-                    f"({_n_open}/{_max_open}) → LIVE allowed"
+                    f"(live={_n_open_live}/{_max_open} total={_n_open}) → LIVE allowed"
                 )
             elif _is_slot_shadow_eligible and _n_open < _shadow_max:
                 _is_shadow = True
                 _shadow_bypass_gates.append("max_open")
                 self._add_log(
                     f"[SHADOW] max_open bypass: {entry_type} {mode} "
-                    f"({_n_open}/{_max_open} → shadow)"
+                    f"(live={_n_open_live}/{_max_open} total={_n_open}/{_shadow_max} → shadow)"
                 )
             else:
-                _block(f"max_open({_n_open}/{_max_open})"); return
+                _block(f"max_open({_n_open_live}/{_max_open})"); return
+        elif _is_shadow and _n_open >= _shadow_max:
+            # 上流で shadow 化済みの行にも総数上限 (max_open + 8) を適用 (メモリ保護)。
+            # live 候補ではないので `[SHADOW_BYPASS] max_open` marker は付けない。
+            _block(f"max_open_shadow_cap({_n_open}/{_shadow_max})"); return
         if self._check_drawdown():
             _block("drawdown"); return
 
@@ -7481,6 +7499,15 @@ class DemoTrader:
         # rule:R3 2026-09-24: emit したプロセス (import=master / forked=worker)
         # を row に永続 — 二重エンジンの solo emission 帰属 (record-only)。
         _reasons_with_inv = list(_reasons_with_inv or []) + [self._emit_proc_marker()]
+
+        # rule:R3 2026-11-03 (PR #363 Codex P2): shadow 総数上限 (max_open + 8) を
+        # **最終 shadow 判定の後**に再チェック。max_open 節は live 上限を live 建玉数で
+        # 判定するため、live 上限未満で節を通過した候補が下流 gate (session_hours /
+        # regime / alpha_scan / spread_guard / velocity …) で shadow 化すると、旧実装が
+        # 総数 ≥ max_open+8 で block していた経路を素通りしてしまう。ここで塞ぐ
+        # (live 行は対象外 = live は shadow 建玉数で削らない)。
+        if _is_shadow and _n_open >= _shadow_max:
+            _block(f"max_open_shadow_cap({_n_open}/{_shadow_max})"); return
 
         trade_id = self._db.open_trade(
             direction=signal,

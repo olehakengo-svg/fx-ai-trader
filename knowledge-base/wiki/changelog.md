@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-03 — fix(demo_trader)+docs(KB): max_open グローバル上限を live 建玉数で判定 (shadow が live を削る R3 修理、O-2026-11-02-1) + storm guard enforce 拒否 9 回目 + 座礁 wiki-daily 救出 9 例目 (autopilot)
+
+- **`max-open-live-cap-counts-shadow-r3` (11-04) 修理 PR #363 (rule:R3)**: `_tick_entry` max_open 節の live 上限判定を `len(open_trades)` (live+shadow 総数) → `_n_open_live` (is_shadow 偽) に変更。shadow 上限 (max_open+8) は総数のまま、上流で shadow 化済みの行にも適用 (`max_open_shadow_cap`、marker なし)。旧実装は open live 0 でも shadow 8 本で carry_dip を `[SHADOW_BYPASS] max_open` に落とし (10-30 08:02:59Z、1/12)、かつ上流 shadow 行に同 marker を誤付与していた。CF pin 9 本 (Codex P2 対応 = 最終 shadow 判定後に総数上限を再チェック、下流 gate で shadow 化した候補の素通りを閉鎖)。lot / シグナル / bypass 例外 / 凍結値は非接触。code derivation: [[max-open-live-cap-counts-shadow-r3-2026-11-03]]。registry 期日 11-04 → 11-10 (deploy 後の 0 件確認で resolve)
+- **storm guard 執行窓**: 01:11Z open live 0 ∧ audit 直近 H1 bar live-eligible 0 ∧ 火曜 → 01:12Z env 設定 1 回試行 → classifier [Production Deploy] 拒否 **9 回目** → 期日 11-03 → 11-04 (+1 日)。user 操作 2 択 (dashboard env / tool allow) 不変。§7.4 11-03 行
+- **座礁 wiki-daily 救出 (9 例目、PR #362、docs のみ)**: ローカル main (10-09 のまま) で走った wiki-daily 10-29 12:00Z 再実行 + 11-02 12:33Z の成果物 (trade-log 11-02 新規 / 10-29 末尾節 / log 2 節 / index System State 2 エントリ + mission・Defensive 行 / O-2026-10-29-3・O-2026-11-02-2 + 週次 rollup 10-27〜11-02 / kalman・carry_dip カード節) を origin へ union 移植。stale Portfolio 見出し・旧 Status 行・deepdive 10-18・空テンプレ session log は不採用
+- **NAV**: 01:11Z ¥273,122.1611 (11-02 12:33Z 比 **−¥160** = SVK 11-03 分 2 RT × ¥80、戦略 fill 0、open live 0 は 10-29 20:01Z から継続)。`wg-winter-sunday-open-spread-rerun` (11-04) は 11-03 12:00Z baseline 未到来のため未着手
+
 ## 2026-11-02 — fix(tools)+docs(KB): 冬時間初週末 11-01 の実開場確認 (乖離 0、R3 再導出不要) + drift 計測 tool の冬 artifact R3 修正 + storm guard enforce 拒否 8 回目 + 座礁 deepdive 11-02 救出 (8 例目) + max_open が shadow を数える構造欠陥の readout (rule:R3、autopilot)
 
 - **`wg-winter-first-weekend-open-time-check` (11-02) resolve**: Render ログ `[WEEKEND_GAP]` 22:01:39–57Z 全ペア no-qualify (AUD_USD −6.6 / EUR_USD −3.4 / USD_JPY −20.5p vs 21.4p)、OANDA 初 complete M1 **22:04:00Z** (3 ペア) = 仕様 22:04–22:05 から乖離 **0** → 打ち切り 22:15 の再導出不要、凍結値不変。G0' には数えない (終了済み)。初足 spread 8.7 / 10.0 / 6.8p ([[weekend-gap-fade]] 2026-11-01 節 / DRAFT §5.1)
