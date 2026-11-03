@@ -5904,6 +5904,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 - **RNB（USD_JPY）**：ATR 40%ile、スロープほぼゼロ（+0.00014）。これがno_signal 806件の構造的背景。レンジであってもボラが低すぎてRNBのトリガー条件を満たせていない可能性が高い。
 | agg_kelly=−0.249<0 | 2 | Kelly係数が負。EV期待値が負のためlive送信停止（正常安全弁） |
 
+### 2026-11-03 (Post-NY Report)
+| PnL | **+0.0** |
+- **rnb_usdjpy**: `no_signal` 1,601件 — シグナル生成段階でフィルタアウト（本日最大ブロック源）
+- **scalp_eur / scalp系**: `r2_shadow_demoted_cell` 782〜253件 — R2降格判定によりシャドウ段階で遮断
+- **daytrade系（eur/gbpjpy/audjpy/eurjpy/gbpusd）**: `order_bar_dedup` 240〜676件 — 重複バー判定による排除
+- **OANDA転送**: 50件全SKIP（SENT=0）— `shadow_tracking` 20件がブリッジ通過を阻止
+### セッションPnL比較テーブル
+| Session | N | WR% | PnL |
+| 本日合計PnL | **+0.0** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
