@@ -151,9 +151,9 @@ verdict: GO 3 (実質 2 family = #21/#22) / ADJACENT-BANNED 3 / RISK-ILLUSION 2 
 - **MoF**: 開示ラグを利用した観測前 pre-reg 機会は**時限付き** — Q2 開示 (~2026-08) 前に LOCK 必須
 - **横断規律メモ**: 週末境界の DST 問題 (21:00 UTC 固定 vs 実クローズ 22:00 冬時間) は pre-reg で定義凍結必須。bootstrap p の床 (1/(N+1)) は「p<1e-4」表記に統一
 
-## 第6次 追補 (2026-10-20 — [[../research/external-hypothesis-scan-round6-2026-10-20]]) — 運用ルール (凍結) は不改変、正式採択は user ack
+## 第6次 追補 (2026-10-20 — [[../research/external-hypothesis-scan-round6-2026-10-20]]) — 運用ルール (凍結) は不改変、正式採択は user ack (2026-11-03 ack 済み → 案 A 確定)
 
-- **explore 枠 (並列上限 3) の現在値は規則依存で不定**: 案 A (FAIL = 即解放 / park = 解放 / explore-LOCK 中のみ占有) → **0/3** [作業上の読み、09-10 E23 LOCK 時の会計と整合] / 案 B (park は占有、サンセット条項) → 1/3 / 案 C (明示解放行がなければ占有) → 2/3。台帳行で解放が明示されているのは #21 / #24 のみ、#25 (park) / #26 / #27 (FAIL) に解放文言なし。LOCKED 受動 (MoF 等) と ws3-round4 LOCK は本会計の外 (理由は次回明記)。 **→ 2026-11-03 user ack で案 A を正式採択 (現在値 0/3 確定、[[../research/external-hypothesis-scan-round6-2026-10-20]] §9.1 (iii))**
+- **explore 枠 (並列上限 3) の現在値は規則依存で不定**: 案 A (FAIL = 即解放 / park = 解放 / explore-LOCK 中のみ占有) → **0/3** [作業上の読み、09-10 E23 LOCK 時の会計と整合] / 案 B (park は占有、サンセット条項) → 1/3 / 案 C (明示解放行がなければ占有) → 2/3。台帳行で解放が明示されているのは #21 / #24 のみ、#25 (park) / #26 / #27 (FAIL) に解放文言なし。LOCKED 受動 (MoF 等) と ws3-round4 LOCK は本会計の外 (理由は次回明記)。 **→ 2026-11-03 user「これ進めて」(§9.1 一括適用、異論で未決に戻る) で案 A を正式採択 (現在値 0/3 確定、[[../research/external-hypothesis-scan-round6-2026-10-20]] §9.1 (iii))**
 - **書式要件 (2026-11-03 採択・発効)**: 以後の verdict 行は「枠 x/3 → y/3」を必ず書く (案 A 会計)。
 - **台帳 L14 の m=12** は 2026-07-24 凍結時の wave 分母 (現行行数 32 とは別物)、不改変。
 - **診断枠 (#23 / #29) と 🅿️ 予約 (#20 / #30〜#32) は WIP 下限「着手可能 ≥1」に数えない** (pipeline §3 / adhoc-scan-29 §6)。
