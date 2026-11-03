@@ -5874,6 +5874,16 @@ Cutoff後累計では `usdjpy_carry_dip_accumulator / USD_JPY` の N=3 のみが
 - carry_dip #1346967はmax_open=8/8（shadow建玉込み）でshadow化 → **live機会喪失（O-2026-11-02-1）**。
 - R3 registry修正は11-04予定だが、それまで同構造が再現するリスクが残る。
 
+### 2026-11-03 (Pre-Tokyo Briefing)
+2026-11-02（月）：**トレード数ゼロ、前日PnL = ¥0**。
+Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjpy_carry_dip_accumulator` 1件（EV +0.20）のみ存在。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> `kalman_d7_po_dn_flip` はN=2かつEV=−5.00だが、KB記録（N=11 / EV=−2.14）でR2 LOCKが既発動済みであり、これ以上のlive fillは本番ガードが遮断している。
+- 東京・ロンドン・NYの3セッション合計でシグナル→約定ゼロ。
+- ブロック起因：`rnb_usdjpy:no_signal`（2,699件）が断トツ首位。RSNBシステムがシグナル生成できていない状態が継続。
+- **対処方針**：コード変更なし。rnb_usdjpyはシグナル未生成が構造的問題として記録済み。レジーム状況（後述）と照合し、RANGING相場との相性を監視継続。
+- **対処方針**：降格セルの回復はN蓄積（shadow track）に依存。コード変更なし。監視のみ。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
