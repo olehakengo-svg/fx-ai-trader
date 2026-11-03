@@ -18,6 +18,8 @@
   5. shadow 上限: 上流で shadow 化済みの行は総数 ≥ max_open+8 で block、未満なら
      marker なしで記録 (旧実装は総数 ≥ max_open で `[SHADOW_BYPASS] max_open` を誤付与)
   6. AST: live 上限の比較対象が総数 `len(open_trades)` に戻っていない
+  7. (Codex P2) 下流 gate (session_hours) で shadow 化した候補も総数 ≥ max_open+8 で block、
+     未満なら従来どおり記録 — max_open 節通過後の shadow 化が総数上限を素通りしない
 lot / シグナル / bypass 例外集合 / 凍結値は一切変更しない。
 """
 from __future__ import annotations
@@ -197,5 +199,46 @@ def test_live_cap_compares_live_count_not_total():
     assert re.search(r"_n_open_live\s*=\s*sum\(1 for _t in open_trades if not _t\.get\(\"is_shadow\"", src)
     assert "if _n_open_live >= _max_open:" in src
     assert "if _n_open >= _max_open:" not in src
-    # shadow 上限は総数のまま
+    # shadow 上限は総数のまま (max_open 節 + 最終 shadow 判定後の再チェック)
     assert "elif _is_shadow and _n_open >= _shadow_max:" in src
+    assert src.count("if _is_shadow and _n_open >= _shadow_max:") >= 1
+    assert src.index("if _is_shadow and _n_open >= _shadow_max:") < src.index("trade_id = self._db.open_trade(")
+
+
+# ── 7. (Codex P2) max_open 節より下流で shadow 化した候補にも総数上限を適用 ─────────
+
+
+def _cfg_outside_hours(instrument):
+    # _LondonDatetime = 12:00Z → active_hours [13, 17] の外 = session_hours shadow bypass
+    # (max_open 節の下流)。market_close_30min は end 17:00 まで 300 分で非該当
+    cfg = _cfg(instrument)
+    cfg["active_hours_utc"] = [13, 17]
+    return cfg
+
+
+def test_downstream_shadow_candidate_blocked_at_total_shadow_cap(tmp_path, monkeypatch):
+    trader, logs, fake = _setup(tmp_path, monkeypatch, max_open=2)
+    _seed_open(trader, 10, is_shadow=True)  # live 0 (< 2 = max_open 節は通過) / 総数 10 = max_open + 8
+
+    trader._tick_entry("daytrade", _cfg_outside_hours("EUR_USD"), _sig(), "15m", "EUR_USD")
+
+    assert any("[SHADOW] Session bypass:" in m for m in logs), logs
+    assert not _entry_rows(trader)
+    assert not fake.open_trade.called
+    assert any("max_open_shadow_cap(10/10)" in m for m in logs), logs
+
+
+def test_downstream_shadow_candidate_under_total_cap_is_recorded(tmp_path, monkeypatch):
+    """対称側: 総数 < max_open+8 なら下流 shadow 化は従来どおり記録される。"""
+    trader, logs, fake = _setup(tmp_path, monkeypatch, max_open=2)
+    _seed_open(trader, 9, is_shadow=True)  # live 0 / 総数 9 < 10
+
+    trader._tick_entry("daytrade", _cfg_outside_hours("EUR_USD"), _sig(), "15m", "EUR_USD")
+
+    rows = _entry_rows(trader)
+    assert rows and len(rows) == 1 and rows[0]["is_shadow"] == 1
+    assert not fake.open_trade.called
+    reasons = _row_reasons(rows[0])
+    assert f"{_SHADOW_BYPASS_REASON_TAG} session_hours" in reasons, reasons
+    assert f"{_SHADOW_BYPASS_REASON_TAG} max_open" not in reasons, reasons
+    assert not any("max_open_shadow_cap" in m for m in logs), logs

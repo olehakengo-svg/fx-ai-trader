@@ -35,7 +35,13 @@ if _n_open_live >= _max_open:                                    # live 上限�
     (bypass 例外 → LIVE / shadow eligible ∧ 総数 < 16 → shadow + marker / else block "max_open(live/8)")
 elif _is_shadow and _n_open >= _shadow_max:                      # 上流 shadow 行にも総数上限 (メモリ保護)
     _block("max_open_shadow_cap(total/16)")
+...
+# 最終 shadow 判定の直後 (DB row 作成直前、Codex P2 対応):
+if _is_shadow and _n_open >= _shadow_max:                        # 下流 gate で shadow 化した候補も総数上限
+    _block("max_open_shadow_cap(total/16)")
 ```
+
+**Codex P2 (PR #363 1 commit 目)**: max_open 節は live 上限未満の候補を `_is_shadow` 偽のまま通すため、下流 gate (session_hours / regime / alpha_scan / spread_guard / velocity …) で shadow 化した候補が総数 ≥ 16 でも row を作れた (旧実装は総数 ≥ 8 の分岐で一括 block)。→ 最終 shadow 判定の後 (`self._db.open_trade` 直前) に総数上限を再チェック。live 行は対象外 (live は shadow 建玉数で削らない)。
 
 | ケース | live | 総数 | 旧 | 新 |
 |---|---|---|---|---|
@@ -45,12 +51,14 @@ elif _is_shadow and _n_open >= _shadow_max:                      # 上流 shadow
 | kalman (bypass 例外)、live 8 | 8 | 8+ | LIVE | LIVE (不変) |
 | 上流 shadow 行、live 0、総数 16 | 0 | 16 | block | block (reason は `max_open_shadow_cap`) |
 | 上流 shadow 行、live 0、総数 8〜15 | 0 | 8–15 | 記録 + **誤 marker** `[SHADOW_BYPASS] max_open` | 記録、marker なし |
+| 下流 gate で shadow 化、live 0、総数 16 | 0 | 16 | block (総数 ≥ 8 の分岐) | block (`max_open_shadow_cap`、最終判定後の再チェック) |
+| 下流 gate で shadow 化、live 0、総数 9 | 0 | 9 | 記録 + 誤 marker | 記録、marker は下流 gate のもののみ |
 
 副作用: 旧実装は上流で shadow 化済みの行に総数 ≥ 8 で `[SHADOW_BYPASS] max_open` を**誤付与**していた (全型 9 件の一部はこれ)。修理後は live 候補だった行にだけ付く = readout の分子が正しくなる。block reason の parse 形式 `max_open(<n>/<limit>)` (`block_event_logger._METRIC_PATTERNS`) は不変、新 reason `max_open_shadow_cap` は計測なし (NULL)。
 
-## 4. pin (tests/test_max_open_live_cap_counts_live_only_r3.py、7 本)
+## 4. pin (tests/test_max_open_live_cap_counts_live_only_r3.py、9 本)
 
-CF 1 (shadow 3 本 / live 上限 3 で LIVE のまま、revert で落ちる) / 対称 3 (live 上限は不変、live+shadow 満杯の hard block 不変、bypass 例外不変) / shadow 上限 2 (上流 shadow 行の総数 block、総数 < 上限で marker なし) / AST 1 (`_n_open_live` 比較、総数比較への回帰禁止)。
+CF 1 (shadow 3 本 / live 上限 3 で LIVE のまま、revert で落ちる) / 対称 3 (live 上限は不変、live+shadow 満杯の hard block 不変、bypass 例外不変) / shadow 上限 2 (上流 slot-bypass shadow 行の総数 block、総数 < 上限で marker なし) / 下流 shadow 2 (Codex P2: session_hours で shadow 化した候補は総数 10/10 で block、9 なら記録) / AST 1 (`_n_open_live` 比較、総数比較への回帰禁止、再チェックが DB write より前)。
 
 ## 5. 非接触
 

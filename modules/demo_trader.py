@@ -7500,6 +7500,15 @@ class DemoTrader:
         # を row に永続 — 二重エンジンの solo emission 帰属 (record-only)。
         _reasons_with_inv = list(_reasons_with_inv or []) + [self._emit_proc_marker()]
 
+        # rule:R3 2026-11-03 (PR #363 Codex P2): shadow 総数上限 (max_open + 8) を
+        # **最終 shadow 判定の後**に再チェック。max_open 節は live 上限を live 建玉数で
+        # 判定するため、live 上限未満で節を通過した候補が下流 gate (session_hours /
+        # regime / alpha_scan / spread_guard / velocity …) で shadow 化すると、旧実装が
+        # 総数 ≥ max_open+8 で block していた経路を素通りしてしまう。ここで塞ぐ
+        # (live 行は対象外 = live は shadow 建玉数で削らない)。
+        if _is_shadow and _n_open >= _shadow_max:
+            _block(f"max_open_shadow_cap({_n_open}/{_shadow_max})"); return
+
         trade_id = self._db.open_trade(
             direction=signal,
             entry_price=current_price,
