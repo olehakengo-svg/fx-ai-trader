@@ -5894,6 +5894,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 - 実口座DD **−23.90%** の防御モード下では、データ不足のまま昇格操作を行うことは当該フレームワークと整合しない
 - OANDA転送率 **0%（50件中50件SKIP）** ——全件 `shadow_tracking` によるブロック（18件）が示す通り、本番送信に値するlivable戦略が現時点でゼロ
 
+### 2026-11-03 (Pre-Tokyo Briefing)
+前日（2026-11-02）はトレードゼロ。Cutoff後累計でもis_shadow=0の有効トレードはN=3（`kalman_d7_po_dn_flip` N=2、`usdjpy_carry_dip_accumulator` N=1）に留まり、PnL合計は**−¥9.8**。全体WR=33.3%だが、N=3は統計的に「データなし」の水準であり、この数字自体に判断価値はない。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- `r2_shadow_demoted_cell` がblock topを独占。scalp_eur（426）、scalp（328）、scalp_5m_gbp（202）、scalp_5m_eur（176）、scalp_5m（148）、daytrade_1h_usdchf（174）が大量ブロック。これはR2シャドウ評価でdemoteされたセルが継続的に発動しており、**live-eligibleシグナル自体が生成されていない**ことを意味する。
+- `order_bar_dedup` もdaytrade_eur（399）、daytrade（193）、daytrade_audjpy（135）、daytrade_eurjpy（104）で多発。同一バーへの重複注文抑制が正常に機能しているが、逆に言えば**シグナルは出ているが重複として弾かれている**。
+- **スキャルプ系にとって**：EUR_USDのVOLATILE＋高ATRはspread_guard発動リスクが上昇（Scalp閾値30%）。シグナルが出ても通過困難。
+- **デイトレード系にとって**：RANGINGは本来DT向きだが、EUR_JPY/GBP_JPYのATR水準（62%/55%）は悪くない。ただし現状はshadow_demotedが先に壁となっている。
+- **RNB（USD_JPY）**：ATR 40%ile、スロープほぼゼロ（+0.00014）。これがno_signal 806件の構造的背景。レンジであってもボラが低すぎてRNBのトリガー条件を満たせていない可能性が高い。
+| agg_kelly=−0.249<0 | 2 | Kelly係数が負。EV期待値が負のためlive送信停止（正常安全弁） |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
