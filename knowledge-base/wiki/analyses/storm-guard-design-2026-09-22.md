@@ -256,6 +256,7 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 - ⚠️ 再起動は storm の in-process 状態を消す (storm #3 の 46,098 は status 上から消滅、daily report 表は再起動後の値しか見られない) — storm の累計は Render ログ / OANDA transactions 側にしか残らない。`anomaly_watcher` の累計 `breaker_trips` も再起動でリセットされる (読み手は「再起動後の epoch」として読む)。
 - 46,098 送信 = 10-19 00:01 → 決済までの ≈29 h で平均 ≈1,600/h (03:48Z までの 3,100/h から減速 = BE+0.8 ⇄ trail の往復が trail 側へ収束した後も同値再送が続いた形)。`failed` 7 は 10-19 03:48Z の 0 から増加 (4xx の内訳は Render ログ)。
 
+- 🟢 **2026-11-03 執行 (対話セッション、通算 10 回目の試行で初成功)**: 05:24:00Z / 05:30:55Z 窓確認 (OANDA `heartbeat.open_trade_count` 0 / `/api/demo/status` is_shadow=0 open 0 / 火曜 / `enforce` false / totals 全 0、最後の live-eligible 10-29 21:04Z) → 05:31:41Z `mcp__render__update_environment_variables` (`STORM_GUARD_ENFORCE=1`、replace=false) **成功** (classifier 拒否なし — 10-20 07:13Z〜11-02 02:26Z の 9 回拒否と同一 payload) → deploy `dep-dbkn3fegekts73ekq5h0` (commit 883b9b98、trigger api、build 05:31:41 → live **05:33:27Z**) → 05:33:44Z `/api/oanda/status.storm_guard.enforce` **true** 確認、totals 全 0 (新 epoch)、open 0、`engine_pid` 95 / tick age 0.7 s。registry `storm-guard-enforce-execution-window` resolve、`storm-guard-enforce-first-storm-readout` 期日 11-09 → **11-15** (執行日 +12 日)。rollback = env を空にして再起動 (不変)。
 ---
 
 ## 8. 追補 2026-10-21 — family A/B の根 (caller 側) の R3 修復
