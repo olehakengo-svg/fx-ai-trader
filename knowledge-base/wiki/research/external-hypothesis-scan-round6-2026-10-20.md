@@ -155,7 +155,7 @@
 | #29-L | **採用 (辞書転記を解錠)** | Claude の読み (Riksbank open-data 条件 = 出所・日付表記、法 2022:818 = EU 指令 2019/1024) を user が「これ進めて」で承認 | registry `adhoc-scan-29-step1-census-gate` (11-07) の gate 解除。転記モジュールは出所 (WP 381 Appendix)・取得日・利用条件を docstring と KB に明記、Appendix 語彙の逐語転記に限定、sha256 pin。**user が本読みに異論を述べた時点で転記を止め、転記済みなら削除** |
 | (iv) | **不可クローズ確定** | 無回答既定 (手動取得の申し出なし) | 以後の月次スキャンで保留を持ち越さない。ECB 単独 secondary は census に含めない |
 | (iii) | **案 A 正式採択** | 作業上の読みを採択 | 台帳 [[../syntheses/hypothesis-catalog-2026-07-24]] 第6次 追補: 現在値 0/3 確定、書式要件「枠 x/3 → y/3」発効 (本 PR) |
-| (vii) | **月次維持** | 無回答既定 + §7 反対材料 (臨時トリガ常時成立 / 月次 re-check が実欠陥を 3 周検出 / R5 未実装) | 前提条件 = R5 機械トリガの registry 起票 `edge-supply-active-line-idle-r5` (本 PR、起点 11-03 能動 0 本、30 日継続で TRIGGERED) |
+| (vii) | **月次維持** | 無回答既定 + §7 反対材料 (臨時トリガ常時成立 / 月次 re-check が実欠陥を 3 周検出 / R5 未実装) | 前提条件 = R5 機械トリガの registry 起票 `edge-supply-active-line-idle-r5` (本 PR、起点 11-03 能動 0 本、30 日継続で TRIGGERED — 連続性は台帳/registry の日付付き行で判定し、月次の時点サンプルでは判定しない; Codex P2 反映) |
 
 **本決裁で動かないもの**: E22 §9 / E23 / E1 pre-reg の凍結本文、WIP 発動規則 (pipeline §3)、explore 枠の運用ルール凍結節 (追補に置く)、P-10 ban。U4-2 の数字が出るまで有償データ購買の起案は発生しない。
 
