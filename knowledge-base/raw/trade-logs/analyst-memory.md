@@ -5924,6 +5924,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 - `max_open`がshadow建玉を誤カウントする**R3バグ（PR #363）**のdeployが最優先解消事項として既登録済み。deploy後に `[SHADOW_BYPASS] max_open` 0件を確認するまで待機姿勢を維持。
 **レジーム遷移リスク**: 月曜日は週初のギャップ・流動性回復でボラが急拡大することがある。現在全RANGINGのため、急激なTRENDING化でscore_gateを突破するシグナルが増える可能性はあるが、shadow降格フィルタがそれを吸収してしまう構造に注意。
 
+### 2026-11-04 (Post-Tokyo Report)
+| WR | 100.0%（参考値: N<5） |
+| PnL | +10.2 pips |
+| 本日累計 PnL | +10.2 pips（全1件） |
+> ⚠️ N=1 は統計的に「データなし」扱い。勝率・EVいずれも本セッション単独では判断不可。
+| 戦略 | ペア | PnL | 成功要因 |
+| 戦略 | ペア | PnL | 失敗要因 |
+### 推奨戦略配分
+**NO ACTION推奨（現行稼働状態の維持のみ）**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
