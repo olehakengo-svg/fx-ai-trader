@@ -6,6 +6,7 @@
 - **`wg-winter-sunday-open-spread-rerun` (11-04) resolve (rule:R3 記録のみ)**: `--weekends 13 --date 2026-11-04` → 11-01 行 (open 22:04Z) 初足 spread EUR_USD 10.0 / USD_JPY 8.7 / AUD_USD 6.8p (直読みと一致)、3×RT 下回りまで 9 / 11 / 0 分 (夏帯内)。13 週末 summary 初足 p50/p90 5.0/9.22 / 10.0/10.0 / 7.9/15.0 (max 不変)。stressed 閾値・凍結 RT 変更なし。card [[weekend-gap-fade]] 2026-11-01 節
 - **`max-open-live-cap-counts-shadow-r3` (11-10) post-deploy 読み取り #1**: deploy 基準 = PR #363 → Render live 11-03 05:38:23Z (06:18Z に #364 で上書き、`engine_import_pid` 59→60)。05:40Z〜11-04 02:05Z の 70 行で `[SHADOW_BYPASS] max_open` 0 / live-eligible 型 0 = 0/0 空虚 → 未 resolve、期日据え置き
 - **NAV**: 11-04 02:04Z ¥272,822.1611 (11-03 01:11Z 比 **−¥300** = SVK 11-03 02:03Z −¥70 + 11-04 3 RT −¥110/−¥60/−¥60、戦略 fill 0、残差 0)。open live 0 (10-29 20:01Z〜)、`storm_guard.enforce` **true** 継続、totals 全 0 (open live 0 のため構造的 0)
+- **merge / deploy**: PR #365 merge 6c46d5e9 (02:37:51Z、Codex findings 0 / CI 3 本 pass / review gate exit 0 / 窓再確認 02:37:46Z open live 0) → Render `dep-dbl9l097lnhs739fq1f0` live **02:39:32Z** (`engine_import_pid` 60→59)。台帳 KV は復元で不変 (遡及計上なし)、readout 11-20 の基準時刻 = 02:39:32Z
 - 詳細: [[2026-11-04-session]]
 
 ## 2026-11-03 — ops+docs(KB): storm guard enforce 執行 (env 設定成功、10 回目で初) + 第6次スキャン §9 決裁 9 件の記録 (user「これ進めて」) + R5 機械トリガ起票 + ローカル main reset
