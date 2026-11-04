@@ -5914,6 +5914,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 | Session | N | WR% | PnL |
 | 本日合計PnL | **+0.0** |
 
+### 2026-11-04 (Pre-Tokyo Briefing)
+2026-11-03（前日）はシステム稼働中にトレード約定ゼロ。Cutoff後の累積有効トレードはN=3（`kalman_d7_po_dn_flip` 2件、`usdjpy_carry_dip_accumulator` 1件）にとどまり、PnL合計 **−9.8pips**、WR **33.3%**。OANDA NAVは前日比でほぼ不変（SVKコスト程度の微減）、open live建玉ゼロが継続中。
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+- `r2_shadow_demoted_cell`系（scalp群で合計2,823件超）が最大のブロック集団。shadow降格セルがシグナル候補を組織的に除去しており、スカルプ戦略の実質的な無効化に近い状態。
+- `order_bar_dedup`系（daytrade群で合計2,604件超）は重複排除が機能している証拠だが、約定ゼロの遠因でもある。
+- `score_gate`（297件）はシグナルは出たが品質基準未達を示す。
+- Shadow降格セルの見直し是非を検討（今日何かを変えるのではなく、N蓄積が進むまで観察継続を推奨）。
+- `max_open`がshadow建玉を誤カウントする**R3バグ（PR #363）**のdeployが最優先解消事項として既登録済み。deploy後に `[SHADOW_BYPASS] max_open` 0件を確認するまで待機姿勢を維持。
+**レジーム遷移リスク**: 月曜日は週初のギャップ・流動性回復でボラが急拡大することがある。現在全RANGINGのため、急激なTRENDING化でscore_gateを突破するシグナルが増える可能性はあるが、shadow降格フィルタがそれを吸収してしまう構造に注意。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
