@@ -21,6 +21,13 @@
 - **経路**: 記録のみ → 次の registry 改定時に「gate 成立時点で engine 側 latch を置く」R3 提案の材料 (live 経路変更のため user 決裁)。[[2026-11-02]] 発見 1 / [[kalman-d7-po-dn-flip]]
 
 ---
+### O-2026-11-04-1: DD 台帳 (JPY、0.2x lever の SSOT) が broker 側決済 `OANDA_SL_TP` を計上しない — 未計上 17 件 / net +212.7p、lever は悲観側に歪み (執行 QA / 制御系)
+- **現象**: `_sync_oanda_closures` (OANDA が SL/TP 注文で先に決済した live 建玉を `OANDA_SL_TP` で DB close) は pip 台帳 / JPY 台帳 / `_dd_lot_mult` / KV を更新しない。engine 側 close 経路だけが writer を持つ。wiki-daily [[2026-10-20]] 発見 3 (14 例 / 155.0p) → index Defensive 行が「only SL_HIT is booked」rule として 17 例目まで追跡
+- **トリガ日**: 2026-10-20 (発見) / 2026-11-04 (棚卸し + 修理、autopilot)
+- **想定メカニズム**: Track C D-b (07-28) が writer を engine 側にのみ置いた。carry_dip / kalman の TP は broker `TAKE_PROFIT_ORDER` で先に約定する (10-29 exit 棚卸し) ため**勝ち側が系統的に抜ける**。close review §4 #6 の「ledger は 0.2x 判定の入力ではない」は誤り — `_dd_lot_mult` は起動時・決済時とも JPY 台帳 DD から `get_dd_lot_multiplier` で再計算される
+- **規模**: PROD snapshot (4,000 行、D-b 母集団 ∧ exit_time ≥ 07-28) で `OANDA_SL_TP` **17 件 / +212.7p** (carry_dip 12 / kalman 5) vs `SL_HIT` 12 / −172.7p。台帳 DD 10.08% → 計上していれば ≈9.5% (¥10/pip 慣行)、tier 0.20 (≥8%) は不変。向きは不定 (10-20 −10.7p の損失側未計上あり)
+- **経路**: rule:R3 構造バグ → **修理 PR (autopilot 2026-11-04)**: writer を `_book_equity_close` に一本化し両経路から呼ぶ、CF pin 8 本。遡及計上なし / units 列欠落 (¥10/pip 慣行) は残余。code derivation [[dd-ledger-broker-close-booking-r3-2026-11-04]]、registry `dd-ledger-nonbooking-consumer-audit` resolve → 後継 `dd-ledger-broker-close-first-booking-readout` (11-20)
+
 
 ## 週次 rollup
 

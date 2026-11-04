@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-04 — fix(demo_trader)+docs(KB): DD 台帳 writer 一本化 (broker 側決済 `OANDA_SL_TP` を計上、R3) + 冬時間初週末 sunday-open spread re-run 完了 + max_open post-deploy 読み取り #1 (autopilot)
+
+- **`dd-ledger-nonbooking-consumer-audit` (11-07) 消化 (rule:R3)**: 消費者棚卸し 10 件 → 台帳の実消費者は DD lot multiplier (`_dd_lot_mult`、live lot 0.2x lever の SSOT) と `/api/risk/dashboard` の 2 つ、daily_report「DD防御」節は dead code。close review の反証「ledger は 0.2x 判定の入力ではない」を code 事実で否定し **(a) 修理** を採択: `DemoTrader._book_equity_close` を新設して engine 側 close 経路のブロックを置換、`_sync_oanda_closures` (OANDA_SL_TP) からも呼ぶ。CF pin 8 本 (`tests/test_dd_ledger_books_broker_closes_r3.py`)。実測 OANDA_SL_TP 17 件 / net +212.7p 未計上 (悲観側、tier 0.20 不変)。遡及計上なし・units 列欠落 (¥10/pip 慣行)・daily_report dead code は残余。後継 readout entry 11-20。[[dd-ledger-broker-close-booking-r3-2026-11-04]] / O-2026-11-04-1
+- **`wg-winter-sunday-open-spread-rerun` (11-04) resolve (rule:R3 記録のみ)**: `--weekends 13 --date 2026-11-04` → 11-01 行 (open 22:04Z) 初足 spread EUR_USD 10.0 / USD_JPY 8.7 / AUD_USD 6.8p (直読みと一致)、3×RT 下回りまで 9 / 11 / 0 分 (夏帯内)。13 週末 summary 初足 p50/p90 5.0/9.22 / 10.0/10.0 / 7.9/15.0 (max 不変)。stressed 閾値・凍結 RT 変更なし。card [[weekend-gap-fade]] 2026-11-01 節
+- **`max-open-live-cap-counts-shadow-r3` (11-10) post-deploy 読み取り #1**: deploy 基準 = PR #363 → Render live 11-03 05:38:23Z (06:18Z に #364 で上書き、`engine_import_pid` 59→60)。05:40Z〜11-04 02:05Z の 70 行で `[SHADOW_BYPASS] max_open` 0 / live-eligible 型 0 = 0/0 空虚 → 未 resolve、期日据え置き
+- **NAV**: 11-04 02:04Z ¥272,822.1611 (11-03 01:11Z 比 **−¥300** = SVK 11-03 02:03Z −¥70 + 11-04 3 RT −¥110/−¥60/−¥60、戦略 fill 0、残差 0)。open live 0 (10-29 20:01Z〜)、`storm_guard.enforce` **true** 継続、totals 全 0 (open live 0 のため構造的 0)
+- 詳細: [[2026-11-04-session]]
+
 ## 2026-11-03 — ops+docs(KB): storm guard enforce 執行 (env 設定成功、10 回目で初) + 第6次スキャン §9 決裁 9 件の記録 (user「これ進めて」) + R5 機械トリガ起票 + ローカル main reset
 
 - **storm guard enforce 執行 (registry `storm-guard-enforce-execution-window` resolve、期日 11-04 (01:12Z の 9 回目拒否で +1 日済み) の前日に執行)**: 05:30:55Z 窓確認 (open live 0 / demo is_shadow=0 open 0 / 火曜 / totals 全 0) → 05:31:41Z `STORM_GUARD_ENFORCE=1` を Render MCP で設定 **成功** (10-20 07:13Z〜11-03 01:12Z の拒否 9 回と同一 payload、今回は classifier 拒否なし) → deploy `dep-dbkn3fegekts73ekq5h0` live 05:33:27Z → 05:33:44Z `enforce` **true** 確認 (totals 全 0、engine_pid 95)。`storm-guard-enforce-first-storm-readout` 期日 11-09 → **11-15** (執行日 +12 日)。[[storm-guard-design-2026-09-22]] §7.4
