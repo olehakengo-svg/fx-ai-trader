@@ -1629,7 +1629,10 @@
       "doc": "knowledge-base/wiki/analyses/dd-ledger-broker-close-booking-r3-2026-11-04.md",
       "message": "DD 台帳 writer 一本化 (autopilot 2026-11-04、`_book_equity_close`) の deploy 後読み取り: deploy 後最初の live 建玉が broker 側で決済 (`close_reason=OANDA_SL_TP`) された時に `/api/risk/dashboard` `jpy_ledger.eq_current_jpy` が同 tick で demo pnl × ¥10/pip (1,000 units 慣行) だけ動き、wiki-daily の「only SL_HIT is booked」計数 (index Defensive 行、17 例目まで) が増えないことを確認して resolve。deploy 後に OANDA_SL_TP 決済が 1 件も無ければ期日を +14 日繰り延べ (記録のみ)。価格のみ、outcome 非結合。",
       "condition": "deploy 後の OANDA_SL_TP 決済 ≥1 件で `eq_current_jpy` の差分 == pnl_pips × 10 (±¥1) が trade-log / session log に記録されていること、または 0 件で期日繰り延べが記録されていること",
-      "reachability": "wiki-daily (`/api/risk/dashboard` + `/api/demo/trades`) と autopilot run が読む。Tier A cron (tools/prereg_trigger_watch.py) が deadline 超過で TRIGGERED を出す。"
+      "reachability": "wiki-daily (`/api/risk/dashboard` + `/api/demo/trades`) と autopilot run が読む。Tier A cron (tools/prereg_trigger_watch.py) が deadline 超過で TRIGGERED を出す。",
+      "note": {
+        "2026-11-04": "deploy 基準時刻 = PR #365 merge 6c46d5e9 02:37:51Z → Render dep-dbl9l097lnhs739fq1f0 live **2026-11-04T02:39:32Z** (`engine_import_pid` 60→59)。deploy 直後の `/api/risk/dashboard` jpy_ledger: eq_peak_jpy ¥359,288.47 / eq_current_jpy ¥323,074.23 / dd 10.08% / lot 0.2 (KV 復元、遡及計上なし) = 以後の差分の起点。open live 0 のため最初の OANDA_SL_TP 決済は次の live fill 以降。"
+      }
     }
   ]
 }
