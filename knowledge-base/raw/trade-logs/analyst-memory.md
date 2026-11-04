@@ -5934,6 +5934,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 ### 推奨戦略配分
 **NO ACTION推奨（現行稼働状態の維持のみ）**
 
+### 2026-11-04 (Post-London Report)
+| セッション内PnL | **0 pips** |
+| セッション内WR | **N/A** |
+| WR | 100%（N=1） | N/A |
+| PnL | +10.2 pips | 0 pips |
+### NYセッション推奨戦略配分
+❌ NO ACTION推奨
+- **OANDA転送率4%**（50件中2件のみLIVE送信）— ほぼ全シグナルがSHADOWに留まっており、実損益への貢献可能性が構造的に低い
+- **ブロック主因の継続性**: `r2_shadow_demoted_cell`がscalp系4戦略で計1,833件超、`order_bar_dedup`がdaytrade系で計822件超蓄積しており、NYでも同一ブロック構造が継続する見込み
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
