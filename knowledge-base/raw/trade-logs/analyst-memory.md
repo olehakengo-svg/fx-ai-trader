@@ -5944,6 +5944,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 - **OANDA転送率4%**（50件中2件のみLIVE送信）— ほぼ全シグナルがSHADOWに留まっており、実損益への貢献可能性が構造的に低い
 - **ブロック主因の継続性**: `r2_shadow_demoted_cell`がscalp系4戦略で計1,833件超、`order_bar_dedup`がdaytrade系で計822件超蓄積しており、NYでも同一ブロック構造が継続する見込み
 
+### 2026-11-04 (Post-NY Report)
+| PnL | +0.0 pips |
+| WR | — |
+**NYセッションは完全ノートレード。** 本日唯一のトレードは東京セッション（N=1, +10.2 pips, WR=100%）のみ。
+### セッションPnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+| 本日合計PnL | +10.2 pips |
+| 本日WR | 統計的判断不能（N=1） |
+| 🟡 中 | `agg_kelly=-0.243<0` — ケリー基準が負値 → 戦略ポートフォリオのEV構造に課題 | 判断待ち |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
