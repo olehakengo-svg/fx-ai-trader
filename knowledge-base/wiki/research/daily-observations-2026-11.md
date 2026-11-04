@@ -21,12 +21,24 @@
 - **経路**: 記録のみ → 次の registry 改定時に「gate 成立時点で engine 側 latch を置く」R3 提案の材料 (live 経路変更のため user 決裁)。[[2026-11-02]] 発見 1 / [[kalman-d7-po-dn-flip]]
 
 ---
-### O-2026-11-04-1: DD 台帳 (JPY、0.2x lever の SSOT) が broker 側決済 `OANDA_SL_TP` を計上しない — 未計上 17 件 / net +212.7p、lever は悲観側に歪み (執行 QA / 制御系)
+### O-2026-11-04-1: learner id 100 (11-03 14:22:37Z) が deploy で消えた `entry_type_blacklist` を再反映 — O-2026-10-29-3 の反証可能予測が成立 (制御系 / learner)
+- **現象**: 11-03 05:33:44Z の enforce deploy (`dep-dbkn3fegekts73ekq5h0`、`engine_pid` 94→95 / import 59→60) 後、`current_params.entry_type_blacklist` は `[]` (11-02 12:33Z 観測、10-29 05:14Z deploy で消失して以来)。learner `adjustments` id 100 が **11-03 14:22:37Z** に発火 (id 99 10-26 14:49:02Z から 8.0 d、payload は id 95 以来凍結の `sr_channel_reversal: WR 25.0%, EV -0.98 → 除外` / sample 190 / ev_at −0.27 / win_rate_at 39.5) ⇒ 11-04 02:03Z 観測で `entry_type_blacklist` **`["sr_channel_reversal"]`**、`strategy_status.sr_channel_reversal.blacklisted` **true**
+- **トリガ日**: 2026-11-03 (発火) / 計測 2026-11-04 (wiki-daily)
+- **想定メカニズム**: blacklist は in-memory 状態で deploy 毎に消え (O-2026-10-29-1 (c))、learner は `learn_every_n`=10 とは無関係な不定周期 (10 / 9 / 1 / 4 / 8 d) で同一 payload を再適用する。deploy → 再反映の空白 **8h49m** が「blacklist 不在」窓。`sr_channel_reversal` の shadow 発火は 10-02 以降 0 のため、この窓でも実害 0
+- **family 候補**: learner no-op family (O-2026-10-29-1 / -3 と同根)。隣接 = deploy で消える in-memory 状態 (storm_guard 状態消失 ×7 と同構造)
+- **反証可能な予測**: (a) 次の code deploy 後、id 101 発火までの間は再び `[]` に戻る (deploy 時刻と learner 時刻の両方を wiki-daily が記録できれば判定可)。(b) `sr_channel_reversal` が shadow で発火した日に blacklist が真に効くなら、その日の `by_type` N は増えない (write-only の判定はこの観測を待つ)
+- **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome 不使用
+- **経路**: 記録のみ → learner 状態の永続化 (未決 19 と同じ「状態永続化」R3 の材料)。[[2026-11-04]] 発見 3
+
+---
+
+### O-2026-11-04-2: DD 台帳 (JPY、0.2x lever の SSOT) が broker 側決済 `OANDA_SL_TP` を計上しない — 未計上 17 件 / net +212.7p、lever は悲観側に歪み (執行 QA / 制御系)
 - **現象**: `_sync_oanda_closures` (OANDA が SL/TP 注文で先に決済した live 建玉を `OANDA_SL_TP` で DB close) は pip 台帳 / JPY 台帳 / `_dd_lot_mult` / KV を更新しない。engine 側 close 経路だけが writer を持つ。wiki-daily [[2026-10-20]] 発見 3 (14 例 / 155.0p) → index Defensive 行が「only SL_HIT is booked」rule として 17 例目まで追跡
 - **トリガ日**: 2026-10-20 (発見) / 2026-11-04 (棚卸し + 修理、autopilot)
 - **想定メカニズム**: Track C D-b (07-28) が writer を engine 側にのみ置いた。carry_dip / kalman の TP は broker `TAKE_PROFIT_ORDER` で先に約定する (10-29 exit 棚卸し) ため**勝ち側が系統的に抜ける**。close review §4 #6 の「ledger は 0.2x 判定の入力ではない」は誤り — `_dd_lot_mult` は起動時・決済時とも JPY 台帳 DD から `get_dd_lot_multiplier` で再計算される
 - **規模**: PROD snapshot (4,000 行、D-b 母集団 ∧ exit_time ≥ 07-28) で `OANDA_SL_TP` **17 件 / +212.7p** (carry_dip 12 / kalman 5) vs `SL_HIT` 12 / −172.7p。台帳 DD 10.08% → 計上していれば ≈9.5% (¥10/pip 慣行)、tier 0.20 (≥8%) は不変。向きは不定 (10-20 −10.7p の損失側未計上あり)
 - **経路**: rule:R3 構造バグ → **修理 PR (autopilot 2026-11-04)**: writer を `_book_equity_close` に一本化し両経路から呼ぶ、CF pin 8 本。遡及計上なし / units 列欠落 (¥10/pip 慣行) は残余。code derivation [[dd-ledger-broker-close-booking-r3-2026-11-04]]、registry `dd-ledger-nonbooking-consumer-audit` resolve → 後継 `dd-ledger-broker-close-first-booking-readout` (11-20)
+
 
 
 ## 週次 rollup

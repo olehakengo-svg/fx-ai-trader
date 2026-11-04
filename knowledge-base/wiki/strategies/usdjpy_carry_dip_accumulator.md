@@ -477,3 +477,10 @@ Kalman D7 / vix_carry / ZZ v60 と同系の意図的例外。**LIVE flip は別�
 - (b) 10-30 08:02:59Z `[SHADOW_BYPASS] max_open` — グローバル上限 `max_open_trades`=8 が shadow 建玉込みで数えられ、open live 0 なのに shadow 化 (O-2026-11-02-1 cloud 記録、Live vs Shadow 分離違反の R3 構造バグ、registry `max-open-live-cap-counts-shadow-r3` 11-04)。本戦略は `_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS` 非所属のため影響を受ける (kalman 3 variant は所属)。単一エンジン期 (10-05〜) の live-eligible 12 本中 1 本 = 8%
 - shadow 化 2 行の outcome は読まない (S0 規約)。risk 30d `strategy_kelly` half 0.2044 (n 11、edge 0.6532) / DSR 0.5807 (n 11、not sig) は窓ロール由来
 - 詳細 [[2026-11-02]] 発見 1 末尾 / [[daily-observations-2026-11]]
+
+## ⚪ 2026-11-04 更新 (wiki-daily 02:03Z、11-02T12:33Z〜11-04T02:03Z): **LIVE fill 0 (N 30 / +159.7 / EV +5.32 / broker +¥1,395 不変)、candidate 0**
+- 🔧 **`max_open` が shadow 建玉を数える R3 (O-2026-11-02-1) は PR #363 で修理・deploy 済 (11-03 05:33Z、live 上限 = `is_shadow` 偽の建玉数、CF pin 7 本)**。deploy 以降 `[SHADOW_BYPASS] max_open` の audit 行 0 — ただし本戦略の live-eligible 候補も 0 のため検証未達 (registry `max-open-live-cap-counts-shadow-r3` 11-10 継続)
+- 🟢 `storm_guard.enforce` true (11-03 05:33Z 執行)。本戦略の次の live trail 建玉が `storm-guard-enforce-first-storm-readout` (11-15) の material (置換 1 回型 #1346967 と storm 型の両方が標本になる)
+- USD_JPY 11-03 157.83 → 158.52 (NY) → 11-04 01:00〜02:00Z **157.70 (−82 pip)** でも H1 dip 条件は未成立 (audit に本戦略の行 0、10-30 08:02Z 以降)。10-22〜23 の −200 pip 下落で翌日 04:02Z に成立した型と同じく「急落当日は候補 0」= ATR / 距離 filter の設計通りの待機と読む (記録のみ、[[2026-11-04]] 未決 26)。急落は `vix_carry_unwind` shadow ×3 が拾った
+- risk 30d `strategy_kelly` half 0.2044 (n 11) / DSR 0.5807 不変 (窓ロール 出 0 / 入 0)
+- 詳細 [[2026-11-04]] 発見 1 / 発見 2

@@ -63,4 +63,4 @@ registry `dd-ledger-broker-close-first-booking-readout` (11-20): deploy 後最�
 
 ## 7. 参照
 
-- [[sprint-0922-close-review-2026-10-21]] §4 #6(a) / [[2026-10-20]] 発見 3 / [[track-c-plumbing-audit-2026-07-28]] (D-b) / [[mc-ruin-dashboard-artifact-2026-08-05]] / [[daily-observations-2026-11]] O-2026-11-04-1 / [[2026-11-04-session]]
+- [[sprint-0922-close-review-2026-10-21]] §4 #6(a) / [[2026-10-20]] 発見 3 / [[track-c-plumbing-audit-2026-07-28]] (D-b) / [[mc-ruin-dashboard-artifact-2026-08-05]] / [[daily-observations-2026-11]] O-2026-11-04-2 / [[2026-11-04-session]]
