@@ -22,6 +22,17 @@
 
 ---
 
+### O-2026-11-04-1: learner id 100 (11-03 14:22:37Z) が deploy で消えた `entry_type_blacklist` を再反映 — O-2026-10-29-3 の反証可能予測が成立 (制御系 / learner)
+- **現象**: 11-03 05:33:44Z の enforce deploy (`dep-dbkn3fegekts73ekq5h0`、`engine_pid` 94→95 / import 59→60) 後、`current_params.entry_type_blacklist` は `[]` (11-02 12:33Z 観測、10-29 05:14Z deploy で消失して以来)。learner `adjustments` id 100 が **11-03 14:22:37Z** に発火 (id 99 10-26 14:49:02Z から 8.0 d、payload は id 95 以来凍結の `sr_channel_reversal: WR 25.0%, EV -0.98 → 除外` / sample 190 / ev_at −0.27 / win_rate_at 39.5) ⇒ 11-04 02:03Z 観測で `entry_type_blacklist` **`["sr_channel_reversal"]`**、`strategy_status.sr_channel_reversal.blacklisted` **true**
+- **トリガ日**: 2026-11-03 (発火) / 計測 2026-11-04 (wiki-daily)
+- **想定メカニズム**: blacklist は in-memory 状態で deploy 毎に消え (O-2026-10-29-1 (c))、learner は `learn_every_n`=10 とは無関係な不定周期 (10 / 9 / 1 / 4 / 8 d) で同一 payload を再適用する。deploy → 再反映の空白 **8h49m** が「blacklist 不在」窓。`sr_channel_reversal` の shadow 発火は 10-02 以降 0 のため、この窓でも実害 0
+- **family 候補**: learner no-op family (O-2026-10-29-1 / -3 と同根)。隣接 = deploy で消える in-memory 状態 (storm_guard 状態消失 ×7 と同構造)
+- **反証可能な予測**: (a) 次の code deploy 後、id 101 発火までの間は再び `[]` に戻る (deploy 時刻と learner 時刻の両方を wiki-daily が記録できれば判定可)。(b) `sr_channel_reversal` が shadow で発火した日に blacklist が真に効くなら、その日の `by_type` N は増えない (write-only の判定はこの観測を待つ)
+- **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome 不使用
+- **経路**: 記録のみ → learner 状態の永続化 (未決 19 と同じ「状態永続化」R3 の材料)。[[2026-11-04]] 発見 3
+
+---
+
 ## 週次 rollup
 
 ### 2026-10-27〜11-02 (月曜 11-02 定刻、wiki-daily 稼働 10-29 ×2 run / 11-02 = 2/7 日)
