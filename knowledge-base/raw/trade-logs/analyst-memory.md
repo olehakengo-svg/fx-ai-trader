@@ -5984,6 +5984,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 | WR | N/A | N/A |
 ### 推奨戦略配分
 
+### 2026-11-05 (Post-NY Report)
+| PnL | **+0.0** |
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **PnL**: ¥0.0
+- **トレード数**: 0
+- **WR**: N/A
+- **最良セッション**: なし（全セッションゼロ）
+- **最悪セッション**: なし（全セッションゼロ）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
