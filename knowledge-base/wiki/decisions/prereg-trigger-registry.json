@@ -278,13 +278,28 @@
     },
     {
       "id": "adhoc-scan-29-step1-census-gate",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-07",
       "doc": "knowledge-base/wiki/research/external-hypothesis-scan-round6-2026-10-20.md",
       "message": "#29 S1 step 1 census (診断枠、価格非接触、$0、rule:R3) の着地期日 — 意図実行日 2026-11-08 の前日規則で 11-07 (TRIGGERED = 当日 run の催促)。承認 = 第6次スキャン 2026-10-20 §3-(i)。範囲 = ABGH-2019 辞書の逐語転記モジュール (WP 381 Appendix 出典、sha256 pin、語彙編集を test で封鎖) + 価格非接触ペア列挙器 (load_corpus()→census() 生存 CB fed/ecb/boe、staleness >120d・Fed/ECB 同日 void) + 出力 = 適格連続同一 CB ペアの |ΔNH|>0 割合 (primary)、CB 別件数 (記述)。閾値・ホライズン・ペア写像の探索禁止。クローズ条件 = adhoc-scan-29-step0 §7-3 文言不改変、参照値 監査後 ABG-2012 40/228 = 17.5% 併記、>50% 厳密、τ=0。WCB pooled は optional secondary (user gated 同意後のみ)。診断枠 = 供給ライン非算入・F1 分子分母外・explore 枠非消費・WIP 下限に数えない。E23 park の救済には使わない (pass-2 未解錠)。**辞書転記は user の明示承認 (round6 §9 #29-L) が gate — 無回答 = 転記しない (adhoc-scan-29-step0 §4.2)。本 entry の TRIGGERED は催促であり、承認前は「承認待ちで保留」と記録して期日を繰り延べる (再上程なし)。**／ **2026-11-03**: #29-L を user 承認 ([[external-hypothesis-scan-round6-2026-10-20]] §9.1、一括適用) → 転記 gate 解除。上の保留規則は履歴 (user が読みに異論を述べた時点で転記停止・転記済みなら削除; 一次資料の URL・取得日は転記モジュール docstring に必須)。",
       "note": {
         "2026-11-03": "**#29-L user 承認** ([[external-hypothesis-scan-round6-2026-10-20]] §9.1: 10-22 報告の user 専権 4 件への返答「これ進めて」(2026-11-03) で Claude の Riksbank open-data 読みを採用) → 辞書転記 gate 解除。step 1 (転記モジュール + 列挙器 + census) は未着手、期日 11-07 で着地。出所 (WP 381 Appendix)・取得日・利用条件を docstring と KB に明記、Appendix 逐語転記に限定、sha256 pin。user が読みに異論を述べた時点で転記停止 / 転記済みなら削除。"
+      },
+      "resolved": "2026-11-05",
+      "resolution": "2026-11-05 autopilot (rule:R3、診断枠、価格非接触、$0): step 1 を実行。(1) ABGH-2019 辞書を WP 381 Appendix Tables 4–6 から逐語転記 (`tools/adhoc29_lexicon_abgh2019.py`、PDF sha256 a5e1e048…6f14f、辞書 sha256 37a76f5392a5694b6e209e5aef86df183c3884a84b37cfc7b5b507b59b833caf、語彙編集を `tests/test_adhoc29_lexicon_abgh2019.py` 9 本で封鎖、再利用根拠 = Riksbank open-data 条件を docstring + step0 §4.2 追補に転記、法 2022:818 条文は未確認と明記)。(2) 価格非接触ペア列挙器 `tools/adhoc29_abgh_census.py` (load_corpus → 生存 CB fed/ecb/boe、staleness >120d・Fed/ECB 同日 void、各 CB 初回分母外、τ=0、> 50% 厳密、pin 7 本)。(3) 結果 = 適格ペア 228 (ABG-2012 監査後 40/228 と同一分母) のうち |ΔNH|>0 **127 = 55.7% → DENSE_PASS**。敵対的 3 点検査: Wilson 95% [0.492, 0.620] (下限が 0.5 を割る) / boe 87.7%・fed 67.9%・ecb 18.3% (FOMC 語彙 OOV) / 10 年中 5 年のみ > 50% = knife-edge。参照値 40/228 = 17.5% (旧 56/323) 併記、§7-3 文言不改変。WCB pooled secondary は gated 同意なしで未実行。後段 (新 pre-reg DRAFT R1 + explore 枠 1 消費) は user 裁定 → 後継 `adhoc-scan-29-dense-pass-r1-disposition` (11-17)。[[adhoc-scan-29-step1-census-2026-11-05]] / raw/analysis/adhoc29-abgh-census-2026-11-05.{json,md}"
+    },
+    {
+      "id": "adhoc-scan-29-dense-pass-r1-disposition",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-17",
+      "doc": "knowledge-base/wiki/research/adhoc-scan-29-step1-census-2026-11-05.md",
+      "message": "🔴 **user 決裁点 (R1) — #29 S1 step 1 census DENSE_PASS (127/228 = 55.7%、τ=0、> 50% 厳密) の後段裁定**。台帳 #29 行の規定「dense PASS 時のみ新 pre-reg DRAFT (R1) + explore 枠 1 消費の裁定」= user 専権。knife-edge (Wilson 95% [0.492, 0.620] で下限が閾値を割る / boe 87.7%・fed 67.9%・ecb 18.3% = FOMC 語彙の OOV / 10 年中 5 年のみ > 50%) を [[adhoc-scan-29-step1-census-2026-11-05]] §4 に記録済み。選択肢 = (a) 新 pre-reg DRAFT 起案 (R1、explore 枠 1 消費、事前差分節で CB 集合 (fed/boe 限定 or pooled)・τ・窓・文書種を最初に凍結、E23 pre-reg §6 の復活経路「新特徴量系 × 新 family」に該当) / (b) 診断枠のまま保留 (第8次で再裁定) / (c) 候補なしクローズ (knife-edge を理由に)。**無回答 = (b)** (既定、不可逆の作業なし)。期日 = 第7次スキャン `edge-supply-scan-monthly` (11-17) と同日 — WIP 会計と同時に裁定。autopilot は (a) を起案しない (R1)。価格結合・τ>0 試算・WCB/GSV secondary は未実行のまま (user が gated 同意した場合のみ secondary 併載)。",
+      "condition": "user が (a)/(b)/(c) のいずれかを明示するか、期日到来で既定 (b) を記録して本 entry を resolve し、(b) なら第8次スキャン (≈2026-12-17) の議題に繰り延べること",
+      "reachability": "第7次スキャン (autopilot、11-17) が本 entry を議題に載せ、user 返答を §9 形式で記録する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
+      "note": {
+        "2026-11-05": "起票 (autopilot 11-05)。census 成果物 = raw/analysis/adhoc29-abgh-census-2026-11-05.{json,md}、辞書 sha256 37a76f5392a5694b…。user が #29-L の読み (Riksbank open-data 条件) に異論を述べた場合は転記モジュールと派生物を削除し本 entry も (c) で閉じる。"
       }
     },
     {
@@ -1391,13 +1406,15 @@
     },
     {
       "id": "sprint-1022-process-fixed-cost-upsubmit",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-07",
       "doc": "knowledge-base/wiki/decisions/sprint-0922-close-review-2026-10-21.md",
       "message": "[[sprint-0922-close-review-2026-10-21]] §4 #8 (R3 記録 / user 上程): (i) wiki-daily scheduled run の 10 月欠落 (9 日 / 21 日 = 43%) の原因を scheduled task 側のログで 1 回調査して記録 / (ii) 座礁ローカル main (behind 300 超、救済 PR 8 本 = 4 セッション ≈ 供給の 21〜38%) の恒久策 3 択 (`reset --hard` は user 操作) を packet 追補として再上程 / (iii) `storm_guard` 状態の永続化 (code deploy 毎に消失、5 例) は enforce とは別の R3 候補として user 決裁待ちに置く (readout 分母にのみ影響、[[2026-10-20]] 未決 19)。",
       "condition": "(i) の調査記録と (ii)(iii) の上程文 (packet 追補または decisions/ 1 頁) が main にマージされていること",
-      "reachability": "Claude (autopilot) が docs PR を積む。(ii) の執行 (reset --hard) と (iii) の決裁は user 専権で autopilot は代行しない。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。"
+      "reachability": "Claude (autopilot) が docs PR を積む。(ii) の執行 (reset --hard) と (iii) の決裁は user 専権で autopilot は代行しない。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
+      "resolved": "2026-11-05",
+      "resolution": "2026-11-05 autopilot (rule:R3 記録 / user 上程): [[sprint-1022-process-fixed-cost-upsubmit-2026-11-05]] に (i)(ii)(iii) を 1 頁で記録。(i) wiki-daily 10 月欠落 = 未発火 5 日 (10-12/14/19/26/27) + 遅延発火→`ENOTFOUND` 失敗 4 日 (10-09/21/23/30) = 9/22 営業日、失敗 run は全件定刻 (11:47Z) から 1.5〜17 h 遅延 = ホスト (ローカル Mac) のスリープ/オフライン由来 (scheduler 自身が 9 月に「computer went to sleep」を 2 件記録)、skill 側欠陥ではない。(ii) 座礁 main 恒久策 3 択を再上程: A pull-first fail-fast (SKILL.md 1 行、autopilot 可) / B worktree 実行 + PR / C クラウド routine 化 (ホスト可用性も同時に解消、secrets は user)。推奨 C、無回答 = A を次 run で実施。(iii) storm_guard 状態永続化 (再起動で消失 7 例、readout 分母のみ影響) を R3 候補として起案のみ、無回答 = 起案しない。`reset --hard` と (iii) 採否は user 専権。"
     },
     {
       "id": "family-a-root-two-writer-r3",
@@ -1555,7 +1572,7 @@
     },
     {
       "id": "storm-guard-enforce-first-storm-readout",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-15",
       "doc": "knowledge-base/wiki/analyses/storm-guard-design-2026-09-22.md",
@@ -1568,7 +1585,9 @@
         "2026-10-29": "enforce は依然未執行 (execution-window 10-29 拒否 6 回目、期日 10-30)。enforce 無しの初 live trail (#1346967、10-23) は sl-persist-root-fix-first-live-trail-readout で読み済み (回帰なし、BE 1 送信、storm 0) — 本 entry の対象 (enforce ON 後) ではない。期日 11-02 は据え置き",
         "2026-11-02": "**判断材料なし (enforce 未執行)** — execution-window は 11-02 も classifier 拒否 (8 回目)。enforce ON 後の live trail は存在しないため読むものがない。期日 11-02 → **11-09** (+7 日、理由付き延長。執行日が決まればその run が「執行日 +12 日」で書き換える)。enforce 無しの live trail は 10-29 kalman #1346976 (BE 1 送信、storm 0) が追加で 1 例あるが本 entry の対象外。",
         "2026-11-03": "enforce ON を 11-03 05:33:27Z (deploy dep-dbkn3fegekts73ekq5h0) に執行 (execution-window resolved) → message 規則「執行日 +12 日」で期日 11-09 → **11-15**。読む対象 = 11-03 05:33Z 以降の最初の live trail (live セルは carry_dip のみ; kalman_d7 は 10-30 R2 停止)。期待値 = detected.idempotent == detected.monotonic == 0 (PR #346 後)、guard が止める残余は deadband / breaker のみ。"
-      }
+      },
+      "resolved": "2026-11-05",
+      "resolution": "2026-11-05 autopilot (rule:R3 記録のみ、期日 11-15 → 10 日前倒し): enforce ON (11-03 05:33Z) 後の初 live trail = carry_dip #1347030 (11-04 02:39:44Z fill、deploy 02:39:32Z の 12 秒後、fresh guard state)。OANDA tx 1347029–1347045 + Render ログ + status snapshot (11-05 02:06Z) で突合: REPLACEMENT 5 件 (157.592→157.656→157.666→157.678→157.689、全件単調 tightening) == sent_total 5 (1:1) / failed 0 / skipped deadband 65 (1 pip 未満の trail 刻み、ログ例 0.2p / 0.9p / 0.1p) / detected idempotent 0 == monotonic 0 (PR #346 後の期待値) / breaker 0。DB sl 157.689 == broker 最終 confirmed SL 157.689 == 約定 order (02:58:24Z STOP_LOSS_ORDER +¥106) → **正当な tightening の喪失 0**、failed 急増なし → **Rule 2 判定 = enforce 維持 (rollback 不要)**。[[storm-guard-design-2026-09-22]] §7.5 に表で記録。残余 (新 entry なし、読み手 = daily report 表 + anomaly_watcher): N=1、喪失 0 の定常性は wiki-daily O-2026-11-05-1 の予測 (a) で追う。"
     },
     {
       "id": "sl-persist-root-fix-first-live-trail-readout",
@@ -1599,7 +1618,7 @@
     },
     {
       "id": "max-open-live-cap-counts-shadow-r3",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-10",
       "doc": "knowledge-base/wiki/research/daily-observations-2026-11.md",
@@ -1609,7 +1628,9 @@
       "note": {
         "2026-11-03": "**修理 PR 起票 (autopilot 11-03、rule:R3)**: `modules/demo_trader.py` max_open 節で live 上限を `_n_open_live` (is_shadow 偽の建玉数) で判定、shadow 上限 (max_open+8) は総数のまま上流 shadow 行にも適用 (`max_open_shadow_cap`)。CF pin 7 本 (tests/test_max_open_live_cap_counts_live_only_r3.py)。code derivation: [[max-open-live-cap-counts-shadow-r3-2026-11-03]]。PR #363、review gate `--wait 600`、マージは open live 0 の窓 (01:11Z 時点 open live 0 / heartbeat 0 / audit 直近 H1 bar live-eligible 0)。期日 11-04 → **11-10** (+6 日、理由 = condition の後半「Render live 後に live-eligible 型で `[SHADOW_BYPASS] max_open` 0 件」は deploy 後の次 wiki-daily / autopilot で読む; 修理側は本 PR で完了)。読み手: PROD snapshot で `entry_time ≥ deploy 時刻` ∧ reasons に `[SHADOW_BYPASS] max_open` ∧ entry_type ∈ live-eligible 型 の行数 = 0 を確認して resolve。",
         "2026-11-04": "**post-deploy 読み取り #1 (autopilot 11-04、空虚 0/0 のため未 resolve)**: 『deploy 後』の基準時刻 = PR #363 merge 05:36:38Z → Render dep-dbkn5q49v7es73cqn6m0 live **2026-11-03T05:38:23Z** (PR #364 dep-dbknoaivcj2c739mbha0 06:18:02Z で上書き、`engine_import_pid` 59→60)。05:40Z〜11-04 02:05Z の PROD 行 70 件 (全 shadow 型: wick_imbalance 11 / vol_surge 6 / three_bar 5 …) で reasons に `[SHADOW_BYPASS] max_open` を含む行 **0**、live-eligible 型 (carry_dip / kalman_d7 / weekend_gap) の行 **0** = 条件後半は 0/0 で空虚 (carry_dip 候補なし、kalman は R2 停止中、weekend_gap は週末のみ)。open live 0 継続 (10-29 20:01Z〜)。期日 11-10 据え置き — live-eligible 候補が 1 件以上出た後の読み取りで resolve。"
-      }
+      },
+      "resolved": "2026-11-05",
+      "resolution": "2026-11-05 autopilot (post-deploy 読み取り #2、条件後半を live-eligible 候補 ≥1 の下で確認): PROD snapshot 11-04 02:39:32Z (PR #365 deploy) 〜 11-05 02:06Z の 77 行で reasons に `[SHADOW_BYPASS] max_open` を含む行 **0**。live-eligible 型 2 行 = carry_dip #20454 (11-04 02:39:43Z) → **live** (oanda #1347030、max_open marker なし、shadow 建玉 open 中でも live 化 = 修理の意図どおり) / kalman_d7 #20508 (11-04 18:25Z) → shadow (理由 = 10-30 R2 live 停止、max_open ではない)。読み取り #1 (11-03 05:40Z〜11-04 02:05Z、70 行、live-eligible 0) と合わせ deploy 後 147 行で marker 0 → condition 成立で resolve。[[max-open-live-cap-counts-shadow-r3-2026-11-03]]"
     },
     {
       "id": "edge-supply-active-line-idle-r5",
@@ -1631,7 +1652,8 @@
       "condition": "deploy 後の OANDA_SL_TP 決済 ≥1 件で `eq_current_jpy` の差分 == pnl_pips × 10 (±¥1) が trade-log / session log に記録されていること、または 0 件で期日繰り延べが記録されていること",
       "reachability": "wiki-daily (`/api/risk/dashboard` + `/api/demo/trades`) と autopilot run が読む。Tier A cron (tools/prereg_trigger_watch.py) が deadline 超過で TRIGGERED を出す。",
       "note": {
-        "2026-11-04": "deploy 基準時刻 = PR #365 merge 6c46d5e9 02:37:51Z → Render dep-dbl9l097lnhs739fq1f0 live **2026-11-04T02:39:32Z** (`engine_import_pid` 60→59)。deploy 直後の `/api/risk/dashboard` jpy_ledger: eq_peak_jpy ¥359,288.47 / eq_current_jpy ¥323,074.23 / dd 10.08% / lot 0.2 (KV 復元、遡及計上なし) = 以後の差分の起点。open live 0 のため最初の OANDA_SL_TP 決済は次の live fill 以降。"
+        "2026-11-04": "deploy 基準時刻 = PR #365 merge 6c46d5e9 02:37:51Z → Render dep-dbl9l097lnhs739fq1f0 live **2026-11-04T02:39:32Z** (`engine_import_pid` 60→59)。deploy 直後の `/api/risk/dashboard` jpy_ledger: eq_peak_jpy ¥359,288.47 / eq_current_jpy ¥323,074.23 / dd 10.08% / lot 0.2 (KV 復元、遡及計上なし) = 以後の差分の起点。open live 0 のため最初の OANDA_SL_TP 決済は次の live fill 以降。",
+        "2026-11-05": "deploy 後初の live 決済 = carry_dip #1347030 (11-04 02:58:24Z)。broker 側 STOP_LOSS_ORDER が先着し engine の close PUT は 404 (tx 1347045) だが DB は engine 経路で `SL_HIT` (exit 157.686、+10.2p) として close → `_book_equity_close` (engine 側呼び出し) で計上: `/api/risk/dashboard` `jpy_ledger.eq_current_jpy` ¥323,074.23 (11-04 02:39Z 基準) → **¥323,176.23** (11-05 02:06Z) = **+¥102.00 = +10.2p × ¥10** (±¥1 内、一致)、dd 10.08% → 10.06%、lot 0.2 不変。`OANDA_SL_TP` 決済は依然 **0 件** → 本 entry の条件前半は未観測、期日 11-20 据え置き (0 件なら +14 日)。broker realized は +¥106 (demo との 0.4p 基準差、台帳は demo 基準 = D-b 設計どおり)。"
       }
     }
   ]
