@@ -5954,6 +5954,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 | 本日WR | 統計的判断不能（N=1） |
 | 🟡 中 | `agg_kelly=-0.243<0` — ケリー基準が負値 → 戦略ポートフォリオのEV構造に課題 | 判断待ち |
 
+### 2026-11-05 (Pre-Tokyo Briefing)
+前日（2026-11-04）は **1トレード、WR 100%、PnL +10.2pip** で着地。`usdjpy_carry_dip_accumulator` の単発BUYがSL_HIT経由でWINとなった。ただし、これはN=1の孤立サンプルであり、統計的意義は皆無。システム全体としては実質的な執行活動は停滞状態が継続している。
+| Strategy | Pair | N | WR% | EV | 判定 |
+**全体集計（Cutoff後）: N=3、WR=66.7%、PnL=+0.2pip（EV微小）**
+- Open live 0件が10-29 20:01Z以降継続（約5.25日）
+- OANDA転送率 **0%（SENT=0 / SKIP=50）**
+- Block理由の主因は `shadow_tracking`（15件）+ `shadow_tracking(promo_block:pair_demoted)`（4件）
+- **今日の対処**: SKIP理由の内訳が「demoted pair」に起因するものが4件確認されている。これはペア降格ロジックが機能している正常動作の可能性が高いが、降格されたペアの数と根拠を本日中に確認すること。
+- `scalp`, `scalp_eur`, `scalp_5m`, `scalp_5m_gbp`, `scalp_5m_eur`, `daytrade_1h_usdchf` の合計で**3,940件超**がこの理由でブロック
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
