@@ -5964,6 +5964,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 - **今日の対処**: SKIP理由の内訳が「demoted pair」に起因するものが4件確認されている。これはペア降格ロジックが機能している正常動作の可能性が高いが、降格されたペアの数と根拠を本日中に確認すること。
 - `scalp`, `scalp_eur`, `scalp_5m`, `scalp_5m_gbp`, `scalp_5m_eur`, `daytrade_1h_usdchf` の合計で**3,940件超**がこの理由でブロック
 
+### 2026-11-05 (Post-Tokyo Report)
+| PnL | ¥0 |
+| 勝率 (WR) | N/A |
+| 2 | `scalp:r2_shadow_demoted_cell` | 92 | Scalpセルがシャドウ降格済み — 昇格基準未達(N<30 or EV<1.0)のセル群が量産 |
+- 本日セッション N=0。判断に足るデータが存在しない
+- 現在の実DD **−24.01%** で **DD防御 0.2x defensive mode** 発動中。リスク増方向の調整は禁忌
+- OANDA転送率 **0%（50件全SKIP）** — 実口座への影響はゼロ。実害なし
+- ブロック構造（shadow降格、hedge_block、dedup）はいずれも設計通りの防御機能が正常稼働
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
