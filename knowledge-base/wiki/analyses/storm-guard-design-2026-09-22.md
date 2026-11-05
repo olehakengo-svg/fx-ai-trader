@@ -259,6 +259,21 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 - 🟢 **2026-11-03 執行 (対話セッション、通算 10 回目の試行で初成功)**: 05:24:00Z / 05:30:55Z 窓確認 (OANDA `heartbeat.open_trade_count` 0 / `/api/demo/status` is_shadow=0 open 0 / 火曜 / `enforce` false / totals 全 0、最後の live-eligible 10-29 21:04Z) → 05:31:41Z `mcp__render__update_environment_variables` (`STORM_GUARD_ENFORCE=1`、replace=false) **成功** (classifier 拒否なし — 10-20 07:13Z〜11-03 01:12Z の 9 回拒否と同一 payload; 4 回目 10-21 10:38Z 対話分は本表に行がなく registry note[2026-10-22] 参照) → deploy `dep-dbkn3fegekts73ekq5h0` (commit 883b9b98、trigger api、build 05:31:41 → live **05:33:27Z**) → 05:33:44Z `/api/oanda/status.storm_guard.enforce` **true** 確認、totals 全 0 (新 epoch)、open 0、`engine_pid` 95 / tick age 0.7 s。registry `storm-guard-enforce-execution-window` resolve、`storm-guard-enforce-first-storm-readout` 期日 11-09 → **11-15** (執行日 +12 日)。rollback = env を空にして再起動 (不変)。
 ---
 
+### 7.5 追補 2026-11-05 — enforce ON 後の初 live trail readout (registry `storm-guard-enforce-first-storm-readout`、期日 11-15 → 10 日前倒しで resolve、rule:R3 記録のみ)
+
+| 項目 | 値 (一次資料 = OANDA `transactions/idrange 1347028–1347057` + Render ログ + `/api/oanda/status.storm_guard` 2026-11-05 02:06Z snapshot) |
+|---|---|
+| 建玉 | **#1347030** carry_dip BUY USD_JPY 1,000u、fill **11-04 02:39:44Z** @157.582 (PR #365 deploy `dep-dbl9l097lnhs739fq1f0` live 02:39:32Z の **12 秒後** = guard は fresh 状態、seed None・方向は entry 由来)、ON_FILL SL 157.405 / TP 158.266 (tx 1347031/1347032) |
+| broker 側 SL 履歴 | `REPLACEMENT` **5 件**: 1347034 **157.592** (02:52:39Z) → 1347036 **157.656** (02:55:49Z) → 1347038 **157.666** (02:56:10Z) → 1347040 **157.678** (02:56:12Z) → 1347042 **157.689** (02:57:50Z)。全件 BUY の SL 上昇 = **単調 tightening のみ** (緩め 0、同値 0) |
+| 決済 | **02:58:24Z** `STOP_LOSS_ORDER` @157.688 (tx 1347043、realized **+¥106**)。engine 側の close PUT は broker 先着で **404** (tx 1347045 `MARKET_ORDER_REJECT`) → DB は `SL_HIT` exit 157.686 **+10.2p** (demo 基準、broker との 0.4p 差 = 既知の基準差、D11 両基準併記の対象) |
+| guard totals (決済後、`trades` 空) | evaluated **70** / sent **5** / failed **0** / skipped **deadband 65** · breaker 0 · idempotent 0 · monotonic 0 · serialize 0 / detected 全 0 (**idempotent 0 == monotonic 0** = PR #346 後の期待値) / breaker_trips 0 / unknown_direction 0 / ambiguous_failures 0 / coalesced 0 |
+| deadband の形 (Render ログ `[OandaBridge][STORM_GUARD] SKIP reason=deadband`) | 02:56:08Z baseline 157.656 → new_sl 157.658 (0.2p) / 02:56:09Z new_sl 157.665 (0.9p) / 02:56:10Z baseline 157.666 → new_sl 157.667 (0.1p)。送信 4 刻みの差は 1.0 / 1.2 / 1.1p ≥ deadband 1.0 = **1 pip 未満の trail 刻みだけを止め、1 pip 以上は通している** |
+| 突合 (喪失判定) | DB `sl` **157.689** == broker 最終 confirmed SL **157.689** (tx 1347042) == 約定した order → **正当な tightening の喪失 0**。sent_total 5 == REPLACEMENT 5 (1:1、捕捉欠損 0)。failed 0 (4xx reject なし) |
+| 評価レート | 70 評価 / 19 分 ≈ 3.7/分 = caller は毎 tick 再計算し guard が吸収 (§8 の設計どおり、送信は 5) |
+
+- **Rule 2 判定: enforce 維持** (喪失 0 ∧ failed 0 → rollback 条件に該当せず)。storm 型ではなく平常 trail 型 (BE+1.0 → trail) の readout だが、message の「storm でも平常 3 送信型でも」の対象として成立。
+- 残余 (記録のみ、新 registry は起票しない — 読み手は daily report の表 + `anomaly_watcher`): (a) N=1。喪失 0 が N≥3 で定常なら enforce の監視は定常運用へ (wiki-daily O-2026-11-05-1 の反証可能予測 (a))。(b) deadband 65 件の全数がすべて 1 pip 未満だったかは Render ログの 3 例 + 送信刻みからの整合確認のみ (全件精査はしていない)。(c) engine close PUT 404 = broker SL 先着との競合で、DB は engine 価格で `SL_HIT` 記録 — `OANDA_SL_TP` ではないため DD 台帳 readout (11-20) の対象外だが、engine 経路の `_book_equity_close` で +¥102 (10.2p × ¥10) が同 tick で計上されたことは確認 (registry `dd-ledger-broker-close-first-booking-readout` note 2026-11-05)。
+
 ## 8. 追補 2026-10-21 — family A/B の根 (caller 側) の R3 修復
 
 **Status**: **着地 — PR #346 merged 6e3041fa (2026-10-21 10:04:10Z、open live 0 の窓)、Render live 10:06Z (`engine_import_pid` 39→59、pid 95 再利用)**。Codex 6 巡 (P1 ×3 / P2 ×3、全件実在・全件消化; 写しの pop は close 後 / 全 7 成功分岐で写し→persist / legacy `sl_initial` は backfill しない / 一時失敗した persist は次 tick 以降に治す)。**Scope**: `modules/demo_trader.py` `_check_sltp_realtime` の LIVE 送信口 + 兄弟 1 箇所、`modules/demo_db.py` (`sl_initial` 列 + `close_trade` の R 分母)。bridge (`oanda_bridge.py`) は不変。**Tests**: `tests/test_sltp_live_sl_persist_storm_root.py` 16 本 (CF pin 2 本 + AST pin 1 本 + Codex 巡で追加 3 本)。**導出**: Workflow 18 agent (読み 5 面 → 統合 → 反証 3 レンズ × 2 claim = 0/6 refuted → 設計 3 案 × 判定 3 = caller 層案が 9/10 で全員一致)。
