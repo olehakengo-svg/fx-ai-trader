@@ -5974,6 +5974,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 - ブロック構造（shadow降格、hedge_block、dedup）はいずれも設計通りの防御機能が正常稼働
 ### 推奨戦略配分
 
+### 2026-11-05 (Post-London Report)
+| PnL | **¥0** |
+| 勝率 (WR) | **N/A** |
+- **Scalp系の圧倒的支配因子はスプレッドガード（`r2_shadow_demoted_cell`）**。shadow昇格基準を満たさないセルがスキャルプの大半のエントリーを遮断している。
+- **DT系の第一因子は`order_bar_dedup`**。同一バー内での重複発注抑止であり、シグナル生成頻度に対して実執行が追いついていない。
+- **`hedge_block`がeurgbp・eurで集中**：同通貨方向へのポジション集中防止が機能しているが、逆に言えばシグナルは出ているが方向が偏っている状態。
+| PnL | ¥0 | ¥0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
