@@ -337,3 +337,18 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 
 §6-2 で「別 PR (R3) 候補」として needs_orchestrator に返した根本修理が期日付き registry entry を持たず、**29 日 (09-22 → 10-21) 放置**され、その間に storm 3 波 (#1022861 14,676 / #1062664 57,311 / #1254773 46,091 送信、合計 ≈120k tx) が起きた。guard (防御) を先に入れたことで「根は後で」が既定化した。→ [[lesson-deferred-root-fix-needs-deadline-2026-10-21]]
 
+
+### 7.5 追補 2026-11-05 — enforce ON 後 **初の live trail** の material (registry `storm-guard-enforce-first-storm-readout`、期日 11-15、wiki-daily 02:02Z 記録 — resolve 判定は autopilot、rule:R3 記録のみ)
+
+| 項目 | 実測 (carry_dip #1347030、11-04 02:39:44Z〜02:58:24Z) | 期待値 (§7.3) | 判定 |
+|---|---|---|---|
+| `totals.evaluated` / `sent` / `failed` | **70 / 5 / 0** | failed 急増なし | ✅ |
+| `totals.skipped` (brk/idem/mono/dead/ser) | 0 / 0 / 0 / **65** / 0 | dead-band が同値・微小更新を吸収 | ✅ (enforce が実際に止めた初例) |
+| `totals.detected` (brk/idem/mono/dead/ser) | 0 / 0 / 0 / 0 / 0、`breaker_trips` 0 | family A (idempotent) / B (monotonic) の回帰 0 | ✅ |
+| broker `REPLACEMENT` 数 vs `sent` | **5 = 5** (157.592 → 157.656 → 157.666 → 157.678 → 157.689、単調) | 1:1 | ✅ |
+| DB `sl` vs broker `confirmed_sl` | **157.689 == 157.689**、`sl_initial` 157.405 == ON_FILL SL | 正当な tightening の喪失 0 | ✅ (喪失 0) |
+| `trades[*]` per-trade counts | `{}` (決済後クリア、11-05 02:02Z) | — | 読み取り不能 = cloud 報告が建玉を見失った原因 (§6 フォローアップ候補: 決済後も直近 N 建玉を保持) |
+| 決済 | broker `STOP_LOSS_ORDER` @157.688 +¥106、同秒 engine close `MARKET_ORDER_REJECT` 1 (レース、無害)、demo `SL_HIT` +10.2 (exit 157.686 = engine bid、§8.3 推定量 2 例目) | 符号一致 | ✅ |
+| deploy との関係 | fill は PR #365 live 02:39:32Z の 12 秒後、以後 deploy 0 のため totals は残存 | 状態消失なし | ✅ (N=1) |
+
+**結論 (material)**: 喪失 0 / failed 0 ⇒ **rollback 条件不成立**。§8.7 で未検証だった Tier2 trail writer の送信が初めて実測され (5 送信 / 65 skip)、enforce 前であれば 70 送信 = 平常 3 送信型を超える「小 storm」が dead-band で 5 に圧縮された。N=1 のため registry の resolve は autopilot が §7.3 の条件で判定する (予測: 次の live trail でも detected 0 ∧ 喪失 0、[[daily-observations-2026-11]] O-2026-11-05-1)。出典: [[2026-11-05]] 発見 1 / [[usdjpy_carry_dip_accumulator]] 2026-11-05 更新。

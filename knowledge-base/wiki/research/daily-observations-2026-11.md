@@ -57,3 +57,16 @@
 
 - 執行 QA 発見 5 (O-10-29-1 / -2 / -3 / O-10-30-1 / O-11-02-1 / O-11-02-2 のうち週内 6、新 family 2) / 卒業 family (エッジ) 0 / S1 起票 0。戦略 LIVE: fill 3 / 決済 3 (10-23 #1346967 +¥7 は前週、本週 #1346976 +¥11 / #1346985 −¥105 = **−¥94**)、kalman live 停止 (PR #357)、SVK 11 月 3 RT −¥240
 - 次回 rollup = 2026-11-09 (月)
+
+### O-2026-11-05-1: `STORM_GUARD_ENFORCE=1` 下の初 live trail (carry_dip #1347030) で guard が 70 評価中 65 送信を dead-band で止め、5 送信は単調・DB sl == broker SL (喪失 0) — enforce の実効を初観測 (執行 QA / 制御系)
+- **現象**: 11-04 02:39:44Z carry_dip BUY 1,000u @157.582 (PR #365 Render live 02:39:32Z の **12 秒後**、`engine_import_pid` 60→59 の新プロセス初 tick)。ON_FILL SL 157.405 / TP 158.266 → SL `REPLACEMENT` ×5 (02:52:39 157.592 / 02:55:49 157.656 / 02:56:10 157.666 / 02:56:12 157.678 / 02:57:50 157.689、単調増加、同値再送 0) → 02:58:24Z `STOP_LOSS_ORDER` @157.688 +¥106 (demo +10.2 `SL_HIT`、同秒に engine close の `MARKET_ORDER_REJECT` 1 = レース、無害)。`/api/oanda/status.storm_guard` (11-05 02:02Z): enforce true / evaluated **70** / sent **5** / failed 0 / `skipped.deadband` **65** / `detected.*` 全 0 / breaker 0 / `trades` {} (決済後クリア)。broker `REPLACEMENT` 5 = sent 5、demo 行 20454 `sl` 157.689 == broker 最終 SL、`sl_initial` 157.405 == ON_FILL SL
+- **トリガ日**: 2026-11-04 (建玉) / 計測 2026-11-05 (wiki-daily)
+- **想定メカニズム**: Tier2 trail writer (favorable ≥ 1.5·ATR_eff、0.001 刻み新高値 trail、§8.7 で「未検証の脚」) が 19 分の hold 中に ~70 回 (≈3.7/min) 評価し、1.0p dead-band が 65 件を吸収、残り 5 件が単調に送信された。enforce 前 (10-15〜10-19 の観測) なら 70 件全送信 = 「平常 3 送信型」と「storm」の中間型が初めて enforce で圧縮された。**喪失 0 / 4xx 0** ⇒ [[storm-guard-design-2026-09-22]] §7.3 の rollback 条件 (喪失 ≥1 or failed 急増) 不成立
+- **併記 (O-2026-11-04-1 予測 (a) 成立)**: 同 deploy (02:39:32Z) で learner `current_params.entry_type_blacklist` が `["sr_channel_reversal"]` → **`[]`** に再消失 (11-05 02:02Z 観測、id 101 未発火)。deploy 時刻と learner 時刻の両方が記録された初例 = 「deploy で in-memory 状態が消え、次の learner 調整で再適用」の機構を 2 周期で確認
+- **併記 (cloud 報告の盲点)**: autopilot post_ny 11-04 は guard 表 70 / 5 / 65 / 0 を記録したが「guard 登録建玉なし」「SL 微調整ノイズ」と読み、#1347030 の live trail に紐付けていない (`trades` {} が決済後にクリアされるため、表だけでは建玉が見えない)。daily report の guard 表に当該 `oanda_trade_id` / 評価窓の建玉を併記する改善候補 (記録のみ)
+- **family 候補**: SL replacement storm family (A/B、enforce 後は「圧縮型」)。隣接 = deploy 直後 LIVE 送信 (10-20 #1346961 = 2 分後、本例 = 12 秒後、2 例目)
+- **反証可能な予測**: (a) 次の live trail でも `detected.idempotent` = `detected.monotonic` = 0 かつ DB sl == broker SL が続く (喪失 0 が N≥3 で定常なら enforce の readout は閉じられる)。(b) 次の code deploy で guard totals が 0 に戻る (状態消失 ×7 の構造は enforce 下でも不変)。(c) id 101 発火で blacklist が再反映される (O-2026-11-04-1 と同じ周期)
+- **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome (+¥106) は guard 判定に使わない。registry `storm-guard-enforce-first-storm-readout` (11-15) / `max-open-live-cap-counts-shadow-r3` (11-10) の material = 本建玉、resolve 記録は autopilot
+- **経路**: 記録のみ → §7.5 追補 + carry_dip カード。[[2026-11-05]] 発見 1
+
+---
