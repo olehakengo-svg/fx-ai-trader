@@ -87,4 +87,22 @@
 
 ## 11. Verdict (first look 2026-11-06 以降に追記)
 
-<!-- 未測定 — P-10 型凍結中 -->
+### 11.1 first look (2026-11-06 執行、autopilot、rule:R3 転記のみ)
+
+**family verdict = `UNDERPOWERED` (全セル forward N < 150 → §5 の規定どおり verdict を出さず、second look cutoff **2027-01-31** を 1 回のみ)。** 統計 (permutation p / robustness (i)-(v) / 経済 gate) は参加セル 0 のため**未計算** (ハーネスは `p = —`)。本節は解釈を足さない — 事前宣言 (§2 打ち切り・live 送信穴・§5 UNDERPOWERED) の執行記録である。
+
+**執行条件 (§8 の順)**: (1) 新規スナップショット `tools/render_trades_snapshot.py --limit 100000` 2026-11-06T03:52〜04:02Z、20,600 行 (entry_time 2026-04-02 〜 11-06T03:27Z)、sha256 `088ece23f1beaa3ea675c37ec6d66f2ee805204dc8f9e8ee3e245eaf52c5529a` (data/cache/、gitignored — sha256 のみ raw JSON に記録)。初回取得は DNS 解決失敗 (`NameResolutionError`、03:26〜03:44Z) で 0 行、再試行で取得 (取得は読み取りのみ、本番への書込みなし)。 (2) `tools/equity_curve_gating_explore.py --snapshot <path> --n-perm 10000` を **1 回** 実行 (04:03:02Z、exit 0、seed 20260803 固定、epoch 境界 25 本を git log から機械導出)。 (3) raw = `raw/bt-results/ecg_forward-2026-11-06.json` / report = `reports/ecg-forward-2026-11-06.md`。前倒し・ジョイント計算は first look 前に一切行っていない (P-10 遵守、08-11 census は counts のみ)。
+
+| primary セル | forward N (dedup 後) | live 行 (送信穴) | 状態 (§2 事前宣言) |
+|---|---|---|---|
+| daytrade_gbpusd / session_time_bias × GBP_USD | **128** (生 134、dedup 除外 6) | 0 | 稼働継続、N<150 → UNDERPOWERED |
+| daytrade_eur / session_time_bias × EUR_USD | **127** (生 132、dedup 除外 5) | 0 | 稼働継続、N<150 → UNDERPOWERED |
+| scalp_5m_gbp / vol_momentum_scalp × GBP_USD | **0** | 0 | **打ち切り** — R2 demote batch 1、2026-08-05T05:51:58Z deploy ([[r2-shadow-demote-2026-08-05]])、forward 窓内の closed 行なし (最終 closed entry 08-03) |
+| daytrade_gbpusd / xs_momentum × GBP_USD | **11** (生 13、dedup 除外 2) | 0 | **打ち切り** — R2 demote batch 2、2026-08-10T02:28:50Z deploy ([[r2-shadow-demote-2026-08-10]])、最終 closed entry 08-07T15:47Z |
+
+- **COMPOSITION-CONFOUNDED**: 4 セルとも live 行 0 (`live_hole_frac` 0.0) → 該当なし。
+- **K 別 coverage (gate on 率) と contrast は raw JSON / report に記録済み** (UNDERPOWERED のため claim 不可・解釈禁止。再掲しない)。
+- **[[ecg-forward-primary-emission-census-2026-08-11]] §3 の開示との整合**: session_time_bias 2 セルは 08-09 の DT `ctx.hour_utc` 凍結修復 ([[dt-ctx-hour-utc-live-freeze-2026-08-09]]) を跨ぐ (epoch 境界の凍結定義 = `modules/demo_trader.py` 等への merge であり `app.py` のみの修復は境界に入らない)。本 look では N<150 で検定に至らず、感度注記の対象も発生していない。second look で N≥150 に達した場合はこの注記を付して検定する (設計変更なし)。
+- **到達見込み (counts のみ、§4 の 08-11 予測の答え合わせ)**: 13 週で 128 / 127 ≒ 1.4 行/日 (08-11 時点の予測 ~0.3/日 より回復、修復後の真レート)。second look (cutoff 2027-01-31、forward 窓 [08-04, 01-31) ≒ 26 週) は同レート継続で ≈ 250 行/セル → session_time_bias 2 セルは **N≥150 到達の公算あり** (打ち切り 2 セルは 0 / 11 のまま確定)。m=12 は縮めない (power 劣化として開示済み)。
+- **second look の実行条件 (事前固定の転記)**: 新規スナップショット + 同ハーネス n_perm 10,000、cutoff 2027-01-31、1 回のみ、PASS でも live gate R1 は forward 再現後のみ。ハーネスの `FORWARD_CUTOFF` / `FIRST_LOOK` 定数は first look 用に固定されているため、second look までに **cutoff 2027-01-31 の look 2 分岐を追加する R3 tool 変更 (estimand・セル・K・α 不変、unit test pin)** が前提 — registry `ecg-forward-second-look` (2027-01-31) に記載。それまで gate×outcome ジョイント計算は再び禁止 (P-10 型)。
+
