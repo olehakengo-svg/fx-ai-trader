@@ -5994,6 +5994,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 - **最良セッション**: なし（全セッションゼロ）
 - **最悪セッション**: なし（全セッションゼロ）
 
+### 2026-11-06 (Pre-Tokyo Briefing)
+前日（2026-11-05）はトレード **ゼロ件**。PnL = 0、WR = 算出不能。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計判定基準適用**: N<10 は全戦略「データなし」として扱う。EV・WRの数値は参考値に過ぎず、いかなる判断根拠にもならない。N=30到達まで判断保留。
+- 前日トレードゼロ。モード稼働数は多い（稼働中22モード）が実執行に至らない。
+- 主因はBlock Countsが示す通り：**`r2_shadow_demoted_cell`**（scalp系）と **`order_bar_dedup`**（daytrade系）が大量発生。
+- 50件全SKIPで、SENT=0。
+- Block理由：`shadow_tracking` 17件、`shadow_emit_no_lot` 2件、`agg_kelly=-0.243<0` 1件。
+- agg_kellyがマイナスの間はLive転送ゼロが継続する設計通りの挙動と判断。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
