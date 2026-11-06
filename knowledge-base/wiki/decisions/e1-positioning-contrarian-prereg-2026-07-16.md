@@ -244,6 +244,8 @@ q=0.80/0.20 閾値 / W=10・expanding 感度 / L∈{3,10} bootstrap / fut_close 
 
 > **first look #1 (cutoff 2026-10-08T06:33:31Z) = `POSTPONE` (品質 gate §2.5-3 family gate 不成立、2026-10-10 判定器実行、look 非消費)。** 統計 (Gate 1 / Gate 2 / 排他分類 / ナイフエッジ / confirmatory / ρ̄) は**計算されていない** (判定器は品質 gate で停止)。postpone 後の first look: cutoff **2026-11-05T06:33:31Z** → verdict 期日 **2026-11-12** (評価窓終端 11-05、burn-in と評価窓開始 08-13 は不変、§2.5-3 / §7)。2 回目不達 = DEFERRED。
 
+> **first look #1 (postponed、cutoff 2026-11-05T06:33:31Z) = `UNDERPOWERED` (2026-11-06 判定器実行、§8-2)。** 品質 gate 6/6 通過 → 統計を初めて計算。C1 (PASS combo) ゼロ ∧ C3 = **S1×24h のみ** (N=47 < 60 で Gate 2 検定なし、点推定で分類) → **second look へ (cutoff 2026-12-30 / verdict 2027-01-06、対象 = S1×24h のみ、BH m=1、累積標本、年末窓除外)**。他 5 combo は C5。SIGN-FLIP / CONFOUNDED フラグなし。registry `e1-prereg-second-look` (2027-01-05) / `e1-second-look-freeze-due` (12-30)。
+
 ### §8-1 first look #1 (2026-10-10 執行、転記のみ — 判定器 `tools/e1_positioning_prereg_eval.py --look 1 --verdict-run`、raw = `raw/bt-results/e1_prereg_look1_2026-10-15.json`)
 
 **実行条件**: generated 2026-10-10T08:59:30Z / seed 20261015 (既定) / n_boot 10,000 (既定) / `synthetic=false` / stale cap **主モード (primary = health verified 系列)** / canary 7 checks 全 pass (locf / atr / fwd_return_window / signal_future_value / rank_trailing_window / mid_completed_bar_only / leak_passthrough_detection) / missing_parquet primary 0・confirmatory 0 / artifact sha256 `172cfe54584bfbdbe500749f27c2be514c9383d54b9ca62808a2311d850f5dd5` (凍結 marker と一致) / M15 parquet 13 本の sha256 = 凍結 marker と 13/13 一致 / attempts 台帳 1 試行 `frozen` (force false) / `force_history` = [] / `--verify` 再実行 (判定器直前) OK 15 files。
@@ -268,7 +270,71 @@ q=0.80/0.20 閾値 / W=10・expanding 感度 / L∈{3,10} bootstrap / fut_close 
 - **固定分岐の執行 (§2.5-3 / §7)**: cutoff 11-05T06:33:31Z 到達後に手順書 §3 と同順で `--postponed` 再凍結 (別 marker `e1-first-look-postponed-freeze-2026-11-05.sha256`、10-08 凍結は byte 不改変) → 判定器 `--cutoff 2026-11-05T06:33:31Z --look 1 --postponed-before --verdict-run` → verdict 11-12 に本節 §8-2 として追記。registry: `e1-first-look-postponed-freeze-due` (11-05) / `e1-prereg-verdict-deadline` (11-11 = 前日規則、verdict 11-12)。算術のみの見込み (値ではない): 同じ 4.39 除外日が 60 営業日窓に占める比は 7.3% → 新規障害ゼロなら coverage ≈ 92.4%。**second look (cutoff 12-30 / verdict 01-06) の日付は §7 のまま** (postpone は当該 look の 3 日付のみスライド)。
 - 解釈は足していない。PASS 時の実装承認・DEFERRED・(a-1) probe 起案可否 ([[e1-first-look-runbook-2026-09-22]] §8: POSTPONE は {UNDERPOWERED, REJECT, REJECT-F} に含まれないため 10-18 scan#6 では起案条件不成立) は user / 手順書どおり。
 
-> 執行時にここへ追記する (postpone 後の first look #2 = §8-2):> 執行時にここへ追記する: 品質 gate 判定表 (stale cap モード・NA 分布・量子化粒度含む) / Gate 1 pooled IC 表 (6 combo、p_MBB / p_IM、BH-FDR q=0.05 判定) / Gate 2 EV 表 (time-exit / first-touch / stress、trade N) / combo 排他分類表 (C1〜C5 + フラグ) / ナイフエッジ 4 点 / confirmatory 符号表 / 実測 ρ̄ と N_eff 事後検証 / 全体 verdict (PASS / UNDERPOWERED / REJECT-F / REJECT / DEFERRED) と固定分岐の執行記録。
+### §8-2 first look #1 — postponed 執行 (2026-11-06、転記のみ — 判定器 `tools/e1_positioning_prereg_eval.py --look 1 --postponed-before --verdict-run`、raw = `raw/bt-results/e1_prereg_look1_postponed_2026-11-12.json`)
+
+**実行条件**: generated 2026-11-06T04:42:20Z / cutoff 2026-11-05T06:33:31Z / seed 20261015 (既定) / n_boot 10,000 (既定) / `synthetic=false` / stale cap **主モード** / canary 7/7 pass / missing_parquet primary 0・confirmatory 0 / artifact = postponed 凍結 `e1-first-look-postponed-freeze-2026-11-05/e1_prereg_frozen_export_look1_postponed.json` sha256 `9147c137745a29f4b877a4070e8b4fc422614df80ac9787717f250f0f8294c99` (marker と一致) / M15 parquet 13 本 sha256 = marker と 13/13 一致 / attempts 台帳 1 試行 `frozen` (force false、`force_history` []) / `--verify` 再実行 (判定器直前 04:42:14Z) OK 15 files / 元 10-08 凍結は byte 不改変。凍結 export は手順書 §3 (a)(a″)(a')(b)(c) の同順 (1 回だけ、11-06 03:22〜04:05Z、[[e1-first-look-runbook-2026-09-22]] §9)。
+
+**品質 gate 判定表 (§2.5-1/2、primary 6 ペア)**:
+
+| ペア | coverage h=4h | coverage h=24h | stale gap 除外日 / 評価日 | skew distinct in W (S1 / S2 / S3) | 判定 |
+|---|---|---|---|---|---|
+| USD_JPY | 92.38% | 92.27% | 4.39 / 59.95 (7.32%) | 36 / 45 / 1,439 | ✅ |
+| EUR_USD | 92.38% | 92.27% | 4.39 / 59.95 (7.32%) | 20 / 30 / 1,413 | ✅ |
+| GBP_USD | 92.38% | 92.27% | 4.39 / 59.95 (7.32%) | 45 / 31 / 1,398 | ✅ |
+| EUR_JPY | 92.38% | 92.27% | 4.39 / 59.95 (7.32%) | 35 / 46 / 1,437 | ✅ |
+| GBP_JPY | 92.38% | 92.27% | 4.39 / 59.95 (7.32%) | 40 / 45 / 1,438 | ✅ |
+| AUD_JPY | 92.38% | 92.27% | 4.39 / 59.95 (7.32%) | 45 / 53 / 1,436 | ✅ |
+
+- **family gate (§2.5-3)**: 残存 primary **6 ≥ 4** → 通過 (postpone なし、DEFERRED 分岐不発動)。10-10 の算術見込み 92.4% と実測 92.38% が一致 = 10-08〜11-05 に新規 ingest 停止なし。
+- **NA 内訳 (resample、primary 6 ペア同一)**: na_no_row 0 (confirmatory 7 は 4) / na_stale 157 / na_cycle 171 / valid 5,429 (confirmatory 5,425)。由来は 10-08 凍結と同じ 4 区間 (08-21〜26 Render Disk 満杯 102.4h / 09-10〜14 E1 認証停止 102.4h / 09-15 3.6h / 09-22 3.7h、timestamps のみ)。
+- **整合 sanity (§2.5-4)**: rows 65,854 / 除外 (pct 和) 0 / 除外 (avg 価格レンジ) 0 / avg_range_uncheckable 671 / 単調性違反 0 / investigate_flag false。**jump events (§2.5-7)**: 0。
+- **spot check (§2.5-5)**: (a) 無作為 20 行 content-hash 決定性 20/20・同 instrument 隣接非重複 40/40 (判定器と同日) / (b) roundtrip = 凍結時記録 OK (65,854 / 103,561) + 判定器直前 `--verify` OK 15 files / (c) Myfxbook web UI 3 ペア × 同時刻 2 時点 (**判定器の前**、04:19:54Z vs ingest 04:19:23Z、04:41:22Z vs ingest 04:41:02Z): EUR_USD 0.0pp / GBP_USD 0.0pp / **USD_JPY 1.0pp (丸め前 0.59〜1.03pp) = 字義の ±0.5pp は 2/3**。原因究明: UI 整数 = round(UI popover の volume share) 3/3、API 整数 = round(API payload の volume share) 3/3 で**写像は同一**、ingest は API 値をそのまま保存 (`parse_outlook_symbol`、cutoff 跨ぎ不変 a6659043) — 残差は Myfxbook のページと API が同時刻でも原資料 volume を 1〜3% 異なる値で返す **source 側の 2 系統不一致** (USD_JPY は share 53.5 の丸め境界近傍で整数差に出た)。**執行者判断**: 「ingest 写像の欠陥」ではないと切り分けた上で判定器を実行した = 手順書 §3(b′) の字義 (不一致なら実行しない) からの逸脱として開示する。**user がこの判断を無効とする場合の処置は §4.4 DEFERRED (user 裁定)**。artifact 行との直接突合は UI 履歴不在で構造的に不可 (§8-1 と同じ)。 / (d) pytest 165 passed。
+- **estimand 開示 (§2.3 OHLCV)**: M15 スライスは共有 cache の窓内 vendor 欠落 **1,864 本を OANDA v20 mid で補填した複製** `data/cache/e1_ohlcv_postponed/` (10-08 分 1,131 + 10-08〜11-05 の新規穴、unfilled 0、[[e1-ohlcv-gap-backfill-2026-10-06]] 同手順)。
+
+**Gate 1 — pooled IC (§4.1、m=6、二重検定 = MBB 営業日ブロック one-sided ∧ IM 週ブロック t、p_gate1 = max、BH q=0.05)**:
+
+| combo | pooled IC | n_obs | p_MBB (one-sided) | p_IM (t, blocks) | p_gate1 | BH 閾値 (rank) | 通過 | 感度 L=3 / L=10 |
+|---|---|---|---|---|---|---|---|---|
+| S1×4h | +0.0095 | 23,856 | 0.2110 | 0.9998 (t −5.10, 11) | 0.9998 | 0.0250 (3) | ❌ | 0.267 / 0.147 |
+| S1×24h | +0.0269 | 23,496 | 0.1292 | 1.0000 (t −6.99, 11) | 1.0000 | 0.0417 (5) | ❌ | 0.195 / 0.051 |
+| S2×4h | −0.0147 | 21,324 | 0.6490 | 0.9429 (t −1.75, 10) | 0.9429 | 0.0083 (1) | ❌ | 0.639 / 0.697 |
+| S2×24h | −0.0681 | 20,964 | 0.8499 | 0.9990 (t −4.29, 10) | 0.9990 | 0.0167 (2) | ❌ | 0.878 / 0.884 |
+| S3×4h | −0.0298 | 23,856 | 0.6865 | 0.9999 (t −5.65, 11) | 0.9999 | 0.0333 (4) | ❌ | 0.740 / 0.584 |
+| S3×24h | −0.0612 | 23,496 | 0.6195 | 1.0000 (t −7.20, 11) | 1.0000 | 0.0500 (6) | ❌ | 0.680 / 0.492 |
+
+- Gate 1 通過 **0/6**。事実のみ: S1 系 2 combo は pooled IC の点推定が宣言符号 (+) だが、IM の週ブロック IC は 11 ブロック中大半が負で t が強く負 (S1×4h: block_ics 10/11 が負)。pooled (観測プール) と週ブロック平均で符号が異なる構造は raw JSON `combos.*.gate1.im.block_ics` に記録済み (解釈は足さない)。per-pair IC (S1×24h): USD_JPY −0.115 / EUR_USD +0.110 / GBP_USD +0.158 / EUR_JPY −0.058 / GBP_JPY +0.119 / AUD_JPY −0.052。
+- **SIGN-FLIP フラグ**: 0 combo (逆符号が両側 α=0.05 で有意な combo なし — S2×24h の p_mbb_neg 0.150 が最小)。
+
+**Gate 2 — 摩擦調整 EV (§4.2、§3.4 凍結ルール、net pips; N<60 は検定なし・点推定のみ)**:
+
+| combo | trade N | time-exit net EV | first-touch net EV | stress net EV | WR (time-exit) | 検定 |
+|---|---|---|---|---|---|---|
+| S1×4h | 50 | −2.72 | −3.29 | −3.76 | 48.0% | N<60 → なし |
+| S1×24h | 47 | **+12.29** | **+0.22** | +11.25 | 48.9% | N<60 → なし |
+| S2×4h | 107 | −5.32 | −3.48 | −6.36 | 46.7% | Gate 1 不通過 → なし |
+| S2×24h | 97 | +0.72 | −6.35 | −0.31 | 44.3% | 同上 |
+| S3×4h | 105 | −1.67 | −3.40 | −2.71 | 44.8% | 同上 |
+| S3×24h | 73 | −1.04 | −3.07 | −2.08 | 49.3% | 同上 |
+
+**combo 排他分類 (§4.4 Step 1)**:
+
+| combo | クラス | 根拠 (順序評価) | フラグ |
+|---|---|---|---|
+| S1×4h | **C5** | Gate 1 不通過 → C2: time-exit EV ≤ 0 → C3: 同左 → C4: Gate 1 不通過 → C5 | — |
+| S1×24h | **C3 (UNDERPOWERED 適格)** | IC 点推定 + (宣言符号) ∧ time-exit 点 net EV +12.29 > 0 ∧ first-touch 点 EV +0.22 > 0 | — (partial IC +0.0009、CONFOUNDED は C1 のみ対象) |
+| S2×4h | **C5** | IC 符号不一致 | — |
+| S2×24h | **C5** | IC 符号不一致 (time-exit +0.72 だが first-touch −6.35、C2/C3 は IC 符号条件で不成立) | — |
+| S3×4h | **C5** | IC 符号不一致 | — |
+| S3×24h | **C5** | IC 符号不一致 | — |
+
+- **ナイフエッジ 4 点 (§4.5)**: PASS 候補 (C1) なし → 検査対象なし (`knife_edge: null`)。**confirmatory 符号表 (§2.4)**: C1 なし → 不適用 (`confirmatory: null`)。**実測 ρ̄ / N_eff**: Gate 1 検定は MBB/IM の実測 p で完結し、§5 の N_eff 見積り式の事後検証は C1 候補が無いため不実施 (raw に別キーなし)。
+- **secondary (記述のみ、確認的引用禁止)**: S1×24h の session IC asia +0.014 / ldn +0.025 / ny +0.040。weekend_span / jump_overlap の該当 trade 0。
+
+**全体 verdict (§4.4 Step 2)**: C1 ゼロ ∧ ∃C3 (S1×24h) → **`UNDERPOWERED`**。固定分岐の執行: **second look (cutoff 2026-12-30T06:33:31Z / verdict 2027-01-06、§7)** — 標本 = burn-in 後〜cutoff #2 の累積 (年末窓 2026-12-19〜2027-01-03 の新規 event は除外、ハーネス `YEAR_END_EXCL` 実装済み)、**検定対象 = S1×24h のみ (BH m=1)**、着地は PASS / REJECT-F / REJECT のみ (3 回目 look 禁止、C3 は REJECT 側に畳む = ハーネス `overall_verdict(look=2)`)。registry: `e1-second-look-freeze-due` (12-30、凍結 export `--look 2` 別 marker、元凍結 2 本の artifact 複製が前提 = 手順書 §3 追記) / `e1-prereg-second-look` (2027-01-05 = 前日規則、verdict 01-06)。
+- **F1 / scan#6 (a-1) への接続**: UNDERPOWERED は手順書 §8 の集合 {UNDERPOWERED, REJECT, REJECT-F} に含まれる → (a-1) probe の R1 起案可否は手順書 §8 の一行定義に従う (起案は autopilot 不可 = user 決裁点、本節では起案しない)。
+- 解釈は足していない。PASS 時の実装承認・DEFERRED・(a-1) 起案可否は user / 手順書どおり。
+
+> 執行時にここへ追記する (second look = §8-3、verdict 2027-01-06):> 執行時にここへ追記する: 品質 gate 判定表 (stale cap モード・NA 分布・量子化粒度含む) / Gate 1 pooled IC 表 (6 combo、p_MBB / p_IM、BH-FDR q=0.05 判定) / Gate 2 EV 表 (time-exit / first-touch / stress、trade N) / combo 排他分類表 (C1〜C5 + フラグ) / ナイフエッジ 4 点 / confirmatory 符号表 / 実測 ρ̄ と N_eff 事後検証 / 全体 verdict (PASS / UNDERPOWERED / REJECT-F / REJECT / DEFERRED) と固定分岐の執行記録。
 
 ---
 

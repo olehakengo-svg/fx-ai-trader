@@ -257,11 +257,39 @@
     },
     {
       "id": "e1-prereg-verdict-deadline",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-11",
       "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
-      "message": "E1 positioning contrarian pre-reg (🔒 LOCKED 2026-07-17) の first look verdict 期日。データ cutoff #1 = 2026-10-08 (t0+12週)、burn-in 20営業日 (〜2026-08-12)、評価窓 08-13〜10-08。verdict 期日 2026-10-15 に §8 へ判定結果 (Gate1 pooled IC / Gate2 摩擦調整EV / combo 排他分類 C1-C5 / ナイフエッジ4点 / 全体 verdict PASS/UNDERPOWERED/REJECT-F/REJECT) を追記。UNDERPOWERED なら e1-prereg-second-look 登録 (cutoff #2 2026-12-30 / verdict 2027-01-06)。判定器 tools/e1_positioning_prereg_eval.py は LOCK 後実装 (unit test pin 先行)。中間 peeking 禁止 (§6) ／ 2026-09-22 追記: 手順書 = [[e1-first-look-runbook-2026-09-22]] §5–§7、凍結 tool tools/e1_positioning_frozen_export.py 実装済み (PR #286、§2.5-6「1 回だけ + sha256」の機械担保、attempt 台帳 hash chain、preflight)。凍結実行期日は e1-first-look-freeze-due (10-08)。 ／ 2026-10-10 (autopilot、rule:R3 record-only): **first look #1 判定器実行 → `POSTPONE`** (pre-reg §2.5-3 family gate 不成立: primary 6 ペア全てが coverage 88.56% / 88.32% < 90%、由来は ingest 障害 2 件 08-21〜26 / 09-10〜14 の全ペア同時 NA、統計は未計算、look 非消費)。固定分岐 (§7) どおり **cutoff → 2026-11-05T06:33:31Z / verdict → 2026-11-12 / 評価窓終端 → 11-05** (burn-in・窓開始 08-13 不変)。deadline は前日規則で 11-11 (cron 11-12 00:20Z に TRIGGERED = 当日 run の催促)。再凍結の期日は e1-first-look-postponed-freeze-due (11-05)。verdict 11-12 では pre-reg §8-2 に `--postponed-before --verdict-run` の出力を転記、2 回目の品質 gate 不達 = DEFERRED (user 裁定、3 回目 postpone なし)。記録: pre-reg §8-1 / 手順書 §9 / raw `e1_prereg_look1_2026-10-15.json`。"
+      "message": "E1 positioning contrarian pre-reg (🔒 LOCKED 2026-07-17) の first look verdict 期日。データ cutoff #1 = 2026-10-08 (t0+12週)、burn-in 20営業日 (〜2026-08-12)、評価窓 08-13〜10-08。verdict 期日 2026-10-15 に §8 へ判定結果 (Gate1 pooled IC / Gate2 摩擦調整EV / combo 排他分類 C1-C5 / ナイフエッジ4点 / 全体 verdict PASS/UNDERPOWERED/REJECT-F/REJECT) を追記。UNDERPOWERED なら e1-prereg-second-look 登録 (cutoff #2 2026-12-30 / verdict 2027-01-06)。判定器 tools/e1_positioning_prereg_eval.py は LOCK 後実装 (unit test pin 先行)。中間 peeking 禁止 (§6) ／ 2026-09-22 追記: 手順書 = [[e1-first-look-runbook-2026-09-22]] §5–§7、凍結 tool tools/e1_positioning_frozen_export.py 実装済み (PR #286、§2.5-6「1 回だけ + sha256」の機械担保、attempt 台帳 hash chain、preflight)。凍結実行期日は e1-first-look-freeze-due (10-08)。 ／ 2026-10-10 (autopilot、rule:R3 record-only): **first look #1 判定器実行 → `POSTPONE`** (pre-reg §2.5-3 family gate 不成立: primary 6 ペア全てが coverage 88.56% / 88.32% < 90%、由来は ingest 障害 2 件 08-21〜26 / 09-10〜14 の全ペア同時 NA、統計は未計算、look 非消費)。固定分岐 (§7) どおり **cutoff → 2026-11-05T06:33:31Z / verdict → 2026-11-12 / 評価窓終端 → 11-05** (burn-in・窓開始 08-13 不変)。deadline は前日規則で 11-11 (cron 11-12 00:20Z に TRIGGERED = 当日 run の催促)。再凍結の期日は e1-first-look-postponed-freeze-due (11-05)。verdict 11-12 では pre-reg §8-2 に `--postponed-before --verdict-run` の出力を転記、2 回目の品質 gate 不達 = DEFERRED (user 裁定、3 回目 postpone なし)。記録: pre-reg §8-1 / 手順書 §9 / raw `e1_prereg_look1_2026-10-15.json`。",
+      "resolved": "2026-11-06",
+      "resolution": "2026-11-06 autopilot (rule:R3 record-only): postponed first look の判定器 `--look 1 --postponed-before --verdict-run` を 04:42Z に実行 (verdict 期日 11-12 の 6 日前倒し、品質 gate 6/6 通過 coverage 92.38%) → **UNDERPOWERED** (C1 0 / C3 = S1x24h のみ N=47 / 他 C5、Gate 1 通過 0/6、フラグ 0)。§4 spot check (a)(b)(d) OK、(c) は 2/3 (USD_JPY 1.0pp = Myfxbook page vs API の原資料差、写像同一、執行者判断で続行・§8-2 に開示)。pre-reg §8-2 / 手順書 §9 / raw e1_prereg_look1_postponed_2026-11-12.json。後継 = e1-second-look-freeze-due (12-30) + e1-prereg-second-look (2027-01-05、verdict 01-06)。"
+    },
+    {
+      "id": "e1-second-look-freeze-due",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-12-30",
+      "doc": "knowledge-base/wiki/decisions/e1-first-look-runbook-2026-09-22.md",
+      "message": "E1 positioning pre-reg **second look の凍結 export** (§7 cutoff #2 = **2026-12-30T06:33:31Z** = t0+24 週、first look 11-06 = UNDERPOWERED → §4.4 Step 2)。cutoff 到達後 (12-31 run) に手順書 §3 と同順: (a) `tools/bt_data_cache.py refresh 15m` 13 pair → (a″) `tools/e1_ohlcv_gap_backfill.py --look 2 --src <共有 cache> --dst data/cache/e1_ohlcv_look2 --audit-out raw/bt-results/e1-ohlcv-gap-backfill-second-look-2026-12-30.json` → (a') `tools/e1_positioning_frozen_export.py --look 2 --preflight-only --ohlcv-src data/cache/e1_ohlcv_look2 --ohlcv-drop-extra-bars` 13/13 OK → (b) `--look 2 --slice-ohlcv ...` を **1 回だけ** (別 marker `e1-second-look-freeze-2026-12-30.sha256`) → (c) `--verify`。**前提**: tool は元凍結 (10-08 / 11-05) の `--verify` を要求するため、gitignored の artifact 本体 2 本 (30.9 MB / 41.9 MB) を worktree `autopilot-1009` / `autopilot-1106` または `data/cache/e1_frozen_look1_<date>/artifact_backup/` から同パスへ複製してから起動する (手順書 §3 追記 2026-11-06)。12-30 までの新規 ingest 停止 (>3h) は coverage を削る (現 4.39 除外日 / 97 営業日 ≈ 4.5%、余裕あり)。snapshots の試走・値の閲覧禁止 (§6-2)。",
+      "condition": "second look marker + manifest (`roundtrip_check.ok` = true) + attempt 台帳が raw/bt-results/ に commit され `--verify` OK、manifest `ohlcv_coverage` 13/13 OK、元凍結 2 本の marker / manifest / 台帳が byte 不改変であること",
+      "reachability": "Claude (autopilot、record-only、値非表示)。cutoff 12-30T06:33:31Z は 12-30 run の後に来るため凍結は 12-31 run (cron 12-31 00:20Z TRIGGERED が催促)。前提 = 本番 /api/positioning/export 到達 + 共有 cache を持つ checkout + artifact 複製。",
+      "notes": {
+        "2026-11-06": "起票 (autopilot 11-06、first look UNDERPOWERED の固定分岐)。"
+      }
+    },
+    {
+      "id": "e1-prereg-second-look",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2027-01-05",
+      "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
+      "message": "E1 positioning contrarian pre-reg (🔒 LOCKED 2026-07-17) の **second look verdict 期日 2027-01-06** (§7、deadline は前日規則)。first look (postponed、11-06) = UNDERPOWERED (§8-2): 検定対象 = **S1x24h のみ** (first look C3、BH m=1)、標本 = burn-in 後〜cutoff #2 (2026-12-30T06:33:31Z) の累積、年末窓 2026-12-19〜2027-01-03 の新規 event は除外 (ハーネス YEAR_END_EXCL)、着地は PASS / REJECT-F / REJECT のみ (3 回目 look 禁止、新自由度ゼロ)。執行 (12-31〜01-05、凍結 e1-second-look-freeze-due の後): §4(c) UI spot check (同時刻の ingest 行と対、判定器の前) → `--verify` → `tools/e1_positioning_prereg_eval.py --artifact <second look artifact> --ohlcv-dir data/cache/e1_frozen_look2_2026-12-30 --cutoff 2026-12-30T06:33:31Z --look 2 --verdict-run` (look 2 の C3 combo 指定はハーネスの引数で S1x24h を渡す、seed / n-boot 既定) → §4(a) → pre-reg §8-3 に転記、raw `e1_prereg_look2_2027-01-06.json`。§4(c) の数値閾値 ±0.5pp は first look で 2/3 (Myfxbook page vs API の source 側差) — 同じ現象が出た場合の扱いは user が §8-2 の執行者判断を是認/否認してから (否認 = DEFERRED)。中間 peeking 禁止 (§6)。",
+      "condition": "pre-reg §8-3 に second look の全表 (品質 gate / Gate 1 / Gate 2 / 分類 / ナイフエッジ / 全体 verdict) が転記され、raw JSON が commit されていること",
+      "reachability": "Claude (autopilot、record-only)。Tier A cron が deadline で TRIGGERED (当日 run の催促)。PASS 時の実装 pre-reg 起案・REJECT-F 時の有償 bucket memo 起案は user 決裁点。",
+      "notes": {
+        "2026-11-06": "起票 (autopilot 11-06)。first look §8-2 の (c) 執行者判断 (2/3 で続行) は user の是認待ち — 否認時は §4.4 DEFERRED。"
+      }
     },
     {
       "id": "edge-supply-scan-monthly",
@@ -497,11 +525,26 @@
     },
     {
       "id": "ecg-forward-first-look",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-06",
       "doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-explore-prereg-2026-08-03.md",
-      "message": "ECG forward pre-reg (🔒 LOCKED 2026-08-03 v2、台帳 #22) の first look 執行期日 — forward 窓 = shadow closed entry_time [2026-08-04, 2026-11-01)、13週。primary = active 4 cells × K{5,10,20} (m=12)、epoch層化permutation、primary p は unique-spaced 系列。参加条件 = forward N≥150/セル (全セル未達なら UNDERPOWERED → second look cutoff 2027-01-31 1回のみ)。**期日前の gate×outcome ジョイント計算は P-10 型で全面禁止** (蓄積センサス件数のみ可)。執行 = 新規スナップショット取得 → tools/equity_curve_gating_explore.py --snapshot <path> (n_perm 10000 固定、ハーネスが期日前実行を拒否)。PASS でも live gate R1 は forward 再現後のみ"
+      "message": "ECG forward pre-reg (🔒 LOCKED 2026-08-03 v2、台帳 #22) の first look 執行期日 — forward 窓 = shadow closed entry_time [2026-08-04, 2026-11-01)、13週。primary = active 4 cells × K{5,10,20} (m=12)、epoch層化permutation、primary p は unique-spaced 系列。参加条件 = forward N≥150/セル (全セル未達なら UNDERPOWERED → second look cutoff 2027-01-31 1回のみ)。**期日前の gate×outcome ジョイント計算は P-10 型で全面禁止** (蓄積センサス件数のみ可)。執行 = 新規スナップショット取得 → tools/equity_curve_gating_explore.py --snapshot <path> (n_perm 10000 固定、ハーネスが期日前実行を拒否)。PASS でも live gate R1 は forward 再現後のみ",
+      "resolved": "2026-11-06",
+      "resolution": "2026-11-06 autopilot (rule:R3 転記): first look 執行 = 新規 snapshot 20,600 行 (sha256 088ece23…5529a、DNS 失敗 1 回後に再取得) → tools/equity_curve_gating_explore.py --n-perm 10000 を 1 回 (04:03Z)。family verdict = UNDERPOWERED (全セル forward N<150: 128 / 127 / 0 / 11、live 行 0、統計未計算)。pre-reg §11.1 / 台帳 #22 / raw ecg_forward-2026-11-06.json / reports/ecg-forward-2026-11-06.md。後継 = ecg-forward-second-look (2027-01-31)。"
+    },
+    {
+      "id": "ecg-forward-second-look",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2027-01-31",
+      "doc": "knowledge-base/wiki/decisions/equity-curve-shadow-gating-explore-prereg-2026-08-03.md",
+      "message": "ECG forward pre-reg (🔒 LOCKED 2026-08-03 v2、台帳 #22) の **second look** (first look 11-06 = UNDERPOWERED、§5 の 1 回限り規定)。cutoff = 2027-01-31 (forward 窓 = shadow closed entry_time [2026-08-04, 2027-01-31))、primary / K / α / m=12 / 行フィルタ / dedup / epoch 層化は不変。参加条件 forward N≥150/セル (first look 時 128 / 127 / 0 / 11、≈1.4 行/日なら session_time_bias 2 セルは到達見込み)。**期日前の gate×outcome ジョイント計算は P-10 型で全面禁止** (件数センサスのみ可)。**前提の tool 変更 (R3、estimand 不変)**: tools/equity_curve_gating_explore.py は FIRST_LOOK / FORWARD_CUTOFF を first look 定数で固定しているため、2027-01-31 までに look 2 分岐 (cutoff 2027-01-31、date gate 2027-01-31 以降のみ実行可、unit test pin) を追加する。執行 = 新規 snapshot 取得 + sha256 記録 → ハーネス n_perm 10,000 で単一実行 → §11.2 / 台帳 #22 追記。全セル N<150 なら正直クローズ (3 回目 look なし)。PASS でも live gate R1 は forward 再現後のみ。",
+      "condition": "pre-reg §11.2 に second look の結果 (family verdict + セル別 N) が転記され、raw ecg_forward-2027-01-3x.json が commit されていること。look 2 分岐の tool 変更は期日前に main にマージ済みであること",
+      "reachability": "Claude (autopilot、record-only)。Tier A cron (tools/prereg_trigger_watch.py) が deadline で TRIGGERED。tool の look 2 分岐は 2026-12 中の autopilot run で R3 として起票・実装可 (値に触れない)。",
+      "notes": {
+        "2026-11-06": "起票 (autopilot 11-06、first look UNDERPOWERED の後継)。"
+      }
     },
     {
       "id": "carry-dip-v3-revival-watch",
@@ -1299,13 +1342,15 @@
     },
     {
       "id": "e1-first-look-postponed-freeze-due",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-05",
       "doc": "knowledge-base/wiki/decisions/e1-first-look-runbook-2026-09-22.md",
       "message": "E1 first look **postponed 凍結 export** の実行期日 (pre-reg §2.5-3 4 週スライド、2026-10-10 判定器 `POSTPONE` 由来 — 元凍結 10-08 は byte 不改変、look 非消費)。cutoff **2026-11-05T06:33:31Z** 到達後 (11-06 run) に手順書 §3 改訂版と同順で: (a) `tools/bt_data_cache.py refresh 15m` 13 pair 明示 (共有 checkout の tool) → (a″) `tools/e1_ohlcv_gap_backfill.py --look 1 --postponed --src <共有 cache> --dst data/cache/e1_ohlcv_postponed --audit-out raw/bt-results/e1-ohlcv-gap-backfill-first-look-postponed-2026-11-05.json` (10-08 複製 `data/cache/e1_ohlcv/` は不改変、10-08〜11-05 の新規 vendor 穴も埋める) → (a') `tools/e1_positioning_frozen_export.py --look 1 --postponed --preflight-only --ohlcv-src data/cache/e1_ohlcv_postponed --ohlcv-drop-extra-bars` 13/13 OK (**`--postponed` 必須** — 無いと cutoff 10-08 で判定し stale な parquet を OK と誤報、PR #323 Codex P2) → (b) `--look 1 --postponed --slice-ohlcv --ohlcv-src data/cache/e1_ohlcv_postponed --ohlcv-drop-extra-bars` を **1 回だけ** (marker `e1-first-look-postponed-freeze-2026-11-05.sha256`、artifact は t0 以降 11-05 以下の全行 = 10-08 凍結の上位集合、数十 MB なら sha256 のみ commit) → (c) `--verify`。判定器は 11-06〜11-11 に `--artifact <postponed artifact> --ohlcv-dir data/cache/e1_frozen_look1_2026-11-05 --cutoff 2026-11-05T06:33:31Z --look 1 --postponed-before --verdict-run` (seed / n-boot 既定)、verdict 11-12 (e1-prereg-verdict-deadline 11-11)。**11-05 までに E1 ingest / 本番 DB 書込みの新規停止 (>3h) が起きると coverage が再び 90% を割る** — e1-positioning-ingest-freshness の TRIGGERED は本 entry の前提破壊として扱う (算術: 現 4.39 除外日 / 60 営業日 = 7.3% → 新規障害ゼロなら coverage ≈ 92.4%)。snapshots の試走・値の閲覧禁止 (§6-2)。 ／ §4(c) UI spot check は **cutoff 後・§5 判定器の直前 (同 run、11-06〜11-11)** に「UI vs 本番 ingest 最新行 (同時刻)」で実施し、不一致なら判定器を実行しない (first look #1 は判定器の後に実施した順序違反を §9 に記録) (手順書 §3(b′) 確定版、artifact 行への接続は roundtrip + ingest コード不変で推移的)。cutoff 前に UI の pct を観測・記録してはならない (pct_long − pct_short = S1 skew の peeking = §6-2 違反、PR #323 Codex P1)。",
       "condition": "postponed marker + manifest (`roundtrip_check.ok` = true) + attempt 台帳が raw/bt-results/ に commit され `--verify` OK、manifest `ohlcv_coverage` 13/13 OK (gaps 0 / unfilled 0)、スライス元が補填済み複製 `data/cache/e1_ohlcv_postponed/` (audit JSON を同 commit)、元凍結 10-08 の marker / artifact / manifest が byte 不改変であること",
-      "reachability": "Claude (autopilot、record-only、値非表示)。cutoff 06:33:31Z は 11-05 run の後に来るため凍結は 11-06 run (cron 11-06 00:20Z の TRIGGERED が催促 = 前日規則)。前提 = 本番 `/api/positioning/export` 到達 + 共有 cache を持つ checkout。2 回目の品質 gate 不達は DEFERRED (user 裁定) で 3 回目 postpone は無い。"
+      "reachability": "Claude (autopilot、record-only、値非表示)。cutoff 06:33:31Z は 11-05 run の後に来るため凍結は 11-06 run (cron 11-06 00:20Z の TRIGGERED が催促 = 前日規則)。前提 = 本番 `/api/positioning/export` 到達 + 共有 cache を持つ checkout。2 回目の品質 gate 不達は DEFERRED (user 裁定) で 3 回目 postpone は無い。",
+      "resolved": "2026-11-06",
+      "resolution": "2026-11-06 autopilot (rule:R3 record-only、値非表示): cutoff 11-05T06:33:31Z 到達後に手順書 §3 と同順で執行 — (a) refresh 13/13 (03:23Z) → (a″) backfill gap 1,864 / filled 1,864 / unfilled 0 (複製 data/cache/e1_ohlcv_postponed、10-08 複製不改変) → (a') preflight 13/13 OK (lag 0 / gaps 0 / dup 0) → (b) 1 回目起動は REFUSED exit 2 (元 10-08 artifact 30.9 MB が本 worktree に無く元凍結 --verify 不成立、API 要求なし・台帳に試行なし) → worktree autopilot-1009 の artifact (sha256 一致) を複製し元凍結 --verify OK → (b) 1 回だけ 04:03:37Z→04:04:39Z exit 0: snapshots 65,854 / health_log 103,561 / M15 13 parquet / roundtrip OK / attempts 1 frozen / artifact sha256 9147c137…294c99 (41.9 MB、commit せず gitignore) → (c) --verify OK (15 files)。marker + manifest + attempts 台帳 + backfill audit を commit。元 10-08 凍結 (marker / manifest / 台帳) は byte 不改変。判定器 §5 は同 run で §4(c) UI spot check の直前実施後に実行 (記録は e1-prereg-verdict-deadline / 手順書 §9)。"
     },
     {
       "id": "storm-guard-enforce-decision",
