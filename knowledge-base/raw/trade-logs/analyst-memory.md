@@ -6014,6 +6014,16 @@ Cutoff後累計（N=3）は `kalman_d7_po_dn_flip` 2件（EV −5.00）・`usdjp
 **NO ACTION 推奨（消極的待機）**
 **推奨アクション（判断のみ）**：ロンドンセッション中も現状を維持し、N蓄積を待つ。shadow降格セル群の解消、または `agg_kelly>0` への転換を次の判断トリガーとして設定すること。積極介入より守備継続が M3ミッション（月利+2〜3%）整合的である。
 
+### 2026-11-06 (Pre-Tokyo Briefing)
+Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略シグナル不発・約定ゼロのため、単日P&Lへの寄与なし。NAVはSVKコスト（−¥320）のみ減少し、**¥272,448→¥272,448**で推移（戦略起因変動ゼロ）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+> **昇格基準（N≥30 & EV≥1.0）** まで両戦略ともN=28件不足。現時点で統計的判断は不可。
+- `r2_shadow_demoted_cell`：R2セルが降格済み状態で保持されており、scalp系（scalp / scalp_eur / scalp_5m / scalp_5m_gbp / scalp_5m_eur / daytrade_1h_usdchf）のシグナルを全面遮断。block累計1,401件はTop15の約42%を占める最大構造要因。
+- `order_bar_dedup`：同一バー内重複エントリー防止。daytrade系で合計792件。これはシステム設計上の正常動作だが、シグナル生成頻度が実行可能量を大幅に超えている可能性。
+- `no_signal`（rnb_usdjpy 957件）：戦略固有の条件未成立。RANGINGレジームとRnB戦略の相性が悪い可能性（後述）。
+- `shadow_tracking`：17件（通常の影トラッキング）
+- `shadow_tracking(promo_block:pair_demoted)`：1件
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
