@@ -6024,6 +6024,12 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - `shadow_tracking`：17件（通常の影トラッキング）
 - `shadow_tracking(promo_block:pair_demoted)`：1件
 
+### 2026-11-06 (Post-NY Report)
+| PnL | **+0.0 pips** |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+> **NO ACTION推奨** — 本日はノートレード（NY）・低転送率4%・シャドウ蓄積フェーズが正常動作中。システム変更を誘発するトリガーなし。N蓄積を静観する。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
