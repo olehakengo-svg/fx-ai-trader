@@ -494,3 +494,10 @@ Kalman D7 / vix_carry / ZZ v60 と同系の意図的例外。**LIVE flip は別�
 - **記述級**: 決済後 USD_JPY は 15:24Z 158.585 (+100p) まで上昇 = broker TP 158.266 は ~8 h 後に到達していた水準 (trail-out +10.6p vs TP +68.4p)。payoff-friction (roadmap v2.3) の記録のみ、outcome 判定・パラメータ変更には使わない。exit 種別棚卸し (未決 18、`carry-dip-exit-type-inventory`) に trail-SL 型 +1
 - risk 30d `strategy_kelly` half 0.2044 → **0.1888 (n 11、edge 0.5307)** / DSR 0.6832 n.s. (窓ロール 10-06、サイズ根拠にしない)。live-eligible 3 本中 sent 1 / `agg_kelly` blocked 2
 - 詳細 [[2026-11-05]] 発見 1 / 発見 2
+
+## ⚪ 2026-11-06 更新 (wiki-daily 03:18Z、11-05T02:02Z〜11-06T03:18Z = 1.05 d): **LIVE fill 0 / 決済 0 (N 31 / +169.9 / EV +5.48 / WR 54.8% / broker +¥1,501 不変)、candidate 0**
+- **執行 QA**: audit 84 行に `daytrade_1h` × USD_JPY の候補行 0 (live-eligible 0、`agg_kelly=-0.243<0` blocked 3 は他戦略)。USD_JPY は 11-05 13:09Z 158.45 → 11-06 00:00Z 157.484 の **−97p 下落**だが 11 h の段階的下落 (11-04 の 1 h −82p 型と速度が異なる) で dip 条件 (急落翌 H1 型) は出ていない — 記述のみ (RSI / VWAP 値は未取得)。open live 0 は 11-04 02:58Z から 2.0 d
+- 🔑 **guard 状態消失 8 例目**: #1347030 の readout material (evaluated 70 / sent 5 / deadband 65) は **PR #367 deploy (11-05 ≈02:46Z、tools/tests のみ) で全 0** に戻った (`engine_import_pid` 59→60)。registry `storm-guard-enforce-first-storm-readout` は autopilot 11-05 が 02:06Z snapshot で **resolved (enforce 維持、喪失 0、10 日前倒し)** = 消失の約 40 分前に記録済 ✅。`max-open-live-cap-counts-shadow-r3` も 11-05 resolved (deploy 後 147 行で marker 0、本戦略 #20454 が live 化 = 修理の意図どおり)。以後の trail は deploy ごとに fresh state で 1:1 突合 ([[daily-observations-2026-11]] O-2026-11-06-1)
+- risk 30d: n 17 / `strategy_kelly` half 0.1888 (n 11、edge 0.5307) / DSR 0.6832 n.s. — 窓ロール 10-07 で出入 0、11-05 と bit-identical。alpha scan 11-06 (01:59Z) は 31 / +5.48 / PF 1.92 で首位不変
+- SVK 11 月 15 RT −¥1,180 (11-05 02:03Z / 11-06 00:01Z / 01:01Z / 02:01Z 各 −¥80、`daily_cap` 到達)、NAV ¥272,448.16 (−¥320.00、残差 0)、実 DD −24.13%
+- 詳細 [[2026-11-06]] 発見 1 / 発見 2
