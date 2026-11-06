@@ -70,3 +70,13 @@
 - **経路**: 記録のみ → §7.5 追補 + carry_dip カード。[[2026-11-05]] 発見 1
 
 ---
+
+### O-2026-11-06-1: `storm_guard.enforce` true 下でも PR #367 (tools/tests 変更の診断枠 PR) の auto-deploy で guard totals (evaluated 70 / sent 5 / deadband 65) が全 0 に戻った — O-2026-11-05-1 予測 (b) 成立、状態消失 8 例目、cloud 4 報告が消失を記録せず (執行 QA / 制御系)
+- **現象**: 11-05 02:02Z wiki-daily が読んだ `/api/oanda/status.storm_guard.totals` = evaluated **70** / sent **5** / `skipped.deadband` **65** (#1347030 の live trail、readout material) が、11-06 03:18Z には **evaluated 0 / sent 0 / skipped 全 0 / `trades` {}** (enforce true / config 不変)。`/api/demo/status` の `engine_import_pid` **59→60** (`engine_pid` 95 不変、`main_loop_restarts` 1)、`price_shock_rev_auto_demotions.refreshed_at` **11-05T02:46:29Z** (起動時マーカー、前例 11-04 は deploy live 02:39:32Z → 02:48:09Z)、`block_counts` 合計が 9,815 (11-05 02:02Z) → 9,451 (11-06 02:05Z) → 9,811 (03:18Z) と減少後に再増加 = 新プロセスでカウンタ起点がリセット。origin: **PR #367 merge 11-05 02:44:33Z** (`tools/adhoc29_lexicon_abgh2019.py` / `tools/adhoc29_abgh_census.py` / `tests/` 2 本 + KB、engine コード非接触) ⇒ merge の約 2 分後に Render auto-deploy (deploy id は Render MCP 未認証のため未取得、推定時刻 02:45〜02:46Z)。open live 0 のため broker 側 `REPLACEMENT` 0 = totals 0 と整合 (喪失の判定材料なし)
+- **トリガ日**: 2026-11-05 02:4xZ (deploy) / 計測 2026-11-06 (wiki-daily 03:18Z)
+- **想定メカニズム**: guard 状態は in-memory のみ (永続化は sprint-1022 (iii) の R3 候補、user 決裁待ち) で、`render.yaml` の `ignoredPaths` が `tools/**` / `tests/**` を除外しないため、engine に触れない診断枠 PR でも再デプロイ → 状態消失。enforce は env で再読込されるため **guard 機能は継続** (config / enforce true は復元)、消えるのは readout の分母 (totals / per-trade counts) のみ。11-05 02:02Z の読み取りはリセットの約 44 分前 = readout material は窓内で捕捉できていた (autopilot の resolve 11-05 は 02:06Z snapshot 基準、同様に窓内)
+- **併記 (cloud 盲点 2 例目)**: autopilot daily report 11-05 post_tokyo 04:58Z / post_london 14:25Z / post_ny 21:43Z / 11-06 pre_tokyo 02:07Z の guard 表は全て `0 / 0 / 0 / 0` を記録したが、11-04 post_ny の 70/5/65 からの消失も PR #367 deploy も言及なし (11-05 の「70/5/65 をノイズと読む」に続く盲点)。改善候補: guard 表に `engine_import_pid` と直近 deploy 時刻を併記 (記録のみ、autopilot 起票)
+- **family 候補**: storm_guard 系 (状態消失、本例で 8 例目: 10-06 / 10-07 / 10-13 ×?/ 10-20 (5) / 10-29 (6) / 11-03〜04 (7、PR #363/#364/#365) / 本例) + `render_deploy_trigger` (docs/data/tools push と再デプロイ、週次 rollup 11-02 の 2〜3 例に続く **4 例目候補** = tools/tests のみの PR)
+- **反証可能な予測**: (a) 次の tools/tests/docs のみの PR merge 後 10 分以内に `engine_import_pid` が +1 され totals が 0 に戻る (`ignoredPaths` 仮説)。(b) 次の live trail は fresh state で broker `REPLACEMENT` と 1:1 (捕捉率 100%、消失の影響は分母のみ)。(c) 永続化 R3 が未決裁のままなら、11-15 までに deploy ≥1 回 ⇒ totals は累積しない (readout の N は「deploy 間の live trail 数」でしか数えられない)
+- **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome 非結合
+- **経路**: 記録のみ → [[storm-guard-design-2026-09-22]] §7.5 追補 1 行 + 未決 19 (永続化) の材料。[[2026-11-06]] 発見 1
