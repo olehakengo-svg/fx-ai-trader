@@ -6030,6 +6030,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 | Session | N | WR% | PnL (pips) | 評価 |
 > **NO ACTION推奨** — 本日はノートレード（NY）・低転送率4%・シャドウ蓄積フェーズが正常動作中。システム変更を誘発するトリガーなし。N蓄積を静観する。
 
+### 2026-11-07 (Pre-Tokyo Briefing)
+前日（2026-11-06）の実績：**トレード1件、WR 100%、PnL +26.8 pips**。
+| Strategy | Pair | N | WR% | EV | PnL |
+- 全戦略合計 **N=4**。昇格基準（N≥30 & EV≥+1.0）まで残り**26件**。
+- N<10のため両戦略ともに「データなし」扱い。EV数値は参考値に過ぎない。
+- `kalman_d7_po_dn_flip` は N=2 / EV=−5.00 だが、降格判断（N≥30 & EV<−0.5）の閾値には到達していない。
+- `rnb_usdjpy:no_signal` が1,786回とブロック最多。システムはシグナルを検出できているが、エントリー条件を満たす局面がほとんど発生していない。
+- Scalp系3戦略（scalp / scalp_eur / scalp_5m等）は `r2_shadow_demoted_cell` で合計2,300件超ブロック。shadow降格セルがエントリーを実質封鎖している状態。
+- `daytrade_eurgbp:order_bar_dedup` 446回、`daytrade:order_bar_dedup` 346回など、同一バー重複排除が多発。シグナルは発生しているが注文が通っていない。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
