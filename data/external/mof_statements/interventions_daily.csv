@@ -385,3 +385,6 @@ date,currency_pair,direction,amount_yen_billions,source_url
 2026-04-30,USD/JPY,sell_USD_buy_JPY,6278.7,https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv
 2026-05-04,USD/JPY,sell_USD_buy_JPY,780.2,https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv
 2026-05-06,USD/JPY,sell_USD_buy_JPY,4675.9,https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv
+2026-07-30,USD/JPY,sell_USD_buy_JPY,7975.6,https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv
+2026-07-31,USD/JPY,sell_USD_buy_JPY,5552.3,https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv
+2026-08-03,USD/JPY,sell_USD_buy_JPY,1871.4,https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv
