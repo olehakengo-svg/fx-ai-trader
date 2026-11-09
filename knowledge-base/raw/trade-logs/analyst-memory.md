@@ -6060,6 +6060,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - **GBP_USD**: 現時点でVOLATILE（ATR%ile 66%・SMA20 Slope +0.00345）。NY参入でボラが追加される可能性。
 - **EUR_USD / EUR_JPY**: RANGING・ATR%ile 59–66%。方向感不足。
 
+### 2026-11-09 (Pre-Tokyo Briefing)
+前日（2026-11-08）はトレードゼロ。Cutoff後累積はN=4、PnL +11.1、WR 50.0%。前日セッション（東京・ロンドン・NY全帯）を通じてシステムはシグナル未生成のまま推移。**実運用上の活動は実質停止状態**。
+| Strategy | Pair | N | WR% | EV | PnL |
+**昇格基準（N≥30 & EV≥1.0）到達まで：**
+- usdjpy_carry_dip_accumulator：残り **27件**
+- kalman_d7_po_dn_flip：残り **29件**
+> **注**: 両戦略ともN<10。現時点では「データなし」扱いが統計的に正確。EVの数値は参考値に留める。
+- **block_counts最大因子**は `rnb_usdjpy:no_signal`（4,567件）。rnb_usdjpyはシグナル条件を満たさず全ブロック。USDJPYがRANGING（ATR%ile=47%）かつSMA20 Slope +0.00006と微弱なため、ドリフト系戦略の発火条件が整いにくい状況。
+- `scalp/scalp_eur/scalp_5m/scalp_5m_gbp/scalp_5m_eur`は **r2_shadow_demoted_cell** で計6,166件ブロック。これはシャドー降格セルへの流入が主因であり、スキャルプ戦略全体がシャドートラッキングで抑制されている状態。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
