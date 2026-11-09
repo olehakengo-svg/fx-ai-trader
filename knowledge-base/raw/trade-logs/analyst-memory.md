@@ -6050,6 +6050,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - Shadow demoteによるブロックはR2評価の正常な動作であり、外部介入は不適切
 - 実DD −24.13%でDD防御0.2x（defensive mode）発動中 — 積極調整フェーズではない
 
+### 2026-11-09 (Post-London Report)
+| 勝率 (WR) | 0.0% |
+| PnL | **−15.1 pips** |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+| WR | — | 0.0% |
+| PnL | 0 | −15.1p |
+- **USD_JPY**: ATR%ile 45%・RANGING継続見込み。NY序盤に米指標（CPI等）が無ければ方向感薄。
+- **GBP_USD**: 現時点でVOLATILE（ATR%ile 66%・SMA20 Slope +0.00345）。NY参入でボラが追加される可能性。
+- **EUR_USD / EUR_JPY**: RANGING・ATR%ile 59–66%。方向感不足。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
