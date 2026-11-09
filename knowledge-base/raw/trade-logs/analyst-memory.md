@@ -6040,6 +6040,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - Scalp系3戦略（scalp / scalp_eur / scalp_5m等）は `r2_shadow_demoted_cell` で合計2,300件超ブロック。shadow降格セルがエントリーを実質封鎖している状態。
 - `daytrade_eurgbp:order_bar_dedup` 446回、`daytrade:order_bar_dedup` 346回など、同一バー重複排除が多発。シグナルは発生しているが注文が通っていない。
 
+### 2026-11-09 (Post-Tokyo Report)
+| PnL | **¥0** |
+| WR | **N/A** |
+- **r2_shadow_demoted_cell**がscalp系全体（999+894+466+374+355+233 = **3,321件**）を占める最大ブロック要因。Shadow R2評価でセルが降格され、実質的にscalp系はほぼ全ブロック状態。
+- **order_bar_dedup**（473+376+199+175+163 = **1,386件**）はDaytrade系の正常な重複排除として機能しているが、頻度が高く、シグナル自体は多数発生していることを示す。
+- **rnb_usdjpy: no_signal 2,500件**はRnB戦略のシグナル閾値未達が恒常的であることを示す。
+- Fidelity Cutoff後の有効トレードNが極めて少なく（本日0件）、統計的判断基準（N≥30）に到達している戦略が確認できない
+- Shadow demoteによるブロックはR2評価の正常な動作であり、外部介入は不適切
+- 実DD −24.13%でDD防御0.2x（defensive mode）発動中 — 積極調整フェーズではない
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
