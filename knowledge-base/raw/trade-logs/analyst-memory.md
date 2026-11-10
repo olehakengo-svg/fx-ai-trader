@@ -6090,6 +6090,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - 東京セッションN=0。統計判断の最低ラインN=10に遠く及ばない。
 - 現在稼働中の停止フィルター（r2_shadow_demoted_cell、score_gate、agg_kelly）はいずれも設計通りの機能として作動している。
 
+### 2026-11-10 (Post-London Report)
+| PnL | **¥0** |
+| 勝率（WR） | **N/A** |
+| PnL | ¥0 | ¥0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**NO ACTION推奨（現時点）**
+- 全戦略でCutoff後の有効トレードが**本日ゼロ**のため、戦略EVの実績評価が不可能
+- ブロック分析が示す通り、`r2_shadow_demoted_cell`と`order_bar_dedup`がシグナルを大量遮断中
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
