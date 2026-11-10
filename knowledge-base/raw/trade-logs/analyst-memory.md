@@ -6070,6 +6070,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - **block_counts最大因子**は `rnb_usdjpy:no_signal`（4,567件）。rnb_usdjpyはシグナル条件を満たさず全ブロック。USDJPYがRANGING（ATR%ile=47%）かつSMA20 Slope +0.00006と微弱なため、ドリフト系戦略の発火条件が整いにくい状況。
 - `scalp/scalp_eur/scalp_5m/scalp_5m_gbp/scalp_5m_eur`は **r2_shadow_demoted_cell** で計6,166件ブロック。これはシャドー降格セルへの流入が主因であり、スキャルプ戦略全体がシャドートラッキングで抑制されている状態。
 
+### 2026-11-10 (Pre-Tokyo Briefing)
+前日（2026-11-09）はトレード **N=1**、`usdjpy_carry_dip_accumulator / USD_JPY` の **BUY がSL_HIT**、PnL **−15.1 pips**、WR **0.0%**。全セッション通じてシグナル発火は1件のみで、実質的に稼働停止状態に近い一日だった。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- `usdjpy_carry_dip_accumulator`: **3/30**（昇格判断まで残り **27件**）
+- `kalman_d7_po_dn_flip`: **1/30**（残り **29件**）
+- 両戦略ともN<10、現時点では「データなし」扱い。EV数値は参考値に留める。
+- `agg_kelly=−0.231<0` によるブロックは**リスク管理として正当**。現在の資本状況（DD −24%水準）下では強制介入は不要。
+- `r2_shadow_demoted_cell`が累計7,710件（TOP8のうち5件がこの理由）——Shadowステージで「本番不適格」と判定された戦略群が引き続き大量にブロックされている構造は**正常に機能している証拠**であり、今日も同様の遮断を見込む。
+- 低シグナル日が続く可能性が高く、**過剰な期待を持たずに観測継続**が適切。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
