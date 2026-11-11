@@ -274,6 +274,21 @@ pycache purge (`find ~/Library/Caches/com.apple.python -path '*fx-ai-trader*' -n
 - **Rule 2 判定: enforce 維持** (喪失 0 ∧ failed 0 → rollback 条件に該当せず)。storm 型ではなく平常 trail 型 (BE+1.0 → trail) の readout だが、message の「storm でも平常 3 送信型でも」の対象として成立。
 - 残余 (記録のみ、新 registry は起票しない — 読み手は daily report の表 + `anomaly_watcher`): (a) N=1。喪失 0 が N≥3 で定常なら enforce の監視は定常運用へ (wiki-daily O-2026-11-05-1 の反証可能予測 (a))。(b) deadband 65 件の全数がすべて 1 pip 未満だったかは Render ログの 3 例 + 送信刻みからの整合確認のみ (全件精査はしていない)。(c) engine close PUT 404 = broker SL 先着との競合で、DB は engine 価格で `SL_HIT` 記録 — `OANDA_SL_TP` ではないため DD 台帳 readout (11-20) の対象外だが、engine 経路の `_book_equity_close` で +¥102 (10.2p × ¥10) が同 tick で計上されたことは確認 (registry `dd-ledger-broker-close-first-booking-readout` note 2026-11-05)。
 
+### 7.5 追補 2026-11-11 — enforce ON 後の live trail **2 例目** (#1347071、wiki-daily 05:49Z 記録、rule:R3 記録のみ)
+
+| 項目 | 値 (一次資料 = OANDA `transactions?from=1347070&to=1347125` + `/api/oanda/status.storm_guard` 2026-11-11 05:49Z snapshot) |
+|---|---|
+| 建玉 | **#1347071** carry_dip BUY USD_JPY 1,000u、fill **11-06 06:03:04Z** @157.767 (PR #368 / #369 merge 05:06 / 05:13Z の約 50 分後、`engine_import_pid` 63 = fresh 状態)、ON_FILL SL 157.593 / TP 158.443 (tx 1347072/1347073) |
+| broker 側 SL 履歴 | `REPLACEMENT` **3 件**: 1347075 **157.778** (06:42:06Z、BE+1.1) → 1347077 **158.013** (06:45:03Z) → 1347079 **158.038** (06:45:04Z)。全件 BUY の SL 上昇 = 単調 tightening のみ、刻み 18.5 / 23.5 / 2.5p (全て dead-band 1.0p 以上) |
+| 決済 | **06:52:01Z** `STOP_LOSS_ORDER` @158.038 (tx 1347080、realized **+¥271**)。engine 側 close は broker 先着で 404 (tx 1347082 `MARKET_ORDER_REJECT`) → DB は `SL_HIT` exit 158.038 **+26.8p** (基準差 0、§8.3 推定量 3 例目) |
+| guard totals (決済後、`trades` 空、**11-11 05:49Z = 決済の 4.96 d 後も残存**) | evaluated **3** / sent **3** / failed **0** / skipped 全 0 (deadband 0 = 1 pip 未満の刻みなし) / detected 全 0 / breaker_trips 0 / unknown_direction 0 / ambiguous_failures 0 / coalesced 0 |
+| 突合 (喪失判定) | DB `sl` **158.038** == broker 最終 confirmed SL **158.038** (tx 1347079) == 約定 order → **正当な tightening の喪失 0**。sent 3 == `REPLACEMENT` 3 (1:1)。failed 0 |
+| 評価レート | 3 評価 / 49 分 = 11-05 の 70 評価 / 19 分と対照的 — new_sl が変わらない tick は evaluated に計上されない (trail 刻みが粗い建玉では evaluated ≈ sent) |
+
+- **Rule 2 判定: enforce 維持** (喪失 0 ∧ failed 0、N=2)。O-2026-11-05-1 予測 (a) は 2 例目成立、N=3 で閉じる。
+- 状態残存: 11-06 06:45Z → 11-11 05:49Z の間に origin/main へ 59 commit (全て `ignoredPaths` 内の KB / `data/`) で再起動 0 = §7 の「deploy ごとに fresh state」は docs/data push には当たらない (O-2026-10-20-2 支持)。`engine_import_pid` 60 → 63 の +3 は 11-06 03:18〜06:42Z の push 3 本の窓 (うち hook auto-save 1 本は ignoredPaths 内のみで未説明、記録のみ)。永続化 R3 (sprint-1022 (iii)) の採否は user。
+- #1347096 (11-09、ON_FILL SL −¥148) は `REPLACEMENT` 0 (writer 未起動 exit 3 例目) で guard 非接触。[[daily-observations-2026-11]] O-2026-11-11-2 / [[2026-11-11]]
+
 ## 8. 追補 2026-10-21 — family A/B の根 (caller 側) の R3 修復
 
 **Status**: **着地 — PR #346 merged 6e3041fa (2026-10-21 10:04:10Z、open live 0 の窓)、Render live 10:06Z (`engine_import_pid` 39→59、pid 95 再利用)**。Codex 6 巡 (P1 ×3 / P2 ×3、全件実在・全件消化; 写しの pop は close 後 / 全 7 成功分岐で写し→persist / legacy `sl_initial` は backfill しない / 一時失敗した persist は次 tick 以降に治す)。**Scope**: `modules/demo_trader.py` `_check_sltp_realtime` の LIVE 送信口 + 兄弟 1 箇所、`modules/demo_db.py` (`sl_initial` 列 + `close_trade` の R 分母)。bridge (`oanda_bridge.py`) は不変。**Tests**: `tests/test_sltp_live_sl_persist_storm_root.py` 16 本 (CF pin 2 本 + AST pin 1 本 + Codex 巡で追加 3 本)。**導出**: Workflow 18 agent (読み 5 面 → 統合 → 反証 3 レンズ × 2 claim = 0/6 refuted → 設計 3 案 × 判定 3 = caller 層案が 9/10 で全員一致)。
