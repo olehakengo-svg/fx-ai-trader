@@ -12,24 +12,24 @@
   "files": {
     "jgb_yields": {
       "path": "data/external/rate_anchor/jgb_yields.csv",
-      "rows": 3383,
+      "rows": 3384,
       "date_min": "2013-01-04",
-      "date_max": "2026-11-09",
-      "sha256": "f4929216267befabd46108d1bf041eeb38ba5d38b85bdece2c56622a6df2a6a1"
+      "date_max": "2026-11-10",
+      "sha256": "10f736f3a161780b2cc32c60dd34a8864d332b9e3fc95c0c74fa3694313f06a3"
     },
     "us_treasury_yields": {
       "path": "data/external/rate_anchor/us_treasury_yields.csv",
-      "rows": 3613,
+      "rows": 3614,
       "date_min": "2013-01-01",
-      "date_max": "2026-11-09",
-      "sha256": "cf9b4afdd1fc4db25dd89782792d1f7297d8c620606f6b496689f7c2ba920769"
+      "date_max": "2026-11-10",
+      "sha256": "ac0bf28878755255f91f8dcf6f731be70c1bda16b799277138f8a8e572409a41"
     },
     "zn_f_daily": {
       "path": "data/external/rate_anchor/zn_f_daily.csv",
-      "rows": 827,
+      "rows": 828,
       "date_min": "2024-02-18",
-      "date_max": "2026-11-10",
-      "sha256": "d16f8f8c1c751dd83434d6ba58644ca0472468d729dda691a7e0d523a14a4fdf"
+      "date_max": "2026-11-11",
+      "sha256": "63b50650a33f6e344634df6f94494e23f251559b54c001bf521890d8055e75ed"
     }
   }
 }
