@@ -6130,6 +6130,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - `r2_shadow_demoted_cell` によるブロックはシャドウ評価のリスク管理機能が正常作動している証拠であり、この段階での閾値緩和は望ましくない
 - `order_bar_dedup` は重複発注防止の安全装置。解除判断にはN≥30のデータが必要
 
+### 2026-11-11 (Pre-Tokyo Briefing)
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計ステータス**: N=3は「データなし」扱い。WR 66.7%・EV +7.30は参考値に過ぎず、昇格基準（N≥30 & EV≥1.0）まで残り**27件**。
+- `order_bar_dedup`主因のペア（GBPUSD・EURJPY）はbar重複抑制が正常動作している。今日も同様の抑制が続く可能性が高い
+- `r2_shadow_demoted_cell`はshadow降格が有効に機能している証拠。対処不要だが、降格セルの集中度を継続監視
+- `rnb_usdjpy`はUSD_JPYがRANGINGを脱するかどうかがキー（後述レジーム参照）
+- JPYペアは全体的にRANGINGで、トレンドフォロー系（Daytrade、RnB）が機能しにくい環境
+- USDペアはVOLATILE（ATR71-74%ile）だが、shadow降格とdedup制御がフィルターとして機能
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
