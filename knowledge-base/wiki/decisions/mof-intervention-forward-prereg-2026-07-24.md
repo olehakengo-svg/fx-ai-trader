@@ -228,3 +228,50 @@ D = {**2026-04-30** (¥6兆2,787億), **2026-05-04** (¥7,802億), **2026-05-06*
 ### 運用追記 (2026-08-18) — E-A 検知器の defensive alert 化 (凍結条項の変更なし)
 
 E-A の real-time 実行可能性実証を受け、凍結 rule (X,Y)=(2.0, 0.25%) を **as-is (再校正なし)** で日次監視に載せた: `tools/mof_intervention_watch.py` + `.github/workflows/intervention-watch.yml` (前 UTC 営業日を 1 回評価 → Discord 通知 + `knowledge-base/raw/intervention_watch/` JSONL 記録)。**これは Variant B ではない** — 監視/通知のみで、live gating の自動執行は §5.5 どおり別 pre-reg + user 最終承認まで不実装 (E-C FAIL により SELL 執行系は stage-2 進行不可のまま)。alert 記録は yfinance 1h 集計 (grade フィールドで明示) であり、§10 再判定 (mof-next-episode-reverdict) の verdict-grade 計算 (Massive 15m mid) に**流用禁止**。candidate ≠ 介入ラベル (公式ラベルは MoF 開示のみ)。詳細: [[family-c-anchor-automation-2026-08-18]] §2
+
+## 11. 再判定 (§5.5 PARTIAL 分岐の 1 回限り同一仕様、2026-11-11 執行 — 開示 2026-11-09 着地 +2 日)
+
+**全体 verdict: 🟡 PARTIAL (G0 ✅ ∧ E-B ✅ ∧ E-A ✅ PASS p=0.0877 ∧ E-C ❌ FAIL) — 2 エピソード連続で同型 (識別は再現、drift 符号は再び逆)。§5.5 が事前登録した再判定枠はこれで消費済み = family #4 の look はこれ以上存在しない (後段は §11.5)。**
+執行: `tools/mof_forward_reverdict.py` (2026-07-24 LOCK 値を一切変更せず、エピソード固有入力 = 窓 / 開示 D のみ差し替え) / raw: `knowledge-base/raw/bt-results/mof-forward-reverdict-2026-11-11.{txt,json}` / test pin: `tests/test_mof_forward_reverdict.py` (凍結値・超幾何閾値表・固定分岐)。rule:R3 record-only、live パラメータ変更ゼロ。
+
+### 11.1 開示データ (mof.go.jp `data/quarter/2026_3Q.html`、公表 令和8年11月9日 = 2026-11-09)
+
+D = {**2026-07-30** (¥7兆9,756億), **2026-07-31** (¥5兆5,523億), **2026-08-03** (¥1兆8,714億)} — 全て米ドル売り・日本円買い (USD/JPY)。Q3 総額 ¥15兆3,993億 = 月次開示 (08-28、`20260828.html`) の 07-30〜08-26 窓総額と**一致** (残差 0)。E-D 予測 (k∈[2,5]、最大単日 ≥¥3.0T) は k=3・最大 ¥7.98T で**両方的中** (2 エピソード連続)。日次 CSV への到達は `mof-statements-daily` cron (11-09 01:05Z commit eed41a58a) = 開示当日に自動取得済み (読み手は本 run)。
+
+### 11.2 窓・母集団・candidate list (peek 会計)
+
+- 窓 = **2026-07-30〜08-26** (月次開示の対象窓、[[mof-monthly-total-verdict-2026-08-31]] で D 観測の **70 日前**に KB 記録済み = 観測前確定)。母集団 M = **20** 営業日 (parquet 欠損日 0、初回の 05-07 型の欠損なし)。
+- S = 凍結 rule (X,Y)=(2.0, 0.25%) の窓への 1 回適用 = **{07-30, 07-31, 08-07, 08-19}**、|S|=4 ≤ 5 (事前上限内)。
+- ⚠️ 初回 verdict と異なり、LOCK 時点の事前凍結 S は存在しない (§5.5 は再判定の仕様を「同一仕様」と定めるのみ)。S は決定論的 (rule + 窓 + 既存 parquet) で裁量ゼロだが、**計算の実行時刻は D 観測後 (11-11)** である事実を明記する。独立した観測前証拠: 08-19 は `tools/mof_intervention_watch.py` (yfinance 1h alert grade) が **08-20 時点で real-time に candidate=true と記録** (`raw/intervention_watch/2026-08.jsonl`、verdict grade とは別データのため流用はしていない)。07-30 / 07-31 は watch 稼働 (08-18) 前。
+
+### 11.3 E-A (primary): ✅ PASS — p = 0.0877 (α 0.10、**ナイフエッジ**)
+
+- k_eff = 3 (D 全日が母集団内)、**overlap = 2** (07-30 ✓ / 07-31 ✓ / 08-03 ✗) ≥ 閾値 2、超幾何 P(≥2 | M=20, |S|=4, k=3) = **0.0877 ≤ 0.10**。
+- 取り逃し 08-03 は close/open **−0.03%** (range 比 4.1 で range 側のみヒット) = 初回の 05-04 (+0.20%)、explore の 2022-10-24 (+0.86%) と同じ **covert 追撃日の構造的不可捕捉モード** (rule の既知限界、3 例目)。
+- **同一 rule が 2 エピソード連続で primary 的中** (2026-05: p=0.0143、2026-07/08: p=0.0877) — 2022/2024 のみで校正した識別 rule の real-time 検知可能性は 2 回再現。初回同様、これは識別可能性であって edge ではない (§5.2 endogeneity)。
+
+### 11.4 E-C (符号予測): ❌ FAIL — per-day median net_h10 = +163.6p (予測 負、band [−319.8, −43.6])
+
+| event | anchor | net_h1 | net_h2 | net_h5 | **net_h10** | MFE_sell | MAE_sell |
+|---|---|---|---|---|---|---|---|
+| 07-30 | 07-31 (p0 160.183) | −260.3 | −264.4 | −177.4 | **−75.6** | 496.8 | 69.3 |
+| 07-31 | 08-03 (p0 157.580) | −4.1 | +11.3 | +32.0 | **+163.6** | 236.5 | 198.6 |
+| 08-03 | 08-04 (p0 157.539) | +15.4 | +7.0 | +161.2 | **+179.1** | 87.1 | 205.7 |
+
+(median: h1 −4.1 / h2 +7.0 / h5 +32.0 / **h10 +163.6**)
+
+- 凍結 estimand = per-day median → **+163.6p で符号不一致 = FAIL** (2/3 正)。h5 も正、h1/h2 は ±数 pip で符号情報なし。
+- §8.2 感度 (判定不使用、事前宣言の両建て報告): **エピソード初日 anchor 変種 (07-31 open) は h10 −75.6p = 予測符号と一致し band 内** (MFE_sell 496.8 / MAE 69.3)。ただし初日 anchor の h1/h2 −260p は **anchor 当日 (07-31) が第 2 介入日**であること自体の作用 (連日介入 = forward 窓の重複) であり、介入後 drift の証拠ではない。初回 (2026-05) は初日 anchor でも +188 で、変種間の符号も 2 エピソードで不一致 → 「初日 anchor なら効く」という事後主張は §10 と同じく禁止 (record のみ)。
+- swap-net (h10 short USDJPY キャリー ≈ 数 pip/10d) は gross 符号判定に影響しない (非ゲート、記述省略)。
+
+### 11.5 §8 ナイフエッジ 3 点検査 + 固定分岐の帰結
+
+1. **メカニズム整合 ✅**: 両ヒットとも 2 構成要素の実体ヒットで margin 大 (07-30: co_ret −1.92% / range 579p vs 閾 130p = 8.9 倍、07-31: −1.76% / 370p = 5.7 倍)。E-C FAIL は 07-31 / 08-03 の MAE (199 / 206p) が MFE を支配する実体。
+2. **擬似反復 ✅ 明記**: D 3 日は gap≥30d 規約で**単一クラスタ = 有効 N=1 エピソード**。E-A の p は「日選択 null」に対する解釈に限定。2 エピソード累計でも有効 N=2。
+3. **閾値リーク / 格子点 ⚠️ ナイフエッジ明記**: (a) p=0.0877 は α 0.10 の近傍。overlap が 1 減ると p=0.509 で不合格 = 構造的に初回と同じ脆弱性 (初回 0.0143→0.186)。(b) rule ±20% 摂動: X+20% で 08-19 (ratio 2.07) が脱落し |S|=3 → p=**0.0456**、他 3 摂動は S 不変 (p=0.0877)。**overlap 2 (07-30/07-31) は全摂動で不変** = ヒット側は knife-edge ではなく、p の値が |S| (false positive 数) に依存して 0.046〜0.088 を動くだけ。(c) E-C の符号 FAIL は h5 / h10 で整合 (h* 固有ではない)。
+
+**固定分岐**: §5.5 PARTIAL → 「次の円買いエピソード 1 回限りの同一仕様再判定」= **本 §11 で消費**。pre-reg が事前登録した look は初回 + 再判定の 2 回のみで、3 回目の look は存在しない。よって family #4 は **PARTIAL ×2 でクローズ (park 恒久化)**: (i) Variant B (real-time 検知 → SELL) は E-C 2 連続 FAIL で stage-2 不可 (確定)、(ii) 識別 rule の real-time 検知能力は 2 エピソードで再現 — **将来の介入系 family の「介入日検知器」としての一次 prior は強化** (ただし drift 方向の prior は「2026 の 2 エピソードとも介入後 10 営業日で正 (リトレース/反転)」= SELL 方向の同型再試行は禁止、BUY 方向の事後主張も禁止)、(iii) 新たな仮説 (例: 開示時点リアクション Variant C、初日 anchor 型) は**新規 pre-reg (R1、user 承認) でのみ**再開可。registry `mof-next-episode-reverdict` は resolve し後継は起票しない (四半期開示の機械取得は `mof-statements-daily` cron が継続、T5 第 2 要件の材料としては `t5-jpy-cap-restore-price` に転記)。
+
+### 11.6 T5 第 2 要件への転記 (認定・lot 変更はしていない)
+
+四半期開示 = **外部一次情報による「介入観測」の肯定 + 方向 (円買い) + 文脈 (07-30 の日次 open 160.18 → 介入当日 −1.9%、07-31 anchor open 160.183 = 160 近傍での防衛)** が初めて同時に揃った。T5 lot 1.0x 復帰は R1 = user 決裁 (registry 注記のみ)。

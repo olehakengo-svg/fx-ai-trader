@@ -810,15 +810,35 @@ def test_csv_row_match_numeric_vs_string_and_missing_values():
     assert res["state"] == "TRIGGERED" and "2026-08-26" in res["detail"]
 
 
-def test_csv_row_match_would_have_caught_the_2026_08_26_disclosure():
-    """回帰の本体: 実データで『08-29 時点の正しい閾値』なら発火すること。
+# 08-29 時点の interventions_monthly_pending.csv (commit b27277d1) の凍結複製。
+# 実ファイルは cron が「四半期開示で日次帰属が確定した窓を pending から外す」
+# 設計で書き換わる (11-09 の Q3 開示で 07-30〜08-26 行が消え、実ファイル pin の
+# 旧版 test が決定論的に落ちた = 壁時計/データ可変の test 族、lesson 2026-10-15)。
+# 回帰の本体は「評価器 + 当時の閾値」なので、入力は凍結複製で固定する。
+_MOF_PENDING_CSV_2026_08_29 = (
+    "window_start,window_end,amount_yen_billions,source_url\n"
+    "2026-06-29,2026-07-29,0.0,https://www.mof.go.jp/policy/international_policy/reference/feio/data/monthly/20260731.html\n"
+    "2026-07-30,2026-08-26,15399.3,https://www.mof.go.jp/policy/international_policy/reference/feio/data/monthly/20260828.html\n"
+)
+
+
+def _frozen_pending_csv(tmp_path, text: str) -> Path:
+    p = tmp_path / "interventions_monthly_pending.csv"
+    p.write_text(text, encoding="utf-8")
+    return p
+
+
+def test_csv_row_match_would_have_caught_the_2026_08_26_disclosure(tmp_path):
+    """回帰の本体: 『08-29 時点の正しい閾値』なら発火すること。
 
     08-29 に cron が書き込んだ 2026-07-30〜08-26 窓 (15,399.3 十億円) は、
     当時の baseline (直前窓末 = 2026-07-29) を閾値にした検知器があれば
-    その日のうちに TRIGGERED になっていた。実ファイルで固定する。
+    その日のうちに TRIGGERED になっていた。08-29 時点の凍結複製で固定する
+    (実ファイルは四半期開示後に当該行が消える — 上記コメント)。
     """
-    rows = read_csv_rows({"path": MOF_PENDING_CSV})
-    assert rows is not None, f"{MOF_PENDING_CSV} が読めない"
+    frozen = _frozen_pending_csv(tmp_path, _MOF_PENDING_CSV_2026_08_29)
+    rows = read_csv_rows({"path": str(frozen)})   # 絶対 path は root/ に対して不変
+    assert rows is not None and len(rows) == 2
     res = evaluate_csv_row_match(
         rows,
         [{"column": "window_end", "op": ">", "value": "2026-07-29"},
@@ -828,22 +848,39 @@ def test_csv_row_match_would_have_caught_the_2026_08_26_disclosure():
     assert "2026-08-26" in res["detail"] and "15399.3" in res["detail"]
 
 
-def test_mof_successor_entry_is_wired_into_the_dispatch():
+def test_mof_successor_entry_is_wired_into_the_dispatch(tmp_path):
     """反実仮想: registry エントリが実際に評価器へ到達しているか。
 
     MEMORY 教訓 (PR #208): 検知器を書いても呼ばれなければ全テスト green の
     まま無音になる。evaluate_trigger() 経由で評価し、dispatch から
     csv_row_match の分岐を外したら落ちることを確認済み
     (外すと state が DATA_UNAVAILABLE / "unknown type" になる)。
+
+    入力 CSV は凍結複製 (08-29 状態) に差し替える — 実ファイルを読むと、
+    検知器が本来発火すべき新窓が現れた瞬間に本 test が赤になる (観測対象を
+    pin する test は観測が起きると壊れる)。registry 側の述語 (window_end >
+    直近窓末) と source.path 以外は実エントリをそのまま通す。
     """
-    trig = next(t for t in load_registry()
+    real = next(t for t in load_registry()
                 if t["id"] == "mof-monthly-disclosure-new-window")
+    assert real["type"] == "csv_row_match"
+    frozen = _frozen_pending_csv(tmp_path, _MOF_PENDING_CSV_2026_08_29)
+    trig = json.loads(json.dumps(real))
+    trig["source"]["path"] = str(frozen)
+    # 凍結複製では最新窓末 = 2026-08-26 → 「それより後の非ゼロ窓」はまだ無い
+    trig["source"]["match"] = [
+        {"column": "window_end", "op": ">", "value": "2026-08-26"},
+        {"column": "amount_yen_billions", "op": ">", "value": 0},
+    ]
     res = evaluate_trigger(trig, today="2026-08-31", app_base="http://unused")
-    # 現閾値 (window_end > 2026-08-26) では次窓待ち = WATCHING。
-    # 重要なのは「unknown type で素通りしていない」こと。
+    # 次窓待ち = WATCHING。重要なのは「unknown type で素通りしていない」こと。
     assert res["state"] == "WATCHING", res
     assert "unknown type" not in res["detail"]
     assert "該当行なし" in res["detail"]
+    # 同じ dispatch で閾値を 1 窓戻せば TRIGGERED になる (評価器到達の陽性対照)
+    trig["source"]["match"][0]["value"] = "2026-07-29"
+    pos = evaluate_trigger(trig, today="2026-08-31", app_base="http://unused")
+    assert pos["state"] == "TRIGGERED" and "15399.3" in pos["detail"], pos
 
 
 def test_ws3_round4_entry_is_machine_evaluable():
