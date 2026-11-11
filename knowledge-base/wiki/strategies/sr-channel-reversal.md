@@ -62,3 +62,9 @@ clean N=584 の要因解析で退役確定。詳細: [[edge-factor-audit-2026-06
 ⚠️ 兄弟 [[dt-sr-channel-reversal]] は `promo_n` **15** / EV **−2.95** で**依然 blacklist 候補に入らない** (不変)。直近 2 日は audit 窓で最多発火 (09-15 に 16 件 / 09-16 に 12 件) = **除外されているのは発火していない方だけ**という倒錯した状態。
 
 詳細: [[2026-09-16]]
+
+---
+
+## ⚪ 2026-11-11: learner id 101 (11-09 21:23:47Z) で `entry_type_blacklist` に本戦略が**再反映**、`blacklisted: true` 1/100 — 3 周期目 (deploy で消失 → 次の調整で再適用)
+
+`/api/demo/learning` `adjustments[0]` = **id 101 / 2026-11-09 21:23:47Z** (id 100 11-03 から 6.3 d、reason は **15 回目の byte 一致** `WR 25.0%, EV -0.98`、sample_size 190 固定 = 現況統計ではない)。11-05 02:39Z deploy (PR #365) で `[]` に消えた blacklist は 4.8 d の空白の後に `["sr_channel_reversal"]` へ戻り、`strategy_status` の `blacklisted: true` は **100 戦略中 1 (本戦略)** = 09-16 の「0/100 で learner と矛盾」は apply path の修復以降 解消された状態が 3 周期目で再確認。本戦略の発火は 10-02 以降 0 継続 (本窓 audit 182 行中 0) のため実害 0。兄弟 [[dt-sr-channel-reversal]] (promo_n 15 / EV −2.95、R2 CRITICAL EUR_JPY N 34) は依然 blacklist 対象外。観測 [[daily-observations-2026-11]] O-2026-11-11-1、詳細 [[2026-11-11]]
