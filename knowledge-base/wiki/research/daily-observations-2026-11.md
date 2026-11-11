@@ -58,6 +58,22 @@
 - 執行 QA 発見 5 (O-10-29-1 / -2 / -3 / O-10-30-1 / O-11-02-1 / O-11-02-2 のうち週内 6、新 family 2) / 卒業 family (エッジ) 0 / S1 起票 0。戦略 LIVE: fill 3 / 決済 3 (10-23 #1346967 +¥7 は前週、本週 #1346976 +¥11 / #1346985 −¥105 = **−¥94**)、kalman live 停止 (PR #357)、SVK 11 月 3 RT −¥240
 - 次回 rollup = 2026-11-09 (月)
 
+### 2026-11-02〜11-08 (月曜 11-09 定刻は run 欠落、wiki-daily 11-11 が 2 日遅れで代行; wiki-daily 稼働 11-02 / 11-04 / 11-05 / 11-06 = 4/7 日)
+| family | 独立観測 (週内) | 累計 | 卒業条件 (≥3) | 経路 |
+|---|---|---|---|---|
+| `storm_guard` 系 (SL replacement storm / guard 捕捉 / 状態消失) | 2 (O-11-05-1 enforce 下 初 live trail: 70 評価 / 5 送信 / deadband 65 / 喪失 0; O-11-06-1 状態消失 8 例目 = tools/tests のみの PR #367 deploy) | ≥11 | 到達済 | 制御系 — enforce 執行済 (11-03)、readout resolved 11-05 (enforce 維持)。永続化 R3 は sprint-1022 (iii) user 決裁待ち |
+| learner no-op / in-memory 反映 | 1 (O-11-04-1 id 100 再反映 = O-10-29-3 falsifier 成立) + 併記 1 (11-05 deploy で再消失 = 予測 (a) 成立) | 6 | 到達済 | 未決 5 — 機構「deploy で消え、次の learner 調整で再適用」を 2 周期で確認、11-09 id 101 で 3 周期目 (O-11-11-1) |
+| Live vs Shadow 分離違反 (`max_open` が shadow を数える) | 1 (O-11-02-1) | 1 | 未達 | **R3 修理 PR #363 (11-03) → registry resolved 11-05** (deploy 後 147 行 marker 0、carry_dip #20454 live 化) |
+| pre-reg gate → 執行 latency | 1 (O-11-02-2、kalman #1346985 16h22m) | 1 | 未達 | 記録のみ → 次 registry 改定で engine latch 提案 |
+| 🆕 DD 台帳 非計上 (broker 側決済 `OANDA_SL_TP`) | 1 (O-11-04-2、17 件 / net +212.7p、lever 悲観側) | 1 | 未達 | **R3 修理 PR #365 (11-04) writer 一本化** → readout `dd-ledger-broker-close-first-booking-readout` (11-20、material 0) |
+| `render_deploy_trigger` (docs/data/tools push と再デプロイ) | 1 (O-11-06-1 PR #367 tools/tests のみで deploy = 4 例目) | 3–4 | **到達** | 未決 12 — ただし 11-11 窓で docs/data 59 commit が再起動 0 (O-11-11-2) = 条件は「`ignoredPaths` 外のパスを含む push」に絞られる (記録のみ) |
+| deploy 直後 LIVE 送信 | 1 (O-11-05-1 #1347030 = deploy の 12 秒後) | 3 | **到達** | PR #352 §3.2 (a) 改定済 (窓条件に「直近 H1 bar に live-eligible signal なし」)。実害 0 (fresh guard state で捕捉) |
+| 決済後レース (`MARKET_ORDER_REJECT` `TRADE_CLOSE`) | 1 (11-04 #1347030 同秒) | 5 | 到達 (実害 0) | 無害、未決 21 で記録継続 |
+| cloud 報告の盲点 (guard 表を live trail / deploy に紐付けない) | 2 (11-05 70/5/65 を「ノイズ」と読む / 11-06 消失・deploy に言及なし) | 2 | 未達 | 改善候補 = guard 表に `oanda_trade_id` + `engine_import_pid` + 直近 deploy 時刻を併記 (autopilot 起票、記録のみ) |
+
+- 執行 QA 発見 6 (O-11-02-1 / -2 / O-11-04-1 / -2 / O-11-05-1 / O-11-06-1、新 family 2 = DD 台帳 / cloud 盲点) / 卒業 family (エッジ) 0 / S1 起票 0。戦略 LIVE: fill 2 / 決済 2 (#1347030 11-04 +¥106 / #1347071 11-06 +¥271 = **+¥377**)、SVK 11-02〜11-06 15 RT −¥1,180。`STORM_GUARD_ENFORCE=1` 執行 (11-03 05:33Z、10 回目の試行)、kalman live 停止継続、E1 / ECG first look は 11-06 に両方 UNDERPOWERED
+- 次回 rollup = 2026-11-16 (月)
+
 ### O-2026-11-05-1: `STORM_GUARD_ENFORCE=1` 下の初 live trail (carry_dip #1347030) で guard が 70 評価中 65 送信を dead-band で止め、5 送信は単調・DB sl == broker SL (喪失 0) — enforce の実効を初観測 (執行 QA / 制御系)
 - **現象**: 11-04 02:39:44Z carry_dip BUY 1,000u @157.582 (PR #365 Render live 02:39:32Z の **12 秒後**、`engine_import_pid` 60→59 の新プロセス初 tick)。ON_FILL SL 157.405 / TP 158.266 → SL `REPLACEMENT` ×5 (02:52:39 157.592 / 02:55:49 157.656 / 02:56:10 157.666 / 02:56:12 157.678 / 02:57:50 157.689、単調増加、同値再送 0) → 02:58:24Z `STOP_LOSS_ORDER` @157.688 +¥106 (demo +10.2 `SL_HIT`、同秒に engine close の `MARKET_ORDER_REJECT` 1 = レース、無害)。`/api/oanda/status.storm_guard` (11-05 02:02Z): enforce true / evaluated **70** / sent **5** / failed 0 / `skipped.deadband` **65** / `detected.*` 全 0 / breaker 0 / `trades` {} (決済後クリア)。broker `REPLACEMENT` 5 = sent 5、demo 行 20454 `sl` 157.689 == broker 最終 SL、`sl_initial` 157.405 == ON_FILL SL
 - **トリガ日**: 2026-11-04 (建玉) / 計測 2026-11-05 (wiki-daily)
@@ -80,3 +96,28 @@
 - **反証可能な予測**: (a) 次の tools/tests/docs のみの PR merge 後 10 分以内に `engine_import_pid` が +1 され totals が 0 に戻る (`ignoredPaths` 仮説)。(b) 次の live trail は fresh state で broker `REPLACEMENT` と 1:1 (捕捉率 100%、消失の影響は分母のみ)。(c) 永続化 R3 が未決裁のままなら、11-15 までに deploy ≥1 回 ⇒ totals は累積しない (readout の N は「deploy 間の live trail 数」でしか数えられない)
 - **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome 非結合
 - **経路**: 記録のみ → [[storm-guard-design-2026-09-22]] §7.5 追補 1 行 + 未決 19 (永続化) の材料。[[2026-11-06]] 発見 1
+
+---
+
+### O-2026-11-11-1: learner id 101 (11-09 21:23:47Z) が deploy で消えた `entry_type_blacklist` を再反映 — O-2026-11-05-1 予測 (c) 成立、「deploy で消失 → 次の learner 調整で再適用」の 3 周期目 (制御系 / learner)
+- **現象**: 11-06 03:18Z wiki-daily で `current_params.entry_type_blacklist` = `[]` (11-05 02:39Z PR #365 deploy で消失、id 100 11-03 14:22:37Z の反映分)。11-11 05:49Z: `adjustments[0]` = **id 101 / 2026-11-09 21:23:47Z** (`scalp` / `entry_type_blacklist_add` / `sr_channel_reversal: WR 25.0%, EV -0.98 → 除外` / sample_size 190 / win_rate_at 39.5 / ev_at −0.27 = id 100 / 99 と byte 一致、15 回目の同一再発行)、`entry_type_blacklist` = **`["sr_channel_reversal"]`**、`strategy_status[sr_channel_reversal].blacklisted` **true** (100 戦略中 1)。id 100 → 101 の間隔 **6.3 d** (過去 10 / 9 / 1 / 4 / 8 / 6.3 d = 不定)、deploy による消失 → 再適用の空白 **4.8 d** (11-05 02:39Z → 11-09 21:23Z)
+- **トリガ日**: 2026-11-09 (観測 2026-11-11、11-07〜11-10 の wiki-daily 欠落のため空白の上限は 4.8 d として記録)
+- **想定メカニズム**: O-2026-11-04-1 と同じ — learner の blacklist は in-memory のみで deploy ごとに消え、`learn_every_n` 10 到達の次回調整で再発行・再適用される。reason 文字列が現サンプルから再計算されていない点 (sample_size 190 固定) も不変 = 文言を現況統計として引用不可 ([[sr-channel-reversal]] 2026-09-16 節)
+- **規模**: `sr_channel_reversal` の shadow 発火は本窓 audit 182 行中 0 (10-02 以降 0 継続) ⇒ blacklist の有無による live / shadow 実害は 0。意味は「apply path が機能していること」の 3 周期目の確認のみ
+- **family 候補**: learner no-op / in-memory 反映 (累計 7)。隣接 = `render_deploy_trigger` (deploy が消す側)
+- **反証可能な予測**: (a) 次の code / 非 ignoredPaths deploy で再び `[]` に戻る (3 周期目の消失)。(b) 再適用までの空白は `learn_every_n` 10 の到達間隔に一致する (shadow 決済 10 本ごと ⇒ 1 d 以内のはずだが実測 4.8 d / 8h49m と不定 = 調整の発火条件は別にある可能性、記録のみ)。(c) `blacklisted: true` 1/100 は次の deploy で 0/100 に戻る
+- **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome 非結合
+- **経路**: 記録のみ → [[sr-channel-reversal]] 1 行追記、未決 5 更新。[[2026-11-11]]
+
+---
+
+### O-2026-11-11-2: enforce 下の live trail 2 例目 (carry_dip #1347071) で guard 3 評価 / 3 送信 / deadband 0 = broker `REPLACEMENT` 3 と 1:1、DB sl == broker SL (喪失 0、N=2) — および guard 状態が 4.96 d / origin 59 commit を跨いで残存 (再起動 3 回は 11-06 03:18〜06:42Z の窓に集中) (執行 QA / 制御系)
+- **現象**: #1347071 (11-06 06:03:04Z BUY 1,000u @157.767、ON_FILL SL 157.593 / TP 158.443) に SL `REPLACEMENT` ×3 = 06:42:06Z 157.778 (BE+1.1) → 06:45:03Z 158.013 → 06:45:04Z 158.038 (単調、刻み +18.5p / +23.5p / +2.5p = 全て 1.0p dead-band 以上) → 06:52:01Z `STOP_LOSS_ORDER` @158.038 +¥271 (demo +26.8 `SL_HIT`、同秒 engine close `MARKET_ORDER_REJECT` = レース)。11-11 05:49Z `/api/oanda/status.storm_guard`: enforce true / evaluated **3** / sent **3** / failed 0 / skipped 全 0 / detected 全 0 / `trades` {}。broker `REPLACEMENT` 3 = sent 3 = evaluated 3、demo 行 20619 `sl` 158.038 == broker 最終 SL == 約定 order ⇒ 正当な tightening の喪失 0。#1347096 (11-09) は `REPLACEMENT` 0 (MAFE fav 5.6p、writer 未起動 exit 3 例目) で guard 非接触
+- **併記 (状態残存)**: totals 3/3 は 11-06 06:45Z → 11-11 05:49Z の **4.96 d** 残存、`engine_pid` 131 / `engine_import_pid` 63 不変。同期間に origin/main へ 59 commit (`raw/trade-logs/*-monitor.md` / `raw/audits/**` / `data/` rate anchor・mof・G0・ZN=F・`nav_floor_projection.csv`) = **再起動 0** ⇒ O-2026-10-20-2 (docs/data push は再デプロイしない) を支持。一方 `engine_import_pid` 60 → 63 (+3) は 11-06 03:18Z〜06:42Z に集中し、同窓の origin push 3 本 (PR #368 05:06:43Z = `reports/ecg-forward-2026-11-06.md` 含む / hook auto-save bf9b4d6a 05:07:41Z = `raw/trade-logs` + `wiki/analyses` + `wiki/index.md` のみ / PR #369 05:13:39Z = `wiki/research/daily-observations-2026-11.md` 含む) と件数一致。`render.yaml` `ignoredPaths` で説明できるのは #368 (reports/) と #369 (wiki/research/) の 2 本、hook commit (全パス ignoredPaths 内) の 1 本は説明できない (Render deploy ログは MCP 未認証で未取得)
+- **トリガ日**: 2026-11-06 (trail) / 2026-11-06〜11-11 (残存)。観測 2026-11-11
+- **想定メカニズム**: (trail) 11-05 の 70/5/65 (3.7 評価/分、1 pip 未満の刻みを deadband が吸収) と異なり、本例は評価 3 回で全て ≥ 1 pip の刻み = caller が毎 tick 再計算しても new_sl が変わらなければ evaluated に計上されない (11-05 は trail 幅が細かく毎 tick 変化)。(残存) guard 状態は in-memory、消えるのは再起動時のみ = 再起動を起こすのは非 ignoredPaths の push、ただし hook commit 分の 1 回は未説明 (Render 側の deploy 判定が「commit 単位」でなく「push 単位 = 同時に積まれた複数 commit の和集合」なら、05:06〜05:13Z の 3 push が 1〜2 deploy に畳まれるはずで +3 とは逆方向 ⇒ 別要因 = 例えば PR #368 が 2 段 (merge commit + branch) で deploy された可能性、記録のみ)
+- **family 候補**: storm_guard 系 (累計 ≥12、enforce 下 喪失 0 は N=2) + `render_deploy_trigger` (条件の絞り込み材料)
+- **反証可能な予測**: (a) 次の live trail でも sent == broker `REPLACEMENT` かつ DB sl == broker SL (N=3 で O-2026-11-05-1 予測 (a) を閉じる)。(b) 次に `engine_import_pid` が +1 するのは非 ignoredPaths パス (code / tools / tests / reports / wiki/research / wiki/decisions/*.json / data?) を含む push の直後 10 分以内、docs-only push では +0 が続く。(c) 評価回数は trail 刻みの細かさに比例し、deadband skip は「刻み < 1 pip の tick 数」に一致する (次の trail で `evaluated − sent` と Render ログの SKIP 件数を突合)
+- **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome (+¥271 / −¥148) は guard 判定に使わない
+- **経路**: 記録のみ → [[storm-guard-design-2026-09-22]] §7.5 追補 2026-11-11 + [[usdjpy_carry_dip_accumulator]] カード、未決 12 / 19 / 27 の材料。[[2026-11-11]] 戦略 LIVE 節
+
