@@ -6140,6 +6140,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - JPYペアは全体的にRANGINGで、トレンドフォロー系（Daytrade、RnB）が機能しにくい環境
 - USDペアはVOLATILE（ATR71-74%ile）だが、shadow降格とdedup制御がフィルターとして機能
 
+### 2026-11-11 (Post-NY Report)
+| PnL | **+0.0** |
+| WR | **—** (計測不能) |
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **本日合計**: トレード数 0件、PnL ¥0、WR 計測不能
+- **最良セッション**: なし（全セッションノートレード）
+- **最悪セッション**: なし（同上）
+- **最良戦略**: なし
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
