@@ -46,3 +46,12 @@
 
 - `sprint-1022-process-fixed-cost-upsubmit` (11-07) → **resolve** (本稿 = (i) 調査記録 + (ii)(iii) 上程文)。
 - 新規なし (user 返答待ち項目は本稿の「無回答 = …」既定で自走する: (ii) A は次 run、(iii) は起案しない)。
+
+## 執行記録 (2026-11-11 autopilot) — (ii) 案 A は autopilot では適用不可 (権限判定で拒否) → user 適用待ち
+
+- 11-05 上程から 6 日、user 返答なし → 既定 **A (pull-first fail-fast)** を `~/.claude/scheduled-tasks/wiki-daily-update/SKILL.md` に step 0 として追記しようとしたが、**scheduled-task の SKILL.md 編集は自動実行の権限判定 (auto mode classifier) で拒否された** (storm guard enforce env と同じ形。本稿 §(ii) の「執行主体 = Claude (autopilot 可)」は誤りで、**user 操作** に訂正)。適用文面は下記のとおり確定済み — user が SKILL.md の手順 1 の前に貼るだけで A が有効になる:
+
+  > 0. Sync guard — pull-first fail-fast: `git -C /Users/jg-n-012/test/fx-ai-trader fetch origin main` → `git -C /Users/jg-n-012/test/fx-ai-trader pull --ff-only origin main`。fast-forward できない場合 (local main が ahead / 未コミット変更が衝突) は手順 1〜7 を実行せず knowledge-base/ に何も書かずに終了し、出力冒頭 1 行に `ALERT: wiki-daily skipped — local main not fast-forwardable (ahead <N> / behind <M>); user: reset local main to origin/main` (N / M = `git rev-list --left-right --count main...origin/main`) を置く。`reset --hard` / stash / rebase はタスク内で行わない。
+
+- 実測 (11-11): ローカル main は 11-06 の session-end 自動 commit 3 件 ahead / 63 behind (内容は origin 既収録 = 救出不要)。さらに**ホスト復帰で 11-11 05:46Z に wiki-daily / quant-loop / deepdive / phase1b / autopilot が同時発火**し、wiki-daily 11-11 run (06:04Z 完了: trade log + O 2 件 + 11-02〜11-08 週次 rollup + carry_dip / sr-channel-reversal / storm-guard 追記 + index / log) は**座礁 main 上に書かれた** (session-end commit e51a8360 = 4 件目 ahead + 未コミット 10 files) → 救出対象 (10 例目)。wiki-daily は 11-07〜11-10 ローカル run 無し (ホスト可用性、scheduler 記録: 11-06 04:08Z の次が 11-11 05:46Z)。
+- A が適用されても、ローカル main が ahead の間は毎日 ALERT + skip になる (本稿 §(ii) A の欠点欄どおり) — reset は user 専権。(iii) は無回答 = 起案しない。C (クラウド routine 化) は引き続き推奨。

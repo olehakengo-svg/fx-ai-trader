@@ -33,7 +33,7 @@
       "symbol": "USDJPY=X",
       "threshold": 159.5,
       "doc": "knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md",
-      "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — ただし復帰は AND 条件。第2要件 (介入観測 or 当局の 160 防衛言及の再確認) は **MoF 公式開示/当局公式言及 (外部一次情報) のみ**で認定すること。価格シグネチャからの介入日推定は mof-intervention-forward-prereg-2026-07-24 (#4) の凍結識別 rule と同一で 2026 窓 OOS を burn するため禁止。lot 1.0x 復帰は R1 = user 決裁 (KB 記録 + テスト変更 PR 必須)。評価記録: t5-restore-eval-and-carrydip-revival-2026-08-10.md (2026-08-10 時点 執行せず) ⚠️ 2026-08-31 更新 (第2要件の材料、**認定・lot 変更はしていない**): MoF 月次開示 (外部一次情報) で 2026-07-30〜08-26 窓に 15兆3,993億円の平衡操作が確認された。これは 08-28 時点の『直前窓 0円 = 否定側』を覆し、**第2要件『介入観測』の肯定側材料が初めて外部一次情報で得られた**ことを意味する。ただし (a) 月次開示は方向 (円買い/円売り) を開示しない (b) 介入日が特定できないため『160 防衛』の文脈適合を一次情報で確認できない — よって認定は保留。lot 1.0x 復帰は R1 = user 決裁事項であり、autopilot は執行しない。判断材料は knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md §4 に整理済。",
+      "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — ただし復帰は AND 条件。第2要件 (介入観測 or 当局の 160 防衛言及の再確認) は **MoF 公式開示/当局公式言及 (外部一次情報) のみ**で認定すること。価格シグネチャからの介入日推定は mof-intervention-forward-prereg-2026-07-24 (#4) の凍結識別 rule と同一で 2026 窓 OOS を burn するため禁止。lot 1.0x 復帰は R1 = user 決裁 (KB 記録 + テスト変更 PR 必須)。評価記録: t5-restore-eval-and-carrydip-revival-2026-08-10.md (2026-08-10 時点 執行せず) ⚠️ 2026-08-31 更新 (第2要件の材料、**認定・lot 変更はしていない**): MoF 月次開示 (外部一次情報) で 2026-07-30〜08-26 窓に 15兆3,993億円の平衡操作が確認された。これは 08-28 時点の『直前窓 0円 = 否定側』を覆し、**第2要件『介入観測』の肯定側材料が初めて外部一次情報で得られた**ことを意味する。ただし (a) 月次開示は方向 (円買い/円売り) を開示しない (b) 介入日が特定できないため『160 防衛』の文脈適合を一次情報で確認できない — よって認定は保留。lot 1.0x 復帰は R1 = user 決裁事項であり、autopilot は執行しない。判断材料は knowledge-base/wiki/decisions/mof-monthly-total-verdict-2026-08-31.md §4 に整理済。 ⚠️ 2026-11-11 更新 (第2要件の材料、**認定・lot 変更はしていない**): Q3-2026 四半期開示 (公表 11-09) で 07-30 ¥7.98T / 07-31 ¥5.55T / 08-03 ¥1.87T が**全て米ドル売り・円買い**と外部一次情報で確定 — (a) 方向 = 円買い、(b) 介入日の日次 open 160.18 (07-30) / 160.183 (07-31 anchor) = 160 近傍での防衛、が揃い 08-31 時点の保留理由 (a)(b) は両方解消。lot 1.0x 復帰は R1 = user 決裁事項のまま (autopilot は執行しない)。詳細: mof-intervention-forward-prereg-2026-07-24.md §11.6",
       "eval_record": "knowledge-base/wiki/decisions/t5-restore-eval-and-carrydip-revival-2026-08-10.md"
     },
     {
@@ -604,9 +604,11 @@
     },
     {
       "id": "mof-next-episode-reverdict",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-14",
+      "resolved": "2026-11-11",
+      "resolution": "2026-11-11 autopilot (rule:R3 record-only): Q3-2026 四半期開示 (data/quarter/2026_3Q.html、公表 2026-11-09) に新規円買いエピソード D={07-30 ¥7.98T, 07-31 ¥5.55T, 08-03 ¥1.87T} (全て USD 売り/JPY 買い、総額 15兆3,993億 = 月次開示 08-28 と一致) → §5.5 の 1 回限り同一仕様再判定を執行 (tools/mof_forward_reverdict.py、LOCK 値不変、窓 = 月次開示窓 07-30〜08-26 (D 観測 70 日前に KB 記録済)、M=20、S={07-30,07-31,08-07,08-19}): **PARTIAL ×2** — E-A ✅ PASS p=0.0877 (overlap 2/3、ナイフエッジ: overlap−1 で 0.509、X+20% 摂動で |S|=3 → 0.0456、ヒット 2 日は全摂動で不変) / E-C ❌ FAIL per-day median net_h10 +163.6p (予測 負、2/3 正; エピソード初日 anchor 変種は −75.6p で band 内だが判定不使用・事後主張禁止) / E-D 的中 (k=3、最大 ¥7.98T)。再判定枠は消費済み = family #4 クローズ (park 恒久化、Variant B stage-2 不可確定、識別 rule の real-time 検知は 2 エピソード再現)。後継 entry なし (新仮説は新規 pre-reg R1)。詳細: mof-intervention-forward-prereg-2026-07-24.md §11 / raw/bt-results/mof-forward-reverdict-2026-11-11.txt",
       "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
       "message": "MoF family #4 PARTIAL の再判定監視: Q3-2026 四半期日次開示 (予想 ~2026-11-06、mof.go.jp feio/data/quarter/) を確認し、新規の円買いエピソードが開示された場合のみ §10 の 1 回限り同一仕様再判定 (新自由度ゼロ) を実行。エピソードなしなら deadline を翌四半期 (+3ヶ月) に roll して継続。教訓: 予想着地日+8d を deadline に刻む (backstop 頼み禁止)。 ⚠️ 2026-08-31 更新: 月次開示で **2026-07-30〜08-26 窓に 15兆3,993億円** の平衡操作が確認された (単一窓として本プロジェクト保有データ中の最大、2026-05 窓 11兆7,349億円の約1.3倍)。したがって Q3 四半期日次開示 (~2026-11-06) に**新規エピソードが載る公算は高く、本エントリは実質的に load-bearing 化した**。ただし月次総額は日次帰属を与えないため §10 の再判定は依然として四半期開示待ちであり、現時点で look を消費してはならない。方向 (円買い/円売り) も月次開示は非開示。"
     },
@@ -1698,7 +1700,8 @@
       "reachability": "wiki-daily (`/api/risk/dashboard` + `/api/demo/trades`) と autopilot run が読む。Tier A cron (tools/prereg_trigger_watch.py) が deadline 超過で TRIGGERED を出す。",
       "note": {
         "2026-11-04": "deploy 基準時刻 = PR #365 merge 6c46d5e9 02:37:51Z → Render dep-dbl9l097lnhs739fq1f0 live **2026-11-04T02:39:32Z** (`engine_import_pid` 60→59)。deploy 直後の `/api/risk/dashboard` jpy_ledger: eq_peak_jpy ¥359,288.47 / eq_current_jpy ¥323,074.23 / dd 10.08% / lot 0.2 (KV 復元、遡及計上なし) = 以後の差分の起点。open live 0 のため最初の OANDA_SL_TP 決済は次の live fill 以降。",
-        "2026-11-05": "deploy 後初の live 決済 = carry_dip #1347030 (11-04 02:58:24Z)。broker 側 STOP_LOSS_ORDER が先着し engine の close PUT は 404 (tx 1347045) だが DB は engine 経路で `SL_HIT` (exit 157.686、+10.2p) として close → `_book_equity_close` (engine 側呼び出し) で計上: `/api/risk/dashboard` `jpy_ledger.eq_current_jpy` ¥323,074.23 (11-04 02:39Z 基準) → **¥323,176.23** (11-05 02:06Z) = **+¥102.00 = +10.2p × ¥10** (±¥1 内、一致)、dd 10.08% → 10.06%、lot 0.2 不変。`OANDA_SL_TP` 決済は依然 **0 件** → 本 entry の条件前半は未観測、期日 11-20 据え置き (0 件なら +14 日)。broker realized は +¥106 (demo との 0.4p 基準差、台帳は demo 基準 = D-b 設計どおり)。"
+        "2026-11-05": "deploy 後初の live 決済 = carry_dip #1347030 (11-04 02:58:24Z)。broker 側 STOP_LOSS_ORDER が先着し engine の close PUT は 404 (tx 1347045) だが DB は engine 経路で `SL_HIT` (exit 157.686、+10.2p) として close → `_book_equity_close` (engine 側呼び出し) で計上: `/api/risk/dashboard` `jpy_ledger.eq_current_jpy` ¥323,074.23 (11-04 02:39Z 基準) → **¥323,176.23** (11-05 02:06Z) = **+¥102.00 = +10.2p × ¥10** (±¥1 内、一致)、dd 10.08% → 10.06%、lot 0.2 不変。`OANDA_SL_TP` 決済は依然 **0 件** → 本 entry の条件前半は未観測、期日 11-20 据え置き (0 件なら +14 日)。broker realized は +¥106 (demo との 0.4p 基準差、台帳は demo 基準 = D-b 設計どおり)。",
+        "2026-11-11": "deploy 後 live 決済 3 件 (全て carry_dip、DB close_reason は全て `SL_HIT` = engine 経路): #1347030 +10.2p (11-04) / #1347071 +26.8p (11-06 06:52Z) / #1347096 −15.1p (11-09 07:54Z)。`/api/risk/dashboard` `jpy_ledger.eq_current_jpy` ¥323,176.23 (11-05) → **¥323,293.23** (11-11 05:55Z) = **+¥117.00 = (+26.8 − 15.1) × ¥10** (±¥1 内、一致、dd 10.02%、lot 0.2 不変)。`OANDA_SL_TP` 決済は依然 **0 件** → 条件前半は未観測のまま、期日 11-20 据え置き (0 件なら +14 日)。"
       }
     }
   ]
