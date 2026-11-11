@@ -6110,6 +6110,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - **最も成績が悪かったセッション**: 該当なし
 - **Shadow降格（`r2_shadow_demoted_cell`）** がScalp系・1h系の実質的ゲートキーパーとして機能。これは意図通りの防衛動作。
 
+### 2026-11-11 (Pre-Tokyo Briefing)
+2026-11-10（全セッション）は**トレード件数ゼロ**。PnL = ¥0、WR = 算定不可。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **全戦略で N≥10 到達なし** ― 統計的には「データなし」水準。EV+7.30はN=3時点の参考値に過ぎない。
+- Shadow降格セルが解除されるまでScalp系の約定は期待しない前提でポジション計画を立てる
+- `rnb_usdjpy` はno_signal頻度が異常に高い（1日で7,356件）ため、現レジーム下でのシグナル発生確率は極めて低いと見なす
+- Daytrade系の `order_bar_dedup` 連発は同一バー内での多重シグナル生成を示唆 — 実際の約定機会はDT系に絞られる
+| GBP_USD | VOLATILE | 74% | +0.00345 | 1.33448 | ATR最高位・VOLATILE・SMAスロープ明確に正。Scalp向きではない。spread_guard超過に注意 |
+- EUR_USD・GBP_USDがVOLATILE帯（ATR70%ile超）→ Scalp系にはspread摩擦が重くなる環境
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
