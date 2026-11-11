@@ -6120,6 +6120,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 | GBP_USD | VOLATILE | 74% | +0.00345 | 1.33448 | ATR最高位・VOLATILE・SMAスロープ明確に正。Scalp向きではない。spread_guard超過に注意 |
 - EUR_USD・GBP_USDがVOLATILE帯（ATR70%ile超）→ Scalp系にはspread摩擦が重くなる環境
 
+### 2026-11-11 (Post-Tokyo Report)
+| PnL | **±0** |
+| WR | **N/A** |
+- **Scalp系の完全封鎖**: `r2_shadow_demoted_cell` がscalp全系統（scalp / scalp_eur / scalp_5m / scalp_5m_gbp / scalp_5m_eur）を合計**10,691件**でブロック。これはR2降格セルが発注経路の上流で機能しており、東京時間の全scalp候補が「降格済みセル」に該当したことを意味する。
+- **Daytrade系の重複抑制**: `order_bar_dedup` がdaytrade_eurgbp(1,559)・daytrade_eur(1,065)・daytrade_gbpjpy(691)等を連続ブロック。同一バーでの重複発注抑制が継続作動。
+- **rnb_usdjpy**: `no_signal` 7,661件は正常動作の範囲（レンジ相場での非発動は設計通り）。
+- 東京セッションN=0のため統計的判断の基盤がない
+- `r2_shadow_demoted_cell` によるブロックはシャドウ評価のリスク管理機能が正常作動している証拠であり、この段階での閾値緩和は望ましくない
+- `order_bar_dedup` は重複発注防止の安全装置。解除判断にはN≥30のデータが必要
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
