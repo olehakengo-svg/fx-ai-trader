@@ -6180,6 +6180,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - **OANDA転送率 0%**（50件全SKIP）— 本番への実損は発生しないが、shadow全量がLIVE不到達の構造が継続中
 - `r2_shadow_demoted_cell` によるscalp系の全面遮断が解除されない限り、NYセッションもトレードゼロが継続する可能性が高い
 
+### 2026-11-12 (Post-NY Report)
+| PnL | **+0.0 pips** |
+| WR | **—** |
+- `scalp` / `scalp_eur` / `scalp_5m_gbp` 系が `r2_shadow_demoted_cell` によって大量ブロック（累積834件 / 752件 / 531件）されており、GBP_USDおよびEUR_USDが VOLATILE レジームにある中でscalpシグナルが抑制され続けている状態。
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **PnL**: ±0.0（戦略トレードゼロ）
+- **トレード数**: 0
+- **WR**: 計測不能
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
