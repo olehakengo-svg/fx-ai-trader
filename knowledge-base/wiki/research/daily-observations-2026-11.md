@@ -121,3 +121,16 @@
 - **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome (+¥271 / −¥148) は guard 判定に使わない
 - **経路**: 記録のみ → [[storm-guard-design-2026-09-22]] §7.5 追補 2026-11-11 + [[usdjpy_carry_dip_accumulator]] カード、未決 12 / 19 / 27 の材料。[[2026-11-11]] 戦略 LIVE 節
 
+
+---
+
+### O-2026-11-12-1: `storm_guard` totals (enforce 下 live trail 2 例目の 3/3) と learner `entry_type_blacklist` が同時に消失 = 再起動 ≈11-11 09:58Z、状態消失 9 例目 — ただし `engine_import_pid` 63 不変 (pid は再起動検知器にならない)、トリガ push は未帰属 (執行 QA / 制御系)
+- **現象**: 11-11 05:49Z `storm_guard.totals` evaluated 3 / sent 3 (`trades` {} は決済後クリア済) + `current_params.entry_type_blacklist` `["sr_channel_reversal"]`。11-12 01:22Z: totals **全 0**、blacklist **`[]`**、`strategy_status.blacklisted` 0/100、`price_shock_rev_auto_demotions.refreshed_at` 11-06T05:08:27Z → **11-11T09:58:34Z** (5.2 d ぶりの更新 = 起動マーカー)、`engine_pid` 131 → 130、`main_loop_restarts` 1 不変、`engine_import_pid` **63 不変**。cloud pre_tokyo 11-11 (commit 13:55Z) / post_ny 11-11 (22:23Z) の guard 表は 0/0/0「guard 登録建玉なし」(消失・再起動への言及なし)
+- **トリガ日**: 2026-11-11 (≈09:58Z、観測 2026-11-12 01:22Z)
+- **想定メカニズム**: in-memory 状態 2 系統 (guard totals / learner blacklist) の同時消失 + 起動マーカー更新 ⇒ プロセス再起動。本窓で origin/main に入った非 `ignoredPaths` push は **PR #370 (06:30:39Z merge、`tools/mof_forward_reverdict.py` + `tests/` ×2)** のみ = O-2026-11-11-2 予測 (b) の方向と整合するが、merge → マーカー **3h28m** は Render auto-deploy (2〜5 分) で説明できず、audit 行にも 09:58Z 前後の空白なし (空白は 04:47→06:01Z 1.23 h / 18:19→20:47Z 2.46 h のみ)。候補 3 択: (i) PR #370 の deploy がキュー遅延、(ii) Render 側の再起動 (health / maintenance、push 非依存)、(iii) マーカーが起動以外でも更新される (ttl 600 s だが 5.2 d 静止していたため可能性低)。`engine_import_pid` 不変はコンテナ再作成時の決定論的 pid (同じ起動順 ⇒ 同じ pid) で説明可能 = **10-06 の「pid 130 不変のまま全消失」と同型** ⇒ 再起動検知は guard totals / blacklist / `refreshed_at` の 3 点で行い、pid 差分を否定根拠に使わない
+- **規模**: 消失した material (3/3、喪失 0、N=2) は [[2026-11-11]] / [[storm-guard-design-2026-09-22]] §7.5 追補 2026-11-11 に記録済 ⇒ **情報喪失 0**。enforce / config は env 復元で機能継続。blacklist 消失の実害 0 (`sr_channel_reversal` shadow 発火 10-02 以降 0)。状態消失 累計 9 例 (10-06 / 10-07 / 10-13 / 10-20 / 10-29 / 11-03〜04 / 11-05 / 本例 + 1)
+- **併記 (記録のみ、outcome 非結合)**: 本窓 live-eligible 11 = 全て `agg_kelly=-0.231<0` blocked (`xs_momentum_rsi` USD_JPY BUY ×10 12:03〜17:46Z + `doji_breakout` GBP_USD ×1)。blocked 10 本の shadow 双子は **10 本全決済 +42.6** (12:03〜14:16Z の 4 本 `TP_HIT` +12.4 / +15.2 / +15.2 / +14.0、以後 `SL_HIT` −8.8 / +9.2 / −8.9 / +0.8 / −8.7、`SIGNAL_REVERSE` +2.2) = USD_JPY +115p 上昇日の順張り。gate の outcome 判定・α 消費には使わない (`agg_kelly` gate の設計は portfolio Kelly、単日 shadow で評価しない)
+- **family 候補**: storm_guard 系 状態消失 (累計 9) + learner in-memory 反映 (累計 8) + `render_deploy_trigger` (帰属未確定のため条件絞り込みには使えない、反例候補として保持)
+- **反証可能な予測**: (a) 次の wiki-daily で SVK RT 0 (target 到達後の停止) かつ guard totals 0 / blacklist `[]` のまま (再起動がなければ不変)。(b) 次の learner 調整 (id 102) で blacklist が再反映される (5 周期目、空白は `learn_every_n` 10 到達に依存)。(c) 次の状態消失時に `refreshed_at` の更新時刻 ± 10 分以内に origin/main の非 ignoredPaths push が存在しなければ (ii) Render 側再起動説を採用、存在すれば (i) に戻す
+- **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome 非結合
+- **経路**: 記録のみ → [[storm-guard-design-2026-09-22]] 追補 2026-11-12 + [[usdjpy_carry_dip_accumulator]] / [[sr-channel-reversal]] カード 1 節、未決 5 / 12 / 19 / 33 / 34 の材料。[[2026-11-12]] guard 節
