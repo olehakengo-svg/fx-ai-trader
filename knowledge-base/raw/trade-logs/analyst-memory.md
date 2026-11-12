@@ -6170,6 +6170,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 **NO ACTION推奨**
 推奨根拠（複合）：
 
+### 2026-11-12 (Post-London Report)
+| PnL | **¥0** |
+| 勝率 (WR) | **N/A** |
+| PnL | ¥0 | ¥0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**NO ACTION推奨。**
+- **OANDA転送率 0%**（50件全SKIP）— 本番への実損は発生しないが、shadow全量がLIVE不到達の構造が継続中
+- `r2_shadow_demoted_cell` によるscalp系の全面遮断が解除されない限り、NYセッションもトレードゼロが継続する可能性が高い
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
