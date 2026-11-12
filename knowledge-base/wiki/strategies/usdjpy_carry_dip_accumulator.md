@@ -512,3 +512,10 @@ Kalman D7 / vix_carry / ZZ v60 と同系の意図的例外。**LIVE flip は別�
 - risk 30d (窓 10-12〜): `strategy_kelly` half **0.1241 (n 10、edge 0.2824)** / DSR 0.5264 n.s. (窓ロールで 11-05 の 0.1888 / n 11 から低下、サイズ根拠にしない)。alpha scan 11-11 (origin) 33 / +5.50 / PF 1.91 首位不変。`strategy_status` promoted / promo_n 33 / promo_ev 5.5
 - SVK 11 月 24 RT −¥1,910、NAV ¥271,841.16 (−¥607.00 = +123 −730、残差 0)、実 DD −24.30%
 - 詳細 [[2026-11-11]] 戦略 LIVE 節
+
+## ⚪🔴 2026-11-12 更新 (wiki-daily 01:22Z、11-11T05:49Z〜11-12T01:22Z = 0.81 d): **LIVE fill 0 / 決済 0 (N 33 / +181.6 / EV +5.50 / WR 54.5% / broker +¥1,624 不変)、candidate 0 — guard 状態消失 9 例目**
+- **執行 QA**: audit 66 行に `daytrade_1h` × USD_JPY の候補行 0。USD_JPY は 11-11 05:48Z 158.785 → 17:17Z 159.93 (+115p、London/NY) → 11-12 01:01Z 159.64 の上昇日で dip 条件不在 (記述のみ、parquet 5.9 d stale で RSI / VWAP 未取得)。open live 0 は 11-09 07:54:47Z から 2.73 d
+- 🔴 **guard 状態消失 9 例目**: #1347071 の readout material (evaluated 3 / sent 3 / deadband 0、enforce 下 2 例目) が 01:22Z に **全 0 / `trades` {}**。同時に learner blacklist も消失 ⇒ 再起動 ≈11-11 09:58Z (`refreshed_at` 09:58:34Z、`engine_pid` 131→130、`engine_import_pid` 63 **不変**)。候補 push は PR #370 (06:30:39Z、tools/tests) のみで 3h28m 遅延 = 帰属未確定 (O-2026-11-12-1)。material は 11-11 に本カード / [[storm-guard-design-2026-09-22]] §7.5 追補に記録済 = **喪失 0**。喪失 0 の N は 2 のまま (本窓 live trail 0)
+- risk 30d: n 13 / `strategy_kelly` half 0.1241 (n 10、edge 0.2824) / DSR 0.5264 n.s. — 窓ロール 10-12T23:54 で出入 0、11-11 と bit-identical。`strategy_status` promo_n 33 / promo_ev 5.5 不変
+- SVK 11 月 26 RT −¥2,070 (11-12 00:02Z / 01:02Z 各 −¥80、`volume_usd` 520,000 = target 到達 → 以後 RT 停止見込み)、NAV ¥271,681.16 (−¥160.00、残差 0)、実 DD −24.35%
+- 詳細 [[2026-11-12]] 戦略 LIVE 節 / guard 節

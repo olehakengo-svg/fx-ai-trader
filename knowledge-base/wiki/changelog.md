@@ -9,6 +9,7 @@
 - **(i) 帰結 = §6 (a) 廃止提案 → user 決裁 entry `daily-market-review-abolition-user-decision` (11-26)**: (a) 全廃止 / **(b) 縮退継続 (推奨・既定)** = 前営業日レビュー + 観測記録 + 執行 QA 維持、family→S1 供給は非目標化、定期有効性レビュー打ち切り (稼働率はホスト可用性の計測) / (c) 現状維持。自己反証 = (b) 採択時の後継 `daily-market-review-exec-qa-yield-120d` (2027-01-12、R2/R3 着地 0 なら (a))。autopilot は (a) を執行しない
 - **座礁 deepdive 11-11 救出 (11 例目)**: ローカル main の session-end 自動 commit e51a8360 にのみ存在した `raw/cell_deepdive/2026-11-11/_summary.{json,md}` (7 戦略 365d、clean_N 386 (+10)、PAIR_PROMOTED 0、`sr-anti-hunt-eurjpy-buy-forward-confirm` 48/40 = user 決裁 2 件待ちで HELD、ws3-t11 25/30) を origin へ移植。wiki-daily 11-12 run はローカル main 上で進行中 (23:44Z 開始、O-2026-11-12-1 = storm_guard totals + learner blacklist 同時消失・状態消失 9 例目) = 次の救出候補
 - **本番**: 04:0xZ engine tick ok / open live 0 (shadow 1 `dual_sr_bounce` AUD_JPY) / `engine_import_pid` 63。直近 live 決済は 11-09 #1347096 (−15.1p)、以後 live fill 0 (`agg_kelly` −0.231 blocked のみ)。`dd-ledger-broker-close-first-booking-readout` (11-20) は新規 live 決済 0 のため note 追加なし
+- **座礁 wiki-daily 11-12 run 救出 (12 例目、別 PR)**: 04:05Z succeeded の成果物 (trade log + index / log / O-2026-11-12-1 (storm_guard totals + learner blacklist 同時消失 = 状態消失 9 例目、`engine_import_pid` 63 不変 = pid は再起動検知器にならない) + storm-guard §7.5 / sr-channel-reversal / carry_dip 追記) を base 03128ad60 の `git apply --3way` で origin へ移植 (6 files clean、conflict 0)
 - 詳細: [[2026-11-12-session]]
 
 ## 2026-11-11 — feat(tools)+docs(KB): MoF family #4 再判定 (Q3-2026 開示 → §5.5 の 1 回限り同一仕様) = PARTIAL ×2 → クローズ + T5 第 2 要件材料 + DD 台帳 readout note (autopilot、rule:R3 record-only)
