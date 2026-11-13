@@ -68,6 +68,13 @@
 
 ---
 
+### 2.5 追補 2026-11-13 — 計数器の tools 化と陽性対照 (autopilot、rule:R3)
+- 読み手 `tools/pr_round_stats.py` (`--since 2026-09-18 --until 2026-10-21 --pr-min 280 --pr-max 341`) で本節を再集計 ([[2026-11-13-session]] Phase 4、`raw/analysis/pr-round-stats-sprint0922-control-2026-11-13.json`):
+  - **inline P1 75 / P2 271 / P3 5 / 全件 530 = §2.2 と完全一致** (P1 > 0 の 17 本・件数も同一)。
+  - **巡目は全 PR で −1** (#287 19 → 18 / #299 16 → 15 / #310 14 → 13)。原因 = connector の進捗サマリ本文に boilerplate「Comment "@codex review" or "@codex security review"」が含まれ、手集計はこれを 1 件に数えていた (PR #287: 該当 comment 19 = user 18 + bot 1)。§2.1 の字義 (起票時の自動レビューは含まない) では tool の値が正 ⇒ **本節の巡目は +1 過大** (code 中央値 7 → 6 相当)。§2.2 の判定「8.5 から下がった ⇒ 上限 ≤6 据え置き」は不変 (より低下側)。
+  - **code / docs = 47 / 15** (本節 31 / 31)。§2.1 の字義「非 .md / 非 KB を含むものは code」を機械適用すると docs 接頭辞 37 本中 **22 本** (うち 17 本は `prereg-trigger-registry.json` を含む = render.yaml が意図的に deploy させる load-bearing JSON) が code 側。手集計は 6 本しか移していなかった。字義どおりの code 巡目中央値は **4 (n=47)**。
+- 規律: **sprint-1022 終了レビュー (11-21) は両窓とも tool で集計し、本節の手集計値とは混在させない**。「registry JSON のみを含む docs PR」を第 3 クラスに切るかは 11-21 で判断 (本追補では定義を変えない)。tool は connector の到達率 (summary Completed / PR) を出さないため、P1/P2 件数の減少を「指摘減」と読む前に到達率を併記すること。
+
 ## 3. market-safe 窓 (SPRINT §3.2) の実績
 
 | 日付 | PR | open live at merge | 判定 |

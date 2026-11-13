@@ -1,0 +1,1010 @@
+{
+ "since": "2026-09-18",
+ "until": "2026-10-21",
+ "cap": 6,
+ "definition": "sprint-0922-close-review-2026-10-21 §2.1",
+ "records": [
+  {
+   "number": 280,
+   "title": "docs(decisions): 30 日スプリント triage + PR 規律 — user 決裁「推奨で任せる・ペースアップ」の執行枠 (rule:R3)",
+   "merged_at": "2026-09-22T09:10:08Z",
+   "kind": "docs",
+   "n_files": 1,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 281,
+   "title": "docs(wg): weekend_gap card に 09-13/09-20 イベント転記 + 執行モダリティ R1 再審骨子 DRAFT (rule:R3)",
+   "merged_at": "2026-09-22T14:15:58Z",
+   "kind": "docs",
+   "n_files": 2,
+   "rounds": 6,
+   "inline": {
+    "P1": 0,
+    "P2": 12,
+    "P3": 0,
+    "total": 14
+   }
+  },
+  {
+   "number": 282,
+   "title": "docs(carry_dip): broker 突合 14/14 + カード L3 訂正 (agg_kelly 誤帰属 / 08-14 起点) (rule:R3)",
+   "merged_at": "2026-09-22T10:11:22Z",
+   "kind": "docs",
+   "n_files": 2,
+   "rounds": 5,
+   "inline": {
+    "P1": 0,
+    "P2": 5,
+    "P3": 0,
+    "total": 5
+   }
+  },
+  {
+   "number": 283,
+   "title": "docs(rnb): shadow レーン lane-health 事前調査 — 配線 3 仮説反証・真因は下流 live 保護 gate (rule:R3)",
+   "merged_at": "2026-09-22T14:16:02Z",
+   "kind": "docs",
+   "n_files": 1,
+   "rounds": 5,
+   "inline": {
+    "P1": 1,
+    "P2": 10,
+    "P3": 0,
+    "total": 12
+   }
+  },
+  {
+   "number": 284,
+   "title": "docs(research): 臨時スキャン #29 S1 step 0 — license-free dense 凍結 stance モデルの候補同定 (rule:R3)",
+   "merged_at": "2026-09-22T14:17:04Z",
+   "kind": "docs",
+   "n_files": 1,
+   "rounds": 6,
+   "inline": {
+    "P1": 0,
+    "P2": 13,
+    "P3": 0,
+    "total": 14
+   }
+  },
+  {
+   "number": 285,
+   "title": "fix(nav_floor): F4 資金時計 burn を decomposed (keeper 確定分 + edge 30d) に分解、fit は参考列へ + registry 更新 (rule:R3)",
+   "merged_at": "2026-09-22T14:29:53Z",
+   "kind": "code",
+   "n_files": 6,
+   "rounds": 7,
+   "inline": {
+    "P1": 0,
+    "P2": 6,
+    "P3": 0,
+    "total": 6
+   }
+  },
+  {
+   "number": 286,
+   "title": "feat(e1): 凍結 export tool + first look 手順書 — §2.5-6「1 回だけ + sha256」の機械担保 (rule:R3)",
+   "merged_at": "2026-09-22T14:16:56Z",
+   "kind": "code",
+   "n_files": 5,
+   "rounds": 8,
+   "inline": {
+    "P1": 9,
+    "P2": 9,
+    "P3": 0,
+    "total": 36
+   }
+  },
+  {
+   "number": 287,
+   "title": "fix(oanda_bridge): SL replacement storm guard 4 点 — 既定は検知のみ、STORM_GUARD_ENFORCE=1 で有効 (rule:R3)",
+   "merged_at": "2026-09-22T14:17:00Z",
+   "kind": "code",
+   "n_files": 3,
+   "rounds": 18,
+   "inline": {
+    "P1": 18,
+    "P2": 8,
+    "P3": 0,
+    "total": 26
+   }
+  },
+  {
+   "number": 288,
+   "title": "docs(KB): スプリント 0922 終結 — registry 統合 (繰延 9 / 更新 9 / 新規 5) + index/changelog/session 同期 (rule:R3)",
+   "merged_at": "2026-09-22T16:15:09Z",
+   "kind": "code",
+   "n_files": 10,
+   "rounds": 8,
+   "inline": {
+    "P1": 0,
+    "P2": 15,
+    "P3": 1,
+    "total": 16
+   }
+  },
+  {
+   "number": 289,
+   "title": "docs(wg): R1 再審 DRAFT に pre-send guard 未到達の分類規則 + 候補 2d 送信適格化を追記 — PR #281 P2 2 件消化 (rule:R3)",
+   "merged_at": "2026-09-22T21:03:16Z",
+   "kind": "code",
+   "n_files": 5,
+   "rounds": 7,
+   "inline": {
+    "P1": 2,
+    "P2": 7,
+    "P3": 0,
+    "total": 19
+   }
+  },
+  {
+   "number": 290,
+   "title": "fix(engine): rnb_usdjpy (shadow_only) 限定で下流 live 保護 gate 3 つを shadow 化 — shadow レーン行ゼロの真因修理 + LOCK amendment 事前宣言 (rule:R3)",
+   "merged_at": "2026-09-22T20:04:54Z",
+   "kind": "code",
+   "n_files": 8,
+   "rounds": 2,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 291,
+   "title": "docs(registry): rnb relax の修理デプロイ完了時刻 2026-09-22T20:06:42Z を LOCK amendment に追記 + deploy-stamp entry resolved (rule:R3)",
+   "merged_at": "2026-09-22T20:12:42Z",
+   "kind": "code",
+   "n_files": 4,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 292,
+   "title": "docs(decisions): UD1 結果 = GOLD (user 画面確認 2026-09-23) を registry / 決裁パケットに記録 (rule:R3)",
+   "merged_at": "2026-09-23T01:43:22Z",
+   "kind": "code",
+   "n_files": 5,
+   "rounds": 3,
+   "inline": {
+    "P1": 0,
+    "P2": 2,
+    "P3": 0,
+    "total": 4
+   }
+  },
+  {
+   "number": 293,
+   "title": "fix(engine): 送信前拒否・shadow 化の観測性 5 件を修復 — weekend_gap_fade / 共有 _tick_entry 経路 (rule:R3)",
+   "merged_at": "2026-09-23T02:47:22Z",
+   "kind": "code",
+   "n_files": 8,
+   "rounds": 4,
+   "inline": {
+    "P1": 0,
+    "P2": 3,
+    "P3": 0,
+    "total": 7
+   }
+  },
+  {
+   "number": 294,
+   "title": "fix(engine): WAIT tick が count ゲートの block 帰属を汚染していた — 計数器契約バグ 3 例目 (rule:R3)",
+   "merged_at": "2026-09-23T02:16:41Z",
+   "kind": "code",
+   "n_files": 9,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 295,
+   "title": "fix(nav_floor): F4 資金時計の edge 残差から入出金 (OANDA TRANSFER_FUNDS) を差し引く (rule:R3)",
+   "merged_at": "2026-09-23T05:27:15Z",
+   "kind": "code",
+   "n_files": 14,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 1
+   }
+  },
+  {
+   "number": 296,
+   "title": "fix(engine): 二重エンジン (gunicorn master+worker) のプロセス帰属計装 + dup 率/LIVE 二重送信の実測 (rule:R3)",
+   "merged_at": "2026-09-24T04:42:03Z",
+   "kind": "code",
+   "n_files": 10,
+   "rounds": 1,
+   "inline": {
+    "P1": 1,
+    "P2": 0,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 297,
+   "title": "fix(render): data/monitoring/** を ignoredPaths へ — 日報 commit が本番を 1 日 4 回再デプロイしていた (rule:R3)",
+   "merged_at": "2026-09-25T02:22:14Z",
+   "kind": "code",
+   "n_files": 7,
+   "rounds": 7,
+   "inline": {
+    "P1": 0,
+    "P2": 10,
+    "P3": 0,
+    "total": 20
+   }
+  },
+  {
+   "number": 298,
+   "title": "docs(decision): user 決裁 2026-09-24 — OANDA 固定 / 資金は必要時追加 / 優先はエッジ見極め (rule:R3 記録のみ)",
+   "merged_at": "2026-09-24T08:36:36Z",
+   "kind": "code",
+   "n_files": 5,
+   "rounds": 7,
+   "inline": {
+    "P1": 0,
+    "P2": 8,
+    "P3": 0,
+    "total": 8
+   }
+  },
+  {
+   "number": 299,
+   "title": "docs(KB): 座礁した 09-24 wiki-daily 成果を救済 — trade-log / index / log / kalman LIVE fill #2・#3 節 (rule:R3 記録のみ)",
+   "merged_at": "2026-09-25T03:44:16Z",
+   "kind": "code",
+   "n_files": 8,
+   "rounds": 15,
+   "inline": {
+    "P1": 12,
+    "P2": 21,
+    "P3": 0,
+    "total": 67
+   }
+  },
+  {
+   "number": 300,
+   "title": "feat(engine): entry 時 SL/TP 構築の分岐を fill 行に永続 — [SLTP_CONSTRUCT] / [BROKER_TP] marker + 読み手 (rule:R3 record-only)",
+   "merged_at": "2026-09-26T09:54:45Z",
+   "kind": "code",
+   "n_files": 11,
+   "rounds": 7,
+   "inline": {
+    "P1": 0,
+    "P2": 6,
+    "P3": 1,
+    "total": 14
+   }
+  },
+  {
+   "number": 301,
+   "title": "docs(KB): 座礁した 09-25 wiki-daily 成果を救済 — trade-log / index System State / log / carry_dip fill #15・#16 (rule:R3 記録のみ)",
+   "merged_at": "2026-09-26T09:57:48Z",
+   "kind": "docs",
+   "n_files": 4,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 302,
+   "title": "research(bt): kalman_d7 live 制約付き BT (C0〜C6) Python port — harness 未検証 + 宣言 TP 5×ATR は canon exit ではない (rule:R3 診断のみ)",
+   "merged_at": "2026-09-27T05:27:54Z",
+   "kind": "code",
+   "n_files": 13,
+   "rounds": 7,
+   "inline": {
+    "P1": 4,
+    "P2": 15,
+    "P3": 1,
+    "total": 37
+   }
+  },
+  {
+   "number": 303,
+   "title": "docs(KB): PR #302 マージ記録 + Codex P2 繰延 2 件を registry に登録、roadmap T9 行に制約付き BT 所見 (rule:R3 記録のみ)",
+   "merged_at": "2026-09-27T05:31:17Z",
+   "kind": "code",
+   "n_files": 6,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 304,
+   "title": "docs(wg): G0' event #2 (09-27) = ABANDONED_DRIFT → 2 連続不成立で packet §6 発動、執行モダリティ R1 再審 packet v1 起案 (user 決裁 W1〜W6) + carry_dip [SLTP_CONSTRUCT] 初 fill 実測 (rule:R3)",
+   "merged_at": "2026-09-28T03:00:52Z",
+   "kind": "code",
+   "n_files": 10,
+   "rounds": 6,
+   "inline": {
+    "P1": 8,
+    "P2": 7,
+    "P3": 0,
+    "total": 15
+   }
+  },
+  {
+   "number": 305,
+   "title": "fix(bt): kalman_d7 制約付き BT — PR #302 繰延 P2 ×2 消化: C5 境界 bar (> → >=) + MFE/MAE を bar 内 exit 点で打ち切り (rule:R3、診断ツールのみ)",
+   "merged_at": "2026-09-28T02:37:43Z",
+   "kind": "code",
+   "n_files": 8,
+   "rounds": 3,
+   "inline": {
+    "P1": 0,
+    "P2": 2,
+    "P3": 1,
+    "total": 3
+   }
+  },
+  {
+   "number": 306,
+   "title": "docs(registry): ps-carveout-regate-post-172 stale レビュー — N=6<10 で EV 判定保留・10-30 roll (rule:R3)",
+   "merged_at": "2026-10-01T02:47:58Z",
+   "kind": "code",
+   "n_files": 5,
+   "rounds": 5,
+   "inline": {
+    "P1": 1,
+    "P2": 6,
+    "P3": 0,
+    "total": 11
+   }
+  },
+  {
+   "number": 307,
+   "title": "docs(KB): registry 期日 readout 3 件 — 二重エンジン p_f=0.625 / ps carve-out N=7 roll / wg G1 roll",
+   "merged_at": "2026-09-30T04:40:22Z",
+   "kind": "code",
+   "n_files": 3,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 2,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 308,
+   "title": "fix(engine): 取引エンジンを fork された worker でだけ起動 — 二重エンジン単一化 (rule:R3)",
+   "merged_at": "2026-10-04T06:01:45Z",
+   "kind": "code",
+   "n_files": 9,
+   "rounds": 5,
+   "inline": {
+    "P1": 1,
+    "P2": 1,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 309,
+   "title": "fix(e23): PR #257 review backlog 7 件を消化 + park 根拠の estimand 監査 (rule:R3)",
+   "merged_at": "2026-10-01T04:44:09Z",
+   "kind": "code",
+   "n_files": 14,
+   "rounds": 5,
+   "inline": {
+    "P1": 0,
+    "P2": 5,
+    "P3": 0,
+    "total": 11
+   }
+  },
+  {
+   "number": 310,
+   "title": "fix(analysis): PR #253 review backlog 5 件消化 — shadow exit regime break の estimand 修正 + 「市場機会は劣化していない」撤回 (rule:R3)",
+   "merged_at": "2026-10-01T06:01:53Z",
+   "kind": "code",
+   "n_files": 7,
+   "rounds": 13,
+   "inline": {
+    "P1": 6,
+    "P2": 12,
+    "P3": 0,
+    "total": 27
+   }
+  },
+  {
+   "number": 311,
+   "title": "docs(registry): review-backlog-253-257-digest resolve + #310 残 P2 繰延 + autopilot 10-01 記録 (rule:R3)",
+   "merged_at": "2026-10-01T06:14:51Z",
+   "kind": "code",
+   "n_files": 4,
+   "rounds": 2,
+   "inline": {
+    "P1": 0,
+    "P2": 2,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 312,
+   "title": "docs(KB): ローカル main 座礁分 (09-30〜10-03 wiki-daily 出力 13 commit + 未コミット差分) の救済 (rule:R3 記録のみ)",
+   "merged_at": "2026-10-04T05:51:21Z",
+   "kind": "code",
+   "n_files": 12,
+   "rounds": 0,
+   "inline": {
+    "P1": 2,
+    "P2": 0,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 313,
+   "title": "docs(KB): 単一エンジン化 deploy 実測 (dep-db0unirtqb8s738pta40 live 06:03:40Z) — 検証 (i)(ii) ✅、(iii)(iv) は市場再開後 (rule:R3 記録のみ)",
+   "merged_at": "2026-10-04T06:08:22Z",
+   "kind": "code",
+   "n_files": 4,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 314,
+   "title": "fix(review): 繰延 P2 5 件消化 (E1 凍結 export 台帳 head / storm guard 送信直前 breaker 再検知 / packet pair 別導出) + GDELT rollback + 10-06 期日 readout 5 件 (rule:R3)",
+   "merged_at": "2026-10-05T04:16:13Z",
+   "kind": "code",
+   "n_files": 20,
+   "rounds": 7,
+   "inline": {
+    "P1": 0,
+    "P2": 10,
+    "P3": 0,
+    "total": 18
+   }
+  },
+  {
+   "number": 315,
+   "title": "docs(KB): ローカル main 座礁分 (10-04〜10-06 auto-save 3 commit + 未コミット 1 行) の救済 (rule:R3 記録のみ)",
+   "merged_at": "2026-10-06T02:54:33Z",
+   "kind": "docs",
+   "n_files": 10,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 2,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 316,
+   "title": "feat(e1): first look 凍結準備で MASSIVE M15 の窓内 vendor 欠落 1,125 本を検出 → OANDA mid 補填の複製 tool + 手順書 §3 改訂 (rule:R3)",
+   "merged_at": "2026-10-06T03:25:31Z",
+   "kind": "code",
+   "n_files": 8,
+   "rounds": 3,
+   "inline": {
+    "P1": 0,
+    "P2": 3,
+    "P3": 0,
+    "total": 6
+   }
+  },
+  {
+   "number": 317,
+   "title": "docs(KB): 統合決裁パケット D1〜D12 確定版 v1.0 + kalman live exit disposition packet + registry 期日 readout 3 件 (rule:R3、autopilot 2026-10-07)",
+   "merged_at": "2026-10-07T03:18:06Z",
+   "kind": "code",
+   "n_files": 12,
+   "rounds": 6,
+   "inline": {
+    "P1": 0,
+    "P2": 12,
+    "P3": 0,
+    "total": 23
+   }
+  },
+  {
+   "number": 318,
+   "title": "docs(registry+packet): PR #317 最終 HEAD の Codex P2 2 件を消化 (D11 読み手分離 / D7 fallback 統一)、review-backlog-317 resolved (autopilot 2026-10-08)",
+   "merged_at": "2026-10-08T05:14:40Z",
+   "kind": "code",
+   "n_files": 6,
+   "rounds": 6,
+   "inline": {
+    "P1": 0,
+    "P2": 6,
+    "P3": 0,
+    "total": 6
+   }
+  },
+  {
+   "number": 319,
+   "title": "fix(engine): price_shock_rev live watchdog の DEMOTE を取引プロセス内で評価 + /api/demo/trades ページング (registry ps-watchdog-demotion-state-unreachable、rule:R3)",
+   "merged_at": "2026-10-08T05:47:11Z",
+   "kind": "code",
+   "n_files": 11,
+   "rounds": 5,
+   "inline": {
+    "P1": 6,
+    "P2": 0,
+    "P3": 0,
+    "total": 6
+   }
+  },
+  {
+   "number": 320,
+   "title": "docs(registry): ps-watchdog-demotion-state-unreachable resolved (PR #319 deploy 後の本番確認) + session log 2026-10-08 Phase 4",
+   "merged_at": "2026-10-08T05:50:20Z",
+   "kind": "code",
+   "n_files": 3,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 321,
+   "title": "docs(E1+registry): E1 first look 凍結 export 実行 (1 回・roundtrip OK・verify OK) + rnb checkpoint-2 通過 resolve (rule:R3、autopilot 2026-10-09)",
+   "merged_at": "2026-10-09T04:41:45Z",
+   "kind": "code",
+   "n_files": 13,
+   "rounds": 0,
+   "inline": {
+    "P1": 1,
+    "P2": 1,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 322,
+   "title": "docs(KB): query 2026-10-09 — cross-asset×TradingView エッジ化の KB 回答 (台帳 70 行 + 反証 2 パス、rule:R3)",
+   "merged_at": "2026-10-09T09:14:12Z",
+   "kind": "docs",
+   "n_files": 2,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 3,
+    "P3": 0,
+    "total": 3
+   }
+  },
+  {
+   "number": 323,
+   "title": "docs(E1+registry): E1 first look #1 判定器 → POSTPONE (coverage 88.6% < 90%) → cutoff 11-05 / verdict 11-12 へ 4 週スライド (rule:R3、autopilot)",
+   "merged_at": "2026-10-10T11:47:44Z",
+   "kind": "code",
+   "n_files": 9,
+   "rounds": 5,
+   "inline": {
+    "P1": 1,
+    "P2": 4,
+    "P3": 1,
+    "total": 12
+   }
+  },
+  {
+   "number": 324,
+   "title": "fix(engine): price_shock_rev ×5 carve-out を R2 demote (_PAIR_PROMOTED → _PAIR_DEMOTED + min-lot bypass 除去) — registry ps-carveout-regate-post-172 pool 条件 N=11 / EV −6.08p 成立 (rule:R2、autopilot)",
+   "merged_at": "2026-10-10T12:15:20Z",
+   "kind": "code",
+   "n_files": 18,
+   "rounds": 2,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 325,
+   "title": "docs(KB): ps demote deploy 確認 + session log 2026-10-10 Phase 6 (autopilot、record-only)",
+   "merged_at": "2026-10-10T12:24:11Z",
+   "kind": "docs",
+   "n_files": 2,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 326,
+   "title": "fix(tools): cell_deepdive_audit snapshot as-of = confirming closed pass 終了時点 (_fetch_meta.as_of) — PR #273 繰延 P2 ×2 消化 + SLA waiver (rule:R3、autopilot)",
+   "merged_at": "2026-10-13T04:55:39Z",
+   "kind": "code",
+   "n_files": 16,
+   "rounds": 9,
+   "inline": {
+    "P1": 0,
+    "P2": 17,
+    "P3": 0,
+    "total": 24
+   }
+  },
+  {
+   "number": 327,
+   "title": "docs(KB): session log 2026-10-13 Phase 6 + changelog デプロイ確認 (PR #326 → Render live 04:57Z) (autopilot、record-only)",
+   "merged_at": "2026-10-13T04:58:48Z",
+   "kind": "docs",
+   "n_files": 2,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 328,
+   "title": "docs+tools(KB+registry): 期日 2 件消化 — daily review 30d 条件付き継続 / §6 excursion 入力凍結 + direction キー / 座礁 wiki-daily 3 run 救出 (rule:R3、autopilot 10-14)",
+   "merged_at": "2026-10-14T04:33:17Z",
+   "kind": "code",
+   "n_files": 19,
+   "rounds": 3,
+   "inline": {
+    "P1": 0,
+    "P2": 5,
+    "P3": 0,
+    "total": 12
+   }
+  },
+  {
+   "number": 329,
+   "title": "docs(KB): session log 2026-10-14 Phase 5 (PR #328 merge / Render live 04:35Z) + registry review-backlog-328-p2-deferrals (10-21) (autopilot、record-only)",
+   "merged_at": "2026-10-14T04:53:54Z",
+   "kind": "code",
+   "n_files": 3,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 330,
+   "title": "fix(tests+tools): main CI「flaky」の真因 4 系統を修復 (壁時計 2 / プロセス共有状態 2) + #284 RoBERTa cutoff 訂正 (rule:R3、autopilot 2026-10-15)",
+   "merged_at": "2026-10-15T07:13:15Z",
+   "kind": "code",
+   "n_files": 12,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 331,
+   "title": "docs(KB): session log 2026-10-15 Phase 4/5 (PR #330 merge 608cfeef / Render live 07:15Z) + changelog デプロイ確認 (autopilot、record-only)",
+   "merged_at": "2026-10-15T07:16:38Z",
+   "kind": "docs",
+   "n_files": 2,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 332,
+   "title": "docs(KB): rescue stranded wiki-daily 2026-10-15 outputs (trade-log, O-2026-10-15-1/-2, cards)",
+   "merged_at": "2026-10-16T04:23:09Z",
+   "kind": "docs",
+   "n_files": 6,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 333,
+   "title": "fix(bt): scalp M15/M5 precompute cache key — replace id(df) with a content fingerprint (rule:R3)",
+   "merged_at": "2026-10-16T04:40:26Z",
+   "kind": "code",
+   "n_files": 10,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 334,
+   "title": "docs(KB): session log 2026-10-16 Phase 5 (PR #333 merge / Render live 04:42Z) — record-only",
+   "merged_at": "2026-10-16T04:50:12Z",
+   "kind": "docs",
+   "n_files": 2,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 335,
+   "title": "docs(KB): rescue stranded wiki-daily 2026-10-16 outputs (3rd case)",
+   "merged_at": "2026-10-19T02:13:13Z",
+   "kind": "docs",
+   "n_files": 5,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 336,
+   "title": "docs(KB): rescue stranded weekly cell_deepdive 2026-10-18 summary (4th stranded case)",
+   "merged_at": "2026-10-19T02:43:59Z",
+   "kind": "code",
+   "n_files": 1,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 337,
+   "title": "feat(monitoring): storm guard の読み手配線 (daily report 表 + anomaly_watcher) + 有効化判断 ENABLE (rule:R2 執行 / R3 構造)",
+   "merged_at": "2026-10-20T05:34:47Z",
+   "kind": "code",
+   "n_files": 13,
+   "rounds": 4,
+   "inline": {
+    "P1": 0,
+    "P2": 6,
+    "P3": 0,
+    "total": 12
+   }
+  },
+  {
+   "number": 338,
+   "title": "feat(monitoring): D11 両基準併記 — m1_clean_live_monitor --strong に broker realized 列 + /api/oanda/trades_remote read-only proxy (rule:R3)",
+   "merged_at": "2026-10-20T07:34:25Z",
+   "kind": "code",
+   "n_files": 8,
+   "rounds": 4,
+   "inline": {
+    "P1": 1,
+    "P2": 1,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 339,
+   "title": "fix(tools)+docs(KB): 期日 5 件消化 — review-backlog 326/328 P2 修正、hunt_events 退役、hedge-gate R1 不起案、ps-seat spread readout + storm guard 執行窓記録 (rule:R3、autopilot 10-20)",
+   "merged_at": "2026-10-20T07:12:15Z",
+   "kind": "code",
+   "n_files": 16,
+   "rounds": 2,
+   "inline": {
+    "P1": 0,
+    "P2": 2,
+    "P3": 0,
+    "total": 4
+   }
+  },
+  {
+   "number": 340,
+   "title": "docs(KB): session log 2026-10-20 Phase 5 — 窓到来 → PR #339 マージ (Render live 07:14:03Z) / STORM_GUARD_ENFORCE は classifier 拒否 → user 操作待ち (autopilot、record-only)",
+   "merged_at": "2026-10-20T07:21:19Z",
+   "kind": "docs",
+   "n_files": 2,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 341,
+   "title": "docs(research)+registry: 外部仮説スキャン第6次 — U4 (a)(b)(c) 資本制約なし再評価 / #29 step 1 承認 / 四半期棚卸し (rule:R3)",
+   "merged_at": "2026-10-20T08:00:24Z",
+   "kind": "code",
+   "n_files": 8,
+   "rounds": 5,
+   "inline": {
+    "P1": 1,
+    "P2": 8,
+    "P3": 0,
+    "total": 9
+   }
+  }
+ ],
+ "summary": {
+  "cap": 6,
+  "classes": {
+   "code": {
+    "n": 47,
+    "median": 4,
+    "mean": 4.43,
+    "min": 0,
+    "max": 18,
+    "over_cap": 13,
+    "over_cap_pct": 27.7,
+    "distribution": {
+     "0": 6,
+     "1": 8,
+     "2": 4,
+     "3": 4,
+     "4": 3,
+     "5": 6,
+     "6": 3,
+     "7": 7,
+     "8": 2,
+     "9": 1,
+     "13": 1,
+     "15": 1,
+     "18": 1
+    },
+    "inline_P1": 74,
+    "inline_P2": 226,
+    "inline_P3": 5,
+    "inline_total": 480,
+    "p1_prs": [
+     "#286(9)",
+     "#287(18)",
+     "#289(2)",
+     "#296(1)",
+     "#299(12)",
+     "#302(4)",
+     "#304(8)",
+     "#306(1)",
+     "#308(1)",
+     "#310(6)",
+     "#312(2)",
+     "#319(6)",
+     "#321(1)",
+     "#323(1)",
+     "#338(1)",
+     "#341(1)"
+    ],
+    "top_rounds": [
+     "#287 18",
+     "#299 15",
+     "#310 13"
+    ]
+   },
+   "docs": {
+    "n": 15,
+    "median": 0,
+    "mean": 1.47,
+    "min": 0,
+    "max": 6,
+    "over_cap": 0,
+    "over_cap_pct": 0.0,
+    "distribution": {
+     "0": 11,
+     "5": 2,
+     "6": 2
+    },
+    "inline_P1": 1,
+    "inline_P2": 45,
+    "inline_P3": 0,
+    "inline_total": 50,
+    "p1_prs": [
+     "#283(1)"
+    ],
+    "top_rounds": [
+     "#281 6",
+     "#284 6",
+     "#282 5"
+    ]
+   },
+   "all": {
+    "n": 62,
+    "median": 3.0,
+    "mean": 3.71,
+    "min": 0,
+    "max": 18,
+    "over_cap": 13,
+    "over_cap_pct": 21.0,
+    "distribution": {
+     "0": 17,
+     "1": 8,
+     "2": 4,
+     "3": 4,
+     "4": 3,
+     "5": 8,
+     "6": 5,
+     "7": 7,
+     "8": 2,
+     "9": 1,
+     "13": 1,
+     "15": 1,
+     "18": 1
+    },
+    "inline_P1": 75,
+    "inline_P2": 271,
+    "inline_P3": 5,
+    "inline_total": 530,
+    "p1_prs": [
+     "#283(1)",
+     "#286(9)",
+     "#287(18)",
+     "#289(2)",
+     "#296(1)",
+     "#299(12)",
+     "#302(4)",
+     "#304(8)",
+     "#306(1)",
+     "#308(1)",
+     "#310(6)",
+     "#312(2)",
+     "#319(6)",
+     "#321(1)",
+     "#323(1)",
+     "#338(1)",
+     "#341(1)"
+    ],
+    "top_rounds": [
+     "#287 18",
+     "#299 15",
+     "#310 13"
+    ]
+   }
+  }
+ }
+}
