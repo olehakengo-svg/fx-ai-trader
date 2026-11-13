@@ -134,3 +134,16 @@
 - **反証可能な予測**: (a) 次の wiki-daily で SVK RT 0 (target 到達後の停止) かつ guard totals 0 / blacklist `[]` のまま (再起動がなければ不変)。(b) 次の learner 調整 (id 102) で blacklist が再反映される (5 周期目、空白は `learn_every_n` 10 到達に依存)。(c) 次の状態消失時に `refreshed_at` の更新時刻 ± 10 分以内に origin/main の非 ignoredPaths push が存在しなければ (ii) Render 側再起動説を採用、存在すれば (i) に戻す
 - **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome 非結合
 - **経路**: 記録のみ → [[storm-guard-design-2026-09-22]] 追補 2026-11-12 + [[usdjpy_carry_dip_accumulator]] / [[sr-channel-reversal]] カード 1 節、未決 5 / 12 / 19 / 33 / 34 の材料。[[2026-11-12]] guard 節
+
+
+---
+
+### O-2026-11-13-1: 再起動 10 例目 (11-12 04:18:10Z) = PR #372 deploy (registry JSON) と 13 秒差で一致 / 9 例目 (11-11 09:58Z) は対応 deploy なし → Render 側再起動 (ii) を採用 (執行 QA / 制御系)
+- **現象**: 11-13 05:37Z `/api/demo/status`: `price_shock_rev_auto_demotions.refreshed_at` 11-11T09:58:34Z → **11-12T04:18:10Z**、`engine_import_pid` 63 → **62**、`engine_pid` 130 不変、`main_loop_restarts` 1、`storm_guard` totals 全 0 / `refreshed_at` null。Render deploy 一覧 (MCP、workspace tea-d6va…): **dep-dbqjr849v7es73do5rcg** commit f2a57988 (PR #372 merge 04:16:30Z) startedAt 04:16:33Z → **finishedAt 04:18:23Z live**。11-11 の deploy は dep-dbq0n4e0tbcc73fnfetg (PR #370、06:30:41Z → 06:32:46Z live) のみで、09:58Z 前後に deploy なし
+- **トリガ日**: 2026-11-12 (10 例目) / 2026-11-11 (9 例目の帰属)。観測 2026-11-13
+- **想定メカニズム**: PR #372 は `.claude/commands/wiki-daily.md` + `prereg-trigger-registry.json` + KB md を含む。render.yaml (2026-09-01) は `decisions/*.md` だけを ignore し registry JSON は意図的に deploy させる ⇒ docs(KB) 接頭辞でも registry を触る autopilot PR は毎回 engine を再起動する (設計どおり、O-2026-11-11-2 予測 (b) の「wiki/decisions/*.json」経路の初の直接確認)。9 例目は push → マーカー 3h28m で deploy なし ⇒ O-2026-11-12-1 予測 (c) の条件「± 10 分以内の非 ignoredPaths push なし」が成立 = **(ii) Render 側再起動** (health / maintenance、push 非依存)
+- **規模**: 10 例目の喪失 material 0 (totals は 9 例目で既に 0、learner blacklist `[]` のまま)。11 月前半の再起動 5 回 (11-06 ×3 / 11-11 / 11-12) 中 4 回が PR deploy、1 回が Render 側
+- **family 候補**: storm_guard 系 状態消失 (累計 10) + `render_deploy_trigger` (registry JSON 経路の陽性例 1、Render 側再起動の例 1 = 条件は「非 ignoredPaths push」だけでは閉じない)
+- **反証可能な予測**: (a) 本 run の PR (registry JSON を含む) merge から 5 分以内に `refreshed_at` が更新され `engine_import_pid` が変わる (11 例目、設計どおり)。(b) 次に push なしで `refreshed_at` が更新されたら Render 側再起動 2 例目として O-2026-11-12-1 (ii) を確定する
+- **隣接 ban / 凍結 frame**: なし (記録のみ)。outcome 非結合
+- **経路**: 記録のみ → [[storm-guard-design-2026-09-22]] §7.6 + [[2026-11-13-session]] Phase 2。guard 状態永続化 (sprint-1022 #8) の需要側材料

@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-13 — feat(tools)+docs(KB): PR レビュー巡目 / inline P1-P3 計数器 `tools/pr_round_stats.py` 新設 (sprint-1022 終了レビュー 11-21 の読み手) + 0922 窓 陽性対照 (inline 完全一致 / 巡目 −1 系統差 / 分類差) + 再起動 10 例目の deploy 帰属 (autopilot、rule:R3)
+
+- **`tools/pr_round_stats.py` (registry `sprint-1022-triage-close` reachability 欄の tools 化候補)**: `--since/--until` (merged_at、両端含む) / `--pr-min/--pr-max` / `--cap 6` / `--json`。定義 = [[sprint-0922-close-review-2026-10-21]] §2.1 凍結 (巡目 = connector 以外の issue comment の `@codex review` 件数 / inline P1-P3 = `pulls/{n}/comments` 本文先頭 40 文字のバッジ / code・docs = 接頭辞 ∧ 全ファイル `knowledge-base/**/*.md`)。gh 失敗は exit 4 で部分集計を印字しない。`tests/test_pr_round_stats.py` 27 pin (gh 非接触)
+- **陽性対照 (0922 窓 #280〜#341、62 本)**: inline **P1 75 / P2 271 / P3 5 / 全件 530 = §2.2 と完全一致**。巡目は **全 PR −1** (手集計が connector サマリの boilerplate「@codex review」を数えていた、#287 19 → 18) = 0922 の巡目は +1 過大 (上限据え置きの結論は不変)。code/docs **47/15 vs 31/31** (§2.1 字義で registry JSON 等を含む docs 接頭辞 22 本が code 側)。⇒ 11-21 は両窓とも tool で集計 ([[sprint-0922-close-review-2026-10-21]] §2.5)
+- **sprint-1022 窓 中間値 (merged 10-22〜11-12、26 本 = code 18 / docs 8)**: 巡目 中央値 0 / 最大 4 (#364)、上限 >6 超過 **0**、inline **P1 0** / P2 10 / P3 0 / 全件 14。「指摘減」と「connector inline 不出 (例 #370 inline 0)」を tool は区別しない — 到達率の併記を registry note に明記
+- **再起動帰属 (O-2026-11-13-1、[[storm-guard-design-2026-09-22]] §7.6)**: 11-12 04:18:10Z マーカー = **PR #372 deploy dep-dbqjr849v7es73do5rcg (04:18:23Z live) と 13 秒差** — docs(KB) PR でも registry JSON (意図的 非 ignoredPaths) で再起動 (10 例目、喪失 0)。9 例目 (11-11 09:58Z) は対応 deploy なし → **Render 側再起動 (ii)** 採用
+- **registry note**: `sprint-1022-triage-close` (tool 化 + 中間値 + 陽性対照) / `dd-ledger-broker-close-first-booking-readout` (`OANDA_SL_TP` 0 件、11-20 据え置き)。resolve 0 / lint 0
+- **本番 05:37Z**: engine tick ok / open live 0 (shadow 2) / NAV ¥271,681.1611 (11-12 01:22Z と同値) / SVK `target_reached` / live fill は 11-09 07:01Z 以降 0。massive parquet 11-06 止まり (7 日) = ローカル `MASSIVE_API_KEY` 空 (user 領域)。ローカル main 7 ahead は全て origin 収録済 = 救出なし
+- 詳細: [[2026-11-13-session]]
+
 ## 2026-11-12 — docs(KB): daily market review 60d 有効性レビュー = (i) 執行 QA run 50% < 60% 不成立 → §6 (a) 廃止提案 (user 決裁、既定 (b) 縮退継続) / (ii) 月曜 rollup 字義 1/4 → rollup 層廃止 (執行) + 座礁 deepdive 11-11 救出 (11 例目) (autopilot、rule:R3 記録のみ)
 
 - **`daily-market-review-60d-effectiveness` (11-13) 消化 (rule:R3、[[daily-market-review-protocol]] §9)**: 窓 10-14〜11-12 (22 営業日)。wiki-daily 本体 run **11/22 = 50%** (11-12 はローカル main で進行中の run を計上 — 計上の有無で判定不変のため期日 1 日前に執行)、執行 QA 節あり run **11/22 = 50% < 60% → (i) 不成立**、月曜 rollup **字義 1/4** (10-19 → 10-20 / 10-26 → 10-29 / 11-02 定刻 / 11-09 → 11-11) **→ (ii) 不成立**、観測 19 / 独立 event 19、執行 QA 発見 17、卒業 family 0

@@ -1,0 +1,451 @@
+{
+ "since": "2026-10-22",
+ "until": "2026-11-21",
+ "cap": 6,
+ "definition": "sprint-0922-close-review-2026-10-21 §2.1",
+ "records": [
+  {
+   "number": 348,
+   "title": "fix(hooks): pre-commit に行頭 conflict マーカー検査 (staged index を走査、block) — PR #338 マーカー混入の再発防止 (rule:R3)",
+   "merged_at": "2026-10-22T06:35:52Z",
+   "kind": "code",
+   "n_files": 4,
+   "rounds": 3,
+   "inline": {
+    "P1": 0,
+    "P2": 2,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 349,
+   "title": "tools(readout)+docs: OANDA v20 口座の銘柄全集合を凍結 (68 CURRENCY、貴金属なし) — 第6次 (c) の決定的確認 (rule:R3)",
+   "merged_at": "2026-10-22T06:25:58Z",
+   "kind": "code",
+   "n_files": 8,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 350,
+   "title": "test(wg)+tools: 冬時間の打ち切り基準時刻 R3 再導出 — first_bar_ts は 22:00 バーへ解決 (構造バグなし) / storm guard 執行窓 permission 待ち 3 run 目 (rule:R3)",
+   "merged_at": "2026-10-22T06:54:09Z",
+   "kind": "code",
+   "n_files": 13,
+   "rounds": 2,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 1
+   }
+  },
+  {
+   "number": 351,
+   "title": "docs(KB): session log 2026-10-22 Phase 4 結果 — PR #350 merge 3742305f / Render live 06:56Z (record-only)",
+   "merged_at": "2026-10-22T06:57:30Z",
+   "kind": "docs",
+   "n_files": 1,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 352,
+   "title": "docs(KB): storm guard 執行窓 権限判定拒否 5 回目 (期日 10-24) + 座礁 wiki-daily 10-22 救出 + sprint-1022 policy wording R3 (rule:R3、autopilot)",
+   "merged_at": "2026-10-23T03:02:39Z",
+   "kind": "code",
+   "n_files": 10,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 353,
+   "title": "docs(KB): session log 10-23 — PR #352 結果の追記 (rule:R3、autopilot)",
+   "merged_at": "2026-10-23T03:15:26Z",
+   "kind": "docs",
+   "n_files": 1,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 354,
+   "title": "docs(KB)+registry: carry_dip #1346967 初 live trail 回帰なし / N=30 で D11 凍結 / exit 30/30 棚卸し / shadow 率確定 readout / enforce 拒否 6 回目 (rule:R3、autopilot 10-29)",
+   "merged_at": "2026-10-29T05:12:32Z",
+   "kind": "code",
+   "n_files": 13,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 355,
+   "title": "docs(KB): session log 10-29 に PR #354 の結果 (merge 7a75c249 / deploy 観測) を追記 (rule:R3、autopilot)",
+   "merged_at": "2026-10-29T05:20:55Z",
+   "kind": "docs",
+   "n_files": 1,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 356,
+   "title": "docs(KB): mtf_regime_range_cascade_scalp 6-month re-evaluation = REJECT (enabled=False kept)",
+   "merged_at": "2026-11-02T02:24:43Z",
+   "kind": "code",
+   "n_files": 5,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 357,
+   "title": "fix(engine): kalman_d7 R2 live stop — pre-reg LOCK 09-01 §R2 (LIVE N≥10 ∧ EV<0 → live 停止) 成立を code pin で執行 (rule:R2、autopilot 2026-10-30)",
+   "merged_at": "2026-10-30T03:22:04Z",
+   "kind": "code",
+   "n_files": 19,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 358,
+   "title": "docs(KB): autopilot 10-30 Phase 5 — PR #357 merge / Render deploy 観測の記録 (rule:R3 記録のみ)",
+   "merged_at": "2026-10-30T03:45:16Z",
+   "kind": "code",
+   "n_files": 5,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 359,
+   "title": "docs(KB): rescue stranded weekly cell_deepdive 2026-11-02 summary (8th stranded case)",
+   "merged_at": "2026-11-02T02:41:33Z",
+   "kind": "code",
+   "n_files": 1,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 360,
+   "title": "fix(tools)+docs(KB): winter first weekend 11-01 open 22:04Z (0 deviation) + wg_gap_drift winter anchor R3 fix + storm guard enforce denial #8 + max_open×shadow readout (autopilot 2026-11-02)",
+   "merged_at": "2026-11-02T02:51:36Z",
+   "kind": "code",
+   "n_files": 14,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 361,
+   "title": "docs(KB): autopilot 2026-11-02 record — PR #360 merge / Render deploy observation",
+   "merged_at": "2026-11-02T02:55:10Z",
+   "kind": "docs",
+   "n_files": 2,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 362,
+   "title": "docs(KB): 座礁 wiki-daily 10-29 12:00Z 再実行 + 11-02 12:33Z の救出 9 例目 (autopilot 2026-11-03)",
+   "merged_at": "2026-11-03T01:27:03Z",
+   "kind": "docs",
+   "n_files": 8,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 1
+   }
+  },
+  {
+   "number": 363,
+   "title": "fix(demo_trader): max_open グローバル上限を live 建玉数で判定 — shadow が live を削る R3 修理 + CF pin 7 本 (rule:R3、autopilot 2026-11-03)",
+   "merged_at": "2026-11-03T05:36:38Z",
+   "kind": "code",
+   "n_files": 10,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 364,
+   "title": "docs(KB)+registry: storm guard enforce 執行 (10 回目で成功) + 第6次 §9 決裁 9 件記録 + R5 機械トリガ起票 (2026-11-03)",
+   "merged_at": "2026-11-03T06:16:08Z",
+   "kind": "code",
+   "n_files": 11,
+   "rounds": 4,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 3
+   }
+  },
+  {
+   "number": 365,
+   "title": "fix(demo_trader)+docs(KB): DD 台帳 writer 一本化 (broker 側決済 OANDA_SL_TP を計上、R3) + 冬時間初週末 spread re-run + max_open 読み取り #1 (autopilot 2026-11-04)",
+   "merged_at": "2026-11-04T02:37:51Z",
+   "kind": "code",
+   "n_files": 10,
+   "rounds": 1,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 366,
+   "title": "docs(KB): autopilot 11-04 Phase 5 — PR #365 merge / Render deploy 記録 + readout 基準時刻 (rule:R3 記録のみ)",
+   "merged_at": "2026-11-04T02:46:33Z",
+   "kind": "code",
+   "n_files": 3,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 367,
+   "title": "feat(tools)+docs(KB): #29 step 1 ABGH-2019 辞書転記 + 価格非接触 census (DENSE_PASS knife-edge) + enforce 初 live trail readout 3 件 + sprint-1022 上程 (rule:R3)",
+   "merged_at": "2026-11-05T02:44:34Z",
+   "kind": "code",
+   "n_files": 15,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 368,
+   "title": "docs(E1)+docs(ECG): E1 postponed first look = UNDERPOWERED (C3 = S1×24h → second look 2027-01-06) / ECG #22 forward first look = UNDERPOWERED (second look 2027-01-31) (rule:R3)",
+   "merged_at": "2026-11-06T05:06:43Z",
+   "kind": "code",
+   "n_files": 16,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 1,
+    "P3": 0,
+    "total": 1
+   }
+  },
+  {
+   "number": 369,
+   "title": "docs(KB): rescue stranded wiki-daily 2026-11-06 (local main auto-save 57672990 → origin、10 例目)",
+   "merged_at": "2026-11-06T05:13:40Z",
+   "kind": "docs",
+   "n_files": 8,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 370,
+   "title": "feat(tools)+docs(KB): MoF family #4 再判定 (Q3-2026 開示) = PARTIAL ×2 → クローズ + CI 赤 R3 修復 (autopilot、rule:R3)",
+   "merged_at": "2026-11-11T06:30:39Z",
+   "kind": "code",
+   "n_files": 12,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 371,
+   "title": "docs(KB): 座礁 wiki-daily 2026-11-11 run の成果物を origin へ救出 (10 例目、autopilot)",
+   "merged_at": "2026-11-11T06:38:40Z",
+   "kind": "docs",
+   "n_files": 8,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 2,
+    "P3": 0,
+    "total": 2
+   }
+  },
+  {
+   "number": 372,
+   "title": "docs(KB): daily market review 60d レビュー = (i) 50% 不成立 → §6 (a) 廃止提案 (user 決裁、既定 (b)) / (ii) rollup 層廃止 + 座礁 deepdive 11-11 救出 (autopilot 2026-11-12、rule:R3)",
+   "merged_at": "2026-11-12T04:16:30Z",
+   "kind": "code",
+   "n_files": 8,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  },
+  {
+   "number": 373,
+   "title": "docs(KB): 座礁 wiki-daily 2026-11-12 run の成果物を origin へ救出 (12 例目、autopilot、rule:R3 記録のみ)",
+   "merged_at": "2026-11-12T04:23:47Z",
+   "kind": "docs",
+   "n_files": 9,
+   "rounds": 0,
+   "inline": {
+    "P1": 0,
+    "P2": 0,
+    "P3": 0,
+    "total": 0
+   }
+  }
+ ],
+ "summary": {
+  "cap": 6,
+  "classes": {
+   "code": {
+    "n": 18,
+    "median": 0.0,
+    "mean": 0.72,
+    "min": 0,
+    "max": 4,
+    "over_cap": 0,
+    "over_cap_pct": 0.0,
+    "distribution": {
+     "0": 11,
+     "1": 4,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    },
+    "inline_P1": 0,
+    "inline_P2": 7,
+    "inline_P3": 0,
+    "inline_total": 11,
+    "p1_prs": [],
+    "top_rounds": [
+     "#364 4",
+     "#348 3",
+     "#350 2"
+    ]
+   },
+   "docs": {
+    "n": 8,
+    "median": 0.0,
+    "mean": 0.0,
+    "min": 0,
+    "max": 0,
+    "over_cap": 0,
+    "over_cap_pct": 0.0,
+    "distribution": {
+     "0": 8
+    },
+    "inline_P1": 0,
+    "inline_P2": 3,
+    "inline_P3": 0,
+    "inline_total": 3,
+    "p1_prs": [],
+    "top_rounds": [
+     "#351 0",
+     "#353 0",
+     "#355 0"
+    ]
+   },
+   "all": {
+    "n": 26,
+    "median": 0.0,
+    "mean": 0.5,
+    "min": 0,
+    "max": 4,
+    "over_cap": 0,
+    "over_cap_pct": 0.0,
+    "distribution": {
+     "0": 19,
+     "1": 4,
+     "2": 1,
+     "3": 1,
+     "4": 1
+    },
+    "inline_P1": 0,
+    "inline_P2": 10,
+    "inline_P3": 0,
+    "inline_total": 14,
+    "p1_prs": [],
+    "top_rounds": [
+     "#364 4",
+     "#348 3",
+     "#350 2"
+    ]
+   }
+  }
+ }
+}
