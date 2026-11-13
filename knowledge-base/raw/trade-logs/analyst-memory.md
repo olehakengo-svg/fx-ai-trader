@@ -6200,6 +6200,16 @@ Cutoff後累積ではN=3（`usdjpy_carry_dip_accumulator`のみ）、WR 66.7%、
 - **21:00–23:00（NY時間）**: GBP_USDのVOLATILE継続が`order_bar_dedup`を再び支配する可能性。
 - EUR_USD（ATR 69%、下落傾向）がVOLATILEを脱してTRENDINGに転換した場合、DT系EUR戦略のスコアゲート通過率が改善しうる。ただし現状ではその根拠なし。
 
+### 2026-11-13 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | N/A |
+- Fidelity Cutoff後のN=0（本セッション）。統計的判断の土台なし
+- ブロック構造（demoted_cell / dedup）はパラメータではなくレジーム依存の正常作動
+- DD防御0.2x発動中（実DD −24.35%）——現状はリスク抑制優先フェーズ
+| EUR_JPY | RANGING | 52% | レンジ内推移継続。ブレイク注意 |
+### 推奨戦略配分
+**NO ACTION推奨（積極的な配分変更なし）**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
