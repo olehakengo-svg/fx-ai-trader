@@ -8,6 +8,7 @@
 - **再起動帰属 (O-2026-11-13-1、[[storm-guard-design-2026-09-22]] §7.6)**: 11-12 04:18:10Z マーカー = **PR #372 deploy dep-dbqjr849v7es73do5rcg (04:18:23Z live) と 13 秒差** — docs(KB) PR でも registry JSON (意図的 非 ignoredPaths) で再起動 (10 例目、喪失 0)。9 例目 (11-11 09:58Z) は対応 deploy なし → **Render 側再起動 (ii)** 採用
 - **registry note**: `sprint-1022-triage-close` (tool 化 + 中間値 + 陽性対照) / `dd-ledger-broker-close-first-booking-readout` (`OANDA_SL_TP` 0 件、11-20 据え置き)。resolve 0 / lint 0
 - **本番 05:37Z**: engine tick ok / open live 0 (shadow 2) / NAV ¥271,681.1611 (11-12 01:22Z と同値) / SVK `target_reached` / live fill は 11-09 07:01Z 以降 0。massive parquet 11-06 止まり (7 日) = ローカル `MASSIVE_API_KEY` 空 (user 領域)。ローカル main 7 ahead は全て origin 収録済 = 救出なし
+- **merge / deploy**: PR #374 merge f3f367ed (06:13:05Z、CI 3/3 / Codex receipt「major issues なし」/ gate exit 0 / 窓 open live 0) → Render dep-dbraksvf3r2c73bqbtp0 live **06:15:02Z**、マーカー 06:14:52Z、`engine_import_pid` 62 → 39 (O-2026-11-13-1 予測 (a) 成立 = 11 例目、喪失 0)。connector は open 時「create an environment」通知のみ → `@codex review` 再依頼で復旧 (本日初観測)
 - 詳細: [[2026-11-13-session]]
 
 ## 2026-11-12 — docs(KB): daily market review 60d 有効性レビュー = (i) 執行 QA run 50% < 60% 不成立 → §6 (a) 廃止提案 (user 決裁、既定 (b) 縮退継続) / (ii) 月曜 rollup 字義 1/4 → rollup 層廃止 (執行) + 座礁 deepdive 11-11 救出 (11 例目) (autopilot、rule:R3 記録のみ)
