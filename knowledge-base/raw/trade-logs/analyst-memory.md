@@ -6190,6 +6190,16 @@ Cutoff後累積ではN=4、PnL=+27.0（WR 75.0%）が全実績。前日は戦略
 - **トレード数**: 0
 - **WR**: 計測不能
 
+### 2026-11-13 (Pre-Tokyo Briefing)
+前日（2026-11-12）はトレードゼロ。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後累積ではN=3（`usdjpy_carry_dip_accumulator`のみ）、WR 66.7%、EV +7.30、PnL +¥21.9。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **注記**: N=3は統計的判断不可領域（閾値: N≥10で「傾向」、N≥30で「判断可能」）。EVの正値は記録するが意思決定の根拠にはならない。XAU系（`daytrade_xau`・`scalp_xau`）はOFF状態、実績データなし。
+- **09:00–11:00（東京オープン）**: USD/JPY RANGING継続なら`carry_dip_accumulator`の蓄積条件が整いやすい。N=3→次の1件を注視。
+- **17:00–18:00（ロンドンオープン）**: EUR/GBP系がVolatileからトレンド移行する場合、DT系のスコアゲート通過率が上昇する可能性。ATR%ileの推移を確認。
+- **21:00–23:00（NY時間）**: GBP_USDのVOLATILE継続が`order_bar_dedup`を再び支配する可能性。
+- EUR_USD（ATR 69%、下落傾向）がVOLATILEを脱してTRENDINGに転換した場合、DT系EUR戦略のスコアゲート通過率が改善しうる。ただし現状ではその根拠なし。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
