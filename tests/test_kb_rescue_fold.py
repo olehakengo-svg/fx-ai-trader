@@ -201,8 +201,8 @@ def test_conflict_markers_are_detected_only_at_line_start():
 
 def test_name_status_z_parsing_handles_renames_and_odd_paths():
     raw = "M\0knowledge-base/wiki/日本語 memo.md\0A\0knowledge-base/raw/new \"quoted\".md\0R100\0old.md\0new.md\0"
-    assert krf.parse_name_status_z(raw) == [("M", "knowledge-base/wiki/日本語 memo.md"),
-                                            ("A", "knowledge-base/raw/new \"quoted\".md"), ("R", "new.md")]
+    assert krf.parse_name_status_z(raw) == [("M", "knowledge-base/wiki/日本語 memo.md", None),
+                                            ("A", "knowledge-base/raw/new \"quoted\".md", None), ("R", "new.md", "old.md")]
     assert krf.parse_name_status_z("") == []
 
 
@@ -332,12 +332,15 @@ def test_a_staged_non_kb_change_blocks_the_fold(world):
 
 
 def test_dirty_entries_rules():
-    por = (" M knowledge-base/wiki/index.md\n"            # KB worktree change → blocks
-           " M knowledge-base/wiki/sessions/2026-11-14-session.md\n"  # hook noise → ignored
-           " M README.md\n"                                # non-KB unstaged → ignored (not committed)
-           "?? scratch.txt\n"                              # untracked → ignored
-           "M  tools/x.py\n")                              # staged anywhere → blocks
-    assert krf.dirty_entries(por) == [" M knowledge-base/wiki/index.md", "M  tools/x.py"]
+    por = ("\0".join([" M knowledge-base/wiki/index.md",            # KB worktree change → blocks
+                      " M knowledge-base/wiki/sessions/2026-11-14-session.md",  # hook noise → ignored
+                      " M README.md",                                # non-KB unstaged → ignored (not committed)
+                      "?? scratch.txt",                              # untracked → ignored
+                      "R  tools/new.py", "tools/old.py",             # staged rename (2 entries) → blocks
+                      " M knowledge-base/wiki/日本語 memo.md",       # non-ASCII, unquoted under -z → blocks
+                      "M  tools/x.py"]) + "\0")                     # staged anywhere → blocks
+    assert krf.dirty_entries(por) == [" M knowledge-base/wiki/index.md", "R  tools/new.py",
+                                      " M knowledge-base/wiki/日本語 memo.md", "M  tools/x.py"]
     assert krf.dirty_entries("") == []
 
 
@@ -368,4 +371,39 @@ def test_an_untracked_file_in_the_way_is_never_deleted(world):
     assert _read(runner, "knowledge-base/wiki/log.md") == "# log\n"  # nothing applied
     assert _git(runner, "log", "-1", "--format=%s").stdout.strip() == "seed"
     assert len(_remote_refs(remote)) == 1
+
+
+def test_an_unstaged_edit_to_a_non_ascii_kb_file_blocks_the_fold(world):
+    """P1 (3 巡目): porcelain の引用パスで dirty 検査をすり抜け、_restore が user の下書きを HEAD で潰す。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    path = "knowledge-base/wiki/日本語.md"
+    _advance_origin(other, {path: "# memo\nbase\n"}, msg="origin adds memo")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    _advance_origin(other, {path: "# memo\nbase (origin v2)\n"}, msg="origin edits memo")
+    _strand(host, "2026-11-14", {path: "# memo\nbase (host)\n"})
+    runner = _clone(remote, os.path.join(root, "runner"), "runner")
+    _write(runner, path, "# memo\nuser draft, uncommitted\n")
+    assert krf.main(["--repo", runner, "--in-place"]) == 4
+    assert _read(runner, path) == "# memo\nuser draft, uncommitted\n"
+
+
+def test_a_rejected_rename_is_fully_rolled_back_and_never_leaks_into_the_next_fold(world):
+    """P1 (3 巡目): rename 元の削除が index に残ると、次の fold commit がその削除を push してしまう。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\nline A (origin)\nline B\n"})
+    # ref 1: rename log.md + a conflicting index.md edit → must be rejected as a whole
+    _git(host, "mv", "knowledge-base/wiki/log.md", "knowledge-base/wiki/log-renamed.md")
+    _strand(host, "2026-11-13", {"knowledge-base/wiki/index.md": "# index\nline A (host)\nline B\n"})
+    # ref 2: a clean addition that must still fold
+    _strand(host, "2026-11-14", {"knowledge-base/raw/trade-logs/2026-11-14.md": "ok\n"})
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _git(runner, "status", "--porcelain").stdout == ""
+    assert _read(runner, "knowledge-base/wiki/log.md") == "# log\n"
+    assert not os.path.exists(os.path.join(runner, "knowledge-base/wiki/log-renamed.md"))
+    check = _clone(remote, os.path.join(root, "check"), "check")
+    assert _read(check, "knowledge-base/wiki/log.md") == "# log\n"          # the deletion never reached origin
+    assert _read(check, "knowledge-base/raw/trade-logs/2026-11-14.md") == "ok\n"
+    files = _git(check, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").stdout.split()
+    assert files == ["knowledge-base/raw/trade-logs/2026-11-14.md"]
 

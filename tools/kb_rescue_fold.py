@@ -147,12 +147,12 @@ def has_conflict_markers(text: str) -> bool:
     return bool(MARKER_PAT.search(text))
 
 
-def parse_name_status_z(raw: str) -> list[tuple[str, str]]:
-    """`git diff --name-status -z` の出力 → [(status, path)]。NUL 区切りなので空白・非 ASCII・
+def parse_name_status_z(raw: str) -> list[tuple[str, str, str | None]]:
+    """`git diff --name-status -z` の出力 → [(status, path, src_path_or_None)]。NUL 区切りなので空白・非 ASCII・
     引用符付きパスでも壊れない (patch header の regex 解析は core.quotePath で化ける —
     PR #376 Codex P2)。rename/copy (R/C) は旧パス・新パスの 2 要素を持つ。"""
     items = raw.split("\0")
-    out: list[tuple[str, str]] = []
+    out: list[tuple[str, str, str | None]] = []
     i = 0
     while i < len(items):
         st = items[i]
@@ -160,10 +160,12 @@ def parse_name_status_z(raw: str) -> list[tuple[str, str]]:
             i += 1
             continue
         if st[0] in ("R", "C") and i + 2 < len(items):
-            out.append((st[0], items[i + 2]))
+            # rename/copy: 旧パスも返す — rollback で両端を戻さないと apply が消した
+            # 旧パスの削除が index に残り、次の fold commit に混入する (PR #376 Codex P1)
+            out.append((st[0], items[i + 2], items[i + 1]))
             i += 3
         elif i + 1 < len(items):
-            out.append((st[0], items[i + 1]))
+            out.append((st[0], items[i + 1], None))
             i += 2
         else:
             break
@@ -252,25 +254,31 @@ def pathspec(excludes: Iterable[str]) -> list[str]:
     return [KB_ROOT, *[f":(exclude){x}" for x in excludes]]
 
 
-def dirty_entries(porcelain: str) -> list[str]:
-    """`git status --porcelain` から、fold を止めるべき行を返す:
+def dirty_entries(porcelain_z: str) -> list[str]:
+    """`git status --porcelain -z` (NUL 区切り、引用なし — 非 ASCII パスも素のまま) から、
+    fold を止めるべきエントリを返す:
     - index に載っている変更は**パスを問わず**全て (`git commit` は index 全体を commit するので、
       非 KB の staged 変更が fold commit に混入する — PR #376 Codex P2)
     - knowledge-base/ の worktree 変更 (今日の session log = post-commit hook の複製は除く)
+    `-z` では rename/copy のエントリが `XY new\0old\0` と 2 要素になる。
     """
+    items = porcelain_z.split("\0")
     out = []
-    for ln in porcelain.splitlines():
-        if len(ln) < 4:
+    i = 0
+    while i < len(items):
+        ent = items[i]
+        if len(ent) < 4:
+            i += 1
             continue
-        x, y, path = ln[0], ln[1], ln[3:]
+        x, y, path = ent[0], ent[1], ent[3:]
+        i += 2 if x in ("R", "C") or y in ("R", "C") else 1
         if x == "?":
             continue
         if x != " ":
-            out.append(ln)
+            out.append(ent)
         elif y != " " and path.startswith(KB_ROOT) and not is_excluded(path, DEFAULT_EXCLUDES):
-            out.append(ln)
+            out.append(ent)
     return out
-
 
 def sort_refs_by_time(entries: list[tuple[str, str, int]]) -> list[tuple[str, str]]:
     """(ref, sha, committer_ts) → 時刻昇順 (同時刻は ref 名で安定)。"""
@@ -294,8 +302,8 @@ def rescue_patch(git: Git, sha: str, excludes: Iterable[str]) -> str:
     return git.out("diff", "--no-color", "--no-ext-diff", f"{sha}^", sha, "--", *pathspec(excludes))
 
 
-def rescue_files(git: Git, sha: str, excludes: Iterable[str]) -> list[tuple[str, str]]:
-    """patch が触る (status, path) — NUL 区切りで取る。"""
+def rescue_files(git: Git, sha: str, excludes: Iterable[str]) -> list[tuple[str, str, str | None]]:
+    """patch が触る (status, path, rename 元) — NUL 区切りで取る。"""
     return parse_name_status_z(git.out("diff", "--name-status", "-z", f"{sha}^", sha, "--", *pathspec(excludes)))
 
 def parent_count(git: Git, sha: str) -> int:
@@ -350,8 +358,11 @@ def fold_one(git: Git, ref: str, sha: str, excludes: Iterable[str],
     if not patch.strip():
         return RefResult(ref, sha, ST_EMPTY, "no knowledge-base diff outside excluded paths")
     files = rescue_files(git, sha, excludes)
-    paths = [p for _, p in files]
-    new_files = [p for st, p in files if st == "A"]
+    paths = [p for _, p, _ in files] + [src for _, _, src in files if src]
+    new_files = [p for st, p, _ in files if st in ("A", "R", "C")]
+    if git.out("diff", "--cached", "--name-only").strip():
+        # 前の ref の rollback 漏れなどで index が汚れていたら、次の commit に混入する前に止める
+        return RefResult(ref, sha, ST_MANUAL, "index not clean before apply (fail-closed)", files=paths)
     # 作業木に **untracked** で同名ファイルがあると apply は失敗し、_restore がそれを消してしまう
     # (HEAD に無いので「patch が作った」と区別できない — PR #376 Codex P1)。触る前に止める。
     in_the_way = [p for p in new_files
@@ -464,7 +475,7 @@ def run(args: argparse.Namespace) -> int:
     target = f"{args.remote}/{args.branch}"
     if not args.in_place:
         raise GitError("only --in-place is implemented (run inside a checkout of the target branch)")
-    dirty = dirty_entries(git.out("status", "--porcelain", "--untracked-files=no"))
+    dirty = dirty_entries(git.out("status", "--porcelain", "-z", "--untracked-files=no"))
     if dirty:
         raise GitError(f"uncommitted changes (fail-closed; staged anywhere, or knowledge-base/ worktree): {dirty[:3]}")
 
