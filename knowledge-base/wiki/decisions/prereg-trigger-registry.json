@@ -1721,6 +1721,21 @@
       "reachability": "読み手 = autopilot (期日到来時に既定 (b) を記録、docs のみ) + user 報告 (session log 未解決事項)。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
       "execution_subject": "user (決裁) / Claude autopilot (既定の記録、docs のみ)",
       "outcome_lock": false
+    },
+    {
+      "id": "kb-rescue-fold-first-cron-readout",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-11-21",
+      "doc": "knowledge-base/wiki/decisions/sprint-1022-process-fixed-cost-upsubmit-2026-11-05.md",
+      "message": "座礁 KB 救出の後半自動化 (autopilot 2026-11-14、rule:R3、案 B′): session-end hook が origin へ退避する `kb-rescue/main-<date>-<sha>` を GitHub Actions `kb-rescue-fold.yml` (01:00Z / 13:00Z) が `tools/kb_rescue_fold.py --in-place --push --prune` で origin/main に畳む。初週 readout: cron run が ≥5 回 green (rc 0 or 2) で、その間にローカル座礁 (session-end 自動 commit) が発生した日の成果物が人手の救出 PR なしで origin/main に到達しているか。CONFLICT が出た ref は autopilot が `tools/kb_rescue_fold.py --in-place` をローカルで走らせて PR に載せる (Discord error webhook に ⚠️ が出る)。",
+      "condition": "GitHub Actions `KB Rescue Fold` の run 一覧 (gh run list --workflow kb-rescue-fold.yml) で 11-15〜11-21 の run が記録され、その期間の `kb-rescue/*` ref が 0 本 (全て畳まれ prune 済み) か CONFLICT として session log に理由付きで記録されていること。人手の「座礁救出 PR」が 1 本も要らなかったかを併記。",
+      "reachability": "autopilot run が `gh run list --workflow kb-rescue-fold.yml --limit 20` + `git ls-remote origin 'refs/heads/kb-rescue/*'` で読む (いずれも read-only)。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
+      "execution_subject": "Claude autopilot (記録のみ、docs PR)",
+      "outcome_lock": false,
+      "note": {
+        "2026-11-14": "起票 (autopilot 11-14)。陽性対照 = 13 例目 (kb-rescue/main-2026-11-14-7c22a76b8 = wiki-daily 11-13 15:14Z run) を同 tool でローカル fold (7 files / +140 −3、union 2 block = storm-guard 追補 + O-2026-11-13-2、marker 0) し本 PR に同梱。先行救出済みの旧 ref 5 本 (09-29 / 11-05 / 11-06 / 11-11 / 11-12、追加行の逐語残存 96〜100%) は PRESENT 判定 (≥ 95%) として pin、残り 33 本は EMPTY/ANCESTOR — いずれも cron 初回の --prune が畳む (手 prune は classifier 拒否)。"
+      }
     }
   ]
 }

@@ -1,5 +1,16 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-14 — feat(tools)+ci+docs(KB): 座礁 KB 救出の後半を自動化 — `tools/kb_rescue_fold.py` + GitHub Actions `kb-rescue-fold.yml` (日次 01:00Z / 13:00Z) で `kb-rescue/*` 退避 ref を origin/main に 3-way fold + 13 例目 (wiki-daily 11-13 15:14Z run) を同 tool で畳んで同梱 (autopilot、rule:R3)
+
+- **問題**: `scripts/hooks/session-end-save.sh` (PR #276) は座礁 commit を `kb-rescue/main-<date>-<sha>` として origin へ退避済み (39 本) だが、origin/main に畳む後半は手作業のままで、10-13〜11-13 に救出 PR 12 本 = sprint-0922 close review §4 #8 の固定費 (供給の 21〜38%)。11-05 上程の 3 択は A = 権限拒否 (11-11)、B/C = user 領域で、いずれも未着地
+- **案 B′ (`tools/kb_rescue_fold.py`)**: ref を commit 時刻順に `git apply --3way` (diff3)、`wiki/sessions/` 除外 (post-commit hook の複製)、**base 空の純追記 conflict は ours+theirs の union** (hot file 規律、類似度 ≥ 0.8 は不可)、新規ファイル既存 = 先行救出 → union 禁止、追加行の逐語残存 ≥ 95% → PRESENT、行頭 marker 残存 → CONFLICT (作業木を戻す、fail-closed)、1 ref = 1 commit、`--push` (non-ff は fetch+rebase 1 回) / `--prune` (ANCESTOR / EMPTY / PRESENT / push 済み FOLDED のみ、CONFLICT は残す)。exit 0 / 2 (CONFLICT 残) / 3 (push 失敗) / 4 (git 失敗)
+- **workflow `kb-rescue-fold.yml`**: 01:00Z (autopilot 分) / 13:00Z (wiki-daily 定刻 11:47Z 分)、fetch-depth 0 (3-way の base blob)、PAT 直 push (trade-monitor 等の既存 KB bot と同型)、rc 2 は Discord error webhook ⚠️ + job 成功、rc 3/4 は ❌ + 失敗
+- **tests `tests/test_kb_rescue_fold.py` 18 pin**: bare origin + 座礁 host + 先行 origin の実 repo で「origin/main に内容が届いたか」を判定 (3-way 成功 / 非 KB パス非混入 / CONFLICT は tree clean + ref 温存 + 次 ref を止めない / sessions 除外 = EMPTY / PRESENT は commit なしで prune / push なしは prune しない / dirty tree fail-closed / union 解決と順序 ours→theirs / 先行手動救出の重複禁止 / 近似追記は union しない / 逐語残存 95% → PRESENT / marker 行頭アンカー)
+- **陽性対照 (13 例目)**: `kb-rescue/main-2026-11-14-7c22a76b8` (wiki-daily 11-13 15:14Z、ローカル main 座礁) を `--in-place --limit 1` で fold → 7 files / +140 −3、union 2 block (storm-guard §7.6 → 追補 2026-11-13 / O-2026-11-13-1 → O-2026-11-13-2)、marker 0 = 手作業 12 例目と同じ形。全 39 ref の判定: ANCESTOR 16 / EMPTY 16 / PRESENT 1 / CONFLICT 6 (11-14 = 本 fold、旧 5 本 = 先行救出済み (逐語残存 96〜100%) → PRESENT 判定として pin、cron 初回が prune (手 prune は classifier 拒否))
+- **registry**: 🆕 `kb-rescue-fold-first-cron-readout` (11-21、初週 cron ≥5 run + 人手救出 PR 0 本か)。CLAUDE.md 自走原則に 1 行 (座礁は cron が畳む、CONFLICT のみ autopilot がローカル fold)
+- **判断**: rule:R3 (計測/運用経路のみ、live パラメータ・シグナル・DB 非接触)。動機 = close review §4 #8 の固定費 (データ駆動)。[[sprint-1022-process-fixed-cost-upsubmit-2026-11-05]] 執行記録 2026-11-14
+- 詳細: [[2026-11-14-session]]
+
 ## 2026-11-13 — feat(tools)+docs(KB): PR レビュー巡目 / inline P1-P3 計数器 `tools/pr_round_stats.py` 新設 (sprint-1022 終了レビュー 11-21 の読み手) + 0922 窓 陽性対照 (inline 完全一致 / 巡目 −1 系統差 / 分類差) + 再起動 10 例目の deploy 帰属 (autopilot、rule:R3)
 
 - **`tools/pr_round_stats.py` (registry `sprint-1022-triage-close` reachability 欄の tools 化候補)**: `--since/--until` (merged_at、両端含む) / `--pr-min/--pr-max` / `--cap 6` / `--json`。定義 = [[sprint-0922-close-review-2026-10-21]] §2.1 凍結 (巡目 = connector 以外の issue comment の `@codex review` 件数 / inline P1-P3 = `pulls/{n}/comments` 本文先頭 40 文字のバッジ / code・docs = 接頭辞 ∧ 全ファイル `knowledge-base/**/*.md`)。gh 失敗は exit 4 で部分集計を印字しない。`tests/test_pr_round_stats.py` 27 pin (gh 非接触)
