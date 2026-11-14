@@ -118,16 +118,16 @@ def test_a_stranded_kb_commit_reaches_origin_main_via_3way(world):
     assert _git(runner, "status", "--porcelain").stdout == ""
 
 
-def test_the_fold_commit_never_contains_non_kb_paths(world):
-    """pathspec は knowledge-base/ に閉じる (hook と二重ガード)。"""
+def test_a_commit_touching_non_kb_paths_is_manual_not_silently_trimmed(world):
+    """hook は KB-only の履歴しか退避しない — 混在 commit は MANUAL (非 KB を黙って捨てない)。"""
     host, remote, root = world["host"], world["remote"], world["root"]
     _strand(host, "2026-11-14", {"knowledge-base/wiki/log.md": "# log\n- host\n", "README.md": "changed\n"},
             subject="mixed")
-    runner, rc = _run_tool(remote, root, "runner")
-    assert rc == 0
-    files = _git(runner, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").stdout.split()
-    assert files == ["knowledge-base/wiki/log.md"]
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip() == "seed"
     assert _read(runner, "README.md") == "code\n"
+    assert len(_remote_refs(remote)) == 1
 
 
 def test_a_conflicting_ref_is_reported_kept_and_leaves_the_tree_clean(world):
@@ -152,8 +152,9 @@ def test_a_conflict_does_not_block_the_next_ref(world):
     assert rc == 2
     check = _clone(remote, os.path.join(root, "check"), "check")
     assert _read(check, "knowledge-base/raw/trade-logs/2026-11-14.md") == "ok\n"
+    # both refs stay: the 11-14 ref's history still carries the unaccounted 11-13 commit (6 巡目 P1)
     refs = _remote_refs(remote)
-    assert len(refs) == 1 and "2026-11-13" in refs[0]
+    assert len(refs) == 2 and "2026-11-13" in refs[0] and "2026-11-14" in refs[1]
 
 
 def test_session_logs_are_excluded_so_hook_noise_folds_to_empty(world):
@@ -412,6 +413,7 @@ def test_a_rejected_rename_is_fully_rolled_back_and_never_leaks_into_the_next_fo
     assert _read(check, "knowledge-base/raw/trade-logs/2026-11-14.md") == "ok\n"
     files = _git(check, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").stdout.split()
     assert files == ["knowledge-base/raw/trade-logs/2026-11-14.md"]
+    assert len(_remote_refs(remote)) == 2   # the rejected rename is still unaccounted → both refs kept
 
 
 def test_a_clean_rename_folds_and_reaches_origin(world):
@@ -443,4 +445,30 @@ def test_include_sessions_makes_a_session_draft_block_the_fold(world):
     # default run (sessions excluded) ignores the draft and folds nothing from that ref
     assert krf.main(["--repo", runner, "--in-place"]) == 0
     assert _read(runner, path) == "# session\nuser draft, uncommitted\n"
+
+
+def test_unpublished_ancestor_saves_are_folded_before_the_tip_ref_is_pruned(world):
+    """P1 (6 巡目): 前の save の push が落ちて ref を持たない commit も、次の ref の履歴から畳む。"""
+    host, remote, root = world["host"], world["remote"], world["root"]
+    # save 1: committed on stale main but its rescue push failed (no ref)
+    _write(host, "knowledge-base/raw/trade-logs/2026-11-12.md", "# first save, never got its own ref\n")
+    _git(host, "add", "-A")
+    _git(host, "commit", "-q", "-m", "auto: KB session-end save (2026-11-13)")
+    first = _git(host, "rev-parse", "HEAD").stdout.strip()
+    # save 2: pushed as a rescue ref whose history carries save 1
+    tip = _strand(host, "2026-11-14", {"knowledge-base/raw/trade-logs/2026-11-13.md": "# second save\n"})
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 0
+    check = _clone(remote, os.path.join(root, "check"), "check")
+    assert _read(check, "knowledge-base/raw/trade-logs/2026-11-12.md").startswith("# first save")
+    assert _read(check, "knowledge-base/raw/trade-logs/2026-11-13.md") == "# second save\n"
+    log = _git(check, "log", "--format=%b", "-3").stdout
+    assert first in log and tip in log          # one fold commit per rescued save
+    assert _remote_refs(remote) == []
+
+
+def test_worst_status_order():
+    assert krf.worst_status(["EMPTY", "PRESENT", "FOLDED"]) == "FOLDED"
+    assert krf.worst_status(["FOLDED", "CONFLICT", "MANUAL"]) == "CONFLICT"
+    assert krf.worst_status([]) == "ANCESTOR"
 

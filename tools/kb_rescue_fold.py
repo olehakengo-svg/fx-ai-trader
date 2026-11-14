@@ -12,9 +12,10 @@
 これを「供給の 21〜38%」の固定費と見積もった)。本 tool はその手順をそのまま
 機械化する。
 
-やること (ref ごと、commit 日時の昇順)
+やること (ref ごと、commit 日時の昇順。ref の tip だけでなく HEAD から未公開の祖先 commit を
+全部、古い順に 1 commit ずつ畳む — 前の save の push が落ちていた場合の取りこぼし防止)
 --------------------------------------
-1. ref の commit C が target (既定 origin/main) の祖先なら ANCESTOR (畳み済み)。
+1. commit C が target (既定 origin/main) の祖先なら ANCESTOR (畳み済み)。
 2. 親が 1 つでなければ MANUAL (hook が作る commit は常に単一親。違えば人が見る)。
 3. patch = `git diff C^ C -- knowledge-base/` から `wiki/sessions/` を除いたもの
    (session log の自動行は post-commit hook の複製で、救出対象にしない —
@@ -351,13 +352,26 @@ def _changed_files_have_markers(git: Git, paths: list[str]) -> list[str]:
     return bad
 
 
-def fold_one(git: Git, ref: str, sha: str, excludes: Iterable[str],
-             today_session: str | None) -> RefResult:
+STATUS_RANK = {ST_CONFLICT: 5, ST_MANUAL: 4, ST_FOLDED: 3, ST_PRESENT: 2, ST_EMPTY: 1, ST_ANCESTOR: 0}
+
+
+def worst_status(statuses: Iterable[str]) -> str:
+    return max(statuses, key=lambda st: STATUS_RANK[st], default=ST_ANCESTOR)
+
+
+def fold_commit(git: Git, ref: str, sha: str, excludes: Iterable[str],
+                today_session: str | None) -> RefResult:
+    """1 commit 分の KB diff を HEAD に畳む。"""
     if git.ok("merge-base", "--is-ancestor", sha, "HEAD"):
         return RefResult(ref, sha, ST_ANCESTOR, "already an ancestor of HEAD")
     n_parents = parent_count(git, sha)
     if n_parents != 1:
         return RefResult(ref, sha, ST_MANUAL, f"{n_parents} parents (hook commits are single-parent)")
+    non_kb = [p for p in git.out("diff", "--name-only", "-z", f"{sha}^", sha).split("\0")
+              if p and not p.startswith(KB_ROOT)]
+    if non_kb:
+        # hook は KB-only の履歴しか退避しない。混在していたら人が見る (黙って非 KB を捨てない)
+        return RefResult(ref, sha, ST_MANUAL, f"non-KB paths in commit: {non_kb[:3]}")
     patch = rescue_patch(git, sha, excludes)
     if not patch.strip():
         return RefResult(ref, sha, ST_EMPTY, "no knowledge-base diff outside excluded paths")
@@ -440,6 +454,29 @@ def fold_one(git: Git, ref: str, sha: str, excludes: Iterable[str],
         os.unlink(patch_file)
 
 
+def fold_ref(git: Git, ref: str, tip: str, excludes: Iterable[str], today_session: str | None,
+             seen: dict[str, RefResult]) -> RefResult:
+    """退避 ref の tip だけでなく **HEAD から見て未公開の祖先 commit 全部** を古い順に畳む。
+    前の session-end save の push が落ちていると、その commit は自分の ref を持たず次の ref の
+    履歴にだけ乗っている (hook は `origin/main..VALIDATED` 全件を KB-only 検査して tip を押す —
+    PR #376 Codex P1)。ref の status は構成 commit の最悪値。"""
+    commits = [c for c in git.out("rev-list", "--reverse", "--first-parent", f"HEAD..{tip}").split() if c]
+    if not commits:
+        return RefResult(ref, tip, ST_ANCESTOR, "already an ancestor of HEAD")
+    parts: list[RefResult] = []
+    for c in commits:
+        if c not in seen:
+            seen[c] = fold_commit(git, ref, c, excludes, today_session)
+        parts.append(seen[c])
+    status = worst_status(r.status for r in parts)
+    detail = "; ".join(f"{r.sha[:9]}={r.status}" + (f" ({r.detail})" if r.status in (ST_CONFLICT, ST_MANUAL) else "")
+                       for r in parts)
+    files = sorted({f for r in parts for f in r.files})
+    folded = [r.commit for r in parts if r.status == ST_FOLDED and r.commit]
+    return RefResult(ref, tip, status, f"{len(parts)} commit(s): {detail}"[:600], files=files,
+                     commit=folded[-1] if folded else "")
+
+
 def push_with_retry(git: Git, remote: str, branch: str) -> bool:
     if git.ok("push", remote, f"HEAD:refs/heads/{branch}"):
         return True
@@ -493,17 +530,20 @@ def run(args: argparse.Namespace) -> int:
     refs = list_rescue_refs(git, args.remote)
     if args.limit:
         refs = refs[-args.limit:]
+    seen: dict[str, RefResult] = {}
     for ref, sha in refs:
-        summary.results.append(fold_one(git, ref, sha, excludes,
-                                        today_session=today_session_path()))
-    if args.push and summary.count(ST_FOLDED):
+        summary.results.append(fold_ref(git, ref, sha, excludes, today_session_path(), seen))
+    # push は **commit 単位**の FOLDED で判定する: CONFLICT commit を含む ref (status = CONFLICT)
+    # の中の clean commit も畳まれているので、ref 単位で見ると取りこぼす
+    folded_commits = sum(1 for r in seen.values() if r.status == ST_FOLDED)
+    if args.push and folded_commits:
         summary.pushed = push_with_retry(git, args.remote, args.branch)
     if args.prune:
         summary.pruned = prune_refs(git, args.remote, args.branch, summary)
 
     report = {"summary": {s: summary.count(s) for s in
                           (ST_FOLDED, ST_PRESENT, ST_EMPTY, ST_ANCESTOR, ST_CONFLICT, ST_MANUAL)},
-              "pushed": summary.pushed, "pruned": summary.pruned,
+              "folded_commits": folded_commits, "pushed": summary.pushed, "pruned": summary.pruned,
               "results": [asdict(r) for r in summary.results]}
     if args.json:
         with open(args.json, "w", encoding="utf-8") as f:
@@ -513,8 +553,8 @@ def run(args: argparse.Namespace) -> int:
     print(f"-- folded {report['summary'][ST_FOLDED]} / present {report['summary'][ST_PRESENT]} / "
           f"empty {report['summary'][ST_EMPTY]} / ancestor {report['summary'][ST_ANCESTOR]} / "
           f"conflict {report['summary'][ST_CONFLICT]} / manual {report['summary'][ST_MANUAL]}; "
-          f"pushed={summary.pushed} pruned={len(summary.pruned)}")
-    if args.push and summary.count(ST_FOLDED) and not summary.pushed:
+          f"folded_commits={folded_commits} pushed={summary.pushed} pruned={len(summary.pruned)}")
+    if args.push and folded_commits and not summary.pushed:
         return 3
     if summary.count(ST_CONFLICT) or summary.count(ST_MANUAL):
         return 2
