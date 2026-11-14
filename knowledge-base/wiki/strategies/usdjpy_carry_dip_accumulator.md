@@ -519,3 +519,11 @@ Kalman D7 / vix_carry / ZZ v60 と同系の意図的例外。**LIVE flip は別�
 - risk 30d: n 13 / `strategy_kelly` half 0.1241 (n 10、edge 0.2824) / DSR 0.5264 n.s. — 窓ロール 10-12T23:54 で出入 0、11-11 と bit-identical。`strategy_status` promo_n 33 / promo_ev 5.5 不変
 - SVK 11 月 26 RT −¥2,070 (11-12 00:02Z / 01:02Z 各 −¥80、`volume_usd` 520,000 = target 到達 → 以後 RT 停止見込み)、NAV ¥271,681.16 (−¥160.00、残差 0)、実 DD −24.35%
 - 詳細 [[2026-11-12]] 戦略 LIVE 節 / guard 節
+
+## ⚪🔴 2026-11-13 更新 (wiki-daily 15:14Z、11-12T01:22Z〜11-13T15:14Z = 1.58 d): **LIVE fill 0 / 決済 0 (N 33 / +181.6 / EV +5.50 / WR 54.5% / broker +¥1,624 不変)、candidate 0 — guard 状態消失 10・11 例目 (material 0)、risk 窓ロールで `strategy_kelly` が insufficient (n 9) に**
+
+- candidate 0: `daytrade_1h` × USD_JPY の audit 行 0、mode `last_signal` WAIT @159.77 (15:14Z)。USD_JPY 159.582 (11-12 10:54Z) 〜 160.146 (11-13 06:15Z) の 56p レンジで dip 条件に届かず (記述のみ、parquet 7.5 d stale)。open live 0 は 11-09 07:54Z から **4.31 d**、最終 fill (#1347096) から 104.2 h = 平日のみの空白 🟡
+- 🔴 **guard 状態消失 10・11 例目**: 本カードの readout material は 9 例目 (11-12) で既に 0 のため喪失 0。autopilot 11-13 (origin PR #374 / #375) が Render deploy 一覧で 10 例目 = PR #372 deploy (registry JSON、11-12 04:18Z) / 11 例目 = PR #374 deploy (06:15:02Z) に 1:1 帰属、9 例目は Render 側再起動 (ii)。`engine_import_pid` 63 → 39、`engine_pid` 130 不変 (pid 再利用 3 例目)。enforce true / config 不変。喪失 0 の N は **2 のまま** (本窓 live trail 0、N=3 で O-2026-11-05-1 予測 (a) を閉じる)
+- risk 30d: `effective_date_from` 10-14T15:14:03 (n 13 → 11、出 2 / 入 0) で **`strategy_kelly[usdjpy_carry_dip_accumulator]` = insufficient (n 9)** (11-12: n 10 / half 0.1241 / edge 0.2824)、`strategy_dsr` n 9 / DSR 0.5202 / haircut 10.3 n.s. ⇒ 30d 窓の Kelly は窓ロールで出たり消えたりする = サイズ根拠にしない方針の再確認 (カード累計 N 33 / EV +5.50 が一次)。`strategy_status` promo_n 33 / promo_ev 5.5 不変
+- 執行 QA: live-eligible は本戦略 0 (他戦略 1 = `doji_breakout` `agg_kelly` blocked)、乖離 0。SVK 11 月 26 RT −¥2,070 で停止確認 (本窓 0 RT)、NAV ¥271,681.16 (±¥0)、実 DD −24.35%
+- 詳細 [[2026-11-13]] 戦略 LIVE 節 / guard 節 / [[daily-observations-2026-11]] O-2026-11-13-2
