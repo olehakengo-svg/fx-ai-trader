@@ -31,8 +31,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          python3 tools/kb_rescue_fold.py --in-place --push --prune --json fold-report.json
-          echo "rc=$?" >> "$GITHUB_OUTPUT"
+          # runner の bash は errexit なので、非ゼロ (2 = CONFLICT 残) を `||` で捕まえてから出力に書く
+          rc=0
+          python3 tools/kb_rescue_fold.py --in-place --push --prune --json fold-report.json || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
 
       - name: Report
         if: always()

@@ -31,8 +31,9 @@
 5. 適用後に行頭 conflict marker (`<<<<<<<` / `=======` / `>>>>>>>`) が変更ファイル
    に残っていれば CONFLICT 扱い (2026-10-20 PR #338 の再発防止、行頭アンカー)。
 6. `--push` で target branch へ push (non-ff なら fetch + rebase を 1 回だけ再試行)。
-7. `--prune` で ANCESTOR / EMPTY / PRESENT、および push 済み FOLDED の ref を
-   origin から削除する (CONFLICT / MANUAL は残す = 次 run も報告される)。
+7. `--prune` で EMPTY、および **HEAD が remote に公開済みのときだけ** ANCESTOR / PRESENT /
+   FOLDED の ref を origin から削除する (CONFLICT / MANUAL は残す = 次 run も報告される)。
+   起動時に index の変更 (パス問わず) か knowledge-base/ の worktree 変更があれば exit 4。
 
 触らないもの: 価格データ・DB・live 経路・registry JSON の条件文。knowledge-base/
 以外のパスは patch に含めない (hook 側も KB-only を検査済み、二重ガード)。
@@ -80,7 +81,6 @@ ST_EMPTY = "EMPTY"
 ST_FOLDED = "FOLDED"
 ST_PRESENT = "PRESENT"
 ST_CONFLICT = "CONFLICT"
-PRUNE_OK_STATES = frozenset({ST_ANCESTOR, ST_EMPTY, ST_PRESENT})
 
 
 class GitError(RuntimeError):
@@ -253,6 +253,26 @@ def pathspec(excludes: Iterable[str]) -> list[str]:
     return [KB_ROOT, *[f":(exclude){x}" for x in excludes]]
 
 
+def dirty_entries(porcelain: str) -> list[str]:
+    """`git status --porcelain` から、fold を止めるべき行を返す:
+    - index に載っている変更は**パスを問わず**全て (`git commit` は index 全体を commit するので、
+      非 KB の staged 変更が fold commit に混入する — PR #376 Codex P2)
+    - knowledge-base/ の worktree 変更 (今日の session log = post-commit hook の複製は除く)
+    """
+    out = []
+    for ln in porcelain.splitlines():
+        if len(ln) < 4:
+            continue
+        x, y, path = ln[0], ln[1], ln[3:]
+        if x == "?":
+            continue
+        if x != " ":
+            out.append(ln)
+        elif y != " " and path.startswith(KB_ROOT) and not is_excluded(path, DEFAULT_EXCLUDES):
+            out.append(ln)
+    return out
+
+
 def sort_refs_by_time(entries: list[tuple[str, str, int]]) -> list[tuple[str, str]]:
     """(ref, sha, committer_ts) → 時刻昇順 (同時刻は ref 名で安定)。"""
     return [(r, s) for r, s, _ in sorted(entries, key=lambda e: (e[2], e[0]))]
@@ -397,10 +417,21 @@ def push_with_retry(git: Git, remote: str, branch: str) -> bool:
     return git.ok("push", remote, f"HEAD:refs/heads/{branch}")
 
 
-def prune_refs(git: Git, remote: str, summary: Summary) -> list[str]:
+def head_is_published(git: Git, remote: str, branch: str) -> bool:
+    """HEAD が <remote>/<branch> の祖先 (= ここで見た内容が origin にある) か。fetch し直してから判定。"""
+    git.run("fetch", "--quiet", remote, branch)
+    return git.ok("merge-base", "--is-ancestor", "HEAD", f"{remote}/{branch}")
+
+
+def prune_refs(git: Git, remote: str, branch: str, summary: Summary) -> list[str]:
+    """ANCESTOR / PRESENT / FOLDED は **HEAD 基準**の判定なので、HEAD が remote に公開されて
+    いるときだけ prune する (ローカルだけで畳んだ状態で ref を消すと内容が origin に無いまま
+    退避 ref だけ失われる — PR #376 Codex P1)。EMPTY は内容を持たないので常に prune 可。"""
+    published = head_is_published(git, remote, branch)
     pruned = []
     for r in summary.results:
-        if r.status in PRUNE_OK_STATES or (r.status == ST_FOLDED and summary.pushed):
+        ok = r.status == ST_EMPTY or (published and r.status in (ST_ANCESTOR, ST_PRESENT, ST_FOLDED))
+        if ok:
             name = r.ref.split("/", 1)[-1]  # origin/kb-rescue/... → kb-rescue/...
             if git.ok("push", remote, "--delete", name):
                 pruned.append(name)
@@ -420,10 +451,9 @@ def run(args: argparse.Namespace) -> int:
     target = f"{args.remote}/{args.branch}"
     if not args.in_place:
         raise GitError("only --in-place is implemented (run inside a checkout of the target branch)")
-    dirty = [ln for ln in git.out("status", "--porcelain", "--", KB_ROOT).splitlines()
-             if ln.strip() and not ln[3:].startswith(DEFAULT_EXCLUDES[0])]
+    dirty = dirty_entries(git.out("status", "--porcelain", "--untracked-files=no"))
     if dirty:
-        raise GitError(f"knowledge-base/ has uncommitted changes (fail-closed): {dirty[:3]}")
+        raise GitError(f"uncommitted changes (fail-closed; staged anywhere, or knowledge-base/ worktree): {dirty[:3]}")
 
     summary = Summary(target=target, remote=args.remote)
     refs = list_rescue_refs(git, args.remote)
@@ -435,7 +465,7 @@ def run(args: argparse.Namespace) -> int:
     if args.push and summary.count(ST_FOLDED):
         summary.pushed = push_with_retry(git, args.remote, args.branch)
     if args.prune:
-        summary.pruned = prune_refs(git, args.remote, summary)
+        summary.pruned = prune_refs(git, args.remote, args.branch, summary)
 
     report = {"summary": {s: summary.count(s) for s in
                           (ST_FOLDED, ST_PRESENT, ST_EMPTY, ST_ANCESTOR, ST_CONFLICT, ST_MANUAL)},

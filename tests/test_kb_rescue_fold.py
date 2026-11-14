@@ -305,3 +305,40 @@ def test_repo_location_git_env_is_not_inherited(monkeypatch):
     env = krf.git_env()
     assert "GIT_DIR" not in env and "GIT_INDEX_FILE" not in env
     assert env["GIT_ASKPASS"] == "keep-me"
+
+
+# --------------------------------------------------- PR #376 Codex findings (P1 / P2)
+def test_present_against_an_unpublished_local_fold_is_not_pruned(world):
+    """P1: ローカルだけで畳んだ後に --push --prune で再実行しても、HEAD が origin に無い間は
+    PRESENT 判定で ref を消さない (消すと内容が origin に無いまま退避だけ失われる)。"""
+    host, remote, root = world["host"], world["remote"], world["root"]
+    _strand(host, "2026-11-14", {"knowledge-base/wiki/log.md": "# log\n- host entry long enough to count as content line\n"})
+    runner = _clone(remote, os.path.join(root, "runner"), "runner")
+    assert krf.main(["--repo", runner, "--in-place"]) == 0            # local fold, HEAD ahead of origin
+    assert krf.main(["--repo", runner, "--in-place", "--push", "--prune"]) == 0
+    assert len(_remote_refs(remote)) == 1                               # kept
+    check = _clone(remote, os.path.join(root, "check"), "check")
+    assert "host entry" not in _read(check, "knowledge-base/wiki/log.md")  # origin unchanged, nothing lost
+
+
+def test_a_staged_non_kb_change_blocks_the_fold(world):
+    """P2: `git commit` は index 全体を commit するので、非 KB の staged 変更があれば走らせない。"""
+    host, remote, root = world["host"], world["remote"], world["root"]
+    _strand(host, "2026-11-14", {"knowledge-base/wiki/log.md": "# log\n- host\n"})
+    runner = _clone(remote, os.path.join(root, "runner"), "runner")
+    _write(runner, "README.md", "unfinished code\n")
+    _git(runner, "add", "README.md")
+    assert krf.main(["--repo", runner, "--in-place", "--push"]) == 4
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip() == "seed"
+    check = _clone(remote, os.path.join(root, "check"), "check")
+    assert _read(check, "README.md") == "code\n"
+
+
+def test_dirty_entries_rules():
+    por = (" M knowledge-base/wiki/index.md\n"            # KB worktree change → blocks
+           " M knowledge-base/wiki/sessions/2026-11-14-session.md\n"  # hook noise → ignored
+           " M README.md\n"                                # non-KB unstaged → ignored (not committed)
+           "?? scratch.txt\n"                              # untracked → ignored
+           "M  tools/x.py\n")                              # staged anywhere → blocks
+    assert krf.dirty_entries(por) == [" M knowledge-base/wiki/index.md", "M  tools/x.py"]
+    assert krf.dirty_entries("") == []
