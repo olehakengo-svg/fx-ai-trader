@@ -19,17 +19,17 @@
     },
     "us_treasury_yields": {
       "path": "data/external/rate_anchor/us_treasury_yields.csv",
-      "rows": 3615,
+      "rows": 3616,
       "date_min": "2013-01-01",
-      "date_max": "2026-11-12",
-      "sha256": "14313946daebc0b75e2bf8b9310e248f45445ce6009c839084920f73de09ed3e"
+      "date_max": "2026-11-13",
+      "sha256": "ae467ea4b89a07be33ce5f4d390f43067b008499ef220a4e3ed05dad5c918261"
     },
     "zn_f_daily": {
       "path": "data/external/rate_anchor/zn_f_daily.csv",
       "rows": 830,
       "date_min": "2024-02-18",
       "date_max": "2026-11-13",
-      "sha256": "d2b6f801bc2538b9bf7bc247642e7ce8dfb1ade55bd4fefed24aa8c6aad57e53"
+      "sha256": "af11bea3edd8f1a8c34f45d6dab66656aadba25dfde36db82c09b30e8f3b98cc"
     }
   }
 }
