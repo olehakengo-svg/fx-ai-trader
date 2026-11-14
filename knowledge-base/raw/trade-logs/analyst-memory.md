@@ -6230,6 +6230,16 @@ Cutoff後累積ではN=3（`usdjpy_carry_dip_accumulator`のみ）、WR 66.7%、
 - **最も成績が良かった戦略**: 該当なし
 - **最も成績が悪かった戦略**: 該当なし
 
+### 2026-11-14 (Pre-Tokyo Briefing)
+**2026-11-13（前日）はトレードゼロ**。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後累計（全期間）では N=2、WR=50.0%、EV=+5.85、PnL=+11.7 pips のみ記録。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **注記**: N=2 は「データなし」水準（統計的判断不可）。EV+5.85 は参考値に留める。
+> 昇格基準（N≥30 & EV≥1.0）まで残り **28件**。降格判断も保留。
+- `rnb_usdjpy:no_signal` が **1,678件**（Block Top1）。RnB戦略はシグナルを全く生成できていない。現在USD_JPY RANGING（ATR%ile 42%、低ボラ）は RnB の典型的不利レジームであり、構造的に説明可能。
+- `order_bar_dedup` が `daytrade` / `daytrade_eur` / `daytrade_audjpy` 等で多発（計1,196件超）。同一バーでの重複発注抑制が機能しているが、裏を返せば本来のエントリー機会が抑圧されている可能性も排除できない。
+- **今日の対処**: 上記はシステム側の正常動作（guard機能）である。トレーダーとして「シグナル枯渇は現レジームに対するシステムの適切な応答」と解釈し、強制介入は不要。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
