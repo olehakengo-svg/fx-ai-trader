@@ -9,6 +9,7 @@
 - **陽性対照 (13 例目)**: `kb-rescue/main-2026-11-14-7c22a76b8` (wiki-daily 11-13 15:14Z、ローカル main 座礁) を `--in-place --limit 1` で fold → 7 files / +140 −3、union 2 block (storm-guard §7.6 → 追補 2026-11-13 / O-2026-11-13-1 → O-2026-11-13-2)、marker 0 = 手作業 12 例目と同じ形。全 39 ref の判定: ANCESTOR 16 / EMPTY 16 / PRESENT 1 / CONFLICT 6 (11-14 = 本 fold、旧 5 本 = 先行救出済み (逐語残存 96〜100%) → PRESENT 判定として pin、cron 初回が prune (手 prune は classifier 拒否))
 - **registry**: 🆕 `kb-rescue-fold-first-cron-readout` (11-21、初週 cron ≥5 run + 人手救出 PR 0 本か)。CLAUDE.md 自走原則に 1 行 (座礁は cron が畳む、CONFLICT のみ autopilot がローカル fold)
 - **判断**: rule:R3 (計測/運用経路のみ、live パラメータ・シグナル・DB 非接触)。動機 = close review §4 #8 の固定費 (データ駆動)。[[sprint-1022-process-fixed-cost-upsubmit-2026-11-05]] 執行記録 2026-11-14
+- **merge / deploy**: PR #376 merge 112b3f45c (03:10:54Z、Codex 9 巡 / inline P1 7 + P2 6 全件対応 / gate exit 0 / CI 3/3) → Render dep-dbrt2g68bjmc73dtgk0g live **03:12:42Z**、マーカー 03:12:28Z、`engine_import_pid` 39 → 63 = guard 状態消失 **12 例目** (material 0)。初回 cron 13:00Z (dispatch は classifier 拒否)。Render 実効 ignoredPaths は render.yaml より広い (KB docs の fold では deploy なし、執行記録 限界 (2) 訂正)
 - 詳細: [[2026-11-14-session]]
 
 ## 2026-11-13 — feat(tools)+docs(KB): PR レビュー巡目 / inline P1-P3 計数器 `tools/pr_round_stats.py` 新設 (sprint-1022 終了レビュー 11-21 の読み手) + 0922 窓 陽性対照 (inline 完全一致 / 巡目 −1 系統差 / 分類差) + 再起動 10 例目の deploy 帰属 (autopilot、rule:R3)
