@@ -251,10 +251,16 @@ def test_a_prior_manual_rescue_is_never_duplicated_by_union(world):
 
 
 def test_near_duplicate_additions_are_not_unioned():
-    text = ("# log\n<<<<<<< ours\n- 2026-11-13: fills 0 / closes 0 / NAV ¥271,681 (rescued, edited)\n"
-            "||||||| base\n=======\n- 2026-11-13: fills 0 / closes 0 / NAV ¥271,681\n>>>>>>> theirs\n")
+    # reworded (not a verbatim superset) and too similar → left for a human, never concatenated
+    text = ("# log\n<<<<<<< ours\n- 2026-11-13: fills 0 / closes 0 / NAV ¥271,681 (edited by hand)\n"
+            "||||||| base\n=======\n- 2026-11-13: fills 0 / closes 0 / NAV ¥271,682\n>>>>>>> theirs\n")
     merged, resolved, unresolved = krf.resolve_additive_conflicts(text)
     assert (resolved, unresolved) == (0, 1) and merged == text
+    # a verbatim superset (ours = theirs + suffix) counts as contained → ours kept, nothing duplicated
+    text2 = ("# log\n<<<<<<< ours\n- 2026-11-13: fills 0 / closes 0 / NAV ¥271,681 (rescued, edited)\n"
+             "||||||| base\n=======\n- 2026-11-13: fills 0 / closes 0 / NAV ¥271,681\n>>>>>>> theirs\n")
+    merged2, r2, u2 = krf.resolve_additive_conflicts(text2)
+    assert (r2, u2) == (1, 0) and merged2 == "# log\n- 2026-11-13: fills 0 / closes 0 / NAV ¥271,681 (rescued, edited)\n"
 
 
 def test_non_additive_or_non_diff3_blocks_are_left_alone():
@@ -471,4 +477,43 @@ def test_worst_status_order():
     assert krf.worst_status(["EMPTY", "PRESENT", "FOLDED"]) == "FOLDED"
     assert krf.worst_status(["FOLDED", "CONFLICT", "MANUAL"]) == "CONFLICT"
     assert krf.worst_status([]) == "ANCESTOR"
+
+
+def test_present_requires_every_changed_file_even_short_lined_ones(world):
+    """P1 (7 巡目): 長い行を持たないファイル (1 行 JSON) が未到達なら PRESENT にしない。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    long_line = "- 2026-11-13 observation with enough length to count as a long content line here\n"
+    _strand(host, "2026-11-14", {"knowledge-base/raw/report-2026-11-13.md": "# report\n" + long_line,
+                                 "knowledge-base/raw/metrics-2026-11-13.json": '{"n": 1}\n'})
+    # manual rescue brought only the report (heading edited), never the metrics file
+    _advance_origin(other, {"knowledge-base/raw/report-2026-11-13.md": "# report (rescued by hand)\n" + long_line},
+                    msg="manual rescue")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert len(_remote_refs(remote)) == 1
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip() == "manual rescue"
+
+
+def test_rerunning_a_folded_hot_file_union_does_not_duplicate_the_addition(world):
+    """P2 (7 巡目): theirs が ours に丸ごと含まれていれば union で二度足さない。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    _advance_origin(other, {"knowledge-base/wiki/log.md": "# log\n\n## 2026-11-13 autopilot\n- §7.6 deploy attribution for the restart\n"})
+    _strand(host, "2026-11-14", {"knowledge-base/wiki/log.md": "# log\n\n## 2026-11-13 wiki-daily\n- fills 0 / closes 0, shadow 112 +11.5 pips\n"})
+    runner1, rc1 = _run_tool(remote, root, "runner1", "--push")      # fold + push, ref kept (no --prune)
+    assert rc1 == 0
+    runner2, rc2 = _run_tool(remote, root, "runner2", "--push", "--prune")
+    assert rc2 == 0
+    check = _clone(remote, os.path.join(root, "check"), "check")
+    log = _read(check, "knowledge-base/wiki/log.md")
+    assert log.count("## 2026-11-13 wiki-daily") == 1 and log.count("## 2026-11-13 autopilot") == 1
+    assert _remote_refs(remote) == []
+    assert _git(runner2, "log", "-1", "--format=%s").stdout.strip().startswith("docs(KB): fold")  # run 2 added no commit
+
+
+def test_union_keeps_ours_when_theirs_is_already_contained():
+    text = ("# log\n<<<<<<< ours\n## A autopilot section about deploys\n## B wiki-daily section about shadow\n"
+            "||||||| base\n=======\n## B wiki-daily section about shadow\n>>>>>>> theirs\n")
+    merged, resolved, unresolved = krf.resolve_additive_conflicts(text)
+    assert (resolved, unresolved) == (1, 0)
+    assert merged == "# log\n## A autopilot section about deploys\n## B wiki-daily section about shadow\n"
 

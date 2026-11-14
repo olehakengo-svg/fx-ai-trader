@@ -223,8 +223,14 @@ def resolve_additive_conflicts(text: str) -> tuple[str, int, int]:
             out.extend(lines[i:])
             unresolved += 1
             break
-        sim = difflib.SequenceMatcher(None, "".join(ours), "".join(theirs)).ratio()
-        if base is not None and not base and sim < UNION_MAX_SIMILARITY:
+        ours_text, theirs_text = "".join(ours), "".join(theirs)
+        sim = difflib.SequenceMatcher(None, ours_text, theirs_text).ratio()
+        if base is not None and not base and theirs_text.strip() and theirs_text.strip() in ours_text:
+            # theirs は既に ours に丸ごと含まれている (再実行 / 先行 fold) → 二重化せず ours のまま
+            # (PR #376 Codex P2 7 巡目)。resolved に数え、ファイルは無変更になる
+            out.extend(ours)
+            resolved += 1
+        elif base is not None and not base and sim < UNION_MAX_SIMILARITY:
             out.extend(ours)
             out.extend(theirs)
             resolved += 1
@@ -329,15 +335,32 @@ def _restore(git: Git, paths: list[str]) -> None:
 
 
 def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
-    added: dict[str, list[str]] = {}
-    current: dict[str, str] = {}
+    """**全ファイル**が target に入っているかを判定する。長い追加行 (len > 40) を持つファイルは
+    逐語残存 ≥ 95%、持たないファイル (1 行 JSON 等) はそのファイル分の patch が reverse-apply
+    できるかで厳密に見る。1 ファイルでも未達なら PRESENT にしない (PR #376 Codex P1 7 巡目:
+    短い行しかないファイルは比率の分母から消え、ref を prune しながら取りこぼしていた)。"""
+    if not paths:
+        return False, "no files"
+    missing: list[str] = []
+    hit = tot = 0
     for path in paths:
-        added[path] = added_lines(git.out("diff", "--no-color", "--no-ext-diff", f"{sha}^", sha, "--", path))
-        p = git.run("show", f"HEAD:{path}", check=False)
-        current[path] = p.stdout if p.returncode == 0 else ""
-    hit, tot = present_ratio(added, current)
-    ok = tot > 0 and hit / tot >= PRESENT_MIN_RATIO
-    return ok, f"{hit}/{tot} added lines already verbatim in target"
+        patch_f = git.out("diff", "--no-color", "--no-ext-diff", f"{sha}^", sha, "--", path)
+        long_lines = added_lines(patch_f)
+        if long_lines:
+            cur = git.run("show", f"HEAD:{path}", check=False)
+            text = cur.stdout if cur.returncode == 0 else ""
+            h = sum(1 for body in long_lines if body in text)
+            hit += h
+            tot += len(long_lines)
+            if h / len(long_lines) < PRESENT_MIN_RATIO:
+                missing.append(path)
+        elif patch_f.strip():
+            ok = git.run("apply", "--reverse", "--check", "-", check=False, input_text=patch_f).returncode == 0
+            if not ok:
+                missing.append(path)
+    if missing:
+        return False, f"{hit}/{tot} long lines verbatim; not accounted: {missing[:3]}"
+    return True, f"{hit}/{tot} long added lines verbatim in target, {len(paths)} file(s) all accounted"
 
 
 def _changed_files_have_markers(git: Git, paths: list[str]) -> list[str]:
