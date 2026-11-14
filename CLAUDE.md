@@ -100,6 +100,7 @@ Sub-scope: `services/discord_bot/CLAUDE.md` (Discord bot 固有規律)
 ## 自走原則 (2026-07-06 user 承認)
 - **タスクを user に返さない** — 実行可能なものは全て Claude が完遂する。返す前に allow ルール / settings / IaC / 自動化の経路を必ず探す。不可能なもののみ理由 + 代替案付きで報告
 - **commit 直後は今日の session log が必ず 1 ファイル dirty になる (仕様)** — `scripts/hooks/git-post-commit.sh` が「コミット一覧」節に自動行を追記するため (hash は pre-commit 時点で未存在 = 移設不可、2026-10-13 (c) 採用)。この自動行はコミットメッセージの複製なので、merge / rebase / checkout の前に `git checkout -- knowledge-base/wiki/sessions/<today>-session.md` で捨てる (手書きの Phase 記述は先に commit に含めておく)。「先にコミットする」は post-commit が次の hash をまた追記するため無限ループになる (PR #326 Codex P2)。詳細: registry `kb-session-log-postcommit-trailing-edit`
+- **座礁 KB (ローカル main の session-end 自動 commit) は人手で救出しない** — hook が `kb-rescue/main-*` へ退避し、GitHub Actions `kb-rescue-fold.yml` (01:00Z / 13:00Z) が `tools/kb_rescue_fold.py` で origin/main に 3-way fold + prune する (2026-11-14)。Discord に ⚠️ CONFLICT が出た ref だけ autopilot が worktree で `python3 tools/kb_rescue_fold.py --in-place` を走らせ PR に載せる。詳細: `wiki/decisions/sprint-1022-process-fixed-cost-upsubmit-2026-11-05.md` 執行記録 2026-11-14
 - **PR マージは Claude が自走** — CI green 確認後 `gh pr merge N --merge --admin` を**単独コマンド形で**実行 (複合コマンドは classifier 拒否)。hot file conflict は union 解決。**コード/live 経路 PR はマージ前に `tools/pr_review_gate.py` で connector レビュー消化を確認 (上記コードレビュー節)**。詳細: MEMORY `project_pr_merge_race_parallel_sessions`
 
 ## Changelog

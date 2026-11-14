@@ -72,3 +72,7 @@ clean N=584 の要因解析で退役確定。詳細: [[edge-factor-audit-2026-06
 ## ⚪ 2026-11-12: `entry_type_blacklist` が再び `[]`、`blacklisted: true` 0/100 — O-2026-11-11-1 予測 (a) 成立 (消失 4 周期目)
 
 11-12 01:22Z `/api/demo/learning` `current_params.entry_type_blacklist` = **`[]`** (11-11 05:49Z の `["sr_channel_reversal"]` から消失)、`adjustments[0]` は id 101 のまま (id 102 未発火)。同時刻に `storm_guard` totals も全 0 = プロセス再起動 ≈11-11 09:58Z (`refreshed_at` 09:58:34Z) による in-memory 消失の 4 周期目。候補 push は PR #370 (11-11 06:30:39Z、tools/tests) のみで時刻が 3h28m ずれ、帰属未確定 (O-2026-11-12-1)。本戦略の shadow 発火は本窓 audit 66 行中 0 (10-02 以降 0 継続) で実害 0。次の再反映は `learn_every_n` 10 到達の id 102 で予測 (空白は不定: 8h49m / 4.8 d の実績) — [[2026-11-12]]
+
+## ⚪ 2026-11-13: `entry_type_blacklist` `[]` 継続、id 102 未発火 — shadow 決済 112 本 (`learn_every_n` 10 の 11 周期分) でも調整 0 = O-2026-11-11-1 予測 (b) 反証 2 例目
+
+11-13 15:14Z `/api/demo/learning` `current_params.entry_type_blacklist` = **`[]`** (11-12 01:22Z と同じ)、`adjustments[0]` は id 101 (11-09 21:23:47Z) のまま、`strategy_status.blacklisted` true 0/100。本窓 (1.58 d) の shadow 決済は 112 本 = `learn_every_n` 10 を 11 回跨いでいるのに learner 調整 0 ⇒ 「再適用までの空白は `learn_every_n` 到達に一致」(O-2026-11-11-1 予測 (b)) は 11-11 の不定間隔 (8h49m / 4.8 d) に続いて再度不成立 = **発火条件は shadow 決済数ではない** (live 決済数 = 本窓 0、または mode 別カウンタの可能性、記録のみ)。本窓には再起動 2 回 (11-12 04:18Z PR #372 / 11-13 06:15Z PR #374、autopilot 帰属) があったが blacklist は `[]` → `[]` で消えるものが無かった。本戦略の発火は 10-02 以降 0 継続 (本窓 audit 113 行中 0) で実害 0。次の再反映は id 102 で予測 (発火時刻の予測は保留) — [[2026-11-13]] / [[daily-observations-2026-11]] O-2026-11-13-2

@@ -1,0 +1,59 @@
+name: KB Rescue Fold
+
+# 座礁 KB 救出の後半を自動化 (2026-11-14、rule:R3)。
+# session-end hook がローカル main から退避した `kb-rescue/main-<date>-<sha>` を
+# origin/main に `git apply --3way` で畳む (tools/kb_rescue_fold.py)。
+# 01:00Z = 深夜の autopilot/手動 run 分、13:00Z = wiki-daily 定刻 (11:47Z) 分。
+on:
+  schedule:
+    - cron: '0 1,13 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0   # 3-way apply は退避 commit の親 (旧ローカル main) の blob を要る
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Fold kb-rescue refs into main
+        id: fold
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # runner の bash は errexit なので、非ゼロ (2 = CONFLICT 残) を `||` で捕まえてから出力に書く
+          rc=0
+          python3 tools/kb_rescue_fold.py --in-place --push --prune --json fold-report.json || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - name: Report
+        if: always()
+        env:
+          DISCORD_ERROR_WEBHOOK_URL: ${{ secrets.DISCORD_ERROR_WEBHOOK_URL }}
+        run: |
+          RC="${{ steps.fold.outputs.rc }}"
+          SUMMARY="$(python3 -c 'import json;d=json.load(open("fold-report.json"));print(d["summary"], "pushed", d["pushed"], "pruned", len(d["pruned"]))' 2>/dev/null || echo 'no report')"
+          echo "rc=$RC $SUMMARY"
+          case "$RC" in
+            0) exit 0 ;;
+            2) MSG="⚠️ **KB Rescue Fold** $(date -u +%Y-%m-%d) — CONFLICT/MANUAL が残っています (autopilot が手で畳む): $SUMMARY" ;;
+            *) MSG="❌ **KB Rescue Fold FAILED** $(date -u +%Y-%m-%d) — rc=$RC $SUMMARY" ;;
+          esac
+          if [ -n "$DISCORD_ERROR_WEBHOOK_URL" ]; then
+            curl -s -X POST "$DISCORD_ERROR_WEBHOOK_URL" -H "Content-Type: application/json" \
+              -H "User-Agent: FX-KB-Monitor/1.0" -d "{\"content\": \"$MSG\"}" || true
+          fi
+          # rc 2 (conflict) は push 済み分を失わないので job は成功扱い、rc 3/4 は失敗
+          [ "$RC" = "2" ] && exit 0
+          exit 1
