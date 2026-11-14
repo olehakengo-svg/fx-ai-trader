@@ -517,3 +517,19 @@ def test_union_keeps_ours_when_theirs_is_already_contained():
     assert (resolved, unresolved) == (1, 0)
     assert merged == "# log\n## A autopilot section about deploys\n## B wiki-daily section about shadow\n"
 
+
+def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
+    """P1 (8 巡目): 今日の session log の未 commit 下書きは、post-commit 掃除で消してはいけない。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    today = krf.today_session_path()
+    _advance_origin(other, {today: "# Session Log\n\n## Phase 1\n- committed line\n"}, msg="origin adds today's log")
+    _strand(host, "2026-11-14", {"knowledge-base/raw/trade-logs/2026-11-13.md": "# stranded\n"})
+    runner = _clone(remote, os.path.join(root, "runner"), "runner")
+    draft = "# Session Log\n\n## Phase 1\n- committed line\n- handwritten draft, not yet committed\n"
+    _write(runner, today, draft)
+    assert krf.main(["--repo", runner, "--in-place", "--push", "--prune"]) == 0
+    assert _read(runner, today) == draft
+    check = _clone(remote, os.path.join(root, "check"), "check")
+    assert _read(check, "knowledge-base/raw/trade-logs/2026-11-13.md") == "# stranded\n"
+    assert "handwritten draft" not in _read(check, today)   # the draft was never committed by the tool
+

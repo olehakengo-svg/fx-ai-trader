@@ -466,11 +466,25 @@ def fold_commit(git: Git, ref: str, sha: str, excludes: Iterable[str],
         msg = (f"docs(KB): fold {ref.split('/', 1)[-1]} (座礁救出 自動、rule:R3)\n\n"
                f"source: {sha} \"{subject}\" ({date})\n"
                f"tool: tools/kb_rescue_fold.py (git apply --3way diff3, sessions excluded; {detail})\n")
+        # post-commit hook (scripts/hooks/git-post-commit.sh) は今日の session log に commit 行を
+        # 複製する (無ければ template を作る)。**commit 前の内容を退避して戻す** — `checkout --`
+        # で HEAD に戻すと、その file に user の未 commit 下書きがあった場合に消える
+        # (PR #376 Codex P1 8 巡目)。この run が生成した差分だけを打ち消す。
+        session_full = os.path.join(git.cwd, today_session) if today_session else None
+        session_before: bytes | None = None
+        if session_full and os.path.exists(session_full):
+            with open(session_full, "rb") as f:
+                session_before = f.read()
         git.run("commit", "-q", "-m", msg)
-        if today_session and os.path.exists(os.path.join(git.cwd, today_session)):
-            # post-commit hook (scripts/hooks/git-post-commit.sh) が今日の session log に
-            # commit 行を複製する。次の apply に混ぜないよう捨てる (CLAUDE.md 自走原則)。
-            git.run("checkout", "--", today_session, check=False)
+        if session_full:
+            if session_before is not None:
+                with open(session_full, "rb") as f:
+                    after = f.read()
+                if after != session_before:
+                    with open(session_full, "wb") as f:
+                        f.write(session_before)
+            elif os.path.exists(session_full) and not git.ok("cat-file", "-e", f"HEAD:{today_session}"):
+                os.remove(session_full)   # hook が作った untracked template だけを消す
         return RefResult(ref, sha, ST_FOLDED, detail, files=paths,
                          commit=git.out("rev-parse", "HEAD").strip())
     finally:
