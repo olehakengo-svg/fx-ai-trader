@@ -199,10 +199,11 @@ def test_conflict_markers_are_detected_only_at_line_start():
     assert not krf.has_conflict_markers("table |=======| not a marker\n")
 
 
-def test_patch_paths_reads_the_b_side_once():
-    patch = ("diff --git a/knowledge-base/x.md b/knowledge-base/x.md\n--- a/x\n+++ b/x\n"
-             "diff --git a/knowledge-base/y.md b/knowledge-base/y.md\n")
-    assert krf.patch_paths(patch) == ["knowledge-base/x.md", "knowledge-base/y.md"]
+def test_name_status_z_parsing_handles_renames_and_odd_paths():
+    raw = "M\0knowledge-base/wiki/日本語 memo.md\0A\0knowledge-base/raw/new \"quoted\".md\0R100\0old.md\0new.md\0"
+    assert krf.parse_name_status_z(raw) == [("M", "knowledge-base/wiki/日本語 memo.md"),
+                                            ("A", "knowledge-base/raw/new \"quoted\".md"), ("R", "new.md")]
+    assert krf.parse_name_status_z("") == []
 
 
 def test_refs_are_folded_in_commit_time_order():
@@ -265,10 +266,6 @@ def test_non_additive_or_non_diff3_blocks_are_left_alone():
     assert (r, u) == (1, 0) and merged == "x\nalpha section about deploys\nomega notes on shadow\ny\n"
 
 
-def test_new_file_paths_reads_only_created_files():
-    patch = ("diff --git a/knowledge-base/new.md b/knowledge-base/new.md\nnew file mode 100644\n"
-             "diff --git a/knowledge-base/old.md b/knowledge-base/old.md\nindex 1..2 100644\n")
-    assert krf.new_file_paths(patch) == ["knowledge-base/new.md"]
 
 
 def test_a_hand_rescued_ref_whose_lines_all_survive_is_present_and_pruned(world):
@@ -291,7 +288,7 @@ def test_a_hand_rescued_ref_whose_lines_all_survive_is_present_and_pruned(world)
 def test_present_ratio_counts_only_long_added_lines():
     patch = ("diff --git a/knowledge-base/a.md b/knowledge-base/a.md\n--- a/x\n+++ b/x\n"
              "+short\n+" + "L" * 50 + "\n+" + "M" * 50 + "\n")
-    added = krf.added_lines_by_path(patch)
+    added = {"knowledge-base/a.md": krf.added_lines(patch)}
     assert added == {"knowledge-base/a.md": ["L" * 50, "M" * 50]}
     assert krf.present_ratio(added, {"knowledge-base/a.md": "x " + "L" * 50 + " y"}) == (1, 2)
     assert krf.present_ratio(added, {}) == (0, 2)
@@ -342,3 +339,33 @@ def test_dirty_entries_rules():
            "M  tools/x.py\n")                              # staged anywhere → blocks
     assert krf.dirty_entries(por) == [" M knowledge-base/wiki/index.md", "M  tools/x.py"]
     assert krf.dirty_entries("") == []
+
+
+def test_a_conflict_in_a_non_ascii_path_with_spaces_is_restored_cleanly(world):
+    """P2: patch header の regex 解析は core.quotePath で化ける → NUL 区切りの name-status で取る。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    path = "knowledge-base/wiki/日本語 memo.md"
+    _advance_origin(other, {path: "# memo\nline A (origin)\n"}, msg="origin adds memo")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")  # host sees the memo, then goes stale
+    _advance_origin(other, {path: "# memo\nline A (origin v2)\n"}, msg="origin edits memo")
+    _strand(host, "2026-11-14", {path: "# memo\nline A (host)\n"})
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _git(runner, "status", "--porcelain").stdout == ""
+    assert _read(runner, path) == "# memo\nline A (origin v2)\n"
+    assert len(_remote_refs(remote)) == 1
+
+
+def test_an_untracked_file_in_the_way_is_never_deleted(world):
+    """P1: patch が作るパスに user の untracked ファイルがあれば触らず CONFLICT。"""
+    host, remote, root = world["host"], world["remote"], world["root"]
+    _strand(host, "2026-11-14", {"knowledge-base/raw/trade-logs/2026-11-13.md": "# stranded\n",
+                                 "knowledge-base/wiki/log.md": "# log\n- host\n"})
+    runner = _clone(remote, os.path.join(root, "runner"), "runner")
+    _write(runner, "knowledge-base/raw/trade-logs/2026-11-13.md", "user draft, uncommitted\n")
+    assert krf.main(["--repo", runner, "--in-place", "--push", "--prune"]) == 2
+    assert _read(runner, "knowledge-base/raw/trade-logs/2026-11-13.md") == "user draft, uncommitted\n"
+    assert _read(runner, "knowledge-base/wiki/log.md") == "# log\n"  # nothing applied
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip() == "seed"
+    assert len(_remote_refs(remote)) == 1
+

@@ -66,7 +66,6 @@ RESCUE_PREFIX = "kb-rescue/"
 KB_ROOT = "knowledge-base/"
 DEFAULT_EXCLUDES = ("knowledge-base/wiki/sessions/",)
 MARKER_PAT = re.compile(r"^(<<<<<<< |=======$|>>>>>>> )", re.MULTILINE)
-NEW_FILE_PAT = re.compile(r"^diff --git a/(\S+) b/(\S+)\nnew file mode", re.MULTILINE)
 # union 解決を諦める類似度 (ours と theirs が「同じ追記の別版」なら人が見る)
 UNION_MAX_SIMILARITY = 0.8
 # 「内容は既に target にある」判定: patch の追加行 (len > 40) が target の同ファイルに
@@ -148,20 +147,37 @@ def has_conflict_markers(text: str) -> bool:
     return bool(MARKER_PAT.search(text))
 
 
-def patch_paths(patch: str) -> list[str]:
-    """`diff --git a/X b/X` 行から変更パスを取る (rename は b 側)。"""
-    paths: list[str] = []
-    for m in re.finditer(r"^diff --git a/(\S+) b/(\S+)$", patch, re.MULTILINE):
-        p = m.group(2)
-        if p not in paths:
-            paths.append(p)
-    return paths
+def parse_name_status_z(raw: str) -> list[tuple[str, str]]:
+    """`git diff --name-status -z` の出力 → [(status, path)]。NUL 区切りなので空白・非 ASCII・
+    引用符付きパスでも壊れない (patch header の regex 解析は core.quotePath で化ける —
+    PR #376 Codex P2)。rename/copy (R/C) は旧パス・新パスの 2 要素を持つ。"""
+    items = raw.split("\0")
+    out: list[tuple[str, str]] = []
+    i = 0
+    while i < len(items):
+        st = items[i]
+        if not st:
+            i += 1
+            continue
+        if st[0] in ("R", "C") and i + 2 < len(items):
+            out.append((st[0], items[i + 2]))
+            i += 3
+        elif i + 1 < len(items):
+            out.append((st[0], items[i + 1]))
+            i += 2
+        else:
+            break
+    return out
 
-
-def new_file_paths(patch: str) -> list[str]:
-    """patch が新規作成するパス (`new file mode`)。target に既にあれば「先行救出済み」の徴候。"""
-    return [m.group(2) for m in NEW_FILE_PAT.finditer(patch)]
-
+def added_lines(patch_text: str) -> list[str]:
+    """1 ファイル分の patch の `+` 行 (header 除く、strip 後 len > PRESENT_MIN_LINE_LEN)。"""
+    out = []
+    for ln in patch_text.splitlines():
+        if ln.startswith("+") and not ln.startswith("+++"):
+            body = ln[1:].strip()
+            if len(body) > PRESENT_MIN_LINE_LEN:
+                out.append(body)
+    return out
 
 def resolve_additive_conflicts(text: str) -> tuple[str, int, int]:
     """diff3 形式の conflict block のうち **base が空 (両側とも純追記)** のものを
@@ -214,23 +230,6 @@ def resolve_additive_conflicts(text: str) -> tuple[str, int, int]:
             unresolved += 1
         i = j + 1
     return "".join(out), resolved, unresolved
-
-
-def added_lines_by_path(patch: str) -> dict[str, list[str]]:
-    """patch の `+` 行 (header 除く、strip 後 len > PRESENT_MIN_LINE_LEN) をパス別に。"""
-    out: dict[str, list[str]] = {}
-    cur: str | None = None
-    for ln in patch.splitlines():
-        m = re.match(r"^diff --git a/(\S+) b/(\S+)$", ln)
-        if m:
-            cur = m.group(2)
-            out.setdefault(cur, [])
-            continue
-        if cur and ln.startswith("+") and not ln.startswith("+++"):
-            body = ln[1:].strip()
-            if len(body) > PRESENT_MIN_LINE_LEN:
-                out[cur].append(body)
-    return out
 
 
 def present_ratio(added: dict[str, list[str]], current: dict[str, str]) -> tuple[int, int]:
@@ -295,6 +294,10 @@ def rescue_patch(git: Git, sha: str, excludes: Iterable[str]) -> str:
     return git.out("diff", "--no-color", "--no-ext-diff", f"{sha}^", sha, "--", *pathspec(excludes))
 
 
+def rescue_files(git: Git, sha: str, excludes: Iterable[str]) -> list[tuple[str, str]]:
+    """patch が触る (status, path) — NUL 区切りで取る。"""
+    return parse_name_status_z(git.out("diff", "--name-status", "-z", f"{sha}^", sha, "--", *pathspec(excludes)))
+
 def parent_count(git: Git, sha: str) -> int:
     line = git.out("rev-list", "--parents", "-n", "1", sha).split()
     return len(line) - 1
@@ -312,10 +315,11 @@ def _restore(git: Git, paths: list[str]) -> None:
                 os.remove(full)
 
 
-def _content_present(git: Git, patch: str) -> tuple[bool, str]:
-    added = added_lines_by_path(patch)
-    current = {}
-    for path in added:
+def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
+    added: dict[str, list[str]] = {}
+    current: dict[str, str] = {}
+    for path in paths:
+        added[path] = added_lines(git.out("diff", "--no-color", "--no-ext-diff", f"{sha}^", sha, "--", path))
         p = git.run("show", f"HEAD:{path}", check=False)
         current[path] = p.stdout if p.returncode == 0 else ""
     hit, tot = present_ratio(added, current)
@@ -345,7 +349,16 @@ def fold_one(git: Git, ref: str, sha: str, excludes: Iterable[str],
     patch = rescue_patch(git, sha, excludes)
     if not patch.strip():
         return RefResult(ref, sha, ST_EMPTY, "no knowledge-base diff outside excluded paths")
-    paths = patch_paths(patch)
+    files = rescue_files(git, sha, excludes)
+    paths = [p for _, p in files]
+    new_files = [p for st, p in files if st == "A"]
+    # 作業木に **untracked** で同名ファイルがあると apply は失敗し、_restore がそれを消してしまう
+    # (HEAD に無いので「patch が作った」と区別できない — PR #376 Codex P1)。触る前に止める。
+    in_the_way = [p for p in new_files
+                  if os.path.exists(os.path.join(git.cwd, p)) and not git.ok("cat-file", "-e", f"HEAD:{p}")]
+    if in_the_way:
+        return RefResult(ref, sha, ST_CONFLICT, f"untracked files in the way (left untouched): {in_the_way[:3]}",
+                         files=paths)
 
     with tempfile.NamedTemporaryFile("w", suffix=".patch", delete=False, encoding="utf-8") as tf:
         tf.write(patch)
@@ -354,12 +367,12 @@ def fold_one(git: Git, ref: str, sha: str, excludes: Iterable[str],
         applied = git.run("-c", "merge.conflictStyle=diff3", "apply", "--3way", patch_file, check=False)
         detail = "committed"
         if applied.returncode != 0:
-            pre_existing = [p for p in new_file_paths(patch) if git.ok("cat-file", "-e", f"HEAD:{p}")]
+            pre_existing = [p for p in new_files if git.ok("cat-file", "-e", f"HEAD:{p}")]
             if pre_existing:
                 # 新規ファイルが target に既にある = 先行 (手動) 救出の徴候。union で重複を
                 # 作らないために人に回す。
                 _restore(git, paths)
-                present, why = _content_present(git, patch)
+                present, why = _content_present(git, sha, paths)
                 if present or git.ok("apply", "--reverse", "--check", patch_file):
                     return RefResult(ref, sha, ST_PRESENT, f"content already in target ({why})", files=paths)
                 return RefResult(ref, sha, ST_CONFLICT,
@@ -377,7 +390,7 @@ def fold_one(git: Git, ref: str, sha: str, excludes: Iterable[str],
                         f.write(merged)
             if n_unres or not n_res:
                 _restore(git, paths)
-                present, why = _content_present(git, patch)
+                present, why = _content_present(git, sha, paths)
                 if present or git.ok("apply", "--reverse", "--check", patch_file):
                     return RefResult(ref, sha, ST_PRESENT, f"content already in target ({why})", files=paths)
                 return RefResult(ref, sha, ST_CONFLICT,
