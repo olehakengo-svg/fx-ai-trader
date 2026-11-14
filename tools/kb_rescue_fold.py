@@ -412,7 +412,12 @@ def fold_one(git: Git, ref: str, sha: str, excludes: Iterable[str],
         if bad:
             _restore(git, paths)
             return RefResult(ref, sha, ST_CONFLICT, f"conflict markers left in {bad}", files=paths)
-        git.run("add", "-A", "--", *paths)
+        # apply --3way は削除・rename 元の除去を index に既に載せている。消えたパスを
+        # `git add` に渡すと pathspec エラーで落ちる (PR #376 Codex P2) ので、存在する
+        # パス (union で書き直したファイルを含む) だけを add する。
+        existing = [p for p in paths if os.path.lexists(os.path.join(git.cwd, p))]
+        if existing:
+            git.run("add", "-A", "--", *existing)
         if not git.out("diff", "--cached", "--name-only").strip():
             return RefResult(ref, sha, ST_PRESENT, "apply produced no change", files=paths)
         subject = git.out("log", "-1", "--format=%s", sha).strip()

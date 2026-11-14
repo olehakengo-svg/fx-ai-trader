@@ -407,3 +407,17 @@ def test_a_rejected_rename_is_fully_rolled_back_and_never_leaks_into_the_next_fo
     files = _git(check, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").stdout.split()
     assert files == ["knowledge-base/raw/trade-logs/2026-11-14.md"]
 
+
+def test_a_clean_rename_folds_and_reaches_origin(world):
+    """P2 (4 巡目): apply が消した旧パスを `git add` に渡すと pathspec エラーで止まる。"""
+    host, remote, root = world["host"], world["remote"], world["root"]
+    _git(host, "mv", "knowledge-base/wiki/log.md", "knowledge-base/wiki/log-renamed.md")
+    _strand(host, "2026-11-14", {"knowledge-base/wiki/log-renamed.md": "# log\n- renamed and edited\n"})
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 0
+    assert _git(runner, "status", "--porcelain").stdout == ""
+    check = _clone(remote, os.path.join(root, "check"), "check")
+    assert not os.path.exists(os.path.join(check, "knowledge-base/wiki/log.md"))
+    assert _read(check, "knowledge-base/wiki/log-renamed.md") == "# log\n- renamed and edited\n"
+    assert _remote_refs(remote) == []
+
