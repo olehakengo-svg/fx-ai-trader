@@ -254,12 +254,15 @@ def pathspec(excludes: Iterable[str]) -> list[str]:
     return [KB_ROOT, *[f":(exclude){x}" for x in excludes]]
 
 
-def dirty_entries(porcelain_z: str) -> list[str]:
+def dirty_entries(porcelain_z: str, excludes: Iterable[str] = DEFAULT_EXCLUDES,
+                  hook_noise: str | None = None) -> list[str]:
     """`git status --porcelain -z` (NUL 区切り、引用なし — 非 ASCII パスも素のまま) から、
     fold を止めるべきエントリを返す:
     - index に載っている変更は**パスを問わず**全て (`git commit` は index 全体を commit するので、
       非 KB の staged 変更が fold commit に混入する — PR #376 Codex P2)
-    - knowledge-base/ の worktree 変更 (今日の session log = post-commit hook の複製は除く)
+    - knowledge-base/ の worktree 変更のうち、**この run で patch に入り得るパス** (= `excludes` の
+      外)。`--include-sessions` なら session log の下書きも止める (PR #376 Codex P2 5 巡目)。
+      今日の session log (`hook_noise` = post-commit hook の複製) だけは常に除く
     `-z` では rename/copy のエントリが `XY new\0old\0` と 2 要素になる。
     """
     items = porcelain_z.split("\0")
@@ -276,7 +279,8 @@ def dirty_entries(porcelain_z: str) -> list[str]:
             continue
         if x != " ":
             out.append(ent)
-        elif y != " " and path.startswith(KB_ROOT) and not is_excluded(path, DEFAULT_EXCLUDES):
+        elif (y != " " and path.startswith(KB_ROOT) and not is_excluded(path, excludes)
+              and path != hook_noise):
             out.append(ent)
     return out
 
@@ -480,7 +484,8 @@ def run(args: argparse.Namespace) -> int:
     target = f"{args.remote}/{args.branch}"
     if not args.in_place:
         raise GitError("only --in-place is implemented (run inside a checkout of the target branch)")
-    dirty = dirty_entries(git.out("status", "--porcelain", "-z", "--untracked-files=no"))
+    dirty = dirty_entries(git.out("status", "--porcelain", "-z", "--untracked-files=no"),
+                          excludes, hook_noise=today_session_path())
     if dirty:
         raise GitError(f"uncommitted changes (fail-closed; staged anywhere, or knowledge-base/ worktree): {dirty[:3]}")
 

@@ -342,6 +342,12 @@ def test_dirty_entries_rules():
     assert krf.dirty_entries(por) == [" M knowledge-base/wiki/index.md", "R  tools/new.py",
                                       " M knowledge-base/wiki/日本語 memo.md", "M  tools/x.py"]
     assert krf.dirty_entries("") == []
+    # --include-sessions: session drafts block too, except the hook-noise file named explicitly
+    por2 = "\0".join([" M knowledge-base/wiki/sessions/2026-11-01-session.md",
+                       " M knowledge-base/wiki/sessions/2026-11-14-session.md"]) + "\0"
+    assert krf.dirty_entries(por2, excludes=(), hook_noise="knowledge-base/wiki/sessions/2026-11-14-session.md") == \
+        [" M knowledge-base/wiki/sessions/2026-11-01-session.md"]
+    assert krf.dirty_entries(por2) == []
 
 
 def test_a_conflict_in_a_non_ascii_path_with_spaces_is_restored_cleanly(world):
@@ -420,4 +426,21 @@ def test_a_clean_rename_folds_and_reaches_origin(world):
     assert not os.path.exists(os.path.join(check, "knowledge-base/wiki/log.md"))
     assert _read(check, "knowledge-base/wiki/log-renamed.md") == "# log\n- renamed and edited\n"
     assert _remote_refs(remote) == []
+
+
+def test_include_sessions_makes_a_session_draft_block_the_fold(world):
+    """P2 (5 巡目): --include-sessions では session log も patch に入るので、下書きは dirty として止める。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    path = "knowledge-base/wiki/sessions/2026-11-01-session.md"
+    _advance_origin(other, {path: "# session\nbase\n"}, msg="origin adds session")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    _advance_origin(other, {path: "# session\nbase (origin v2)\n"}, msg="origin edits session")
+    _strand(host, "2026-11-14", {path: "# session\nbase (host)\n"})
+    runner = _clone(remote, os.path.join(root, "runner"), "runner")
+    _write(runner, path, "# session\nuser draft, uncommitted\n")
+    assert krf.main(["--repo", runner, "--in-place", "--include-sessions"]) == 4
+    assert _read(runner, path) == "# session\nuser draft, uncommitted\n"
+    # default run (sessions excluded) ignores the draft and folds nothing from that ref
+    assert krf.main(["--repo", runner, "--in-place"]) == 0
+    assert _read(runner, path) == "# session\nuser draft, uncommitted\n"
 
