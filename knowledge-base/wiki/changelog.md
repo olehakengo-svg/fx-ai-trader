@@ -8,6 +8,7 @@
 - **tests**: `tests/test_kb_rescue_fold.py` 33 → **37 pin** (差し替え済み status 行 + 先行救出 = PRESENT → prune、旧 status 行を蘇らせない / 届いていない長行ファイルは差し替え済み判定が効かず CONFLICT のまま / `line_superseded` は親から到達できる履歴と削除だけの命中を数えない・空行は偽 / origin が足して消した行を host が再追加して座礁 → CONFLICT で ref 温存)
 - **教訓 (通算 3 領域目)**: [[lesson-validity-check-pins-proxy-2026-09-02]] 同型 — 「内容が origin に届いたか」という**性質**を「現在の HEAD に逐語で残っているか」という**時変の代理**で pin した。hot file の status 行は定義上 HEAD に残らない。性質に近い観測 = 「target 履歴に一度入ったか」
 - **判断**: rule:R3 (運用 tool の構造バグ、live パラメータ・シグナル・DB 非接触)。registry `kb-rescue-fold-first-cron-readout` (11-21) は note 追記のみ (初週 readout は修正後の cron run で読む)。[[sprint-1022-process-fixed-cost-upsubmit-2026-11-05]] 執行記録 2026-11-16 / [[2026-11-16-session]]
+- **merge / deploy**: PR #378 merge 1f70c1bd3 (02:47:00Z、Codex 2 巡 / inline P2 1 件対応 (`--since` → `HEAD --not <親>` + 実在確認) / gate exit 0 / CI 3/3) → Render dep-dbt6t9lckfvc73ec8edg live **02:48:34Z** (1m32s)、`engine_import_pid` 63 → 61、`engine_pid` 130 不変 (pid 再利用 5 例目)、tick ok = `storm_guard` 状態消失 **13 例目** (material 0、open live 0)。merge 時点の `kb-rescue/*` 16 本 (旧 14 + 11-16 ×2) は次 cron で prune の見込み
 
 ## 2026-11-14 — feat(tools)+ci+docs(KB): 座礁 KB 救出の後半を自動化 — `tools/kb_rescue_fold.py` + GitHub Actions `kb-rescue-fold.yml` (日次 01:00Z / 13:00Z) で `kb-rescue/*` 退避 ref を origin/main に 3-way fold + 13 例目 (wiki-daily 11-13 15:14Z run) を同 tool で畳んで同梱 (autopilot、rule:R3)
 
