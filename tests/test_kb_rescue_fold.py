@@ -582,14 +582,42 @@ def test_a_lost_long_lined_file_is_not_present_even_when_hot_file_lines_were_sup
     assert not os.path.exists(os.path.join(runner, "knowledge-base/raw/observations-2026-11-06.md"))
 
 
-def test_line_superseded_only_looks_at_target_history_after_the_stranded_commit(world):
-    """座礁 commit より前に origin が持っていて消した行は「差し替え済み」ではない (--since で遮る)。"""
+def test_line_superseded_ignores_history_reachable_from_the_stranded_parent_and_deletions(world):
+    """PR #378 Codex P2: 座礁 commit の親から到達できる履歴 (origin が足して消した行、同秒でも) は
+    「差し替え済み」ではない。`-S` は削除側にも一致するので、命中 commit に行が実在することまで見る。"""
     host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
     git = krf.Git(other)
     line = "- a long line that origin once had and deleted before the stranded commit existed\n"
     _advance_origin(other, {"knowledge-base/wiki/log.md": "# log\n" + line}, msg="origin adds")
+    added = _git(other, "rev-parse", "HEAD").stdout.strip()
     _advance_origin(other, {"knowledge-base/wiki/log.md": "# log\n"}, msg="origin deletes")
-    since = _git(other, "log", "-1", "--format=%cI").stdout.strip()
-    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", line.strip(), since) is True  # 同秒は含む (>=)
-    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", line.strip(), "2099-01-01T00:00:00+00:00") is False
-    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", "", since) is False
+    deleted = _git(other, "rev-parse", "HEAD").stdout.strip()
+    body = line.strip()
+    # 親 = 削除後 (host が pull した状態): 追加も削除も先行履歴 → 偽
+    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", body, deleted) is False
+    # 親 = 追加後: 範囲に残るのは削除 commit だけ (-S は一致するが行は実在しない) → 偽
+    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", body, added) is False
+    # 親 = 追加前: 追加 commit が範囲に入り、その file に行が実在 → 真
+    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", body, f"{added}^") is True
+    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", "", f"{added}^") is False
+
+
+def test_a_line_origin_deleted_and_the_host_re_added_is_not_present(world):
+    """Codex P2 の再現: origin が足して消した行を host が同秒内に再追加して座礁 → 届いていないので
+    PRESENT にせず、ref を prune しない (以前の --since 判定は PRESENT → prune で退避ごと失っていた)。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    line = "- 2026-11-16 a long observation line that origin added, deleted, and the host re-added\n"
+    note = "".join(f"- 2026-11-16 unrelated note number {i} long enough to be a content line of its own\n" for i in range(3))
+    _advance_origin(other, {"knowledge-base/wiki/log.md": "# log\n" + line}, msg="origin adds")
+    _advance_origin(other, {"knowledge-base/wiki/log.md": "# log\n"}, msg="origin deletes")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    # origin が先に進む (host はここから stale) + 同じ領域に別の追記 → 3-way は conflict
+    _advance_origin(other, {"knowledge-base/wiki/log.md": "# log\n" + note,
+                            "knowledge-base/raw/trade-logs/2026-11-16.md": "# 2026-11-16 Daily Trade Log\n" + note},
+                    msg="origin moves on")
+    _strand(host, "2026-11-16", {"knowledge-base/wiki/log.md": "# log\n" + line,
+                                 "knowledge-base/raw/trade-logs/2026-11-16.md": "# 2026-11-16 Daily Trade Log\n" + line})
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert len(_remote_refs(remote)) == 1
+    assert line not in _read(runner, "knowledge-base/wiki/log.md")

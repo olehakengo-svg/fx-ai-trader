@@ -68,5 +68,5 @@ PR #209 で「**構造 pin は性質を書け、構文を書くな**」を学ん
 
 - 性質: 「座礁 commit の内容が origin/main に届いたか」。pin した代理: 「追加行が**現在の HEAD** に逐語で残っているか (≥ 95%)」
 - 破れ方: `wiki/index.md` の NAV 行 / 見出しは毎 wiki-daily run が上書きする時変 status 行。先行救出で届いた後に差し替えられると代理は永久に偽 → cron 3 run 連続 CONFLICT 14/14 (畳み 0 / prune 0)。11-14 の手元検証はファイル別化前の合算比率で、変更後に実 ref で再実行していなかった
-- 性質に近い観測: 「target の履歴に (座礁 commit 以降) 一度でも入ったか」(`git log -S --since`)。届いていないファイルは履歴にも無いので fail-closed は保てる
+- 性質に近い観測: 「target の履歴に (座礁 commit の親から到達できない commit で) 一度でも入ったか」(`git log -S HEAD --not <親>` + 命中 commit の file に実在)。届いていないファイルは履歴にも無いので fail-closed は保てる。なお初版は `--since` (timestamp) で書き、同秒の先行履歴と削除側の `-S` 一致を Codex P2 に突かれた — 「以降」も時刻でなく到達性で書く
 - 記録: [[2026-11-16-session]] / changelog 2026-11-16

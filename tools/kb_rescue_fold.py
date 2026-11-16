@@ -334,18 +334,27 @@ def _restore(git: Git, paths: list[str]) -> None:
                 os.remove(full)
 
 
-def line_superseded(git: Git, path: str, body: str, since: str) -> bool:
+def line_superseded(git: Git, path: str, body: str, before: str) -> bool:
     """target の履歴で、座礁 commit 以降にその行が一度でも `path` に入ったか (pickaxe)。
     index.md の NAV 行 / Portfolio・System State 見出しのような **時変 status 行** は次の
     wiki-daily run が上書きするので、先行救出で origin に入っていても逐語残存では永久に
     「欠落」になる (2026-11-15 cron 3 run 連続 CONFLICT 14/14 の根)。履歴に一度入った行は
-    「差し替え済み」として accounted に数える。`--since` で座礁 commit より前の履歴は見ない
-    (origin で消された行を座礁側が再追加するケースを救出済みと誤認しない)。"""
+    「差し替え済み」として accounted に数える。
+
+    範囲は `HEAD --not <before>` (= 座礁 commit の親から到達できない target 側の commit) に限る。
+    timestamp (`--since`) は秒精度で同秒の先行履歴を含み、かつ `-S` は **削除側にも一致** するので、
+    origin が消した行を座礁側が再追加するケースを「救出済み」と誤認する (PR #378 Codex P2)。
+    命中 commit のその file に行が実在することまで確認する (削除だけの命中を除く)。"""
     if not body:
         return False
-    p = git.run("log", "-n", "1", "--format=%H", f"-S{body}", f"--since={since}", "HEAD", "--", path,
-                check=False)
-    return p.returncode == 0 and bool(p.stdout.strip())
+    p = git.run("log", "--format=%H", f"-S{body}", "HEAD", "--not", before, "--", path, check=False)
+    if p.returncode != 0:
+        return False
+    for c in p.stdout.split():
+        f = git.run("show", f"{c}:{path}", check=False)
+        if f.returncode == 0 and body in f.stdout:
+            return True
+    return False
 
 
 def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
@@ -356,7 +365,7 @@ def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
     比率の分母から消え、ref を prune しながら取りこぼしていた)。"""
     if not paths:
         return False, "no files"
-    since = git.out("log", "-1", "--format=%cI", sha).strip()
+    before = f"{sha}^"  # 座礁 commit の親: これから到達できる履歴は「先行」で、差し替え済みの証拠にならない
     missing: list[str] = []
     hit = tot = sup = 0
     for path in paths:
@@ -369,7 +378,7 @@ def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
             for body in long_lines:
                 if body in text:
                     h += 1
-                elif line_superseded(git, path, body, since):
+                elif line_superseded(git, path, body, before):
                     s_ += 1
             hit += h
             tot += len(long_lines)
