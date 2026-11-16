@@ -6250,6 +6250,16 @@ Cutoff後累計（全期間）では N=2、WR=50.0%、EV=+5.85、PnL=+11.7 pips 
 - `r2_shadow_demoted_cell`による遮断はシャドウ評価が機能している証拠であり、介入は不適切。
 | GBP_USD | VOLATILE | 72% | ロンドン開始でボラ継続・拡大リスク高。スプレッド拡大局面に注意 |
 
+### 2026-11-16 (Post-London Report)
+| PnL | **±0 pips / ±¥0** |
+| 勝率 (WR) | **N/A** |
+| PnL | ¥0 | ¥0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+> **NO ACTION推奨（OANDA転送率0%、Shadow降格ロック継続中）**
+3. **昇格候補ゼロ**: N≥30・EV≥1.0の基準を満たす戦略がセッション内に確認できない
+| PnL | ¥0 | ¥0 | **¥0** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
