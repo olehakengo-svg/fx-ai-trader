@@ -334,33 +334,56 @@ def _restore(git: Git, paths: list[str]) -> None:
                 os.remove(full)
 
 
+def line_superseded(git: Git, path: str, body: str, since: str) -> bool:
+    """target の履歴で、座礁 commit 以降にその行が一度でも `path` に入ったか (pickaxe)。
+    index.md の NAV 行 / Portfolio・System State 見出しのような **時変 status 行** は次の
+    wiki-daily run が上書きするので、先行救出で origin に入っていても逐語残存では永久に
+    「欠落」になる (2026-11-15 cron 3 run 連続 CONFLICT 14/14 の根)。履歴に一度入った行は
+    「差し替え済み」として accounted に数える。`--since` で座礁 commit より前の履歴は見ない
+    (origin で消された行を座礁側が再追加するケースを救出済みと誤認しない)。"""
+    if not body:
+        return False
+    p = git.run("log", "-n", "1", "--format=%H", f"-S{body}", f"--since={since}", "HEAD", "--", path,
+                check=False)
+    return p.returncode == 0 and bool(p.stdout.strip())
+
+
 def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
     """**全ファイル**が target に入っているかを判定する。長い追加行 (len > 40) を持つファイルは
-    逐語残存 ≥ 95%、持たないファイル (1 行 JSON 等) はそのファイル分の patch が reverse-apply
-    できるかで厳密に見る。1 ファイルでも未達なら PRESENT にしない (PR #376 Codex P1 7 巡目:
-    短い行しかないファイルは比率の分母から消え、ref を prune しながら取りこぼしていた)。"""
+    「逐語残存 + 差し替え済み (target 履歴に一度入った、`line_superseded`)」≥ 95%、持たない
+    ファイル (1 行 JSON 等) はそのファイル分の patch が reverse-apply できるかで厳密に見る。
+    1 ファイルでも未達なら PRESENT にしない (PR #376 Codex P1 7 巡目: 短い行しかないファイルは
+    比率の分母から消え、ref を prune しながら取りこぼしていた)。"""
     if not paths:
         return False, "no files"
+    since = git.out("log", "-1", "--format=%cI", sha).strip()
     missing: list[str] = []
-    hit = tot = 0
+    hit = tot = sup = 0
     for path in paths:
         patch_f = git.out("diff", "--no-color", "--no-ext-diff", f"{sha}^", sha, "--", path)
         long_lines = added_lines(patch_f)
         if long_lines:
             cur = git.run("show", f"HEAD:{path}", check=False)
             text = cur.stdout if cur.returncode == 0 else ""
-            h = sum(1 for body in long_lines if body in text)
+            h = s_ = 0
+            for body in long_lines:
+                if body in text:
+                    h += 1
+                elif line_superseded(git, path, body, since):
+                    s_ += 1
             hit += h
             tot += len(long_lines)
-            if h / len(long_lines) < PRESENT_MIN_RATIO:
+            sup += s_
+            if (h + s_) / len(long_lines) < PRESENT_MIN_RATIO:
                 missing.append(path)
         elif patch_f.strip():
             ok = git.run("apply", "--reverse", "--check", "-", check=False, input_text=patch_f).returncode == 0
             if not ok:
                 missing.append(path)
     if missing:
-        return False, f"{hit}/{tot} long lines verbatim; not accounted: {missing[:3]}"
-    return True, f"{hit}/{tot} long added lines verbatim in target, {len(paths)} file(s) all accounted"
+        return False, f"{hit}/{tot} long lines verbatim (+{sup} superseded in target history); not accounted: {missing[:3]}"
+    return True, (f"{hit}/{tot} long added lines verbatim in target (+{sup} superseded in target history), "
+                  f"{len(paths)} file(s) all accounted")
 
 
 def _changed_files_have_markers(git: Git, paths: list[str]) -> list[str]:

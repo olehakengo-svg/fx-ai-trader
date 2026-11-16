@@ -533,3 +533,63 @@ def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
     assert _read(check, "knowledge-base/raw/trade-logs/2026-11-13.md") == "# stranded\n"
     assert "handwritten draft" not in _read(check, today)   # the draft was never committed by the tool
 
+
+
+def test_a_superseded_status_line_in_a_hot_file_still_counts_as_present(world):
+    """2026-11-15 cron 3 run 連続 CONFLICT 14/14 の根: index.md の NAV 行 / 見出しは毎 run が上書きする
+    時変 status 行で、先行救出された後に次の run が差し替えると逐語残存では永久に「欠落」になる。
+    target 履歴に一度入った行 (pickaxe) は差し替え済みとして accounted → PRESENT → prune。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    body = "".join(f"- 2026-11-06 observation line number {i} with enough length to count as content\n" for i in range(10))
+    status_old = "- 現在: NAV 2026-11-06 03:18Z 実測 ¥270,000 (status row rewritten by every wiki-daily run)\n"
+    status_new = "- 現在: NAV 2026-11-11 05:49Z 実測 ¥271,000 (status row rewritten by every wiki-daily run)\n"
+    _strand(host, "2026-11-06", {
+        "knowledge-base/raw/trade-logs/2026-11-06.md": "# 2026-11-06 Daily Trade Log\n" + body,
+        "knowledge-base/wiki/index.md": "# index\n" + status_old + "line A\nline B\n",
+    })
+    _advance_origin(other, {"knowledge-base/raw/trade-logs/2026-11-06.md": "# 2026-11-06 Daily Trade Log\n" + body,
+                            "knowledge-base/wiki/index.md": "# index\n" + status_old + "line A\nline B\n"},
+                    msg="manual rescue")
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + status_new + "line A\nline B\n"},
+                    msg="next wiki-daily supersedes the status row")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 0
+    assert _remote_refs(remote) == []
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip() == "next wiki-daily supersedes the status row"
+    assert status_old not in _read(runner, "knowledge-base/wiki/index.md")  # 旧 status 行を蘇らせない
+
+
+def test_a_lost_long_lined_file_is_not_present_even_when_hot_file_lines_were_superseded(world):
+    """差し替え済み判定は履歴に一度入った行にしか効かない: 届いていないファイルは pickaxe 0 → CONFLICT のまま。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    body = "".join(f"- 2026-11-06 observation line number {i} with enough length to count as content\n" for i in range(5))
+    status_old = "- 現在: NAV 2026-11-06 03:18Z 実測 ¥270,000 (status row rewritten by every wiki-daily run)\n"
+    status_new = "- 現在: NAV 2026-11-11 05:49Z 実測 ¥271,000 (status row rewritten by every wiki-daily run)\n"
+    _strand(host, "2026-11-06", {
+        "knowledge-base/raw/trade-logs/2026-11-06.md": "# 2026-11-06 Daily Trade Log\n" + body,
+        "knowledge-base/raw/observations-2026-11-06.md": "# obs\n" + body.replace("observation", "never rescued"),
+        "knowledge-base/wiki/index.md": "# index\n" + status_old + "line A\nline B\n",
+    })
+    _advance_origin(other, {"knowledge-base/raw/trade-logs/2026-11-06.md": "# 2026-11-06 Daily Trade Log\n" + body,
+                            "knowledge-base/wiki/index.md": "# index\n" + status_old + "line A\nline B\n"},
+                    msg="manual rescue (forgot the observations file)")
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + status_new + "line A\nline B\n"},
+                    msg="next wiki-daily")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert len(_remote_refs(remote)) == 1
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip() == "next wiki-daily"
+    assert not os.path.exists(os.path.join(runner, "knowledge-base/raw/observations-2026-11-06.md"))
+
+
+def test_line_superseded_only_looks_at_target_history_after_the_stranded_commit(world):
+    """座礁 commit より前に origin が持っていて消した行は「差し替え済み」ではない (--since で遮る)。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    git = krf.Git(other)
+    line = "- a long line that origin once had and deleted before the stranded commit existed\n"
+    _advance_origin(other, {"knowledge-base/wiki/log.md": "# log\n" + line}, msg="origin adds")
+    _advance_origin(other, {"knowledge-base/wiki/log.md": "# log\n"}, msg="origin deletes")
+    since = _git(other, "log", "-1", "--format=%cI").stdout.strip()
+    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", line.strip(), since) is True  # 同秒は含む (>=)
+    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", line.strip(), "2099-01-01T00:00:00+00:00") is False
+    assert krf.line_superseded(git, "knowledge-base/wiki/log.md", "", since) is False
