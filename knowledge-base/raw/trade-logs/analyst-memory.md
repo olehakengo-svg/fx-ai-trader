@@ -6290,6 +6290,16 @@ EUR_USD（ATR 69%+RANGING）はフェイクブレイクリスクが高い状態�
 ### 推奨戦略配分
 **NO ACTION推奨**
 
+### 2026-11-17 (Post-London Report)
+| セッション内PnL | **±¥0.00** |
+| WR | **N/A** |
+| PnL | ±¥0.00 | ±¥0.00 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**NO ACTION推奨（NYセッション）**
+- 全ペアRANGINGのまま推移する可能性が高く、daytrade系の`score_gate`・`order_bar_dedup`ブロックは解消されない
+- scalp系は`r2_shadow_demoted_cell`が6,000件超蓄積しており、NYセッション開始時点でdemotedセル状態が即時解除される根拠がない
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
