@@ -6300,6 +6300,16 @@ EUR_USD（ATR 69%+RANGING）はフェイクブレイクリスクが高い状態�
 - 全ペアRANGINGのまま推移する可能性が高く、daytrade系の`score_gate`・`order_bar_dedup`ブロックは解消されない
 - scalp系は`r2_shadow_demoted_cell`が6,000件超蓄積しており、NYセッション開始時点でdemotedセル状態が即時解除される根拠がない
 
+### 2026-11-17 (Pre-Tokyo Briefing)
+前日（2026-11-16）はトレードゼロ。Cutoff後全期間でも有効トレードは `usdjpy_carry_dip_accumulator / USD_JPY` のN=2のみ（PnL +11.7、WR 50.0%）。実質的に**システム全体がシグナル不発状態**で前日を終えた。NAV ¥271,681.1611は前回報告値から不変。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **判定**: N=2 → 統計的には「データなし」。EV+5.85はサンプルサイズ不足で信頼不能。N=30到達まで判断保留。その他全戦略はCutoff後N=0（マトリクス未登場）。
+- **Scalp系**: `r2_shadow_demoted_cell` が解消されるまでOANDA転送は期待しない。demoted cellの回復を待つ姿勢を維持。
+- **RnB**: USD_JPYがRANGING 41%ile（低ATR）の間はno_signalが継続する可能性が高い。シグナル発生を強制的に期待しない。
+- **Daytrade dedup**: シグナルは発生しているが重複除去で消滅。バー跨ぎの機会損失として記録するにとどめる。
+| 12:00–17:00（London） | GBP_USD Slope下落バイアス。ブレイクアウト方向に要注意 |
+**OANDA転送率0%は継続**。全50件がSKIP。主因は`shadow_tracking`（demoted状態）であり、プロモーション基準（N≥30 & EV≥1.0）に到達している戦略が存在しない現状では、この状態は設計通り。ただし4.31日以上live fillゼロが継続しており、実口座の稼働実態はゼロ。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
