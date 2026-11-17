@@ -6280,6 +6280,16 @@ EUR_USD（ATR 69%+RANGING）はフェイクブレイクリスクが高い状態�
 ### 推奨戦略配分
 **NO ACTION推奨**
 
+### 2026-11-17 (Post-Tokyo Report)
+| PnL | ¥0.00 |
+| WR | N/A |
+- 本日セッション N=0 につき評価不能
+- Fidelity Cutoff 後の累積 N が昇格基準（N≥30）に達している戦略の有無を確認できないため、パラメータ調整の根拠データなし
+- OANDA転送率 **0%（SENT=0 / SKIP=50）**：全トレードが Shadow 追跡段階にあり、本番送信資格を持つ戦略が存在しない状態
+- DD防御 **0.2x defensive mode** 継続中 — 積極介入を正当化する根拠なし
+### 推奨戦略配分
+**NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
