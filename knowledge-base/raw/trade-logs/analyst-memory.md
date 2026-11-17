@@ -6270,6 +6270,16 @@ Cutoff後累積では `usdjpy_carry_dip_accumulator` が **N=2** のみ（EV +5.
 > 降格基準（N≥30 & EV<-0.5）に該当する戦略：**なし**（N不足）
 EUR_USD（ATR 69%+RANGING）はフェイクブレイクリスクが高い状態。GBP_USD（72%）も同様で、この2ペアはScalp系で注意要。
 
+### 2026-11-17 (Post-Tokyo Report)
+| PnL | ¥0.00 |
+| 勝率（WR） | N/A |
+- 本日東京セッション N = 0。統計的に判断可能な素材が存在しない
+- Fidelity Cutoff（2026-04-08）以降の累積データでも OANDA SENT = 0（Live Rate 0%、全 50 件 SKIP）
+- 現在はDD防御 0.2x モード稼働中。自律的な戦略変更を行うべき状況ではない
+- `r2_shadow_demoted_cell` によるブロックはシステム設計の意図的動作であり、パラメータ調整で解消すべき対象ではない
+### 推奨戦略配分
+**NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
