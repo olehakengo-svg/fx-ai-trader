@@ -22,6 +22,7 @@ from tools.prereg_trigger_watch import (
     evaluate_shadow_count_decision,
     evaluate_shadow_count_info,
     load_registry,
+    load_registry_raw,
     to_markdown,
 )
 
@@ -884,12 +885,20 @@ def test_mof_successor_entry_is_wired_into_the_dispatch(tmp_path):
 
 
 def test_ws3_round4_entry_is_machine_evaluable():
+    """round3 §8 の round-4 条件は FX + rates の両脚。ZN 脚は 2026-11-18 に
+    条件成立で resolve 済み (第7次スキャン)、FX 脚が後継 entry として
+    機械評価 (data_coverage) で生きていること。"""
     trig = next(t for t in load_registry()
-                if t["id"] == "ws3-round4-eur-divergence-conditional")
+                if t["id"] == "ws3-round4-fx-leg-coverage")
     assert trig["type"] == "data_coverage"
     assert trig["threshold_date"] == "2026-11-15"
     assert (Path(__file__).resolve().parent.parent
             / trig["source"]["path"]).exists()
+    assert "massive" in trig["source"]["path"]
+    zn = next(t for t in load_registry_raw()
+              if t["id"] == "ws3-round4-eur-divergence-conditional")
+    assert zn["active"] is False and zn["resolved"] == "2026-11-18"
+    assert "ws3-round4-fx-leg-coverage" in zn["resolution"]
 
 
 # ── 監視器自身の堅牢性 — 2026-09-08 (51 エントリ 2 日間停止の再発防止) ──
