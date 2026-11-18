@@ -196,7 +196,7 @@
     },
     {
       "id": "ws3-round4-eur-divergence-conditional",
-      "active": true,
+      "active": false,
       "type": "data_coverage",
       "deadline": "no-deadline",
       "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
@@ -204,7 +204,25 @@
       "source": {
         "path": "data/cache/yield/ZN_F_1h.parquet"
       },
-      "threshold_date": "2026-11-15"
+      "threshold_date": "2026-11-15",
+      "resolved": "2026-11-18",
+      "resolution": "ZN 脚 条件成立を第7次 ([[external-hypothesis-scan-round7-2026-11-18]] §1 / §4-(iii)) で記録: `data/cache/yield/ZN_F_1h.parquet` 15,563 行、被覆 2026-11-18 > 閾値 11-15 (zn-cache-refresh 11-16 run、11-18 00:20Z cron TRIGGERED)。round3 §8 の round-4 分岐は『FX + rates cache が 2026-05-15 を 6 ヶ月以上超えて延伸』で、**FX 脚は未到達** (origin の MASSIVE 1h cache は 13 ペア 05-15 終端のまま、repo secret `MASSIVE_API_KEY` 不在、ローカル checkout の 15m は 11-06 右端 = 閾値未満かつローカル key 空で停止中)。日次 TRIGGERED の常時表示を避けるため本 entry を閉じ、FX 脚を機械評価する後継 `ws3-round4-fx-leg-coverage` (data_coverage、EUR_JPY_1h parquet、閾値 11-15) に置換。pre-reg DRAFT は起草可 (データ非接触、round6 §5-(a)) だが、FX 脚の到達経路が user 操作 (secret 登録) 待ちで凍結期日を持てないため、起草しても R5 `edge-supply-active-line-idle-r5` の能動ラインに数えない (第7次 §2.1)。"
+    },
+    {
+      "id": "ws3-round4-fx-leg-coverage",
+      "active": true,
+      "type": "data_coverage",
+      "deadline": "no-deadline",
+      "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
+      "message": "ws3-round4 EUR divergence-reversion (round3 §8 条件付き round-4) の **FX 脚**: 『FX + rates cache が 2026-05-15 を 6 ヶ月以上超えて延伸したら、pair 分散 freeze (EUR_USD/EUR_JPY を事前登録、top-by-EV 回避) で新 OOS 窓による round-4 を再試行可』。rates (ZN) 脚は 2026-11-18 に条件成立 (前身 `ws3-round4-eur-divergence-conditional` resolve、被覆 11-18 > 11-15)。本 entry は FX 脚 = MASSIVE 1h cache (EUR_JPY を代表、origin tracked) の被覆 max 日付 > 2026-11-15 を機械評価する。2026-11-18 時点の被覆 = 2026-05-15 (13 ペア全て、refresh job 不在 = 第6次 §1 で継続確認した既知欠陥)。両脚 TRIGGERED で: DRAFT (pair 分散 freeze EUR_USD/EUR_JPY 事前登録 / 新 OOS 窓 2026-05-16〜 固定 / EUR_USD 6 ヶ月窓 N≈19<30 の UNDERPOWERED 分岐事前固定 / §2c L64 訂正 / gap 処置) を凍結し user 通知で LOCK (round6 §5-(a))。価格のみ、outcome 非結合。live 非接触。",
+      "reachability": "到達経路 = round6 §5-(a) の R3 infra: 15m→1h resample (EUR_JPY 2025-03 で vendor 1h と O/H/L/C/V 完全一致) + 欠落 bar の OANDA mid 補填複製 + 週次 workflow、条件 (i) commit は 1h のみ (ii) commit 先は Render ignoredPaths 内の専用 dir (iii) keep=\"first\" 経路のみ・`bt_data_cache refresh` (keep=\"last\") は test pin で禁止 (iv) 本 entry で機械評価。**前提 = repo secret `MASSIVE_API_KEY` の登録 (user 操作 1 回、値は Claude が扱わない)** — 2026-11-18 `gh secret list` に不在。infra が commit 先を新 dir にした場合は本 entry の source.path をその 1h ファイルに更新する (更新までは旧 path = 05-15 で WATCHING)。ローカル checkout の 15m cache (11-06 右端、ローカル key 空で停止) は閾値未満で代替にならない。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が data_coverage で評価する。",
+      "source": {
+        "path": "data/cache/massive/EUR_JPY_1h.parquet"
+      },
+      "threshold_date": "2026-11-15",
+      "note": {
+        "2026-11-18": "起票 (autopilot 11-18、第7次 §4-(iii))。前身 ZN entry の resolve と同時。被覆 2026-05-15 → WATCHING。"
+      }
     },
     {
       "id": "e1-positioning-ingest-freshness",
@@ -295,13 +313,14 @@
       "id": "edge-supply-scan-monthly",
       "active": true,
       "type": "deadline_info",
-      "deadline": "2026-11-17",
+      "deadline": "2026-12-17",
       "doc": "knowledge-base/wiki/syntheses/edge-development-pipeline-2026-07-18.md",
-      "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: 着手できる本数が 0 なら期日を待たず臨時スキャン (R3)。第3次 2026-08-14 実行済 (採用 E21/E22)。第4次 2026-09-10 実行済 (family A 採用=台帳 #27 / family B park / E23 LOCK / E26-E28 全棄却 / rate-anchor+zn-cache 修復)。**第5次 2026-09-17 実行済 (期日 09-18 の 1 日前倒し — [[external-hypothesis-scan-round5-2026-09-17]])**: (1) 新規 E29-E31 全棄却 = 採用 0 で 3 周連続 (棄却理由は C1 有償 / C2 既 ban モダリティ / C4 正 EV ホスト不在 の 3 分類に収束)。(2) 🔴 **WIP 発動会計を訂正** — 09-15 の『能動測定ライン 0 本』は台帳 #27 (family A) の数え落としで、統治規則 (今日着手できる本数 ≥1) 下では臨時スキャン条件は成立していなかった (実害ゼロ)。正しい現在値 = **着手可能 1 本 (#27、凍結期日 09-24)** / 時限ロック 3 (E1 10-15, ECG 11-06, E12 2027-02-05) / 条件付き 2 / park 2 → WIP 充足。(3) 🔴 **family A forward コーパスの供給欠陥を修復** — mof-statements-daily が 8/20 run 失敗 (単一根因 GDELT 429)、失敗時に先行 4 ソースの成果ごと破棄しており **my20260915.html が実際に欠落**していた (回収済)。欠陥族 3 例目 (zn-cache / rate_anchor に続く) → [[lesson-defect-family-sweep-siblings-2026-09-17]]。(4) 第4次の rate-anchor-daily (4/4 success) / zn-cache-refresh (2/2 success) 修復を運用実績で確認しクローズ。次回 **第6次 = 2026-10-18、四半期モダリティ棚卸しを同乗**。§4 に月次→四半期+イベント駆動への cadence 変更提案 (user 決裁事項、未執行)。 【到達経路 (第6次の材料、性質 pin 継続 — 「条件を書く」と「条件が起こりうる」は別物)】family A forward 材料 = **mof-statements-daily** cron (lexicon_scores.csv 日次) — 基盤着地は statement-ladder-foundation-readiness で resolve 済み。⚠️ 本 cron は 8/20 run 失敗 (GDELT 429) で **my20260915.html を実際に落としていた** — 第5次 §1.2 で per-source 隔離 + commit `if: !cancelled()` により修復・回収済み。次回 scheduled run が soft-gdelt で success 終了することを実ログで確認するまで「修復完了」と言わないこと。 / family B 再裁定入力 = **intervention-watch** workflow (E-A 凍結検知器、00:20 UTC — 直近 4/4 success) + mof-next-episode-reverdict。 / family C 残置材料 + ws3-round4 conditional の唯一の到達経路 = **rate-anchor-daily** workflow (平日 21:15 UTC) と zn-cache-refresh — 第4次修復後 4/4 / 2/2 success、manifest date_max 2026-09-16 で運用実績確認済み (第5次 §1.1)。 ／ 2026-09-22 追記: **臨時スキャン 2026-09-22 実行済** (#29 S1 step 0、[[adhoc-scan-29-step0-2026-09-22]]、PR #284 — 月次 cadence とは別建ての臨時記録で本 deadline 10-18 は消費しない): 無条件候補 0 / 条件付き 2 (WCB pooled = ライセンス不整合 (card cc-by-4.0 vs 論文・LICENSE・全データセット CC BY-NC-SA 4.0) + fine-tune 終端 2024 で記述 secondary 固定 / ABGH-2019 辞書 = license-free primary 候補・再利用許諾未確認・密度未測定)。WIP 会計: 着手可能 (能動) 0 / 提案 1 (step 1 census、価格非接触)。第6次 (10-18) で裁定: step 1 実行可否 / #29 台帳登録可否 / explore 枠現在値 (0/3〜2/3) 確定 / C5 text 規律 (LLM zero-shot・frozen-LLM 表現採点の恒久除外、encoder も事前学習終端以前は汚染扱い) の KB 反映。 ／ ⛔ 2026-09-24 user 決裁 (user-decision-capital-not-binding-edge-first-2026-09-24.md): 第6次 (10-18) の議題に **U4 (a) 有償 probe ((a-1) FX オプション面 等) / (b) daily+ クロスセクショナル / (c) 非 FX (OANDA 銘柄内に限る) を「資本制約なし」で再上程**する。月額 ¥数十万級の有償データは U2 未決裁のため user 明示承認が前提。keeper ゼロ化 / venue 変更は議題から除外。 ／ 2026-10-10 (autopilot): **E1 first look #1 = POSTPONE** (品質 gate、[[e1-positioning-contrarian-prereg-2026-07-16]] §8-1) → 時限ロック E1 の日付は 10-15 → **11-12**。第6次 (10-18) での (a-1) probe R1 起案可否は手順書 [[e1-first-look-runbook-2026-09-22]] §8 一行定義の第 1 項 [verdict ∈ {UNDERPOWERED, REJECT, REJECT-F}] が **不成立 (verdict 未着)** → 起案しない。WIP 会計の時限ロック 3 本は不変 (E1 11-12 / ECG 11-06 / E12 2027-02-05)。 ／ **第6次 2026-10-20 実行済 (期日 10-18 の 2 日遅延、[[external-hypothesis-scan-round6-2026-10-20]])**: 新規採用 0 (3 周連続、第4〜6次) / #29 step 1 census 承認 (診断枠、WIP 非算入) + 台帳 #29 登録、#30〜#32 research-only 予約 / U4 (a-1) は KB 字義訂正 + user 決裁 4 件 (U4-1〜3, U4-6)、(b) は research-only 予約へ格下げ、(c) は OANDA 制約下クローズ (残余 = shadow ペア拡張、RT 実測まで) / explore 枠は案 A 0/3 を作業上の読み (正式採択 user ack) / cadence 三択は user 決裁、R5 機械トリガ起票を前提条件に。次期日 = 意図実行日 2026-11-18 の**前日規則で deadline 2026-11-17** (TRIGGERED = 当日 run の催促)。／ **2026-11-03 追記**: §9 決裁 9 件を §9.1 に記録 — cadence 月次維持 (R5 `edge-supply-active-line-idle-r5` 起票済み、12-03) / 案 A 正式採択 0/3 / U4-1 (B) decouple / #29-L 承認 (転記解錠) / (iv) 不可クローズ / U4-2 未提示 = 購買起案なし。",
+      "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: 着手できる本数が 0 なら期日を待たず臨時スキャン (R3)。第3次 2026-08-14 実行済 (採用 E21/E22)。第4次 2026-09-10 実行済 (family A 採用=台帳 #27 / family B park / E23 LOCK / E26-E28 全棄却 / rate-anchor+zn-cache 修復)。**第5次 2026-09-17 実行済 (期日 09-18 の 1 日前倒し — [[external-hypothesis-scan-round5-2026-09-17]])**: (1) 新規 E29-E31 全棄却 = 採用 0 で 3 周連続 (棄却理由は C1 有償 / C2 既 ban モダリティ / C4 正 EV ホスト不在 の 3 分類に収束)。(2) 🔴 **WIP 発動会計を訂正** — 09-15 の『能動測定ライン 0 本』は台帳 #27 (family A) の数え落としで、統治規則 (今日着手できる本数 ≥1) 下では臨時スキャン条件は成立していなかった (実害ゼロ)。正しい現在値 = **着手可能 1 本 (#27、凍結期日 09-24)** / 時限ロック 3 (E1 10-15, ECG 11-06, E12 2027-02-05) / 条件付き 2 / park 2 → WIP 充足。(3) 🔴 **family A forward コーパスの供給欠陥を修復** — mof-statements-daily が 8/20 run 失敗 (単一根因 GDELT 429)、失敗時に先行 4 ソースの成果ごと破棄しており **my20260915.html が実際に欠落**していた (回収済)。欠陥族 3 例目 (zn-cache / rate_anchor に続く) → [[lesson-defect-family-sweep-siblings-2026-09-17]]。(4) 第4次の rate-anchor-daily (4/4 success) / zn-cache-refresh (2/2 success) 修復を運用実績で確認しクローズ。次回 **第6次 = 2026-10-18、四半期モダリティ棚卸しを同乗**。§4 に月次→四半期+イベント駆動への cadence 変更提案 (user 決裁事項、未執行)。 【到達経路 (第6次の材料、性質 pin 継続 — 「条件を書く」と「条件が起こりうる」は別物)】family A forward 材料 = **mof-statements-daily** cron (lexicon_scores.csv 日次) — 基盤着地は statement-ladder-foundation-readiness で resolve 済み。⚠️ 本 cron は 8/20 run 失敗 (GDELT 429) で **my20260915.html を実際に落としていた** — 第5次 §1.2 で per-source 隔離 + commit `if: !cancelled()` により修復・回収済み。次回 scheduled run が soft-gdelt で success 終了することを実ログで確認するまで「修復完了」と言わないこと。 / family B 再裁定入力 = **intervention-watch** workflow (E-A 凍結検知器、00:20 UTC — 直近 4/4 success) + mof-next-episode-reverdict。 / family C 残置材料 + ws3-round4 conditional の唯一の到達経路 = **rate-anchor-daily** workflow (平日 21:15 UTC) と zn-cache-refresh — 第4次修復後 4/4 / 2/2 success、manifest date_max 2026-09-16 で運用実績確認済み (第5次 §1.1)。 ／ 2026-09-22 追記: **臨時スキャン 2026-09-22 実行済** (#29 S1 step 0、[[adhoc-scan-29-step0-2026-09-22]]、PR #284 — 月次 cadence とは別建ての臨時記録で本 deadline 10-18 は消費しない): 無条件候補 0 / 条件付き 2 (WCB pooled = ライセンス不整合 (card cc-by-4.0 vs 論文・LICENSE・全データセット CC BY-NC-SA 4.0) + fine-tune 終端 2024 で記述 secondary 固定 / ABGH-2019 辞書 = license-free primary 候補・再利用許諾未確認・密度未測定)。WIP 会計: 着手可能 (能動) 0 / 提案 1 (step 1 census、価格非接触)。第6次 (10-18) で裁定: step 1 実行可否 / #29 台帳登録可否 / explore 枠現在値 (0/3〜2/3) 確定 / C5 text 規律 (LLM zero-shot・frozen-LLM 表現採点の恒久除外、encoder も事前学習終端以前は汚染扱い) の KB 反映。 ／ ⛔ 2026-09-24 user 決裁 (user-decision-capital-not-binding-edge-first-2026-09-24.md): 第6次 (10-18) の議題に **U4 (a) 有償 probe ((a-1) FX オプション面 等) / (b) daily+ クロスセクショナル / (c) 非 FX (OANDA 銘柄内に限る) を「資本制約なし」で再上程**する。月額 ¥数十万級の有償データは U2 未決裁のため user 明示承認が前提。keeper ゼロ化 / venue 変更は議題から除外。 ／ 2026-10-10 (autopilot): **E1 first look #1 = POSTPONE** (品質 gate、[[e1-positioning-contrarian-prereg-2026-07-16]] §8-1) → 時限ロック E1 の日付は 10-15 → **11-12**。第6次 (10-18) での (a-1) probe R1 起案可否は手順書 [[e1-first-look-runbook-2026-09-22]] §8 一行定義の第 1 項 [verdict ∈ {UNDERPOWERED, REJECT, REJECT-F}] が **不成立 (verdict 未着)** → 起案しない。WIP 会計の時限ロック 3 本は不変 (E1 11-12 / ECG 11-06 / E12 2027-02-05)。 ／ **第6次 2026-10-20 実行済 (期日 10-18 の 2 日遅延、[[external-hypothesis-scan-round6-2026-10-20]])**: 新規採用 0 (3 周連続、第4〜6次) / #29 step 1 census 承認 (診断枠、WIP 非算入) + 台帳 #29 登録、#30〜#32 research-only 予約 / U4 (a-1) は KB 字義訂正 + user 決裁 4 件 (U4-1〜3, U4-6)、(b) は research-only 予約へ格下げ、(c) は OANDA 制約下クローズ (残余 = shadow ペア拡張、RT 実測まで) / explore 枠は案 A 0/3 を作業上の読み (正式採択 user ack) / cadence 三択は user 決裁、R5 機械トリガ起票を前提条件に。次期日 = 意図実行日 2026-11-18 の**前日規則で deadline 2026-11-17** (TRIGGERED = 当日 run の催促)。／ **2026-11-03 追記**: §9 決裁 9 件を §9.1 に記録 — cadence 月次維持 (R5 `edge-supply-active-line-idle-r5` 起票済み、12-03) / 案 A 正式採択 0/3 / U4-1 (B) decouple / #29-L 承認 (転記解錠) / (iv) 不可クローズ / U4-2 未提示 = 購買起案なし。 ／ **第7次 2026-11-18 実行済 (期日 11-17 の前日規則どおり当日 run、遅延 0 日、[[external-hypothesis-scan-round7-2026-11-18]])**: 新規採用 0 (**4 周連続**、第4〜7次; E32〜E36 + データ源 3 件 = C1 3 / C2 3 / C4 3 (重複あり) で全棄却、C3 新規出現なし) / #29 dense PASS 後段 = 期日到来・user 返答なしで既定 (b) 診断枠保留を記録 → 第8次 議題 (`adhoc-scan-29-dense-pass-r1-disposition` resolve) / ws3-round4 ZN 脚 TRIGGERED (被覆 11-18 > 11-15)・FX 脚未到達 (origin 1h cache 05-15 のまま、`MASSIVE_API_KEY` secret 不在、ローカル 15m 11-06 右端 = 閾値未満) → ZN entry resolve + 後継 `ws3-round4-fx-leg-coverage` / (a-1) 起案条件 = U4-2 未提示で不成立 (起案なし) / family B 再裁定条件は形式成立 (A FAIL 09-18 + #4 クローズ 11-11) も A 検出器 FAIL で設計入力なし → park 継続 / R5 先行列挙: 11-03〜11-18 の registry 追加 id 8 件・台帳 commit 4 件に起草/LOCK/新 family 0 件 (判定は 12-03) / 入手性 re-check 新規実欠陥 0 件 (E1 13/13、E12 7/7、ECG 件数 155/140/33/13/3/10、4 workflow 全 success) + 既知 MASSIVE 1h 停滞継続。次期日 = 第8次 意図実行日 2026-12-18 の前日規則で **2026-12-17**、四半期棚卸しは第9次 (2027-01)。D4 (11-30) 返答があれば U4-3 を第8次議題に。",
       "reachability": "Claude セッション手動 (Tier-A cron が TRIGGERED 表示 = 当日 run の催促、前日規則 deadline 11-17 / 意図実行日 11-18)。前進経路 = wiki/research/ に external-hypothesis-scan-round7 を新設。先に読む: 既存 ban 台帳 (hypothesis-catalog-2026-07-24、#29〜#32 と「第6次 追補」を含む) + 直近 3 スキャンの棄却理由 3 分類 (C1/C2/C4) + external-hypothesis-scan-round6-2026-10-20 §9.1 (決裁記録 2026-11-03) / §10 (次アクション: #29 step 1 census gate 11-07、(a-1) DRAFT、ws3-round4 DRAFT + R3 infra、(c) 残余 RT 実測) + round5 §4 (cadence 提案、第6次 §7 で三択に整理)。第7次は E1 verdict (11-12) の直後だが、U4-1 = (B) decouple 採択済み (round6 §9.1、手順書 §8 追補 2026-11-03) のため (a-1) 起案に E1 verdict は前提にしない — 改定後の起案条件 [U1 継続 ∧ 一回性 probe (上限 = U4-2 円数字、未提示なら起案なし) ∧ 新 family pre-reg + 敵対的検証とセット ∧ explore 枠に空き (案 A 会計)] の充足判定を行う。四半期棚卸しは第6次で実施済み、次回は第9次。",
       "note": {
         "2026-10-20": "未着手 (autopilot 10-20)。理由: 本 run の直列容量を storm guard 執行窓 + 期日 5 件 (hedge-gate / hunt-events / ps-seat readout / review-backlog 326・328) に使用。WIP 規則の現在値: 着手可能ライン = family A は 09-18 FAIL クローズ、E1 は 11-05 cutoff 待ち、ECG 11-06、E12 2027-02-05 → **着手可能 0 本 = 臨時スキャン条件が成立している**ので第 6 次は次 run の第 1 候補 (研究側、deploy 不要 → 窓待ち不要)。期日は変更しない (TRIGGERED 表示を維持)。",
-        "2026-11-03": "§9 決裁 9 件を §9.1 に記録 (user「これ進めて」= 推奨/既定の一括適用): cadence **月次維持** (前提条件 R5 を `edge-supply-active-line-idle-r5` として同 PR で起票、12-03) / 案 A 正式採択 (0/3、書式要件発効) / (iv) Picault–Renault 不可クローズ確定 (持ち越さない) / U4-1 (B) decouple (手順書 §8 追補) / U4-2 未提示 = 購買起案なし / U4-3・U4-6 は D4 (11-30) 後 / (c) RT 実測 R3 へ。次回 11-18 の §1 入手性 re-check・§2 WIP 会計は現行どおり。"
+        "2026-11-03": "§9 決裁 9 件を §9.1 に記録 (user「これ進めて」= 推奨/既定の一括適用): cadence **月次維持** (前提条件 R5 を `edge-supply-active-line-idle-r5` として同 PR で起票、12-03) / 案 A 正式採択 (0/3、書式要件発効) / (iv) Picault–Renault 不可クローズ確定 (持ち越さない) / U4-1 (B) decouple (手順書 §8 追補) / U4-2 未提示 = 購買起案なし / U4-3・U4-6 は D4 (11-30) 後 / (c) RT 実測 R3 へ。次回 11-18 の §1 入手性 re-check・§2 WIP 会計は現行どおり。",
+        "2026-11-18": "第7次実行 (autopilot 11-18)。deadline 11-17 → 12-17。WIP 会計: 着手可能 0 / 診断 1 (#29 完了・(b) 保留) / 時限 3 (E1 12-30 / ECG 2027-01-31 / E12 2027-02-05) / 条件付き 1 (ws3-round4、MoF #4 は 11-11 クローズで消滅) / park E23 + family B / 予約 3。ws3-round4 DRAFT は起草可だが FX 脚が secret 待ちで凍結期日を持てないため R5 の能動ラインに数えない (第7次 §2.1 で先に宣言)。"
       }
     },
     {
@@ -319,7 +338,7 @@
     },
     {
       "id": "adhoc-scan-29-dense-pass-r1-disposition",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-17",
       "doc": "knowledge-base/wiki/research/adhoc-scan-29-step1-census-2026-11-05.md",
@@ -328,7 +347,9 @@
       "reachability": "第7次スキャン (autopilot、11-17) が本 entry を議題に載せ、user 返答を §9 形式で記録する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
       "note": {
         "2026-11-05": "起票 (autopilot 11-05)。census 成果物 = raw/analysis/adhoc29-abgh-census-2026-11-05.{json,md}、辞書 sha256 37a76f5392a5694b…。user が #29-L の読み (Riksbank open-data 条件) に異論を述べた場合は転記モジュールと派生物を削除し本 entry も (c) で閉じる。"
-      }
+      },
+      "resolved": "2026-11-18",
+      "resolution": "期日 11-17 到来、user の (a)/(b)/(c) 明示なし → entry condition どおり**既定 (b) 診断枠のまま保留**を記録して resolve (第7次 [[external-hypothesis-scan-round7-2026-11-18]] §4-(i))。第8次スキャン (`edge-supply-scan-monthly` 12-17、意図 12-18) の議題に繰り延べ。不可逆の作業なし: 価格結合・τ>0 試算・WCB/GSV secondary は未実行のまま、枠 0/3 → 0/3 (非消費)、m 非加算。台帳 #29 行に (a) 起案時の差分節要件 (CB 集合・τ・窓・文書種の事前凍結 + ECB WP 3229 (E33) の反証材料併記) を追記。user が後日 (a) または (c) を明示した場合は第8次を待たず別 entry で起票する (autopilot は (a) を起案しない、R1)。"
     },
     {
       "id": "e23-explore-verdict-deadline",
@@ -1707,7 +1728,8 @@
         "2026-11-04": "deploy 基準時刻 = PR #365 merge 6c46d5e9 02:37:51Z → Render dep-dbl9l097lnhs739fq1f0 live **2026-11-04T02:39:32Z** (`engine_import_pid` 60→59)。deploy 直後の `/api/risk/dashboard` jpy_ledger: eq_peak_jpy ¥359,288.47 / eq_current_jpy ¥323,074.23 / dd 10.08% / lot 0.2 (KV 復元、遡及計上なし) = 以後の差分の起点。open live 0 のため最初の OANDA_SL_TP 決済は次の live fill 以降。",
         "2026-11-05": "deploy 後初の live 決済 = carry_dip #1347030 (11-04 02:58:24Z)。broker 側 STOP_LOSS_ORDER が先着し engine の close PUT は 404 (tx 1347045) だが DB は engine 経路で `SL_HIT` (exit 157.686、+10.2p) として close → `_book_equity_close` (engine 側呼び出し) で計上: `/api/risk/dashboard` `jpy_ledger.eq_current_jpy` ¥323,074.23 (11-04 02:39Z 基準) → **¥323,176.23** (11-05 02:06Z) = **+¥102.00 = +10.2p × ¥10** (±¥1 内、一致)、dd 10.08% → 10.06%、lot 0.2 不変。`OANDA_SL_TP` 決済は依然 **0 件** → 本 entry の条件前半は未観測、期日 11-20 据え置き (0 件なら +14 日)。broker realized は +¥106 (demo との 0.4p 基準差、台帳は demo 基準 = D-b 設計どおり)。",
         "2026-11-11": "deploy 後 live 決済 3 件 (全て carry_dip、DB close_reason は全て `SL_HIT` = engine 経路): #1347030 +10.2p (11-04) / #1347071 +26.8p (11-06 06:52Z) / #1347096 −15.1p (11-09 07:54Z)。`/api/risk/dashboard` `jpy_ledger.eq_current_jpy` ¥323,176.23 (11-05) → **¥323,293.23** (11-11 05:55Z) = **+¥117.00 = (+26.8 − 15.1) × ¥10** (±¥1 内、一致、dd 10.02%、lot 0.2 不変)。`OANDA_SL_TP` 決済は依然 **0 件** → 条件前半は未観測のまま、期日 11-20 据え置き (0 件なら +14 日)。",
-        "2026-11-13": "deploy 後 live 決済 3 件 (11-04 / 11-06 / 11-09、全て engine 経路 `SL_HIT`) から増減なし: 11-09 #1347096 以降 live fill 0 (05:37Z open live 0 / shadow 2、live-eligible は `agg_kelly` blocked のみ)。`OANDA_SL_TP` 決済は依然 **0 件** → 条件前半は未観測のまま、期日 11-20 据え置き (0 件なら +14 日)。autopilot 11-13 (記録のみ)。"
+        "2026-11-13": "deploy 後 live 決済 3 件 (11-04 / 11-06 / 11-09、全て engine 経路 `SL_HIT`) から増減なし: 11-09 #1347096 以降 live fill 0 (05:37Z open live 0 / shadow 2、live-eligible は `agg_kelly` blocked のみ)。`OANDA_SL_TP` 決済は依然 **0 件** → 条件前半は未観測のまま、期日 11-20 据え置き (0 件なら +14 日)。autopilot 11-13 (記録のみ)。",
+        "2026-11-18": "deploy 後 live 決済 3 件 (11-04 / 11-06 / 11-09、全て engine 経路 `SL_HIT`) から増減なし: 11-09 #1347096 以降 live fill 0 (11-18 04:15Z `last_live_fill_row_at` 11-09 07:01:05 = 8.9 d、open live 0)。`OANDA_SL_TP` 決済は依然 **0 件** → 条件前半は未観測のまま。期日 11-20 は不変 (0 件なら +14 日の規則の適用対象、第7次 §4-(vii) 記録のみ)。"
       }
     },
     {
@@ -1724,7 +1746,7 @@
     },
     {
       "id": "kb-rescue-fold-first-cron-readout",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-21",
       "doc": "knowledge-base/wiki/decisions/sprint-1022-process-fixed-cost-upsubmit-2026-11-05.md",
@@ -1736,7 +1758,9 @@
       "note": {
         "2026-11-14": "起票 (autopilot 11-14)。陽性対照 = 13 例目 (kb-rescue/main-2026-11-14-7c22a76b8 = wiki-daily 11-13 15:14Z run) を同 tool でローカル fold (7 files / +140 −3、union 2 block = storm-guard 追補 + O-2026-11-13-2、marker 0) し本 PR に同梱。先行救出済みの旧 ref 5 本 (09-29 / 11-05 / 11-06 / 11-11 / 11-12、追加行の逐語残存 96〜100%) は PRESENT 判定 (≥ 95%) として pin、残り 33 本は EMPTY/ANCESTOR — いずれも cron 初回の --prune が畳む (手 prune は classifier 拒否)。",
         "2026-11-16": "修正 (autopilot 11-16、rule:R3): 初週 cron 3 run (11-14 18:33Z / 11-15 07:19Z / 11-15 19:10Z) は全て rc=2 CONFLICT 14/14・畳み 0・prune 0 = 空振り。根 = PR #376 7 巡目のファイル別 逐語残存 ≥95% が index.md の時変 status 行 (NAV 行 / 見出し、先行救出後に次 run が差し替え) を欠落と誤判定し、祖先 57672990c の CONFLICT を 14 本全部が継承。`line_superseded` (git log -S HEAD --not <座礁 commit の親> の命中 commit に行が実在 = target 履歴に一度入った差し替え済み行; 初版の --since は Codex P2 で到達性に差し替え) を accounted に加えて修正、実 ref 全件 PRESENT 14 / EMPTY 10 / ANCESTOR 16 / CONFLICT 0 / FOLDED 1 (14 例目 = cell_deepdive 11-16 run、同梱)。readout 期日 11-21 は維持 (修正後の cron run で読む)。11-14 note の『cron 初回が prune する』は不成立だった。"
-      }
+      },
+      "resolved": "2026-11-18",
+      "resolution": "初週 readout を期日 11-21 の 3 日前倒しで resolve (autopilot 11-18、[[external-hypothesis-scan-round7-2026-11-18]] §4-(vii))。`gh run list --workflow kb-rescue-fold.yml`: 11-14 18:33Z / 11-15 07:19Z / 11-15 19:10Z = rc 2 CONFLICT 14/14 (修正前、11-16 note) → PR #378 (11-16 02:47Z) 以降 **4 run 全て rc 0**: 11-16 07:26Z PRESENT 17 / pruned 17、11-16 22:36Z 0/0、11-17 08:38Z PRESENT 1 / pruned 1、11-17 21:25Z 0/0。`git ls-remote origin 'refs/heads/kb-rescue/*'` = **0 本** (11-18 04:13Z)。人手の座礁救出 PR = 11-16 以降 0 本 (PR #378 の 14 例目同梱は tool `--in-place` fold で人手救出ではない)。前倒しの根拠 = 判定の核 (退避 ref 全件の畳み + prune、rc 0 の継続) は既に起きた事実で、残り 3 日の観測では覆らない。以後の CONFLICT は常設規則 (Discord ⚠️ → autopilot が worktree で `tools/kb_rescue_fold.py --in-place` を走らせ PR に載せる、CLAUDE.md 自走原則) が扱い、本 entry の後継は置かない。限界: 11-16〜17 に発生した座礁は 2 件 (a93f36853 = tool fold / b9ecedddf = session log のみ EMPTY) で、wiki-daily 型 (hot file union) の cron fold 成功例はまだ 0 — 次に wiki-daily 座礁が起きた run の Discord 通知で確認する (記録のみ、entry は置かない)。"
     }
   ]
 }

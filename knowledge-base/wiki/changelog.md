@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-18 — docs(KB)+registry: 外部仮説スキャン第7次 — 新規採用 0 (4 周連続) / #29 dense PASS 後段 = 既定 (b) 保留 / ws3-round4 ZN 脚 TRIGGERED・FX 脚を後継 entry へ / R5 (12-03) 先行列挙 / kb-rescue 初週 readout 前倒し resolve (autopilot、rule:R3 記録のみ)
+
+- **第7次スキャン** ([[external-hypothesis-scan-round7-2026-11-18]]、registry `edge-supply-scan-monthly` 11-17 → **12-17**): E32〜E36 + データ源 3 件を全て既存 ban 分類で棄却 (C1 3 / C2 3 / C4 3、C3 新規なし) = **新規採用 0 が第4〜7次で 4 周連続**。入手性 re-check は E1 13/13 / E12 7/7 / ECG 件数のみ 155/140/33/13/3/10 / 4 workflow 全 success で**新規実欠陥 0** (既知 MASSIVE 1h 停滞は継続、`MASSIVE_API_KEY` secret 不在)
+- **#29 dense PASS 後段** (`adhoc-scan-29-dense-pass-r1-disposition` 11-17): user 返答なし → entry condition どおり**既定 (b) 診断枠保留を記録して resolve**、第8次議題へ。枠 0/3 → 0/3。台帳 #29 行に (a) 起案時の差分節要件 + E33 反証材料を追記
+- **ws3-round4**: ZN 脚 data_coverage が 11-18 TRIGGERED (被覆 11-18 > 11-15、15,563 行) → `ws3-round4-eur-divergence-conditional` を条件成立の記録で resolve、FX 脚 (MASSIVE 1h 05-15 終端) を機械評価する **🆕 `ws3-round4-fx-leg-coverage`** (data_coverage、EUR_JPY_1h parquet、閾値 11-15) に置換。DRAFT は起草可だが FX 脚が secret 待ちで凍結期日を持てないため **R5 の能動ラインに数えない**と第7次 §2.1 で先に宣言
+- **WIP 会計 (11-18)**: 着手可能 0 / 診断 1 (#29 完了) / 時限 3 (E1 12-30 / ECG 2027-01-31 / E12 2027-02-05) / 条件付き 1 (MoF #4 は 11-11 クローズで消滅) / park E23 + family B (再裁定条件は形式成立も A 検出器 FAIL で入力消失 → park 継続、再入条件更新) / 予約 3。(a-1) 起案条件は U4-2 未提示で不成立
+- **R5 `edge-supply-active-line-idle-r5` (12-03) 先行列挙**: 11-03 以降の registry 追加 id 8 件・台帳 commit 4 件に起草/LOCK/新 family 0 件 (判定は 12-03 の registry 側)
+- **運用 readout 同梱**: `kb-rescue-fold-first-cron-readout` (11-21) を 3 日前倒しで resolve — PR #378 以降 cron 4 run rc 0 (prune 17 + 1)、`kb-rescue/*` 0 本、人手救出 PR 0 本 / `dd-ledger-broker-close-first-booking-readout` note (`OANDA_SL_TP` 0 件継続、11-09 以降 live fill 0 = 8.9 d)
+- **判断**: rule:R3 (記録・registry 置換のみ)。live/tier/lot/Kelly/shadow 構成・凍結 pre-reg 本文に変更なし、outcome 非計算。registry JSON は Render ignoredPaths 外のため merge は open live 0 の窓で。詳細: [[2026-11-18-session]]
+
 ## 2026-11-16 — fix(tools)+docs(KB): `kb_rescue_fold.py` の PRESENT 判定が時変 status 行を「欠落」と誤判定し cron 3 run 連続 CONFLICT 14/14 (畳み 0 / prune 0) — target 履歴 (pickaxe) で一度入った行は「差し替え済み」として accounted + 14 例目 (cell_deepdive 11-16 run) を tool で自動 fold (autopilot、rule:R3)
 
 - **問題**: 11-14 に自動化した `kb-rescue-fold.yml` が初回 11-14 18:33Z / 11-15 07:19Z / 11-15 19:10Z の 3 run とも rc=2 **CONFLICT 14 / 14、FOLDED 0 / PRESENT 0 / prune 0** (Discord ⚠️ ×3)。根 = PR #376 Codex P1 7 巡目で入れた「ファイル別 逐語残存 ≥ 95%」: `wiki/index.md` の NAV 行 / Current Portfolio 見出し / System State 見出しは**毎 wiki-daily run が上書きする時変 status 行**で、先行救出 (rescue-1106 bf9b4d6af / rescue-1112 29169da02 / fold 11-14 f84f906cf) で一度 origin に入った後に次の run が差し替えると、逐語残存では永久に欠落 (index.md 3/5〜3/6 行 miss = 40〜50% < 95%) → `new files already in target (prior rescue?)` の CONFLICT に落ち、refs は 57672990c (11-06) を祖先に持つため **全 14 本が同じ 1 commit の CONFLICT を継承**。11-14 時点の手元検証は 7 巡目より前の合算比率 (97/96/96/97/100%) で、ファイル別化後に実 ref で再実行していなかった
