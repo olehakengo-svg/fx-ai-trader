@@ -6310,6 +6310,12 @@ EUR_USD（ATR 69%+RANGING）はフェイクブレイクリスクが高い状態�
 | 12:00–17:00（London） | GBP_USD Slope下落バイアス。ブレイクアウト方向に要注意 |
 **OANDA転送率0%は継続**。全50件がSKIP。主因は`shadow_tracking`（demoted状態）であり、プロモーション基準（N≥30 & EV≥1.0）に到達している戦略が存在しない現状では、この状態は設計通り。ただし4.31日以上live fillゼロが継続しており、実口座の稼働実態はゼロ。
 
+### 2026-11-18 (Pre-Tokyo Briefing)
+前日（2026-11-17）はトレードゼロ。PnL = ±¥0、WR = N/A。
+Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator/USD_JPY` の N=2 のみ（PnL +11.7）。
+| Strategy | Pair | N | WR% | EV | PnL | 判断ステータス |
+> **統計的位置付け**: N=2 は「データなし」扱い。EV +5.85 は数値として存在するが統計的意味を持たない。昇格基準（N≥30 & EV≥1.0）まで残り **28件**。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
