@@ -6316,6 +6316,15 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator/USD_JPY
 | Strategy | Pair | N | WR% | EV | PnL | 判断ステータス |
 > **統計的位置付け**: N=2 は「データなし」扱い。EV +5.85 は数値として存在するが統計的意味を持たない。昇格基準（N≥30 & EV≥1.0）まで残り **28件**。
 
+### 2026-11-18 (Post-Tokyo Report)
+| PnL | ¥0.00 |
+| WR | N/A |
+- 本日セッションN=0。統計的判断材料なし（N<10は「データなし」扱い）
+- OANDA転送率 0%（Live SENT=0 / SKIP=50）— デモシャドウフェーズ継続中であり、パラメータ感度評価の前提条件（N≥30）未充足
+- `r2_shadow_demoted_cell` ブロックは設計通りの動作。外部介入は不要
+### 推奨戦略配分
+**NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
