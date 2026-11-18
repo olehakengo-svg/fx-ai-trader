@@ -6325,6 +6325,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator/USD_JPY
 ### 推奨戦略配分
 **NO ACTION推奨**
 
+### 2026-11-18 (Post-London Report)
+| PnL | **±¥0** |
+| WR | **N/A** |
+- **`no_signal`（1,167件）**: rnb_usdjpyはシグナル生成段階で未到達。USD_JPYが RANGING/ATR41%ile（全対象通貨中最低）という低ボラ環境と整合する。
+- **`r2_shadow_demoted_cell`（合計1,882件）**: scalp系4モードがシャドウ降格セルに阻まれ軒並み不発。シャドウトラッキングがOANDA転送の`shadow_tracking`16件と連動しており、シャドウ評価が実質的なゲートキーパーとして機能している。
+- **`order_bar_dedup`（daytrade系合計784件）**: 同一バーでの重複発注排除が大量発生。これはシグナル自体は生成されるものの、直近の重複抑制で弾かれている状況。
+| PnL | ±¥0 | ±¥0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
