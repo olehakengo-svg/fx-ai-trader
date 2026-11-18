@@ -6335,6 +6335,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator/USD_JPY
 | WR | N/A | N/A |
 ### 推奨戦略配分
 
+### 2026-11-18 (Post-NY Report)
+| PnL | **±0.0 pips** |
+| WR | — |
+- `scalp` 系4戦略で `r2_shadow_demoted_cell` ブロックが累計3,491件（全ブロックの約56%）を占め、本セッションでも潜在シグナルが実行に至らなかったと推定される
+- `rnb_usdjpy:no_signal` 1,971件 — シグナル生成段階での非通過が最多単一要因
+### セッション別PnL比較
+| Session | N | WR% | PnL |
+- **最良セッション**: なし（全セッション同率ゼロ）
+- **最悪セッション**: なし（同上）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
