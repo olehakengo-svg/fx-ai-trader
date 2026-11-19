@@ -6355,6 +6355,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - 48件がSKIPされており、うちOANDA Bridge block上位は`shadow_tracking`（17件）、`shadow_tracking(promo_block:pair_demoted)`（1件）。
 - LIVE到達できているのは例外的ケースのみ。
 
+### 2026-11-19 (Post-Tokyo Report)
+| WR | 100.0%（参考値） |
+| PnL | +23.5 pips |
+| 戦略 | ペア | 方向 | PnL | Outcome |
+**成功要因：** USD_JPY はRANGING（ATR%ile 43%、SMA Slope +0.00217）で緩やかな上昇バイアスがあり、carry方向（BUY）と一致したdip拾いが機能した。spread 0.8p は低コストで、EV毀損は最小限。
+- **scalp系 3戦略**（scalp / scalp_eur / scalp_5m）で合計**306件**の`r2_shadow_demoted_cell`ブロックが発生しており、シグナル自体は生成されているが大半が Shadow段階でフィルタアウト。
+- **daytrade_eurgbp**：`order_bar_dedup` 67件 + `hedge_block` 64件 + `conf<30` 60件 の三重ブロック（計191件）。EURGBPはRANGING維持中でありconf閾値に引っかかり続けている。
+- **rnb_usdjpy**：`no_signal` 276件（TOP1）。rangebound戦略としてシグナル条件を満たす相場ではなかったことを示す。
+- **今セッションN=1**。如何なる統計的結論も導出不可能。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
