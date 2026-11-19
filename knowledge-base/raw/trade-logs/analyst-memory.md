@@ -6365,6 +6365,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **rnb_usdjpy**：`no_signal` 276件（TOP1）。rangebound戦略としてシグナル条件を満たす相場ではなかったことを示す。
 - **今セッションN=1**。如何なる統計的結論も導出不可能。
 
+### 2026-11-19 (Post-London Report)
+| PnL (pips) | **±0.0p** |
+| WR | **N/A** |
+- `r2_shadow_demoted_cell` ブロックがScalp系統で支配的（scalp: 731、scalp_eur: 476、scalp_5m: 343）
+- Daytrade系統は `order_bar_dedup` が主因（eurgbp: 515、gbpusd: 269）
+- `rnb_usdjpy:no_signal` が最多（1,326件）— USD/JPYが RANGING 43%ile で方向性シグナルを生成できない状態
+| PnL | +23.5p | ±0.0p |
+| WR | 100% (N=1) | N/A |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
