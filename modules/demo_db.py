@@ -1759,6 +1759,39 @@ class DemoDB:
                 ))
                 conn.commit()
 
+    def get_live_units(self, demo_trade_id: str, oanda_trade_id: str = "") -> "int | None":
+        """決済計上用の実約定 units を返す (2026-11-19, rule:R3)。
+
+        `demo_trades` には units 列が無く、JPY 台帳 writer (`_book_equity_close`) の
+        `pip_value_jpy(instrument, trade.get("units", 0), …)` は常に 1,000 units 既定に
+        落ちていた (lot-blind)。送信 units は `oanda_audit` (sent / filled 行) に、
+        broker 約定 units は `oanda_trades.initial_units` に既に永続化されているので、
+        その順で読む。どちらにも無ければ None (呼び出し側が 1,000 既定で計上し、
+        source=default を marker に残す)。
+        """
+        if not demo_trade_id and not oanda_trade_id:
+            return None
+        with self._safe_conn() as conn:
+            if demo_trade_id:
+                row = conn.execute(
+                    "SELECT units FROM oanda_audit "
+                    "WHERE demo_trade_id=? AND is_live=1 AND units>0 "
+                    "AND bridge_status IN ('filled','sent') "
+                    "ORDER BY CASE bridge_status WHEN 'filled' THEN 0 ELSE 1 END, id DESC "
+                    "LIMIT 1",
+                    (str(demo_trade_id),),
+                ).fetchone()
+                if row and row["units"]:
+                    return int(abs(row["units"]))
+            if oanda_trade_id:
+                row = conn.execute(
+                    "SELECT initial_units FROM oanda_trades WHERE oanda_trade_id=?",
+                    (str(oanda_trade_id),),
+                ).fetchone()
+                if row and row["initial_units"]:
+                    return int(abs(row["initial_units"]))
+        return None
+
     def get_oanda_audit(self, limit: int = 50) -> list:
         """OANDA実行監査記録をDBから取得 (新しい順→古い順に反転して返す)."""
         with self._safe_conn() as conn:

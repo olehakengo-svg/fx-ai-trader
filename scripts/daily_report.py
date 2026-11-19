@@ -817,17 +817,44 @@ def preprocess_status(data: dict) -> str:
             "| Reason | Count |\n|---|---|\n" + "\n".join(bc_rows) + "\n"
         )
 
-    # DD防御
-    dd = status.get("dd", status.get("drawdown", {}))
-    if dd:
-        sections.append(
-            f"### DD防御\n"
-            f"| DD% | Lot Mult | EQ Peak | EQ Current |\n|---|---|---|---|\n"
-            f"| {dd.get('dd_pct', 'N/A')}% | {dd.get('lot_mult', 'N/A')}x "
-            f"| {dd.get('eq_peak', 'N/A')} | {dd.get('eq_current', 'N/A')} |\n"
-        )
+    # DD防御 — 2026-11-19 (rule:R3): 旧実装は `status["dd"]` を読んでいたが
+    # /api/demo/status にそのキーは存在せず一度も描画されなかった (dead code、
+    # dd-ledger-broker-close-booking-r3 §2 #4)。SSOT は /api/risk/dashboard の
+    # `dd_status` (JPY 台帳 + lot multiplier) なのでそちらを描く。
+    dd_section = build_dd_defense_section(data)
+    if dd_section:
+        sections.append(dd_section)
 
     return "\n".join(sections) if sections else f"### STATUS\n{json.dumps(status, ensure_ascii=False, indent=2)[:1500]}\n"
+
+
+def build_dd_defense_section(data: dict) -> str:
+    """`/api/risk/dashboard` の `dd_status` から DD防御節を作る (無ければ空文字)。"""
+    risk = data.get("risk") or {}
+    dd = risk.get("dd_status") if isinstance(risk, dict) else None
+    if not isinstance(dd, dict) or not dd:
+        return ""
+    ledger = dd.get("jpy_ledger") or {}
+    try:
+        dd_pct_txt = f"{float(dd.get('dd_pct', 0.0)) * 100:.2f}%"
+    except (TypeError, ValueError):
+        dd_pct_txt = "N/A"
+
+    def _jpy(v):
+        try:
+            return f"¥{float(v):,.0f}"
+        except (TypeError, ValueError):
+            return "N/A"
+
+    return (
+        "### DD防御 (JPY 台帳 = lot lever の SSOT、/api/risk/dashboard dd_status)\n"
+        "| DD% | Lot Mult | Defensive | EQ Peak (JPY) | EQ Current (JPY) | DD (JPY) | pip 台帳 DD |\n"
+        "|---|---|---|---|---|---|---|\n"
+        f"| {dd_pct_txt} | {dd.get('lot_multiplier', 'N/A')}x "
+        f"| {'ON' if dd.get('defensive_mode') else 'off'} "
+        f"| {_jpy(ledger.get('eq_peak_jpy'))} | {_jpy(ledger.get('eq_current_jpy'))} "
+        f"| {_jpy(ledger.get('dd_jpy'))} | {dd.get('dd_pips', 'N/A')}p |\n"
+    )
 
 
 # ── エージェントプロンプト読み込み ──────────────────────

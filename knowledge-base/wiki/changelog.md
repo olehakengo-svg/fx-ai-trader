@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-19 — fix(ledger)+fix(report)+docs(KB): JPY 台帳 writer が実約定 units を読む (lot-blind 構造の修理) + daily_report「DD防御」節の dead code を risk dashboard 読みに付け替え (autopilot、rule:R3)
+
+- **欠陥**: `demo_trades` に `units` 列が無く、DD lot lever (0.2x) の SSOT である JPY 台帳 writer `_book_equity_close` の `pip_value_jpy(instrument, trade.get("units", 0), …)` は**常に 1,000 units 既定** (= ¥10/pip 慣行) に落ちていた — Track C D-b 宣言「pnl_pips × units × pip価値」と code の不一致 ([[dd-ledger-broker-close-booking-r3-2026-11-04]] §6-2 の残余)。現行運用 (本番 audit 実読: live fill は全て 1,000u、carve-out は code で 1,000u 固定) では計上値は変わらないが、`hull_donchian_fade` (5,000u 固定) / FLAT (`OANDA_UNITS` 10,000 × ratio) が live fill した瞬間に台帳が真の JPY 損益の 1/5〜1/10 しか動かず、lever が**緩み過ぎる側** (危険側) に歪む。T5 1.0x 復帰 (R1) の前提条件
+- **修理**: `DemoDB.get_live_units` (oanda_audit filled/sent 行 → `oanda_trades.initial_units` の順) + `DemoTrader._resolve_ledger_units` (row → DB → 1,000 既定) + `[LEDGER_UNITS] trade= oanda= units= source=row|audit_or_oanda|default pnl_jpy=` marker。lot / シグナル / tier 閾値 / 凍結値 / KV 既存値 / 過去分 (§6-1 遡及再アンカー) は不変
+- **daily_report**: 「DD防御」節は `/api/demo/status` に存在しない `dd` キーを読む dead code (一度も描画されず、§6-3) → `build_dd_defense_section` で `/api/risk/dashboard` `dd_status` (DD% / lot_multiplier / defensive / JPY 台帳 3 値 / pip 台帳 DD) を描く。risk 取得失敗時は節なし
+- **tests**: `tests/test_dd_ledger_units_resolution_r3.py` 8 pin (5,000u → ¥500/10p、1,000u → 旧実装と同値、oanda_trades フォールバック、filled > sent、blocked/0 無視、marker) + `tests/test_daily_report_dd_section.py` 4 pin。既存 ledger / track-c / daily_report tests 不変
+- **本番観測 (11-19 01:10Z)**: open live 1 = **#1347135 carry_dip USD_JPY BUY 159.22** (11-18 15:03:59Z fill、live fill 0 の 9.3 d 終了、audit 1,000u filled、BE+0.9 移行済 / TP 159.97)、storm_guard enforce `evaluated 1 / sent 1` (PR #380 再起動後初送信)。registry `dd-ledger-broker-close-first-booking-readout` (11-20) は本建玉が TP で broker 決済されれば初の `OANDA_SL_TP` 読み取り
+- **判断**: rule:R3。詳細: [[dd-ledger-units-resolution-r3-2026-11-19]] / [[2026-11-19-session]]
+
 ## 2026-11-18 — docs(KB)+registry: 外部仮説スキャン第7次 — 新規採用 0 (4 周連続) / #29 dense PASS 後段 = 既定 (b) 保留 / ws3-round4 ZN 脚 TRIGGERED・FX 脚を後継 entry へ / R5 (12-03) 先行列挙 / kb-rescue 初週 readout 前倒し resolve (autopilot、rule:R3 記録のみ)
 
 - **第7次スキャン** ([[external-hypothesis-scan-round7-2026-11-18]]、registry `edge-supply-scan-monthly` 11-17 → **12-17**): E32〜E36 + データ源 3 件を全て既存 ban 分類で棄却 (C1 3 / C2 3 / C4 3、C3 新規なし) = **新規採用 0 が第4〜7次で 4 周連続**。入手性 re-check は E1 13/13 / E12 7/7 / ECG 件数のみ 155/140/33/13/3/10 / 4 workflow 全 success で**新規実欠陥 0** (既知 MASSIVE 1h 停滞は継続、`MASSIVE_API_KEY` secret 不在)
