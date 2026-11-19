@@ -3047,6 +3047,31 @@ class DemoTrader:
 
         return 0
 
+    def _resolve_ledger_units(self, trade: dict) -> tuple:
+        """台帳計上に使う units と出所 ("row" / "audit_or_oanda" / "default")。
+
+        2026-11-19 (rule:R3)。row に units があればそれ、無ければ DB
+        (oanda_audit sent/filled → oanda_trades.initial_units) を引く。どちらも
+        無ければ (0, "default") = pip_value_jpy の 1,000 既定に委ねる。失敗は
+        決済処理をブロックしない。
+        """
+        try:
+            _row_units = int(abs(float(trade.get("units") or 0)))
+        except (TypeError, ValueError):
+            _row_units = 0
+        if _row_units > 0:
+            return _row_units, "row"
+        try:
+            _db_units = self._db.get_live_units(
+                str(trade.get("trade_id", "") or ""),
+                str(trade.get("oanda_trade_id", "") or ""),
+            )
+        except Exception:
+            _db_units = None
+        if _db_units:
+            return int(_db_units), "audit_or_oanda"
+        return 0, "default"
+
     def _book_equity_close(self, trade: dict, pnl: float) -> bool:
         """決済 1 件を pip 台帳 / JPY 台帳 (SSOT) に計上し DD lot multiplier を更新する。
 
@@ -3079,9 +3104,20 @@ class DemoTrader:
         _eq_dd = self._eq_peak - self._eq_current
 
         # JPY 台帳 (SSOT): pnl_pips × units × pip価値(JPY)
+        # 2026-11-19 (rule:R3): `demo_trades` に units 列が無く trade["units"] は
+        # 常に欠落 → pip_value_jpy の 1,000 既定に落ちていた (D-b 宣言「pnl_pips ×
+        # units」と code の不一致、dd-ledger-broker-close-booking-r3 §6-2)。
+        # 送信/約定 units は oanda_audit / oanda_trades に永続化済みなのでそこから
+        # 解決し、出所を marker に残す。未解決時のみ従来どおり 1,000 既定。
+        _units, _units_src = self._resolve_ledger_units(trade)
         _pnl_jpy = pnl * pip_value_jpy(
             trade.get("instrument", "") or "",
-            trade.get("units", 0), self._rate_mid)
+            _units, self._rate_mid)
+        self._add_log(
+            f"[LEDGER_UNITS] trade={trade.get('trade_id', '')} "
+            f"oanda={trade.get('oanda_trade_id', '')} units={_units or 1000} "
+            f"source={_units_src} pnl_jpy={_pnl_jpy:+.1f}"
+        )
         self._eq_current_jpy += _pnl_jpy
         if self._eq_current_jpy > self._eq_peak_jpy:
             self._eq_peak_jpy = self._eq_current_jpy

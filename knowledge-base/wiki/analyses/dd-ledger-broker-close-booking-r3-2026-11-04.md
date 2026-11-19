@@ -58,8 +58,8 @@ registry `dd-ledger-broker-close-first-booking-readout` (11-20): deploy 後最�
 ## 6. 残余 (本 PR で触らない)
 
 1. **過去分 17 件 / +212.7p は遡及計上しない** — 台帳の一回限り再アンカー (D-a 型: broker 実測から `eq_current_jpy` を再基準化) は KV データ移行 = 別 R3 (起動時 flag `eq_jpy_ledger_v2` 方式)。現状の歪みは悲観側 (lever 締まり過ぎ) で原則 1 には反するが tier 0.20 は不変のため緊急性なし
-2. **`demo_trades` に `units` 列が無い** → `pip_value_jpy(instrument, trade.get("units", 0), …)` は常に 1,000 units 既定 (= ¥10/pip 慣行、index Defensive 行が既に明記)。defensive 0.2x 期の live fill は min-lot 1,000 のため現状は一致するが、lot↑ 時に JPY 台帳が lot-blind に戻る。D-b の「pnl_pips × units」宣言と code が不一致 = 別 R3 候補 (units は `oanda_trades` / audit 行から取得可能)
-3. `scripts/daily_report.py` 「DD防御」節の dead code (§2 #4)
+2. **`demo_trades` に `units` 列が無い** → `pip_value_jpy(instrument, trade.get("units", 0), …)` は常に 1,000 units 既定 (= ¥10/pip 慣行、index Defensive 行が既に明記)。defensive 0.2x 期の live fill は min-lot 1,000 のため現状は一致するが、lot↑ 時に JPY 台帳が lot-blind に戻る。D-b の「pnl_pips × units」宣言と code が不一致 = 別 R3 候補 (units は `oanda_trades` / audit 行から取得可能) — ✅ **2026-11-19 修理済み** ([[dd-ledger-units-resolution-r3-2026-11-19]]: writer が `oanda_audit` / `oanda_trades` の units を読む、`[LEDGER_UNITS]` marker)
+3. `scripts/daily_report.py` 「DD防御」節の dead code (§2 #4) — ✅ **2026-11-19 修理済み** (同 PR、`build_dd_defense_section` が `/api/risk/dashboard` `dd_status` を描く)
 
 ## 7. 参照
 
