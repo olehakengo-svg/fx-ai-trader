@@ -10,6 +10,8 @@ JPY 台帳 (`/api/risk/dashboard` `dd_status.jpy_ledger`) なので、そちら�
      DD が表に出る
   B. risk が取得失敗 ({} / None) でも例外にならず節は空 (status の他節は従来どおり)
   C. status に "dd" キーがあっても読まない (旧 dead code の経路を復活させない)
+  D. app.py が返す `dd_status: {"error": "unavailable"}` (200) は unavailable と描き、
+     0.00% / off という存在しない値を LLM に渡さない (PR #382 Codex P2)
 """
 from __future__ import annotations
 
@@ -59,3 +61,17 @@ def test_dd_section_empty_when_risk_unavailable():
 def test_dd_section_ignores_legacy_status_dd_key():
     data = {"status": {"dd": {"dd_pct": 99, "lot_mult": 0.1}}, "risk": {}}
     assert "DD防御" not in dr.preprocess_status(data)
+
+
+def test_dd_section_marks_error_payload_unavailable_not_zero():
+    out = dr.build_dd_defense_section({"risk": {"dd_status": {"error": "unavailable"}}})
+    assert out.startswith("### DD防御")
+    assert "unavailable" in out and "error='unavailable'" in out
+    assert "0.00%" not in out and "off" not in out.split("解釈")[0].replace("off と", "")
+    assert "| off |" not in out and "N/Ax" not in out
+
+
+def test_dd_section_marks_missing_lever_unavailable():
+    out = dr.build_dd_defense_section({"risk": {"dd_status": {"dd_pct": 0.0, "jpy_ledger": {}}}})
+    assert "unavailable" in out and "missing lot_multiplier" in out
+    assert "0.00%" not in out

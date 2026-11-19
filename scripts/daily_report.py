@@ -834,6 +834,16 @@ def build_dd_defense_section(data: dict) -> str:
     dd = risk.get("dd_status") if isinstance(risk, dict) else None
     if not isinstance(dd, dict) or not dd:
         return ""
+    # app.py は DD 状態を構築できない時 `dd_status: {"error": "unavailable"}` を
+    # 200 で返す (PR #382 Codex P2)。非空 dict なので上の guard を通り、0.00% / off
+    # という**存在しない値**を描いてしまう → error 付き / lever 欠落は unavailable と
+    # 明示し、数値を既定値で埋めない (fetch 失敗の扱いと同じ原則、2026-09-22)。
+    if dd.get("error") or "lot_multiplier" not in dd:
+        return (
+            "### DD防御 (JPY 台帳 = lot lever の SSOT、/api/risk/dashboard dd_status)\n"
+            f"dd_status unavailable (error={dd.get('error', 'missing lot_multiplier')!r}) — "
+            "DD% / lot multiplier / 台帳値は不明。0 や off と解釈しないこと。\n"
+        )
     ledger = dd.get("jpy_ledger") or {}
     try:
         dd_pct_txt = f"{float(dd.get('dd_pct', 0.0)) * 100:.2f}%"

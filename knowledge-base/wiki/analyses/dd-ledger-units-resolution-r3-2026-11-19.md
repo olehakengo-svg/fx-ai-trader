@@ -28,7 +28,7 @@
 - `DemoDB.get_live_units(demo_trade_id, oanda_trade_id="") -> int | None`: `oanda_audit` の `is_live=1 ∧ units>0 ∧ bridge_status ∈ {filled, sent}` を filled 優先・id 降順で 1 行 → 無ければ `oanda_trades.initial_units` (符号は捨てる) → 無ければ None。blocked 行 (`is_live=0`) と units=0 行は読まない。
 - `DemoTrader._resolve_ledger_units(trade) -> (units, source)`: row に `units` があればそれ (`row`) → DB (`audit_or_oanda`) → `(0, "default")`。DB 例外は握って default (決済処理をブロックしない、writer と同じ契約)。
 - `_book_equity_close`: `pip_value_jpy(instrument, _units, …)` + `[LEDGER_UNITS] trade=… oanda=… units=… source=… pnl_jpy=…` marker 1 行 (eligible 行のみ)。
-- `scripts/daily_report.py`: `build_dd_defense_section(data)` 新設 — `data["risk"]["dd_status"]` から DD% (百分率) / lot_multiplier / defensive / JPY 台帳 3 値 / pip 台帳 DD を描く。risk 取得失敗 ({} / None) は節なし、`status["dd"]` は読まない。
+- `scripts/daily_report.py`: `build_dd_defense_section(data)` 新設 — `data["risk"]["dd_status"]` から DD% (百分率) / lot_multiplier / defensive / JPY 台帳 3 値 / pip 台帳 DD を描く。risk 取得失敗 ({} / None) は節なし、`status["dd"]` は読まない。 **PR #382 Codex P2**: app.py は DD 状態を構築できない時 `dd_status: {"error": "unavailable"}` を 200 で返す → 非空 dict が guard を通り 0.00% / off を描いていた → error 付き / `lot_multiplier` 欠落は「unavailable」と明示し数値を既定値で埋めない (fetch 失敗の扱いと同じ原則、pin 2 本追加 = 6 pin)。
 
 ## 3. 陽性対照 / tests
 
