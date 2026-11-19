@@ -6345,6 +6345,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator/USD_JPY
 - **最良セッション**: なし（全セッション同率ゼロ）
 - **最悪セッション**: なし（同上）
 
+### 2026-11-19 (Pre-Tokyo Briefing)
+前日（2026-11-18）はトレード**ゼロ**。PnL = ¥0、WR = N/A。
+Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_JPY` の **N=2** のみ（PnL +11.7、EV +5.85）。
+| Strategy | Pair | N | WR% | EV | PnL | 判断ステータス |
+- 全27モードのうち稼働25モードで**前日トレード数ゼロ**。
+- Block Counts上位を見ると、`rnb_usdjpy:no_signal`（2,439件）が最大。次いで各scalp系の`r2_shadow_demoted_cell`（合計3,951件）。
+- **構造的抑制**: r2_shadow_demoted_cellによるブロックが全scalp系を支配しており、scalpシグナルが実質封鎖されている。
+- 48件がSKIPされており、うちOANDA Bridge block上位は`shadow_tracking`（17件）、`shadow_tracking(promo_block:pair_demoted)`（1件）。
+- LIVE到達できているのは例外的ケースのみ。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
