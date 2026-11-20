@@ -6395,6 +6395,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - **東京セッション（09:00-15:00 JST）**: USD_JPYのRANGING継続が濃厚。carry_dip_accumulatorの押し目条件に注目
 - **ロンドンオープン（17:00 JST）**: EUR_USDのTRENDING_DOWN継続か反転かが焦点。SMA20 slope（-0.00530）が反転すると複数Daytrade_eur系に影響
 
+### 2026-11-20 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | N/A |
+- **`r2_shadow_demoted_cell`** が scalp系4モード（scalp / scalp_eur / scalp_5m / scalp_5m_eur / scalp_5m_gbp）で計**3,394件**を支配。Shadow層の降格状態が全scalp系を実質的に封鎖している。
+- **`order_bar_dedup`** がdaytrade系5モードで計**2,681件**。単一バー内での重複発注抑制が継続作動 — シグナル自体は生成されているが実行に至らない。
+- **`rnb_usdjpy:no_signal`** 2,853件はシグナルモデル自体が条件未達。USD/JPYの現在レジーム（RANGING 43%ile、+0.00251 slope）では方向感が弱く、RnBアルゴリズムの非対称性条件を満たさない可能性が高い。
+- Fidelity Cutoff後の有効トレード数は本セッションN=0。統計的判断の土台がない。
+- DD防御が**0.2x (defensive mode ON、DD=9.96%)**で稼働中。現状ではロット縮小による保護優先が合理的であり、パラメータ拡張方向への調整は禁忌。
+- OANDA転送率0%（50/50 SKIP）はshadow_tracking支配によるもので、既知の構造的制約。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
