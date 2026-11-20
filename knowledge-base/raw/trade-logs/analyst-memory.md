@@ -6385,6 +6385,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 > **注**: 本日N=1は統計的には「データ点1個」に過ぎず、WR100%は数値として記録するが判断根拠にはしない。
 - DD防御が正常作動しており、追加損失を抑制している
 
+### 2026-11-20 (Pre-Tokyo Briefing)
+前日（2026-11-19）は **N=1、WR=100%、PnL=+23.5p** で着地。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的位置付け**: N=2 は「データなし」に相当。EV+4.20は参考値に留め、判断材料として使用不可。昇格基準（N≥30 & EV≥1.0）まで残り**28件**。
+- Scalp系・Daytrade系は引き続き上記ブロック継続を前提として監視
+- `usdjpy_carry_dip_accumulator`のN蓄積状況を最優先で追跡（現在N=2）
+- OANDA転送率0%が継続する場合は`shadow_tracking`以外の新規block理由の出現を警戒
+- **東京セッション（09:00-15:00 JST）**: USD_JPYのRANGING継続が濃厚。carry_dip_accumulatorの押し目条件に注目
+- **ロンドンオープン（17:00 JST）**: EUR_USDのTRENDING_DOWN継続か反転かが焦点。SMA20 slope（-0.00530）が反転すると複数Daytrade_eur系に影響
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
