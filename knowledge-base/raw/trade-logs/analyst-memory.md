@@ -6405,6 +6405,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - DD防御が**0.2x (defensive mode ON、DD=9.96%)**で稼働中。現状ではロット縮小による保護優先が合理的であり、パラメータ拡張方向への調整は禁忌。
 - OANDA転送率0%（50/50 SKIP）はshadow_tracking支配によるもので、既知の構造的制約。
 
+### 2026-11-20 (Post-London Report)
+| PnL | **±¥0.00** |
+| WR | **N/A** |
+- Scalpファミリーは`r2_shadow_demoted_cell`が支配的 → シャドウデモーション済みセルがシグナルを吸収
+- Daytradeファミリーは`order_bar_dedup`が支配的 → 同一バーでの重複発注を除外
+- RNBは`no_signal`が圧倒的 → レンジング環境でのUSD/JPYが方向性シグナルを生成できず
+| PnL | ±¥0.00 | ±¥0.00 |
+| WR | N/A | N/A |
+| EUR/USD | TRENDING_DOWN (ATR 71%ile) | ボラティリティ維持～拡大。NY open直後のモメンタム持続に注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
