@@ -6425,6 +6425,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 **Live転送率0%** の構造：現時点でOANDA昇格基準（N≥30 & EV≥1.0）を満たす戦略がゼロであり、全トレードがシャドウ評価段階またはペア降格状態に留まっている。
 **NO ACTION推奨（コード・パラメータ変更なし）** — 本日は全セッション完全約定ゼロ。変更を加えるための新規データが蓄積されていない。
 
+### 2026-11-21 (Pre-Tokyo Briefing)
+前日（2026-11-20）はトレード **ゼロ**。PnL ¥0、WR N/A。
+Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_JPY` の **N=1（+23.5p、WR 100%）**のみ。
+| Strategy | Pair | N | WR% | EV | PnL |
+- Scalp系が `r2_shadow_demoted_cell` によって大量に遮断されている。これはシャドウセルが降格判定済みのためシグナル自体が生成されても即ブロックされる構造。
+- `order_bar_dedup` の累積は「シグナルは出ているが同一バー内重複として棄却」。シグナル周期と執行タイミングのミスマッチが継続中。
+- `rnb_usdjpy:no_signal` 4,609件はレンジ相場でトレンドフォロー型の条件が成立しないことを示す。
+- EUR_USD だけが TRENDING_DOWN（ATR 70%ile）で構造的にトレンド系に有利な環境。ただし、EUR系 DT は `order_bar_dedup` と `score_gate` で機能が実質無効化されている。
+- USD_JPY は RANGING かつ ATR 46%ile と低ボラ。carry_dip_accumulator の「ディップ拾い」ロジックとは相性が良いが、前回 94p 下落でも未発火だった実績（KB記録）があり、条件閾値の厳しさが示唆される。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
