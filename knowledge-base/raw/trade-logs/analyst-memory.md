@@ -6445,6 +6445,15 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - scalp系のdemote状態はシャドウ評価の累積結果であり、単一セッションのゼロ発火で覆す根拠なし。
 - DD防御0.2x (Lot Mult=0.2x、EQ Peak比 −9.96%) 発動中 — この状態でのパラメータ緩和は設計違反。
 
+### 2026-11-23 (Post-London Report)
+| PnL | **±¥0.00** |
+| 勝率 (WR) | **N/A** |
+| PnL | ¥0.00 | ¥0.00 |
+| EUR_USD | TRENDING_DOWN / ATR69% | ドル絡み指標（FOMC議事録等）があれば継続下落圧力。USD_JPY上昇（+0.00250 slope）と逆相関に注意 |
+### 推奨戦略配分
+> **NO ACTION推奨**
+| 累計PnL | **¥0.00** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
