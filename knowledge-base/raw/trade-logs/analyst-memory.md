@@ -6435,6 +6435,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - EUR_USD だけが TRENDING_DOWN（ATR 70%ile）で構造的にトレンド系に有利な環境。ただし、EUR系 DT は `order_bar_dedup` と `score_gate` で機能が実質無効化されている。
 - USD_JPY は RANGING かつ ATR 46%ile と低ボラ。carry_dip_accumulator の「ディップ拾い」ロジックとは相性が良いが、前回 94p 下落でも未発火だった実績（KB記録）があり、条件閾値の厳しさが示唆される。
 
+### 2026-11-23 (Post-Tokyo Report)
+| 実現PnL | ¥0 |
+| WR | — |
+- **`r2_shadow_demoted_cell`** がscalp系4モードを広範に拘束 — シャドウ評価でセルがデモート済み状態を維持しており、シグナル自体が出てもブロックされる構造的抑制。
+- **`order_bar_dedup`** がdaytrade系5モードに集中 — 同一バー内での重複発注防止。シグナル頻度は出ているが実際の発注には至っていない。
+- **`no_signal`** がrnb_usdjpyの5,450件筆頭 — USD_JPY RANGING(ATR%ile 45%)環境でR&B条件を満たすトレンドが不足。
+- 東京セッションN=0。統計的判断に値するデータなし（N<5で「データなし」扱い）。
+- scalp系のdemote状態はシャドウ評価の累積結果であり、単一セッションのゼロ発火で覆す根拠なし。
+- DD防御0.2x (Lot Mult=0.2x、EQ Peak比 −9.96%) 発動中 — この状態でのパラメータ緩和は設計違反。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
