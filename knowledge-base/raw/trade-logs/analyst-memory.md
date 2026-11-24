@@ -6464,6 +6464,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - daytrade系は `order_bar_dedup` が **5,985件**（複数モード合計）。同一バーへの重複注文抑制が主因であり、シグナル自体は生成されているが実行に至らない構造。
 - EQ Peak ¥359,288 → Current ¥323,346。DD ¥35,942（pip台帳 1317.3p）。
 
+### 2026-11-24 (Post-Tokyo Report)
+| PnL | **-18.2 pips** |
+| WR | **0.0%** (1/1 LOSS) |
+**なし。** 東京セッション内に正PnLトレードは存在しない。
+| 戦略 | ペア | PnL | 失敗要因 |
+- N=1は統計的に「データなし」（閾値N≥10）。1件のSL_HITから調整根拠を導出できない。
+- `usdjpy_carry_dip_accumulator`のCutoff後累積N、EV提供なし → 判断に必要なサンプルが蓄積されていない。
+- DD防御が**0.2x (10.01% DD、Defensive ON)** で発動中。この状態でのパラメータ変更はノイズに対する反応であり、ミッション（M3: +2〜3%/月複利）に逆行する。
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
