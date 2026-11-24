@@ -6474,6 +6474,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 - DD防御が**0.2x (10.01% DD、Defensive ON)** で発動中。この状態でのパラメータ変更はノイズに対する反応であり、ミッション（M3: +2〜3%/月複利）に逆行する。
 ### 推奨戦略配分
 
+### 2026-11-24 (Post-Tokyo Report)
+| WR | 0.0% |
+| PnL | **−18.2 pips** |
+| 戦略 | ペア | PnL | 失敗要因 |
+- N=1 は統計的根拠なし。単一SL_HITからパラメータ変更を行うのはカーブフィットリスクが高い。
+- DD防御 **0.2x Lot Mult / Defensive ON** が既に発動中（DD 10.01%、EQ ¥323,346 vs Peak ¥359,288）。現状は縮小リスクの局面であり、パラメータ変更より状態維持が優先。
+- Fidelity Cutoff 後の当該戦略のN蓄積量が不明（本セッション N=1 のみ確認）——昇格・降格判断に必要な N≥30 に遠く及ばない。
+| GBP_JPY | 207.188 | VOLATILE (ATR 64%) | ロンドン朝は最もスパイクリスク高。スプレッド拡大注意 |
+| USD_JPY | 159.004 | RANGING (ATR 45%) | レンジ継続想定。carry dip 再エントリー条件に要注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
