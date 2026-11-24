@@ -6454,6 +6454,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 > **NO ACTION推奨**
 | 累計PnL | **¥0.00** |
 
+### 2026-11-24 (Pre-Tokyo Briefing)
+前日（2026-11-23）は**トレードゼロ**。PnL = ±¥0、N = 0、WR = N/A。
+Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_JPY` の **N=2** のみ（PnL +5.3p）。
+| Strategy | Pair | N | WR% | EV | PnL | 判断ステータス |
+> **全戦略でN=2のみ。**昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）いずれも判定不能。統計的には「データなし」に相当。
+- `rnb_usdjpy:no_signal` が **7,752件**（Block TOP1）。USD_JPY がRANGING（ATR%ile 45%）に留まり、rnb戦略の発火条件を継続的に満たせていない。
+- scalp系3戦略で `r2_shadow_demoted_cell` が合計 **9,256件**（TOP2〜4,6,8,10含む）。シャドウセルが降格済みのため、実質的にscalp系はフィルタリング段階で全滅している。
+- daytrade系は `order_bar_dedup` が **5,985件**（複数モード合計）。同一バーへの重複注文抑制が主因であり、シグナル自体は生成されているが実行に至らない構造。
+- EQ Peak ¥359,288 → Current ¥323,346。DD ¥35,942（pip台帳 1317.3p）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
