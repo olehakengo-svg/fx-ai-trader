@@ -6,6 +6,7 @@
 - **修理**: `requirements.txt` `sentry-sdk[flask]>=2.0.0,<3` / 🆕 `modules/sentry_boot.py` (`init` = TypeError「Unknown option」で当該 kwarg を外して再試行、他例外は記録して諦める = 監視の初期化で取引エンジンを落とさない) / `app.py` 冒頭を `boot()` に置換 (2.x では従来どおり 1 回で init、挙動不変) / `tests/test_sentry_boot_fail_open.py` 8 pin (実エラー本文の再現、`<3` pin、インストール済み SDK シグネチャ突合)
 - **教訓**: [[lesson-unbounded-dep-pin-deploy-fail-2026-11-24]] — runtime 依存は上限つき pin / 付属物の初期化は fail-open / deploy 成否は `list_deploys.status == live` で読む (`engine_pid` の変化は再起動の証拠であって新ビルドの証拠ではない)。他の上限なし行の棚卸しは registry `runtime-dep-upper-bound-audit` (12-08)
 - **判断**: rule:R3 (構造バグ、live パラメータ・シグナル・tier 非接触)。merge は open live 0 の窓で (deploy = 再起動)
+- **merge / deploy**: PR #385 merge 28bbaa279 (10:39:41Z、CI 3/3 / gate exit 0 / open live 0) → Render dep-dc2mis6q1p3s73dkjmhg **live 10:41:23Z** (`list_deploys.status`、build は sentry-sdk **2.76.0**)、`engine_pid` 105 → 133、24 modes tick ok、storm_guard 状態消失 17 例目 (material 0)。詳細 [[2026-11-24-session]] Phase 6
 
 ## 2026-11-24 — docs(KB)+registry: sprint-1022 終了レビュー (8 項目 done 8、巡目 code 中央値 0 / 上限超過 4.3%、P1 7 / P2 18、到達率 100%、窓違反 0、deploy 直後 fill 再発 1) + 次 30 日 triage / dd-ledger readout = PR #382 新 writer 初計上 −¥182 一致・`OANDA_SL_TP` 0 件で 12-04 へ (autopilot、rule:R3 記録のみ)
 
