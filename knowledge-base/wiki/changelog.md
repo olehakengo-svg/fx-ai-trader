@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-24 — fix(deps)+fix(app): sentry-sdk 3.0.0 (11-23 公開) が `profiles_sample_rate` を削除 → PR #384 の Render deploy が gunicorn exit 1 で `update_failed` (本番は前ビルド #382 を再起動して生存、engine 空白 ≈80 秒、以後の全 deploy が失敗する状態) → 上限 pin `<3` + Sentry 初期化を fail-open 化 (autopilot、rule:R3)
+
+- **事故**: 10:20:23Z merge → build で `sentry-sdk-3.0.0` 解決 (`requirements.txt` は `>=2.0.0` で上限なし、11-19 build は 2.75.0) → 10:22:04Z `app.py` import 時 `sentry_sdk.init(profiles_sample_rate=…)` が `TypeError: Unknown option` → `deploy_ended nonZeroExit 1` → Render が前ビルドを新 instance で再起動 (`engine_pid` 130 → 105、`storm_guard` 状態消失 **16 例目**、material 0)。HTTP 502 10:21:49〜10:22:52Z。CI は `SENTRY_DSN` 空で init 経路を通らず green
+- **修理**: `requirements.txt` `sentry-sdk[flask]>=2.0.0,<3` / 🆕 `modules/sentry_boot.py` (`init` = TypeError「Unknown option」で当該 kwarg を外して再試行、他例外は記録して諦める = 監視の初期化で取引エンジンを落とさない) / `app.py` 冒頭を `boot()` に置換 (2.x では従来どおり 1 回で init、挙動不変) / `tests/test_sentry_boot_fail_open.py` 8 pin (実エラー本文の再現、`<3` pin、インストール済み SDK シグネチャ突合)
+- **教訓**: [[lesson-unbounded-dep-pin-deploy-fail-2026-11-24]] — runtime 依存は上限つき pin / 付属物の初期化は fail-open / deploy 成否は `list_deploys.status == live` で読む (`engine_pid` の変化は再起動の証拠であって新ビルドの証拠ではない)。他の上限なし行の棚卸しは registry `runtime-dep-upper-bound-audit` (12-08)
+- **判断**: rule:R3 (構造バグ、live パラメータ・シグナル・tier 非接触)。merge は open live 0 の窓で (deploy = 再起動)
+
 ## 2026-11-24 — docs(KB)+registry: sprint-1022 終了レビュー (8 項目 done 8、巡目 code 中央値 0 / 上限超過 4.3%、P1 7 / P2 18、到達率 100%、窓違反 0、deploy 直後 fill 再発 1) + 次 30 日 triage / dd-ledger readout = PR #382 新 writer 初計上 −¥182 一致・`OANDA_SL_TP` 0 件で 12-04 へ (autopilot、rule:R3 記録のみ)
 
 - **終了レビュー** ([[sprint-1022-close-review-2026-11-24]]、registry `sprint-1022-triage-close` 11-21 → resolve、**3 日超過** = autopilot 11-20 run `ENOTFOUND` 失敗 + 11-21〜23 未発火): [[sprint-0922-close-review-2026-10-21]] §4 の 8 項目は **done 8 / partial 0 / parked 0** (Claude 側)。user 側残置 = W1 (10-04) / storm_guard 状態永続化 / deploy 直後 LIVE 送信抑止 / 座礁 main 案 A-B-C / `reset --hard`

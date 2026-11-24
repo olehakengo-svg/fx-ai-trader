@@ -1455,6 +1455,17 @@
       "note": {}
     },
     {
+      "id": "runtime-dep-upper-bound-audit",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-12-08",
+      "doc": "knowledge-base/wiki/lessons/lesson-unbounded-dep-pin-deploy-fail-2026-11-24.md",
+      "message": "runtime 依存の上限なし pin の棚卸し (R3 文書 + 必要なら pin PR)。2026-11-24 に sentry-sdk 3.0.0 (上限なし `>=2.0.0`) が PR #384 の Render deploy を `update_failed` にした (engine 空白 ≈80 秒、以後の全 deploy が失敗する状態、同日 R3 修理)。`requirements.txt` の各行について (a) 上限の有無 (b) 本番 build が最後に解決した版 (Render build log『Successfully installed』) (c) 直近のメジャー公開予定 (PyPI JSON) を表にし、上限を付ける行を決める。pin を付けるだけの PR は R3 (挙動不変、CI で import 可を確認)。付属物 (監視・テレメトリ) の初期化が fail-closed になっている箇所も同時に列挙する。",
+      "condition": "棚卸し表が lessons/ または analyses/ に置かれ、上限を付けた行は PR で着地、付けない行は理由が書かれていること",
+      "reachability": "Claude (autopilot) が requirements.txt + Render build log (list_logs text 'Successfully installed') + PyPI JSON で表を作る。Tier A cron (tools/prereg_trigger_watch.py) が deadline 超過で TRIGGERED を出す。",
+      "note": {}
+    },
+    {
       "id": "sprint-1022-policy-wording-r3",
       "active": false,
       "resolved": "2026-10-23",
