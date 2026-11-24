@@ -6484,6 +6484,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 | GBP_JPY | 207.188 | VOLATILE (ATR 64%) | ロンドン朝は最もスパイクリスク高。スプレッド拡大注意 |
 | USD_JPY | 159.004 | RANGING (ATR 45%) | レンジ継続想定。carry dip 再エントリー条件に要注意 |
 
+### 2026-11-24 (Post-London Report)
+| PnL (pips) | **0.0** |
+| 勝率 (WR) | **N/A** |
+| PnL (pips) | −18.2 | 0.0 |
+| WR | 0.0% | N/A |
+### 推奨戦略配分
+**NO ACTION推奨（主要戦略）**
+3. **carry_dip N=35 / EV +5.34** — 唯一の有効戦略だが、今日の−18.2pヒットを含む**直近パフォーマンスは確認要**。USD_JPYがRANGING (ATR%ile 45%)でシグナル発生が低調
+| 本日累計 PnL (pips) | **−18.2** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
