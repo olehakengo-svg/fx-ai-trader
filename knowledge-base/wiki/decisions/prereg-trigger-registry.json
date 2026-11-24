@@ -1430,7 +1430,7 @@
     },
     {
       "id": "sprint-1022-triage-close",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-21",
       "doc": "knowledge-base/wiki/decisions/sprint-0922-close-review-2026-10-21.md",
@@ -1439,7 +1439,20 @@
       "reachability": "Claude (autopilot) が期日までに gh api で PR の @codex review 依頼回数 / inline P1・P2 を集計し (SCRATCH 手順 = tools 化候補: tools/pr_round_stats.py)、REASSESS §3 形式で文書化する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。中間期日は sub-entry 4 本 (sprint-1022-policy-wording-r3 10-28 / carry-dip-exit-type-inventory 10-31 / dd-ledger-nonbooking-consumer-audit 11-07 / sprint-1022-process-fixed-cost-upsubmit 11-07) + family-a-root-two-writer-r3 (11-14) で Tier A が個別に催促する (PR #342 Codex P2 4333203117)。",
       "note": {
         "2026-11-13": "読み手を tools 化: `tools/pr_round_stats.py --since 2026-10-22 --until 2026-11-21 [--json]` (計数定義 = sprint-0922-close-review §2.1 凍結、tests/test_pr_round_stats.py 27 pin、gh 失敗 exit 4 fail-closed)。陽性対照 = 0922 窓 (#280〜#341) の再集計を §2.2 と突合 (結果は [[2026-11-13-session]] / raw/analysis/pr-round-stats-sprint0922-control-2026-11-13.json)。11-13 時点の中間値 (merged 10-22〜11-12、26 本 = code 18 / docs 8): 巡目 中央値 0 / 平均 0.5 / 最大 4 (#364)、上限 >6 超過 **0 (0%)**、inline P1 **0** / P2 10 / P3 0 (raw/analysis/pr-round-stats-sprint1022-interim-2026-11-13.json)。0922 窓 (code 中央値 7 / P1 75 / P2 271、n=62) からの急減は『巡目が減った』でなく『connector の inline 指摘自体が減った』(P1 0) の可能性 — 11-21 終了レビューで connector のレビュー到達率 (summary Completed / PR) を併記して解釈すること (本 tool は到達率を出さない = 計数器の限界)。"
-      }
+      },
+      "resolved": "2026-11-24",
+      "resolution": "2026-11-24 autopilot (rule:R3 文書のみ、期日 11-21 の 3 日超過 = 11-20 run ENOTFOUND 失敗 + 11-21〜23 未発火): 終了レビュー [[sprint-1022-close-review-2026-11-24]]。8 項目 done 8 / partial 0 / parked 0 (Claude 側; user 側に W1 / storm_guard 永続化 / deploy 直後送信抑止 / 座礁 main 案 A-B-C / reset --hard が残置)。巡目 (tools/pr_round_stats.py、両窓 tool 値): code 中央値 0 (n=23) ⇐ 0922 窓 4 (n=47)、上限 ≤6 超過 1/23 = 4.3% ⇐ 27.7% → 目標 30% 以下達成、上限据え置き。inline P1 7 (全て #376) / P2 18 / P3 0 ⇐ 75 / 271 / 5。connector 到達率 100% (summary 36/36、findings あり 5/36) = 減少は不到達ではないが母集団差 (live 経路 PR 4 本のみ) で『規律が効いた』とは主張しない。繰延 P2 新規 0 (消化率は分母 0)。market-safe 窓違反 0 (code 23 本 × live 7 件の open 区間に交差なし)。deploy 直後 fill 再発 1 (11-04 #1347030、deploy live の 11 秒後、22 deploy 中 1)。案 A (wiki-daily pull-first) は kb-rescue-fold 自動化で不要 = 不採用を記録。後継 = sprint-1122-triage-close (12-21、中間 12-04)。"
+    },
+    {
+      "id": "sprint-1122-triage-close",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-12-21",
+      "doc": "knowledge-base/wiki/decisions/sprint-1022-close-review-2026-11-24.md",
+      "message": "次 30 日 (2026-11-22〜12-21) の終了レビュー。[[sprint-1022-close-review-2026-11-24]] §4 の 8 項目 (#1 user 決裁 4 本を既定で閉じる記録 11-26/11-29/11-30 / #2 固定日 readout 6 本 11-30 ×4・12-01・12-03・12-17 / #3 dd-ledger readout の estimand 再定義 12-04 (0 件なら pin 担保で resolve) / #4 プロセス固定費: 案 C 再上程 + 案 A 不採用 + kb-rescue 再 push ループの観測 / #5 storm_guard 永続化 再上程 (user) / #6 deploy 直後 LIVE 送信抑止 再上程 (user) / #7 live_fill_stagnation 閾値 再較正 12-03 (上げる方向のみ) / #8 容量規律 ≤6 据え置き) の done / in-flight / parked を証拠付きで判定し、巡目実測 (tools/pr_round_stats.py --since 2026-11-22 --until 2026-12-21、両窓 tool 値 + connector 到達率 (summary comment / PR、has_any_findings) を併記)、繰延 P2 件数、market-safe 窓違反件数 (code PR mergedAt × live open 区間の交差)、deploy 直後 (≤2 分) fill の再発件数、autopilot / wiki-daily の run 稼働日数 (list_task_runs) を記録する。live 経路 (modules/ / app.py) に触った PR の本数と P1 率を別掲し、1022 窓 (live 経路 4 本 / P1 0) との母集団差を明示すること。中間チェック 12-04 (#3 の判定日と同じ)。",
+      "condition": "終了レビュー文書 (8 項目の判定、巡目 + 到達率、繰延 P2、窓違反、deploy 直後 fill、稼働日数) が decisions/ に置かれ、次 30 日 triage が両レンズ反証つきで起案されること",
+      "reachability": "Claude (autopilot) が tools/pr_round_stats.py + GitHub API (issues/pulls comments) + /api/demo/trades + Render list_deploys + list_task_runs で集計し、REASSESS §3 形式で文書化する。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。11-26 / 11-29 / 11-30 / 12-01 / 12-03 / 12-04 / 12-17 の sub-entry は既存 entry が個別に催促する。",
+      "note": {}
     },
     {
       "id": "sprint-1022-policy-wording-r3",
@@ -1487,7 +1500,10 @@
       "condition": "(i) の調査記録と (ii)(iii) の上程文 (packet 追補または decisions/ 1 頁) が main にマージされていること",
       "reachability": "Claude (autopilot) が docs PR を積む。(ii) の執行 (reset --hard) と (iii) の決裁は user 専権で autopilot は代行しない。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
       "resolved": "2026-11-05",
-      "resolution": "2026-11-05 autopilot (rule:R3 記録 / user 上程): [[sprint-1022-process-fixed-cost-upsubmit-2026-11-05]] に (i)(ii)(iii) を 1 頁で記録。(i) wiki-daily 10 月欠落 = 未発火 5 日 (10-12/14/19/26/27) + 遅延発火→`ENOTFOUND` 失敗 4 日 (10-09/21/23/30) = 9/22 営業日、失敗 run は全件定刻 (11:47Z) から 1.5〜17 h 遅延 = ホスト (ローカル Mac) のスリープ/オフライン由来 (scheduler 自身が 9 月に「computer went to sleep」を 2 件記録)、skill 側欠陥ではない。(ii) 座礁 main 恒久策 3 択を再上程: A pull-first fail-fast (SKILL.md 1 行、autopilot 可) / B worktree 実行 + PR / C クラウド routine 化 (ホスト可用性も同時に解消、secrets は user)。推奨 C、無回答 = A を次 run で実施。(iii) storm_guard 状態永続化 (再起動で消失 7 例、readout 分母のみ影響) を R3 候補として起案のみ、無回答 = 起案しない。`reset --hard` と (iii) 採否は user 専権。"
+      "resolution": "2026-11-05 autopilot (rule:R3 記録 / user 上程): [[sprint-1022-process-fixed-cost-upsubmit-2026-11-05]] に (i)(ii)(iii) を 1 頁で記録。(i) wiki-daily 10 月欠落 = 未発火 5 日 (10-12/14/19/26/27) + 遅延発火→`ENOTFOUND` 失敗 4 日 (10-09/21/23/30) = 9/22 営業日、失敗 run は全件定刻 (11:47Z) から 1.5〜17 h 遅延 = ホスト (ローカル Mac) のスリープ/オフライン由来 (scheduler 自身が 9 月に「computer went to sleep」を 2 件記録)、skill 側欠陥ではない。(ii) 座礁 main 恒久策 3 択を再上程: A pull-first fail-fast (SKILL.md 1 行、autopilot 可) / B worktree 実行 + PR / C クラウド routine 化 (ホスト可用性も同時に解消、secrets は user)。推奨 C、無回答 = A を次 run で実施。(iii) storm_guard 状態永続化 (再起動で消失 7 例、readout 分母のみ影響) を R3 候補として起案のみ、無回答 = 起案しない。`reset --hard` と (iii) 採否は user 専権。",
+      "note": {
+        "2026-11-24": "(ii) 案 A「無回答 = 次 run で実施」は **不採用に改める** ([[sprint-1022-close-review-2026-11-24]] §1 #8 / §4 #4): kb-rescue-fold 自動化 (PR #376/#378) 後は座礁物が cron で origin に届くため、pull-first (ff 不能日は wiki-daily を実行しない) は供給を減らす側に働く。案 C の再上程は継続 (user)。観測: origin に `kb-rescue/*` 8 本 (11-16〜11-24) が 11-24 ホスト復帰後に再 push (cron 11-23 / 11-24 00:27Z は ref 0 本) = ローカル main ahead 20 が残る限り session-end hook が同じ退避 ref を作り直す (無害、cron が PRESENT/prune)。(i) 11-17〜11-24 も同型: autopilot 11-17 / 11-20 ENOTFOUND 失敗、11-21〜23 未発火、11-24 は定刻から 8.8 h 遅延で全 task 同時発火 (ホスト可用性)。"
+      }
     },
     {
       "id": "family-a-root-two-writer-r3",
@@ -1719,7 +1735,7 @@
       "id": "dd-ledger-broker-close-first-booking-readout",
       "active": true,
       "type": "deadline_info",
-      "deadline": "2026-11-20",
+      "deadline": "2026-12-04",
       "doc": "knowledge-base/wiki/analyses/dd-ledger-broker-close-booking-r3-2026-11-04.md",
       "message": "DD 台帳 writer 一本化 (autopilot 2026-11-04、`_book_equity_close`) の deploy 後読み取り: deploy 後最初の live 建玉が broker 側で決済 (`close_reason=OANDA_SL_TP`) された時に `/api/risk/dashboard` `jpy_ledger.eq_current_jpy` が同 tick で demo pnl × ¥10/pip (1,000 units 慣行) だけ動き、wiki-daily の「only SL_HIT is booked」計数 (index Defensive 行、17 例目まで) が増えないことを確認して resolve。deploy 後に OANDA_SL_TP 決済が 1 件も無ければ期日を +14 日繰り延べ (記録のみ)。価格のみ、outcome 非結合。",
       "condition": "deploy 後の OANDA_SL_TP 決済 ≥1 件で `eq_current_jpy` の差分 == pnl_pips × 10 (±¥1) が trade-log / session log に記録されていること、または 0 件で期日繰り延べが記録されていること",
@@ -1730,7 +1746,8 @@
         "2026-11-11": "deploy 後 live 決済 3 件 (全て carry_dip、DB close_reason は全て `SL_HIT` = engine 経路): #1347030 +10.2p (11-04) / #1347071 +26.8p (11-06 06:52Z) / #1347096 −15.1p (11-09 07:54Z)。`/api/risk/dashboard` `jpy_ledger.eq_current_jpy` ¥323,176.23 (11-05) → **¥323,293.23** (11-11 05:55Z) = **+¥117.00 = (+26.8 − 15.1) × ¥10** (±¥1 内、一致、dd 10.02%、lot 0.2 不変)。`OANDA_SL_TP` 決済は依然 **0 件** → 条件前半は未観測のまま、期日 11-20 据え置き (0 件なら +14 日)。",
         "2026-11-13": "deploy 後 live 決済 3 件 (11-04 / 11-06 / 11-09、全て engine 経路 `SL_HIT`) から増減なし: 11-09 #1347096 以降 live fill 0 (05:37Z open live 0 / shadow 2、live-eligible は `agg_kelly` blocked のみ)。`OANDA_SL_TP` 決済は依然 **0 件** → 条件前半は未観測のまま、期日 11-20 据え置き (0 件なら +14 日)。autopilot 11-13 (記録のみ)。",
         "2026-11-18": "deploy 後 live 決済 3 件 (11-04 / 11-06 / 11-09、全て engine 経路 `SL_HIT`) から増減なし: 11-09 #1347096 以降 live fill 0 (11-18 04:15Z `last_live_fill_row_at` 11-09 07:01:05 = 8.9 d、open live 0)。`OANDA_SL_TP` 決済は依然 **0 件** → 条件前半は未観測のまま。期日 11-20 は不変 (0 件なら +14 日の規則の適用対象、第7次 §4-(vii) 記録のみ)。",
-        "2026-11-19": "writer が units を読むよう修理 (autopilot 11-19、rule:R3、[[dd-ledger-units-resolution-r3-2026-11-19]]): 現行 live fill は全て 1,000u なので本 entry の条件文「pnl × ¥10/pip」は不変。11-18 15:03:59Z に carry_dip #1347135 (USD_JPY BUY 159.22、audit 1,000u filled、TP 159.97) が live fill = deploy 後 4 件目の live 建玉で、TP が broker 側で約定すれば初の `OANDA_SL_TP` 読み取り。11-20 run の判定材料: `/api/risk/dashboard` `jpy_ledger.eq_current_jpy` の差分 == pnl_pips × 10 (±¥1) + 本番ログ `[LEDGER_UNITS] … units=1000 source=audit_or_oanda`。0 件なら +14 日の規則。"
+        "2026-11-19": "writer が units を読むよう修理 (autopilot 11-19、rule:R3、[[dd-ledger-units-resolution-r3-2026-11-19]]): 現行 live fill は全て 1,000u なので本 entry の条件文「pnl × ¥10/pip」は不変。11-18 15:03:59Z に carry_dip #1347135 (USD_JPY BUY 159.22、audit 1,000u filled、TP 159.97) が live fill = deploy 後 4 件目の live 建玉で、TP が broker 側で約定すれば初の `OANDA_SL_TP` 読み取り。11-20 run の判定材料: `/api/risk/dashboard` `jpy_ledger.eq_current_jpy` の差分 == pnl_pips × 10 (±¥1) + 本番ログ `[LEDGER_UNITS] … units=1000 source=audit_or_oanda`。0 件なら +14 日の規則。",
+        "2026-11-24": "autopilot 11-24 (期日 11-20 の +14 日規則を適用 → 12-04): deploy 後 live 決済 5 件 (11-04 / 11-06 / 11-09 / 11-19 / 11-24) 全て engine 経路 `SL_HIT` = `OANDA_SL_TP` 依然 0 件。ただし **PR #382 新 writer の初計上を実測**: carry_dip #1347157 (11-24 01:03:12Z fill BUY 158.938、audit 1,000u) が 02:04:06Z に engine `SL_HIT` −18.2p (close PUT 404 = broker trail SL 先行、orderRejectTransaction 1347162) → Render ログ `[DemoTrader] [LEDGER_UNITS] trade=482fd25a-b03 oanda=1347157 units=1000 source=audit_or_oanda pnl_jpy=-182.0` (02:04:06.735Z) → `/api/risk/dashboard` `jpy_ledger.eq_current_jpy` ¥323,528.23 (11-19 Phase 5) → **¥323,346.23** (11-24 09:57Z) = **−¥182.00 = −18.2p × ¥10** (±¥1 内、一致)、dd_pct 0.0996 → 0.1001、lot 0.2 不変。estimand: deploy 後の broker 先行決済 5/5 が同 tick の engine 検知で `SL_HIT` label になるため、条件文の `OANDA_SL_TP` は engine 未検知分のみ = 現行 fill 頻度 (7 件/30 日) では到達不能になり得る → 12-04 に依然 0 件なら『engine 経路 5/5 実測一致 + broker-only 経路は CF pin 8 本で担保』として resolve する (sprint-1122 close review §4 #3、R3 文書、code 変更なし)。"
       }
     },
     {
