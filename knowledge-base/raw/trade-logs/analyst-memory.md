@@ -6494,6 +6494,16 @@ Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_J
 3. **carry_dip N=35 / EV +5.34** — 唯一の有効戦略だが、今日の−18.2pヒットを含む**直近パフォーマンスは確認要**。USD_JPYがRANGING (ATR%ile 45%)でシグナル発生が低調
 | 本日累計 PnL (pips) | **−18.2** |
 
+### 2026-11-25 (Pre-Tokyo Briefing)
+前日（2026-11-24）の実績は **N=1、WR=0.0%、PnL=−18.2p** のシングルロス。
+Cutoff後の全期間累計は **N=2、WR=50.0%、EV=+2.65** だが、サンプル数が極小（N=2）であり統計的判断は不可。
+| Strategy | Pair | N | WR% | EV | PnL |
+> ⚠️ **N=2 → 「データなし」扱い。** 昇格基準（N≥30 & EV≥1.0）まで残り28件。
+> KB記録では carry_dip 通算 N=35 / EV=+5.34 / WR=54.3% と記録されるが、**Fidelity Cutoff後の確定サンプルはN=2のみ**。Cutoff前データは汚染済みとして本分析から除外。
+| Strategy | Pair | N | WR% | EV | PnL |
+| GBP_JPY | VOLATILE | 67% | −0.00236 | 208.866 | DT_gbpjpy — VOLATILE×67%ile = spread_guard抵触リスク大。ポジション取りに注意 |
+- **EUR_USD・GBP_USDのTRENDING_DOWN/VOLATILE**：全体的に下方向バイアスが強い。EUR/GBP関連のLONGシグナルは逆張りリスクを帯びる。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
