@@ -8,6 +8,7 @@
 - **fail-closed 付属物の列挙** (§6): `app.py` cfd register / APScheduler block が `except ImportError` のみ。観測事故なし = R3 要件を満たさず本 PR では触らない (広い except は cfd shadow の実欠陥を隠す側)
 - **tests**: 🆕 `tests/test_requirements_upper_bounds.py` 3 pin (全行に `<N` / N = test 内の Render 解決版表 major+1 かつ表と集合一致 / インストール済み版が範囲内)。上限を上げる PR は表も新 build log で更新する
 - **判断**: rule:R3 (挙動不変)。`requirements.txt` は ignoredPaths 外で deploy が走る → open live 0 の窓で merge、Phase 5 は `list_deploys.status` + build log の解決版一致で読む。詳細: [[2026-11-25-session]]
+- **merge / deploy**: PR #387 merge 08b9f3bf3 (02:40:07Z、CI 3/3 / gate exit 0 / open live 0) → Render dep-dc34l2e0tbcc73cs2cb0 **live 02:41:57Z** (`list_deploys.status`)、build `Successfully installed` は 11-24 と **15/15 同一版** (解決結果不変を本番で確認)、`engine_pid` 133 → 134、24 modes tick ok、storm_guard 状態消失 18 例目 (material 0)
 
 ## 2026-11-24 — fix(deps)+fix(app): sentry-sdk 3.0.0 (11-23 公開) が `profiles_sample_rate` を削除 → PR #384 の Render deploy が gunicorn exit 1 で `update_failed` (本番は前ビルド #382 を再起動して生存、engine 空白 ≈80 秒、以後の全 deploy が失敗する状態) → 上限 pin `<3` + Sentry 初期化を fail-open 化 (autopilot、rule:R3)
 
