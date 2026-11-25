@@ -1,15 +1,22 @@
-flask>=2.3.0
-gunicorn>=21.2.0
-yfinance>=0.2.28
-pandas>=2.0.0
-pyarrow>=15.0.0
-numpy>=1.24.0
-scipy>=1.10.0
-ta>=0.10.2
-requests>=2.31.0
-pytest>=7.4.0
-flake8>=6.1.0
+# runtime 依存は上限つき pin (`>=下限,<次メジャー`) — rule:R3、2026-11-25。
+# 上限 = Render build 2026-11-24 (bld-dc2mis6q1p3s73dkjmi0、Python 3.11.0) が解決した版の
+# 次メジャー。解決結果は不変 (全行、解決版 < 上限)。上限を上げるのは「本番で動かす版を
+# 意図して選ぶ PR」だけ = 下限だけの行は PyPI の公開タイミングで本番が決まる
+# (2026-11-24 sentry-sdk 3.0.0 で deploy update_failed)。棚卸し表・各行の根拠:
+#   knowledge-base/wiki/analyses/runtime-dep-upper-bound-audit-2026-11-25.md
+# 機械 pin: tests/test_requirements_upper_bounds.py (全行に上限あり / 上限 = 解決版 +1 major)
+flask>=2.3.0,<4
+gunicorn>=21.2.0,<28
+yfinance>=0.2.28,<2
+pandas>=2.0.0,<4
+pyarrow>=15.0.0,<27
+numpy>=1.24.0,<3
+scipy>=1.10.0,<2
+ta>=0.10.2,<1
+requests>=2.31.0,<3
+pytest>=7.4.0,<10
+flake8>=6.1.0,<8
 sentry-sdk[flask]>=2.0.0,<3  # 3.0.0 (2026-11-23) は profiles_sample_rate を削除 → init TypeError で deploy 失敗 (2026-11-24)。3.x 移行は別 PR
-jpholiday>=1.0.3
-apscheduler>=3.10.0
-python-dotenv>=1.0.0
+jpholiday>=1.0.3,<2
+apscheduler>=3.10.0,<4
+python-dotenv>=1.0.0,<2

@@ -1456,14 +1456,16 @@
     },
     {
       "id": "runtime-dep-upper-bound-audit",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-12-08",
       "doc": "knowledge-base/wiki/lessons/lesson-unbounded-dep-pin-deploy-fail-2026-11-24.md",
       "message": "runtime 依存の上限なし pin の棚卸し (R3 文書 + 必要なら pin PR)。2026-11-24 に sentry-sdk 3.0.0 (上限なし `>=2.0.0`) が PR #384 の Render deploy を `update_failed` にした (engine 空白 ≈80 秒、以後の全 deploy が失敗する状態、同日 R3 修理)。`requirements.txt` の各行について (a) 上限の有無 (b) 本番 build が最後に解決した版 (Render build log『Successfully installed』) (c) 直近のメジャー公開予定 (PyPI JSON) を表にし、上限を付ける行を決める。pin を付けるだけの PR は R3 (挙動不変、CI で import 可を確認)。付属物 (監視・テレメトリ) の初期化が fail-closed になっている箇所も同時に列挙する。",
       "condition": "棚卸し表が lessons/ または analyses/ に置かれ、上限を付けた行は PR で着地、付けない行は理由が書かれていること",
       "reachability": "Claude (autopilot) が requirements.txt + Render build log (list_logs text 'Successfully installed') + PyPI JSON で表を作る。Tier A cron (tools/prereg_trigger_watch.py) が deadline 超過で TRIGGERED を出す。",
-      "note": {}
+      "note": {},
+      "resolved": "2026-11-25",
+      "resolution": "前倒し執行 (期日 12-08、棚卸しは観測を待たないため残り期間に判定が変わらない)。上限なし 14/15 行 (sentry-sdk のみ 11-24 済) の全行に `<Render 解決版メジャー+1>` を採用、付けない行 0、下限不変、解決結果は全行不変 (Render build bld-dc2mis6q1p3s73dkjmi0 11-24 の Successfully installed 行が基準)。機械 pin tests/test_requirements_upper_bounds.py 3 本 (全行上限あり / 上限 = 解決版 major+1 かつ表と集合一致 / インストール済み版が範囲内)。fail-closed 付属物 = app.py cfd register / APScheduler block (except ImportError のみ) を列挙、観測事故なしで起票せず。後継 entry なし: 上限に当たっても壊れない構造なので読み手は sprint 終了レビュー固定項目 (sprint-1122-triage-close 12-21 初回)。表: knowledge-base/wiki/analyses/runtime-dep-upper-bound-audit-2026-11-25.md"
     },
     {
       "id": "sprint-1022-policy-wording-r3",
