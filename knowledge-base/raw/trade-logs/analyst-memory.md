@@ -6514,6 +6514,16 @@ Cutoff後の全期間累計は **N=2、WR=50.0%、EV=+2.65** だが、サンプ�
 | EUR/JPY | RANGING (55%ile) | RANGING or TRENDING転換注意 | EUR/USDの下降とUSD/JPYの緩やかな上昇が競合。方向感不鮮明 |
 ### 推奨戦略配分
 
+### 2026-11-25 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | N/A |
+- Fidelity Cutoff後のセッション内N=0。統計判断の基礎となるサンプルが存在しない
+- DD防御0.2x (defensive mode)が継続稼働中。DD=10.01%、Lot Mult=0.2x。現時点でシステムは正しくリスク抑制を行っている
+- Shadow降格セルによるブロックはr2評価の正常動作であり、介入する根拠がない
+- OANDA転送率0%（SENT 0/50）はShadowブロックが主因（`shadow_tracking` 17件、`pair_demoted` 2件、`agg_kelly=-0.223<0` 1件）。構造的に意図通り動作している
+### 推奨戦略配分
+**NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
