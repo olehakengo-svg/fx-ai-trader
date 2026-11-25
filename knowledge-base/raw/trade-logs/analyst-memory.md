@@ -6504,6 +6504,16 @@ Cutoff後の全期間累計は **N=2、WR=50.0%、EV=+2.65** だが、サンプ�
 | GBP_JPY | VOLATILE | 67% | −0.00236 | 208.866 | DT_gbpjpy — VOLATILE×67%ile = spread_guard抵触リスク大。ポジション取りに注意 |
 - **EUR_USD・GBP_USDのTRENDING_DOWN/VOLATILE**：全体的に下方向バイアスが強い。EUR/GBP関連のLONGシグナルは逆張りリスクを帯びる。
 
+### 2026-11-25 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | — |
+- 東京セッションN=0。統計的判断に必要なサンプルが皆無。
+- DD防御が**0.2x (defensive mode, 10.01% DD)**で稼働中。現時点での戦略拡張・パラメータ緩和は禁忌。
+- Block原因はすべてシステム設計通りのガード機能（Shadow降格、flash crash guard、dedup）であり、誤動作ではない。
+- Shadow降格セルの解除はR²実績改善によってのみ正当化される。現在のN蓄積状況でのmanual解除判断は根拠不足。
+| EUR/JPY | RANGING (55%ile) | RANGING or TRENDING転換注意 | EUR/USDの下降とUSD/JPYの緩やかな上昇が競合。方向感不鮮明 |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
