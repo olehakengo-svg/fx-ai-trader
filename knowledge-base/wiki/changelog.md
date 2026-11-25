@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-25 — chore(deps)+test: runtime 依存 15 行の上限なし pin 棚卸し → 全行に `<次メジャー` (Render 11-24 build の解決版基準、解決結果不変) + 機械 pin test + registry `runtime-dep-upper-bound-audit` 前倒し resolve (autopilot、rule:R3)
+
+- **棚卸し** ([[runtime-dep-upper-bound-audit-2026-11-25]] §3): 出所 = Render build `bld-dc2mis6q1p3s73dkjmi0` (11-24 10:40Z、Python 3.11.0) の `Successfully installed` 行 + PyPI JSON 15 件。**上限なし 14/15 行** (sentry-sdk のみ 11-24 済)。全行 `>=下限,<解決版メジャー+1` を採用 (flask<4 / gunicorn<28 / yfinance<2 / pandas<4 / pyarrow<27 / numpy<3 / scipy<2 / ta<1 / requests<3 / pytest<10 / flake8<8 / jpholiday<2 / apscheduler<4 / python-dotenv<2)、付けない行 0、下限不変
+- **副所見 (記録のみ)**: pandas は本番で**すでに 3.1.1** (`>=2.0.0` が 2026-01 の 3.0 公開を黙って通していた) / numpy 2.4.6・scipy 1.17.1 は Render `PYTHON_VERSION` 3.11.0 が暗黙の上限 (2.5 / 1.18 は `>=3.12`、Python を上げる日に同時ジャンプ) / ローカル 3.9.6 (pandas 2.3.3) と本番の版差は CI (3.11 fresh resolve) が担保
+- **固定費**: gunicorn / pyarrow はメジャー年 4 回 → 上限更新 PR ≈ 年 8〜10 本 (意図した固定費)。上限に当たっても pip は旧メジャーに留まるだけで壊れない → 読み手 = sprint 終了レビュー固定項目 (`sprint-1122-triage-close` 12-21 で初回)、後継 registry entry なし
+- **fail-closed 付属物の列挙** (§6): `app.py` cfd register / APScheduler block が `except ImportError` のみ。観測事故なし = R3 要件を満たさず本 PR では触らない (広い except は cfd shadow の実欠陥を隠す側)
+- **tests**: 🆕 `tests/test_requirements_upper_bounds.py` 3 pin (全行に `<N` / N = test 内の Render 解決版表 major+1 かつ表と集合一致 / インストール済み版が範囲内)。上限を上げる PR は表も新 build log で更新する
+- **判断**: rule:R3 (挙動不変)。`requirements.txt` は ignoredPaths 外で deploy が走る → open live 0 の窓で merge、Phase 5 は `list_deploys.status` + build log の解決版一致で読む。詳細: [[2026-11-25-session]]
+
 ## 2026-11-24 — fix(deps)+fix(app): sentry-sdk 3.0.0 (11-23 公開) が `profiles_sample_rate` を削除 → PR #384 の Render deploy が gunicorn exit 1 で `update_failed` (本番は前ビルド #382 を再起動して生存、engine 空白 ≈80 秒、以後の全 deploy が失敗する状態) → 上限 pin `<3` + Sentry 初期化を fail-open 化 (autopilot、rule:R3)
 
 - **事故**: 10:20:23Z merge → build で `sentry-sdk-3.0.0` 解決 (`requirements.txt` は `>=2.0.0` で上限なし、11-19 build は 2.75.0) → 10:22:04Z `app.py` import 時 `sentry_sdk.init(profiles_sample_rate=…)` が `TypeError: Unknown option` → `deploy_ended nonZeroExit 1` → Render が前ビルドを新 instance で再起動 (`engine_pid` 130 → 105、`storm_guard` 状態消失 **16 例目**、material 0)。HTTP 502 10:21:49〜10:22:52Z。CI は `SENTRY_DSN` 空で init 経路を通らず green

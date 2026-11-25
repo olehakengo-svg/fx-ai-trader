@@ -32,3 +32,8 @@
 - 11-19 build `bld-dbv6isijnfac739nhl1g` "sentry-sdk-2.75.0"
 - PyPI `https://pypi.org/pypi/sentry-sdk/json`: 3.0.0 upload 2026-11-23T09:30Z、2.76.0 2026-11-23
 - [[2026-11-24-session]] Phase 5
+
+## 後続 (2026-11-25、registry `runtime-dep-upper-bound-audit` 前倒し執行)
+- 棚卸し: [[runtime-dep-upper-bound-audit-2026-11-25]] — 上限なし **14/15 行**、全行に `<Render 解決版メジャー+1>` を採用 (解決結果不変 = R3)。副所見: pandas は本番ですでに 3.1.1 (上限なし pin が 2026-01 の 3.0 を黙って通していた実例)、numpy / scipy は Python 3.11.0 固定が暗黙の上限
+- 機械 pin: `tests/test_requirements_upper_bounds.py` (全行に `<N` / N = 解決版 major+1 / インストール済み版が範囲内)。上限を上げる PR は test 内の解決版表も新しい build log で更新する
+- 固定費: 上限更新 PR ≈ 年 8〜10 本 (gunicorn / pyarrow がメジャー年 4 回)。上限に当たっても何も壊れない (旧メジャーに留まるだけ) ので、読み手は sprint 終了レビューの固定項目
