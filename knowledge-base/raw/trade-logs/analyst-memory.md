@@ -6534,6 +6534,16 @@ Cutoff後の全期間累計は **N=2、WR=50.0%、EV=+2.65** だが、サンプ�
 | **NO ACTION推奨** | `rnb_usdjpy` | USD_JPY | 1,519件 `no_signal` — RANGING環境でもシグナル条件未充足が継続 |
 | 累計PnL | **¥0** |
 
+### 2026-11-25 (Pre-Tokyo Briefing)
+前日（2026-11-24）はトレード**1件**のみ。`usdjpy_carry_dip_accumulator` USD/JPY BUY → SL_HIT、**PnL: −18.2p / WR: 0.0% / EV: −18.20**。全体として損失1件で終了。システム自体は稼働継続中、ポジションは現在ゼロ。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- Cutoff後の有効データは **N=2** のみ。統計的判断には到底届かない（判断可能ラインはN≥30）
+- KB記録ベースの累積（N=35 / EV=+5.34 / WR=54.3%）はCutoff前データを含む参照値として存在するが、本レポートでは直接の判断根拠として使用しない
+- 昇格基準（N≥30 & EV≥1.0）：**未達（N=2）**
+- 降格基準（N≥30 & EV<−0.5）：**未達（N=2）**
+scalp系全体でshadow demotionによるblockが支配的。これはペアレベルの降格（pair_demoted）とセル単位の降格が並存していることを示す。EUR系・GBP系ペアのVOLATILE/RANGINGレジームとの絡みで、シャドウEVが基準を下回り続けている状態と判断できる。
+- 全5ペアでSMA slope が弱い（絶対値 0.002〜0.005台）。明確なトレンドが不在
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
