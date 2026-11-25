@@ -6524,6 +6524,16 @@ Cutoff後の全期間累計は **N=2、WR=50.0%、EV=+2.65** だが、サンプ�
 ### 推奨戦略配分
 **NO ACTION推奨**
 
+### 2026-11-25 (Post-London Report)
+| PnL | **¥0** |
+| WR | **N/A** |
+| PnL | ¥0 | ¥0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+| **NO ACTION推奨** | scalp系全般 | 全ペア | `r2_shadow_demoted_cell`が2,346件累積 — 降格セル状態が解消されるまでスキャルプ約定は構造的に困難 |
+| **NO ACTION推奨** | `rnb_usdjpy` | USD_JPY | 1,519件 `no_signal` — RANGING環境でもシグナル条件未充足が継続 |
+| 累計PnL | **¥0** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
