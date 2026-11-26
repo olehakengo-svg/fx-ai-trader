@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-11-26 — docs(KB)+registry: daily market review protocol 廃止提案 → 期日到来・user 回答なしで既定 (b) 縮退継続を記録 (registry `daily-market-review-abolition-user-decision` resolve、後継 `daily-market-review-exec-qa-yield-120d` 2027-01-12 起票、autopilot、rule:R3 記録のみ)
+
+- **決裁の既定適用** ([[daily-market-review-protocol]] §10): entry は 11-12 起票以降 無改変、session log 11-13〜11-25 は全て「無回答 = (b)」→ 期日 11-26 到来で **(b) 縮退継続** を記録して resolve (sprint-1122 triage #1 の「既定の適用自体を KB に書く」)。autopilot は (a) 全廃止を執行しない (SKILL.md は user 領域)。user が後日 (a)/(c) を明示すれば §10 に追補
+- **(b) の文言反映**: §1 位置づけを「S0 intake の観測層」→ **「執行 QA の受け皿 + 制御系欠陥の観測台帳」** (観測 → family 卒業 → S1 供給は 90 日で 0 = 非目標化、図は歴史記録) / §3 見出しに (a)(b)(c) 維持・優先順位 (c) > (b) > (a)・卒業狙いの観測増産禁止 / §5 月次 S0 queue 行を非目標化、決裁行を ✅、120d 行を追加 / §6 に定期有効性レビュー打ち切りの注記 / `.claude/commands/wiki-daily.md` Phase 2.5 に 1 行注記 (手順不変)
+- **反証読み手 (pre-reg)** 🆕 registry `daily-market-review-exec-qa-yield-120d` (期日 2027-01-12 = 創設 09-14 + 120 d): estimand = 窓 2026-11-13〜2027-01-12 の**観測起点 R2/R3 着地** (O エントリを起点に引用する derivation doc 付き merged PR、前例 #363 / #365) の本数。列挙方法 3 段を固定、**0 → (a) 全廃止へ移行 / ≥1 → (b) 継続・定期レビューは起票しない**。11-26 時点の基準値 = **0** (merged #374〜#388 に観測起点 doc なし、#382 は境界例として記録)。窓内 live fill ≤5 なら +30 日 roll 1 回 (発見機会の不在と無価値を分離)
+- **判断**: rule:R3 (記録・registry・docs のみ)。live/tier/lot/凍結値/KV/SKILL.md に変更なし、outcome 非計算。registry JSON は Render ignoredPaths 外 → merge は open live 0 の窓で。詳細: [[2026-11-26-session]]
+
 ## 2026-11-25 — chore(deps)+test: runtime 依存 15 行の上限なし pin 棚卸し → 全行に `<次メジャー` (Render 11-24 build の解決版基準、解決結果不変) + 機械 pin test + registry `runtime-dep-upper-bound-audit` 前倒し resolve (autopilot、rule:R3)
 
 - **棚卸し** ([[runtime-dep-upper-bound-audit-2026-11-25]] §3): 出所 = Render build `bld-dc2mis6q1p3s73dkjmi0` (11-24 10:40Z、Python 3.11.0) の `Successfully installed` 行 + PyPI JSON 15 件。**上限なし 14/15 行** (sentry-sdk のみ 11-24 済)。全行 `>=下限,<解決版メジャー+1` を採用 (flask<4 / gunicorn<28 / yfinance<2 / pandas<4 / pyarrow<27 / numpy<3 / scipy<2 / ta<1 / requests<3 / pytest<10 / flake8<8 / jpholiday<2 / apscheduler<4 / python-dotenv<2)、付けない行 0、下限不変

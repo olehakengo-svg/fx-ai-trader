@@ -1765,7 +1765,7 @@
     },
     {
       "id": "daily-market-review-abolition-user-decision",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-11-26",
       "doc": "knowledge-base/wiki/analyses/daily-market-review-protocol.md",
@@ -1773,6 +1773,21 @@
       "condition": "user が (a)/(b)/(c) のいずれかを明示するか、期日到来で既定 (b) を記録して本 entry を resolve し、protocol §1 / §3 / §5 の文言を (b) に合わせ、後継 entry `daily-market-review-exec-qa-yield-120d` が起票されていること",
       "reachability": "読み手 = autopilot (期日到来時に既定 (b) を記録、docs のみ) + user 報告 (session log 未解決事項)。Tier A cron (tools/prereg_trigger_watch.py、翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
       "execution_subject": "user (決裁) / Claude autopilot (既定の記録、docs のみ)",
+      "outcome_lock": false,
+      "resolved": "2026-11-26",
+      "resolution": "✅ 2026-11-26 期日到来・user 回答なし → 既定 (b) 縮退継続を適用 (autopilot、rule:R3 記録のみ、[[daily-market-review-protocol]] §10)。回答の不在は registry (本 entry 11-12 以降 無改変) + session log 11-13〜11-25 の未解決事項 (全て『無回答 = (b)』のまま) で確認。(b) の内容: §3 (a) 前営業日レビュー / (b) 観測記録 / (c) 執行 QA は維持、(d) rollup は 11-12 廃止済み、『観測 → family 卒業 → S1 供給』は非目標化 (§1 を『執行 QA の受け皿 + 制御系欠陥の観測台帳』に改定)、定期有効性レビュー (30d/60d 型) は打ち切り。(a) 全廃止は autopilot が執行しない (SKILL.md は user 領域)。反証条件は後継 entry `daily-market-review-exec-qa-yield-120d` (2027-01-12) に転記: 窓 2026-11-13〜2027-01-12 で執行 QA 発見を起点に引用する derivation doc 付きの merged R2/R3 PR が 0 なら (a) へ移行。11-26 時点の窓内着地 = 0 (11-13 以降の merged PR #374〜#388 のうち O-2026-11-* を起点に引用する derivation doc を持つものなし — #382 / #385 / #387 は観測起点ではない) = 起点の基準値。"
+    },
+    {
+      "id": "daily-market-review-exec-qa-yield-120d",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2027-01-12",
+      "doc": "knowledge-base/wiki/analyses/daily-market-review-protocol.md",
+      "message": "daily market review protocol (b) 縮退継続 (2026-11-26 既定適用、§10) の反証読み手 — 名前の 120d = プロトコル創設 2026-09-14 からの日数 (09-14 + 120 d = 01-12)。estimand = 窓 **2026-11-13〜2027-01-12** (60d レビュー評価時刻の翌日から) に **執行 QA 発見 (daily-observations-YYYY-MM.md の O エントリ、§3(c) 由来) を起点に引用する derivation doc (analyses/ または decisions/) を持つ merged R2/R3 PR** の本数 (今窓の前例 = PR #363 [[max-open-live-cap-counts-shadow-r3-2026-11-03]] ← O-2026-11-02-1 / PR #365 [[dd-ledger-broker-close-booking-r3-2026-11-04]] ← O-2026-11-04-2)。列挙方法を固定: (1) `gh pr list --state merged --search 'merged:2026-11-13..2027-01-12'` で窓内 merged PR を列挙 (2) 各 PR の変更ファイルに analyses/ or decisions/ の新規 doc があり、その本文が `O-2026-` / `O-2027-` エントリ ID を起点として引用する (『観測』『O-YYYY-MM-DD-n』の明示) ものだけ数える (3) 観測を後から注記しただけの PR (derivation が観測を起点にしていない) は数えない。判定: **本数 0 → (a) 全廃止へ移行** (Phase 2.5 停止の提案を user 決裁 entry として起票、SKILL.md は user 領域のため autopilot は執行しない) / **≥1 → (b) 継続、後継の定期レビューは起票しない** (稼働率はホスト可用性の計測であって本プロトコルの計測ではない = §9 の帰属)。11-26 時点の基準値 = 0 (PR #374〜#388 に観測起点の derivation doc なし)。outcome 非結合、価格非接触。",
+      "condition": "窓内 merged PR の列挙 (方法 (1)〜(3)) と本数が protocol の追補節に記録され、0 なら (a) への移行 entry が起票、≥1 なら (b) 継続が明示されていること",
+      "reachability": "状態を進める主体 = Claude autopilot (R3、docs のみ)。入力 = GitHub merged PR 一覧 (gh) + analyses/ decisions/ の doc 本文 + daily-observations-2026-11/12.md・2027-01.md。Tier A cron (tools/prereg_trigger_watch.py deadline_info、期日翌日 00:20Z) が deadline 超過で TRIGGERED を出す。",
+      "execution_command": "python3 tools/prereg_trigger_watch.py",
+      "execution_subject": "prereg_trigger_watch daily cron (Tier A) / Claude autopilot (判定の記録)",
       "outcome_lock": false
     },
     {
