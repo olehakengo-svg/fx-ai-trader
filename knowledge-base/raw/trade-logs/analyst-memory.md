@@ -6554,6 +6554,16 @@ scalp系全体でshadow demotionによるblockが支配的。これはペアレ�
 ### 推奨戦略配分
 **NO ACTION推奨（システム設定変更の観点で）**
 
+### 2026-11-26 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | — |
+- Fidelity Cutoff（2026-04-08）以降の当セッション執行N=0であり、判断に使える統計が存在しない
+- DD防御が**発動中（0.2x、defensive ON）**であり、現状はリスク抑制優先フェーズ
+- ブロック要因は設計上の防衛機能が正常作動しているもの（shadow demoted / dedup / hedge_block）
+- コード変更禁止原則に照らしても、判断材料が整う前の介入はノイズを増やすのみ
+### 推奨戦略配分
+**NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
