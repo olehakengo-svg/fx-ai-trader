@@ -2,7 +2,7 @@
 
 **Created**: 2026-09-14
 **Author**: Claude (quant analyst mode)
-**Status**: ⚠️ **60d レビュー 2026-11-12 = (i) 不成立 → §6 (a) 発動・廃止提案 (user 決裁、既定 = (b) 縮退継続) / (ii) 不成立 → rollup 層廃止 (同 PR で執行)** (§9、registry `daily-market-review-60d-effectiveness` resolved → user 決裁 entry `daily-market-review-abolition-user-decision` 2026-11-26)。30d レビュー 2026-10-14 = 条件付き継続 (§8)
+**Status**: ✅ **(b) 縮退継続 — 2026-11-26 既定適用** (§10、user 決裁 entry `daily-market-review-abolition-user-decision` は期日到来・回答なしで既定 (b) を記録して resolve。反証読み手 = registry `daily-market-review-exec-qa-yield-120d` 2027-01-12: 窓内の観測起点 R2/R3 着地 0 なら (a) へ移行)。経緯: 60d レビュー 2026-11-12 = (i) 不成立 → §6 (a) 発動・廃止提案 / (ii) 不成立 → rollup 層廃止 (§9)、30d レビュー 2026-10-14 = 条件付き継続 (§8)
 **Related**: [[daily-tierB-protocol]], [[edge-development-pipeline-2026-07-18]], [[hypothesis-catalog-2026-07-24|hypothesis-catalog]], `.claude/commands/wiki-daily.md` Phase 2.5
 **Adversarial review**: 2026-09-14 初稿は 3 レンズレビューで P1×3 棄却 → 本版で修正 (シード観測自身が §2 違反を 2 種踏んだ — 定義の緩さは初日に悪用される実証)
 
@@ -12,7 +12,9 @@
 
 **「毎日エッジを完成させる」のではなく「毎日観測を採集し、検証は既存の束 (pre-reg バッチ) で行う」。**
 
-本プロトコルは edge-development-pipeline の **S0 intake の上流に置く観測層**である。台帳 (#N) の下ではなく前段:
+> **2026-11-26 改定 ((b) 縮退継続、§10)**: 本プロトコルの位置づけは **「執行 QA の受け皿 + 制御系欠陥の観測台帳」** に改める。60d (§9) で実収益化した経路は執行 QA → 既存 frame 回付 / R3 修理 (PR #363 / #365) のみで、下図の「観測 → family 卒業 → S1 供給」は 90 日で 0 件 (base rate 4% の下で期待できる数理が元々無い) = **非目標化**。図は歴史記録として残置し、卒業 family が出ても成果に数えず S0 queue への供給は目標にしない (出れば既存手続きで扱う)。
+
+本プロトコルは edge-development-pipeline の S0 intake の上流に置く観測層として創設された (2026-09-14)。台帳 (#N) の下ではなく前段 (⬛ 2026-11-26 以降、family 集計層 (d) は廃止済み・卒業は非目標):
 
 ```
 日次観測 (本プロトコル、記述級のみ)
@@ -34,7 +36,7 @@
 6. **台帳番号は既存経路のみ** — 観測は台帳 # を持たない。番号付与は敵対的検証 → freeze の既存手続きに限る (Bonferroni/BH 分母の膨張は卒業時点で初めて発生する — ただし §2.5 の通り、採集自体のスヌーピングはトリガ日除外で別途遮断する)
 7. **卒業前の ban/estimand 監査必須** — 隣接する closed family の ban 条項との差分節を観測エントリ時点で仮記載し (原本 decision doc を実読すること — 記憶からの family 特徴づけは 2026-09-14 初稿で実際に誤った)、卒業時に正式監査
 
-## 3. 日次手順 (wiki-daily Phase 2.5 として実行)
+## 3. 日次手順 (wiki-daily Phase 2.5 として実行 — ⚠️ 2026-11-26 (b) 縮退継続: (a)(b)(c) 維持、(d) 廃止。優先順位は (c) 執行 QA > (b) 観測記録 > (a) レビュー)
 
 **(a) 前営業日レビュー (data-first、~10分)**
 - 主要ペア (最低 USD_JPY) の日足 OHLC / セッション分解 (東京/ロンドン/NY) / 最大 15m バー (時刻・値幅・出来高) を算出
@@ -45,6 +47,7 @@
 **(b) 観測記録**
 - `knowledge-base/wiki/research/daily-observations-YYYY-MM.md` (月次ファイル) に §4 形式で追記
 - 0 件の日は「観測なし」を記録しない (ノイズ防止)。無理に絞り出さない
+- ⬛ 2026-11-26 以降、family 卒業 (≥3 独立観測) は**非目標** — 「family 候補」行は引き続き書く (将来の読み手のため) が、卒業を狙って観測を増やさない。執行 QA 由来でない市場観測は「記録のみ」を既定経路とする
 
 **(c) 執行 QA (毎日必須 — 観測より優先)**
 - 前営業日〜当日に **当時点の live-eligible セル (tier-master 参照)** の発火条件が成立していたか確認: 想定発火 vs `/api/demo/trades` 実績 + block/abandon 理由
@@ -76,12 +79,15 @@
 |---|---|---|
 | 日次 | wiki-daily Phase 2.5 実行者 | 前日エントリとの重複確認 + 執行 QA |
 | ~~週次 (月曜)~~ | ~~rollup 節~~ | ⬛ 2026-11-12 廃止 (§9 (ii)、字義 1/4) — 既存 rollup 節は残置、新規追記なし |
-| 月次 | external-hypothesis-scan S0 queue | 卒業 family を次回スキャンの S0 候補へ供給 |
+| ~~月次~~ | ~~external-hypothesis-scan S0 queue~~ | ⬛ 2026-11-26 非目標化 (§10 (b)) — 卒業 family が出た場合のみ既存手続きで S0 候補に出す。供給を本プロトコルの成果に数えない |
 | 30d | registry `daily-market-review-30d-effectiveness` (期日 2026-10-14) | 観測数 / 卒業 family 数 / 執行 QA 発見数 — 判定基準は §6 (稼働率 <50% または「執行 QA 発見 0 かつ 卒業 family 0」で廃止提案) |
 | 60d | registry `daily-market-review-60d-effectiveness` (期日 2026-11-13) | ✅ 2026-11-12 執行 (§9): (i) 11/22 = 50% < 60% 不成立 / (ii) 字義 1/4 不成立 / (iii) 観測 19・執行 QA 発見 17・卒業 0 |
-| 決裁 | registry `daily-market-review-abolition-user-decision` (期日 2026-11-26) | §6 (a) 廃止提案 (a) 全廃止 / (b) 縮退継続 (推奨・既定) / (c) 現状維持 — 無回答 = (b) |
+| 決裁 | registry `daily-market-review-abolition-user-decision` (期日 2026-11-26) | ✅ 2026-11-26 期日到来・回答なし → **既定 (b) 縮退継続** を記録して resolve (§10) |
+| 120d (反証) | registry `daily-market-review-exec-qa-yield-120d` (期日 2027-01-12) | 窓 2026-11-13〜2027-01-12 の**観測起点 R2/R3 着地** (O エントリを起点に引用する derivation doc 付き merged PR) の本数 — **0 なら (a) 全廃止へ移行、≥1 なら (b) 継続・定期レビューは起票しない** (§10) |
 
 ## 6. 廃止条件 (自己反証)
+
+> ⬛ 2026-11-26 (§10): 30d/60d 型の定期有効性レビューは打ち切り (稼働率はホスト可用性の計測であって本プロトコルの計測ではない — §9 帰属)。残る廃止条件は §10 の 1 本 = 120d 読み手で観測起点の R2/R3 着地 0 なら (a) 全廃止。
 
 30d レビューで (a) 観測記録が習慣として途絶 (稼働率 <50%)、または (b) 執行 QA 発見 0 かつ 卒業 family 0、のいずれかなら、本プロトコルは維持コストに見合わないと認定し廃止提案を出す。「仕組みを作った」こと自体は成果ではない ([[process-meta-audit-2026-09-07|meta-audit]] enforcement 不在の教訓)。
 
@@ -146,3 +152,25 @@
 - **(c) 現状維持** (rollup 含む) — (ii) の pre-reg 帰結に反するため推奨しない
 - **推奨 (b) の根拠**: 不成立の (i) は skill 不履行 0 / run 不在 11 = ホスト可用性の計測 (表「帰属」)。一方 60d の執行 QA は live 経路の R3 修理 2 本 (PR #363 / #365) と enforce readout 2 本を供給した = 30d の「回付 1」から実収益化した唯一の S0 層。全廃止 (a) は観測 → R3 の供給線を切る
 - **自己反証 (pre-reg)**: (b) は「成果が出たから続ける」の事後正当化と読める。反証条件 = **次 120 日 (〜2027-01-12 を期日とする後継 entry `daily-market-review-exec-qa-yield-120d`、(b) 採択時に起票) で執行 QA 発見からの R2/R3 着地 (PR マージ) が 0 なら (a) へ移行**。着地の定義 = 観測 entry を起点に引用する derivation doc 付きの merged PR (今窓の #363 / #365 型)。本 run では後継 entry を起票しない (決裁前の frame 増殖回避)
+
+## 10. 廃止提案の決裁 = 既定 (b) 縮退継続 (2026-11-26、autopilot、rule:R3 記録のみ)
+
+**事実**: registry `daily-market-review-abolition-user-decision` (期日 2026-11-26、§9 で起票) に user 回答なし — 本 entry は 11-12 の起票以降 無改変、session log 11-13〜11-25 の未解決事項は全て「無回答 = (b)」のまま。期日到来により **既定 (b) を記録して resolve** (sprint-1122 triage #1 [[sprint-1022-close-review-2026-11-24]] §4「既定の適用自体を KB に書かないと次の読み手が『未決』と誤読する」)。autopilot は (a) を執行しない (SKILL.md は user 領域)。user が後日 (a)/(c) を明示すれば本節に追補して差し替える。
+
+**(b) の内容 (本 PR で文言に反映)**:
+| 項目 | 前 | 後 (2026-11-26) |
+|---|---|---|
+| §1 位置づけ | S0 intake の観測層 (観測 → family 卒業 → S1 供給) | **執行 QA の受け皿 + 制御系欠陥の観測台帳**。卒業 → S1 供給は非目標 (図は歴史記録) |
+| §3 (a)(b)(c) | 維持 | 維持。優先順位 (c) > (b) > (a) を明示、卒業を狙う観測の増産は禁止 |
+| §3 (d) rollup | 11-12 廃止 | 不変 |
+| §5 月次読み手 (S0 queue) | 卒業 family を供給 | 非目標化 (出た場合のみ既存手続き) |
+| 定期有効性レビュー (30d/60d) | 60d で終了・後継なし | **打ち切り** — 置換 = 120d 反証読み手 1 本 |
+| `.claude/commands/wiki-daily.md` Phase 2.5 | 手順どおり | (b) の 1 行注記 (手順自体は不変) |
+
+**反証読み手 (pre-reg、registry `daily-market-review-exec-qa-yield-120d`、期日 2027-01-12 = 創設 09-14 + 120 d)**:
+- **estimand** = 窓 **2026-11-13〜2027-01-12** (60d 評価時刻の翌日から) に、執行 QA 発見 (daily-observations の O エントリ、§3(c) 由来) を**起点に引用する** derivation doc (analyses/ or decisions/) を持つ merged R2/R3 PR の本数。前例 = PR #363 ([[max-open-live-cap-counts-shadow-r3-2026-11-03]] ← O-2026-11-02-1) / PR #365 ([[dd-ledger-broker-close-booking-r3-2026-11-04]] ← O-2026-11-04-2)
+- **列挙方法 (固定)**: (1) `gh pr list --state merged --search 'merged:2026-11-13..2027-01-12'` (2) 変更ファイルに analyses/ or decisions/ の新規 doc があり、本文が `O-YYYY-MM-DD-n` を起点として明示引用するものだけ数える (3) 観測を後から注記しただけの PR は数えない
+- **判定**: 0 → (a) 全廃止へ移行 (Phase 2.5 停止の提案を user 決裁 entry として起票) / ≥1 → (b) 継続、後継の定期レビューは起票しない
+- **11-26 時点の基準値 = 0** (窓内 14 日、merged PR #374〜#388 のうち観測起点の derivation doc を持つものなし: #382 JPY 台帳 units は O-2026-11-04-2 系 (PR #365) の後続修理だが derivation doc [[dd-ledger-units-resolution-r3-2026-11-19]] 自身は O エントリを引用しない = 規則 (2) で数えない**境界例**として記録 / #385 sentry-sdk / #387 依存 pin は観測起点ではなく、#376 / #378 kb-rescue は運用経路)。基準値を 0 と明記するのは、期日に「≥1」を事後的に拾わないため
+- **自己反証の自己反証**: 窓内の live fill が少ない (11 月 7 件/30 日) と執行 QA の発見機会自体が減り、0 は「プロトコルが無価値」ではなく「対象事象が無かった」を意味し得る。期日時点で窓内 live fill 件数 (`oanda_trade_id != ''`) を併記し、fill ≤ 5 なら判定を +30 日 roll (1 回限り、黙って延長しない) してから (a)/(b) を決める
+

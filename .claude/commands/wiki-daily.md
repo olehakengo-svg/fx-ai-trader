@@ -16,6 +16,7 @@ APIから最新データを取得（/wiki-ingest と同じ）
 
 ### Phase 2.5: 市場レビュー + 観測採集 + 執行QA
 Protocol: `knowledge-base/wiki/analyses/daily-market-review-protocol.md` (統計規律 §2 を厳守)
+- ⬛ 2026-11-26 (b) 縮退継続 (protocol §10): 位置づけ = 執行QA の受け皿 + 制御系欠陥の観測台帳。優先順位 執行QA > 観測記録 > レビュー。family 卒業 → S1 供給は非目標 (卒業を狙って観測を増やさない)。反証読み手 = registry `daily-market-review-exec-qa-yield-120d` (2027-01-12)
 - 前営業日レビュー (data-first): 主要ペアの日足OHLC / セッション分解 / 最大15mバー を `data/cache/massive/*_15m.parquet` から算出、指標時刻と付合せ
 - 観測があれば `knowledge-base/wiki/research/daily-observations-YYYY-MM.md` に O-YYYY-MM-DD-n 形式で追記 (記述級のみ、p値計算禁止、0件の日は追記しない)
 - **執行QA (毎日必須)**: 当時点の live-eligible セル (tier-master 参照) の発火条件成立 vs `/api/demo/trades` 実績 + block/abandon 理由を照合。乖離は観測として記録。**escalation 前に prereg-trigger-registry.json を当該 family で検索** — 事前コミット済み再審条件・監査 frame があればそこへ回付 (独自 R1 マークで前倒ししない)。凍結 look 保有 family の outcome 量は観測に書かない
