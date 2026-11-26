@@ -6564,6 +6564,16 @@ scalp系全体でshadow demotionによるblockが支配的。これはペアレ�
 ### 推奨戦略配分
 **NO ACTION推奨**
 
+### 2026-11-26 (Post-London Report)
+| PnL | **¥0** |
+| WR | **N/A** |
+- **`r2_shadow_demoted_cell`** が主要ブロック要因として複数戦略で機能継続中
+- `scalp`: 712件、`scalp_eur`: 664件、`scalp_5m`: 324件
+- **`order_bar_dedup`** がday trade系を広範抑制
+- `daytrade_eur`: 565件、`daytrade_gbpusd`: 327件
+- **`rnb_usdjpy:no_signal`** が最多1,233件 — USD/JPY RANGING(45%ile)環境下でRnBがシグナル生成できていない
+| PnL | ¥0 | ¥0 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
