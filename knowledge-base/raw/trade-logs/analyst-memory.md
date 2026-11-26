@@ -6544,6 +6544,16 @@ Cutoff後の全期間累計は **N=2、WR=50.0%、EV=+2.65** だが、サンプ�
 scalp系全体でshadow demotionによるblockが支配的。これはペアレベルの降格（pair_demoted）とセル単位の降格が並存していることを示す。EUR系・GBP系ペアのVOLATILE/RANGINGレジームとの絡みで、シャドウEVが基準を下回り続けている状態と判断できる。
 - 全5ペアでSMA slope が弱い（絶対値 0.002〜0.005台）。明確なトレンドが不在
 
+### 2026-11-26 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | N/A |
+- 東京セッションN=0。統計的判断の最低ラインN=10に遠く届かない
+- DD防御中（DD 10.01% / Lot Mult 0.2x / Defensive ON）：現状はシステムが設計通り抑制動作中
+- `r2_shadow_demoted_cell`の大量ブロックはShadow評価の正常機能であり、外部介入で解除すべきでない
+- GBP_JPY VOLATILEレジーム下での`gbp_asia_flash_crash`ガード発動も設計通り
+### 推奨戦略配分
+**NO ACTION推奨（システム設定変更の観点で）**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
