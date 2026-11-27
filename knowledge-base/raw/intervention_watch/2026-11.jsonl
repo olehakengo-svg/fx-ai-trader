@@ -16,3 +16,4 @@
 {"day": "2026-11-23", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": 0.0377, "range": 0.715, "med20_range": 0.7465, "range_ratio": 0.958, "n_bars": 24, "candidate": false}
 {"day": "2026-11-24", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": 0.1736, "range": 0.835, "med20_range": 0.7345, "range_ratio": 1.137, "n_bars": 24, "candidate": false}
 {"day": "2026-11-25", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": -0.027, "range": 0.84, "med20_range": 0.7465, "range_ratio": 1.125, "n_bars": 24, "candidate": false}
+{"day": "2026-11-26", "rule": "(X,Y)=(2.0,0.25%)", "grade": "alert(yfinance-1h-utc-day)", "status": "evaluated", "co_ret_pct": 0.0477, "range": 0.392, "med20_range": 0.7935, "range_ratio": 0.494, "n_bars": 24, "candidate": false}
