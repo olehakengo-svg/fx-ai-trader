@@ -647,6 +647,30 @@ def test_header_credit_does_not_hide_a_lost_body_deletion(world):
     assert rc2 == 0 and _remote_refs(remote) == []
 
 
+def test_an_unrelated_addition_in_the_same_hunk_is_not_proof_of_a_deletion(world):
+    """PR #391 Codex P2 (4 巡目): 座礁側が見出し注記 + 本文行の削除 + 無関係な行の追加を同じ hunk で行い、
+    origin が削除対象の行を別内容に書き換え + 同じ無関係行を持つ場合、追加行の存在だけで削除を認めては
+    いけない。削除は「target 履歴で純削除」か「target が座礁側と同じ置換をした」場合のみ届いたと見る。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n- stale entry\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- new note\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- revised observation\n- new note\n"},
+                    msg="origin rewrites the deleted entry and already has the note")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- revised observation" in _read(runner, "knowledge-base/wiki/index.md")
+    # target が座礁側と同じ置換 (- stale entry → - new note) をしていれば PRESENT → prune
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- new note\n"},
+                    msg="origin applies the same replacement")
+    runner2, rc2 = _run_tool(remote, root, "runner2", "--push", "--prune")
+    assert rc2 == 0 and _remote_refs(remote) == []
+
+
 def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
     """P1 (8 巡目): 今日の session log の未 commit 下書きは、post-commit 掃除で消してはいけない。"""
     host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]

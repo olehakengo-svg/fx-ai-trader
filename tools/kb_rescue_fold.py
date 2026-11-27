@@ -404,14 +404,14 @@ def patch_hunks(patch_text: str) -> list[tuple[list[str], list[str]]]:
 
 
 def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: str) -> bool:
-    """生成見出し以外の **全ての** 本文編集が target に反映されているか (PR #391 Codex P2 ×3):
+    """生成見出し以外の **全ての** 本文編集が target に反映されているか (PR #391 Codex P2 ×4):
     - 追加行 (長さ不問、空行除く) は同一行として存在 (短い行は部分一致だと別の行に誤ヒットするので
       行単位) か、target 履歴で差し替え済み
-    - 削除行は target に同一行として残っていない。さらに hunk に非見出しの追加行が **無い** 削除
-      (= 純削除、置換ではない) は、target 履歴でも **純削除 hunk** として消されたことが要る
-      (`line_purely_deleted_in_target`)。置換 (旧行と新行が対) は新行の存在検証で担保する。
-      origin が同じ行を別内容に編集した = 真の conflict は、pickaxe が命中しない (suffix 編集) か
-      置換 hunk として命中する (無関係な文言) かのどちらかで、いずれも fail-closed"""
+    - 削除行は target に同一行として残っておらず、かつ target 履歴でその行を消した commit の hunk が
+      **純削除** (非見出しの `+` 行なし) か **座礁側と同じ置換** (`+` 行が座礁 hunk の追加行の部分集合)
+      であること (`deletion_landed_in_target`)。同じ hunk に無関係な追加行があっても削除の証拠には
+      しない。origin が同じ行を別内容に編集した = 真の conflict は、pickaxe が命中しない (suffix 編集)
+      か置換 hunk として命中するが `+` 行が交差しないかのどちらかで、いずれも fail-closed"""
     target_lines = {ln.strip() for ln in text.splitlines()}
     for added, removed in patch_hunks(patch_f):
         added = [b for b in added if not GENERATED_HEADER_PAT.match(b)]
@@ -421,19 +421,18 @@ def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: st
                 continue
             return False
         for body in removed:
-            if body in target_lines:
-                return False
-            if not added and not line_purely_deleted_in_target(git, path, body, before):
+            if body in target_lines or not deletion_landed_in_target(git, path, body, before, set(added)):
                 return False
     return True
 
 
-def line_purely_deleted_in_target(git: Git, path: str, body: str, before: str) -> bool:
-    """座礁 commit が消した行が target 側でも **純削除** されたか (pickaxe の削除側 + hunk 検査)。
+def deletion_landed_in_target(git: Git, path: str, body: str, before: str, stranded_added: set[str]) -> bool:
+    """座礁 commit が消した行が target 側でも消されたか (pickaxe の削除側 + hunk 検査)。
     `HEAD --not <before>` の `-S<行>` 命中 commit のうち、その file にもう行が無く、かつその commit の
-    diff で `-<行>` を含む hunk に非見出しの `+` 行が無い (= 置換ではない) ものがあれば True。
-    `-S` は「片側だけが文字列を含む」file pair を拾うので置換も命中する (PR #391 Codex P2 3 巡目) —
-    hunk に `+` 行があれば置換として退ける (fail-closed)。"""
+    diff で `-<行>` を含む hunk の非見出し `+` 行が **空 (純削除)** か **座礁 hunk の追加行の部分集合
+    (同じ置換、余分な行なし)** のものがあれば True。`-S` は「片側だけが文字列を含む」file pair を拾うので
+    無関係な置換も命中し (3 巡目)、交差だけでは同 hunk の無関係な追加行が証拠になってしまう (4 巡目) —
+    部分集合でない置換は退ける (fail-closed)。"""
     if not body:
         return False
     p = git.run("log", "--format=%H", f"-S{body}", "HEAD", "--not", before, "--", path, check=False)
@@ -447,7 +446,10 @@ def line_purely_deleted_in_target(git: Git, path: str, body: str, before: str) -
         if d.returncode != 0:
             continue
         for added, removed in patch_hunks(d.stdout):
-            if body in removed and not [b for b in added if not GENERATED_HEADER_PAT.match(b)]:
+            if body not in removed:
+                continue
+            plus = {b for b in added if not GENERATED_HEADER_PAT.match(b)}
+            if plus <= stranded_added:  # 空 (純削除) か、座礁 hunk の追加行だけで出来た置換
                 return True
     return False
 
