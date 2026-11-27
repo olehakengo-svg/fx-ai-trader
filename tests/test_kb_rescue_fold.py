@@ -595,6 +595,27 @@ def test_a_hand_folded_ref_whose_only_missing_line_is_the_regenerated_header_is_
     assert note_hdr not in _read(runner, "knowledge-base/wiki/index.md")
 
 
+def test_header_credit_does_not_hide_a_lost_short_body_edit(world):
+    """PR #391 Codex P2: 座礁側が生成見出し + 短い本文行 (≤ 40 字) を変え、origin が同じ本文行を別内容に
+    変えた場合、見出し credit だけで 1/1 accounted = PRESENT → prune されてはいけない。見出し credit を
+    使う file は非見出しの追加行を長さ不問で全行検証し、届いていなければ CONFLICT のまま ref を残す。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\nline B\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- obs 7\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- obs 9\n"},
+                    msg="origin regenerates the header and rewrites the short body line")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]   # kept for a human
+    assert "- obs 7" not in _read(runner, "knowledge-base/wiki/index.md")  # nothing partially applied
+    assert not krf.has_conflict_markers(_read(runner, "knowledge-base/wiki/index.md"))
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip().startswith("origin regenerates")
+
+
 def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
     """P1 (8 巡目): 今日の session log の未 commit 下書きは、post-commit 掃除で消してはいけない。"""
     host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]

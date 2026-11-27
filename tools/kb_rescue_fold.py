@@ -177,13 +177,13 @@ def parse_name_status_z(raw: str) -> list[tuple[str, str, str | None]]:
             break
     return out
 
-def added_lines(patch_text: str) -> list[str]:
-    """1 ファイル分の patch の `+` 行 (header 除く、strip 後 len > PRESENT_MIN_LINE_LEN)。"""
+def added_lines(patch_text: str, min_len: int = PRESENT_MIN_LINE_LEN) -> list[str]:
+    """1 ファイル分の patch の `+` 行 (header 除く、strip 後 len > min_len)。"""
     out = []
     for ln in patch_text.splitlines():
         if ln.startswith("+") and not ln.startswith("+++"):
             body = ln[1:].strip()
-            if len(body) > PRESENT_MIN_LINE_LEN:
+            if len(body) > min_len:
                 out.append(body)
     return out
 
@@ -371,6 +371,19 @@ def line_superseded(git: Git, path: str, body: str, before: str) -> bool:
     return False
 
 
+def _short_edits_present(git: Git, path: str, patch_f: str, text: str, before: str) -> bool:
+    """生成見出し以外の **全ての** 追加行 (長さ不問、空行除く) が target にあるか: 同一行として存在
+    (短い行は部分一致だと別の行に誤ヒットするので行単位) か、target 履歴で差し替え済み。"""
+    target_lines = {ln.strip() for ln in text.splitlines()}
+    for body in added_lines(patch_f, min_len=0):
+        if GENERATED_HEADER_PAT.match(body):
+            continue
+        if body in target_lines or line_superseded(git, path, body, before):
+            continue
+        return False
+    return True
+
+
 def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
     """**全ファイル**が target に入っているかを判定する。長い追加行 (len > 40) を持つファイルは
     「逐語残存 + 差し替え済み (target 履歴に一度入った、`line_superseded`)」≥ 95%、持たない
@@ -401,6 +414,11 @@ def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
             sup += s_
             gen += g
             if (h + s_ + g) / len(long_lines) < PRESENT_MIN_RATIO:
+                missing.append(path)
+            elif g and not _short_edits_present(git, path, patch_f, text, before):
+                # 見出し credit を使う file は、比率の分母に入らない短い追加行 (≤ 40 字) まで
+                # 全行が target にあることを要求する — 見出し 1 行の credit が「1/1 accounted」で
+                # 本文の取りこぼしを隠さないように (PR #391 Codex P2)
                 missing.append(path)
         elif patch_f.strip():
             ok = git.run("apply", "--reverse", "--check", "-", check=False, input_text=patch_f).returncode == 0
