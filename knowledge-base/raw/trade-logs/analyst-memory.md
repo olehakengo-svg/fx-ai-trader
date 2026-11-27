@@ -6604,6 +6604,16 @@ scalp系全体でshadow demotionによるblockが支配的。これはペアレ�
 | GBP_USD | RANGING | 66% | −0.00481 | EUR_USDと相関高く同方向リスク集中に注意 |
 ### 推奨戦略配分
 
+### 2026-11-27 (Post-London Report)
+| PnL (pips) | **0.0p** |
+| WR | **N/A** |
+| PnL | 0.0p | 0.0p |
+| WR | N/A | N/A |
+- USD_JPYのATR%ile=34%は**直近20日で最も低い部類**。NYオープン（UTC 13:00–）にかけてボラティリティ拡張の可能性があるが、現時点では根拠が薄い
+- EUR_USD・GBP_USDはATR%ile=66%でやや高め、RANGING継続が濃厚
+- GBP_JPYはVOLATILEかつATR%ile=59%で、NYセッションでのブレイク候補だが、hedge_blockが機能中
+- SMA20 Slopeの符号から、JPY全般でわずかにJPY安方向（USD_JPY +）、EUR/GBP系でわずかにEUR/GBP安方向
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
