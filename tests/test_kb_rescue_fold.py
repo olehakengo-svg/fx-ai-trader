@@ -671,6 +671,30 @@ def test_an_unrelated_addition_in_the_same_hunk_is_not_proof_of_a_deletion(world
     assert rc2 == 0 and _remote_refs(remote) == []
 
 
+def test_a_hand_applied_replacement_that_keeps_the_old_text_is_present(world):
+    """PR #391 Codex P2 (5 巡目): 手畳みが本文の置換 `- obs 7` → `- obs 7 (verified)` と新規 trade log を
+    適用し、生成見出しは再生成版のままにした ref は PRESENT → prune でなければならない。pickaxe は旧文字列が
+    新行に残ると命中しないので、座礁 hunk の追加行が旧行を含み target に存在することで置換を認める。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    body = "".join(f"- 2026-11-24 22:51Z re-run observation line number {i} long enough to count\n" for i in range(10))
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n- obs 7\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    _strand(host, "2026-11-25", {
+        "knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+        "knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- obs 7 (verified)\n",
+    })
+    _advance_origin(other, {"knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+                            "knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- obs 7 (verified)\n"},
+                    msg="manual rescue applies the replacement and keeps the regenerated header")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 0
+    assert _remote_refs(remote) == []
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip().startswith("manual rescue applies")
+
+
 def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
     """P1 (8 巡目): 今日の session log の未 commit 下書きは、post-commit 掃除で消してはいけない。"""
     host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]

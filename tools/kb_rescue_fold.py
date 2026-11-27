@@ -409,8 +409,8 @@ def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: st
       行単位) か、target 履歴で差し替え済み
     - 削除行は target に同一行として残っておらず、かつ target 履歴でその行を消した commit の hunk が
       **純削除** (非見出しの `+` 行なし) か **座礁側と同じ置換** (`+` 行が座礁 hunk の追加行の部分集合)
-      であること (`deletion_landed_in_target`)。同じ hunk に無関係な追加行があっても削除の証拠には
-      しない。origin が同じ行を別内容に編集した = 真の conflict は、pickaxe が命中しない (suffix 編集)
+      であること (`deletion_landed_in_target`)、または座礁 hunk の追加行が旧行を **含む** (旧文字列を保持
+      した置換、pickaxe では見えない) こと。同じ hunk に無関係な追加行があっても削除の証拠にはしない。origin が同じ行を別内容に編集した = 真の conflict は、pickaxe が命中しない (suffix 編集)
       か置換 hunk として命中するが `+` 行が交差しないかのどちらかで、いずれも fail-closed"""
     target_lines = {ln.strip() for ln in text.splitlines()}
     for added, removed in patch_hunks(patch_f):
@@ -421,7 +421,14 @@ def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: st
                 continue
             return False
         for body in removed:
-            if body in target_lines or not deletion_landed_in_target(git, path, body, before, set(added)):
+            if body in target_lines:
+                return False
+            # 旧文字列を保持した置換 (`- obs 7` → `- obs 7 (verified)`) は pickaxe の出現数が変わらず
+            # 命中しない (5 巡目) → 座礁 hunk 自身の追加行が旧行を含み、その行が target にあれば
+            # 置換は届いたと見る (追加行は上で存在検証済み)
+            if any(body in a for a in added):
+                continue
+            if not deletion_landed_in_target(git, path, body, before, set(added)):
                 return False
     return True
 
