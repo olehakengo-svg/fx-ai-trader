@@ -518,6 +518,228 @@ def test_union_keeps_ours_when_theirs_is_already_contained():
     assert merged == "# log\n## A autopilot section about deploys\n## B wiki-daily section about shadow\n"
 
 
+def test_a_regenerated_portfolio_header_block_resolves_to_ours():
+    # 2026-11-25〜26 cron 4 run 連続 CONFLICT 3/3 の根: sync_kb_index.py が毎 run 再生成する
+    # `## Current Portfolio (auto-synced, <date>)` 見出しに wiki-daily が時変の注記を書き足すため、
+    # 座礁 commit を畳む頃には origin 側の見出しが差し替わっていて base ≠ 空 = union 対象外だった。
+    # 生成見出し 1 行 vs 1 行の block は target (ours) の再生成版を採る。本文側の hunk は別 block。
+    text = ("<!-- KB_PORTFOLIO_START -->\n<<<<<<< ours\n## Current Portfolio (auto-synced, 2026-11-25)\n"
+            "||||||| base\n## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 09:54Z — 2 fills)\n"
+            "=======\n## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+            ">>>>>>> theirs\n\n### ELITE_LIVE\n")
+    merged, resolved, unresolved = krf.resolve_additive_conflicts(text)
+    assert (resolved, unresolved) == (1, 0)
+    assert merged == "<!-- KB_PORTFOLIO_START -->\n## Current Portfolio (auto-synced, 2026-11-25)\n\n### ELITE_LIVE\n"
+    # 非 diff3 (base marker なし) や、片側が見出し以外の行を含む block は従来どおり人が見る
+    no_base = ("<<<<<<< ours\n## Current Portfolio (auto-synced, 2026-11-25)\n=======\n"
+               "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified)\n>>>>>>> theirs\n")
+    assert krf.resolve_additive_conflicts(no_base)[1:] == (0, 1)
+    with_body = ("<<<<<<< ours\n## Current Portfolio (auto-synced, 2026-11-25)\n||||||| base\n"
+                 "## Current Portfolio (auto-synced, 2026-10-30)\n=======\n"
+                 "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified)\n- extra body line\n>>>>>>> theirs\n")
+    assert krf.resolve_additive_conflicts(with_body)[1:] == (0, 1)
+    # 見出しが別物 (System State 等) なら対象外
+    other = ("<<<<<<< ours\n## System State — last wiki-daily 11-26\n||||||| base\n## System State — last wiki-daily 11-24\n"
+             "=======\n## System State — last wiki-daily 11-25\n>>>>>>> theirs\n")
+    assert krf.resolve_additive_conflicts(other)[1:] == (0, 1)
+
+
+def test_a_wiki_daily_note_on_the_regenerated_portfolio_header_folds_and_keeps_ours(world):
+    """2026-11-25〜26 の実 ref (b4b5fd25e 系 3 本) の再現: wiki-daily は `## Current Portfolio (auto-synced, …)`
+    見出しに注記を書き足すが、origin 側は sync_kb_index.py が毎 run その 1 行を再生成する → base ≠ 空。
+    見出し block は ours (再生成版) を採り、本文 (trade log) は畳まれ、ref は prune される。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    body = "".join(f"- 2026-11-24 22:51Z re-run observation line number {i} long enough to count\n" for i in range(10))
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\nline B\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    _strand(host, "2026-11-25", {
+        "knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+        "knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\nline B\n",
+    })
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\nline B\n"},
+                    msg="sync_kb_index regenerates the header")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 0
+    assert _remote_refs(remote) == []
+    check = _clone(remote, os.path.join(root, "check"), "check")
+    idx = _read(check, "knowledge-base/wiki/index.md")
+    assert idx == "# index\n" + regen_hdr + "line A\nline B\n"      # ours kept, no markers, note not resurrected
+    assert _read(check, "knowledge-base/raw/trade-logs/2026-11-24.md") == "# 2026-11-24 Daily Trade Log\n" + body
+    assert "generated-header" in _git(check, "log", "-1", "--format=%b").stdout
+
+
+def test_a_hand_folded_ref_whose_only_missing_line_is_the_regenerated_header_is_present(world):
+    """PR 経路 (autopilot が手で畳んで merge) の後、cron が同じ ref を再評価する: 本文は全て target に
+    あり、欠けているのは意図的に捨てた生成見出しの注記版だけ → PRESENT → prune (永久 CONFLICT にしない)。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    body = "".join(f"- 2026-11-24 22:51Z re-run observation line number {i} long enough to count\n" for i in range(10))
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\nline B\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    _strand(host, "2026-11-25", {
+        "knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+        "knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\nline B\n",
+    })
+    _advance_origin(other, {"knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+                            "knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\nline B\n"},
+                    msg="manual rescue PR keeps the regenerated header")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 0
+    assert _remote_refs(remote) == []
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip() == "manual rescue PR keeps the regenerated header"
+    assert note_hdr not in _read(runner, "knowledge-base/wiki/index.md")
+
+
+def test_header_credit_does_not_hide_a_lost_short_body_edit(world):
+    """PR #391 Codex P2: 座礁側が生成見出し + 短い本文行 (≤ 40 字) を変え、origin が同じ本文行を別内容に
+    変えた場合、見出し credit だけで 1/1 accounted = PRESENT → prune されてはいけない。見出し credit を
+    使う file は非見出しの追加行を長さ不問で全行検証し、届いていなければ CONFLICT のまま ref を残す。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\nline B\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- obs 7\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- obs 9\n"},
+                    msg="origin regenerates the header and rewrites the short body line")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]   # kept for a human
+    assert "- obs 7" not in _read(runner, "knowledge-base/wiki/index.md")  # nothing partially applied
+    assert not krf.has_conflict_markers(_read(runner, "knowledge-base/wiki/index.md"))
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip().startswith("origin regenerates")
+
+
+def test_header_credit_does_not_hide_a_lost_body_deletion(world):
+    """PR #391 Codex P2 (2 巡目): 座礁側が生成見出しを変え + 本文行を **削除**、origin が同じ行を別内容に
+    編集した場合、削除は追加行を生まないので追加行検証だけでは素通りする。非見出しの削除行が target に
+    残っていれば「削除は届いていない」= CONFLICT のまま ref を残す。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n- stale entry\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- stale entry (edited)\n"},
+                    msg="origin regenerates the header and edits the entry the host deleted")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- stale entry (edited)" in _read(runner, "knowledge-base/wiki/index.md")   # target untouched
+    assert not krf.has_conflict_markers(_read(runner, "knowledge-base/wiki/index.md"))
+    # 3 巡目 P2: 旧文字列を含まない **置換** も pickaxe は「消えた」と見る → 置換 hunk (+ 行あり) は
+    # 純削除の証拠にしない → CONFLICT のまま
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- revised observation\n"},
+                    msg="origin rewrites the entry with unrelated text")
+    runner1, rc1 = _run_tool(remote, root, "runner1", "--push", "--prune")
+    assert rc1 == 2 and _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- revised observation" in _read(runner1, "knowledge-base/wiki/index.md")
+    # 同じ削除が target 側でも済んでいれば (origin が同じ行を消した) PRESENT → prune
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n"}, msg="origin deletes it too")
+    runner2, rc2 = _run_tool(remote, root, "runner2", "--push", "--prune")
+    assert rc2 == 0 and _remote_refs(remote) == []
+
+
+def test_an_unrelated_addition_in_the_same_hunk_is_not_proof_of_a_deletion(world):
+    """PR #391 Codex P2 (4 巡目): 座礁側が見出し注記 + 本文行の削除 + 無関係な行の追加を同じ hunk で行い、
+    origin が削除対象の行を別内容に書き換え + 同じ無関係行を持つ場合、追加行の存在だけで削除を認めては
+    いけない。削除は「target 履歴で純削除」か「target が座礁側と同じ置換をした」場合のみ届いたと見る。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n- stale entry\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- new note\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- revised observation\n- new note\n"},
+                    msg="origin rewrites the deleted entry and already has the note")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- revised observation" in _read(runner, "knowledge-base/wiki/index.md")
+    # target が座礁側と同じ置換 (- stale entry → - new note) をしていれば PRESENT → prune
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- new note\n"},
+                    msg="origin applies the same replacement")
+    runner2, rc2 = _run_tool(remote, root, "runner2", "--push", "--prune")
+    assert rc2 == 0 and _remote_refs(remote) == []
+
+
+def test_a_hand_applied_replacement_that_keeps_the_old_text_is_present(world):
+    """PR #391 Codex P2 (5 巡目): 手畳みが本文の置換 `- obs 7` → `- obs 7 (verified)` と新規 trade log を
+    適用し、生成見出しは再生成版のままにした ref は PRESENT → prune でなければならない。pickaxe は旧文字列が
+    新行に残ると命中しないので、座礁 hunk の追加行が旧行を含み target に存在することで置換を認める。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    body = "".join(f"- 2026-11-24 22:51Z re-run observation line number {i} long enough to count\n" for i in range(10))
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n- obs 7\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    _strand(host, "2026-11-25", {
+        "knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+        "knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- obs 7 (verified)\n",
+    })
+    _advance_origin(other, {"knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+                            "knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- obs 7 (verified)\n"},
+                    msg="manual rescue applies the replacement and keeps the regenerated header")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 0
+    assert _remote_refs(remote) == []
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip().startswith("manual rescue applies")
+
+
+def test_a_separately_added_new_line_is_not_proof_the_replacement_landed(world):
+    """PR #391 Codex P2 (6 巡目): 座礁側が `- obs 7` → `- obs 7 (verified)` の置換、origin が `- obs 7` を
+    `- obs 9` に書き換えつつ `- obs 7 (verified)` を**別途**追加した場合、新行の存在 (包含) だけで置換を
+    認めてはいけない。target 履歴に「旧行削除 + 新行 (⊆ 座礁追加行)」の hunk があるときだけ届いたと見る。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n- obs 7\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- obs 7 (verified)\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- obs 9\n- obs 7 (verified)\n"},
+                    msg="origin rewrites obs 7 to obs 9 and adds the verified line separately")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- obs 9" in _read(runner, "knowledge-base/wiki/index.md")
+
+
+def test_a_short_addition_needs_whole_line_history_evidence(world):
+    """PR #391 Codex P2 (7 巡目): 座礁側が見出し注記 + `- obs 7` を追記、origin が見出し再生成 + `- obs 70` を
+    追記した場合、`line_superseded` の部分一致 (`- obs 7` ⊂ `- obs 70`) で追加行を「差し替え済み」と誤認して
+    はいけない。実際の到達経路は 2 つ: (1) 純追記 union の「theirs は ours に含まれる」判定が部分一致で
+    `- obs 7` ⊂ `- obs 70` → ours のまま = 無変更 → PRESENT、(2) 見出し credit 経路の `line_superseded`
+    (部分一致)。どちらも短い行は行単位一致を要求する (長い行の verbatim superset は従来どおり)。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- obs 7\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- obs 70\n"},
+                    msg="origin regenerates the header and appends a different observation")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- obs 7\n" not in _read(runner, "knowledge-base/wiki/index.md")
+    # pure 関数側の pin: 短い行は行単位、長い行は部分一致 (verbatim superset) のまま
+    assert not krf._theirs_contained(["- obs 70\n"], ["- obs 7\n"])
+    assert krf._theirs_contained(["- obs 7\n", "- obs 70\n"], ["- obs 7\n"])
+    long = "- 2026-11-13: fills 0 / closes 0 / NAV ¥271,681 and a long enough tail\n"
+    assert krf._theirs_contained([long[:-1] + " (rescued, edited)\n"], [long])
+
+
 def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
     """P1 (8 巡目): 今日の session log の未 commit 下書きは、post-commit 掃除で消してはいけない。"""
     host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]

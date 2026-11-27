@@ -72,6 +72,13 @@ UNION_MAX_SIMILARITY = 0.8
 # 「内容は既に target にある」判定: patch の追加行 (len > 40) が target の同ファイルに
 # 逐語で ≥ 95% 残っていれば PRESENT (先行の手動救出が見出し等を手直ししていても拾う)
 PRESENT_MIN_LINE_LEN = 40
+# tools/sync_kb_index.py が毎 run 再生成する時変 1 行見出し。座礁 commit (wiki-daily が同じ行に
+# 注記を書き足す) を畳む頃には origin 側が差し替わっていて base ≠ 空 = union の対象外になり、
+# 2026-11-25〜26 の cron 4 run が 3/3 ref CONFLICT で止まった。見出し 1 行 vs 1 行の block は
+# target (ours) の再生成版を採る (stale な Portfolio / System State 見出しは不採用、autopilot 10-23)
+GENERATED_HEADER_PAT = re.compile(r"^## Current Portfolio \(auto-synced, ")
+# `git log -G<regex>` に渡す行の上限 (これより長い行は regex compile が落ちる → `-S` のみ)
+PICKAXE_REGEX_MAX_LEN = 4000
 PRESENT_MIN_RATIO = 0.95
 GIT_TIMEOUT = 300
 
@@ -172,21 +179,38 @@ def parse_name_status_z(raw: str) -> list[tuple[str, str, str | None]]:
             break
     return out
 
-def added_lines(patch_text: str) -> list[str]:
-    """1 ファイル分の patch の `+` 行 (header 除く、strip 後 len > PRESENT_MIN_LINE_LEN)。"""
+def added_lines(patch_text: str, min_len: int = PRESENT_MIN_LINE_LEN) -> list[str]:
+    """1 ファイル分の patch の `+` 行 (header 除く、strip 後 len > min_len)。"""
     out = []
     for ln in patch_text.splitlines():
         if ln.startswith("+") and not ln.startswith("+++"):
             body = ln[1:].strip()
-            if len(body) > PRESENT_MIN_LINE_LEN:
+            if len(body) > min_len:
                 out.append(body)
     return out
+
+def _theirs_contained(ours: list[str], theirs: list[str]) -> bool:
+    """theirs の全行が ours に既にあるか。長い行 (> PRESENT_MIN_LINE_LEN) は部分一致でよい (先行救出が
+    suffix を手直しした版 = verbatim superset)。短い行は **行単位** でしか認めない — `- obs 7` が
+    `- obs 70` に部分一致して「含まれている」と誤認し、座礁側の観測行を落としたまま PRESENT にした
+    (PR #391 Codex P2 7 巡目)。"""
+    lines = [ln.strip() for ln in theirs if ln.strip()]
+    if not lines:
+        return False
+    ours_text = "".join(ours)
+    ours_set = {ln.strip() for ln in ours}
+    return all(ln in ours_set or (len(ln) > PRESENT_MIN_LINE_LEN and ln in ours_text) for ln in lines)
+
 
 def resolve_additive_conflicts(text: str) -> tuple[str, int, int]:
     """diff3 形式の conflict block のうち **base が空 (両側とも純追記)** のものを
     ours + theirs の union に解決する (CLAUDE.md: hot file conflict は union 解決)。
 
-    base が空でない / diff3 の base marker が無い / ours と theirs が似すぎている
+    例外 1 つ: diff3 block の ours / base / theirs が **それぞれ 1 行で全て `GENERATED_HEADER_PAT`**
+    (sync_kb_index.py 再生成の `## Current Portfolio (auto-synced, …)` 見出し) なら ours を採る —
+    時変の生成見出しは target 側の最新版が正で、座礁側の注記は stale (本文の hunk は別 block)。
+
+    それ以外の base が空でない / diff3 の base marker が無い / ours と theirs が似すぎている
     (同じ追記の別版 = 先行救出で手直しされた形) block は触らず残す (fail-closed)。
     戻り値 = (新テキスト, 解決数, 未解決数)。
     """
@@ -225,9 +249,15 @@ def resolve_additive_conflicts(text: str) -> tuple[str, int, int]:
             break
         ours_text, theirs_text = "".join(ours), "".join(theirs)
         sim = difflib.SequenceMatcher(None, ours_text, theirs_text).ratio()
-        if base is not None and not base and theirs_text.strip() and theirs_text.strip() in ours_text:
+        if (base is not None and len(ours) == len(base) == len(theirs) == 1
+                and all(GENERATED_HEADER_PAT.match(x) for x in (ours[0], base[0], theirs[0]))):
+            # 生成見出し (時変 1 行) の差し替え → target の再生成版 (ours) を採る
+            out.extend(ours)
+            resolved += 1
+        elif base is not None and not base and _theirs_contained(ours, theirs):
             # theirs は既に ours に丸ごと含まれている (再実行 / 先行 fold) → 二重化せず ours のまま
-            # (PR #376 Codex P2 7 巡目)。resolved に数え、ファイルは無変更になる
+            # (PR #376 Codex P2 7 巡目)。短い行は行単位でしか「含まれている」と見ない (PR #391 7 巡目)。
+            # resolved に数え、ファイルは無変更になる
             out.extend(ours)
             resolved += 1
         elif base is not None and not base and sim < UNION_MAX_SIMILARITY:
@@ -334,7 +364,7 @@ def _restore(git: Git, paths: list[str]) -> None:
                 os.remove(full)
 
 
-def line_superseded(git: Git, path: str, body: str, before: str) -> bool:
+def line_superseded(git: Git, path: str, body: str, before: str, whole_line: bool = False) -> bool:
     """target の履歴で、座礁 commit 以降にその行が一度でも `path` に入ったか (pickaxe)。
     index.md の NAV 行 / Portfolio・System State 見出しのような **時変 status 行** は次の
     wiki-daily run が上書きするので、先行救出で origin に入っていても逐語残存では永久に
@@ -344,7 +374,10 @@ def line_superseded(git: Git, path: str, body: str, before: str) -> bool:
     範囲は `HEAD --not <before>` (= 座礁 commit の親から到達できない target 側の commit) に限る。
     timestamp (`--since`) は秒精度で同秒の先行履歴を含み、かつ `-S` は **削除側にも一致** するので、
     origin が消した行を座礁側が再追加するケースを「救出済み」と誤認する (PR #378 Codex P2)。
-    命中 commit のその file に行が実在することまで確認する (削除だけの命中を除く)。"""
+    命中 commit のその file に行が実在することまで確認する (削除だけの命中を除く)。
+    `whole_line=True` は実在確認を行単位 (strip 一致) で行う — 短い行の部分一致 (`- obs 7` ⊂ `- obs 70`)
+    を差し替え済みと誤認しないため (PR #391 Codex P2 7 巡目)。長い行 (> PRESENT_MIN_LINE_LEN) の
+    既定経路は従来どおり部分一致 (先行救出が見出し等を手直ししていても拾う)。"""
     if not body:
         return False
     p = git.run("log", "--format=%H", f"-S{body}", "HEAD", "--not", before, "--", path, check=False)
@@ -352,8 +385,107 @@ def line_superseded(git: Git, path: str, body: str, before: str) -> bool:
         return False
     for c in p.stdout.split():
         f = git.run("show", f"{c}:{path}", check=False)
-        if f.returncode == 0 and body in f.stdout:
+        if f.returncode != 0:
+            continue
+        if whole_line:
+            if body in {ln.strip() for ln in f.stdout.splitlines()}:
+                return True
+        elif body in f.stdout:
             return True
+    return False
+
+
+def removed_lines(patch_text: str) -> list[str]:
+    """1 ファイル分の patch の `-` 行 (header 除く、strip 後 非空)。"""
+    out = []
+    for ln in patch_text.splitlines():
+        if ln.startswith("-") and not ln.startswith("---"):
+            body = ln[1:].strip()
+            if body:
+                out.append(body)
+    return out
+
+
+def patch_hunks(patch_text: str) -> list[tuple[list[str], list[str]]]:
+    """1 ファイル分の patch を hunk ごとに (追加行, 削除行) に分ける (strip 後 非空、header 行除く)。"""
+    hunks: list[tuple[list[str], list[str]]] = []
+    cur: tuple[list[str], list[str]] | None = None
+    for ln in patch_text.splitlines():
+        if ln.startswith("@@"):
+            cur = ([], [])
+            hunks.append(cur)
+        elif cur is None or ln.startswith(("+++", "---")):
+            continue
+        elif ln.startswith("+"):
+            body = ln[1:].strip()
+            if body:
+                cur[0].append(body)
+        elif ln.startswith("-"):
+            body = ln[1:].strip()
+            if body:
+                cur[1].append(body)
+    return hunks
+
+
+def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: str) -> bool:
+    """生成見出し以外の **全ての** 本文編集が target に反映されているか (PR #391 Codex P2 ×4):
+    - 追加行 (長さ不問、空行除く) は同一行として存在 (短い行は部分一致だと別の行に誤ヒットするので
+      行単位) か、target 履歴で差し替え済み (こちらも行単位、7 巡目)
+    - 削除行は target に同一行として残っておらず、かつ target 履歴でその行を消した commit の hunk が
+      **純削除** (非見出しの `+` 行なし) か **座礁側と同じ置換** (`+` 行が座礁 hunk の追加行の部分集合)
+      であること (`deletion_landed_in_target`)。座礁 hunk の追加行が旧行を含む置換 (旧文字列保持) も
+      同じ経路で判定する (新行が target に**別途**あるだけでは置換の証拠にしない、6 巡目)。同じ hunk に
+      無関係な追加行があっても削除の証拠にはしない。origin が同じ行を別内容に編集した = 真の conflict は、pickaxe が命中しない (suffix 編集)
+      か置換 hunk として命中するが `+` 行が交差しないかのどちらかで、いずれも fail-closed"""
+    target_lines = {ln.strip() for ln in text.splitlines()}
+    for added, removed in patch_hunks(patch_f):
+        added = [b for b in added if not GENERATED_HEADER_PAT.match(b)]
+        removed = [b for b in removed if not GENERATED_HEADER_PAT.match(b)]
+        for body in added:
+            if body in target_lines or line_superseded(git, path, body, before, whole_line=True):
+                continue
+            return False
+        for body in removed:
+            if body in target_lines or not deletion_landed_in_target(git, path, body, before, set(added)):
+                return False
+    return True
+
+
+def deletion_landed_in_target(git: Git, path: str, body: str, before: str, stranded_added: set[str]) -> bool:
+    """座礁 commit が消した行が target 側でも消されたか (`-S` ∪ `-G` で触れた commit を拾い hunk 検査)。
+    `HEAD --not <before>` の命中 commit のうち、その file にもう同一行が無く、かつその commit の
+    diff で `-<行>` を含む hunk の非見出し `+` 行が **空 (純削除)** か **座礁 hunk の追加行の部分集合
+    (同じ置換、余分な行なし)** のものがあれば True。`-S` は「片側だけが文字列を含む」file pair を拾うので
+    無関係な置換も命中し (3 巡目)、交差だけでは同 hunk の無関係な追加行が証拠になってしまう (4 巡目) —
+    部分集合でない置換は退ける (fail-closed)。"""
+    if not body:
+        return False
+    # `-S` (出現数の変化) は純削除と「旧文字列を含まない置換」を拾うが、旧文字列を保持した置換
+    # (`- obs 7` → `- obs 7 (verified)`) では出現数が変わらず命中しない (5 巡目) → `-G` (diff 行の正規表現
+    # 一致) を併用して「その行に触れた commit」も拾う。`-G` は長い行で regex が compile できない
+    # (index.md の 2 万字行で `fatal: invalid regex: out of memory`) ので上限内の行だけ。命中の和集合を
+    # hunk の中身で判定する (どちらも hunk 検査を通らなければ fail-closed)
+    hits: list[str] = []
+    p = git.run("log", "--format=%H", f"-S{body}", "HEAD", "--not", before, "--", path, check=False)
+    if p.returncode == 0:
+        hits.extend(p.stdout.split())
+    if len(body) <= PICKAXE_REGEX_MAX_LEN:
+        g = git.run("log", "--format=%H", f"-G{re.escape(body)}", "HEAD", "--not", before, "--", path, check=False)
+        if g.returncode == 0:
+            hits.extend(x for x in g.stdout.split() if x not in hits)
+    for c in hits:
+        f = git.run("show", f"{c}:{path}", check=False)
+        if f.returncode != 0 or body in {ln.strip() for ln in f.stdout.splitlines()}:
+            continue  # その commit の後もまだ同一行が残っている = 消していない
+        d = git.run("diff", "--no-color", "--no-ext-diff", f"{c}^", c, "--", path, check=False)
+        if d.returncode != 0:
+            continue
+        for added, removed in patch_hunks(d.stdout):
+            if body not in removed:
+                continue
+            plus = {b for b in added if not GENERATED_HEADER_PAT.match(b)}
+            if plus <= stranded_added:  # 空 (純削除) か、座礁 hunk の追加行だけで出来た置換
+                return True
     return False
 
 
@@ -367,32 +499,41 @@ def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
         return False, "no files"
     before = f"{sha}^"  # 座礁 commit の親: これから到達できる履歴は「先行」で、差し替え済みの証拠にならない
     missing: list[str] = []
-    hit = tot = sup = 0
+    hit = tot = sup = gen = 0
     for path in paths:
         patch_f = git.out("diff", "--no-color", "--no-ext-diff", f"{sha}^", sha, "--", path)
         long_lines = added_lines(patch_f)
         if long_lines:
             cur = git.run("show", f"HEAD:{path}", check=False)
             text = cur.stdout if cur.returncode == 0 else ""
-            h = s_ = 0
+            h = s_ = g = 0
             for body in long_lines:
                 if body in text:
                     h += 1
                 elif line_superseded(git, path, body, before):
                     s_ += 1
+                elif GENERATED_HEADER_PAT.match(body):
+                    g += 1  # 生成見出しの注記版は fold 時に意図して捨てる行 (resolve_additive_conflicts と対)
             hit += h
             tot += len(long_lines)
             sup += s_
-            if (h + s_) / len(long_lines) < PRESENT_MIN_RATIO:
+            gen += g
+            if (h + s_ + g) / len(long_lines) < PRESENT_MIN_RATIO:
+                missing.append(path)
+            elif g and not _body_edits_present(git, path, patch_f, text, before):
+                # 見出し credit を使う file は、比率の分母に入らない短い追加行 (≤ 40 字) と削除行まで
+                # 全て target に反映されていることを要求する — 見出し 1 行の credit が「1/1 accounted」
+                # で本文の取りこぼしを隠さないように (PR #391 Codex P2 ×2)
                 missing.append(path)
         elif patch_f.strip():
             ok = git.run("apply", "--reverse", "--check", "-", check=False, input_text=patch_f).returncode == 0
             if not ok:
                 missing.append(path)
     if missing:
-        return False, f"{hit}/{tot} long lines verbatim (+{sup} superseded in target history); not accounted: {missing[:3]}"
-    return True, (f"{hit}/{tot} long added lines verbatim in target (+{sup} superseded in target history), "
-                  f"{len(paths)} file(s) all accounted")
+        return False, (f"{hit}/{tot} long lines verbatim (+{sup} superseded in target history, +{gen} generated header); "
+                       f"not accounted: {missing[:3]}")
+    return True, (f"{hit}/{tot} long added lines verbatim in target (+{sup} superseded in target history, "
+                  f"+{gen} generated header), {len(paths)} file(s) all accounted")
 
 
 def _changed_files_have_markers(git: Git, paths: list[str]) -> list[str]:
@@ -480,7 +621,7 @@ def fold_commit(git: Git, ref: str, sha: str, excludes: Iterable[str],
                 return RefResult(ref, sha, ST_CONFLICT,
                                  f"unresolved {n_unres} block(s); {why}; " + applied.stderr.strip()[-300:],
                                  files=paths)
-            detail = f"committed (union-resolved {n_res} additive block(s))"
+            detail = f"committed (union-resolved {n_res} additive/generated-header block(s))"
         bad = _changed_files_have_markers(git, paths)
         if bad:
             _restore(git, paths)

@@ -72,3 +72,11 @@
 - **陽性対照**: 修正後の実 ref 全件 = PRESENT 14 / EMPTY 10 / ANCESTOR 16 / CONFLICT 0 / **FOLDED 1 (14 例目 = cell_deepdive 11-16 run の座礁 `a93f36853`、2 files / +1,177、marker 0、同梱)**、rc 0
 - **限界 (4) 追記**: 「逐語残存」は hot file の時変行に対して性質 (届いたか) の代理にならない ([[lesson-validity-check-pins-proxy-2026-09-02]] 3 領域目)。差し替え済み判定も「一度 target に入った」までしか言えず、入った内容が正しかったか (手直しの有無) は見ない — それは救出 PR 側の責任で変わらない
 - readout: `kb-rescue-fold-first-cron-readout` (11-21) は維持。修正マージ後の cron (11-16 13:00Z 以降) で 14 本 prune + 11-16 ref PRESENT→prune、以後 rc 0 が続くかを読む
+
+## 執行記録 2026-11-27 (autopilot、rule:R3) — fold tool 構造バグ 2 例目: 生成見出し (sync_kb_index 再生成行) で CONFLICT
+
+- **観測**: `kb-rescue-fold.yml` 11-25 09:20Z / 22:01Z / 11-26 08:59Z / 21:59Z の 4 run = rc 2 **CONFLICT 3/3** (`b4b5fd25e` + 継承 2 本、FOLDED 0 / prune 0)。Discord ⚠️ 4 回。11-26 autopilot は「cron が畳む」と読んで放置 = 読み違い (CONFLICT は cron では畳まれない、§11-14 執行記録の分担どおり autopilot の手畳み対象だった)
+- **根**: `wiki/index.md` の `## Current Portfolio (auto-synced, …)` は `tools/sync_kb_index.py` が毎 run 日付入りで再生成する 1 行。wiki-daily はその同じ行に `; wiki-daily verified …` 注記を書き足すため、座礁 commit の patch は常にこの行の**差し替え** (base ≠ 空) を含む。origin 側が 1 回でも再生成していれば union 不可 → fail-closed CONFLICT。11-16 の `line_superseded` は「一度 origin に入った行」限定なので、一度も入らない注記版には効かない
+- **修正**: `GENERATED_HEADER_PAT` + (1) 見出し 1 行 vs 1 行の diff3 block は ours を採る (2) PRESENT 判定で生成見出しの未着行は accounted。pin 37 → 40。陽性対照 = 実 ref で CONFLICT 3 → FOLDED 4 / CONFLICT 0 (origin/main worktree)、手畳み tree と bit-identical、PR branch では PRESENT 31
+- **同梱**: wiki-daily 11-24 22:51Z / 11-26 04:43Z / 11-26 12:33Z の 3 run 分 (座礁救出 15〜17 例目、うち 2 本は手畳み・1 本は修正後 tool の自動 fold)
+- **残課題 (記録のみ)**: wiki-daily が生成見出しに注記を書く設計自体は変えない (skill = user 領域)。`## System State … — last wiki-daily …` 見出しも時変だが、こちらは origin 側が再生成しない (wiki-daily だけが書く) ため 11-16 の差し替え済み判定で足りる — 同型が出たら `GENERATED_HEADER_PAT` を alternation で広げる

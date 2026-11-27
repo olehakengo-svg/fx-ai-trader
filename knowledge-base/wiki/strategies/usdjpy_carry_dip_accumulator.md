@@ -546,3 +546,30 @@ Kalman D7 / vix_carry / ZZ v60 と同系の意図的例外。**LIVE flip は別�
 - 🔑 台帳: `eq_current_jpy` ¥323,293.23 → ¥323,346.23 (**+¥53.00 = broker +235 −182**、残差 0)。#1347157 −¥182 は PR #382 (writer が実約定 units を読む) 後の初計上 = 18.2p × ¥10 × 1,000u で一致 (lossy 解消 1 例目、`dd-ledger-broker-close-first-booking-readout` の材料; 同 readout は 11-20 期日超過で autopilot 沈黙中)
 - 執行 QA: live-eligible は本戦略 2 (sent 2 / filled 2、乖離 0)、他戦略 7 = `agg_kelly` −0.215 blocked。SVK 11 月 26 RT −¥2,070 で停止 3 run 連続、NAV ¥271,770.41 (+¥89.25 = +53 + financing 36.25)、実 DD −24.32%。11 月 戦略 +¥282
 - 詳細 [[2026-11-24]] 戦略 LIVE 節 / guard 節 / [[daily-observations-2026-11]] O-2026-11-24-1
+
+## ⚪🔴 2026-11-24 22:51Z 再実行 (wiki-daily、09:54Z〜22:51Z = 12.95 h): **LIVE fill 0 / 決済 0 (N 35 / +186.9 / EV +5.34 / WR 54.3% / broker +¥1,677 不変)、candidate 0 — guard 状態消失 16・17 例目 (material 0)、`strategy_kelly` insufficient n 5 不変**
+
+- broker 完全静止: `lastTransactionID` 1347162 不変 (tx 0)、NAV ¥271,770.4111 ±¥0、open 0。#1347157 決済 (02:04Z) 以後 `daytrade_1h` × USD_JPY の audit 候補行 **0** — USD_JPY は 09:58Z 159.542 (窓高値) → 14:01Z 159.082 (窓安値、−46p) → 20:54Z 159.246 で signal 158.963 より上を推移 = dip 条件の再成立なし (記述級、parquet 18.8 d stale で条件再構成は不可)
+- 🔴 guard 状態消失 **16・17 例目**: 09:54Z 更新で書いた「5.3 d 再起動なし」は 10:22Z に終了 — PR #384 deploy 失敗 (sentry-sdk 3.0.0) による前ビルド再起動 + PR #385 修理 deploy 10:41:23Z (`engine_pid` 130 → 105 → 133 / import 39 → 42)。本戦略の live trail は本窓 0 のため material 0 (15 例目の partial とは異なる)。累計 17 例。詳細 [[storm-guard-design-2026-09-22]] 追補 2026-11-24 22:51Z
+- risk 30d: `effective_date_from` 10-25T22:51:10 (n 7、出 0 / 入 0)、`strategy_kelly` insufficient (n 5) / `strategy_dsr` n 5 / DSR 0.527 / 全体 half 0.0802 — **全て bit-identical**。台帳 `eq_current_jpy` ¥323,346.23 不変 (origin PR #384 の dd-ledger readout も同じ −¥182 一致を記録、`OANDA_SL_TP` 0 件で registry 期日 12-04 へ)
+- 執行 QA: live-eligible 1 = 他戦略 blocked 1 (`donchian_momentum_breakout` NZD_USD、`agg_kelly` −0.223)、本戦略 0。SVK 0 RT (停止 4 run 連続)。11 月 戦略 +¥282 不変
+- 詳細 [[2026-11-24]] 22:51Z 再実行 節 / [[daily-observations-2026-11]] O-2026-11-24-2
+
+
+## ⚪🔴 2026-11-26 更新 (wiki-daily 04:43Z、11-24T22:51Z〜11-26T04:43Z = 1.24 d、11-25 run 欠落): **LIVE fill 0 / 決済 0 (N 35 / +186.9 / EV +5.34 / WR 54.3% / wf_h1 +4.66 / wf_h2 +5.98 / broker +¥1,677 不変)、candidate 0 — guard 状態消失 18 例目 (PR #387 deploy、material 0)**
+
+- #1347157 (11-24 01:03Z fill → 02:04Z ON_FILL SL −¥182) 以後 **51.7 h** broker 完全静止 (tx 0、NAV ¥271,770.4111 ±¥0、`lastTransactionID` 1347162 不変)。realized / risk / 台帳 / broker の 4 系統が **2 run 連続 bit-identical**
+- candidate 行 (`daytrade_1h` × USD_JPY) 本窓 **0**。USD_JPY (shadow `signal_price`) 159.24 (11-25 03:33Z) → 159.392 (06:07Z) → **158.845** (17:18Z、−55p) → 159.21 (11-26 00:00Z) = 17:18Z 前後で #1347157 の signal 158.963 を**下抜けた**が H1 dip 条件 (RSI dip cross) の再成立なし (記述級、parquet 20.1 d stale で条件再構成は不可)。shadow 側の USD_JPY は本窓 22 本 −74.7 (MR BUY / momentum SELL の両方が逆行 = 往復ボラ局面)
+- 🔴 guard 状態消失 **18 例目**: PR #387 (runtime 依存 15 行の上限 pin、autopilot、rule:R3) を open live 0 の窓で merge → Render live 11-25 **02:41:57Z** (`engine_pid` 133 → 134 / import 42 → 65、`refreshed_at` live の 6 秒前)。本戦略の live trail は本窓 0 のため **material 0 (16・17・18 と 3 連続)**。累計 18 例、11 月 再起動 13 回中 12 回が PR deploy。詳細 [[storm-guard-design-2026-09-22]] 追補 2026-11-26
+- risk 30d: `effective_date_from` 10-27T04:43:42 (n 7、出 0 / 入 0)、`strategy_kelly` insufficient (n 5) / `strategy_dsr` n 5 DSR 0.527 / 全体 Kelly +0.1672 half 0.0802 — **全て bit-identical**。台帳 `eq_current_jpy` ¥323,346.23 不変 (`OANDA_SL_TP` 0 件、registry `dd-ledger-broker-close-first-booking-readout` 12-04 待ち)。registry `carry-dip-v3-revival-watch` 期日 **11-30**
+- 執行 QA: live-eligible 3 = 他戦略 blocked 3 (`doji_breakout` GBP_USD / `xs_momentum_rsi` USD_JPY / `donchian_momentum_breakout` NZD_USD、全て `agg_kelly` −0.223 = 22:51Z から不変)、本戦略 0。SVK 0 RT (停止 5 run 連続、`target_reached`)。11 月 戦略 +¥282 不変。⚠️ cloud pre_tokyo 23:57Z は本戦略を「Cutoff 後 N=2 / EV +2.65」と記述 — 本カード / `demo/stats` の 2026-04-08 cutoff (N 35) と定義が異なる (cloud 側 cutoff 未特定、記録のみ = [[2026-11-26]] 未決 45)
+- 詳細 [[2026-11-26]] / [[daily-observations-2026-11]] O-2026-11-26-1
+
+## ⚪🔴 2026-11-26 12:33Z 再実行 (wiki-daily、04:43Z〜12:33Z = 7.8 h、本日 2 run 目): **LIVE fill 0 / 決済 0 (N 35 / +186.9 / EV +5.34 / WR 54.3% / broker +¥1,677 不変)、candidate 0 — guard 状態消失 19 例目 (PR #389 docs-only deploy、material 0 ×4)**
+
+- #1347157 (11-24 01:03Z fill → 02:04Z SL) 以後 **58.5 h (12:33Z) / 63.2 h (16:13Z)** broker 完全静止 (tx 0、NAV ¥271,770.4111 ±¥0、`lastTransactionID` 1347162 不変)。realized / risk / 台帳 / broker の 4 系統が **3 run 連続 bit-identical**
+- candidate 行 (`daytrade_1h` × USD_JPY) 本窓 **0**。USD_JPY (shadow `signal_price`、04:58Z → 16:08Z) 159.165 → 159.116 (06:19Z) → 159.30 (16:08Z) = レンジ **18p** (前窓 55p の往復から収縮)、#1347157 signal 158.963 への再接近なし、H1 dip 条件未成立 (記述級、parquet 20.4 d stale)。shadow 側 USD_JPY は本窓 12 本 +2.7 (前 2 窓の −75.9 / −74.7 から損失源を脱落)
+- 🔴 guard 状態消失 **19 例目**: PR #389 (daily market review 廃止提案 → 既定 (b) 縮退継続の記録、registry + docs のみ、autopilot、rule:R3) を open live 0 の窓で merge 04:56:31Z → Render live **04:58:16Z** (`engine_pid` 134 → 98 / `engine_import_pid` 65 → **42 = 11-24 の値の再利用**、`refreshed_at` live の 8 秒前)。本戦略の live trail は本窓 0 のため **material 0 (16〜19 で 4 連続)**。docs-only PR でも deploy が走る (`ignoredPaths` 外の registry JSON / `.claude/commands/*`) = 永続化なしでは「PR の種類を問わず」消える。詳細 [[storm-guard-design-2026-09-22]] 追補 7.9
+- risk 30d: `effective_date_from` 10-27T12:49:01 (n 7、出 0 / 入 0)、`strategy_kelly` insufficient (n 5) / `strategy_dsr` n 5 DSR 0.527 / 全体 Kelly +0.1672 half 0.0802 — **全て bit-identical (3 run 連続)**。`agg_kelly` −0.223 は 3 窓不変 (O-2026-11-26-1 予測 (c) 1 run 目 ✅ = 30d 窓ロール入力説)。registry `carry-dip-v3-revival-watch` 期日 **11-30** (次 run で確認)
+- 執行 QA: 12:33Z 時点 live-eligible 0 / sent 0、本戦略 0。14:17Z に他戦略 (`ema200_trend_reversal` USD_JPY BUY) が blocked `agg_kelly` −0.223 (双子 +8.3、次 run 本窓)。SVK 0 RT (停止 6 run 連続、skip 理由 `target_reached` → `outside_window(h=16)`)。11 月 戦略 +¥282 不変。cloud post_tokyo 06:43Z / post_london 16:40Z は本戦略に言及なし (未決 45 の cutoff 定義は未特定のまま)
+- 詳細 [[2026-11-26]] 12:33Z 再実行 節 / [[daily-observations-2026-11]] O-2026-11-26-2
