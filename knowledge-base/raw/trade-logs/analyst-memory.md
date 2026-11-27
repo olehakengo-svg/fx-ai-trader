@@ -6594,6 +6594,16 @@ scalp系全体でshadow demotionによるblockが支配的。これはペアレ�
 - `r2_shadow_demoted_cell`によるblockは評価待ち（N蓄積期間中）→ **現状維持で良い**
 - no_signalはレジーム依存 → **USD/JPYにトレンド回帰の兆候が出るまで過大期待しない**
 
+### 2026-11-27 (Post-Tokyo Report)
+| PnL | ¥0 |
+| WR | N/A |
+- 東京セッションN=0、判断に足る統計的基盤なし（N<10は「データなし」扱い）
+- DD防御 **10.01% / Lot Mult 0.2x / Defensive ON** が発動中。この状態での戦略変更はリスク管理の観点から禁忌
+- `r2_shadow_demoted_cell`の多発はコード水準の問題であり、パラメータ調整で解決する性質ではない
+- OANDA転送率 **0%（50/50がすべてSKIP）**：本番への影響ゼロ。現状の問題はデモ内部に閉じている
+| GBP_USD | RANGING | 66% | −0.00481 | EUR_USDと相関高く同方向リスク集中に注意 |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
