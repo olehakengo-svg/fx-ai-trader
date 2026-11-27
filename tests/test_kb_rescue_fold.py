@@ -616,6 +616,30 @@ def test_header_credit_does_not_hide_a_lost_short_body_edit(world):
     assert _git(runner, "log", "-1", "--format=%s").stdout.strip().startswith("origin regenerates")
 
 
+def test_header_credit_does_not_hide_a_lost_body_deletion(world):
+    """PR #391 Codex P2 (2 巡目): 座礁側が生成見出しを変え + 本文行を **削除**、origin が同じ行を別内容に
+    編集した場合、削除は追加行を生まないので追加行検証だけでは素通りする。非見出しの削除行が target に
+    残っていれば「削除は届いていない」= CONFLICT のまま ref を残す。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n- stale entry\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- stale entry (edited)\n"},
+                    msg="origin regenerates the header and edits the entry the host deleted")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- stale entry (edited)" in _read(runner, "knowledge-base/wiki/index.md")   # target untouched
+    assert not krf.has_conflict_markers(_read(runner, "knowledge-base/wiki/index.md"))
+    # 同じ削除が target 側でも済んでいれば (origin が同じ行を消した) PRESENT → prune
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n"}, msg="origin deletes it too")
+    runner2, rc2 = _run_tool(remote, root, "runner2", "--push", "--prune")
+    assert rc2 == 0 and _remote_refs(remote) == []
+
+
 def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
     """P1 (8 巡目): 今日の session log の未 commit 下書きは、post-commit 掃除で消してはいけない。"""
     host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]

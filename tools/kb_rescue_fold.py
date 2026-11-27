@@ -371,9 +371,23 @@ def line_superseded(git: Git, path: str, body: str, before: str) -> bool:
     return False
 
 
-def _short_edits_present(git: Git, path: str, patch_f: str, text: str, before: str) -> bool:
-    """生成見出し以外の **全ての** 追加行 (長さ不問、空行除く) が target にあるか: 同一行として存在
-    (短い行は部分一致だと別の行に誤ヒットするので行単位) か、target 履歴で差し替え済み。"""
+def removed_lines(patch_text: str) -> list[str]:
+    """1 ファイル分の patch の `-` 行 (header 除く、strip 後 非空)。"""
+    out = []
+    for ln in patch_text.splitlines():
+        if ln.startswith("-") and not ln.startswith("---"):
+            body = ln[1:].strip()
+            if body:
+                out.append(body)
+    return out
+
+
+def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: str) -> bool:
+    """生成見出し以外の **全ての** 本文編集が target に反映されているか (PR #391 Codex P2 ×2):
+    - 追加行 (長さ不問、空行除く) は同一行として存在 (短い行は部分一致だと別の行に誤ヒットするので
+      行単位) か、target 履歴で差し替え済み
+    - 削除行は target に同一行として残っておらず、かつ target 履歴で削除されたことが pickaxe で確認できる
+      (origin が同じ行を別内容に編集した = 真の conflict は、-S が命中しないので fail-closed に倒す)"""
     target_lines = {ln.strip() for ln in text.splitlines()}
     for body in added_lines(patch_f, min_len=0):
         if GENERATED_HEADER_PAT.match(body):
@@ -381,7 +395,29 @@ def _short_edits_present(git: Git, path: str, patch_f: str, text: str, before: s
         if body in target_lines or line_superseded(git, path, body, before):
             continue
         return False
+    for body in removed_lines(patch_f):
+        if GENERATED_HEADER_PAT.match(body):
+            continue
+        if body in target_lines or not line_deleted_in_target(git, path, body, before):
+            return False
     return True
+
+
+def line_deleted_in_target(git: Git, path: str, body: str, before: str) -> bool:
+    """座礁 commit が消した行が target 側でも **消された** か (pickaxe、`line_superseded` の削除側)。
+    `HEAD --not <before>` の命中 commit のうち、その file にもう行が無いものがあれば「削除は届いた」。
+    origin が同じ行を別内容に**編集**した場合は、-S の出現数が変わらず命中しない (= 削除の適用は
+    確立できない → fail-closed)。"""
+    if not body:
+        return False
+    p = git.run("log", "--format=%H", f"-S{body}", "HEAD", "--not", before, "--", path, check=False)
+    if p.returncode != 0:
+        return False
+    for c in p.stdout.split():
+        f = git.run("show", f"{c}:{path}", check=False)
+        if f.returncode == 0 and body not in f.stdout:
+            return True
+    return False
 
 
 def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
@@ -415,10 +451,10 @@ def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
             gen += g
             if (h + s_ + g) / len(long_lines) < PRESENT_MIN_RATIO:
                 missing.append(path)
-            elif g and not _short_edits_present(git, path, patch_f, text, before):
-                # 見出し credit を使う file は、比率の分母に入らない短い追加行 (≤ 40 字) まで
-                # 全行が target にあることを要求する — 見出し 1 行の credit が「1/1 accounted」で
-                # 本文の取りこぼしを隠さないように (PR #391 Codex P2)
+            elif g and not _body_edits_present(git, path, patch_f, text, before):
+                # 見出し credit を使う file は、比率の分母に入らない短い追加行 (≤ 40 字) と削除行まで
+                # 全て target に反映されていることを要求する — 見出し 1 行の credit が「1/1 accounted」
+                # で本文の取りこぼしを隠さないように (PR #391 Codex P2 ×2)
                 missing.append(path)
         elif patch_f.strip():
             ok = git.run("apply", "--reverse", "--check", "-", check=False, input_text=patch_f).returncode == 0
