@@ -72,6 +72,11 @@ UNION_MAX_SIMILARITY = 0.8
 # 「内容は既に target にある」判定: patch の追加行 (len > 40) が target の同ファイルに
 # 逐語で ≥ 95% 残っていれば PRESENT (先行の手動救出が見出し等を手直ししていても拾う)
 PRESENT_MIN_LINE_LEN = 40
+# tools/sync_kb_index.py が毎 run 再生成する時変 1 行見出し。座礁 commit (wiki-daily が同じ行に
+# 注記を書き足す) を畳む頃には origin 側が差し替わっていて base ≠ 空 = union の対象外になり、
+# 2026-11-25〜26 の cron 4 run が 3/3 ref CONFLICT で止まった。見出し 1 行 vs 1 行の block は
+# target (ours) の再生成版を採る (stale な Portfolio / System State 見出しは不採用、autopilot 10-23)
+GENERATED_HEADER_PAT = re.compile(r"^## Current Portfolio \(auto-synced, ")
 PRESENT_MIN_RATIO = 0.95
 GIT_TIMEOUT = 300
 
@@ -186,7 +191,11 @@ def resolve_additive_conflicts(text: str) -> tuple[str, int, int]:
     """diff3 形式の conflict block のうち **base が空 (両側とも純追記)** のものを
     ours + theirs の union に解決する (CLAUDE.md: hot file conflict は union 解決)。
 
-    base が空でない / diff3 の base marker が無い / ours と theirs が似すぎている
+    例外 1 つ: diff3 block の ours / base / theirs が **それぞれ 1 行で全て `GENERATED_HEADER_PAT`**
+    (sync_kb_index.py 再生成の `## Current Portfolio (auto-synced, …)` 見出し) なら ours を採る —
+    時変の生成見出しは target 側の最新版が正で、座礁側の注記は stale (本文の hunk は別 block)。
+
+    それ以外の base が空でない / diff3 の base marker が無い / ours と theirs が似すぎている
     (同じ追記の別版 = 先行救出で手直しされた形) block は触らず残す (fail-closed)。
     戻り値 = (新テキスト, 解決数, 未解決数)。
     """
@@ -225,7 +234,12 @@ def resolve_additive_conflicts(text: str) -> tuple[str, int, int]:
             break
         ours_text, theirs_text = "".join(ours), "".join(theirs)
         sim = difflib.SequenceMatcher(None, ours_text, theirs_text).ratio()
-        if base is not None and not base and theirs_text.strip() and theirs_text.strip() in ours_text:
+        if (base is not None and len(ours) == len(base) == len(theirs) == 1
+                and all(GENERATED_HEADER_PAT.match(x) for x in (ours[0], base[0], theirs[0]))):
+            # 生成見出し (時変 1 行) の差し替え → target の再生成版 (ours) を採る
+            out.extend(ours)
+            resolved += 1
+        elif base is not None and not base and theirs_text.strip() and theirs_text.strip() in ours_text:
             # theirs は既に ours に丸ごと含まれている (再実行 / 先行 fold) → 二重化せず ours のまま
             # (PR #376 Codex P2 7 巡目)。resolved に数え、ファイルは無変更になる
             out.extend(ours)
@@ -367,32 +381,36 @@ def _content_present(git: Git, sha: str, paths: list[str]) -> tuple[bool, str]:
         return False, "no files"
     before = f"{sha}^"  # 座礁 commit の親: これから到達できる履歴は「先行」で、差し替え済みの証拠にならない
     missing: list[str] = []
-    hit = tot = sup = 0
+    hit = tot = sup = gen = 0
     for path in paths:
         patch_f = git.out("diff", "--no-color", "--no-ext-diff", f"{sha}^", sha, "--", path)
         long_lines = added_lines(patch_f)
         if long_lines:
             cur = git.run("show", f"HEAD:{path}", check=False)
             text = cur.stdout if cur.returncode == 0 else ""
-            h = s_ = 0
+            h = s_ = g = 0
             for body in long_lines:
                 if body in text:
                     h += 1
                 elif line_superseded(git, path, body, before):
                     s_ += 1
+                elif GENERATED_HEADER_PAT.match(body):
+                    g += 1  # 生成見出しの注記版は fold 時に意図して捨てる行 (resolve_additive_conflicts と対)
             hit += h
             tot += len(long_lines)
             sup += s_
-            if (h + s_) / len(long_lines) < PRESENT_MIN_RATIO:
+            gen += g
+            if (h + s_ + g) / len(long_lines) < PRESENT_MIN_RATIO:
                 missing.append(path)
         elif patch_f.strip():
             ok = git.run("apply", "--reverse", "--check", "-", check=False, input_text=patch_f).returncode == 0
             if not ok:
                 missing.append(path)
     if missing:
-        return False, f"{hit}/{tot} long lines verbatim (+{sup} superseded in target history); not accounted: {missing[:3]}"
-    return True, (f"{hit}/{tot} long added lines verbatim in target (+{sup} superseded in target history), "
-                  f"{len(paths)} file(s) all accounted")
+        return False, (f"{hit}/{tot} long lines verbatim (+{sup} superseded in target history, +{gen} generated header); "
+                       f"not accounted: {missing[:3]}")
+    return True, (f"{hit}/{tot} long added lines verbatim in target (+{sup} superseded in target history, "
+                  f"+{gen} generated header), {len(paths)} file(s) all accounted")
 
 
 def _changed_files_have_markers(git: Git, paths: list[str]) -> list[str]:
@@ -480,7 +498,7 @@ def fold_commit(git: Git, ref: str, sha: str, excludes: Iterable[str],
                 return RefResult(ref, sha, ST_CONFLICT,
                                  f"unresolved {n_unres} block(s); {why}; " + applied.stderr.strip()[-300:],
                                  files=paths)
-            detail = f"committed (union-resolved {n_res} additive block(s))"
+            detail = f"committed (union-resolved {n_res} additive/generated-header block(s))"
         bad = _changed_files_have_markers(git, paths)
         if bad:
             _restore(git, paths)

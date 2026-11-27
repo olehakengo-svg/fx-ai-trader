@@ -518,6 +518,83 @@ def test_union_keeps_ours_when_theirs_is_already_contained():
     assert merged == "# log\n## A autopilot section about deploys\n## B wiki-daily section about shadow\n"
 
 
+def test_a_regenerated_portfolio_header_block_resolves_to_ours():
+    # 2026-11-25〜26 cron 4 run 連続 CONFLICT 3/3 の根: sync_kb_index.py が毎 run 再生成する
+    # `## Current Portfolio (auto-synced, <date>)` 見出しに wiki-daily が時変の注記を書き足すため、
+    # 座礁 commit を畳む頃には origin 側の見出しが差し替わっていて base ≠ 空 = union 対象外だった。
+    # 生成見出し 1 行 vs 1 行の block は target (ours) の再生成版を採る。本文側の hunk は別 block。
+    text = ("<!-- KB_PORTFOLIO_START -->\n<<<<<<< ours\n## Current Portfolio (auto-synced, 2026-11-25)\n"
+            "||||||| base\n## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 09:54Z — 2 fills)\n"
+            "=======\n## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+            ">>>>>>> theirs\n\n### ELITE_LIVE\n")
+    merged, resolved, unresolved = krf.resolve_additive_conflicts(text)
+    assert (resolved, unresolved) == (1, 0)
+    assert merged == "<!-- KB_PORTFOLIO_START -->\n## Current Portfolio (auto-synced, 2026-11-25)\n\n### ELITE_LIVE\n"
+    # 非 diff3 (base marker なし) や、片側が見出し以外の行を含む block は従来どおり人が見る
+    no_base = ("<<<<<<< ours\n## Current Portfolio (auto-synced, 2026-11-25)\n=======\n"
+               "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified)\n>>>>>>> theirs\n")
+    assert krf.resolve_additive_conflicts(no_base)[1:] == (0, 1)
+    with_body = ("<<<<<<< ours\n## Current Portfolio (auto-synced, 2026-11-25)\n||||||| base\n"
+                 "## Current Portfolio (auto-synced, 2026-10-30)\n=======\n"
+                 "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified)\n- extra body line\n>>>>>>> theirs\n")
+    assert krf.resolve_additive_conflicts(with_body)[1:] == (0, 1)
+    # 見出しが別物 (System State 等) なら対象外
+    other = ("<<<<<<< ours\n## System State — last wiki-daily 11-26\n||||||| base\n## System State — last wiki-daily 11-24\n"
+             "=======\n## System State — last wiki-daily 11-25\n>>>>>>> theirs\n")
+    assert krf.resolve_additive_conflicts(other)[1:] == (0, 1)
+
+
+def test_a_wiki_daily_note_on_the_regenerated_portfolio_header_folds_and_keeps_ours(world):
+    """2026-11-25〜26 の実 ref (b4b5fd25e 系 3 本) の再現: wiki-daily は `## Current Portfolio (auto-synced, …)`
+    見出しに注記を書き足すが、origin 側は sync_kb_index.py が毎 run その 1 行を再生成する → base ≠ 空。
+    見出し block は ours (再生成版) を採り、本文 (trade log) は畳まれ、ref は prune される。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    body = "".join(f"- 2026-11-24 22:51Z re-run observation line number {i} long enough to count\n" for i in range(10))
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\nline B\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    _strand(host, "2026-11-25", {
+        "knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+        "knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\nline B\n",
+    })
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\nline B\n"},
+                    msg="sync_kb_index regenerates the header")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 0
+    assert _remote_refs(remote) == []
+    check = _clone(remote, os.path.join(root, "check"), "check")
+    idx = _read(check, "knowledge-base/wiki/index.md")
+    assert idx == "# index\n" + regen_hdr + "line A\nline B\n"      # ours kept, no markers, note not resurrected
+    assert _read(check, "knowledge-base/raw/trade-logs/2026-11-24.md") == "# 2026-11-24 Daily Trade Log\n" + body
+    assert "generated-header" in _git(check, "log", "-1", "--format=%b").stdout
+
+
+def test_a_hand_folded_ref_whose_only_missing_line_is_the_regenerated_header_is_present(world):
+    """PR 経路 (autopilot が手で畳んで merge) の後、cron が同じ ref を再評価する: 本文は全て target に
+    あり、欠けているのは意図的に捨てた生成見出しの注記版だけ → PRESENT → prune (永久 CONFLICT にしない)。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    body = "".join(f"- 2026-11-24 22:51Z re-run observation line number {i} long enough to count\n" for i in range(10))
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\nline B\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    _strand(host, "2026-11-25", {
+        "knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+        "knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\nline B\n",
+    })
+    _advance_origin(other, {"knowledge-base/raw/trade-logs/2026-11-24.md": "# 2026-11-24 Daily Trade Log\n" + body,
+                            "knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\nline B\n"},
+                    msg="manual rescue PR keeps the regenerated header")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 0
+    assert _remote_refs(remote) == []
+    assert _git(runner, "log", "-1", "--format=%s").stdout.strip() == "manual rescue PR keeps the regenerated header"
+    assert note_hdr not in _read(runner, "knowledge-base/wiki/index.md")
+
+
 def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
     """P1 (8 巡目): 今日の session log の未 commit 下書きは、post-commit 掃除で消してはいけない。"""
     host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
