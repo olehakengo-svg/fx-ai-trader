@@ -189,6 +189,19 @@ def added_lines(patch_text: str, min_len: int = PRESENT_MIN_LINE_LEN) -> list[st
                 out.append(body)
     return out
 
+def _theirs_contained(ours: list[str], theirs: list[str]) -> bool:
+    """theirs の全行が ours に既にあるか。長い行 (> PRESENT_MIN_LINE_LEN) は部分一致でよい (先行救出が
+    suffix を手直しした版 = verbatim superset)。短い行は **行単位** でしか認めない — `- obs 7` が
+    `- obs 70` に部分一致して「含まれている」と誤認し、座礁側の観測行を落としたまま PRESENT にした
+    (PR #391 Codex P2 7 巡目)。"""
+    lines = [ln.strip() for ln in theirs if ln.strip()]
+    if not lines:
+        return False
+    ours_text = "".join(ours)
+    ours_set = {ln.strip() for ln in ours}
+    return all(ln in ours_set or (len(ln) > PRESENT_MIN_LINE_LEN and ln in ours_text) for ln in lines)
+
+
 def resolve_additive_conflicts(text: str) -> tuple[str, int, int]:
     """diff3 形式の conflict block のうち **base が空 (両側とも純追記)** のものを
     ours + theirs の union に解決する (CLAUDE.md: hot file conflict は union 解決)。
@@ -241,9 +254,10 @@ def resolve_additive_conflicts(text: str) -> tuple[str, int, int]:
             # 生成見出し (時変 1 行) の差し替え → target の再生成版 (ours) を採る
             out.extend(ours)
             resolved += 1
-        elif base is not None and not base and theirs_text.strip() and theirs_text.strip() in ours_text:
+        elif base is not None and not base and _theirs_contained(ours, theirs):
             # theirs は既に ours に丸ごと含まれている (再実行 / 先行 fold) → 二重化せず ours のまま
-            # (PR #376 Codex P2 7 巡目)。resolved に数え、ファイルは無変更になる
+            # (PR #376 Codex P2 7 巡目)。短い行は行単位でしか「含まれている」と見ない (PR #391 7 巡目)。
+            # resolved に数え、ファイルは無変更になる
             out.extend(ours)
             resolved += 1
         elif base is not None and not base and sim < UNION_MAX_SIMILARITY:
@@ -350,7 +364,7 @@ def _restore(git: Git, paths: list[str]) -> None:
                 os.remove(full)
 
 
-def line_superseded(git: Git, path: str, body: str, before: str) -> bool:
+def line_superseded(git: Git, path: str, body: str, before: str, whole_line: bool = False) -> bool:
     """target の履歴で、座礁 commit 以降にその行が一度でも `path` に入ったか (pickaxe)。
     index.md の NAV 行 / Portfolio・System State 見出しのような **時変 status 行** は次の
     wiki-daily run が上書きするので、先行救出で origin に入っていても逐語残存では永久に
@@ -360,7 +374,10 @@ def line_superseded(git: Git, path: str, body: str, before: str) -> bool:
     範囲は `HEAD --not <before>` (= 座礁 commit の親から到達できない target 側の commit) に限る。
     timestamp (`--since`) は秒精度で同秒の先行履歴を含み、かつ `-S` は **削除側にも一致** するので、
     origin が消した行を座礁側が再追加するケースを「救出済み」と誤認する (PR #378 Codex P2)。
-    命中 commit のその file に行が実在することまで確認する (削除だけの命中を除く)。"""
+    命中 commit のその file に行が実在することまで確認する (削除だけの命中を除く)。
+    `whole_line=True` は実在確認を行単位 (strip 一致) で行う — 短い行の部分一致 (`- obs 7` ⊂ `- obs 70`)
+    を差し替え済みと誤認しないため (PR #391 Codex P2 7 巡目)。長い行 (> PRESENT_MIN_LINE_LEN) の
+    既定経路は従来どおり部分一致 (先行救出が見出し等を手直ししていても拾う)。"""
     if not body:
         return False
     p = git.run("log", "--format=%H", f"-S{body}", "HEAD", "--not", before, "--", path, check=False)
@@ -368,7 +385,12 @@ def line_superseded(git: Git, path: str, body: str, before: str) -> bool:
         return False
     for c in p.stdout.split():
         f = git.run("show", f"{c}:{path}", check=False)
-        if f.returncode == 0 and body in f.stdout:
+        if f.returncode != 0:
+            continue
+        if whole_line:
+            if body in {ln.strip() for ln in f.stdout.splitlines()}:
+                return True
+        elif body in f.stdout:
             return True
     return False
 
@@ -408,7 +430,7 @@ def patch_hunks(patch_text: str) -> list[tuple[list[str], list[str]]]:
 def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: str) -> bool:
     """生成見出し以外の **全ての** 本文編集が target に反映されているか (PR #391 Codex P2 ×4):
     - 追加行 (長さ不問、空行除く) は同一行として存在 (短い行は部分一致だと別の行に誤ヒットするので
-      行単位) か、target 履歴で差し替え済み
+      行単位) か、target 履歴で差し替え済み (こちらも行単位、7 巡目)
     - 削除行は target に同一行として残っておらず、かつ target 履歴でその行を消した commit の hunk が
       **純削除** (非見出しの `+` 行なし) か **座礁側と同じ置換** (`+` 行が座礁 hunk の追加行の部分集合)
       であること (`deletion_landed_in_target`)。座礁 hunk の追加行が旧行を含む置換 (旧文字列保持) も
@@ -420,7 +442,7 @@ def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: st
         added = [b for b in added if not GENERATED_HEADER_PAT.match(b)]
         removed = [b for b in removed if not GENERATED_HEADER_PAT.match(b)]
         for body in added:
-            if body in target_lines or line_superseded(git, path, body, before):
+            if body in target_lines or line_superseded(git, path, body, before, whole_line=True):
                 continue
             return False
         for body in removed:

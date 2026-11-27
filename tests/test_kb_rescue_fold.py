@@ -714,6 +714,32 @@ def test_a_separately_added_new_line_is_not_proof_the_replacement_landed(world):
     assert "- obs 9" in _read(runner, "knowledge-base/wiki/index.md")
 
 
+def test_a_short_addition_needs_whole_line_history_evidence(world):
+    """PR #391 Codex P2 (7 巡目): 座礁側が見出し注記 + `- obs 7` を追記、origin が見出し再生成 + `- obs 70` を
+    追記した場合、`line_superseded` の部分一致 (`- obs 7` ⊂ `- obs 70`) で追加行を「差し替え済み」と誤認して
+    はいけない。実際の到達経路は 2 つ: (1) 純追記 union の「theirs は ours に含まれる」判定が部分一致で
+    `- obs 7` ⊂ `- obs 70` → ours のまま = 無変更 → PRESENT、(2) 見出し credit 経路の `line_superseded`
+    (部分一致)。どちらも短い行は行単位一致を要求する (長い行の verbatim superset は従来どおり)。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- obs 7\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- obs 70\n"},
+                    msg="origin regenerates the header and appends a different observation")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- obs 7\n" not in _read(runner, "knowledge-base/wiki/index.md")
+    # pure 関数側の pin: 短い行は行単位、長い行は部分一致 (verbatim superset) のまま
+    assert not krf._theirs_contained(["- obs 70\n"], ["- obs 7\n"])
+    assert krf._theirs_contained(["- obs 7\n", "- obs 70\n"], ["- obs 7\n"])
+    long = "- 2026-11-13: fills 0 / closes 0 / NAV ¥271,681 and a long enough tail\n"
+    assert krf._theirs_contained([long[:-1] + " (rescued, edited)\n"], [long])
+
+
 def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
     """P1 (8 巡目): 今日の session log の未 commit 下書きは、post-commit 掃除で消してはいけない。"""
     host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
