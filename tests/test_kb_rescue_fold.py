@@ -634,6 +634,13 @@ def test_header_credit_does_not_hide_a_lost_body_deletion(world):
     assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
     assert "- stale entry (edited)" in _read(runner, "knowledge-base/wiki/index.md")   # target untouched
     assert not krf.has_conflict_markers(_read(runner, "knowledge-base/wiki/index.md"))
+    # 3 巡目 P2: 旧文字列を含まない **置換** も pickaxe は「消えた」と見る → 置換 hunk (+ 行あり) は
+    # 純削除の証拠にしない → CONFLICT のまま
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- revised observation\n"},
+                    msg="origin rewrites the entry with unrelated text")
+    runner1, rc1 = _run_tool(remote, root, "runner1", "--push", "--prune")
+    assert rc1 == 2 and _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- revised observation" in _read(runner1, "knowledge-base/wiki/index.md")
     # 同じ削除が target 側でも済んでいれば (origin が同じ行を消した) PRESENT → prune
     _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n"}, msg="origin deletes it too")
     runner2, rc2 = _run_tool(remote, root, "runner2", "--push", "--prune")

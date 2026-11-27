@@ -382,32 +382,58 @@ def removed_lines(patch_text: str) -> list[str]:
     return out
 
 
+def patch_hunks(patch_text: str) -> list[tuple[list[str], list[str]]]:
+    """1 ファイル分の patch を hunk ごとに (追加行, 削除行) に分ける (strip 後 非空、header 行除く)。"""
+    hunks: list[tuple[list[str], list[str]]] = []
+    cur: tuple[list[str], list[str]] | None = None
+    for ln in patch_text.splitlines():
+        if ln.startswith("@@"):
+            cur = ([], [])
+            hunks.append(cur)
+        elif cur is None or ln.startswith(("+++", "---")):
+            continue
+        elif ln.startswith("+"):
+            body = ln[1:].strip()
+            if body:
+                cur[0].append(body)
+        elif ln.startswith("-"):
+            body = ln[1:].strip()
+            if body:
+                cur[1].append(body)
+    return hunks
+
+
 def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: str) -> bool:
-    """生成見出し以外の **全ての** 本文編集が target に反映されているか (PR #391 Codex P2 ×2):
+    """生成見出し以外の **全ての** 本文編集が target に反映されているか (PR #391 Codex P2 ×3):
     - 追加行 (長さ不問、空行除く) は同一行として存在 (短い行は部分一致だと別の行に誤ヒットするので
       行単位) か、target 履歴で差し替え済み
-    - 削除行は target に同一行として残っておらず、かつ target 履歴で削除されたことが pickaxe で確認できる
-      (origin が同じ行を別内容に編集した = 真の conflict は、-S が命中しないので fail-closed に倒す)"""
+    - 削除行は target に同一行として残っていない。さらに hunk に非見出しの追加行が **無い** 削除
+      (= 純削除、置換ではない) は、target 履歴でも **純削除 hunk** として消されたことが要る
+      (`line_purely_deleted_in_target`)。置換 (旧行と新行が対) は新行の存在検証で担保する。
+      origin が同じ行を別内容に編集した = 真の conflict は、pickaxe が命中しない (suffix 編集) か
+      置換 hunk として命中する (無関係な文言) かのどちらかで、いずれも fail-closed"""
     target_lines = {ln.strip() for ln in text.splitlines()}
-    for body in added_lines(patch_f, min_len=0):
-        if GENERATED_HEADER_PAT.match(body):
-            continue
-        if body in target_lines or line_superseded(git, path, body, before):
-            continue
-        return False
-    for body in removed_lines(patch_f):
-        if GENERATED_HEADER_PAT.match(body):
-            continue
-        if body in target_lines or not line_deleted_in_target(git, path, body, before):
+    for added, removed in patch_hunks(patch_f):
+        added = [b for b in added if not GENERATED_HEADER_PAT.match(b)]
+        removed = [b for b in removed if not GENERATED_HEADER_PAT.match(b)]
+        for body in added:
+            if body in target_lines or line_superseded(git, path, body, before):
+                continue
             return False
+        for body in removed:
+            if body in target_lines:
+                return False
+            if not added and not line_purely_deleted_in_target(git, path, body, before):
+                return False
     return True
 
 
-def line_deleted_in_target(git: Git, path: str, body: str, before: str) -> bool:
-    """座礁 commit が消した行が target 側でも **消された** か (pickaxe、`line_superseded` の削除側)。
-    `HEAD --not <before>` の命中 commit のうち、その file にもう行が無いものがあれば「削除は届いた」。
-    origin が同じ行を別内容に**編集**した場合は、-S の出現数が変わらず命中しない (= 削除の適用は
-    確立できない → fail-closed)。"""
+def line_purely_deleted_in_target(git: Git, path: str, body: str, before: str) -> bool:
+    """座礁 commit が消した行が target 側でも **純削除** されたか (pickaxe の削除側 + hunk 検査)。
+    `HEAD --not <before>` の `-S<行>` 命中 commit のうち、その file にもう行が無く、かつその commit の
+    diff で `-<行>` を含む hunk に非見出しの `+` 行が無い (= 置換ではない) ものがあれば True。
+    `-S` は「片側だけが文字列を含む」file pair を拾うので置換も命中する (PR #391 Codex P2 3 巡目) —
+    hunk に `+` 行があれば置換として退ける (fail-closed)。"""
     if not body:
         return False
     p = git.run("log", "--format=%H", f"-S{body}", "HEAD", "--not", before, "--", path, check=False)
@@ -415,8 +441,14 @@ def line_deleted_in_target(git: Git, path: str, body: str, before: str) -> bool:
         return False
     for c in p.stdout.split():
         f = git.run("show", f"{c}:{path}", check=False)
-        if f.returncode == 0 and body not in f.stdout:
-            return True
+        if f.returncode != 0 or body in f.stdout:
+            continue
+        d = git.run("diff", "--no-color", "--no-ext-diff", f"{c}^", c, "--", path, check=False)
+        if d.returncode != 0:
+            continue
+        for added, removed in patch_hunks(d.stdout):
+            if body in removed and not [b for b in added if not GENERATED_HEADER_PAT.match(b)]:
+                return True
     return False
 
 
