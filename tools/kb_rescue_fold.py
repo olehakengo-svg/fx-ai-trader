@@ -77,6 +77,8 @@ PRESENT_MIN_LINE_LEN = 40
 # 2026-11-25〜26 の cron 4 run が 3/3 ref CONFLICT で止まった。見出し 1 行 vs 1 行の block は
 # target (ours) の再生成版を採る (stale な Portfolio / System State 見出しは不採用、autopilot 10-23)
 GENERATED_HEADER_PAT = re.compile(r"^## Current Portfolio \(auto-synced, ")
+# `git log -G<regex>` に渡す行の上限 (これより長い行は regex compile が落ちる → `-S` のみ)
+PICKAXE_REGEX_MAX_LEN = 4000
 PRESENT_MIN_RATIO = 0.95
 GIT_TIMEOUT = 300
 
@@ -409,8 +411,9 @@ def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: st
       行単位) か、target 履歴で差し替え済み
     - 削除行は target に同一行として残っておらず、かつ target 履歴でその行を消した commit の hunk が
       **純削除** (非見出しの `+` 行なし) か **座礁側と同じ置換** (`+` 行が座礁 hunk の追加行の部分集合)
-      であること (`deletion_landed_in_target`)、または座礁 hunk の追加行が旧行を **含む** (旧文字列を保持
-      した置換、pickaxe では見えない) こと。同じ hunk に無関係な追加行があっても削除の証拠にはしない。origin が同じ行を別内容に編集した = 真の conflict は、pickaxe が命中しない (suffix 編集)
+      であること (`deletion_landed_in_target`)。座礁 hunk の追加行が旧行を含む置換 (旧文字列保持) も
+      同じ経路で判定する (新行が target に**別途**あるだけでは置換の証拠にしない、6 巡目)。同じ hunk に
+      無関係な追加行があっても削除の証拠にはしない。origin が同じ行を別内容に編集した = 真の conflict は、pickaxe が命中しない (suffix 編集)
       か置換 hunk として命中するが `+` 行が交差しないかのどちらかで、いずれも fail-closed"""
     target_lines = {ln.strip() for ln in text.splitlines()}
     for added, removed in patch_hunks(patch_f):
@@ -421,34 +424,37 @@ def _body_edits_present(git: Git, path: str, patch_f: str, text: str, before: st
                 continue
             return False
         for body in removed:
-            if body in target_lines:
-                return False
-            # 旧文字列を保持した置換 (`- obs 7` → `- obs 7 (verified)`) は pickaxe の出現数が変わらず
-            # 命中しない (5 巡目) → 座礁 hunk 自身の追加行が旧行を含み、その行が target にあれば
-            # 置換は届いたと見る (追加行は上で存在検証済み)
-            if any(body in a for a in added):
-                continue
-            if not deletion_landed_in_target(git, path, body, before, set(added)):
+            if body in target_lines or not deletion_landed_in_target(git, path, body, before, set(added)):
                 return False
     return True
 
 
 def deletion_landed_in_target(git: Git, path: str, body: str, before: str, stranded_added: set[str]) -> bool:
-    """座礁 commit が消した行が target 側でも消されたか (pickaxe の削除側 + hunk 検査)。
-    `HEAD --not <before>` の `-S<行>` 命中 commit のうち、その file にもう行が無く、かつその commit の
+    """座礁 commit が消した行が target 側でも消されたか (`-S` ∪ `-G` で触れた commit を拾い hunk 検査)。
+    `HEAD --not <before>` の命中 commit のうち、その file にもう同一行が無く、かつその commit の
     diff で `-<行>` を含む hunk の非見出し `+` 行が **空 (純削除)** か **座礁 hunk の追加行の部分集合
     (同じ置換、余分な行なし)** のものがあれば True。`-S` は「片側だけが文字列を含む」file pair を拾うので
     無関係な置換も命中し (3 巡目)、交差だけでは同 hunk の無関係な追加行が証拠になってしまう (4 巡目) —
     部分集合でない置換は退ける (fail-closed)。"""
     if not body:
         return False
+    # `-S` (出現数の変化) は純削除と「旧文字列を含まない置換」を拾うが、旧文字列を保持した置換
+    # (`- obs 7` → `- obs 7 (verified)`) では出現数が変わらず命中しない (5 巡目) → `-G` (diff 行の正規表現
+    # 一致) を併用して「その行に触れた commit」も拾う。`-G` は長い行で regex が compile できない
+    # (index.md の 2 万字行で `fatal: invalid regex: out of memory`) ので上限内の行だけ。命中の和集合を
+    # hunk の中身で判定する (どちらも hunk 検査を通らなければ fail-closed)
+    hits: list[str] = []
     p = git.run("log", "--format=%H", f"-S{body}", "HEAD", "--not", before, "--", path, check=False)
-    if p.returncode != 0:
-        return False
-    for c in p.stdout.split():
+    if p.returncode == 0:
+        hits.extend(p.stdout.split())
+    if len(body) <= PICKAXE_REGEX_MAX_LEN:
+        g = git.run("log", "--format=%H", f"-G{re.escape(body)}", "HEAD", "--not", before, "--", path, check=False)
+        if g.returncode == 0:
+            hits.extend(x for x in g.stdout.split() if x not in hits)
+    for c in hits:
         f = git.run("show", f"{c}:{path}", check=False)
-        if f.returncode != 0 or body in f.stdout:
-            continue
+        if f.returncode != 0 or body in {ln.strip() for ln in f.stdout.splitlines()}:
+            continue  # その commit の後もまだ同一行が残っている = 消していない
         d = git.run("diff", "--no-color", "--no-ext-diff", f"{c}^", c, "--", path, check=False)
         if d.returncode != 0:
             continue

@@ -695,6 +695,25 @@ def test_a_hand_applied_replacement_that_keeps_the_old_text_is_present(world):
     assert _git(runner, "log", "-1", "--format=%s").stdout.strip().startswith("manual rescue applies")
 
 
+def test_a_separately_added_new_line_is_not_proof_the_replacement_landed(world):
+    """PR #391 Codex P2 (6 巡目): 座礁側が `- obs 7` → `- obs 7 (verified)` の置換、origin が `- obs 7` を
+    `- obs 9` に書き換えつつ `- obs 7 (verified)` を**別途**追加した場合、新行の存在 (包含) だけで置換を
+    認めてはいけない。target 履歴に「旧行削除 + 新行 (⊆ 座礁追加行)」の hunk があるときだけ届いたと見る。"""
+    host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
+    seed_hdr = "## Current Portfolio (auto-synced, 2026-10-30)\n"
+    note_hdr = "## Current Portfolio (auto-synced, 2026-10-30; wiki-daily verified 2026-11-24 22:51Z re-run — 0 fills)\n"
+    regen_hdr = "## Current Portfolio (auto-synced, 2026-11-25)\n"
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + seed_hdr + "line A\n- obs 7\n"}, msg="seed header")
+    _git(host, "pull", "-q", "--rebase", "origin", "main")
+    sha = _strand(host, "2026-11-25", {"knowledge-base/wiki/index.md": "# index\n" + note_hdr + "line A\n- obs 7 (verified)\n"})
+    _advance_origin(other, {"knowledge-base/wiki/index.md": "# index\n" + regen_hdr + "line A\n- obs 9\n- obs 7 (verified)\n"},
+                    msg="origin rewrites obs 7 to obs 9 and adds the verified line separately")
+    runner, rc = _run_tool(remote, root, "runner", "--push", "--prune")
+    assert rc == 2
+    assert _remote_refs(remote) == [f"kb-rescue/main-2026-11-25-{sha}"]
+    assert "- obs 9" in _read(runner, "knowledge-base/wiki/index.md")
+
+
 def test_a_handwritten_draft_in_todays_session_log_survives_the_fold(world):
     """P1 (8 巡目): 今日の session log の未 commit 下書きは、post-commit 掃除で消してはいけない。"""
     host, other, remote, root = world["host"], world["other"], world["remote"], world["root"]
