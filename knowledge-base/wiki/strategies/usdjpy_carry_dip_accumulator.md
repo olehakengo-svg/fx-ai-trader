@@ -546,3 +546,12 @@ Kalman D7 / vix_carry / ZZ v60 と同系の意図的例外。**LIVE flip は別�
 - 🔑 台帳: `eq_current_jpy` ¥323,293.23 → ¥323,346.23 (**+¥53.00 = broker +235 −182**、残差 0)。#1347157 −¥182 は PR #382 (writer が実約定 units を読む) 後の初計上 = 18.2p × ¥10 × 1,000u で一致 (lossy 解消 1 例目、`dd-ledger-broker-close-first-booking-readout` の材料; 同 readout は 11-20 期日超過で autopilot 沈黙中)
 - 執行 QA: live-eligible は本戦略 2 (sent 2 / filled 2、乖離 0)、他戦略 7 = `agg_kelly` −0.215 blocked。SVK 11 月 26 RT −¥2,070 で停止 3 run 連続、NAV ¥271,770.41 (+¥89.25 = +53 + financing 36.25)、実 DD −24.32%。11 月 戦略 +¥282
 - 詳細 [[2026-11-24]] 戦略 LIVE 節 / guard 節 / [[daily-observations-2026-11]] O-2026-11-24-1
+
+## ⚪🔴 2026-11-24 22:51Z 再実行 (wiki-daily、09:54Z〜22:51Z = 12.95 h): **LIVE fill 0 / 決済 0 (N 35 / +186.9 / EV +5.34 / WR 54.3% / broker +¥1,677 不変)、candidate 0 — guard 状態消失 16・17 例目 (material 0)、`strategy_kelly` insufficient n 5 不変**
+
+- broker 完全静止: `lastTransactionID` 1347162 不変 (tx 0)、NAV ¥271,770.4111 ±¥0、open 0。#1347157 決済 (02:04Z) 以後 `daytrade_1h` × USD_JPY の audit 候補行 **0** — USD_JPY は 09:58Z 159.542 (窓高値) → 14:01Z 159.082 (窓安値、−46p) → 20:54Z 159.246 で signal 158.963 より上を推移 = dip 条件の再成立なし (記述級、parquet 18.8 d stale で条件再構成は不可)
+- 🔴 guard 状態消失 **16・17 例目**: 09:54Z 更新で書いた「5.3 d 再起動なし」は 10:22Z に終了 — PR #384 deploy 失敗 (sentry-sdk 3.0.0) による前ビルド再起動 + PR #385 修理 deploy 10:41:23Z (`engine_pid` 130 → 105 → 133 / import 39 → 42)。本戦略の live trail は本窓 0 のため material 0 (15 例目の partial とは異なる)。累計 17 例。詳細 [[storm-guard-design-2026-09-22]] 追補 2026-11-24 22:51Z
+- risk 30d: `effective_date_from` 10-25T22:51:10 (n 7、出 0 / 入 0)、`strategy_kelly` insufficient (n 5) / `strategy_dsr` n 5 / DSR 0.527 / 全体 half 0.0802 — **全て bit-identical**。台帳 `eq_current_jpy` ¥323,346.23 不変 (origin PR #384 の dd-ledger readout も同じ −¥182 一致を記録、`OANDA_SL_TP` 0 件で registry 期日 12-04 へ)
+- 執行 QA: live-eligible 1 = 他戦略 blocked 1 (`donchian_momentum_breakout` NZD_USD、`agg_kelly` −0.223)、本戦略 0。SVK 0 RT (停止 4 run 連続)。11 月 戦略 +¥282 不変
+- 詳細 [[2026-11-24]] 22:51Z 再実行 節 / [[daily-observations-2026-11]] O-2026-11-24-2
+
