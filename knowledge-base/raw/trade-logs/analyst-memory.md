@@ -6624,6 +6624,16 @@ scalp系全体でshadow demotionによるblockが支配的。これはペアレ�
 - `scalp:r2_shadow_demoted_cell`（811件）、`scalp_eur`（604件）、`scalp_5m`（351件）など、**Scalpファミリー全体でR2降格ブロックが支配的**。
 - R2 CRITICAL評価を受けたセルがエントリーを遮断し続けている。これはシステムが意図通りリスク管理している証左でもあるが、同時に昇格候補が育たない構造的制約でもある。
 
+### 2026-11-28 (Pre-Tokyo Briefing)
+前日（2026-11-27）はトレードゼロ。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後累計でも有効トレードは `usdjpy_carry_dip_accumulator / USD_JPY` の N=2 のみ（PnL +5.3p）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全戦略でN=2のみ**。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）いずれも判定不能。
+- 27モード稼働中、全モードでTrades=0。前日・当日ともにフィルが発生していない。
+- Block Counts TOP15を見ると、主因は以下の3系統：
+- **r2_shadow_demoted_cell が全ブロックの推定50%超を占める**。scalp / scalp_eur / scalp_5m / scalp_5m_eur / scalp_5m_gbp / daytrade_1h_usdchf が該当。これらは現在シャドウトレードすら本番に昇格できない状態。
+- DD 10.01%（¥35,942）でLot Mult = 0.2x（Defensive ON）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
